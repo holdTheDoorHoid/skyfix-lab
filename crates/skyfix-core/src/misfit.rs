@@ -71,7 +71,7 @@ use std::f64::consts::{FRAC_PI_2, PI};
 
 use crate::geometry::{
     CircleIntersection, Point, altitude_azimuth, angular_distance, apply_tangent_step,
-    geographic_position, tangent_row, two_circle_intersections,
+    geographic_position, initial_bearing, tangent_row, two_circle_intersections,
 };
 use crate::linalg;
 use crate::types::{FixCandidate, FixResult, LatLon, Sight, SolveOptions};
@@ -89,6 +89,8 @@ const MAX_POLISHED: usize = 32;
 const WELL_DETERMINED_CONDITION: f64 = 1e6;
 /// Distinct circles used for the cocked-hat spread of the default frame.
 const MAX_HAT_CIRCLES: usize = 12;
+/// Circles crossing at a shallower angle do not count toward the cocked hat.
+const MIN_HAT_CROSSING_DEG: f64 = 10.0;
 
 const LM_LAMBDA_INIT: f64 = 1e-8;
 const LM_LAMBDA_MIN: f64 = 1e-14;
@@ -1155,8 +1157,8 @@ pub fn grid_for_solve(
 ///
 /// - A unique fix: centred on it, reaching 1.6 times the largest of the 3-sigma extent of
 ///   its covariance (clock term removed: the map does not show it), the cocked hat (the
-///   farthest pairwise intersection of the circles near the fix) and 3 sigma of the
-///   noisiest sight (1' of altitude is 1 NM).
+///   farthest pairwise intersection of the circles near the fix, for circles crossing at
+///   10 degrees or more) and 3 sigma of the noisiest sight (1' of altitude is 1 NM).
 /// - Ambiguous: every candidate within the 95 % margin with that sigma allowance round
 ///   it, and 15 % of the span added on each side, so every basin is on the map.
 /// - No point fix: round the initializer, reaching 1.5 times past the farthest circle's
@@ -1308,8 +1310,11 @@ fn three_sigma_extent_nm(fix: &crate::types::Fix) -> f64 {
     (DELTA_CHI2_TWO_UNKNOWNS[2] * largest).sqrt() / NM_M
 }
 
-/// The farthest of the pairwise circle intersections nearest `centre`, nautical miles,
-/// ignoring any beyond `limit_nm` (nearly parallel circles meet far away).
+/// The farthest of the pairwise circle intersections nearest `centre`, nautical miles:
+/// the navigator's cocked hat. Pairs crossing at less than [`MIN_HAT_CROSSING_DEG`] are
+/// left out (two sights of one star a minute apart cross at a fraction of a degree, and an
+/// arcminute of noise moves such a crossing hundreds of miles), and so is any crossing
+/// beyond `limit_nm`.
 fn cocked_hat_nm(usable: &[&Sight], centre: Point, limit_nm: f64) -> f64 {
     let mut distinct: Vec<&Sight> = Vec::new();
     for s in usable {
@@ -1323,6 +1328,7 @@ fn cocked_hat_nm(usable: &[&Sight], centre: Point, limit_nm: f64) -> f64 {
             }
         }
     }
+    let min_crossing = MIN_HAT_CROSSING_DEG.to_radians();
     let mut farthest = 0.0f64;
     for (i, a) in distinct.iter().enumerate() {
         for b in &distinct[i + 1..] {
@@ -1331,20 +1337,26 @@ fn cocked_hat_nm(usable: &[&Sight], centre: Point, limit_nm: f64) -> f64 {
             if !(z1 > 0.0 && z1 < PI && z2 > 0.0 && z2 < PI) {
                 continue;
             }
-            let d = match two_circle_intersections(
+            let (gp1, gp2) = (
                 geographic_position(a.gha_rad, a.dec_rad),
-                z1,
                 geographic_position(b.gha_rad, b.dec_rad),
-                z2,
-                1e-9,
-            ) {
+            );
+            let p = match two_circle_intersections(gp1, z1, gp2, z2, 1e-9) {
                 CircleIntersection::Two(p, q) => {
-                    angular_distance(centre, p).min(angular_distance(centre, q))
+                    if angular_distance(centre, p) <= angular_distance(centre, q) {
+                        p
+                    } else {
+                        q
+                    }
                 }
-                CircleIntersection::Tangent(p) => angular_distance(centre, p),
                 _ => continue,
             };
-            let d_nm = rad_to_nm(d);
+            // The circles cross at the difference of the bodies' azimuths from there.
+            let turn = (initial_bearing(p, gp1) - initial_bearing(p, gp2)).rem_euclid(PI);
+            if turn.min(PI - turn) < min_crossing {
+                continue;
+            }
+            let d_nm = rad_to_nm(angular_distance(centre, p));
             if d_nm <= limit_nm {
                 farthest = farthest.max(d_nm);
             }
