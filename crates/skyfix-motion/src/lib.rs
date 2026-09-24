@@ -27,6 +27,8 @@
 //!   displacement, its great-circle advance, and the 2x2 covariance of that displacement.
 //! - [`running_fix`]: each sight converted to an equivalent stationary sight at a common
 //!   reference time, then handed to `skyfix_core::solver::solve` unchanged.
+//! - [`request`]: the running fix as one request (a session, the legs, their sigmas and
+//!   the solver options), shared by `skyfix running-fix` and the WASM `running_fix`.
 //! - [`compare`]: the three measurement types, the disagreement statistic, the
 //!   indistinguishable-causes statement, and scale-aware odometry integration.
 //! - [`replay`]: a celestial fix series replayed against an independently sourced
@@ -41,6 +43,7 @@
 
 pub mod compare;
 pub mod replay;
+pub mod request;
 pub mod rng;
 pub mod running_fix;
 pub mod scenarios;

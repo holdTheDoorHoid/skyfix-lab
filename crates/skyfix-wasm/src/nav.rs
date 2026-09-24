@@ -13,22 +13,27 @@
 //! is tested natively without a JavaScript runtime. Errors throw a string.
 
 use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use skyfix_core::methods::polaris::PolarisTableSource;
 use skyfix_core::methods::{averaging, noon, polaris};
-use skyfix_core::reduce::{DirectionSource, SuppliedOnly, reduce_session_partitioned, to_sights};
-use skyfix_core::time::{format_utc, parse_utc};
+use skyfix_core::reduce::{DirectionSource, SuppliedOnly};
 use skyfix_core::types::{
-    AveragedSight, AveragingOptions, FixResult, GeocentricDirection, LatLon, NoonSightOptions,
-    NoonSightResult, PolarisOptions, PolarisResult, ReducedSight, Session, SolveOptions, Warning,
+    AveragedSight, AveragingOptions, NoonSightOptions, NoonSightResult, PolarisOptions,
+    PolarisResult, Session,
 };
-use skyfix_ephemeris::{AstroProvider, ProviderSource};
-use skyfix_motion::running_fix::{TimedSight, running_fix_report};
-use skyfix_motion::track::{Leg, MotionUncertainty, Track};
+use skyfix_ephemeris::ProviderSource;
 
 use crate::{apply_session_position, auto_provider, err, to_js};
+
+// The running fix's wire shapes and the whole of its work live in `skyfix-motion`, and
+// the Almanac-style Polaris terms' GHA of Aries in `skyfix-ephemeris`, so the command
+// line (`skyfix running-fix`, `skyfix polaris`) runs exactly this code. Re-exported
+// here unchanged: EXPLORER_API.md's `running_fix` shapes are these types.
+pub use skyfix_ephemeris::stars::EphemerisPolarisTable;
+pub use skyfix_motion::request::{
+    MotionUncertaintyInput, RunningFixLeg, RunningFixOutput, RunningFixRequest,
+    SigmaInflationReport,
+};
 
 // ---------------------------------------------------------------------------
 // Exports
@@ -132,214 +137,20 @@ pub fn running_fix_json(
     ephemeris_mode: &str,
 ) -> Result<RunningFixOutput, String> {
     let session = session_from(session_json)?;
-    let request: RunningFixRequest = document(request_json, "running fix request")?;
+    let mut request: RunningFixRequest = document(request_json, "running fix request")?;
     let source = source_for(ephemeris_mode)?;
-    let (reduced, rejected) = reduce_session_partitioned(&session, source.as_ref());
-    if reduced.is_empty() {
-        return Err(if rejected.is_empty() {
-            "a running fix needs at least one observation".to_string()
-        } else {
-            format!(
-                "every observation was rejected before the running fix: {}",
-                rejected
-                    .iter()
-                    .map(|e| e.to_string())
-                    .collect::<Vec<_>>()
-                    .join("; ")
-            )
-        });
+    // The session's assumed position and clock uncertainty fill the options exactly as
+    // they do for `solve`; `running_fix_session` then uses them as given.
+    apply_session_position(&session, &mut request.options);
+    if request.options.clock_uncertainty_s == 0.0 {
+        request.options.clock_uncertainty_s = session.clock.uncertainty_s;
     }
-
-    let mut options = request.options.clone();
-    apply_session_position(&session, &mut options);
-    if options.clock_uncertainty_s == 0.0 {
-        options.clock_uncertainty_s = session.clock.uncertainty_s;
-    }
-    let timed: Vec<TimedSight> = to_sights(&reduced, source.as_ref())
-        .into_iter()
-        .zip(&reduced)
-        .map(|(s, r)| TimedSight::new(s, r.jd_utc))
-        .collect();
-    let last = reduced
-        .iter()
-        .map(|r| r.jd_utc)
-        .fold(f64::NEG_INFINITY, f64::max);
-    let first = reduced
-        .iter()
-        .map(|r| r.jd_utc)
-        .fold(f64::INFINITY, f64::min);
-    let reference = match &request.reference_utc {
-        Some(u) => parse_utc(u).map_err(|e| format!("reference_utc: {e}"))?,
-        None => last,
-    };
-    let track = build_track(&request, first.min(reference))?;
-    let mu = request.motion_uncertainty.to_motion()?;
-
-    let (mut result, prepared) = running_fix_report(&timed, &track, &mu, reference, &options);
-    let mut extra: Vec<Warning> = rejected
-        .iter()
-        .map(|e| Warning::Other {
-            message: format!("{e}. This sight was not used in the fix."),
-        })
-        .collect();
-    if mu.is_zero() {
-        extra.push(Warning::Other {
-            message: "no dead-reckoning uncertainty was stated (speed, course and random-walk \
-                      sigmas are all zero), so the running fix treats the run between the \
-                      sights as exact; state them to have the fix's sigma include it"
-                .to_string(),
-        });
-    }
-    let warnings = match &mut result {
-        FixResult::Underdetermined { warnings, .. }
-        | FixResult::Ambiguous { warnings, .. }
-        | FixResult::Unique { warnings, .. }
-        | FixResult::Failed { warnings, .. } => warnings,
-    };
-    warnings.extend(extra);
-
-    Ok(RunningFixOutput {
-        result,
-        reference_utc: format_utc(reference),
-        reference_jd_utc: reference,
-        applied: prepared.applied,
-        passes: prepared.passes,
-        reference_estimate: prepared.reference_estimate,
-        inflations: prepared
-            .inflations
-            .iter()
-            .map(|i| SigmaInflationReport {
-                id: i.id.clone(),
-                hours_to_reference: i.hours_to_reference,
-                run_nm: i.run_nm,
-                zn_deg: i.zn_deg,
-                sigma_sight_arcmin: i.sigma_sight_arcmin,
-                sigma_motion_arcmin: i.sigma_motion_arcmin,
-                sigma_total_arcmin: i.sigma_total_arcmin,
-            })
-            .collect(),
-        sights: reduced,
-    })
-}
-
-// ---------------------------------------------------------------------------
-// Wire shapes owned by this module
-// ---------------------------------------------------------------------------
-
-/// The running fix's request: the dead-reckoning track, its uncertainty, the instant,
-/// and the solver options. Every field defaults except `legs`.
-#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
-pub struct RunningFixRequest {
-    /// The instant the fix is for, RFC 3339 UTC. Default: the last sight (after the
-    /// session's chronometer correction).
-    pub reference_utc: Option<String>,
-    /// Constant course-and-speed legs, in time order. The first leg's `start_utc` may be
-    /// left out: it then starts at the earliest sight (or the reference, if earlier).
-    pub legs: Vec<RunningFixLeg>,
-    /// When the track stops; after it the vessel is treated as stationary.
-    pub end_utc: Option<String>,
-    /// 1-sigma dead-reckoning errors. All zero (the default) means "not stated", and
-    /// the result says so rather than inventing values (docs/MOTION.md section 1).
-    pub motion_uncertainty: MotionUncertaintyInput,
-    /// Solver options, exactly as `solve` takes them.
-    pub options: SolveOptions,
-}
-
-/// One dead-reckoning leg (docs/MOTION.md section 1).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct RunningFixLeg {
-    #[serde(default)]
-    pub start_utc: Option<String>,
-    /// Course over the ground, degrees true.
-    pub course_deg: f64,
-    /// Speed over the ground, knots.
-    pub speed_kn: f64,
-}
-
-/// `skyfix_motion::track::MotionUncertainty` with every field defaulting to zero.
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
-#[serde(default)]
-pub struct MotionUncertaintyInput {
-    pub speed_sigma_kn: f64,
-    pub course_sigma_deg: f64,
-    pub random_walk_nm_per_sqrt_hour: f64,
-}
-
-impl MotionUncertaintyInput {
-    fn to_motion(self) -> Result<MotionUncertainty, String> {
-        for (name, v) in [
-            ("speed_sigma_kn", self.speed_sigma_kn),
-            ("course_sigma_deg", self.course_sigma_deg),
-            (
-                "random_walk_nm_per_sqrt_hour",
-                self.random_walk_nm_per_sqrt_hour,
-            ),
-        ] {
-            if !v.is_finite() || v < 0.0 {
-                return Err(format!(
-                    "motion_uncertainty.{name} must be finite and >= 0 (got {v})"
-                ));
-            }
-        }
-        Ok(MotionUncertainty::new(
-            self.speed_sigma_kn,
-            self.course_sigma_deg,
-            self.random_walk_nm_per_sqrt_hour,
-        ))
-    }
-}
-
-/// What the dead reckoning did to one sight's sigma (skyfix-motion `SigmaInflation`).
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct SigmaInflationReport {
-    pub id: String,
-    /// Hours from the sight to the reference instant, signed (negative: sight first).
-    pub hours_to_reference: f64,
-    pub run_nm: f64,
-    pub zn_deg: f64,
-    pub sigma_sight_arcmin: f64,
-    pub sigma_motion_arcmin: f64,
-    pub sigma_total_arcmin: f64,
-}
-
-/// `running_fix` result: the fix itself (the same `FixResult` `solve` returns) and the
-/// workings of the advance.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-pub struct RunningFixOutput {
-    pub result: FixResult,
-    pub reference_utc: String,
-    pub reference_jd_utc: f64,
-    /// `false` when no reference-position estimate could be formed and the sights were
-    /// solved as if the vessel had been stationary (the result's warnings say so).
-    pub applied: bool,
-    pub passes: u32,
-    /// Where the advance was linearised.
-    pub reference_estimate: Option<LatLon>,
-    pub inflations: Vec<SigmaInflationReport>,
-    /// Every sight through the correction chain, with its workings.
-    pub sights: Vec<ReducedSight>,
+    skyfix_motion::request::running_fix_session(&session, &request, source.as_ref())
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/// GHA Aries and Polaris from `skyfix-ephemeris` (DUT1 = 0, CONVENTIONS 6) for the
-/// Almanac-style teaching terms. They are display only: the Polaris latitude itself uses
-/// the session's direction source.
-pub struct EphemerisPolarisTable;
-
-impl PolarisTableSource for EphemerisPolarisTable {
-    fn gha_aries_deg(&self, jd_utc: f64) -> f64 {
-        skyfix_ephemeris::sidereal::gha_aries_deg(jd_utc, 0.0)
-    }
-    fn polaris(&self, jd_utc: f64) -> Result<GeocentricDirection, String> {
-        skyfix_ephemeris::stars::StarProvider::new()
-            .geocentric("Polaris", jd_utc)
-            .map_err(|e| e.to_string())
-    }
-}
 
 /// The direction source for an `ephemeris_mode`, as `lib.rs` defines the modes, but
 /// with a plain error so the `*_json` functions run natively.
@@ -368,41 +179,14 @@ fn document<T: DeserializeOwned + Default>(json: &str, what: &str) -> Result<T, 
     serde_json::from_str(trimmed).map_err(|e| format!("{what}: {e}"))
 }
 
-fn build_track(request: &RunningFixRequest, default_start: f64) -> Result<Track, String> {
-    if request.legs.is_empty() {
-        return Err(
-            "a running fix needs at least one dead-reckoning leg (course_deg and speed_kn)"
-                .to_string(),
-        );
-    }
-    let mut legs = Vec::with_capacity(request.legs.len());
-    for (i, leg) in request.legs.iter().enumerate() {
-        if !leg.course_deg.is_finite() || !leg.speed_kn.is_finite() {
-            return Err(format!("legs[{i}]: course_deg and speed_kn must be finite"));
-        }
-        let start = match (&leg.start_utc, i) {
-            (Some(u), _) => parse_utc(u).map_err(|e| format!("legs[{i}].start_utc: {e}"))?,
-            (None, 0) => default_start,
-            (None, _) => {
-                return Err(format!(
-                    "legs[{i}] needs a start_utc: only the first leg may leave it out"
-                ));
-            }
-        };
-        legs.push(Leg::new(start, leg.course_deg, leg.speed_kn));
-    }
-    Ok(match &request.end_utc {
-        Some(u) => Track::with_end(legs, parse_utc(u).map_err(|e| format!("end_utc: {e}"))?),
-        None => Track::new(legs),
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use serde_json::{Value, json};
     use skyfix_core::geometry::{Point, angular_distance};
+    use skyfix_core::types::{FixResult, LatLon};
     use skyfix_core::units::rad_to_m;
+    use skyfix_ephemeris::AstroProvider;
 
     const FIXTURE: &str = include_str!("../../../fixtures/reference/nav_methods.json");
     const BOOK: &str = include_str!("../../../fixtures/reference/bowditch_worked_examples.json");

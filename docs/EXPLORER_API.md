@@ -267,7 +267,8 @@ implementations keep compiling.
 What each method computes, and why, is `docs/NAVIGATION_METHODS.md`; this section is the
 wire. TypeScript: the `NavEngine` interface and the types after it in
 `web/src/next/engine/types.ts`. Rust: the shapes live in `skyfix_core::types`
-("Navigation methods") except the running fix's, which live in `skyfix_wasm::nav`.
+("Navigation methods") except the running fix's, which live in `skyfix_motion::request`
+(re-exported unchanged by `skyfix_wasm::nav`).
 
 **Common to all four.**
 

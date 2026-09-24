@@ -63,8 +63,9 @@ const MEAN_SAMPLES: usize = 73;
 
 /// What the Almanac-style teaching terms need beyond a direction source: the GHA of
 /// Aries, and Polaris' direction on any day of the year (for the year's mean position).
-/// Implemented in the WASM adapter with `skyfix-ephemeris`; the core ships no sidereal
-/// time of its own.
+/// Implemented with `skyfix-ephemeris` by `skyfix_ephemeris::stars::EphemerisPolarisTable`,
+/// which the WASM adapter and `skyfix polaris` both pass; the core ships no sidereal time
+/// of its own.
 pub trait PolarisTableSource {
     /// Greenwich hour angle of the First Point of Aries, degrees, at `jd_utc`.
     fn gha_aries_deg(&self, jd_utc: f64) -> f64;

@@ -1,0 +1,42 @@
+EVENTS
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200)
+Day        2026-09-24 in UTC-04:00: 2026-09-24T04:00:00Z to 2026-09-25T04:00:00Z
+Horizon    standard: rise and set when the centre is at -50' for the Sun, -34' - SD for
+           the Moon and -34' for planets and stars
+
+Sky phases
+  local     UTC                   phase
+  00:00:00  2026-09-24T04:00:00Z  night until 05:19:36
+  05:19:36  2026-09-24T09:19:36Z  astronomical twilight until 05:51:41
+  05:51:41  2026-09-24T09:51:41Z  nautical twilight until 06:23:15
+  06:23:15  2026-09-24T10:23:15Z  civil twilight until 06:50:15
+  06:50:15  2026-09-24T10:50:15Z  day until 18:54:19
+  18:54:19  2026-09-24T22:54:19Z  civil twilight until 19:21:16
+  19:21:16  2026-09-24T23:21:16Z  nautical twilight until 19:52:45
+  19:52:45  2026-09-24T23:52:45Z  astronomical twilight until 20:24:44
+  20:24:44  2026-09-25T00:24:44Z  night until the end of the day
+
+Sun   day length 12 h 04 min
+  local     UTC                   event                    alt        Az
+  00:52:47  2026-09-24T04:52:47Z  lower transit       -50 30.9    0 00.0
+  05:19:36  2026-09-24T09:19:36Z  astronomical dawn   -18 00.0   74 58.5
+  05:51:41  2026-09-24T09:51:41Z  nautical dawn       -12 00.0   80 29.2
+  06:23:15  2026-09-24T10:23:15Z  civil dawn          - 6 00.0   85 41.0
+  06:50:15  2026-09-24T10:50:15Z  rise                - 0 50.0   90 02.3
+  12:52:37  2026-09-24T16:52:37Z  transit             +49 23.1  180 00.0
+  18:54:19  2026-09-24T22:54:19Z  set                 - 0 50.0  269 42.3
+  19:21:16  2026-09-24T23:21:16Z  civil dusk          - 6 00.0  274 02.4
+  19:52:45  2026-09-24T23:52:45Z  nautical dusk       -12 00.0  279 12.4
+  20:24:44  2026-09-25T00:24:44Z  astronomical dusk   -18 00.0  284 40.7
+
+Moon
+  local     UTC                   event                    alt        Az
+  04:30:45  2026-09-24T08:30:45Z  set                 - 0 49.3  256 29.7
+  11:18:18  2026-09-24T15:18:18Z  lower transit       -59 08.2    0 00.0
+  17:54:15  2026-09-24T21:54:15Z  rise                - 0 49.4   99 13.9
+  23:40:19  2026-09-25T03:40:19Z  transit             +43 49.3  180 00.0
+
+Times are to the nearest second, and --format json carries the milliseconds. alt is the
+geometric altitude of the centre (no refraction; at a rise or set it is the threshold
+used) and Az is true. Rise and set assume the standard 34' of refraction at the horizon;
+the real air changes it, and with it the times, by a minute or more (CONVENTIONS 13.3).

@@ -279,8 +279,9 @@ inside the table's range in §6.1; the printed table rounds each term to 0.1′)
 from 0° to 68° N; beyond it `within_printed_table` is false and the note says only the
 rigorous latitude applies. The latitude a1 is entered with is the DR latitude, as the
 navigator would enter it. The terms need the GHA of Aries, which the core does not
-compute: the caller supplies a `PolarisTableSource` (the WASM adapter uses
-`skyfix-ephemeris`).
+compute: the caller supplies a `PolarisTableSource`
+(`skyfix_ephemeris::stars::EphemerisPolarisTable`, which the WASM adapter and
+`skyfix polaris` both pass).
 
 ---
 
@@ -365,6 +366,11 @@ only exposes it:
   instant, the linearisation point, the passes and each sight's sigma inflation.
 - `skyfix_motion::running_fix::running_fix_report` was added so the workings come from the
   same call as the fix; `running_fix` itself now delegates to it and is unchanged.
+- The request itself — reducing the session, building the track and the motion sigmas,
+  the warnings for rejected sights and unstated sigmas — is
+  `skyfix_motion::request::running_fix_session`, so the WASM export and `skyfix
+  running-fix` run the same code. Each fills the solver options from the session by its
+  own `solve` rules first.
 - Motion sigmas all zero (the default) mean "not stated": the fix then treats the run as
   exact, and the result says so rather than inventing values.
 - The caveat from `docs/MOTION.md` travels with every result: the inflated sigmas are

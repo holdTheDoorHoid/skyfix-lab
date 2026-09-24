@@ -1,0 +1,283 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Philadelphia equinox noon, 21 Sun sights",
+    "notes": "Transcribed from fixtures/reference/nav_methods.json (Skyfield, case philadelphia-equinox-sun): 21 noise-free lower-limb sextant readings every two minutes over +/-20 minutes of meridian passage at Philadelphia City Hall. The assumed position is the case's DR, 12 NM from the truth. The truth lives in the reference fixture and nowhere here.",
+    "kind": "simulated"
+  },
+  "observer": {
+    "height_of_eye_m": 3.0,
+    "pressure_hpa": 1010.0,
+    "temperature_c": 10.0,
+    "assumed_position": {
+      "lat_deg": 39.779322089,
+      "lon_deg": -75.295321012
+    },
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "simulated sextant",
+    "index_correction_arcmin": -1.2,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "n00",
+      "body": "Sun",
+      "utc": "2026-09-23T16:32:58.000Z",
+      "altitude_deg": 49.340197617,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n01",
+      "body": "Sun",
+      "utc": "2026-09-23T16:34:58.000Z",
+      "altitude_deg": 49.38856457,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n02",
+      "body": "Sun",
+      "utc": "2026-09-23T16:36:58.000Z",
+      "altitude_deg": 49.43183289,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n03",
+      "body": "Sun",
+      "utc": "2026-09-23T16:38:58.000Z",
+      "altitude_deg": 49.469985671,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n04",
+      "body": "Sun",
+      "utc": "2026-09-23T16:40:58.000Z",
+      "altitude_deg": 49.503007905,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n05",
+      "body": "Sun",
+      "utc": "2026-09-23T16:42:58.000Z",
+      "altitude_deg": 49.530886587,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n06",
+      "body": "Sun",
+      "utc": "2026-09-23T16:44:58.000Z",
+      "altitude_deg": 49.553610688,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n07",
+      "body": "Sun",
+      "utc": "2026-09-23T16:46:58.000Z",
+      "altitude_deg": 49.571171188,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n08",
+      "body": "Sun",
+      "utc": "2026-09-23T16:48:58.000Z",
+      "altitude_deg": 49.583561092,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n09",
+      "body": "Sun",
+      "utc": "2026-09-23T16:50:58.000Z",
+      "altitude_deg": 49.590775449,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n10",
+      "body": "Sun",
+      "utc": "2026-09-23T16:52:58.000Z",
+      "altitude_deg": 49.59281135,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n11",
+      "body": "Sun",
+      "utc": "2026-09-23T16:54:58.000Z",
+      "altitude_deg": 49.58966795,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n12",
+      "body": "Sun",
+      "utc": "2026-09-23T16:56:58.000Z",
+      "altitude_deg": 49.581346455,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n13",
+      "body": "Sun",
+      "utc": "2026-09-23T16:58:58.000Z",
+      "altitude_deg": 49.567850129,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n14",
+      "body": "Sun",
+      "utc": "2026-09-23T17:00:58.000Z",
+      "altitude_deg": 49.54918428,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n15",
+      "body": "Sun",
+      "utc": "2026-09-23T17:02:58.000Z",
+      "altitude_deg": 49.525356249,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n16",
+      "body": "Sun",
+      "utc": "2026-09-23T17:04:58.000Z",
+      "altitude_deg": 49.496375423,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n17",
+      "body": "Sun",
+      "utc": "2026-09-23T17:06:58.000Z",
+      "altitude_deg": 49.462253172,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n18",
+      "body": "Sun",
+      "utc": "2026-09-23T17:08:58.000Z",
+      "altitude_deg": 49.423002857,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n19",
+      "body": "Sun",
+      "utc": "2026-09-23T17:10:58.000Z",
+      "altitude_deg": 49.378639799,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "n20",
+      "body": "Sun",
+      "utc": "2026-09-23T17:12:58.000Z",
+      "altitude_deg": 49.329181231,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    }
+  ]
+}

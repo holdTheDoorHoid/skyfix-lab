@@ -1,0 +1,64 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Running fix, three stars an hour and a half apart, 12 kn due north",
+    "notes": "Transcribed from fixtures/reference/nav_methods.json (Skyfield, case due-north-12kn): three noise-free star sights taken 1.5 hours apart from a vessel making 12 knots due north from 00:00Z. No assumed position: the running fix finds its own linearisation point.",
+    "kind": "simulated"
+  },
+  "observer": {
+    "height_of_eye_m": 3.0,
+    "pressure_hpa": 1010.0,
+    "temperature_c": 10.0,
+    "assumed_position": null,
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "simulated sextant",
+    "index_correction_arcmin": -1.2,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "r0",
+      "body": "Schedar",
+      "utc": "2026-10-01T00:00:00.000Z",
+      "altitude_deg": 42.597590097,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "r1",
+      "body": "Enif",
+      "utc": "2026-10-01T01:30:00.000Z",
+      "altitude_deg": 59.566803601,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "r2",
+      "body": "Vega",
+      "utc": "2026-10-01T03:00:00.000Z",
+      "altitude_deg": 40.942911178,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+SKY
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84 ellipsoid
+Time       2026-10-01T01:30:00Z
+Sky        night: the Sun's centre is at -31 44.0, geometric (CONVENTIONS 13.4)
+Aries      GHA 32 18.4
+
+  body                    alt        Az       GHA        Dec     mag   lit  con
+  Sun                -31 05.2  295 43.9  205 03.0  S  3 08.0  -26.74     -  Vir
+  Moon               + 5 24.9   60 52.5  330 29.9  N 26 08.9  -11.29   77%  Tau
+  Mercury            -22 29.9  271 42.1  184 17.8  S 13 22.9   -0.10   77%  Vir
+  Venus              -22 47.3  261 36.3  178 42.9  S 20 58.7   -4.77   15%  Vir
+  Mars               -27 27.0   13 43.0  268 05.5  N 20 45.9    1.12   90%  Cnc
+  Jupiter            -33 41.7  354 04.7  250 05.6  N 15 30.3   -1.87  100%  Leo
+  Saturn             +27 54.2  112 55.2   20 36.3  N  2 04.8    0.34  100%  Cet
+  Uranus             + 1 54.0   63 30.8  328 39.9  N 21 04.4    5.65  100%  Tau
+  Neptune            +32 02.7  121 53.3   29 07.0  S  0 09.9    7.68  100%  Psc
+  Vega               +61 04.9  280 03.4  112 50.6  N 38 48.8    0.03     -  Lyr
+  Polaris            +39 58.2    0 49.0  345 13.7  N 89 22.4    1.97     -  UMi
+  Sirius             -50 49.1   63 21.6  290 43.4  S 16 44.9   -1.44     -  CMa
+
+6 of 12 bodies are above the horizon (upper limb above the sea-level horizon).
+
+alt is the topocentric apparent altitude of the centre, what the eye sees: WGS84 site,
+parallax applied, refraction for 1010 hPa and 10 C (display only, CONVENTIONS 13.2);
+below -1 degree the refraction is held at its -1 degree value, so there alt is a display
+value and not a measurement. Az is true, clockwise from north. GHA and Dec are apparent
+geocentric of date, as the Nautical Almanac tabulates them. lit is the illuminated
+fraction of the disc. con is the IAU constellation, from the display-only star field
+(CONVENTIONS 13.6). A navigator's Hc and Zn at this position are hc_deg and zn_deg in
+--format json; skyfix predict gives the sextant reading.
