@@ -206,8 +206,9 @@ pub fn resolve_bodies<S: AsRef<str>>(names: &[S]) -> Result<Vec<&'static str>, A
 /// Check an observing site and normalise its longitude to `(-180, 180]`.
 ///
 /// Latitude `[-90, 90]`; height above the ellipsoid within -1 km .. 100 km; pressure
-/// `0 ..= 2000` hPa (0 turns refraction off); temperature above absolute zero and
-/// below 100 C. Everything must be finite.
+/// `0 ..= 2000` hPa (0 turns refraction off); temperature above -273 C (where the
+/// refraction scaling `283 / (273 + T)` of CONVENTIONS 13.2 blows up, the same bound
+/// the correction chain applies) and below 100 C. Everything must be finite.
 pub fn checked_site(site: &Site) -> Result<Site, AlmanacError> {
     let finite = [
         ("lat_deg", site.lat_deg),
@@ -242,9 +243,10 @@ pub fn checked_site(site: &Site) -> Result<Site, AlmanacError> {
             site.pressure_hpa
         )));
     }
-    if !(site.temperature_c > -273.15 && site.temperature_c < 100.0) {
+    if !(273.0 + site.temperature_c > 0.0 && site.temperature_c < 100.0) {
         return Err(AlmanacError::invalid(format!(
-            "observer temperature_c {} is outside -273.15 .. 100",
+            "observer temperature_c {} is outside -273 .. 100 (the refraction scaling \
+             283 / (273 + T) needs T above -273 C)",
             site.temperature_c
         )));
     }
@@ -639,6 +641,22 @@ mod tests {
             ..Site::new(0.0, 0.0)
         };
         assert!(checked_site(&hot).is_err());
+        // Verifier regression: -273.15 < T <= -273 used to pass, and the display
+        // refraction's 283 / (273 + T) then made alt_apparent_deg infinite (T = -273)
+        // or thousands of degrees below the true altitude (T = -273.1).
+        for t in [-273.0, -273.1] {
+            let cold = Site {
+                temperature_c: t,
+                ..Site::new(0.0, 0.0)
+            };
+            let e = checked_site(&cold).unwrap_err().to_string();
+            assert!(e.contains("temperature_c"), "{e}");
+        }
+        let cold_but_fine = Site {
+            temperature_c: -89.2,
+            ..Site::new(0.0, 0.0)
+        };
+        assert!(checked_site(&cold_but_fine).is_ok());
     }
 
     #[test]
