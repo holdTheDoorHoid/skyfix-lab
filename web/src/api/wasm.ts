@@ -1,19 +1,26 @@
 /**
- * The real adapter: `crates/skyfix-wasm` compiled to WebAssembly.
+ * The real adapter: `crates/skyfix-wasm` compiled to WebAssembly. Nothing it returns is
+ * approximated or stood in for.
  *
  * The package is a build artefact and is not committed, so it is discovered with
- * `import.meta.glob`: when `src/wasm-pkg/` is absent the glob is simply empty and the
- * bundle builds without it. Rebuild it with `npm run wasm` (see web/README.md).
+ * `import.meta.glob`: when `src/wasm-pkg/` is absent the glob is empty and the bundle
+ * still builds. A *production* build of the site with no package is a hard error — see
+ * the guard in `vite.config.ts` and in `index.ts`.
  *
- * Nothing here is loaded over the network: Vite emits the `.wasm` file as a local asset
- * next to the page.
+ * Nothing is loaded over the network: Vite emits the `.wasm` file as a local asset next
+ * to the page.
  */
 
-import type { FixResult, Session, SolveOptions } from '../types.js';
+import type { FixResult, LatLon, Session, SolveOptions } from '../types.js';
 import type {
   CoverageReport,
+  DemoEntry,
   EphemerisMode,
+  Experiment,
+  ExperimentSummary,
   ParsedSession,
+  Plan,
+  PlanOptions,
   ReduceEntry,
   Scenario,
   SimulationOutput,
@@ -27,11 +34,14 @@ interface WasmExports {
   version: () => string;
   parse_session: (json: string) => unknown;
   reduce: (sessionJson: string, ephemerisMode: string) => unknown;
-  solve: (sessionJson: string, optionsJson: string) => unknown;
+  solve: (sessionJson: string, optionsJson: string, ephemerisMode: string) => unknown;
   circle_points: (latGp: number, lonGp: number, zenithDistanceDeg: number, n: number) => unknown;
   simulate: (scenarioJson: string) => unknown;
+  demos: () => unknown;
+  experiment: (experimentJson: string) => unknown;
   catalog: () => unknown;
   coverage: () => unknown;
+  plan: (positionJson: string, utc: string, optionsJson: string) => unknown;
 }
 
 const packageModules = import.meta.glob('../wasm-pkg/skyfix_wasm.js');
@@ -54,8 +64,8 @@ function rethrow(context: string, error: unknown): never {
 
 export class WasmApi implements SkyfixApi {
   readonly kind = 'wasm' as const;
-  readonly description = 'skyfix-core compiled to WebAssembly. Runs entirely in this browser.';
-  readonly mockedCalls = [] as const;
+  readonly description =
+    'skyfix-core, skyfix-ephemeris and skyfix-sim compiled to WebAssembly. Runs entirely in this browser, with no network.';
 
   private constructor(private readonly exports: WasmExports) {}
 
@@ -63,7 +73,7 @@ export class WasmApi implements SkyfixApi {
     const loader = Object.values(packageModules)[0];
     if (!loader) {
       throw new Error(
-        'no WASM package in web/src/wasm-pkg. Build it with `npm run wasm`, or append ?api=mock to the URL.',
+        'no WebAssembly package in web/src/wasm-pkg. Build it with `npm run wasm --prefix web`.',
       );
     }
     const module = (await loader()) as WasmExports;
@@ -96,9 +106,13 @@ export class WasmApi implements SkyfixApi {
     }
   }
 
-  async solve(session: Session, options: SolveOptions): Promise<FixResult> {
+  async solve(session: Session, options: SolveOptions, mode: EphemerisMode): Promise<FixResult> {
     try {
-      return this.exports.solve(JSON.stringify(session), JSON.stringify(options)) as FixResult;
+      return this.exports.solve(
+        JSON.stringify(session),
+        JSON.stringify(options),
+        mode,
+      ) as FixResult;
     } catch (error) {
       return rethrow('solve', error);
     }
@@ -121,11 +135,31 @@ export class WasmApi implements SkyfixApi {
     }
   }
 
+  async demos(): Promise<DemoEntry[]> {
+    return this.exports.demos() as DemoEntry[];
+  }
+
+  async experiment(experiment: Experiment): Promise<ExperimentSummary> {
+    try {
+      return this.exports.experiment(JSON.stringify(experiment)) as ExperimentSummary;
+    } catch (error) {
+      return rethrow('experiment', error);
+    }
+  }
+
   async catalog(): Promise<string[]> {
     return this.exports.catalog() as string[];
   }
 
   async coverage(): Promise<CoverageReport> {
     return this.exports.coverage() as CoverageReport;
+  }
+
+  async plan(position: LatLon, utc: string, options: PlanOptions): Promise<Plan> {
+    try {
+      return this.exports.plan(JSON.stringify(position), utc, JSON.stringify(options)) as Plan;
+    } catch (error) {
+      return rethrow('plan', error);
+    }
   }
 }

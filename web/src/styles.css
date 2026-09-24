@@ -326,3 +326,26 @@ thead th { border-bottom: 2px solid var(--ink-soft); font-size: 0.82rem; text-tr
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* --- fatal start-up failure ---------------------------------------------- */
+
+.fatal { max-width: 70ch; margin: 40px auto; background: var(--paper); border: 2px solid var(--oi-vermillion); padding: 20px 24px; }
+.fatal h1 { font-size: 1.2rem; margin: 12px 0 8px; }
+.fatal p { margin: 0 0 8px; }
+.fatal-banner { font-weight: 700; border-bottom: 2px solid var(--ink); padding-bottom: 8px; }
+
+/* --- simulator: truth and reported are different kinds of thing ---------- */
+
+.group-heading { margin: 18px 0 4px; font-size: 0.95rem; padding-left: 10px; border-left: 6px solid var(--rule); }
+.truth-heading { border-left-color: var(--oi-purple); }
+.reported-heading { border-left-color: var(--oi-sky); }
+.truth-group { border-left: 6px solid var(--oi-purple); padding-left: 10px; background: #fbf4f8; }
+.reported-group { border-left: 6px solid var(--oi-sky); padding-left: 10px; background: #f1f8fd; }
+.sources { margin: 10px 0; }
+.sources summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+
+/* --- planner -------------------------------------------------------------- */
+
+.plan-list { padding-left: 22px; }
+.plan-list li { margin-bottom: 10px; }
+.plan-metrics th[scope='row'] { white-space: nowrap; font-weight: 600; }

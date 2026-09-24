@@ -7,11 +7,26 @@
  */
 
 import { button, checkbox, clear, h, numberInput } from '../dom.js';
-import { degBoth, formatLatLon, formatLatLonDecimal, magnitude, metres, metresBoth } from '../format.js';
+import {
+  degBoth,
+  finiteOr,
+  formatLatLon,
+  formatLatLonDecimal,
+  magnitude,
+  metres,
+  metresBoth,
+} from '../format.js';
 import { renderPlot, defaultPlotView, emptyPlotSpec, type PlotSpec, type PlotView } from '../plot/graticule.js';
 import { renderResiduals } from '../plot/residuals.js';
 import type { Store } from '../store.js';
-import type { CircleOfPosition, Conditioning, FixResult, LatLon, Residual } from '../types.js';
+import type {
+  CircleOfPosition,
+  Conditioning,
+  FixResult,
+  LatLon,
+  Residual,
+  Session,
+} from '../types.js';
 import { note, panel, toolbar, warningList } from './common.js';
 
 /** Plot pan/zoom is view furniture, not application state: kept here between renders. */
@@ -41,7 +56,7 @@ export async function runSolve(store: Store): Promise<void> {
           : null,
       clock_uncertainty_s: store.state.session.clock.uncertainty_s,
     };
-    const fix = await store.api.solve(store.state.session, options);
+    const fix = await store.api.solve(store.state.session, options, store.state.ephemerisMode);
     store.set({ fix, fixError: null, solveOptions: options });
   } catch (error) {
     store.set({ fix: null, fixError: String(error) });
@@ -67,9 +82,11 @@ export function circlesFromReduction(store: Store): CircleOfPosition[] {
 export async function buildPlotSpec(
   store: Store,
   result: FixResult | null,
-  extra: { truth?: LatLon | null } = {},
+  extra: { truth?: LatLon | null; session?: Session | null } = {},
 ): Promise<PlotSpec> {
   const spec = emptyPlotSpec();
+  // Every result kind now carries its circles of position (types.rs, since main), so
+  // the plot never re-derives them; the reduction is only a fallback for a stale result.
   const circles: CircleOfPosition[] =
     result && 'circles' in result && result.circles.length > 0
       ? result.circles
@@ -98,8 +115,9 @@ export async function buildPlotSpec(
     spec.candidates = result.candidates.map((c) => c.position);
   }
 
-  const role = store.state.session.observer.assumed_position_role;
-  const assumed = store.state.session.observer.assumed_position;
+  const session = extra.session ?? store.state.session;
+  const role = session.observer.assumed_position_role;
+  const assumed = session.observer.assumed_position;
   if (assumed && role.role !== 'disabled') {
     spec.assumed = {
       position: assumed,
@@ -114,7 +132,7 @@ export function conditioningBlock(conditioning: Conditioning): HTMLElement {
   const c = conditioning.condition_number;
   const gap = conditioning.max_azimuth_gap_deg;
   const sentences: string[] = [];
-  if (!Number.isFinite(c) || conditioning.rank < 2) {
+  if (c === null || !Number.isFinite(c) || conditioning.rank < 2) {
     sentences.push(
       'These sights do not constrain both components of position. There is a direction in which you could move a long way without changing any predicted altitude.',
     );
@@ -132,7 +150,9 @@ export function conditioningBlock(conditioning: Conditioning): HTMLElement {
     );
   }
   sentences.push(
-    `A one-arcminute error in a single altitude moves this fix by roughly ${metres(conditioning.geometric_dilution_m_per_arcmin)}.`,
+    conditioning.geometric_dilution_m_per_arcmin === null
+      ? 'There is no finite figure for how far a one-arcminute altitude error moves this fix: along the unconstrained direction it moves without limit.'
+      : `A one-arcminute error in a single altitude moves this fix by roughly ${metres(conditioning.geometric_dilution_m_per_arcmin)}.`,
   );
   if (gap > 180) {
     sentences.push(
@@ -148,7 +168,7 @@ export function conditioningBlock(conditioning: Conditioning): HTMLElement {
     h(
       'dl',
       { class: 'facts' },
-      h('div', { class: 'kv' }, h('dt', {}, 'Condition number'), h('dd', {}, magnitude(c))),
+      h('div', { class: 'kv' }, h('dt', {}, 'Condition number'), h('dd', {}, finiteOr(c, magnitude))),
       h('div', { class: 'kv' }, h('dt', {}, 'Rank'), h('dd', {}, `${conditioning.rank} of 2`)),
       h(
         'div',
@@ -160,8 +180,17 @@ export function conditioningBlock(conditioning: Conditioning): HTMLElement {
         'div',
         { class: 'kv' },
         h('dt', {}, 'Geometric dilution'),
-        h('dd', {}, `${metres(conditioning.geometric_dilution_m_per_arcmin)} per arcminute of altitude noise`),
+        h(
+          'dd',
+          {},
+          conditioning.geometric_dilution_m_per_arcmin === null
+            ? 'singular (no finite value)'
+            : `${metres(conditioning.geometric_dilution_m_per_arcmin)} per arcminute of altitude noise`,
+        ),
       ),
+      conditioning.columns
+        ? h('div', { class: 'kv' }, h('dt', {}, 'Columns described'), h('dd', {}, conditioning.columns))
+        : null,
       h(
         'div',
         { class: 'kv' },

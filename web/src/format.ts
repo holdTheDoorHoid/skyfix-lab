@@ -112,3 +112,12 @@ export function formatUtc(value: string): string {
   if (!m) return value;
   return `${m[1]} ${m[2]} UTC`;
 }
+
+/**
+ * A quantity that is infinite for singular geometry and therefore arrives as `null`.
+ * Never print 0 or "—" for it: the reader must be able to tell "no finite value"
+ * from "a small one".
+ */
+export function finiteOr(value: number | null, format: (v: number) => string): string {
+  return value === null || !Number.isFinite(value) ? 'singular (no finite value)' : format(value);
+}

@@ -12,13 +12,26 @@ import type { CorrectionStep, ReducedSight } from '../types.js';
 import { CORRECTION_LABEL, CORRECTION_ORDER } from '../types.js';
 import { note, panel, toolbar, warningList } from './common.js';
 
+/**
+ * The core writes its own reason, usually starting "not applicable:" or "not applied:".
+ * The row already carries that as a tag, so the stutter is trimmed rather than printed.
+ */
+function skippedReason(note: string): string {
+  return note.replace(/^not (applicable|applied)\s*:\s*/i, '');
+}
+
 function stepRow(step: CorrectionStep): HTMLElement {
   if (!step.applied) {
     return h(
       'tr',
       { class: 'step-skipped' },
       h('th', { scope: 'row' }, CORRECTION_LABEL[step.kind]),
-      h('td', { colspan: '3' } as never, h('span', { class: 'skipped-tag' }, 'not applied'), ` ${step.note}`),
+      h(
+        'td',
+        { colspan: '3' } as never,
+        h('span', { class: 'skipped-tag' }, 'not applied'),
+        ` ${skippedReason(step.note)}`,
+      ),
     );
   }
   return h(

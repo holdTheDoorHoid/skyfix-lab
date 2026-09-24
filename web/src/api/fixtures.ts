@@ -91,12 +91,21 @@ export const UNIQUE_FIX: Extract<FixResult, { kind: 'unique' }> = {
       rank: 2,
       geometric_dilution_m_per_arcmin: 2620,
       max_azimuth_gap_deg: 118,
+      columns: 'position (north, east)',
     },
     iterations: 4,
     converged: true,
     prior: null,
     robust: null,
   },
+  circles: [
+    {
+      id: 'obs-1',
+      body: 'Vega',
+      gp: { lat_deg: 38.789, lon_deg: -123.4567 },
+      zenith_distance_deg: 28.7655,
+    },
+  ],
   alternatives: [
     {
       position: { lat_deg: 12.4411, lon_deg: -66.2087 },

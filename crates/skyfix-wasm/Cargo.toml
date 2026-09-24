@@ -10,14 +10,6 @@ rust-version.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-# Integration switches. Flip a default here (one line) when the owning agent's core
-# lands; until then the matching exports return `Err("not implemented: ...")` rather
-# than panicking inside `todo!()` (wasm32 aborts on panic).
-[features]
-default = []
-core-ready = []
-ephemeris-ready = ["core-ready"]
-sim-ready = ["core-ready"]
 
 [dependencies]
 skyfix-core = { path = "../skyfix-core" }
