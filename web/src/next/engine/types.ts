@@ -369,7 +369,8 @@ export interface EclipseConventions {
 }
 
 export interface EclipseList {
-  /** The window actually searched (clipped to the coverage). */
+  /** The window actually searched: the request clipped to the coverage
+   * (`jd_start > jd_end`, and no eclipses, when the request lies wholly outside it). */
   jd_start: number;
   jd_end: number;
   /** The request extended beyond the coverage. */

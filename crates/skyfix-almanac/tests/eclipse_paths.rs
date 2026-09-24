@@ -491,3 +491,56 @@ fn path_timing_release() {
     println!("{n} paths, slowest {worst:?} (best of five each)");
     assert!(worst.as_secs_f64() < 0.05, "{worst:?}");
 }
+
+/// Every solar eclipse of 1990-2060 draws: finite coordinates, the lines its type
+/// implies, no jump between neighbouring vertices longer than the refinement allows
+/// (plus the closing chord of a horizon loop and the last step onto the horizon).
+/// Release build: `cargo test --release -p skyfix-almanac --test eclipse_paths --
+/// --ignored --nocapture`.
+#[test]
+#[ignore]
+fn every_path_of_1990_2060_is_drawable() {
+    use skyfix_almanac::eclipses::SolarType;
+    let engine = Eclipses::new();
+    let list = engine
+        .find(civil_to_jd(1990, 1, 1), civil_to_jd(2061, 1, 1))
+        .unwrap();
+    let (mut n, mut worst_gap, mut worst_at) = (0, 0.0f64, String::new());
+    for e in &list.eclipses {
+        let Eclipse::Solar(s) = e else { continue };
+        let p = solar_path(&engine, &s.id);
+        assert_eq!(p.central_line.is_empty(), !s.central, "{}", s.id);
+        let umbra = !p.umbra_north.is_empty() || !p.umbra_south.is_empty();
+        assert_eq!(umbra, s.eclipse_type != SolarType::Partial, "{}", s.id);
+        assert!(
+            !p.penumbra_north.is_empty()
+                || !p.penumbra_south.is_empty()
+                || !p.penumbra_horizon.is_empty(),
+            "{}",
+            s.id
+        );
+        for (name, line) in [
+            ("central", &p.central_line),
+            ("umbra_north", &p.umbra_north),
+            ("umbra_south", &p.umbra_south),
+            ("penumbra_north", &p.penumbra_north),
+            ("penumbra_south", &p.penumbra_south),
+        ] {
+            for seg in &line.segments {
+                for w in seg.windows(2) {
+                    assert!(w[0].iter().chain(&w[1]).all(|v| v.is_finite()), "{}", s.id);
+                    let gap = km((w[0][1], w[0][0]), (w[1][1], w[1][0]));
+                    if gap > worst_gap {
+                        worst_gap = gap;
+                        worst_at = format!("{} {name}", s.id);
+                    }
+                }
+            }
+        }
+        n += 1;
+    }
+    println!("{n} solar paths; longest step between vertices {worst_gap:.0} km ({worst_at})");
+    assert_eq!(n, 158);
+    // MAX_SEGMENT_KM is 150 km; the steps onto the horizon stay within it too.
+    assert!(worst_gap <= 151.0, "{worst_gap} km at {worst_at}");
+}

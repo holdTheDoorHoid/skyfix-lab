@@ -256,7 +256,8 @@ impl EclipseConventions {
 /// Result of [`Eclipses::find`].
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct EclipseList {
-    /// The window actually searched (the request clipped to the coverage).
+    /// The window actually searched: the request clipped to the coverage (`jd_start >
+    /// jd_end`, and no eclipses, when the request lies wholly outside it).
     pub jd_start: f64,
     pub jd_end: f64,
     /// True when the request extended beyond the coverage.
@@ -457,7 +458,7 @@ impl Eclipses {
     }
 
     fn delta_t_s(&self, jd_utc: f64) -> f64 {
-        (jd_tt(jd_utc) - jd_utc) * 86_400.0 - self.dut1_s
+        skyfix_core::time::TT_MINUS_TAI_S + skyfix_core::time::delta_at(jd_utc) - self.dut1_s
     }
 
     fn window(&self, jd_guess: f64) -> (f64, f64) {

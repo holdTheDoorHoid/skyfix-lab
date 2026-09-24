@@ -362,8 +362,8 @@ Solar: every line needed to draw the eclipse on the map, each a polyline split a
 antimeridian into GeoJSON-ready segments of `[lon_deg, lat_deg]` pairs, with the UTC
 Julian date of every vertex (on the central line that is when greatest eclipse happens
 there; on a limit, when it is grazing there). Sampled every two minutes and refined until
-the curve is within 0.2 km of every chord and no chord exceeds 150 km. Under 50 ms
-(10–30 ms measured natively on a loaded machine).
+the curve is within 0.2 km of every chord and no chord exceeds 150 km. Budget 50 ms;
+7–24 ms measured natively for every solar eclipse of 2017–2026.
 
 ```json
 {
