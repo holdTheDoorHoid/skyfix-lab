@@ -67,6 +67,10 @@ const SHOTS = {
   'planets-phone': [`${PHILLY}&theme=dark&tab=planets`, PHONE],
   'day-table': [`${PHILLY}&theme=light&tab=day&mode=table`, DESKTOP],
   'moon-table': [`${PHILLY}&theme=dark&tab=moon&mode=table`, DESKTOP],
+  'day-dst-spring': [`place=philadelphia&date=2026-03-08T12:00&theme=light&tab=day`, DESKTOP],
+  'day-at-sea': [`place=atsea&date=2026-09-24T12:00&theme=dark&tab=day`, DESKTOP],
+  'year-out-of-coverage': [`place=philadelphia&date=2061-06-01T12:00&theme=light&tab=year`, DESKTOP],
+  'year-santiago': [`place=santiago&date=2026-09-24T12:00&theme=light&tab=year`, DESKTOP],
   // Not a picture: warm and cold timings in this browser, printed (see harness.ts `bench`).
   bench: [`${PHILLY}&bench=1`, DESKTOP],
 };

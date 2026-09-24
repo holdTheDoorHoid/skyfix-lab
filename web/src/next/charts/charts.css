@@ -555,9 +555,8 @@
 }
 
 .sfc-season line {
-  stroke: var(--stage-ink);
-  stroke-opacity: 0.5;
-  stroke-width: 1;
+  stroke: var(--stage-line-strong);
+  stroke-width: 1.25;
   stroke-dasharray: 3 3;
 }
 

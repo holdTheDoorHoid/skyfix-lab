@@ -219,9 +219,19 @@ export interface ClockChange {
 
 /**
  * The instant within `day` when the zone offset changes, found by bisection on the zone
- * rules (to 1 s), or `null` when it does not change that day.
+ * rules (to 1 s), or `null` when it does not change that day. A change exactly at the
+ * day's first instant counts too (Chile changes at midnight): give the offset just before
+ * the day began as `prevOffsetMs` when it is known, or it is looked up.
  */
-export function clockChangeIn(day: LocalDay, zone: Zone): ClockChange | null {
+export function clockChangeIn(day: LocalDay, zone: Zone, prevOffsetMs?: number): ClockChange | null {
+  const before = prevOffsetMs ?? zoneOffsetMs(msFromJd(day.jd_start) - 1, zone);
+  if (before !== day.offsetStartMs) {
+    return { day, jd: day.jd_start, fromOffsetMs: before, toOffsetMs: day.offsetStartMs };
+  }
+  return clockChangeWithin(day, zone);
+}
+
+function clockChangeWithin(day: LocalDay, zone: Zone): ClockChange | null {
   if (!hasClockChange(day)) return null;
   let lo = msFromJd(day.jd_start);
   let hi = msFromJd(day.jd_end) - 1;

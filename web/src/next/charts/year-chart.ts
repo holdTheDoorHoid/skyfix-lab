@@ -30,6 +30,7 @@ import {
   signedOffsetChange,
   zoneNameAt,
 } from './format.js';
+import { OutsideCoverageError } from './coverage.js';
 import {
   applyMode,
   bindTimeButtons,
@@ -197,7 +198,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       c.root.dataset.compute = `year ${data.timing.totalMs.toFixed(0)} ms (batch ${data.timing.batchMs.toFixed(0)})`;
     } catch (error) {
       data = null;
-      failure = errorText(error);
+      failure = error instanceof OutsideCoverageError ? error.message : `The engine could not compute this year: ${errorText(error)}`;
     }
     sky = null;
   }
@@ -251,7 +252,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
   function draw(): void {
     renderHeader();
     if (failure !== null) {
-      message(c.plot, `The engine could not compute this year: ${failure}`);
+      message(c.plot, failure);
       c.plot.append(tip.el);
       svg = null;
       geom = null;

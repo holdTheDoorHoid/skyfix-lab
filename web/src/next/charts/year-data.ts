@@ -23,6 +23,7 @@ import type {
   SunEventKind,
 } from '../engine/types.js';
 import type { Zone } from '../time.js';
+import { coverageRange, covers, OutsideCoverageError, outsideCoverage } from './coverage.js';
 import { clockChangeIn, daysOfYear, wallHours, zoneKey, type ClockChange, type LocalDay } from './windows.js';
 
 export interface YearInput {
@@ -129,16 +130,22 @@ export function computeYear(engine: ExplorerEngine, input: YearInput): YearData 
   const t0 = now();
   const { observer, zone, year, options } = input;
   const localDays = daysOfYear(zone, year);
-  const windows: [number, number][] = localDays.map((d) => [d.jd_start, d.jd_end]);
   const errors: string[] = [];
+  // Only the days the engine covers: it refuses a whole batch that reaches outside.
+  const inside = localDays.map((d) => covers(engine, d.jd_start, d.jd_end));
+  if (!inside.some(Boolean)) throw new OutsideCoverageError(engine);
+  const windows: [number, number][] = localDays.filter((_, i) => inside[i]).map((d) => [d.jd_start, d.jd_end]);
+  const outside = localDays.length - windows.length;
+  if (outside) errors.push(`${outside} day${outside === 1 ? ' is' : 's are'} left blank. ${outsideCoverage(engine)}`);
 
   const b0 = now();
   const batch = engine.dayEventsBatch(observer, windows, ['Sun'], options);
   const batchMs = now() - b0;
 
   const bodyErrors: BodyError[] = [];
+  let next = 0;
   const days: YearDay[] = localDays.map((day, index) => {
-    const res = batch[index];
+    const res = inside[index] ? batch[next++] : undefined;
     const sun = res?.bodies.find((b) => b.body === 'Sun') ?? null;
     const err = res?.errors.find((e) => e.body === 'Sun') ?? null;
     if (err && bodyErrors.length === 0) bodyErrors.push(err);
@@ -160,8 +167,8 @@ export function computeYear(engine: ExplorerEngine, input: YearInput): YearData 
       dayLengthH: sun?.day_length_h ?? null,
       alwaysAbove: sun?.always_above ?? false,
       alwaysBelow: sun?.always_below ?? false,
-      clockChange: clockChangeIn(day, zone),
-      error: sun ? null : (err?.message ?? 'no result'),
+      clockChange: clockChangeIn(day, zone, index > 0 ? localDays[index - 1]!.offsetEndMs : undefined),
+      error: sun ? null : inside[index] ? (err?.message ?? 'no result') : 'outside the engine’s coverage',
     };
   });
   if (bodyErrors.length) {
@@ -200,14 +207,17 @@ export interface YearSky {
 
 export function computeYearSky(engine: ExplorerEngine, zone: Zone, year: number): YearSky {
   const localDays = daysOfYear(zone, year);
-  const yearStart = localDays[0]!.jd_start;
-  const yearEnd = localDays[localDays.length - 1]!.jd_end;
+  const range = coverageRange(engine);
+  const yearStart = Math.max(localDays[0]!.jd_start, range?.start ?? -Infinity);
+  const yearEnd = Math.min(localDays[localDays.length - 1]!.jd_end, range?.end ?? Infinity);
   const errors: string[] = [];
   let moonPhases: PhaseEvent[] = [];
   let seasons: SeasonEvent[] = [];
   const m0 = now();
   try {
-    moonPhases = engine.moonPhases(yearStart, yearEnd).filter((p) => p.jd_utc >= yearStart && p.jd_utc < yearEnd);
+    if (yearEnd > yearStart) {
+      moonPhases = engine.moonPhases(yearStart, yearEnd).filter((p) => p.jd_utc >= yearStart && p.jd_utc < yearEnd);
+    }
   } catch (error) {
     errors.push(`Moon phases: ${message(error)}`);
   }

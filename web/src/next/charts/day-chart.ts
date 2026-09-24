@@ -25,6 +25,7 @@ import { computeDay, curveAt, DAY_STEP_MINUTES, type DayData, type DayInput, typ
 import {
   altitude,
   bearing,
+  clockAt,
   clock,
   clockUtc,
   clockWithUtc,
@@ -32,9 +33,11 @@ import {
   dateLong,
   dateShort,
   duration,
+  signedOffsetChange,
 } from './format.js';
 import { glyphFor } from '../theme/glyphs.js';
 import { chip } from '../theme/primitives.js';
+import { OutsideCoverageError } from './coverage.js';
 import {
   applyMode,
   bindTimeButtons,
@@ -61,7 +64,7 @@ import {
 } from './frame.js';
 import { bodyClass, PHASE_LABELS, phaseClass } from './palette.js';
 import { clamp, linearScale, pickStep, type LinearScale } from './scale.js';
-import { localDayAt, zoneKey, type LocalDay } from './windows.js';
+import { clockChangeIn, localDayAt, wallHours, zoneKey, type LocalDay } from './windows.js';
 
 /** The altitude axis: fixed, so stepping through days never rescales it. */
 export const ALT_MIN = -30;
@@ -189,7 +192,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       c.root.dataset.compute = `day ${data.timing.totalMs.toFixed(0)} ms (engine ${data.timing.engineMs.toFixed(0)})`;
     } catch (error) {
       data = null;
-      failure = errorText(error);
+      failure = error instanceof OutsideCoverageError ? error.message : `The engine could not compute this day: ${errorText(error)}`;
     }
   }
 
@@ -253,7 +256,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
   function draw(): void {
     renderHeader();
     if (failure !== null) {
-      message(c.plot, `The engine could not compute this day: ${failure}`);
+      message(c.plot, failure);
       c.plot.append(tip.el);
       svg = null;
       geom = null;
@@ -317,6 +320,9 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       callouts.append(s_('path', { d: `M${round(a)} ${yb + 6}V${yb}H${round(b)}V${yb + 6}` }));
       const text = `★ Star sights ${clock(w.jd_start, zone)}–${clock(w.jd_end, zone)}`;
       const lp = pill((a + b) / 2, yb - 10, text, { size: 10.5 });
+      const title = s_('title');
+      title.textContent = `Nautical twilight ${clockZoned(w.jd_start, zone)} – ${clockZoned(w.jd_end, zone)} (${clockUtc(w.jd_start)} – ${clockUtc(w.jd_end)}): the horizon is still sharp and the brighter stars are out.`;
+      lp.el.prepend(title);
       const shift = clamp((a + b) / 2, lp.box.w / 2 + 2, W - lp.box.w / 2 - 2) - (a + b) / 2;
       let dy = 0;
       if (labelBoxes.some((bx) => overlaps(bx, { ...lp.box, x: lp.box.x + shift }))) dy = -18;
@@ -326,12 +332,26 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     }
     root.append(callouts);
 
-    // Grid and axes.
+    // Grid and axes. Hour lines fall on the clock's whole hours, labelled every few hours by
+    // the clock too: on the day the clocks change, the gap where an hour is lost (or the
+    // stretch where one repeats) shows between the labels.
     const grid = s_('g', { class: 'sfc-grid' });
     const hourStep = pickStep(day.hours, Math.max(2, Math.floor((x1 - x0) / 58)), [3, 6, 12]);
+    const hourMarks: { k: number; wall: number }[] = [];
     for (let k = 0; k <= Math.floor(day.hours + 1e-9); k += 1) {
-      const x = round(xs(k)) + 0.5;
-      grid.append(s_('line', { x1: x, x2: x, y1: y0, y2: y1, class: k % hourStep === 0 ? '' : 'sfc-grid--faint' }));
+      const wall = Math.round(wallHours(day, day.jd_start + k / 24, zone) * 60) / 60;
+      hourMarks.push({ k, wall });
+    }
+    // A repeated clock hour (clocks going back) is labelled once, the first time.
+    const labelled = new Set<number>();
+    const major = hourMarks.filter((m) => {
+      if (m.wall % hourStep !== 0 || labelled.has(m.wall)) return false;
+      labelled.add(m.wall);
+      return true;
+    });
+    for (const m of hourMarks) {
+      const x = round(xs(m.k)) + 0.5;
+      grid.append(s_('line', { x1: x, x2: x, y1: y0, y2: y1, class: major.includes(m) ? '' : 'sfc-grid--faint' }));
     }
     for (const a of [30, 60]) grid.append(s_('line', { x1: x0, x2: x1, y1: round(ys(a)) + 0.5, y2: round(ys(a)) + 0.5 }));
     for (const [a] of TWILIGHT_LINES) {
@@ -349,10 +369,10 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       }
     }
     timeLabels = [];
-    for (let k = 0; k <= Math.floor(day.hours + 1e-9); k += hourStep) {
-      const jd = day.jd_start + k / 24;
-      const t = svgText(xs(k), y1 + 16, k >= day.hours - 1e-9 ? '24:00' : formatTime(jd, zone), { 'text-anchor': 'middle' });
-      timeLabels.push({ el: t, x: xs(k) });
+    for (const m of major) {
+      const jd = day.jd_start + m.k / 24;
+      const t = svgText(xs(m.k), y1 + 16, m.k >= day.hours - 1e-9 ? '24:00' : formatTime(jd, zone), { 'text-anchor': 'middle' });
+      timeLabels.push({ el: t, x: xs(m.k) });
       axis.append(t);
     }
     axis.append(s_('line', { x1: x0, x2: x1, y1: y1 + 0.5, y2: y1 + 0.5 }));
@@ -459,6 +479,20 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     root.append(labels);
 
     root.append(s_('rect', { class: 'sfc-frame', x: x0 + 0.5, y: y0 + 0.5, width: x1 - x0 - 1, height: plotH - 1 }));
+
+    // The moment the clocks change, if they do today.
+    const change = clockChangeIn(day, zone);
+    if (change) {
+      const cx = round(xs((change.jd - day.jd_start) * 24)) + 0.5;
+      const cg = s_('g', { class: 'sfc-season' });
+      cg.append(s_('line', { x1: cx, x2: cx, y1: y0, y2: y1 }));
+      const text = `Clocks ${signedOffsetChange(change.toOffsetMs - change.fromOffsetMs)}: ${clockAt(change.jd, change.fromOffsetMs)} → ${clockAt(change.jd, change.toOffsetMs)}`;
+      const lp = pill(cx, y1 - 12, text, { size: 10 });
+      const shift = clamp(cx, x0 + lp.box.w / 2 + 2, x1 - lp.box.w / 2 - 2) - cx;
+      if (shift) lp.el.setAttribute('transform', `translate(${round(shift)} 0)`);
+      cg.append(lp.el);
+      root.append(cg);
+    }
 
     hoverLayer = s_('g', { class: 'sfc-hover', 'pointer-events': 'none' }) as SVGGElement;
     hoverLayer.style.display = 'none';

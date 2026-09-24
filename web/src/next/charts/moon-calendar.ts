@@ -33,6 +33,7 @@ import {
   WEEKDAYS_SHORT,
   zoneNameAt,
 } from './format.js';
+import { OutsideCoverageError } from './coverage.js';
 import {
   applyMode,
   bindTimeButtons,
@@ -111,7 +112,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
       c.root.dataset.compute = `moon ${data.timing.totalMs.toFixed(0)} ms (engine ${data.timing.engineMs.toFixed(0)})`;
     } catch (error) {
       data = null;
-      failure = errorText(error);
+      failure = error instanceof OutsideCoverageError ? error.message : `The engine could not compute this month: ${errorText(error)}`;
     }
   }
 
@@ -163,7 +164,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     renderHeader();
     renderPhaseList();
     if (failure !== null) {
-      message(c.plot, `The engine could not compute this month: ${failure}`);
+      message(c.plot, failure);
       c.root.dataset.ready = '1';
       return;
     }
@@ -239,7 +240,16 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
           h('span', { class: 'sfc-cal-num' }, String(date.day)),
           lit ? h('span', { class: 'sfc-cal-pct' }, lit) : null,
           disc(md, size, south),
-          h('span', { class: 'sfc-cal-name' }, md.principal ? `${PHASE_NAMES[md.principal.kind]} ${eventText(md.principal, zone).local.split(' ')[0]}` : md.name),
+          h(
+            'span',
+            {
+              class: 'sfc-cal-name',
+              title: md.principal
+                ? `${PHASE_NAMES[md.principal.kind]} ${eventText(md.principal, zone).local} · ${eventText(md.principal, zone).utc}`
+                : `${md.name}${md.ageDays !== null ? `, ${md.ageDays.toFixed(1)} days after new Moon` : ''}`,
+            },
+            md.principal ? `${PHASE_NAMES[md.principal.kind]} ${eventText(md.principal, zone).local.split(' ')[0]}` : md.name,
+          ),
           times,
         );
         cell.addEventListener('click', (event) => {

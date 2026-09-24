@@ -27,6 +27,7 @@ import {
   offsetOn,
   zoneNameAt,
 } from './format.js';
+import { OutsideCoverageError } from './coverage.js';
 import {
   applyMode,
   bindTimeButtons,
@@ -169,7 +170,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       }
     } catch (error) {
       job = null;
-      failure = errorText(error);
+      failure = error instanceof OutsideCoverageError ? error.message : `The engine could not compute this year: ${errorText(error)}`;
     }
     sky = null;
     publishTiming();
@@ -256,7 +257,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
   function draw(): void {
     renderHeader();
     if (failure !== null) {
-      message(c.plot, `The engine could not compute this year: ${failure}`);
+      message(c.plot, failure);
       c.plot.append(tip.el);
       svg = null;
       geom = null;
@@ -456,7 +457,8 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       const pos = i + (ev.jd_utc - nt.jd_start) / (nt.jd_end - nt.jd_start);
       const g = phaseGlyph(ev.kind, xs(pos), 11, narrow ? 4.5 : 5.5, south);
       const t = s('title', {});
-      t.textContent = `${ev.kind === 'new_moon' ? 'New Moon' : 'Full Moon'}, night of ${dayMonth(nt.date)}, ${clockAt(ev.jd_utc, offsetOn(nt, ev.jd_utc, zone))}`;
+      const off = offsetOn(nt, ev.jd_utc, zone);
+      t.textContent = `${ev.kind === 'new_moon' ? 'New Moon' : 'Full Moon'}, night of ${dayMonth(nt.date)}, ${clockAt(ev.jd_utc, off)} ${zoneNameAt(ev.jd_utc, zone, off)} · ${clockUtcFast(ev.jd_utc)}`;
       g.append(t);
       stripLayer.append(g);
     }

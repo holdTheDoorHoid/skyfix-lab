@@ -27,6 +27,7 @@ import {
   visibilityRuns,
   visibleHours,
 } from '../../src/next/charts/planet-data.js';
+import { OutsideCoverageError, outsideCoverage } from '../../src/next/charts/coverage.js';
 import { localDay, localDayAt, wallHours } from '../../src/next/charts/windows.js';
 import { atLeast, computeYear, computeYearSky, eventOf, polarRuns } from '../../src/next/charts/year-data.js';
 
@@ -138,11 +139,12 @@ describe('day chart data', () => {
     expect(nearestSample(data.times, day.jd_end + 5)).toBe(288);
   });
 
-  it('says what cannot be computed instead of failing', () => {
+  it('says in plain words when a day is outside the engine’s coverage', () => {
     const far = localDay(NEW_YORK, { year: 2080, month: 1, day: 1 });
-    const out = computeDay(engine, { observer: PHILLY, zone: NEW_YORK, day: far, bodies: ['Sun', 'Moon'], options: OPTIONS });
-    expect(out.series).toEqual([]);
-    expect(out.errors.map((e) => e.body).sort()).toEqual(['Moon', 'Sun']);
+    expect(() => computeDay(engine, { observer: PHILLY, zone: NEW_YORK, day: far, bodies: ['Sun', 'Moon'], options: OPTIONS })).toThrow(
+      OutsideCoverageError,
+    );
+    expect(outsideCoverage(engine)).toBe('This date is outside the time the engine can compute: 1990-01-01 to 2060-12-31 (UTC).');
   });
 });
 
@@ -233,6 +235,18 @@ describe('year chart data', () => {
     expect(summer.alwaysAbove).toBe(true);
     expect(summer.spans).toEqual([{ phase: 'day', from: 0, to: 24 }]);
     expect(summer.dayLengthH).toBeCloseTo(24, 6);
+  });
+
+  it('sends only the days the engine covers, and leaves the rest blank', () => {
+    // New York's 31 December 2060 ends at 05:00 UTC on 1 January 2061, past the mock's
+    // coverage: that day is left out of the batch, so the batch does not fail.
+    const { engine: e2, calls: c2 } = spied(engine);
+    const edge = computeYear(e2, { observer: PHILLY, zone: NEW_YORK, year: 2060, options: OPTIONS });
+    expect(c2.dayEventsBatch).toEqual([365]);
+    expect(edge.days[365]!.error).toMatch(/coverage/);
+    expect(edge.days[364]!.error).toBeNull();
+    expect(edge.errors[0]).toMatch(/^1 day is left blank\./);
+    expect(() => computeYear(engine, { observer: PHILLY, zone: NEW_YORK, year: 2080, options: OPTIONS })).toThrow(OutsideCoverageError);
   });
 
   it('groups polar days into runs', () => {

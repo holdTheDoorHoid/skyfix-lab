@@ -21,6 +21,7 @@
 
 import type { BodyError, BodyEvents, EventOptions, ExplorerEngine, Observer, PhaseSegment } from '../engine/types.js';
 import type { Zone } from '../time.js';
+import { covers } from './coverage.js';
 import type { YearData } from './year-data.js';
 import {
   hoursAfterNoon,
@@ -244,7 +245,11 @@ export function planetYearJob(engine: ExplorerEngine, input: PlanetInput, year: 
   const hourRange: [number, number] | null = Number.isFinite(lo) ? [Math.floor(lo), Math.ceil(hi)] : null;
 
   const data: PlanetYear = { input, nights, hourRange, errors: [], problems, timing };
-  const dark = nights.filter((n) => n.darkWindow !== null);
+  // Nights reaching outside the engine's coverage are left blank rather than sent.
+  for (const n of nights) {
+    if (n.darkWindow && !covers(engine, n.darkWindow[0], n.darkWindow[1])) n.computed = true;
+  }
+  const dark = nights.filter((n) => n.darkWindow !== null && !n.computed);
   const primary = input.planets.filter((p) => (PRIMARY_PLANETS as readonly string[]).includes(p));
   const secondary = input.planets.filter((p) => !primary.includes(p));
   // Work items: (planets, nights) chunks, primary planets across the year first.

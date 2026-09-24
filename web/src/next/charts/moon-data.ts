@@ -10,6 +10,7 @@
 
 import type { EventOptions, ExplorerEngine, Observer, PhaseEvent } from '../engine/types.js';
 import { jdFromWallClock, type Zone } from '../time.js';
+import { coverageRange, covers, OutsideCoverageError } from './coverage.js';
 import { daysOfMonth, localDateOf, sameDate, type LocalDate, type LocalDay } from './windows.js';
 
 /** A lunation is 29.53 days; asking for 35 either side always brackets the month. */
@@ -113,20 +114,30 @@ export function computeMoonMonth(engine: ExplorerEngine, input: MoonInput): Moon
   const first = days[0]!;
   const last = days[days.length - 1]!;
 
+  const inside = days.map((d) => covers(engine, d.jd_start, d.jd_end));
+  if (!inside.some(Boolean)) throw new OutsideCoverageError(engine);
+  const range = coverageRange(engine);
+
   let engineMs = 0;
   let e0 = now();
   let phases: PhaseEvent[] = [];
   try {
-    phases = engine.moonPhases(first.jd_start - MARGIN_DAYS, last.jd_end + MARGIN_DAYS);
+    phases = engine.moonPhases(
+      Math.max(first.jd_start - MARGIN_DAYS, range?.start ?? -Infinity),
+      Math.min(last.jd_end + MARGIN_DAYS, range?.end ?? Infinity),
+    );
   } catch (error) {
     errors.push(`Moon phases: ${message(error)}`);
   }
-  const batch = engine.dayEventsBatch(
+  const sent = days.filter((_, i) => inside[i]);
+  const answers = engine.dayEventsBatch(
     observer,
-    days.map((d) => [d.jd_start, d.jd_end] as [number, number]),
+    sent.map((d) => [d.jd_start, d.jd_end] as [number, number]),
     ['Moon'],
     options,
   );
+  let next = 0;
+  const batch = days.map((_, i) => (inside[i] ? answers[next++] : undefined));
   engineMs += now() - e0;
 
   const inMonth = phases.filter((p) => p.jd_utc >= first.jd_start && p.jd_utc < last.jd_end);
@@ -137,6 +148,7 @@ export function computeMoonMonth(engine: ExplorerEngine, input: MoonInput): Moon
     let state = null;
     let stateError: string | null = null;
     try {
+      if (!covers(engine, noonJd, noonJd)) throw new Error('outside the engine’s coverage');
       const sky = engine.skyState(observer, noonJd, ['Moon']);
       state = sky.bodies.find((b) => b.body === 'Moon') ?? null;
       if (!state) stateError = sky.errors[0]?.message ?? 'no result';

@@ -158,6 +158,18 @@ describe('wall-clock positions', () => {
     expect(clockChangeIn(localDay(NEW_YORK, { year: 2026, month: 9, day: 24 }), NEW_YORK)).toBeNull();
   });
 
+  it('counts a change exactly at midnight (Chile) on the day it starts', () => {
+    const days = daysOfYear(SANTIAGO, 2026);
+    const changes = days.map((d, i) => clockChangeIn(d, SANTIAGO, i ? days[i - 1]!.offsetEndMs : undefined)).filter((c) => c !== null);
+    expect(changes.map((c) => [c.day.key, (c.toOffsetMs - c.fromOffsetMs) / 3_600_000])).toEqual([
+      ['2026-04-04', -1],
+      ['2026-09-06', 1],
+    ]);
+    const spring = changes[1]!;
+    expect(spring.jd).toBe(spring.day.jd_start);
+    expect(clockChangeIn(spring.day, SANTIAGO)).toEqual(spring); // looked up when not given
+  });
+
   it('turns a date and clock hours (past 24 too) into an instant', () => {
     const date = { year: 2026, month: 9, day: 24 };
     expect(jdAtWallHours(date, 6.5, NEW_YORK)).toBe(jdUtc(2026, 9, 24, 10, 30));

@@ -20,6 +20,7 @@ import type {
   SkyPhase,
 } from '../engine/types.js';
 import type { Zone } from '../time.js';
+import { covers, OutsideCoverageError } from './coverage.js';
 import type { LocalDay } from './windows.js';
 
 /** Sample spacing for the altitude curves (the task's 5 minutes; 289 samples a day). */
@@ -132,12 +133,14 @@ function now(): number {
 }
 
 /**
- * Ask the engine for one local day and shape the answer. Engine faults (malformed input)
- * propagate; bodies the engine cannot compute are listed in `errors` and left out.
+ * Ask the engine for one local day and shape the answer. A day outside the engine's
+ * coverage throws `OutsideCoverageError` (plain words); other engine faults propagate;
+ * bodies the engine cannot compute are listed in `errors` and left out.
  */
 export function computeDay(engine: ExplorerEngine, input: DayInput): DayData {
   const t0 = now();
   const { observer, day, options } = input;
+  if (!covers(engine, day.jd_start, day.jd_end)) throw new OutsideCoverageError(engine);
   const bodies = [...input.bodies];
   const kinds = new Map(engine.bodies().map((b) => [b.body, b.kind] as const));
 
