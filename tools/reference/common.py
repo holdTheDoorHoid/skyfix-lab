@@ -517,6 +517,23 @@ def gha_dut1_zero_deg(gha_deg, dut1_s):
     return norm360(gha_deg - EARTH_ROTATION_ARCSEC_PER_SECOND * dut1_s / 3600.0)
 
 
+def generated_utc():
+    """Build timestamp, overridable for byte-for-byte reproducibility.
+
+    Set SOURCE_DATE_EPOCH (the reproducible-builds convention) to pin it. With
+    it set, two runs on the same inputs produce byte-identical files; without
+    it, `generated_utc` is the only field in any fixture that changes between
+    runs, and every numeric value is already stable.
+    """
+    sde = os.environ.get("SOURCE_DATE_EPOCH")
+    when = (
+        _dt.datetime.fromtimestamp(int(sde), _dt.timezone.utc)
+        if sde
+        else _dt.datetime.now(_dt.timezone.utc)
+    )
+    return when.strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def generator_block(
     tool,
     description,
@@ -529,7 +546,7 @@ def generator_block(
     block = {
         "tool": tool,
         "description": description,
-        "generated_utc": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "generated_utc": generated_utc(),
         "versions": versions(),
         "timescale": timescale_facts(),
         "tolerance_arcmin": tolerance_arcmin,

@@ -1346,7 +1346,7 @@
         "observer": "geodetic on WGS84, skyfield.api.wgs84.latlon"
       }
     },
-    "generated_utc": "2026-09-24T02:19:31Z",
+    "generated_utc": "2026-09-24T02:36:22Z",
     "max_spherical_azimuth_minus_skyfield_arcsec": {"excluded": "cases within 2 deg of the zenith", "stars": 2.4238, "sun": 3.5584},
     "max_spherical_minus_skyfield_arcsec": {"stars": 0.3093, "stars_where": "Alnilam at antimeridian_equator, 2026-10-01T16:00Z (alt 75.95 deg)", "sun": 8.7643, "sun_where": "Sun at sydney, 2026-10-01T20:00Z (alt 5.08 deg)"},
     "max_sun_parallax_identity_residual_arcsec": 0.2018,

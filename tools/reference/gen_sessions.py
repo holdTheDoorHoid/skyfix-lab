@@ -178,6 +178,27 @@ def truth(session_name, notes):
     }
 
 
+def apriori_sigma_m(bodies, data, sigma_arcmin=SIGMA_ARCMIN):
+    """A priori (north, east) 1-sigma from CONVENTIONS section 9, metres.
+
+    Cov = (J^T W J)^-1 with J rows (cos Zn, sin Zn) and W = diag(1/sigma^2),
+    in tangent-plane radians, scaled to metres by the section 1 sphere radius.
+    """
+    sig = math.radians(sigma_arcmin / 60.0)
+    a = b = d = 0.0
+    for body in bodies:
+        z = math.radians(data[body]["azimuth_spherical_deg"])
+        cz, sz = math.cos(z), math.sin(z)
+        a += cz * cz / sig**2
+        b += cz * sz / sig**2
+        d += sz * sz / sig**2
+    det = a * d - b * b
+    return (
+        math.sqrt(d / det) * c.EARTH_RADIUS_M,
+        math.sqrt(a / det) * c.EARTH_RADIUS_M,
+    )
+
+
 def least_squares_fix(bodies, data, altitude_key, start=ASSUMED, max_iter=80):
     """Solve the session in Python, independently of any Rust code.
 
@@ -480,16 +501,15 @@ def main():
                     "aberration, a fraction of an arcsecond.",
                     "Largest azimuth gap %.1f deg, so the geometry is "
                     "well-conditioned and a 95 %% ellipse is justified. With "
-                    "sigma = %.1f arcmin on five well-spread sights the a priori "
-                    "1-sigma position uncertainty is of order %.0f m -- note "
-                    "that this is far LARGER than the 10 m regression target, "
-                    "which is deliberate: the target tests arithmetic, the "
-                    "ellipse describes noise that this fixture does not contain."
-                    % (
-                        max_gap,
-                        SIGMA_ARCMIN,
-                        SIGMA_ARCMIN * 1852.0 / math.sqrt(len(CHOSEN) / 2.0),
-                    ),
+                    "sigma = %.1f arcmin on these five azimuths the CONVENTIONS "
+                    "section 9 a priori covariance gives sigma_north = %.1f m "
+                    "and sigma_east = %.1f m. Note that this is an order of "
+                    "magnitude LARGER than the 10 m regression target, and that "
+                    "is deliberate: the target tests arithmetic on noiseless "
+                    "data, the ellipse describes noise this fixture does not "
+                    "contain. A solver that reports a 10 m ellipse here is "
+                    "wrong even though its position is right."
+                    % ((max_gap, SIGMA_ARCMIN) + apriori_sigma_m(CHOSEN, data)),
                 ],
             ),
         )
