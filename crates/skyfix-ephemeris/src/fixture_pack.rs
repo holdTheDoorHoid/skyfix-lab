@@ -141,8 +141,8 @@ impl Grid {
         // Four-point stencil i-1 .. i+2 when it exists, else the linear end segment.
         let cubic = i >= 1 && i + 2 < n;
         let mut out = [0.0f64; 4];
-        for col in 0..4 {
-            out[col] = if cubic {
+        for (col, slot) in out.iter_mut().enumerate() {
+            *slot = if cubic {
                 let mut y = [
                     self.rows[i - 1][col],
                     self.rows[i][col],
@@ -414,6 +414,16 @@ impl std::fmt::Debug for CompositeProvider {
     }
 }
 
+/// How informative a failure is. "This provider stops in 2026" beats "nobody here has
+/// a Moon", because it tells the user what to change.
+fn failure_rank(e: &EphemerisError) -> u8 {
+    match e {
+        EphemerisError::UnknownBody(..) => 0,
+        EphemerisError::Data(_) => 1,
+        EphemerisError::OutOfCoverage { .. } => 2,
+    }
+}
+
 impl CompositeProvider {
     pub fn new(name: impl Into<String>) -> Self {
         CompositeProvider {
@@ -455,16 +465,11 @@ impl CompositeProvider {
             match p.geocentric(body, jd_utc) {
                 Ok(d) => return Ok((d, p.name())),
                 Err(e) => {
-                    let better = match (&best, &e) {
-                        (None, _) => true,
-                        (
-                            Some(EphemerisError::UnknownBody(..)),
-                            EphemerisError::OutOfCoverage { .. },
-                        ) => true,
-                        (Some(EphemerisError::UnknownBody(..)), EphemerisError::Data(_)) => true,
-                        _ => false,
-                    };
-                    if better {
+                    // Keep the most informative failure; ties go to the first provider.
+                    if best
+                        .as_ref()
+                        .is_none_or(|b| failure_rank(&e) > failure_rank(b))
+                    {
                         best = Some(e);
                     }
                 }

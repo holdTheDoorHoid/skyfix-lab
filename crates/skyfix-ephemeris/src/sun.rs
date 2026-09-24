@@ -15,12 +15,17 @@
 //! 4. **Aberration / light-time** — `-20.4898" / R` in longitude (CONVENTIONS section 7
 //!    requires the Sun's light-time to be included; this first-order form *is* that
 //!    correction).
-//! 5. **Nutation in longitude** — IAU 2000B (77 luni-solar terms plus the fixed
-//!    planetary offset), giving the *apparent* longitude referred to the true equinox
-//!    of date.
-//! 6. **Obliquity** — IAU 2006 mean obliquity plus the IAU 2000B nutation in obliquity.
+//! 5. **Nutation in longitude** — [`crate::frames::nutation_2000b_p03`], giving the
+//!    *apparent* longitude referred to the true equinox of date.
+//! 6. **Obliquity** — [`crate::frames::true_obliquity_rad`] (IAU 2006 mean obliquity
+//!    plus that nutation).
 //! 7. **RA / Dec** — the usual ecliptic-to-equatorial rotation with the *true* obliquity.
-//! 8. **GHA** — `GAST - RA`, normalised to `[0, 360)`.
+//! 8. **GHA** — `GAST - RA` with [`crate::sidereal::gast_deg`], normalised to `[0, 360)`.
+//!
+//! Steps 5, 6 and 8 are the *shared* frame model: the Sun and the navigational stars
+//! are reduced with the same nutation, the same obliquity and the same sidereal time,
+//! so a change to any of them moves both together. Only steps 1-4 are specific to the
+//! Sun.
 //!
 //! Semidiameter `959.63" / R` and horizontal parallax `8.794" / R`, both reported in
 //! arcminutes as CONVENTIONS section 5 steps 4 and 5 require.
@@ -79,7 +84,6 @@ const VSOP87_JSON: &str = include_str!("../data/vsop87_sun_terms.json");
 const VSOP87_SCHEMA: &str = "skyfix.vsop87_trunc/1";
 
 const ARCSEC_PER_DEG: f64 = 3600.0;
-const TURNAS: f64 = 1_296_000.0;
 
 // ---------------------------------------------------------------------------
 // Embedded VSOP87D series
@@ -199,205 +203,22 @@ pub fn vsop87_self_check() -> Result<(f64, f64, f64), EphemerisError> {
 }
 
 // ---------------------------------------------------------------------------
-// Nutation (IAU 2000B) and obliquity (IAU 2006)
+// Frame quantities: shared with the star provider via `crate::frames`
 // ---------------------------------------------------------------------------
+//
+// Nutation (IAU 2000B, scaled for IAU 2006 precession), the mean and true obliquity
+// and Greenwich apparent sidereal time all come from `crate::frames` and
+// `crate::sidereal`, so the Sun and the stars are reduced in exactly the same frame.
+// Until those modules existed this file carried its own 77-term IAU 2000B series, a
+// copy of the IAU 2006 obliquity polynomial and an interim GAST; all three are gone.
 
-/// One luni-solar term of the IAU 2000B nutation series.
-///
-/// `n` holds the multipliers of the Delaunay arguments `l, l', F, D, Omega`. `ps`,
-/// `pst`, `pc` are the longitude sine, `t`-sine and cosine coefficients and `ec`,
-/// `ect`, `es` the obliquity cosine, `t`-cosine and sine coefficients, all in units of
-/// 0.1 microarcsecond (and the same per Julian century for the `t` coefficients).
-struct NutTerm {
-    n: [i32; 5],
-    ps: f64,
-    pst: f64,
-    pc: f64,
-    ec: f64,
-    ect: f64,
-    es: f64,
-}
-
-/// IAU 2000B luni-solar nutation series (McCarthy & Luzum 2003; Luzum 2001), taken
-/// verbatim from ERFA `eraNut00b` (`nut00b.c`), which is BSD-3-Clause and derived with
-/// permission from IAU SOFA. See `docs/THIRD_PARTY.md`.
-#[rustfmt::skip]
-const NUT2000B: [NutTerm; 77] = [
-    NutTerm { n: [ 0,  0,  0,  0,  1], ps: -172064161.0, pst: -174666.0, pc: 33386.0, ec: 92052331.0, ect: 9086.0, es: 15377.0 },
-    NutTerm { n: [ 0,  0,  2, -2,  2], ps: -13170906.0, pst: -1675.0, pc: -13696.0, ec: 5730336.0, ect: -3015.0, es: -4587.0 },
-    NutTerm { n: [ 0,  0,  2,  0,  2], ps: -2276413.0, pst: -234.0, pc: 2796.0, ec: 978459.0, ect: -485.0, es: 1374.0 },
-    NutTerm { n: [ 0,  0,  0,  0,  2], ps: 2074554.0, pst: 207.0, pc: -698.0, ec: -897492.0, ect: 470.0, es: -291.0 },
-    NutTerm { n: [ 0,  1,  0,  0,  0], ps: 1475877.0, pst: -3633.0, pc: 11817.0, ec: 73871.0, ect: -184.0, es: -1924.0 },
-    NutTerm { n: [ 0,  1,  2, -2,  2], ps: -516821.0, pst: 1226.0, pc: -524.0, ec: 224386.0, ect: -677.0, es: -174.0 },
-    NutTerm { n: [ 1,  0,  0,  0,  0], ps: 711159.0, pst: 73.0, pc: -872.0, ec: -6750.0, ect: 0.0, es: 358.0 },
-    NutTerm { n: [ 0,  0,  2,  0,  1], ps: -387298.0, pst: -367.0, pc: 380.0, ec: 200728.0, ect: 18.0, es: 318.0 },
-    NutTerm { n: [ 1,  0,  2,  0,  2], ps: -301461.0, pst: -36.0, pc: 816.0, ec: 129025.0, ect: -63.0, es: 367.0 },
-    NutTerm { n: [ 0, -1,  2, -2,  2], ps: 215829.0, pst: -494.0, pc: 111.0, ec: -95929.0, ect: 299.0, es: 132.0 },
-    NutTerm { n: [ 0,  0,  2, -2,  1], ps: 128227.0, pst: 137.0, pc: 181.0, ec: -68982.0, ect: -9.0, es: 39.0 },
-    NutTerm { n: [-1,  0,  2,  0,  2], ps: 123457.0, pst: 11.0, pc: 19.0, ec: -53311.0, ect: 32.0, es: -4.0 },
-    NutTerm { n: [-1,  0,  0,  2,  0], ps: 156994.0, pst: 10.0, pc: -168.0, ec: -1235.0, ect: 0.0, es: 82.0 },
-    NutTerm { n: [ 1,  0,  0,  0,  1], ps: 63110.0, pst: 63.0, pc: 27.0, ec: -33228.0, ect: 0.0, es: -9.0 },
-    NutTerm { n: [-1,  0,  0,  0,  1], ps: -57976.0, pst: -63.0, pc: -189.0, ec: 31429.0, ect: 0.0, es: -75.0 },
-    NutTerm { n: [-1,  0,  2,  2,  2], ps: -59641.0, pst: -11.0, pc: 149.0, ec: 25543.0, ect: -11.0, es: 66.0 },
-    NutTerm { n: [ 1,  0,  2,  0,  1], ps: -51613.0, pst: -42.0, pc: 129.0, ec: 26366.0, ect: 0.0, es: 78.0 },
-    NutTerm { n: [-2,  0,  2,  0,  1], ps: 45893.0, pst: 50.0, pc: 31.0, ec: -24236.0, ect: -10.0, es: 20.0 },
-    NutTerm { n: [ 0,  0,  0,  2,  0], ps: 63384.0, pst: 11.0, pc: -150.0, ec: -1220.0, ect: 0.0, es: 29.0 },
-    NutTerm { n: [ 0,  0,  2,  2,  2], ps: -38571.0, pst: -1.0, pc: 158.0, ec: 16452.0, ect: -11.0, es: 68.0 },
-    NutTerm { n: [ 0, -2,  2, -2,  2], ps: 32481.0, pst: 0.0, pc: 0.0, ec: -13870.0, ect: 0.0, es: 0.0 },
-    NutTerm { n: [-2,  0,  0,  2,  0], ps: -47722.0, pst: 0.0, pc: -18.0, ec: 477.0, ect: 0.0, es: -25.0 },
-    NutTerm { n: [ 2,  0,  2,  0,  2], ps: -31046.0, pst: -1.0, pc: 131.0, ec: 13238.0, ect: -11.0, es: 59.0 },
-    NutTerm { n: [ 1,  0,  2, -2,  2], ps: 28593.0, pst: 0.0, pc: -1.0, ec: -12338.0, ect: 10.0, es: -3.0 },
-    NutTerm { n: [-1,  0,  2,  0,  1], ps: 20441.0, pst: 21.0, pc: 10.0, ec: -10758.0, ect: 0.0, es: -3.0 },
-    NutTerm { n: [ 2,  0,  0,  0,  0], ps: 29243.0, pst: 0.0, pc: -74.0, ec: -609.0, ect: 0.0, es: 13.0 },
-    NutTerm { n: [ 0,  0,  2,  0,  0], ps: 25887.0, pst: 0.0, pc: -66.0, ec: -550.0, ect: 0.0, es: 11.0 },
-    NutTerm { n: [ 0,  1,  0,  0,  1], ps: -14053.0, pst: -25.0, pc: 79.0, ec: 8551.0, ect: -2.0, es: -45.0 },
-    NutTerm { n: [-1,  0,  0,  2,  1], ps: 15164.0, pst: 10.0, pc: 11.0, ec: -8001.0, ect: 0.0, es: -1.0 },
-    NutTerm { n: [ 0,  2,  2, -2,  2], ps: -15794.0, pst: 72.0, pc: -16.0, ec: 6850.0, ect: -42.0, es: -5.0 },
-    NutTerm { n: [ 0,  0, -2,  2,  0], ps: 21783.0, pst: 0.0, pc: 13.0, ec: -167.0, ect: 0.0, es: 13.0 },
-    NutTerm { n: [ 1,  0,  0, -2,  1], ps: -12873.0, pst: -10.0, pc: -37.0, ec: 6953.0, ect: 0.0, es: -14.0 },
-    NutTerm { n: [ 0, -1,  0,  0,  1], ps: -12654.0, pst: 11.0, pc: 63.0, ec: 6415.0, ect: 0.0, es: 26.0 },
-    NutTerm { n: [-1,  0,  2,  2,  1], ps: -10204.0, pst: 0.0, pc: 25.0, ec: 5222.0, ect: 0.0, es: 15.0 },
-    NutTerm { n: [ 0,  2,  0,  0,  0], ps: 16707.0, pst: -85.0, pc: -10.0, ec: 168.0, ect: -1.0, es: 10.0 },
-    NutTerm { n: [ 1,  0,  2,  2,  2], ps: -7691.0, pst: 0.0, pc: 44.0, ec: 3268.0, ect: 0.0, es: 19.0 },
-    NutTerm { n: [-2,  0,  2,  0,  0], ps: -11024.0, pst: 0.0, pc: -14.0, ec: 104.0, ect: 0.0, es: 2.0 },
-    NutTerm { n: [ 0,  1,  2,  0,  2], ps: 7566.0, pst: -21.0, pc: -11.0, ec: -3250.0, ect: 0.0, es: -5.0 },
-    NutTerm { n: [ 0,  0,  2,  2,  1], ps: -6637.0, pst: -11.0, pc: 25.0, ec: 3353.0, ect: 0.0, es: 14.0 },
-    NutTerm { n: [ 0, -1,  2,  0,  2], ps: -7141.0, pst: 21.0, pc: 8.0, ec: 3070.0, ect: 0.0, es: 4.0 },
-    NutTerm { n: [ 0,  0,  0,  2,  1], ps: -6302.0, pst: -11.0, pc: 2.0, ec: 3272.0, ect: 0.0, es: 4.0 },
-    NutTerm { n: [ 1,  0,  2, -2,  1], ps: 5800.0, pst: 10.0, pc: 2.0, ec: -3045.0, ect: 0.0, es: -1.0 },
-    NutTerm { n: [ 2,  0,  2, -2,  2], ps: 6443.0, pst: 0.0, pc: -7.0, ec: -2768.0, ect: 0.0, es: -4.0 },
-    NutTerm { n: [-2,  0,  0,  2,  1], ps: -5774.0, pst: -11.0, pc: -15.0, ec: 3041.0, ect: 0.0, es: -5.0 },
-    NutTerm { n: [ 2,  0,  2,  0,  1], ps: -5350.0, pst: 0.0, pc: 21.0, ec: 2695.0, ect: 0.0, es: 12.0 },
-    NutTerm { n: [ 0, -1,  2, -2,  1], ps: -4752.0, pst: -11.0, pc: -3.0, ec: 2719.0, ect: 0.0, es: -3.0 },
-    NutTerm { n: [ 0,  0,  0, -2,  1], ps: -4940.0, pst: -11.0, pc: -21.0, ec: 2720.0, ect: 0.0, es: -9.0 },
-    NutTerm { n: [-1, -1,  0,  2,  0], ps: 7350.0, pst: 0.0, pc: -8.0, ec: -51.0, ect: 0.0, es: 4.0 },
-    NutTerm { n: [ 2,  0,  0, -2,  1], ps: 4065.0, pst: 0.0, pc: 6.0, ec: -2206.0, ect: 0.0, es: 1.0 },
-    NutTerm { n: [ 1,  0,  0,  2,  0], ps: 6579.0, pst: 0.0, pc: -24.0, ec: -199.0, ect: 0.0, es: 2.0 },
-    NutTerm { n: [ 0,  1,  2, -2,  1], ps: 3579.0, pst: 0.0, pc: 5.0, ec: -1900.0, ect: 0.0, es: 1.0 },
-    NutTerm { n: [ 1, -1,  0,  0,  0], ps: 4725.0, pst: 0.0, pc: -6.0, ec: -41.0, ect: 0.0, es: 3.0 },
-    NutTerm { n: [-2,  0,  2,  0,  2], ps: -3075.0, pst: 0.0, pc: -2.0, ec: 1313.0, ect: 0.0, es: -1.0 },
-    NutTerm { n: [ 3,  0,  2,  0,  2], ps: -2904.0, pst: 0.0, pc: 15.0, ec: 1233.0, ect: 0.0, es: 7.0 },
-    NutTerm { n: [ 0, -1,  0,  2,  0], ps: 4348.0, pst: 0.0, pc: -10.0, ec: -81.0, ect: 0.0, es: 2.0 },
-    NutTerm { n: [ 1, -1,  2,  0,  2], ps: -2878.0, pst: 0.0, pc: 8.0, ec: 1232.0, ect: 0.0, es: 4.0 },
-    NutTerm { n: [ 0,  0,  0,  1,  0], ps: -4230.0, pst: 0.0, pc: 5.0, ec: -20.0, ect: 0.0, es: -2.0 },
-    NutTerm { n: [-1, -1,  2,  2,  2], ps: -2819.0, pst: 0.0, pc: 7.0, ec: 1207.0, ect: 0.0, es: 3.0 },
-    NutTerm { n: [-1,  0,  2,  0,  0], ps: -4056.0, pst: 0.0, pc: 5.0, ec: 40.0, ect: 0.0, es: -2.0 },
-    NutTerm { n: [ 0, -1,  2,  2,  2], ps: -2647.0, pst: 0.0, pc: 11.0, ec: 1129.0, ect: 0.0, es: 5.0 },
-    NutTerm { n: [-2,  0,  0,  0,  1], ps: -2294.0, pst: 0.0, pc: -10.0, ec: 1266.0, ect: 0.0, es: -4.0 },
-    NutTerm { n: [ 1,  1,  2,  0,  2], ps: 2481.0, pst: 0.0, pc: -7.0, ec: -1062.0, ect: 0.0, es: -3.0 },
-    NutTerm { n: [ 2,  0,  0,  0,  1], ps: 2179.0, pst: 0.0, pc: -2.0, ec: -1129.0, ect: 0.0, es: -2.0 },
-    NutTerm { n: [-1,  1,  0,  1,  0], ps: 3276.0, pst: 0.0, pc: 1.0, ec: -9.0, ect: 0.0, es: 0.0 },
-    NutTerm { n: [ 1,  1,  0,  0,  0], ps: -3389.0, pst: 0.0, pc: 5.0, ec: 35.0, ect: 0.0, es: -2.0 },
-    NutTerm { n: [ 1,  0,  2,  0,  0], ps: 3339.0, pst: 0.0, pc: -13.0, ec: -107.0, ect: 0.0, es: 1.0 },
-    NutTerm { n: [-1,  0,  2, -2,  1], ps: -1987.0, pst: 0.0, pc: -6.0, ec: 1073.0, ect: 0.0, es: -2.0 },
-    NutTerm { n: [ 1,  0,  0,  0,  2], ps: -1981.0, pst: 0.0, pc: 0.0, ec: 854.0, ect: 0.0, es: 0.0 },
-    NutTerm { n: [-1,  0,  0,  1,  0], ps: 4026.0, pst: 0.0, pc: -353.0, ec: -553.0, ect: 0.0, es: -139.0 },
-    NutTerm { n: [ 0,  0,  2,  1,  2], ps: 1660.0, pst: 0.0, pc: -5.0, ec: -710.0, ect: 0.0, es: -2.0 },
-    NutTerm { n: [-1,  0,  2,  4,  2], ps: -1521.0, pst: 0.0, pc: 9.0, ec: 647.0, ect: 0.0, es: 4.0 },
-    NutTerm { n: [-1,  1,  0,  1,  1], ps: 1314.0, pst: 0.0, pc: 0.0, ec: -700.0, ect: 0.0, es: 0.0 },
-    NutTerm { n: [ 0, -2,  2, -2,  1], ps: -1283.0, pst: 0.0, pc: 0.0, ec: 672.0, ect: 0.0, es: 0.0 },
-    NutTerm { n: [ 1,  0,  2,  2,  1], ps: -1331.0, pst: 0.0, pc: 8.0, ec: 663.0, ect: 0.0, es: 4.0 },
-    NutTerm { n: [-2,  0,  2,  2,  2], ps: 1383.0, pst: 0.0, pc: -2.0, ec: -594.0, ect: 0.0, es: -2.0 },
-    NutTerm { n: [-1,  0,  0,  0,  2], ps: 1405.0, pst: 0.0, pc: 4.0, ec: -610.0, ect: 0.0, es: 2.0 },
-    NutTerm { n: [ 1,  1,  2, -2,  2], ps: 1290.0, pst: 0.0, pc: 0.0, ec: -556.0, ect: 0.0, es: 0.0 },
-];
-
-/// Fixed offsets standing in for the long-period planetary terms, milliarcseconds
-/// (ERFA `DPPLAN` / `DEPLAN`, the Luzum 2001 values for the rigorous method).
-const NUT_PLANETARY_DPSI_MAS: f64 = -0.135;
-const NUT_PLANETARY_DEPS_MAS: f64 = 0.388;
-
-/// Delaunay arguments `l, l', F, D, Omega` in radians (Simon et al. 1994, as used by
-/// the IAU 2000B model), for `t` Julian centuries of TT since J2000.0.
-fn delaunay_args(t: f64) -> [f64; 5] {
-    let as2r = skyfix_core::units::ARCSEC;
-    [
-        (485_868.249_036 + 1_717_915_923.217_8 * t) % TURNAS * as2r,
-        (1_287_104.793_05 + 129_596_581.048_1 * t) % TURNAS * as2r,
-        (335_779.526_232 + 1_739_527_262.847_8 * t) % TURNAS * as2r,
-        (1_072_260.703_69 + 1_602_961_601.209_0 * t) % TURNAS * as2r,
-        (450_160.398_036 - 6_962_890.543_1 * t) % TURNAS * as2r,
-    ]
-}
-
-/// Nutation in longitude and obliquity, **arcseconds**, IAU 2000B.
+/// Nutation in longitude and obliquity, **arcseconds**, from the shared frame model.
 fn nutation_arcsec(jd_tt: f64) -> (f64, f64) {
-    let t = centuries_since_j2000(jd_tt);
-    let fa = delaunay_args(t);
-    let (mut dp, mut de) = (0.0f64, 0.0f64);
-    // Smallest terms first, as ERFA does, so the small contributions are not lost.
-    for term in NUT2000B.iter().rev() {
-        let arg = f64::from(term.n[0]) * fa[0]
-            + f64::from(term.n[1]) * fa[1]
-            + f64::from(term.n[2]) * fa[2]
-            + f64::from(term.n[3]) * fa[3]
-            + f64::from(term.n[4]) * fa[4];
-        let (sarg, carg) = arg.sin_cos();
-        dp += (term.ps + term.pst * t) * sarg + term.pc * carg;
-        de += (term.ec + term.ect * t) * carg + term.es * sarg;
-    }
-    // Series units are 0.1 microarcsecond; the planetary offsets are milliarcseconds.
+    let n = crate::frames::nutation_2000b_p03(jd_tt);
     (
-        dp * 1e-7 + NUT_PLANETARY_DPSI_MAS * 1e-3,
-        de * 1e-7 + NUT_PLANETARY_DEPS_MAS * 1e-3,
+        n.dpsi_rad / skyfix_core::units::ARCSEC,
+        n.deps_rad / skyfix_core::units::ARCSEC,
     )
-}
-
-/// Mean obliquity of the ecliptic, **degrees**, IAU 2006 (ERFA `eraObl06`).
-fn mean_obliquity_deg(jd_tt: f64) -> f64 {
-    let t = centuries_since_j2000(jd_tt);
-    let arcsec = 84_381.406
-        + t * (-46.836_769
-            + t * (-0.000_183_1
-                + t * (0.002_003_40 + t * (-0.000_000_576 + t * -0.000_000_043_4))));
-    arcsec / ARCSEC_PER_DEG
-}
-
-// ---------------------------------------------------------------------------
-// Interim sidereal time
-// ---------------------------------------------------------------------------
-
-/// Earth rotation angle, **degrees**, IAU 2000 (ERFA `eraEra00`).
-fn earth_rotation_angle_deg(jd_ut1: f64) -> f64 {
-    let t = jd_ut1 - skyfix_core::time::JD_J2000;
-    let f = jd_ut1 % 1.0;
-    norm_360(360.0 * (f + 0.779_057_273_264_0 + 0.002_737_811_911_354_48 * t))
-}
-
-/// The four largest complementary terms of the equation of the equinoxes,
-/// **arcseconds** (ERFA `eraEect00`, `t^0` series, terms 1-4). The rest of that series
-/// sums to under 0.000002", far below anything this crate claims.
-fn ee_complementary_arcsec(fa: &[f64; 5]) -> f64 {
-    let om = fa[4];
-    let two_f_two_d = 2.0 * fa[2] - 2.0 * fa[3];
-    2640.96e-6 * om.sin()
-        + 63.52e-6 * (2.0 * om).sin()
-        + 11.75e-6 * (two_f_two_d + 3.0 * om).sin()
-        + 11.21e-6 * (two_f_two_d + om).sin()
-}
-
-/// INTERIM Greenwich apparent sidereal time, **degrees**.
-///
-/// IAU 2006 GMST (ERFA `eraGmst06`: ERA plus the accumulated-precession polynomial)
-/// plus an equation of the equinoxes made of `dpsi cos(eps_true)` and the four largest
-/// complementary terms.
-///
-/// **Handover:** when the sibling agent's `sidereal` module lands, delete this function
-/// and replace its single call site in [`SunProvider::position`] with
-/// `crate::sidereal::gast_deg(jd_ut1, jd_tt)`. The signature is deliberately identical.
-fn interim_gast_deg(jd_ut1: f64, jd_tt: f64) -> f64 {
-    let t = centuries_since_j2000(jd_tt);
-    let gmst = earth_rotation_angle_deg(jd_ut1)
-        + (0.014_506
-            + t * (4612.156_534
-                + t * (1.391_581_7
-                    + t * (-0.000_000_44 + t * (-0.000_029_956 + t * -0.000_000_036_8)))))
-            / ARCSEC_PER_DEG;
-    let (dpsi_as, deps_as) = nutation_arcsec(jd_tt);
-    let eps_true_deg = mean_obliquity_deg(jd_tt) + deps_as / ARCSEC_PER_DEG;
-    let fa = delaunay_args(t);
-    let ee_as = dpsi_as * eps_true_deg.to_radians().cos() + ee_complementary_arcsec(&fa);
-    norm_360(gmst + ee_as / ARCSEC_PER_DEG)
 }
 
 // ---------------------------------------------------------------------------
@@ -517,7 +338,7 @@ impl SunProvider {
             norm_360(theta_deg + (dpsi_as + aberration_as) / ARCSEC_PER_DEG);
 
         // 6-7. True obliquity, then RA and Dec.
-        let true_obliquity_deg = mean_obliquity_deg(jd_tt_v) + deps_as / ARCSEC_PER_DEG;
+        let true_obliquity_deg = crate::frames::true_obliquity_rad(jd_tt_v).to_degrees();
         let (lam, bet, eps) = (
             apparent_longitude_deg.to_radians(),
             beta_deg.to_radians(),
@@ -535,11 +356,8 @@ impl SunProvider {
             .asin()
             .to_degrees();
 
-        // 8. Hour angle. ---------------------------------------------------------
-        // SIDEREAL HANDOVER POINT: replace the next line with
-        //     let gast_deg = crate::sidereal::gast_deg(jd_ut1_v, jd_tt_v);
-        // and delete `interim_gast_deg`. Nothing else in this file changes.
-        let gast_deg = interim_gast_deg(jd_ut1_v, jd_tt_v);
+        // 8. Hour angle, from the same sidereal time the star provider uses.
+        let gast_deg = crate::sidereal::gast_deg(jd_ut1_v, jd_tt_v);
         let gha_deg = norm_360(gast_deg - ra_deg);
 
         // Equation of time (Meeus 28.1) from the Sun's mean longitude. This route
@@ -615,8 +433,9 @@ impl AstroProvider for SunProvider {
                  over 1990-2060: {el:.4}\" in L, {eb:.4}\" in B, {er:.2e} au in R); IAU 2000B \
                  nutation and IAU 2006 mean obliquity from ERFA; aberration -20.4898\"/R; \
                  semidiameter 959.63\"/R and horizontal parallax 8.794\"/R. {dut1}. \
-                 Sidereal time is the interim IAU 2006 GMST + 4-term equation of the equinoxes \
-                 inside sun.rs until the sidereal module lands."
+                 Nutation, obliquity and sidereal time are the shared IAU 2006/2000B frame \
+                 model in skyfix_ephemeris::frames and ::sidereal, the same one the star \
+                 provider uses."
             ),
             // The model alone; the DUT1 term above is reported separately because it is
             // an input assumption, not a model error, and a caller can remove it.
@@ -706,11 +525,15 @@ mod tests {
     /// Meeus, *Astronomical Algorithms*, Example 22.a: 1987 April 10 at 0h TD gives
     /// `dpsi = -3".788`, `deps = +9".443`, mean obliquity `23d 26' 27".407`.
     ///
-    /// Meeus uses IAU 1980 nutation; this crate uses IAU 2000B, which differs from it
-    /// by a few hundredths of an arcsecond, and IAU 2006 mean obliquity, which differs
-    /// from Meeus's Laskar expression by about 0.04". The tolerances below are those
-    /// model differences, not slack: a transcription error in any of the large
-    /// nutation terms would be tens of arcseconds.
+    /// Meeus uses IAU 1980 nutation; `crate::frames` supplies IAU 2000B, which differs
+    /// from it by a few hundredths of an arcsecond, and IAU 2006 mean obliquity, which
+    /// differs from Meeus's Laskar expression by about 0.04". The tolerances below are
+    /// those model differences, not slack: an error in any of the large nutation terms
+    /// would be tens of arcseconds.
+    ///
+    /// This is the Sun's view of the shared frame model. `crate::frames` has its own
+    /// tests; this one guards the specific quantities `position` consumes, so a change
+    /// there that moved the Sun would fail here too.
     #[test]
     fn nutation_and_obliquity_match_meeus_22a() {
         let jd_tt = civil_to_jd(1987, 4, 10);
@@ -718,9 +541,17 @@ mod tests {
         assert_relative_eq!(dpsi, -3.788, epsilon = 0.02);
         assert_relative_eq!(deps, 9.443, epsilon = 0.02);
 
-        let eps0 = mean_obliquity_deg(jd_tt);
+        let eps0 = crate::frames::mean_obliquity_rad(jd_tt).to_degrees();
         let expected = 23.0 + 26.0 / 60.0 + 27.407 / 3600.0;
         assert_relative_eq!(eps0, expected, epsilon = 0.05 / 3600.0);
+
+        // Meeus's true obliquity for the same instant, 23d 26' 36".850.
+        let eps = crate::frames::true_obliquity_rad(jd_tt).to_degrees();
+        assert_relative_eq!(
+            eps,
+            23.0 + 26.0 / 60.0 + 36.850 / 3600.0,
+            epsilon = 0.05 / 3600.0
+        );
     }
 
     #[test]
@@ -747,43 +578,22 @@ mod tests {
         );
     }
 
-    /// The Earth rotation angle advances exactly one turn per UT1 sidereal day and is
-    /// `100.46...` degrees at J2000.0 noon.
+    /// The sidereal time the Sun uses must differ from GMST only by the equation of
+    /// the equinoxes, which never exceeds about 1.15 s of time
+    /// (max|dpsi| 18.93" x cos eps 0.9175 = 17.37", plus 2.6 mas of complementary
+    /// terms). This is the Sun's view of `crate::sidereal`.
     #[test]
-    fn earth_rotation_angle_is_linear_in_ut1() {
-        let j2000 = skyfix_core::time::JD_J2000;
-        assert_relative_eq!(
-            earth_rotation_angle_deg(j2000),
-            280.460_618_4,
-            epsilon = 1e-6
-        );
-        let a = earth_rotation_angle_deg(j2000);
-        let b = earth_rotation_angle_deg(j2000 + 1.0);
-        assert_relative_eq!(
-            norm_360(b - a),
-            360.0 * 0.002_737_811_911_354_48,
-            epsilon = 1e-9
-        );
-    }
-
-    /// The interim GAST must agree with GMST to within the equation of the equinoxes,
-    /// which never exceeds about 1.15 s of time (17.2" x cos eps + 2.6 mas).
-    #[test]
-    fn interim_gast_differs_from_gmst_only_by_the_equation_of_the_equinoxes() {
+    fn gast_differs_from_gmst_only_by_the_equation_of_the_equinoxes() {
         let start = parse_utc("1990-01-01T00:00:00Z").unwrap();
         let mut max_ee_arcsec = 0.0f64;
         for i in 0..(71 * 52) {
             let jd = start + f64::from(i) * 7.0;
-            let t = centuries_since_j2000(jd_tt(jd));
-            let gmst = norm_360(
-                earth_rotation_angle_deg(jd)
-                    + (0.014_506 + t * (4612.156_534 + t * 1.391_581_7)) / ARCSEC_PER_DEG,
-            );
-            let ee = norm_180(interim_gast_deg(jd, jd_tt(jd)) - gmst) * ARCSEC_PER_DEG;
+            let tt = jd_tt(jd);
+            let ee =
+                norm_180(crate::sidereal::gast_deg(jd, tt) - crate::sidereal::gmst_deg(jd, tt))
+                    * ARCSEC_PER_DEG;
             max_ee_arcsec = max_ee_arcsec.max(ee.abs());
         }
-        // max|dpsi| (18.93") x cos(eps) (0.9175) = 17.37", plus 2.6 mas of
-        // complementary terms.
         assert!(
             (17.0..17.6).contains(&max_ee_arcsec),
             "max |equation of the equinoxes| = {max_ee_arcsec}\", expected ~17.3\""

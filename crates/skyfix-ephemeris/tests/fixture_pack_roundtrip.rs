@@ -212,7 +212,10 @@ fn coverage_says_limited_date_verbatim_and_lists_every_body_and_range() {
 
 #[test]
 fn malformed_packs_are_refused_with_a_message_that_says_what_is_wrong() {
-    let cases: Vec<(Box<dyn Fn(&mut AlmanacPack)>, &str)> = vec![
+    /// A way to break a pack, and the word its refusal must contain.
+    type Case = (Box<dyn Fn(&mut AlmanacPack)>, &'static str);
+
+    let cases: Vec<Case> = vec![
         (
             Box::new(|p: &mut AlmanacPack| p.schema = "skyfix.almanac_pack/2".into()),
             "schema",
