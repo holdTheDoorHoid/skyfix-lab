@@ -21,7 +21,9 @@ commit, and say so in your report. Numeric definitions are CONVENTIONS section 1
   `"all"` (Sun, Moon, Mercury…Neptune, the 58 navigational stars), `"solar_system"`
   (Sun, Moon, Mercury…Neptune) or `"navigational"` (Sun, Moon, Venus, Mars, Jupiter,
   Saturn, the 58 stars). Names match case-insensitively after trimming; results always
-  use the canonical spelling.
+  use the canonical spelling. A single body name as a JSON string (`"Moon"`), and a
+  group name without the JSON quotes (`all`), are accepted too. Duplicates are dropped;
+  an unknown name throws.
 - **Canonical names:** `Sun`, `Moon`, `Mercury`, `Venus`, `Mars`, `Jupiter`, `Saturn`,
   `Uranus`, `Neptune`, and the star names returned by the existing `catalog()`.
 - **Errors:** malformed input throws a string. A body that cannot be computed at that
@@ -67,7 +69,11 @@ The UI offers a body for sights only when its group is validated.
 ```
 
 `sky_phase` is `"day" | "civil" | "nautical" | "astronomical" | "night"` from the Sun's
-topocentric geometric altitude (CONVENTIONS §13.4).
+topocentric geometric altitude (CONVENTIONS §13.4). Because `sun_altitude_deg` and
+`sky_phase` are defined by the Sun, `sky_state` **throws** when the Sun itself cannot be
+computed at `jd_utc` (outside its coverage); the UI keeps time inside
+`explorer_coverage()`'s range. `gha_aries_deg` is taken from the Sun's own state
+(`GHA + RA`), so it is consistent with every GHA in the same response.
 
 `BodyState`:
 
@@ -90,7 +96,10 @@ topocentric geometric altitude (CONVENTIONS §13.4).
 
 ### `sample_bodies(observer_json, bodies_json, jd_start, jd_end, step_minutes) -> Sampled`
 
-For paths on the map and charts. At most 20 000 samples per body.
+For paths on the map and charts. At most 20 000 samples per body. Samples are at
+`jd_start + k·step` for `k = 0, 1, …` while not after `jd_end`. Long requests are
+interpolated between exact evaluations (every 3 h for the Moon, 8 h otherwise) and agree
+with `sky_state` at the same instant to under 0.01″.
 
 ```ts
 { jd_utc: Float64Array,
@@ -127,6 +136,11 @@ display time zone). `options_json`: `{"horizon": "standard" | "dip", "height_of_
 - `always_above` / `always_below`: the body never crosses its rise/set altitude inside
   the window. `day_length_h` is the Sun's time above its rise/set altitude inside the
   window, `null` for other bodies.
+- An event's `alt_deg`/`az_deg` are those of the body at that instant (within 0.01″ of
+  `sky_state`); at a rise or set `alt_deg` is the `h0` used.
+- The window is at most 400 days. `phases` need the Sun, so `day_events` **throws** when
+  the Sun cannot be computed over the whole window; any other body that cannot be goes
+  to `errors`.
 
 ### `day_events_batch(observer_json, windows_json, bodies_json, options_json) -> DayEvents[]`
 
@@ -137,14 +151,20 @@ display time zone). `options_json`: `{"horizon": "standard" | "dip", "height_of_
 Every instant in the window when the body's **apparent** topocentric altitude crosses
 `altitude_deg`, each `{"jd_utc", "utc", "alt_deg", "az_deg", "rising": bool}`. SunCalc's
 "reverse calculation" in navigator form: "when is the Sun at 30° this afternoon?"
+`alt_deg` here is, like everywhere else, the **geometric** altitude at that instant
+(the requested apparent altitude minus the display refraction). Throws when the body
+cannot be computed over the window (at most 400 days).
 
 ### `moon_phases(jd_start, jd_end) -> PhaseEvent[]`
 
 `[{"kind": "new_moon" | "first_quarter" | "full_moon" | "last_quarter", "jd_utc", "utc"}]`.
+Throws when the Moon (or the Sun) cannot be computed over the window — today, until the
+Moon provider lands.
 
 ### `seasons(year) -> SeasonEvent[]`
 
 `[{"kind": "march_equinox" | "june_solstice" | "september_equinox" | "december_solstice", "jd_utc", "utc"}]`.
+`year` must be a whole number inside the Sun's coverage (1990–2060), or it throws.
 
 ### `sidereal(jd_utc) -> {"gha_aries_deg": number}`
 
