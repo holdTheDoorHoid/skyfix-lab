@@ -279,9 +279,9 @@ describe('what the place sees, in words', () => {
   it('tells a lunar eclipse seen until moonset', () => {
     const label = hereLabel(lunar2025, london, words.time);
     expect(label.seen).toBe(true);
-    expect(label.text).toBe(`Seen here, until moonset (${words.time(2460748.7659)})`);
+    expect(label.text).toBe(`Seen here, until moonset at ${words.time(2460748.7659)}`);
     expect(hereLabel({ ...lunar2025, type: 'penumbral' }, { ...london, visibility: 'visible', events: [ev('max', 1, 30)] }, words.time).text).toBe(
-      `Seen here, greatest at ${words.time(1)} (faint)`,
+      `Seen here (faint), greatest at ${words.time(1)}`,
     );
     expect(hereLabel(lunar2025, { ...london, visibility: 'below_horizon' }).text).toBe('Not seen here: the Moon is down');
   });
@@ -296,7 +296,7 @@ describe('what the place sees, in words', () => {
 
   it('says why nothing can be seen, and where the eclipse is', () => {
     const none = solarSummary(solar2024, { ...dallas, visibility: 'none', events: [], visible_max: null }, words);
-    expect(none[0]).toBe('The Moon’s shadow misses Dallas: nothing of this eclipse can be seen here.');
+    expect(none[0]).toBe('The Moon’s shadow misses Dallas: nothing of this eclipse can be seen there.');
     expect(none[1]).toContain('Greatest eclipse is at 25.3, -104.1');
     const night = solarSummary(solar2024, { ...dallas, visibility: 'below_horizon', visible_max: null }, words);
     expect(night[0]).toContain('while the Sun is below the horizon at Dallas');
@@ -306,8 +306,8 @@ describe('what the place sees, in words', () => {
     const text = lunarSummary(lunar2025, london, { ...words, place: 'London' });
     expect(text[0]).toContain('At London the Moon sets at');
     expect(text[1]).toContain('Totality lasts 1 h 05 min');
-    expect(text[1]).toContain('not all of it with the Moon up here');
-    expect(text[1]).toContain('comes with the Moon below the horizon here');
+    expect(text[1]).toContain('not all of it with the Moon up there');
+    expect(text[1]).toContain('comes with the Moon below the horizon there');
     const down = lunarSummary(lunar2025, { ...london, visibility: 'below_horizon' }, words);
     expect(down[0]).toContain('The Moon is below the horizon at Dallas throughout');
   });

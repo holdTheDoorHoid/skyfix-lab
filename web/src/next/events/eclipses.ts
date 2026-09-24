@@ -108,7 +108,9 @@ function settingsOf(s: ExplorerState): Settings {
 
 function words(st: Settings): Words {
   return {
-    place: st.place,
+    // The place's label can be anything ("near Philadelphia, Pennsylvania, United States",
+    // "At sea, 32 NM SE of …"), so the sentences say "your place"; the card names it above them.
+    place: 'your place',
     time: (jd) => eventTime(jd, st.zone),
     altitude: (deg) => `${Math.round(deg)}°`,
     direction: (az) => compassWords(az),
@@ -241,8 +243,11 @@ function timeline(e: Eclipse, local: EclipseLocal, zone: Zone): Timeline | null 
     el,
     setNow(jd: number): void {
       const inside = jd >= t0 && jd <= t1;
-      now.hidden = !inside;
-      if (inside) now.style.left = `${x(jd)}%`;
+      if (now.hidden === inside) now.hidden = !inside;
+      if (inside) {
+        const left = `${x(jd).toFixed(2)}%`;
+        if (now.style.left !== left) now.style.left = left;
+      }
     },
   };
 }
@@ -406,11 +411,12 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
       e.kind === 'solar' && local.kind === 'solar'
         ? solarSummary(e as SolarEclipse, local, w)
         : lunarSummary(e as LunarEclipse, local as LunarEclipseLocal, w);
+    parts.push(h('h4', { class: 'sfe-card__sub' }, `Seen from ${st.place}`));
     parts.push(h('div', { class: 'sfe-summary' }, ...sentences.map((t) => h('p', {}, t))));
     parts.push(readoutsFor(e, local, st));
     tl = timeline(e, local, st.zone);
     if (tl && local.events.length) {
-      parts.push(h('h4', { class: 'sfe-card__sub' }, `At ${st.place}`));
+      parts.push(h('h4', { class: 'sfe-card__sub' }, 'Timeline'));
       parts.push(tl.el);
       parts.push(contactsTable(e, local, st, jumpHere));
       parts.push(
@@ -789,10 +795,13 @@ export const eclipsesTab: TabComponent = (host, env) => {
       if (row.now.hidden !== under) row.now.hidden = under;
     }
     const span = ui.get().eclipseDirection === 'upcoming' ? 'in the next ten years' : 'in the last ten years';
-    if (listError) status.textContent = '';
-    else if (!shown.length) status.textContent = '';
-    else if (known < shown.length) status.textContent = `${shown.length} eclipses ${span}. Checking which can be seen from ${st.place}: ${known} of ${shown.length}…`;
-    else status.textContent = `${shown.length} eclipses ${span}; ${seenCount} can be seen from ${st.place}.`;
+    const text =
+      listError || !shown.length
+        ? ''
+        : known < shown.length
+          ? `${shown.length} eclipses ${span}. Checking which can be seen from ${st.place}…`
+          : `${shown.length} eclipses ${span}; ${seenCount} can be seen from ${st.place}.`;
+    if (status.textContent !== text) status.textContent = text;
   };
 
   // --- The card --------------------------------------------------------------------------------
@@ -837,7 +846,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
     const inline = narrow && row !== undefined && !cardEl.classList.contains('sfe-card--empty');
     const target = inline ? row.item : aside;
     if (cardEl.parentElement !== target) target.append(cardEl);
-    aside.hidden = narrow;
+    if (aside.hidden !== narrow) aside.hidden = narrow;
   };
 
   // Layout: the card moves under its row when the stage is narrow.
@@ -898,11 +907,14 @@ export const eclipsesTab: TabComponent = (host, env) => {
         }
         direction.set(dir);
         kind.set(k);
-        seen.setAttribute('aria-checked', String(ui.get().seenOnly));
-        startJob(shown.map((e) => e.id));
+        const checked = String(ui.get().seenOnly);
+        if (seen.getAttribute('aria-checked') !== checked) seen.setAttribute('aria-checked', checked);
+        // Only what is not known yet; a job already working through the same list goes on.
+        const missing = shown.map((e) => e.id).filter((id) => !locals.has(id));
+        if (missing.join() !== pending.join()) startJob(missing);
         paint();
         renderCard();
-        if (!pending.length) root.dataset.local = 'done';
+        if (!pending.length && root.dataset.local !== 'done') root.dataset.local = 'done';
       },
     ),
   );

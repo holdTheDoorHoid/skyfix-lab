@@ -143,12 +143,14 @@ const view: Component = (host, ctx) => {
         const s = ctx.store.get();
         const zone = displayZone(s);
         const place = s.observer.label || 'your place';
-        context.textContent = `From ${dateMedium(roundToMinute(anchor), zone)} · ${place} · times in ${zoneShortName(now, zone)}`;
+        const text = `From ${dateMedium(roundToMinute(anchor), zone)} · ${place} · times in ${zoneShortName(now, zone)}`;
+        if (context.textContent !== text) context.textContent = text;
         const behind = Math.abs(now - anchor) > 1 / 1440;
-        reanchor.hidden = !behind;
+        if (reanchor.hidden === behind) reanchor.hidden = !behind;
         if (behind) {
           const label = reanchor.querySelector('.sf-btn__label');
-          if (label) label.textContent = `List from ${dateMedium(roundToMinute(now), zone)}`;
+          const next = `List from ${dateMedium(roundToMinute(now), zone)}`;
+          if (label && label.textContent !== next) label.textContent = next;
         }
       },
     ),

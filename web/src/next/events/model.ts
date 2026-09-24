@@ -312,18 +312,18 @@ function lunarHere(e: LunarEclipse, local: LunarEclipseLocal, time: (jd: number)
   const rise = eventOf(local, 'moonrise');
   const set = eventOf(local, 'moonset');
   const max = eventOf(local, 'max');
-  const paren = (jd: number): string => (time(jd) ? ` (${time(jd)})` : '');
+  const at = (jd: number): string => (time(jd) ? ` at ${time(jd)}` : '');
   const part =
     rise && set
       ? ', between moonrise and moonset'
       : rise
-        ? `, from moonrise${paren(rise.jd_utc)}`
+        ? `, from moonrise${at(rise.jd_utc)}`
         : set
-          ? `, until moonset${paren(set.jd_utc)}`
+          ? `, until moonset${at(set.jd_utc)}`
           : max && time(max.jd_utc)
-            ? `, greatest at ${time(max.jd_utc)}`
+            ? `, greatest${at(max.jd_utc)}`
             : '';
-  if (e.type === 'penumbral') return { seen: true, text: `Seen here${part} (faint)`, tone: 'faint' };
+  if (e.type === 'penumbral') return { seen: true, text: `Seen here (faint)${part}`, tone: 'faint' };
   return { seen: true, text: `Seen here${part}`, tone: e.type === 'total' ? 'central' : 'partial' };
 }
 
@@ -349,11 +349,11 @@ function upIn(ev: EclipseLocalEvent, w: Words, body: 'Sun' | 'Moon'): string {
 export function solarSummary(e: SolarEclipse, local: SolarEclipseLocal, w: Words): string[] {
   const where = `Greatest eclipse is at ${w.position(e.greatest.lat_deg, e.greatest.lon_deg)}, at ${w.time(e.greatest.jd_utc)} your time.`;
   if (local.visibility === 'none') {
-    return [`The Moon’s shadow misses ${w.place}: nothing of this eclipse can be seen here.`, where];
+    return [`The Moon’s shadow misses ${w.place}: nothing of this eclipse can be seen there.`, where];
   }
   if (local.visibility === 'below_horizon') {
     return [
-      `The eclipse happens while the Sun is below the horizon at ${w.place}, so none of it can be seen here.`,
+      `The eclipse happens while the Sun is below the horizon at ${w.place}, so none of it can be seen there.`,
       where,
     ];
   }
@@ -379,7 +379,7 @@ export function solarSummary(e: SolarEclipse, local: SolarEclipseLocal, w: Words
       );
     } else {
       out.push(
-        `${capital(w.place)} is inside ${pathName}, but the ${central === 'total' ? 'total' : 'annular'} phase comes with the Sun below the horizon here; only the partial eclipse can be seen.`,
+        `${capital(w.place)} is inside ${pathName}, but the ${central === 'total' ? 'total' : 'annular'} phase comes with the Sun below the horizon there; only the partial eclipse can be seen.`,
       );
     }
   } else {
@@ -416,7 +416,7 @@ export function lunarSummary(e: LunarEclipse, local: LunarEclipseLocal, w: Words
   const max = eventOf(local, 'max');
   if (!seenHere(local)) {
     return [
-      `The Moon is below the horizon at ${w.place} throughout this eclipse, so none of it can be seen here.`,
+      `The Moon is below the horizon at ${w.place} throughout this eclipse, so none of it can be seen there.`,
       `It can be seen wherever the Moon is up: at greatest eclipse, ${w.time(e.greatest.jd_utc)} your time, the Moon is overhead at ${w.position(e.greatest.lat_deg, e.greatest.lon_deg)}.`,
     ];
   }
@@ -430,13 +430,13 @@ export function lunarSummary(e: LunarEclipse, local: LunarEclipseLocal, w: Words
   const atMax = max
     ? max.visible
       ? `at greatest eclipse, ${w.time(max.jd_utc)}, ${upIn(max, w, 'Moon')}`
-      : `greatest eclipse, at ${w.time(max.jd_utc)}, comes with the Moon below the horizon here`
+      : `greatest eclipse, at ${w.time(max.jd_utc)}, comes with the Moon below the horizon there`
     : '';
   if (e.type === 'total') {
     const u2 = eventOf(local, 'u2');
     const u3 = eventOf(local, 'u3');
     if (u2 && u3) {
-      const hidden = u2.visible && u3.visible ? '' : ' (not all of it with the Moon up here)';
+      const hidden = u2.visible && u3.visible ? '' : ' (not all of it with the Moon up there)';
       out.push(
         `Totality lasts ${formatDuration(e.total_duration_s)}, from ${w.time(u2.jd_utc)} to ${w.time(u3.jd_utc)}${hidden}; ${atMax}.`,
       );
