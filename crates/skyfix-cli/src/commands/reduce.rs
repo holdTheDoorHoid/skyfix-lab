@@ -160,9 +160,9 @@ pub fn session_header(
                 report::format_position_decimal(ap)
             ));
         }
-        None => out.push_str(
-            "Assumed    none: Hc, Zn and the intercept need an assumed position\n",
-        ),
+        None => {
+            out.push_str("Assumed    none: Hc, Zn and the intercept need an assumed position\n")
+        }
     }
     out
 }

@@ -440,8 +440,7 @@ fn render_circles(circles: &[CircleOfPosition], out: &mut String) {
 }
 
 /// What would settle an ambiguity, in the terms a navigator can act on.
-const AMBIGUITY_REMEDY: &str =
-    "Every candidate fits the sights about equally well, so promoting one of them would be \
+const AMBIGUITY_REMEDY: &str = "Every candidate fits the sights about equally well, so promoting one of them would be \
      false precision. One more sight of a body 60 to 120 degrees away in azimuth from those \
      already used would separate them, and so would any independent knowledge of position good \
      to less than the distance between the candidates — declared as a prior, so that the \

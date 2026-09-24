@@ -59,9 +59,9 @@ pub fn resolve(demo: Option<&str>, scenario: Option<&Path>) -> Result<Scenario> 
             Ok(s)
         }
         (Some(_), Some(_)) => bail!("give --demo or --scenario, not both"),
-        (None, None) => bail!(
-            "give --demo NAME or --scenario FILE. `skyfix demos` lists the packaged demos."
-        ),
+        (None, None) => {
+            bail!("give --demo NAME or --scenario FILE. `skyfix demos` lists the packaged demos.")
+        }
     }
 }
 
@@ -94,9 +94,7 @@ mod tests {
     #[test]
     fn resolve_refuses_both_and_neither() {
         assert!(resolve(None, None).is_err());
-        assert!(
-            resolve(Some("philadelphia-stars"), Some(Path::new("x.json"))).is_err()
-        );
+        assert!(resolve(Some("philadelphia-stars"), Some(Path::new("x.json"))).is_err());
         assert!(resolve(Some("no-such-demo"), None).is_err());
         assert!(resolve(Some("philadelphia-stars"), None).is_ok());
     }

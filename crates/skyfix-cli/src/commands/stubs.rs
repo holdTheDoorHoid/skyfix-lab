@@ -1,4 +1,4 @@
-//! Subcommands whose flags are settled but whose implementation is not merged yet.
+//! Subcommands whose flags are settled but whose implementation is not wired up here.
 //! OWNER: cli agent.
 //!
 //! These exist as real clap subcommands, with the flags they will take, so that

@@ -114,9 +114,8 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
         }),
 
         Command::Demos { json } => commands::simulate::run_demos(json),
-        Command::Plan { .. } => commands::stubs::not_wired(
-            "plan",
-            "skyfix_core::planner is still a stub",
-        ),
+        Command::Plan { .. } => {
+            commands::stubs::not_wired("plan", "skyfix_core::planner is still a stub")
+        }
     }
 }

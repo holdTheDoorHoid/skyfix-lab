@@ -5,3 +5,4 @@
 - [Design brief](BRIEF.md)
 - [Conventions (normative)](CONVENTIONS.md)
 - [Architecture](ARCHITECTURE.md)
+- [Command line](CLI.md)

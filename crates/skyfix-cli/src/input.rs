@@ -65,8 +65,8 @@ pub struct Loaded {
 /// [`crate::provider::known_bodies`]); an observation that supplies its own
 /// `geocentric` block is exempt from that check by the core's own rule.
 pub fn load(path: &Path, known_bodies: &[&str]) -> Result<Loaded> {
-    let text = std::fs::read_to_string(path)
-        .with_context(|| format!("cannot read {}", path.display()))?;
+    let text =
+        std::fs::read_to_string(path).with_context(|| format!("cannot read {}", path.display()))?;
     let format = detect_format(path, &text);
     let session = parse(&text, format, path)?;
     let warnings = session::validate(&session, known_bodies)

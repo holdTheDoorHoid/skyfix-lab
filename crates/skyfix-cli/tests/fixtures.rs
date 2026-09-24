@@ -191,10 +191,8 @@ fn every_fixture_altitude_is_the_truth_altitude() {
         let mut at_truth = session.clone();
         at_truth.observer.assumed_position = Some(PHL);
         at_truth.observer.assumed_position_role = AssumedPositionRole::Initializer;
-        let reduced = skyfix_core::reduce::reduce_session(
-            &at_truth,
-            &skyfix_core::reduce::SuppliedOnly,
-        );
+        let reduced =
+            skyfix_core::reduce::reduce_session(&at_truth, &skyfix_core::reduce::SuppliedOnly);
         for r in reduced {
             let r = r.unwrap_or_else(|e| panic!("{name}: {e}"));
             let intercept = r.intercept_nm.expect("the truth position was supplied");
@@ -214,8 +212,7 @@ fn the_sextant_fixture_exercises_every_correction_kind() {
 
     let text = std::fs::read_to_string(data_file("phl_sextant.session.json")).expect("fixture");
     let (session, _) = skyfix_core::session::parse_session(&text).expect("valid");
-    let reduced =
-        skyfix_core::reduce::reduce_session(&session, &skyfix_core::reduce::SuppliedOnly);
+    let reduced = skyfix_core::reduce::reduce_session(&session, &skyfix_core::reduce::SuppliedOnly);
     let mut applied = std::collections::BTreeSet::new();
     for r in reduced {
         for step in &r.expect("reduces").corrections.steps {

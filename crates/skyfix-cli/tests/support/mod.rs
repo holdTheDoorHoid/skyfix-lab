@@ -24,8 +24,8 @@ use skyfix_core::corrections::{self, CorrectionInputs};
 use skyfix_core::geometry::{self, Point};
 use skyfix_core::time::parse_utc;
 use skyfix_core::types::{
-    AltitudeKind, Clock, GeocentricDirection, HorizonMode, Instrument, LatLon,
-    Limb, Observation, Observer, SESSION_SCHEMA, Session, SessionKind, SessionMeta,
+    AltitudeKind, Clock, GeocentricDirection, HorizonMode, Instrument, LatLon, Limb, Observation,
+    Observer, SESSION_SCHEMA, Session, SessionKind, SessionMeta,
 };
 use skyfix_ephemeris::AstroProvider;
 use skyfix_ephemeris::stars::StarProvider;
@@ -340,15 +340,26 @@ where
 /// below anything that could matter (1e-8 degrees is 0.04 milliarcseconds, under a
 /// tenth of a millimetre on the ground) and far above that floor, so a genuine change in
 /// the sky model still fails.
-pub fn json_close(a: &serde_json::Value, b: &serde_json::Value, tol: f64, path: &str) -> Result<(), String> {
+pub fn json_close(
+    a: &serde_json::Value,
+    b: &serde_json::Value,
+    tol: f64,
+    path: &str,
+) -> Result<(), String> {
     use serde_json::Value;
     match (a, b) {
         (Value::Number(x), Value::Number(y)) => {
-            let (x, y) = (x.as_f64().unwrap_or(f64::NAN), y.as_f64().unwrap_or(f64::NAN));
+            let (x, y) = (
+                x.as_f64().unwrap_or(f64::NAN),
+                y.as_f64().unwrap_or(f64::NAN),
+            );
             if (x - y).abs() <= tol {
                 Ok(())
             } else {
-                Err(format!("{path}: {x} vs {y} (differ by {:.3e}, tolerance {tol:.0e})", (x - y).abs()))
+                Err(format!(
+                    "{path}: {x} vs {y} (differ by {:.3e}, tolerance {tol:.0e})",
+                    (x - y).abs()
+                ))
             }
         }
         (Value::Object(x), Value::Object(y)) => {
@@ -358,8 +369,12 @@ pub fn json_close(a: &serde_json::Value, b: &serde_json::Value, tol: f64, path: 
             for k in keys {
                 match (x.get(k), y.get(k)) {
                     (Some(xv), Some(yv)) => json_close(xv, yv, tol, &format!("{path}.{k}"))?,
-                    (None, Some(_)) => return Err(format!("{path}.{k}: missing from the committed file")),
-                    (Some(_), None) => return Err(format!("{path}.{k}: missing from the generated document")),
+                    (None, Some(_)) => {
+                        return Err(format!("{path}.{k}: missing from the committed file"));
+                    }
+                    (Some(_), None) => {
+                        return Err(format!("{path}.{k}: missing from the generated document"));
+                    }
                     (None, None) => unreachable!("the key came from one of the two"),
                 }
             }

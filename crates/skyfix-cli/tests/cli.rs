@@ -81,17 +81,15 @@ fn validate_rejects_an_unknown_body_and_says_what_to_do() {
 
 #[test]
 fn validate_json_is_the_documented_shape() {
-    let run = skyfix([
-        "validate",
-        &fixture("every_field.session.json"),
-        "--json",
-    ])
-    .expect_code(0);
+    let run = skyfix(["validate", &fixture("every_field.session.json"), "--json"]).expect_code(0);
     let v = run.json();
     assert_eq!(v["ok"], Value::Bool(true));
     assert_eq!(v["errors"].as_array().expect("errors is an array").len(), 0);
     assert!(
-        !v["warnings"].as_array().expect("warnings is an array").is_empty(),
+        !v["warnings"]
+            .as_array()
+            .expect("warnings is an array")
+            .is_empty(),
         "{v}"
     );
 
@@ -100,7 +98,12 @@ fn validate_json_is_the_documented_shape() {
     let v = run.json();
     assert_eq!(v["ok"], Value::Bool(false));
     assert_eq!(v["errors"].as_array().expect("errors").len(), 1);
-    assert!(v["errors"][0].as_str().expect("a message").contains("schema"));
+    assert!(
+        v["errors"][0]
+            .as_str()
+            .expect("a message")
+            .contains("schema")
+    );
 }
 
 #[test]
@@ -132,20 +135,28 @@ fn reduce_prints_every_correction_step_with_its_sign() {
         "semidiameter",
         "parallax",
     ] {
-        assert!(run.stdout.contains(kind), "{kind} is missing from the table");
+        assert!(
+            run.stdout.contains(kind),
+            "{kind} is missing from the table"
+        );
     }
     // The table's own columns, and the identity of the sight above them.
     assert!(run.stdout.contains("before deg"), "{}", run.stdout);
     assert!(run.stdout.contains("delta '"), "{}", run.stdout);
     assert!(
-        run.stdout.contains("obs-1  Schedar  2026-10-01T01:30:00Z  direction: supplied"),
+        run.stdout
+            .contains("obs-1  Schedar  2026-10-01T01:30:00Z  direction: supplied"),
         "{}",
         run.stdout
     );
     // Index error 2.0' on the arc is a -2.0' correction (CONVENTIONS section 5).
     assert!(run.stdout.contains("-2.00"), "{}", run.stdout);
     // Ho, sigma, and the reduction against the assumed position.
-    assert!(run.stdout.contains("Ho 51.978993 deg   sigma 1.00'"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains("Ho 51.978993 deg   sigma 1.00'"),
+        "{}",
+        run.stdout
+    );
     assert!(run.stdout.contains("intercept"), "{}", run.stdout);
     assert!(
         run.stdout.contains("NM A (away)") || run.stdout.contains("NM T (toward)"),
@@ -232,16 +243,11 @@ fn reduce_reports_a_rejected_sight_and_still_prints_the_rest() {
              {"id":"obs-2","body":"Sun","utc":"2026-10-01T15:00:00Z","altitude_deg":40.0,
               "altitude_kind":"observed_ho"}]}"#,
     );
-    let run = skyfix([
-        "reduce",
-        path.to_str().unwrap(),
-        "--ephemeris",
-        "supplied",
-    ])
-    .expect_code(2)
-    .expect_stdout("obs-1")
-    .expect_stdout("obs-2  Sun  REJECTED")
-    .expect_stderr("1 of 2 sight(s) were rejected");
+    let run = skyfix(["reduce", path.to_str().unwrap(), "--ephemeris", "supplied"])
+        .expect_code(2)
+        .expect_stdout("obs-1")
+        .expect_stdout("obs-2  Sun  REJECTED")
+        .expect_stderr("1 of 2 sight(s) were rejected");
     assert!(run.stdout.contains("Ho 61.200000"), "{}", run.stdout);
 }
 
@@ -266,12 +272,21 @@ fn a_four_star_fix_recovers_the_truth_within_ten_metres() {
 
     // Both spellings of the position, the uncertainty in both units, the ellipse with
     // its model string verbatim, the residual table and the conditioning line.
-    assert!(run.stdout.contains("39.952600, -75.165200"), "{}", run.stdout);
-    assert!(run.stdout.contains("39 57.16' N, 075 09.91' W"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains("39.952600, -75.165200"),
+        "{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout.contains("39 57.16' N, 075 09.91' W"),
+        "{}",
+        run.stdout
+    );
     assert!(run.stdout.contains("sigma north"), "{}", run.stdout);
     assert!(run.stdout.contains("NM)"), "{}", run.stdout);
     assert!(
-        run.stdout.contains("model: nominal 95 %, independent-noise model"),
+        run.stdout
+            .contains("model: nominal 95 %, independent-noise model"),
         "the ellipse's model string must appear verbatim:\n{}",
         run.stdout
     );
@@ -318,7 +333,11 @@ fn a_two_star_session_is_ambiguous_and_says_what_would_settle_it() {
         run.stdout
     );
     // Candidates are formatted exactly like a fix: decimal degrees and degrees+minutes.
-    assert!(run.stdout.contains("39 57.16' N, 075 09.91' W"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains("39 57.16' N, 075 09.91' W"),
+        "{}",
+        run.stdout
+    );
     assert!(run.stdout.contains("Circles of position"), "{}", run.stdout);
 }
 
@@ -374,7 +393,10 @@ fn solve_json_is_the_fix_result_exactly_as_serde_emits_it() {
         v["fix"]["ellipse95"]["model"],
         "nominal 95 %, independent-noise model"
     );
-    assert_eq!(v["fix"]["residuals"].as_array().expect("residuals").len(), 4);
+    assert_eq!(
+        v["fix"]["residuals"].as_array().expect("residuals").len(),
+        4
+    );
     // It must deserialise back into the core type, not merely look like it.
     let _: skyfix_core::types::FixResult =
         serde_json::from_str(&run.stdout).expect("round-trips through the core type");
@@ -413,12 +435,7 @@ fn a_prior_is_reported_rather_than_folded_in_silently() {
 
 #[test]
 fn robust_weighting_is_visible_in_the_report() {
-    let run = skyfix([
-        "solve",
-        &fixture("phl_four_star.session.json"),
-        "--robust",
-    ])
-    .expect_code(0);
+    let run = skyfix(["solve", &fixture("phl_four_star.session.json"), "--robust"]).expect_code(0);
     assert!(run.stdout.contains("Robust weighting"), "{}", run.stdout);
     assert!(run.stdout.contains("Huber k = 1.5"), "{}", run.stdout);
 }
@@ -464,9 +481,7 @@ fn clock_uncertainty_is_propagated_east_west_and_never_estimated() {
 /// no other way to know what a real star's altitude was — which is exactly why the
 /// supplied-direction fixtures above exist as the independent check on the solver.
 fn named_star_session() -> String {
-    use skyfix_core::types::{
-        AssumedPositionRole, Observer, SESSION_SCHEMA, Session, SessionMeta,
-    };
+    use skyfix_core::types::{AssumedPositionRole, Observer, SESSION_SCHEMA, Session, SessionMeta};
     let mut builder = support::SessionBuilder::new(
         "Philadelphia four-star, named bodies",
         "No geocentric blocks: the CLI must resolve every body through its own provider.",
@@ -479,7 +494,10 @@ fn named_star_session() -> String {
         assumed_position_role: AssumedPositionRole::Initializer,
         ..Observer::default()
     });
-    for (i, name) in ["Schedar", "Markab", "Altair", "Eltanin"].iter().enumerate() {
+    for (i, name) in ["Schedar", "Markab", "Altair", "Eltanin"]
+        .iter()
+        .enumerate()
+    {
         builder = builder.observed_ho(&format!("obs-{}", i + 1), name, PHL, 1.0);
     }
     let with_directions: Session = builder.build();
@@ -509,7 +527,9 @@ fn the_provider_resolves_named_stars_and_the_fix_still_lands_on_the_truth() {
     );
     reduced.expect_stderr("covers only");
 
-    skyfix(["solve", file]).expect_code(0).expect_stdout("UNIQUE FIX");
+    skyfix(["solve", file])
+        .expect_code(0)
+        .expect_stdout("UNIQUE FIX");
     let fix = solved_position(file, &[]);
     assert!(
         distance_m(fix, truth_position()) < RECOVERY_TOLERANCE_M,
@@ -588,7 +608,11 @@ fn coverage_prints_each_providers_own_declaration() {
     assert!(run.stdout.contains("dates"), "{}", run.stdout);
     assert!(run.stdout.contains("accuracy"), "{}", run.stdout);
     assert!(run.stdout.contains("arcmin"), "{}", run.stdout);
-    assert!(run.stdout.contains("1990-01-01T00:00:00Z"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains("1990-01-01T00:00:00Z"),
+        "{}",
+        run.stdout
+    );
 
     let run = skyfix(["coverage", "--json"]).expect_code(0);
     let v = run.json();
@@ -623,7 +647,11 @@ fn convert_round_trips_json_to_csv_and_back_without_loss() {
 #[test]
 fn convert_to_stdout_flips_the_format() {
     let run = skyfix(["convert", &fixture("phl_one_star.session.json"), "-"]).expect_code(0);
-    assert!(run.stdout.starts_with("# schema=skyfix.session/1"), "{}", run.stdout);
+    assert!(
+        run.stdout.starts_with("# schema=skyfix.session/1"),
+        "{}",
+        run.stdout
+    );
     assert!(run.stdout.contains("id,body,utc,"), "{}", run.stdout);
 }
 
@@ -657,9 +685,16 @@ fn demos_lists_all_ten_packaged_scenarios() {
         "single-sight",
         "two-sight-ambiguous",
     ] {
-        assert!(run.stdout.contains(name), "{name} is missing from `skyfix demos`");
+        assert!(
+            run.stdout.contains(name),
+            "{name} is missing from `skyfix demos`"
+        );
     }
-    assert!(run.stdout.contains("10 packaged scenarios"), "{}", run.stdout);
+    assert!(
+        run.stdout.contains("10 packaged scenarios"),
+        "{}",
+        run.stdout
+    );
 
     let run = skyfix(["demos", "--json"]).expect_code(0);
     assert_eq!(run.json().as_array().expect("an array").len(), 10);
@@ -772,7 +807,8 @@ fn a_simulated_clock_offset_moves_longitude_and_leaves_no_residual() {
     // Declaring the clock's uncertainty is the honest response, and it widens the east.
     let widened = skyfix(["solve", file, "--clock-sigma", "60"]).expect_code(0);
     assert!(
-        support::flatten(&widened.stdout).contains("Clock error and longitude are the same quantity"),
+        support::flatten(&widened.stdout)
+            .contains("Clock error and longitude are the same quantity"),
         "{}",
         widened.stdout
     );
@@ -780,17 +816,15 @@ fn a_simulated_clock_offset_moves_longitude_and_leaves_no_residual() {
 
 #[test]
 fn a_shared_bias_defeats_the_independent_noise_ellipse() {
-    let run = skyfix([
-        "experiment",
-        "--demo",
-        "shared-bias",
-        "--repetitions",
-        "20",
-    ])
-    .expect_code(0);
-    assert!(run.stdout.contains("EXPERIMENT shared-bias"), "{}", run.stdout);
+    let run = skyfix(["experiment", "--demo", "shared-bias", "--repetitions", "20"]).expect_code(0);
     assert!(
-        run.stdout.contains("coverage of the nominal 95 % ellipse  0.000"),
+        run.stdout.contains("EXPERIMENT shared-bias"),
+        "{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout
+            .contains("coverage of the nominal 95 % ellipse  0.000"),
         "a shared bias must put the truth outside the ellipse every time:\n{}",
         run.stdout
     );
@@ -838,7 +872,9 @@ fn a_healthy_experiment_covers_about_ninety_five_percent() {
     let csv = std::fs::read_to_string(&out).expect("the table was written");
     assert!(csv.contains("# experiment: philadelphia-stars"), "{csv}");
     assert_eq!(
-        csv.lines().filter(|l| l.starts_with("0,") || l.starts_with("59,")).count(),
+        csv.lines()
+            .filter(|l| l.starts_with("0,") || l.starts_with("59,"))
+            .count(),
         2,
         "the first and last repetition should both have a row"
     );
@@ -898,7 +934,9 @@ fn usage_errors_exit_one_not_claps_default_two() {
 
 #[test]
 fn help_and_version_exit_zero() {
-    skyfix(["--help"]).expect_code(0).expect_stdout("Usage: skyfix");
+    skyfix(["--help"])
+        .expect_code(0)
+        .expect_stdout("Usage: skyfix");
     skyfix(["--version"]).expect_code(0);
     skyfix(["solve", "--help"])
         .expect_code(0)

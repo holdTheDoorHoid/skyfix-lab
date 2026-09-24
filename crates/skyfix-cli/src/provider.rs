@@ -219,7 +219,10 @@ mod tests {
 
     #[test]
     fn auto_is_the_composite() {
-        assert_eq!(direction_source(EphemerisChoice::Auto).name(), AUTO_PROVIDER_NAME);
+        assert_eq!(
+            direction_source(EphemerisChoice::Auto).name(),
+            AUTO_PROVIDER_NAME
+        );
         assert_eq!(
             auto_provider().provider_names(),
             vec![SunProvider::NAME, skyfix_ephemeris::stars::PROVIDER_NAME]
@@ -232,7 +235,9 @@ mod tests {
         let jd = skyfix_core::time::parse_utc("2026-10-01T01:30:00Z").unwrap();
         let sun = s.direction("Sun", jd).expect("the Sun provider is merged");
         assert!(sun.semidiameter_arcmin > 15.0, "{sun:?}");
-        let vega = s.direction("Vega", jd).expect("the star provider is merged");
+        let vega = s
+            .direction("Vega", jd)
+            .expect("the star provider is merged");
         assert_eq!(vega.semidiameter_arcmin, 0.0);
         assert!(s.direction("Betelgeuse Minor", jd).is_err());
     }

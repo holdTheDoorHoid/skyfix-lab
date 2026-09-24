@@ -46,7 +46,9 @@ pub fn run_catalog(json: bool) -> Result<u8> {
         .collect();
 
     if json {
-        report::emit_line(&serde_json::to_string_pretty(&CatalogJson { bodies: rows })?)?;
+        report::emit_line(&serde_json::to_string_pretty(&CatalogJson {
+            bodies: rows,
+        })?)?;
         return Ok(exit::OK);
     }
 
@@ -129,8 +131,9 @@ pub fn run_coverage(json: bool) -> Result<u8> {
     }
     out.push('\n');
     for line in report::wrap(
-        "No provider in this build covers the Sun; a Sun sight needs its own geocentric block \
-         until skyfix-ephemeris::sun is merged.",
+        "`--ephemeris auto` tries these in the order listed and reports the most informative \
+         failure when none of them can answer. An observation that supplies its own geocentric \
+         block bypasses all of them, and the reduction says so for that sight.",
         88,
         "",
     ) {

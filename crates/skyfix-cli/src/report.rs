@@ -13,9 +13,7 @@
 //! until someone writes the sentence, which is the only reliable way to stop a caveat
 //! from silently disappearing from the report.
 
-use skyfix_core::types::{
-    AltitudeKind, CorrectionKind, LatLon, Warning,
-};
+use skyfix_core::types::{AltitudeKind, CorrectionKind, LatLon, Warning};
 use skyfix_core::units::NM_M;
 
 // ---------------------------------------------------------------------------
@@ -212,10 +210,7 @@ pub fn warning_sentence(w: &Warning) -> String {
             skyfix_core::corrections::horizon_name(*horizon)
         ),
         Warning::AlreadyCorrected { id, kind, ignored } => {
-            let list: Vec<&str> = ignored
-                .iter()
-                .map(|k| correction_kind_name(*k))
-                .collect();
+            let list: Vec<&str> = ignored.iter().map(|k| correction_kind_name(*k)).collect();
             if list.is_empty() {
                 format!(
                     "Sight {id} is recorded as {} and needs no further correction",
@@ -310,7 +305,10 @@ pub fn warning_block(warnings: &[Warning], out: &mut String) {
     }
     out.push_str("\nWarnings\n");
     for w in warnings {
-        for (i, line) in wrap(&warning_sentence(w), 86, "    ").into_iter().enumerate() {
+        for (i, line) in wrap(&warning_sentence(w), 86, "    ")
+            .into_iter()
+            .enumerate()
+        {
             if i == 0 {
                 out.push_str("  - ");
                 out.push_str(line.trim_start());
@@ -383,7 +381,10 @@ mod tests {
         // The indent is not counted against the width; "four five" is exactly 9.
         let lines = wrap("one two three four five", 9, "  ");
         assert_eq!(lines, vec!["  one two", "  three", "  four five"]);
-        assert_eq!(wrap("one two three four five", 8, "  "), vec!["  one two", "  three", "  four", "  five"]);
+        assert_eq!(
+            wrap("one two three four five", 8, "  "),
+            vec!["  one two", "  three", "  four", "  five"]
+        );
         assert!(wrap("   ", 20, "  ").is_empty());
         assert_eq!(flatten(&lines.join("\n")), "one two three four five");
     }

@@ -194,9 +194,10 @@ pub fn run_demos(json: bool) -> Result<u8> {
             sights: s.schedule.count,
             // Only the named-star scenario asks an almanac for a body; every other demo
             // supplies its directions (docs/SIMULATOR.md section 8).
-            needs_provider: s.sources.iter().any(|b| {
-                matches!(b, skyfix_sim::scenario::BodySource::Named { .. })
-            }),
+            needs_provider: s
+                .sources
+                .iter()
+                .any(|b| matches!(b, skyfix_sim::scenario::BodySource::Named { .. })),
             name: s.name,
             description: s.description,
         })
