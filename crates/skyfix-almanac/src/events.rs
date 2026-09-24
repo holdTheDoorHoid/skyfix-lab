@@ -876,7 +876,7 @@ fn quarter_crossings(
 /// (ecliptic and equinox of date) is 0, 90, 180 and 270 degrees (CONVENTIONS 13.5).
 ///
 /// Fails with [`AlmanacError::Unavailable`] when the provider cannot give the Moon or
-/// the Sun over the window (the Moon provider is a stub until its agent lands).
+/// the Sun over the whole window (outside their 1990-2060 coverage).
 pub fn moon_phases(
     eph: &dyn BodyEphemeris,
     jd_start: f64,

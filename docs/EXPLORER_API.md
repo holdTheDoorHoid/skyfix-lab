@@ -169,8 +169,8 @@ cannot be computed over the window (at most 400 days).
 ### `moon_phases(jd_start, jd_end) -> PhaseEvent[]`
 
 `[{"kind": "new_moon" | "first_quarter" | "full_moon" | "last_quarter", "jd_utc", "utc"}]`.
-Throws when the Moon (or the Sun) cannot be computed over the window — today, until the
-Moon provider lands.
+Throws when the Moon (or the Sun) cannot be computed over the whole window (outside
+1990–2060).
 
 ### `seasons(year) -> SeasonEvent[]`
 
