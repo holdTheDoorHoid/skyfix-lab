@@ -671,3 +671,191 @@ fn the_closed_form_predictions_are_reproducible_numbers() {
     assert!((dn + 846.45).abs() < 0.5, "north {dn}");
     assert!((de - 6_964.31).abs() < 0.5, "east {de}");
 }
+
+// ---------------------------------------------------------------------------
+// The named-body path, with a provider
+// ---------------------------------------------------------------------------
+
+/// A minimal `AstroProvider` covering three invented "stars". It is not astronomy: it
+/// exists so the named-body code path is exercised without waiting for the real
+/// ephemeris, and so the scenario's provider contract is pinned.
+struct FakeProvider {
+    /// name -> (gha at the demo start, dec, rate)
+    bodies: Vec<(&'static str, f64, f64, f64)>,
+    jd_start: f64,
+}
+
+impl FakeProvider {
+    fn new() -> Self {
+        let jd_start = time::parse_utc(demos::DEMO_START_UTC).unwrap();
+        let bodies = vec![
+            (
+                "Vega",
+                gha_dec_for(PHL, 70.0, 300.0).0,
+                gha_dec_for(PHL, 70.0, 300.0).1,
+                SIDEREAL_RATE_DEG_PER_HOUR,
+            ),
+            (
+                "Altair",
+                gha_dec_for(PHL, 45.0, 195.0).0,
+                gha_dec_for(PHL, 45.0, 195.0).1,
+                SIDEREAL_RATE_DEG_PER_HOUR,
+            ),
+            (
+                "Polaris",
+                gha_dec_for(PHL, 40.0, 0.5).0,
+                gha_dec_for(PHL, 40.0, 0.5).1,
+                SIDEREAL_RATE_DEG_PER_HOUR,
+            ),
+        ];
+        FakeProvider { bodies, jd_start }
+    }
+}
+
+impl skyfix_ephemeris::AstroProvider for FakeProvider {
+    fn name(&self) -> &str {
+        "fake-test-provider"
+    }
+    fn coverage(&self) -> skyfix_ephemeris::Coverage {
+        skyfix_ephemeris::Coverage {
+            start_utc: demos::DEMO_START_UTC.to_string(),
+            end_utc: "2026-10-01T03:00:00Z".to_string(),
+            bodies: self.bodies.iter().map(|b| b.0.to_string()).collect(),
+            notes: "invented directions for a test; not astronomy".to_string(),
+            accuracy_arcmin: f64::INFINITY,
+        }
+    }
+    fn geocentric(
+        &self,
+        body: &str,
+        jd_utc: f64,
+    ) -> Result<skyfix_core::types::GeocentricDirection, skyfix_ephemeris::EphemerisError> {
+        let (_, gha0, dec, rate) = *self.bodies.iter().find(|b| b.0 == body).ok_or_else(|| {
+            skyfix_ephemeris::EphemerisError::UnknownBody(
+                body.to_string(),
+                "fake-test-provider".to_string(),
+            )
+        })?;
+        let hours = (jd_utc - self.jd_start) * 24.0;
+        Ok(skyfix_core::types::GeocentricDirection {
+            gha_deg: skyfix_core::units::norm_360(gha0 + rate * hours),
+            dec_deg: dec,
+            semidiameter_arcmin: 0.0,
+            horizontal_parallax_arcmin: 0.0,
+        })
+    }
+}
+
+fn named_scenario() -> Scenario {
+    let mut s = Scenario::new(
+        "named",
+        31_415_926_535,
+        PHL,
+        demos::DEMO_START_UTC,
+        vec![
+            skyfix_sim::scenario::BodySource::Named {
+                name: "Vega".into(),
+            },
+            skyfix_sim::scenario::BodySource::Named {
+                name: "Altair".into(),
+            },
+            skyfix_sim::scenario::BodySource::Named {
+                name: "Polaris".into(),
+            },
+        ],
+        Schedule::new(6, 120.0, Ordering::RoundRobin),
+    );
+    s.altitude_noise_arcmin = 0.8;
+    s
+}
+
+#[test]
+fn named_bodies_are_resolved_by_the_provider_and_emitted_by_default() {
+    let p = FakeProvider::new();
+    let sim = simulate_detailed(&named_scenario(), Some(&p)).unwrap();
+    validate_structure(&sim.session).unwrap();
+    assert_eq!(sim.session.observations.len(), 6);
+    let bodies: Vec<&str> = sim
+        .session
+        .observations
+        .iter()
+        .map(|o| o.body.as_str())
+        .collect();
+    assert_eq!(
+        bodies,
+        ["Vega", "Altair", "Polaris", "Vega", "Altair", "Polaris"]
+    );
+    // By default the resolved direction is baked into the session, so the file is
+    // self-contained and the estimator needs no provider of its own.
+    assert!(
+        sim.session
+            .observations
+            .iter()
+            .all(|o| o.geocentric.is_some())
+    );
+    // The first three sights sit where the fake provider placed them.
+    for (t, want) in sim.sights.iter().zip([70.0, 45.0, 40.0]) {
+        assert!(
+            (t.true_altitude_deg - want).abs() < 2.0,
+            "{} at {} deg, expected near {want}",
+            t.body,
+            t.true_altitude_deg
+        );
+    }
+    // Determinism holds through the provider too.
+    let again = simulate_detailed(&named_scenario(), Some(&p)).unwrap();
+    assert_eq!(
+        serde_json::to_string(&sim.session).unwrap(),
+        serde_json::to_string(&again.session).unwrap()
+    );
+}
+
+#[test]
+fn a_session_can_be_left_for_the_estimators_own_almanac() {
+    let p = FakeProvider::new();
+    let mut s = named_scenario();
+    s.emit_supplied_directions = false;
+    let sim = simulate_detailed(&s, Some(&p)).unwrap();
+    validate_structure(&sim.session).unwrap();
+    // No direction in the file: the estimator must look the body up itself, at the time
+    // it believes, which is how a clock offset reaches a real almanac lookup.
+    assert!(
+        sim.session
+            .observations
+            .iter()
+            .all(|o| o.geocentric.is_none())
+    );
+    assert!(sim.session.observations.iter().all(|o| !o.body.is_empty()));
+    // The truth is still computed from the provider at the true time.
+    assert!(sim.sights.iter().all(|t| t.true_altitude_deg > 0.0));
+}
+
+#[test]
+fn a_provider_that_does_not_know_a_body_says_so() {
+    let p = FakeProvider::new();
+    let mut s = named_scenario();
+    s.sources = vec![skyfix_sim::scenario::BodySource::Named {
+        name: "Betelgeuse".into(),
+    }];
+    s.schedule = Schedule::new(1, 0.0, Ordering::RoundRobin);
+    let err = simulate(&s, Some(&p)).unwrap_err();
+    assert!(err.contains("Betelgeuse"), "{err}");
+    assert!(err.contains("fake-test-provider"), "{err}");
+}
+
+#[test]
+fn geometry_presets_work_against_provider_supplied_azimuths() {
+    let p = FakeProvider::new();
+    // Vega is at azimuth 300, Altair at 195, Polaris at 0.5: a 120 degree window holds
+    // Polaris and Vega (300 -> 0.5 is 60 degrees the short way round north).
+    let mut s = named_scenario();
+    s.geometry = skyfix_sim::scenario::GeometryPreset::Clustered { window_deg: 120.0 };
+    let sim = simulate_detailed(&s, Some(&p)).unwrap();
+    let used: std::collections::BTreeSet<&str> =
+        sim.sights.iter().map(|t| t.body.as_str()).collect();
+    assert_eq!(used.len(), 2, "{used:?}");
+    assert!(
+        used.contains("Vega") && used.contains("Polaris"),
+        "{used:?}"
+    );
+}
