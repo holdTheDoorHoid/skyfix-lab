@@ -4,28 +4,44 @@
 //! Event finding and sampled paths ask for a body's position hundreds of times per day
 //! of window. The providers are exact but not cheap (the Sun alone is a 1020-term
 //! VSOP87 series), so [`Track`] evaluates the provider at **nodes no more than 3 hours
-//! apart** and interpolates between them with the 4-point Lagrange formula on the
-//! nodes around the query instant. Only the slowly varying geocentric quantities are
-//! interpolated — GHA (unwrapped), RA (unwrapped), declination, distance and
-//! semidiameter — and the topocentric step (Earth rotation is inside GHA, parallax and
-//! refraction are applied afterwards by `topocentric::horizontal`) is exact.
+//! apart for the Moon and 8 hours for everything else** and interpolates between them
+//! with the 4-point Lagrange formula on the nodes around the query instant. Only the
+//! slowly varying geocentric quantities are interpolated — GHA (unwrapped), RA
+//! (unwrapped), declination, distance and semidiameter — and the topocentric step
+//! (Earth rotation is inside GHA, parallax and refraction are applied afterwards by
+//! `topocentric::horizontal`) is exact.
 //!
-//! Interpolation error, cubic on 3-hour nodes: the fourth derivative of the Moon's
-//! longitude is about 0.08 deg/day^4 (the largest periodic terms of the lunar theory),
-//! giving `0.0234 f'''' h^4` = about 0.001" in the middle interval and a few times
-//! that at the window edges; the Sun, planets and stars are orders of magnitude
-//! smoother. `tests/track_interpolation.rs` measures it against exact evaluations
-//! (worst case under 0.01" for every body class). That is 0.0007 s of time at the
-//! horizon, so it never shows in an event time; events still report the altitude and
-//! azimuth of an exact evaluation at the instant found.
+//! Interpolation error of the cubic, `0.0234 f'''' h^4` in the middle interval and a
+//! few times that at the window edges:
+//!
+//! - the Moon: the fourth derivative of its longitude is about 0.08 deg/day^4 (the
+//!   largest periodic terms of the lunar theory), so 3-hour nodes give ~0.001";
+//! - the Sun, planets and stars: the fastest terms are the 13.7-day nutation (0.23")
+//!   and, for Mercury near inferior conjunction, a few 1e-4 deg/day^4; 8-hour nodes
+//!   give under 1e-4".
+//!
+//! `tests/track_interpolation.rs` measures it against exact evaluations (worst case
+//! under 0.01" for every body class; it also checks the real Moon and planet
+//! providers once they are merged). 0.01" is 0.0007 s of time at the horizon, so it
+//! never shows in an event time, nor in the altitude and azimuth reported with it.
 
 use skyfix_core::units::{norm_180, norm_360};
 use skyfix_ephemeris::body::{ApparentState, BodyEphemeris};
 
 use super::BodyError;
 
-/// Largest spacing between exact evaluations, days (3 hours).
-pub(crate) const MAX_NODE_SPACING_DAYS: f64 = 3.0 / 24.0;
+/// Largest spacing between exact evaluations of the Moon, days (3 hours).
+pub(crate) const MOON_NODE_SPACING_DAYS: f64 = 3.0 / 24.0;
+/// Largest spacing between exact evaluations of any other body, days (8 hours).
+pub(crate) const NODE_SPACING_DAYS: f64 = 8.0 / 24.0;
+
+/// Node spacing for `body`: the Moon moves fast enough to need closer nodes.
+pub(crate) fn node_spacing_days(body: &str) -> f64 {
+    match skyfix_ephemeris::body::kind(body) {
+        Some(skyfix_ephemeris::body::BodyKind::Moon) => MOON_NODE_SPACING_DAYS,
+        _ => NODE_SPACING_DAYS,
+    }
+}
 
 /// One body's interpolated apparent geocentric state over `[t0, t1]`.
 #[derive(Debug, Clone)]
@@ -45,9 +61,10 @@ pub(crate) struct Track {
     template: ApparentState,
 }
 
-/// Node instants for `[t0, t1]`: at least four, evenly spaced, the last exactly `t1`.
-fn node_times(t0: f64, t1: f64) -> (Vec<f64>, f64) {
-    let intervals = ((t1 - t0) / MAX_NODE_SPACING_DAYS).ceil().max(3.0) as usize;
+/// Node instants for `[t0, t1]`: at least four, evenly spaced no more than `spacing`
+/// apart, the last exactly `t1`.
+fn node_times(t0: f64, t1: f64, spacing: f64) -> (Vec<f64>, f64) {
+    let intervals = ((t1 - t0) / spacing).ceil().max(3.0) as usize;
     let h = (t1 - t0) / intervals as f64;
     let mut v: Vec<f64> = (0..intervals).map(|k| t0 + k as f64 * h).collect();
     v.push(t1);
@@ -71,20 +88,22 @@ fn lagrange4(y: &[f64], i0: usize, x: f64) -> f64 {
 impl Track {
     /// Build a track for each body over `[t0, t1]` (`t1 > t0`).
     ///
-    /// The provider is called **instant by instant** (every body at the first node,
-    /// then every body at the second, ...), so providers that share work between
-    /// bodies at one instant — the star provider's frame — do it once per node. A body
-    /// the provider cannot answer for at some node comes back as its error.
+    /// Within each node spacing ([`node_spacing_days`]) the provider is called
+    /// **instant by instant** (every body at the first node, then every body at the
+    /// second, ...), so providers that share work between bodies at one instant — the
+    /// star provider's frame — do it once per node. A body the provider cannot answer
+    /// for at some node comes back as its error.
     pub(crate) fn build_many(
         eph: &dyn BodyEphemeris,
         bodies: &[&str],
         t0: f64,
         t1: f64,
     ) -> Vec<Result<Track, BodyError>> {
-        let (times, h) = node_times(t0, t1);
-        let mut out: Vec<Result<Track, BodyError>> = bodies
+        let spacing: Vec<f64> = bodies.iter().map(|b| node_spacing_days(b)).collect();
+        let mut out: Vec<Result<Track, BodyError>> = spacing
             .iter()
-            .map(|_| {
+            .map(|&sp| {
+                let (times, h) = node_times(t0, t1, sp);
                 Ok(Track {
                     t0,
                     h,
@@ -97,16 +116,22 @@ impl Track {
                 })
             })
             .collect();
-        for (k, &t) in times.iter().enumerate() {
-            for (body, slot) in bodies.iter().zip(out.iter_mut()) {
-                let Ok(track) = slot else { continue };
-                match eph.apparent_state(body, t) {
-                    Ok(st) => track.push(k, st),
-                    Err(e) => {
-                        *slot = Err(BodyError {
-                            body: (*body).to_string(),
-                            message: e.to_string(),
-                        })
+        for class in [NODE_SPACING_DAYS, MOON_NODE_SPACING_DAYS] {
+            let (times, _) = node_times(t0, t1, class);
+            for (k, &t) in times.iter().enumerate() {
+                for ((body, slot), &sp) in bodies.iter().zip(out.iter_mut()).zip(&spacing) {
+                    if sp != class {
+                        continue;
+                    }
+                    let Ok(track) = slot else { continue };
+                    match eph.apparent_state(body, t) {
+                        Ok(st) => track.push(k, st),
+                        Err(e) => {
+                            *slot = Err(BodyError {
+                                body: (*body).to_string(),
+                                message: e.to_string(),
+                            })
+                        }
                     }
                 }
             }
@@ -205,14 +230,22 @@ mod tests {
     #[test]
     fn nodes_cover_the_window_evenly_and_end_on_it() {
         for (t0, t1) in [(0.0, 1.0), (10.0, 10.01), (5.0, 405.0)] {
-            let (v, h) = node_times(t0, t1);
+            let (v, h) = node_times(t0, t1, MOON_NODE_SPACING_DAYS);
             assert!(v.len() >= 4);
             assert_eq!(v[0], t0);
             assert_eq!(*v.last().unwrap(), t1);
-            assert!(h <= MAX_NODE_SPACING_DAYS + 1e-15);
+            assert!(h <= MOON_NODE_SPACING_DAYS + 1e-15);
             for w in v.windows(2) {
                 assert!((w[1] - w[0] - h).abs() < 1e-9);
             }
+        }
+    }
+
+    #[test]
+    fn only_the_moon_gets_close_nodes() {
+        assert_eq!(node_spacing_days("moon"), MOON_NODE_SPACING_DAYS);
+        for b in ["Sun", "Mercury", "Vega"] {
+            assert_eq!(node_spacing_days(b), NODE_SPACING_DAYS);
         }
     }
 

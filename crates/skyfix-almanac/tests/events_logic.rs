@@ -555,8 +555,8 @@ fn day_length_is_the_time_between_rise_and_set() {
 }
 
 #[test]
-fn event_altitudes_and_azimuths_are_exact_and_transits_are_on_the_meridian() {
-    let eph = Sky::new();
+fn event_altitudes_and_azimuths_match_sky_state_and_transits_are_on_the_meridian() {
+    let eph = SyntheticSky::new();
     let s = site(39.9526, -75.1652);
     let t0 = civil_to_jd(2026, 9, 24);
     let d = day_events(
@@ -564,18 +564,24 @@ fn event_altitudes_and_azimuths_are_exact_and_transits_are_on_the_meridian() {
         &s,
         t0,
         t0 + 1.0,
-        &["Sun", "Vega", "Sirius"],
+        &["Sun", "Vega", "Sirius", "Moon"],
         &std_opts(),
     )
     .unwrap();
+    let mut worst = 0.0f64;
     for b in &d.bodies {
         for e in &b.events {
             let st = sky_state(&eph, &s, e.jd_utc, &[b.body.as_str()]).unwrap();
             let bs = &st.bodies[0];
-            assert_eq!(
-                (e.alt_deg, e.az_deg),
-                (bs.alt_deg, bs.az_deg),
-                "{} {e:?}",
+            // Reported from the interpolated track: within 0.01" of an exact state.
+            let d_alt = (e.alt_deg - bs.alt_deg).abs() * 3600.0;
+            let d_az = skyfix_core::units::norm_180(e.az_deg - bs.az_deg).abs()
+                * 3600.0
+                * bs.alt_deg.to_radians().cos();
+            worst = worst.max(d_alt).max(d_az);
+            assert!(
+                d_alt < 0.01 && d_az < 0.01,
+                "{} {e:?}: {d_alt}\" {d_az}\"",
                 b.body
             );
             if e.kind == EventKind::Transit || e.kind == EventKind::LowerTransit {
@@ -599,6 +605,7 @@ fn event_altitudes_and_azimuths_are_exact_and_transits_are_on_the_meridian() {
         });
         assert!(kinds_ok, "{}: {:?}", b.body, b.events);
     }
+    eprintln!("event alt/az vs an exact sky_state: worst {worst:.5}\"");
 }
 
 #[test]
@@ -622,7 +629,7 @@ fn find_altitude_crosses_the_requested_apparent_altitude() {
             "{}",
             b.alt_apparent_deg
         );
-        assert_eq!((c.alt_deg, c.az_deg), (b.alt_deg, b.az_deg));
+        assert!((c.alt_deg - b.alt_deg).abs() < 3e-6 && (c.az_deg - b.az_deg).abs() < 3e-5);
         assert!(
             c.alt_deg < 30.0,
             "alt_deg is geometric, below the apparent 30"

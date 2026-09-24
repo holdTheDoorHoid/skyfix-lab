@@ -23,10 +23,11 @@
 //!
 //! # Method
 //!
-//! 1. The body's apparent geocentric state is evaluated exactly every 3 hours or less
-//!    and interpolated in between ([`crate::sky`]'s track, under 0.01" of error), so
-//!    the finder can afford a fine grid and many refinement steps. The topocentric
-//!    step (Earth rotation, parallax, refraction) is exact at every evaluation.
+//! 1. The body's apparent geocentric state is evaluated exactly every 3 hours (the
+//!    Moon) or 8 hours (everything else) and interpolated in between ([`crate::sky`]'s
+//!    track, under 0.01" of error), so the finder can afford a fine grid and many
+//!    refinement steps. The topocentric step (Earth rotation, parallax, refraction)
+//!    is exact at every evaluation.
 //! 2. The altitude is sampled on a **10-minute grid** (CONVENTIONS 13.3 requires no
 //!    coarser than 10 minutes for the Moon and 20 for the rest; this uses 10 for
 //!    all), plus one sample beyond each end of the window.
@@ -37,9 +38,10 @@
 //!    sign scan would miss; the extremum sample splits the two crossings.
 //! 4. Each sign change of `alt - h0` between consecutive samples is refined with
 //!    Brent's method to **1 ms** (CONVENTIONS asks for 1 s or better).
-//! 5. The altitude and azimuth reported with each event come from an **exact**
-//!    evaluation of the provider at the instant found, so they agree with
-//!    `sky_state` at that instant.
+//! 5. The altitude and azimuth reported with each event are the track's at the
+//!    instant found: they agree with `sky_state` at that instant to under 0.01"
+//!    (`tests/events_logic.rs`), without another call to the provider — which would
+//!    otherwise double the cost of a year of events for an expensive body.
 //!
 //! Everything is generic over [`BodyEphemeris`], so the same code runs on the real
 //! [`skyfix_ephemeris::body::Sky`] and on the synthetic Moon of the test suite.
@@ -149,7 +151,8 @@ pub enum EventKind {
 }
 
 /// One event. `alt_deg` / `az_deg` are the topocentric geometric altitude and azimuth
-/// of the body's centre at that instant, from an exact evaluation.
+/// of the body's centre at that instant (from the body's interpolated track, within
+/// 0.01" of `sky_state` at the same instant).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct SkyEvent {
     pub kind: EventKind,
@@ -294,6 +297,7 @@ struct Sample {
     x: f64,
     alt: f64,
     alt_app: f64,
+    az: f64,
     sd: f64,
     gha: f64,
 }
@@ -324,6 +328,7 @@ impl<'a> Probe<'a> {
             x,
             alt: h.alt_deg,
             alt_app: h.alt_apparent_deg,
+            az: h.az_deg,
             sd: self.scratch.semidiameter_arcmin,
             gha: self.scratch.gha_deg,
         }
@@ -432,7 +437,7 @@ fn check_window(jd_start: f64, jd_end: f64) -> Result<(), AlmanacError> {
 // day_events
 // ---------------------------------------------------------------------------
 
-/// The events one body's track yields, before exact evaluation.
+/// The events one body's track yields, as offsets from the window start.
 struct Found {
     events: Vec<(f64, EventKind)>,
     always_above: bool,
@@ -441,16 +446,40 @@ struct Found {
     above_days: f64,
 }
 
+/// Crossings of constant altitudes, each solved at most once: the Sun's rise/set and
+/// twilight events and the sky phases share the same four thresholds.
+#[derive(Default)]
+struct CrossingCache {
+    entries: Vec<(u64, Vec<(f64, bool)>)>,
+}
+
+impl CrossingCache {
+    fn get(&mut self, samples: &[Sample], probe: &mut Probe, deg: f64) -> Vec<(f64, bool)> {
+        if let Some((_, v)) = self.entries.iter().find(|(k, _)| *k == deg.to_bits()) {
+            return v.clone();
+        }
+        let v = crossings(samples, probe, |s| s.alt - deg);
+        self.entries.push((deg.to_bits(), v.clone()));
+        v
+    }
+}
+
 fn find_events(
     probe: &mut Probe,
     samples: &[Sample],
+    cache: &mut CrossingCache,
     kind: BodyKind,
     lon_deg: f64,
     span: f64,
     dip_deg: f64,
 ) -> Found {
     let g = |s: &Sample| s.alt - (standard_altitude_deg(kind, s.sd) - dip_deg);
-    let rs = crossings(samples, probe, g);
+    // Only the Moon's rise/set altitude moves (with its semidiameter).
+    let rs = if kind == BodyKind::Moon {
+        crossings(samples, probe, g)
+    } else {
+        cache.get(samples, probe, standard_altitude_deg(kind, 0.0) - dip_deg)
+    };
     let mut events: Vec<(f64, EventKind)> = rs
         .iter()
         .map(|&(x, rising)| {
@@ -466,7 +495,7 @@ fn find_events(
         .collect();
     if kind == BodyKind::Sun {
         for (deg, dawn, dusk) in TWILIGHTS {
-            for (x, rising) in crossings(samples, probe, |s| s.alt - deg) {
+            for (x, rising) in cache.get(samples, probe, deg) {
                 events.push((x, if rising { dawn } else { dusk }));
             }
         }
@@ -508,6 +537,7 @@ fn find_events(
 fn phases(
     sun_probe: &mut Probe,
     sun_samples: &[Sample],
+    cache: &mut CrossingCache,
     jd_start: f64,
     jd_end: f64,
 ) -> Vec<PhaseSegment> {
@@ -515,7 +545,8 @@ fn phases(
     let mut cuts: Vec<f64> = Vec::new();
     for deg in PHASE_BOUNDS_DEG {
         cuts.extend(
-            crossings(sun_samples, sun_probe, |s| s.alt - deg)
+            cache
+                .get(sun_samples, sun_probe, deg)
                 .into_iter()
                 .map(|(x, _)| x),
         );
@@ -548,21 +579,6 @@ fn phases(
         }
     }
     out
-}
-
-/// Exact altitude and azimuth of `body` at `t`.
-fn exact_alt_az(
-    eph: &dyn BodyEphemeris,
-    body: &str,
-    t: f64,
-    site: &Site,
-) -> Result<(f64, f64), BodyError> {
-    let st = eph.apparent_state(body, t).map_err(|e| BodyError {
-        body: body.to_string(),
-        message: e.to_string(),
-    })?;
-    let h = horizontal(&st, site);
-    Ok((h.alt_deg, h.az_deg))
 }
 
 /// Rise, set, transits and (for the Sun) twilight for each body over
@@ -612,11 +628,18 @@ pub fn day_events(
     })?;
     let mut sun_probe = Probe::new(&sun_track, &site, jd_start);
     let sun_samples = scan(&mut sun_probe, span);
+    let mut sun_cache = CrossingCache::default();
 
     let mut out = DayEvents {
         jd_start,
         jd_end,
-        phases: phases(&mut sun_probe, &sun_samples, jd_start, jd_end),
+        phases: phases(
+            &mut sun_probe,
+            &sun_samples,
+            &mut sun_cache,
+            jd_start,
+            jd_end,
+        ),
         bodies: Vec::with_capacity(bodies.len()),
         errors: Vec::new(),
     };
@@ -629,21 +652,32 @@ pub fn day_events(
         seen.push(name);
         let idx = names.iter().position(|n| *n == name).unwrap_or(0);
         let kind = body::kind(name).unwrap_or(BodyKind::Star);
-        let found = if name == SUN {
-            find_events(
+        let body_events = if name == SUN {
+            let found = find_events(
                 &mut sun_probe,
                 &sun_samples,
+                &mut sun_cache,
                 kind,
                 site.lon_deg,
                 span,
                 dip_deg,
-            )
+            );
+            finish(&mut sun_probe, name, kind, found, jd_end)
         } else {
             match &tracks[idx] {
                 Ok(track) => {
                     let mut probe = Probe::new(track, &site, jd_start);
                     let samples = scan(&mut probe, span);
-                    find_events(&mut probe, &samples, kind, site.lon_deg, span, dip_deg)
+                    let found = find_events(
+                        &mut probe,
+                        &samples,
+                        &mut CrossingCache::default(),
+                        kind,
+                        site.lon_deg,
+                        span,
+                        dip_deg,
+                    );
+                    finish(&mut probe, name, kind, found, jd_end)
                 }
                 Err(e) => {
                     out.errors.push(e.clone());
@@ -651,43 +685,37 @@ pub fn day_events(
                 }
             }
         };
-        match finish(eph, name, kind, found, jd_start, jd_end, &site) {
-            Ok(be) => out.bodies.push(be),
-            Err(e) => out.errors.push(e),
-        }
+        out.bodies.push(body_events);
     }
     Ok(out)
 }
 
-fn finish(
-    eph: &dyn BodyEphemeris,
-    name: &str,
-    kind: BodyKind,
-    found: Found,
-    jd_start: f64,
-    jd_end: f64,
-    site: &Site,
-) -> Result<BodyEvents, BodyError> {
-    let mut events = Vec::with_capacity(found.events.len());
-    for (x, ek) in found.events {
-        let t = (jd_start + x).min(jd_end);
-        let (alt_deg, az_deg) = exact_alt_az(eph, name, t, site)?;
-        events.push(SkyEvent {
-            kind: ek,
-            jd_utc: t,
-            utc: format_utc(t),
-            alt_deg,
-            az_deg,
-        });
-    }
+/// Turn found instants into events, with the altitude and azimuth of the body's track
+/// at each instant (within 0.01" of an exact evaluation; see the `sky::track` docs).
+fn finish(probe: &mut Probe, name: &str, kind: BodyKind, found: Found, jd_end: f64) -> BodyEvents {
+    let mut events: Vec<SkyEvent> = found
+        .events
+        .into_iter()
+        .map(|(x, ek)| {
+            let s = probe.at(x);
+            let t = (probe.t0 + x).min(jd_end);
+            SkyEvent {
+                kind: ek,
+                jd_utc: t,
+                utc: format_utc(t),
+                alt_deg: s.alt,
+                az_deg: s.az,
+            }
+        })
+        .collect();
     events.sort_by(|a, b| a.jd_utc.total_cmp(&b.jd_utc).then(a.kind.cmp(&b.kind)));
-    Ok(BodyEvents {
+    BodyEvents {
         body: name.to_string(),
         events,
         always_above: found.always_above,
         always_below: found.always_below,
         day_length_h: (kind == BodyKind::Sun).then_some(found.above_days * 24.0),
-    })
+    }
 }
 
 /// [`day_events`] for each window in turn (EXPLORER_API.md `day_events_batch`), at
@@ -741,19 +769,21 @@ pub fn find_altitude(
         .expect("one track per body")?;
     let mut probe = Probe::new(&track, &site, jd_start);
     let samples = scan(&mut probe, jd_end - jd_start);
-    let mut out = Vec::new();
-    for (x, rising) in crossings(&samples, &mut probe, |s| s.alt_app - altitude_deg) {
-        let t = (jd_start + x).min(jd_end);
-        let (alt_deg, az_deg) = exact_alt_az(eph, name, t, &site)?;
-        out.push(AltitudeCrossing {
-            jd_utc: t,
-            utc: format_utc(t),
-            alt_deg,
-            az_deg,
-            rising,
-        });
-    }
-    Ok(out)
+    let found = crossings(&samples, &mut probe, |s| s.alt_app - altitude_deg);
+    Ok(found
+        .into_iter()
+        .map(|(x, rising)| {
+            let s = probe.at(x);
+            let t = (jd_start + x).min(jd_end);
+            AltitudeCrossing {
+                jd_utc: t,
+                utc: format_utc(t),
+                alt_deg: s.alt,
+                az_deg: s.az,
+                rising,
+            }
+        })
+        .collect())
 }
 
 // ---------------------------------------------------------------------------

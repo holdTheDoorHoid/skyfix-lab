@@ -477,11 +477,12 @@ fn sample_times(jd_start: f64, jd_end: f64, step_minutes: f64) -> Result<Vec<f64
 /// `[jd_start, jd_end]` (EXPLORER_API.md `sample_bodies`): for map paths and charts.
 ///
 /// Values come from a [`track::Track`]: the provider is evaluated exactly at nodes no
-/// more than 3 hours apart and interpolated in between (under 0.01" of error, measured
-/// in `tests/track_interpolation.rs`), which makes a day of one-minute samples cost a
-/// few exact evaluations instead of 1440. The topocentric step is exact at every
-/// sample. Short requests (no more samples than a track would need nodes) are
-/// evaluated exactly.
+/// more than 3 hours apart for the Moon and 8 hours for everything else, and
+/// interpolated in between (under 0.01" of error, measured in
+/// `tests/track_interpolation.rs`), which makes a day of one-minute samples cost a few
+/// exact evaluations instead of 1440. The topocentric step is exact at every sample.
+/// Short requests (no more samples than a Moon track would need nodes) are evaluated
+/// exactly.
 pub fn sample_bodies(
     eph: &dyn BodyEphemeris,
     site: &Site,
@@ -499,7 +500,7 @@ pub fn sample_bodies(
     };
     let first = times[0];
     let last = *times.last().unwrap_or(&first);
-    let nodes_needed = ((last - first) / track::MAX_NODE_SPACING_DAYS).ceil() as usize + 4;
+    let nodes_needed = ((last - first) / track::MOON_NODE_SPACING_DAYS).ceil() as usize + 4;
     let use_tracks = times.len() > 2 * nodes_needed && last > first;
 
     let empty = |name: &str| SampledBody {
