@@ -9,6 +9,7 @@
 - [Observation planner](PLANNER.md)
 - [Simulator](SIMULATOR.md)
 - [Polarization compass laboratory](POLARIZATION.md)
+- [Motion and independent checks](MOTION.md)
 - [Accuracy and limitations](ACCURACY.md)
 - [Third-party sources and licences](THIRD_PARTY.md)
 - [Backlog](BACKLOG.md)
