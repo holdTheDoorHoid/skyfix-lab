@@ -7,6 +7,7 @@
 pub mod catalog;
 pub mod convert;
 pub mod experiment;
+pub mod explorer;
 pub mod plan;
 pub mod reduce;
 pub mod scenarios;

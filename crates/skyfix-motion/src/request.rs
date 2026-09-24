@@ -94,7 +94,8 @@ impl MotionUncertaintyInput {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SigmaInflationReport {
     pub id: String,
-    /// Hours from the sight to the reference instant, signed (negative: sight first).
+    /// Hours from the sight to the reference instant, `reference - sight`: positive when
+    /// the sight was taken first, negative when it was taken after the reference.
     pub hours_to_reference: f64,
     pub run_nm: f64,
     pub zn_deg: f64,

@@ -1,0 +1,43 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Bowditch 1910: latitude at local apparent noon",
+    "notes": "Typed from Bowditch, NGA Pub. 9 (2019), section 1910, via fixtures/reference/bowditch_worked_examples.json: 9 March 2016, LAN at 12-08-04 zone time (ZD +3), Hs 45 54.0' lower limb, IC +0.2', height of eye 68 ft. DR 39 49.0' N, 044 33.0' W, on 045 at 10 knots. The book's answer is 39 48.6' N.",
+    "kind": "real"
+  },
+  "observer": {
+    "height_of_eye_m": 20.7264,
+    "pressure_hpa": 1010.0,
+    "temperature_c": 10.0,
+    "assumed_position": {
+      "lat_deg": 39.816666667,
+      "lon_deg": -44.55
+    },
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "",
+    "index_correction_arcmin": 0.2,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "lan",
+      "body": "Sun",
+      "utc": "2016-03-09T15:08:04Z",
+      "altitude_deg": 45.9,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.2,
+      "limb": "lower",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    }
+  ]
+}

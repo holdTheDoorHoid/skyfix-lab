@@ -455,7 +455,7 @@ fn render_circles(circles: &[CircleOfPosition], out: &mut String) {
 /// singular, or the iteration did not converge (CONVENTIONS section 9), and in every one
 /// of those cases the position is a number without an uncertainty to go with it.
 /// `--require-unique` therefore demands both.
-fn not_a_usable_single_position(result: &FixResult) -> Option<String> {
+pub fn not_a_usable_single_position(result: &FixResult) -> Option<String> {
     match result {
         FixResult::Unique { fix, .. } => {
             if fix.ellipse95.is_some() {

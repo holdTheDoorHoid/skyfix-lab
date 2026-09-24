@@ -135,6 +135,11 @@ pub enum Command {
         json: bool,
     },
 
+    // sky, events, phases, seasons, noon, polaris, average, running-fix, predict, lunar
+    // and plan-sights: the explorer engine's commands, declared in commands/explorer.
+    #[command(flatten)]
+    Explorer(crate::commands::explorer::ExplorerCommand),
+
     /// Rank bodies worth observing from a position at a time.
     Plan {
         /// Approximate position, degrees, east-positive longitude. Disclosed in the

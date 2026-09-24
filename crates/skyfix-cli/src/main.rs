@@ -114,6 +114,7 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
         }),
 
         Command::Demos { json } => commands::simulate::run_demos(json),
+        Command::Explorer(command) => commands::explorer::run(command),
         Command::Plan {
             position,
             utc,

@@ -15,6 +15,11 @@ path = "src/main.rs"
 skyfix-core = { path = "../skyfix-core" }
 skyfix-ephemeris = { path = "../skyfix-ephemeris" }
 skyfix-sim = { path = "../skyfix-sim" }
+# The explorer commands (commands/explorer): sky state and events, the running fix, and
+# the display-only constellation labels `skyfix sky` joins in (CONVENTIONS 13.6).
+skyfix-almanac = { path = "../skyfix-almanac" }
+skyfix-motion = { path = "../skyfix-motion" }
+skyfix-starfield = { path = "../skyfix-starfield" }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
