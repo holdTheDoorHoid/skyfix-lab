@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- The maskable app icon (and the iOS home-screen icon): the same mark as icon.svg on a
+       full-bleed background, scaled so it stays inside the central circle of radius 40 %
+       that every launcher mask keeps (the farthest point, the end of the horizon line,
+       is 8.7 of the 9.6 units allowed). Rendered to PNG by web/scripts/render-icons.mjs. -->
+  <title>SkyFix Lab</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#303b48"/>
+      <stop offset="1" stop-color="#131a21"/>
+    </linearGradient>
+  </defs>
+  <rect width="24" height="24" fill="url(#sky)"/>
+  <g transform="translate(12 12) scale(0.8) translate(-12 -11.2)">
+    <path d="M6.2 17.2a5.8 5.8 0 0 1 11.6 0Z" fill="#f2b63c"/>
+    <path d="M3.8 17.4h16.4" fill="none" stroke="#f1f4f7" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M16.6 4.2l.72 1.98 1.98.72-1.98.72-.72 1.98-.72-1.98-1.98-.72 1.98-.72Z" fill="#f1f4f7"/>
+  </g>
+</svg>

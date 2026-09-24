@@ -1256,3 +1256,25 @@ with the Skyfield version and the `de440s.bsp` kernel listed under "Reference da
 (checksums in the file's `generator` block): local contact instants at the 22 USNO sites,
 two lunar eclipses with the Moon's altitude at three sites each, and the latitudes where
 the limits of four eclipses cross thirteen meridians.
+
+## Offline app: service worker, web app manifest, icons
+
+Owner: release agent (`web/src/sw/`, `web/src/pwa/`, `web/src/next/pwa/`, `web/plugins/`,
+`web/public/manifest.webmanifest`, `web/public/icons/`). Added 2026-09-24. No new package,
+no data and no third-party code.
+
+- **Service worker:** written for this project (`web/src/sw/`), built by this project's
+  own Vite plugin (`web/plugins/pwa.ts`). No service-worker library (Workbox or other) is
+  used or copied; the Cache Storage and service-worker APIs are browser standards.
+- **Icons:** drawn for this project from its own logo mark (`web/src/next/theme/primitives.ts`,
+  listed under "Explorer design system" above) in the design tokens' colours, and
+  rendered to PNG by `web/scripts/render-icons.mjs` with a local Chrome. Covered by the
+  project's licence.
+- **What the worker stores:** only files of this site. It never answers, stores or
+  inspects a request to another origin. In particular the optional OpenStreetMap street
+  layer (see "Explorer map view") is left entirely to the browser: its tiles are cached
+  only by the browser's normal HTTP cache, as the OSMF Tile Usage Policy
+  (<https://operations.osmfoundation.org/policies/tiles/>) allows, and the layer does not
+  work offline. What the worker does store is what the site already ships: the Natural
+  Earth basemap and gazetteer (public domain) and the Inter and JetBrains Mono font files
+  (SIL OFL 1.1, listed under "Explorer (browser) dependencies"), unchanged.

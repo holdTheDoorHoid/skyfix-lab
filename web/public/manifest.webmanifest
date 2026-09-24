@@ -1,0 +1,21 @@
+{
+  "id": "skyfix-lab/",
+  "name": "SkyFix Lab",
+  "short_name": "SkyFix",
+  "description": "Where the Sun, Moon, planets and stars are from any place at any time, and celestial navigation with honest uncertainty. Works offline. A simulation and analysis workbench, not a navigation instrument.",
+  "lang": "en",
+  "dir": "ltr",
+  "start_url": "./next/",
+  "scope": "./next/",
+  "display": "standalone",
+  "background_color": "#131a21",
+  "theme_color": "#131a21",
+  "categories": ["education", "navigation", "utilities"],
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" },
+    { "src": "icons/icon-maskable.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "maskable" }
+  ]
+}

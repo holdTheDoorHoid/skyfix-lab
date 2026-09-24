@@ -349,3 +349,20 @@ thead th { border-bottom: 2px solid var(--ink-soft); font-size: 0.82rem; text-tr
 .plan-list { padding-left: 22px; }
 .plan-list li { margin-bottom: 10px; }
 .plan-metrics th[scope='row'] { white-space: nowrap; font-weight: 600; }
+
+/* --- offline app: a new version waits (src/pwa/workbench-prompt.ts) ------- */
+
+.sw-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  max-width: calc(100vw - 32px);
+  border: 1px solid var(--rule);
+  box-shadow: 0 4px 14px rgba(12, 20, 30, 0.18);
+}
