@@ -172,19 +172,64 @@ Called once. Display-only data (CONVENTIONS §13.6).
 }
 ```
 
+As delivered (star-field agent, 2026-09-24):
+
+- 9 095 stars in HR order: every stellar entry of the Bright Star Catalogue (to about
+  V 6.5, some to V 8) except the recurrent nova T CrB, which the catalogue lists at its
+  outburst peak. Indices are positions in these arrays and are stable for a build.
+- `names`: 252 entries sorted by `index`. The 58 navigational stars carry the Nautical
+  Almanac spelling used everywhere else ("Al Na'ir", "Rigil Kentaurus").
+- `designations`: a Bayer letter wins over a Flamsteed number; superscripts are
+  Unicode (`"α¹ Cru"`). About two thirds of the stars have neither and get `""`
+  (show `"HR " + hr` instead).
+- `navigational`: in `explorer_bodies()` star order, matched by position and magnitude
+  (not by name), so it is the star the ephemeris means.
+- `constellations`: 88 entries in IAU order. `lines` index the star arrays (this
+  project's own figures). `label_ra_deg` / `label_dec_deg` are an **ICRS (J2000)**
+  direction inside the boundary; carry it into the frame of date with
+  `starfield_frame_matrix`, like the boundaries.
+
 ### `starfield_apparent(jd_utc) -> Float64Array`
 
 Length `2 × count`: `[ra_rad, dec_rad, …]`, apparent geocentric of date, the same frame
 as `sky_state`. The UI recomputes at most once per simulated hour and does the
 alt/az rotation itself from `sidereal()`.
 
+RA is `[0, 2π)`. The chain is exactly `sky_state`'s for the navigational stars (proper
+motion, bias-precession-nutation, parallax, solar deflection, aberration). Answers for
+1800–2200 (validated 1990–2060); throws for a non-finite time or one outside that range.
+About 1.1 ms in WebAssembly.
+
 ### `constellation_at(ra_deg, dec_deg, jd_utc) -> string`
 
 IAU abbreviation of the constellation containing an apparent-of-date direction.
 
+The direction is rotated into the mean equator and equinox of B1875.0 (the frame of the
+IAU boundaries) and looked up there; aberration is not removed, so the answer is the
+region the direction points into. RA outside `[0, 360)` is wrapped; throws for
+non-finite input or `|dec_deg| > 90`. Cheap after the first call at a given `jd_utc`
+(about 1.3 µs in WebAssembly; 5 µs for a new instant), so `sky_state` can label every
+body.
+
 ### `constellation_boundaries() -> { abbr: string, ra_deg: Float64Array, dec_deg: Float64Array }[]`
 
 Boundary polylines at J2000, for drawing. Optional in wave 1.
+
+As delivered: 89 closed polylines (the last point repeats the first; Serpens has two,
+Caput and Cauda, both `"Ser"`), ICRS degrees, RA `[0, 360)`, consecutive points at most
+1° apart (about 9 800 points in all). An edge shared by two constellations appears in
+both. RA jumps across 0°/360° are the caller's to handle when projecting.
+
+### `starfield_frame_matrix(jd_utc) -> Float64Array` (addition, star-field agent)
+
+Length 9, row-major: the rotation from ICRS (J2000) to the true equator and equinox of
+date (frame bias, precession, nutation), `v_date[i] = Σ_j m[3i + j] · v_icrs[j]`. It
+carries `constellation_boundaries()` and the label positions into the frame of
+`starfield_apparent`, so the Sky view needs no precession of its own (EXPLORER_PLAN
+§3.1). It leaves out annual aberration (at most 20.5″), which moves each star's light
+rather than rotating the sky. Same time range and errors as `starfield_apparent`.
+Optional in the TypeScript interface (`starfieldFrameMatrix?`), so existing engine
+implementations keep compiling.
 
 ## Wave 1 — navigation methods (`nav.rs`, navigation agent)
 
