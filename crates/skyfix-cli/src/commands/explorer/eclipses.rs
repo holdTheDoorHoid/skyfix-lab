@@ -279,6 +279,46 @@ pub fn rise_set_words(
     }
 }
 
+/// The part of a place's totality or annularity (c2 to c3) that comes with the Sun up.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct CentralSeen {
+    /// `jd_utc` of its start and end: c2 or the sunrise during it, c3 or the sunset.
+    pub start: f64,
+    pub end: f64,
+    /// The whole central phase is seen.
+    pub all: bool,
+}
+
+/// What of the central phase is seen with the Sun up, or `None` when the place has no
+/// central phase or sees none of it. When the Sun sets (or rises) during totality, the
+/// part before the sunset (or after the sunrise) is still totality, and still safe to
+/// look at.
+pub fn central_seen(l: &SolarLocal) -> Option<CentralSeen> {
+    let c2 = find(&l.events, LocalEventKind::C2)?;
+    let c3 = find(&l.events, LocalEventKind::C3)?;
+    let during = |kind: LocalEventKind| {
+        l.events
+            .iter()
+            .find(|e| e.kind == kind && e.jd_utc > c2.jd_utc && e.jd_utc < c3.jd_utc)
+            .map(|e| e.jd_utc)
+    };
+    let start = if c2.visible {
+        c2.jd_utc
+    } else {
+        during(LocalEventKind::Sunrise)?
+    };
+    let end = if c3.visible {
+        c3.jd_utc
+    } else {
+        during(LocalEventKind::Sunset)?
+    };
+    (end > start).then_some(CentralSeen {
+        start,
+        end,
+        all: c2.visible && c3.visible,
+    })
+}
+
 /// What a place sees of an eclipse, in one sentence: whether it is seen and its local
 /// maximum.
 pub fn here_words(local: &EclipseLocal) -> String {
@@ -311,13 +351,13 @@ fn solar_here(l: &SolarLocal) -> String {
             let duration = l
                 .central_duration_s
                 .map_or_else(|| "?".to_string(), text::duration_s);
-            let seen = [LocalEventKind::C2, LocalEventKind::C3]
-                .iter()
-                .all(|k| find(&l.events, *k).is_some_and(|e| e.visible));
-            if seen {
-                format!("{word} for {duration}")
-            } else {
-                format!("{word} for {duration}, but with the Sun down then")
+            match central_seen(l) {
+                Some(seen) if seen.all => format!("{word} for {duration}"),
+                Some(seen) => format!(
+                    "{word} for {duration}, {} of it with the Sun up",
+                    text::duration_s((seen.end - seen.start) * 86_400.0)
+                ),
+                None => format!("{word} for {duration}, but with the Sun down then"),
             }
         }
         LocalType::Partial | LocalType::None => "partial".to_string(),

@@ -27,7 +27,7 @@ use skyfix_ephemeris::topocentric::Site;
 
 use super::args::OptionalSiteArgs;
 use super::eclipses::{
-    alt_az, event_code, event_words, find, percent, rise_set_words, site_words, title,
+    alt_az, central_seen, event_code, event_words, find, percent, rise_set_words, site_words, title,
 };
 use super::text;
 use crate::exit;
@@ -504,8 +504,15 @@ fn solar_local(out: &mut String, l: &SolarLocal) {
             text::utc(c3.jd_utc),
             text::duration_s(d)
         );
-        if !(c2.visible && c3.visible) {
-            v.push_str(", with the Sun below the horizon for some or all of it");
+        match central_seen(l) {
+            Some(seen) if seen.all => {}
+            Some(seen) => v.push_str(&format!(
+                "; the Sun is up for {} of it, from {} to {}",
+                text::duration_s((seen.end - seen.start) * 86_400.0),
+                text::utc(seen.start),
+                text::utc(seen.end)
+            )),
+            None => v.push_str(", with the Sun below the horizon throughout"),
         }
         field(out, label, &v);
     }
@@ -590,21 +597,22 @@ fn lunar_local(out: &mut String, l: &LunarLocal) {
 fn eye_safety(eclipse_type: SolarType, local: Option<&SolarLocal>) -> String {
     let base = "Eye safety: never look at the Sun, even when it is mostly covered, without \
                 certified eclipse glasses (ISO 12312-2) or a pinhole projector.";
-    let totality = local.and_then(|l| {
-        if l.local_type != LocalType::Total {
-            return None;
-        }
-        let c2 = find(&l.events, LocalEventKind::C2)?;
-        let c3 = find(&l.events, LocalEventKind::C3)?;
-        (c2.visible && c3.visible).then_some((c2.jd_utc, c3.jd_utc))
-    });
+    let totality = local
+        .filter(|l| l.local_type == LocalType::Total)
+        .and_then(central_seen);
     let local_type = local.map(|l| l.local_type);
     match (totality, local_type, eclipse_type) {
-        (Some((c2, c3)), _, _) => format!(
+        (Some(seen), _, _) if seen.all => format!(
             "{base} Only during totality itself, here from {} to {}, is it safe to look with \
              the naked eye; the glasses go back on as the first bright point reappears.",
-            text::utc(c2),
-            text::utc(c3)
+            text::utc(seen.start),
+            text::utc(seen.end)
+        ),
+        (Some(seen), _, _) => format!(
+            "{base} Only during totality itself is it safe to look with the naked eye: here \
+             from {} to {}, the part of totality with the Sun above the horizon.",
+            text::utc(seen.start),
+            text::utc(seen.end)
         ),
         (None, Some(LocalType::Annular), _)
         | (None, None | Some(LocalType::None), SolarType::Annular) => {
@@ -613,7 +621,11 @@ fn eye_safety(eclipse_type: SolarType, local: Option<&SolarLocal>) -> String {
                  even at its greatest: the ring of Sun left uncovered is still blinding."
             )
         }
-        (None, Some(LocalType::Partial | LocalType::Total), _) => format!(
+        (None, Some(LocalType::Total), _) => format!(
+            "{base} Totality comes with the Sun below the horizon here, so there is no moment \
+             when it is safe to look with the naked eye."
+        ),
+        (None, Some(LocalType::Partial), _) => format!(
             "{base} There is no totality to see from this place, so there is no moment when it \
              is safe to look with the naked eye."
         ),

@@ -430,6 +430,56 @@ fn every_solar_eclipse_carries_an_eye_safety_line_fitted_to_the_place() {
     .expect_stdout_flat("there is no moment when it is safe to look with the naked eye");
 }
 
+/// Where the Sun sets during totality, the part before sunset is still totality: seen,
+/// and safe to look at. Off Ireland on 2024-04-08 the Sun sets 12 s into totality at
+/// 18.3 W; at 17.0 W it has set before totality begins.
+#[test]
+fn a_sunset_during_totality_leaves_the_part_before_it_seen_and_safe() {
+    run(&[
+        "eclipse",
+        "2024-04-08-solar",
+        "--lat",
+        "47.62",
+        "--lon",
+        "-18.3",
+    ])
+    .expect_code(0)
+    .expect_stdout_flat(
+        "Totality 2024-04-08T19:53:21Z to 2024-04-08T19:55:17Z, 1 min 56 s; the Sun is up \
+             for 12 s of it, from 2024-04-08T19:53:21Z to 2024-04-08T19:53:33Z",
+    )
+    .expect_stdout_flat("sunset, 100% covered")
+    .expect_stdout_flat(
+        "here from 2024-04-08T19:53:21Z to 2024-04-08T19:53:33Z, the part of totality with \
+             the Sun above the horizon",
+    );
+    run(&[
+        "eclipses",
+        "--from",
+        "2024-04-08",
+        "--to",
+        "2024-04-08",
+        "--lat",
+        "47.62",
+        "--lon",
+        "-18.3",
+    ])
+    .expect_code(0)
+    .expect_stdout_flat("here: total for 1 min 56 s, 12 s of it with the Sun up");
+    run(&[
+        "eclipse",
+        "2024-04-08-solar",
+        "--lat",
+        "47.62",
+        "--lon",
+        "-17.0",
+    ])
+    .expect_code(0)
+    .expect_stdout_flat("1 min 35 s, with the Sun below the horizon throughout")
+    .expect_stdout_flat("Most seen at sunset 2024-04-08T19:48:21Z")
+    .expect_stdout_flat("Totality comes with the Sun below the horizon here");
+}
+
 /// `--path` is the library's `EclipsePath`, and `--format geojson` the same lines as a
 /// FeatureCollection whose coordinates are the library's, unrounded.
 #[test]
