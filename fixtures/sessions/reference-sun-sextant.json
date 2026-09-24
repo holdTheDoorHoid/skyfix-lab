@@ -1,0 +1,86 @@
+{
+  "clock": {
+    "correction_s": 0.000000,
+    "uncertainty_s": 0.000000
+  },
+  "instrument": {
+    "horizon": "sea",
+    "index_correction_arcmin": -1.5000,
+    "name": "synthetic sextant, index error 1.5' on the arc"
+  },
+  "meta": {
+    "kind": "simulated",
+    "name": "Philadelphia Sun lower-limb sequence (raw sextant)",
+    "notes": "Five synthetic lower-limb Sun sights over an hour around local apparent noon (Sun transit 2026-10-01T16:50:15Z) at Philadelphia City Hall. Zero noise. Given as RAW sextant readings so the whole CONVENTIONS section 5 chain has to run: index correction, dip, refraction, semidiameter and parallax. The azimuth spread is only about 22 deg by design, so this sequence is a correction-chain fixture and a deliberately ill-conditioned-geometry demo, NOT a good fix."
+  },
+  "observations": [
+    {
+      "altitude_deg": 45.944750194,
+      "altitude_kind": "sextant_hs",
+      "body": "Sun",
+      "geocentric": {"dec_deg": -3.373345979, "gha_deg": 67.601044225, "horizontal_parallax_arcmin": 0.1464, "semidiameter_arcmin": 15.9757},
+      "horizon": null,
+      "id": "obs-1",
+      "limb": "lower",
+      "notes": "Synthetic, zero noise. Raw sextant reading produced by running the CONVENTIONS section 5 chain backwards from the geocentric Ho; see the expected file for every reversed step.",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-10-01T16:20:00Z"
+    },
+    {
+      "altitude_deg": 46.352457935,
+      "altitude_kind": "sextant_hs",
+      "body": "Sun",
+      "geocentric": {"dec_deg": -3.377381520, "gha_deg": 71.351883215, "horizontal_parallax_arcmin": 0.1464, "semidiameter_arcmin": 15.9757},
+      "horizon": null,
+      "id": "obs-2",
+      "limb": "lower",
+      "notes": "Synthetic, zero noise. Raw sextant reading produced by running the CONVENTIONS section 5 chain backwards from the geocentric Ho; see the expected file for every reversed step.",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-10-01T16:35:00Z"
+    },
+    {
+      "altitude_deg": 46.489590814,
+      "altitude_kind": "sextant_hs",
+      "body": "Sun",
+      "geocentric": {"dec_deg": -3.381416999, "gha_deg": 75.102722064, "horizontal_parallax_arcmin": 0.1464, "semidiameter_arcmin": 15.9758},
+      "horizon": null,
+      "id": "obs-3",
+      "limb": "lower",
+      "notes": "Synthetic, zero noise. Raw sextant reading produced by running the CONVENTIONS section 5 chain backwards from the geocentric Ho; see the expected file for every reversed step.",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-10-01T16:50:00Z"
+    },
+    {
+      "altitude_deg": 46.353498693,
+      "altitude_kind": "sextant_hs",
+      "body": "Sun",
+      "geocentric": {"dec_deg": -3.385452415, "gha_deg": 78.853560770, "horizontal_parallax_arcmin": 0.1464, "semidiameter_arcmin": 15.9758},
+      "horizon": null,
+      "id": "obs-4",
+      "limb": "lower",
+      "notes": "Synthetic, zero noise. Raw sextant reading produced by running the CONVENTIONS section 5 chain backwards from the geocentric Ho; see the expected file for every reversed step.",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-10-01T17:05:00Z"
+    },
+    {
+      "altitude_deg": 45.946784398,
+      "altitude_kind": "sextant_hs",
+      "body": "Sun",
+      "geocentric": {"dec_deg": -3.389487768, "gha_deg": 82.604399334, "horizontal_parallax_arcmin": 0.1464, "semidiameter_arcmin": 15.9759},
+      "horizon": null,
+      "id": "obs-5",
+      "limb": "lower",
+      "notes": "Synthetic, zero noise. Raw sextant reading produced by running the CONVENTIONS section 5 chain backwards from the geocentric Ho; see the expected file for every reversed step.",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-10-01T17:20:00Z"
+    }
+  ],
+  "observer": {
+    "assumed_position": {"lat_deg": 40.500000000, "lon_deg": -74.500000000},
+    "assumed_position_role": {"role": "initializer"},
+    "height_of_eye_m": 3.0000,
+    "pressure_hpa": 1010.00,
+    "temperature_c": 10.00
+  },
+  "schema": "skyfix.session/1"
+}

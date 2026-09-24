@@ -1,0 +1,50 @@
+{
+  "clock": {
+    "correction_s": 0.000000,
+    "uncertainty_s": 0.000000
+  },
+  "instrument": {
+    "horizon": "sea",
+    "index_correction_arcmin": 0.0000,
+    "name": "synthetic (no instrument)"
+  },
+  "meta": {
+    "kind": "simulated",
+    "name": "Philadelphia two-star (ambiguous)",
+    "notes": "Two of the five sights of reference-philadelphia-5star, unchanged."
+  },
+  "observations": [
+    {
+      "altitude_deg": 54.618648190,
+      "altitude_kind": "observed_ho",
+      "body": "Altair",
+      "geocentric": {"dec_deg": 8.942168505, "gha_deg": 94.281291299, "horizontal_parallax_arcmin": 0.0000, "semidiameter_arcmin": 0.0000},
+      "horizon": null,
+      "id": "obs-1",
+      "limb": "center",
+      "notes": "Synthetic, zero noise. Skyfield apparent topocentric altitude at the truth position with no refraction applied. Already a fully corrected Ho (altitude_kind observed_ho), so no correction step runs.",
+      "sigma_arcmin": 0.1000,
+      "utc": "2026-10-01T01:30:00Z"
+    },
+    {
+      "altitude_deg": 61.072237331,
+      "altitude_kind": "observed_ho",
+      "body": "Vega",
+      "geocentric": {"dec_deg": 38.812937689, "gha_deg": 112.844408001, "horizontal_parallax_arcmin": 0.0000, "semidiameter_arcmin": 0.0000},
+      "horizon": null,
+      "id": "obs-2",
+      "limb": "center",
+      "notes": "Synthetic, zero noise. Skyfield apparent topocentric altitude at the truth position with no refraction applied. Already a fully corrected Ho (altitude_kind observed_ho), so no correction step runs.",
+      "sigma_arcmin": 0.1000,
+      "utc": "2026-10-01T01:30:00Z"
+    }
+  ],
+  "observer": {
+    "assumed_position": {"lat_deg": 40.500000000, "lon_deg": -74.500000000},
+    "assumed_position_role": {"role": "initializer"},
+    "height_of_eye_m": 0.0000,
+    "pressure_hpa": 1010.00,
+    "temperature_c": 10.00
+  },
+  "schema": "skyfix.session/1"
+}
