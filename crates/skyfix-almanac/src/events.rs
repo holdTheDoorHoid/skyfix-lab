@@ -957,9 +957,15 @@ pub fn seasons(eph: &dyn BodyEphemeris, year: i32) -> Result<Vec<SeasonEvent>, A
 /// no ephemeris, no coverage limit. Local sidereal angle = `gha_aries + lon_east`.
 pub fn sidereal(jd_utc: f64) -> Result<Sidereal, AlmanacError> {
     check_jd("jd_utc", jd_utc)?;
-    Ok(Sidereal {
-        gha_aries_deg: skyfix_ephemeris::sidereal::gha_aries_deg(jd_utc, 0.0),
-    })
+    let gha_aries_deg = skyfix_ephemeris::sidereal::gha_aries_deg(jd_utc, 0.0);
+    // Far enough from J2000 the sidereal-time polynomial overflows: say so rather than
+    // hand back NaN as an angle.
+    if !gha_aries_deg.is_finite() {
+        return Err(AlmanacError::invalid(format!(
+            "jd_utc {jd_utc} is too far from J2000 for sidereal time"
+        )));
+    }
+    Ok(Sidereal { gha_aries_deg })
 }
 
 #[cfg(test)]
@@ -1082,5 +1088,9 @@ mod tests {
             skyfix_ephemeris::sidereal::gha_aries_deg(jd, 0.0)
         );
         assert!(sidereal(f64::NAN).is_err());
+        // Verifier regression: a finite but absurd instant returned Ok(NaN).
+        for far in [1e308, -1e308] {
+            assert!(sidereal(far).is_err(), "{far}");
+        }
     }
 }
