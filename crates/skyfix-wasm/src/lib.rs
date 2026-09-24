@@ -239,7 +239,10 @@ fn apply_session_position(session: &Session, options: &mut SolveOptions) {
         }
         AssumedPositionRole::Prior { sigma_nm } => {
             if options.prior.is_none() {
-                options.prior = Some(PositionPrior { center: centre, sigma_nm });
+                options.prior = Some(PositionPrior {
+                    center: centre,
+                    sigma_nm,
+                });
             }
             if options.initializer.is_none() {
                 options.initializer = Some(centre);
@@ -471,7 +474,11 @@ pub fn plan(position_json: &str, utc: &str, options_json: &str) -> Result<JsValu
 /// Geometric altitude of the Sun at `position` and `utc`, or `None` when the Sun cannot
 /// be resolved there (outside coverage, say). Refraction is not applied: the twilight
 /// thresholds are defined on the geometric altitude.
-fn sun_altitude(provider: &dyn AstroProvider, position: skyfix_core::types::LatLon, utc: &str) -> Option<f64> {
+fn sun_altitude(
+    provider: &dyn AstroProvider,
+    position: skyfix_core::types::LatLon,
+    utc: &str,
+) -> Option<f64> {
     let jd = skyfix_core::time::parse_utc(utc).ok()?;
     let d = provider.geocentric("Sun", jd).ok()?;
     let observer = skyfix_core::geometry::Point::from_deg(position.lat_deg, position.lon_deg);
@@ -523,7 +530,10 @@ mod tests {
         let provider = auto_provider();
         let utc = "2026-10-01T01:30:00Z";
         let sun = sun_altitude(&provider, position, utc).expect("a Sun altitude");
-        assert!(sun < 0.0, "the demo evening should be after sunset, got {sun}");
+        assert!(
+            sun < 0.0,
+            "the demo evening should be after sunset, got {sun}"
+        );
         let plan = skyfix_ephemeris::visibility::plan_at(
             &provider,
             &planner_bodies(),
@@ -535,7 +545,10 @@ mod tests {
         .unwrap();
         assert_eq!(plan.approximate_position, position);
         assert!(!plan.bodies.is_empty(), "nothing was ranked");
-        assert!(!plan.notes.is_empty(), "a plan must disclose its assumptions");
+        assert!(
+            !plan.notes.is_empty(),
+            "a plan must disclose its assumptions"
+        );
     }
 
     #[test]
@@ -545,8 +558,12 @@ mod tests {
                 .check()
                 .unwrap_or_else(|e| panic!("{}: {e}", scenario.name));
         }
-        skyfix_sim::demos::philadelphia_stars_named().check().unwrap();
-        skyfix_sim::demos::philadelphia_stars_sextant().check().unwrap();
+        skyfix_sim::demos::philadelphia_stars_named()
+            .check()
+            .unwrap();
+        skyfix_sim::demos::philadelphia_stars_sextant()
+            .check()
+            .unwrap();
     }
 
     #[test]
