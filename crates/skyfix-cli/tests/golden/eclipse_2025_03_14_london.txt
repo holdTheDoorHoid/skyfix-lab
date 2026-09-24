@@ -1,0 +1,34 @@
+TOTAL LUNAR ECLIPSE  2025-03-14-lunar
+Greatest   2025-03-14T06:58:46Z, with the Moon overhead at 02 40.91' N, 102 15.03' W
+           (2.681850, -102.250558)
+Magnitude  1.1784 umbral (the fraction of the Moon's diameter inside the Earth's dark
+           shadow), penumbral 2.2595
+Gamma      +0.3484: the Moon's centre passes 0.3484 Earth radii north of the shadow's
+           axis
+Saros      123 (lunation 311)
+Totality   1 h 05 min 24 s (u2 to u3, the Moon wholly in the umbra)
+Partial    3 h 38 min 16 s (u1 to u4, the Moon in the umbra)
+Penumbral  6 h 02 min 40 s (p1 to p4, the whole eclipse)
+Delta-T    69.184 s (TT - UT1): the contacts are the same instants everywhere; where the
+           Moon is overhead depends on it
+
+SEEN FROM  51 30.44' N, 000 07.67' W (51.507400, -0.127800), 0 m above the WGS84 ellipsoid
+Here       partly seen: the Moon sets at 2025-03-14T06:22:57Z during it
+Greatest   2025-03-14T06:58:46Z, Moon alt -6 17.6, Az 281 12.0 (below the horizon)
+
+  UTC                   event                          Moon alt        Az
+  2025-03-14T03:57:28Z  p1   penumbral eclipse begins  +21 13.1  246 00.9
+  2025-03-14T05:09:38Z  u1   partial eclipse begins    +10 29.8  260 33.6
+  2025-03-14T06:22:57Z       moonset                   - 0 48.9  274 25.7
+  2025-03-14T06:26:04Z  u2   totality begins           - 1 17.7  275 00.8  Moon down
+  2025-03-14T06:58:46Z  max  greatest eclipse          - 6 17.6  281 12.0  Moon down
+  2025-03-14T07:31:28Z  u3   totality ends             -11 10.8  287 31.0  Moon down
+  2025-03-14T08:47:54Z  u4   partial eclipse ends      -21 49.2  303 19.9  Moon down
+  2025-03-14T10:00:09Z  p4   penumbral eclipse ends    -30 09.7  320 25.0  Moon down
+
+Times are UTC to the nearest second; --format json carries the milliseconds, and --path
+the lines on the map (--format geojson for a map tool). alt and Az are the Moon's
+centre, geometric, with no refraction, from the WGS84 site (CONVENTIONS 13.2); an event
+is marked Moon down when the Moon's centre is below -(34' + SD), its rise and set
+altitude. The contacts are the same instants everywhere; only the Moon's height differs
+from place to place.

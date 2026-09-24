@@ -1,0 +1,60 @@
+ECLIPSES  2024-01-01T00:00:00Z to 2027-01-01T00:00:00Z, solar and lunar
+Observer  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84 ellipsoid
+
+  id                type       greatest eclipse          mag  pen.mag    gamma  saros
+  2024-03-25-lunar  penumbral  2024-03-25T07:12:52Z  -0.1325   0.9556  +1.0609    113
+      here: all of it seen, with the Moon up throughout; greatest eclipse
+      2024-03-25T07:12:52Z, Moon alt +54 20.0, Az 196 38.3
+  2024-04-08-solar  total      2024-04-08T18:17:20Z   1.0566        -  +0.3431    139
+      here: total for 3 min 51 s, with the Sun up throughout; maximum
+      2024-04-08T18:42:39Z, magnitude 1.015 (100% of the Sun's area covered), Sun alt
+      +64 36.8, Az 188 00.5
+  2024-09-18-lunar  partial    2024-09-18T02:44:17Z   0.0848   1.0372  -0.9791    118
+      here: all of it seen, with the Moon up throughout; greatest eclipse
+      2024-09-18T02:44:17Z, Moon alt +26 30.1, Az 113 14.2
+  2024-10-02-solar  annular    2024-10-02T18:45:04Z   0.9326        -  -0.3509    144
+      here: no eclipse: the Moon's shadow misses this place
+  2025-03-14-lunar  total      2025-03-14T06:58:46Z   1.1784   2.2595  +0.3484    123
+      here: all of it seen, with the Moon up throughout; greatest eclipse
+      2025-03-14T06:58:46Z, Moon alt +59 00.3, Az 190 46.0
+  2025-03-29-solar  partial    2025-03-29T10:47:27Z   0.9376        -  +1.0405    149
+      here: not seen: the Sun is below the horizon throughout; maximum
+      2025-03-29T10:14:13Z, magnitude 0.618 (53% of the Sun's area covered), Sun alt
+      -26 09.1, Az 66 31.5
+  2025-09-07-lunar  total      2025-09-07T18:11:49Z   1.3619   2.3440  -0.2752    128
+      here: not seen: the Moon is below the horizon throughout; greatest eclipse
+      2025-09-07T18:11:49Z, Moon alt -63 28.2, Az 352 26.2
+  2025-09-21-solar  partial    2025-09-21T19:41:55Z   0.8550        -  -1.0651    154
+      here: no eclipse: the Moon's shadow misses this place
+  2026-02-17-solar  annular    2026-02-17T12:11:56Z   0.9630        -  -0.9743    121
+      here: no eclipse: the Moon's shadow misses this place
+  2026-03-03-lunar  total      2026-03-03T11:33:42Z   1.1507   2.1839  -0.3765    133
+      here: partly seen: the Moon sets at 2026-03-03T12:55:56Z during it; greatest
+      eclipse 2026-03-03T11:33:42Z, Moon alt +16 07.7, Az 266 38.2
+  2026-08-12-solar  total      2026-08-12T17:45:56Z   1.0386        -  +0.8977    126
+      here: no eclipse: the Moon's shadow misses this place
+  2026-08-28-lunar  partial    2026-08-28T04:12:56Z   0.9299   1.9645  +0.4964    138
+      here: all of it seen, with the Moon up throughout; greatest eclipse
+      2026-08-28T04:12:56Z, Moon alt +36 19.4, Az 136 40.7
+
+12 eclipses in the window: 6 solar, 6 lunar. Seen from the observer, in whole or in
+part: 6 of 12.
+
+mag is a solar eclipse's magnitude (for a total, annular or hybrid eclipse the Moon's
+apparent diameter over the Sun's at greatest eclipse, for a partial one the fraction of
+the Sun's diameter covered there) or a lunar eclipse's umbral magnitude, the fraction of
+the Moon's diameter inside the Earth's dark shadow (negative when the Moon misses it);
+pen.mag is a lunar eclipse's penumbral magnitude. gamma is how far the shadow's axis
+passes from the Earth's centre (solar), or the Moon's centre from the shadow's axis
+(lunar), at greatest eclipse, in Earth radii, positive north; saros is NASA's numbering.
+Times are UTC to the nearest second (--format json carries the milliseconds). Every
+eclipse of 1990-2060 is NASA's Five Millennium Canon's, of the same type and saros
+(docs/ACCURACY.md section 12). skyfix eclipse ID gives an eclipse's contacts, what a
+place sees of it and its path. The here lines say what the observer sees: a solar
+eclipse's maximum is its greatest magnitude at that place, a lunar eclipse's greatest
+eclipse is the same instant everywhere. Altitudes (alt) and azimuths (Az) are the body's
+centre, geometric, with no refraction, from the WGS84 site (CONVENTIONS 13.2), and the
+body counts as up above its rise and set altitude: -50' for the Sun, -(34' + SD) for the
+Moon. Local times assume each eclipse's Delta-T (--format json: delta_t_s); for a future
+eclipse the true value will differ, and each second of difference moves a local contact
+by up to about a second.
