@@ -44,10 +44,18 @@
 //! linear in UT1) minus its apparent right ascension, so all the curvature comes from
 //! the Moon. `tests/fixture_pack_interpolation.rs` measures both bounds on a synthetic
 //! signal built from the Moon's real dominant frequencies and amplitudes, at the
-//! 1-hour step an almanac pack would use. The measured figures are recorded there and
-//! in this crate's tests; in short, **cubic interpolation of the Moon at 1-hour steps
-//! costs far less than 0.001', while linear interpolation on the two end intervals
-//! costs about 0.02'** — which is why the ends are called out in the coverage notes.
+//! 1-hour step an almanac pack would use. **Worst error, arcminutes:**
+//!
+//! | | GHA | Dec | SD | HP |
+//! |---|---|---|---|---|
+//! | cubic interior | 0.000005 | 0.000001 | <0.000001 | <0.000001 |
+//! | linear end intervals | 0.0022 | 0.0078 | 0.000007 | 0.000027 |
+//!
+//! So a 1-hour Moon table costs essentially nothing in the interior and under 0.01' on
+//! the two end intervals; [`FixturePackProvider::uses_cubic`] says which applies. The
+//! cubic figure is already at the floor set by holding a Julian date in one `f64`
+//! (about 4e-5 s, which is 1e-5' at the Moon's 14.5 deg/h), so a finer grid does not
+//! improve it. A slower body such as the Sun is two orders better again.
 
 use std::collections::BTreeMap;
 
