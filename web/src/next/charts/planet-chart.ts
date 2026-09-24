@@ -211,7 +211,8 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
 
   function updateStatus(): void {
     c.status.textContent = job && !job.done ? `Working out the planets night by night… ${Math.round(job.progress * 100)} %` : '';
-    c.root.dataset.ready = job?.done && sky && geom ? '1' : '0';
+    const drawn = ui.get().mode === 'table' ? c.tableWrap.childElementCount > 0 : geom !== null;
+    c.root.dataset.ready = job?.done && sky && drawn ? '1' : '0';
   }
 
   // --- header and legend -------------------------------------------------------------------
@@ -710,6 +711,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       );
     }
     c.tableWrap.replaceChildren(summary.table, detail.table);
+    if (sky) c.root.dataset.ready = '1';
   }
 
   // --- wiring ------------------------------------------------------------------------------

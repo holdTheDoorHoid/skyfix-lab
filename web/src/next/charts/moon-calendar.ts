@@ -343,6 +343,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
       );
     }
     c.tableWrap.replaceChildren(t.table);
+    c.root.dataset.ready = '1';
   }
 
   // --- wiring ------------------------------------------------------------------------------

@@ -64,6 +64,8 @@ const SHOTS = {
   'planets-tromso': [`${TROMSO_JUNE}&theme=light&tab=planets`, DESKTOP],
   'planets-sydney': [`${SYDNEY}&theme=light&tab=planets`, DESKTOP],
   'planets-table': [`${PHILLY}&theme=light&tab=planets&mode=table`, DESKTOP],
+  // Not a picture: warm and cold timings in this browser, printed (see harness.ts `bench`).
+  bench: [`${PHILLY}&bench=1`, DESKTOP],
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -128,7 +130,7 @@ async function shoot(name, fragment, view) {
     if (view.width < 768) await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
     await send('Page.navigate', { url: `${BASE}/next/dev-charts.html#${fragment}` });
     let ready = false;
-    for (const start = Date.now(); Date.now() - start < 60_000 && !ready; ) {
+    for (const start = Date.now(); Date.now() - start < 120_000 && !ready; ) {
       await sleep(250);
       const r = await send('Runtime.evaluate', {
         expression: "document.documentElement.dataset.ready === '1'",
@@ -138,9 +140,14 @@ async function shoot(name, fragment, view) {
     }
     await sleep(400);
     const timing = await send('Runtime.evaluate', {
-      expression: "document.querySelector('.dev-timings')?.textContent ?? ''",
+      expression: "document.querySelector('.dev-bench')?.textContent ?? document.querySelector('.dev-timings')?.textContent ?? ''",
       returnByValue: true,
     }).catch(() => null);
+    if (name === 'bench') {
+      console.log(timing?.result?.value ?? '(no bench output)');
+      ws.close();
+      return;
+    }
     const shot = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, `charts-${name}.png`), Buffer.from(shot.data, 'base64'));
     ws.close();

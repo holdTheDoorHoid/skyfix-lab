@@ -4,6 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { jdFromUnixMs } from '../../src/next/engine/types.js';
+import { addDays, startOfLocalDay } from '../../src/next/geo/timezone.js';
 import { dayWindow as timeDayWindow, formatTime, resolveZone, type Zone } from '../../src/next/time.js';
 import {
   clockChangeIn,
@@ -101,6 +102,21 @@ describe('local days', () => {
     expect(daysInMonth(2026, 9)).toBe(30);
     expect(dayOfYear({ year: 2026, month: 12, day: 31 })).toBe(364);
     expect(dateKey({ year: 2026, month: 9, day: 4 })).toBe('2026-09-04');
+  });
+
+  it('finds every midnight exactly as geo/timezone.ts does, in zones with awkward rules', () => {
+    // Lord Howe changes by 30 minutes; Casablanca suspends summer time for Ramadan; Chile
+    // changes at midnight; Kathmandu is UTC+5:45; Tehran has no DST since 2022.
+    const zones = ['America/New_York', 'America/Santiago', 'Australia/Lord_Howe', 'Africa/Casablanca', 'Asia/Kathmandu', 'Asia/Tehran', 'Europe/London'];
+    for (const id of zones) {
+      const zone: Zone = { kind: 'iana', zone: id };
+      const days = daysOfYear(zone, 2026);
+      for (const d of days) {
+        const exact = startOfLocalDay({ kind: 'iana', id }, d.date);
+        const next = startOfLocalDay({ kind: 'iana', id }, addDays(d.date, 1));
+        expect([d.key, d.jd_start, d.jd_end]).toEqual([d.key, jdFromUnixMs(exact), jdFromUnixMs(next)]);
+      }
+    }
   });
 
   it('caches window lists (they cost Intl calls) and freezes them', () => {

@@ -84,29 +84,53 @@ function startMs(zone: Zone, dz: DisplayZone | null, date: LocalDate): number {
 /**
  * Consecutive local days from `first`, `count` of them. Each day's end is the next day's
  * start, so the windows tile time exactly.
+ *
+ * Cheap: a day's midnight is guessed from the previous day's offset and confirmed with one
+ * zone lookup; only where the offset differs (a clock change during the previous day, or
+ * at midnight) is the exact search of `geo/timezone.ts` used. A year costs about 370 zone
+ * lookups instead of about 1 800.
  */
 export function localDays(zone: Zone, first: LocalDate, count: number): LocalDay[] {
   const dz = toDisplayZone(zone);
-  const starts: number[] = [];
   const dates: LocalDate[] = [];
+  const starts: number[] = [];
+  const offsets: number[] = [];
   for (let i = 0; i <= count; i += 1) {
     const date = addDays(first, i);
     dates.push(date);
-    starts.push(startMs(zone, dz, date));
+    if (i === 0) {
+      const ms = startMs(zone, dz, date);
+      starts.push(ms);
+      offsets.push(zoneOffsetMs(ms, zone));
+      continue;
+    }
+    const prevOffset = offsets[i - 1]!;
+    const guess = Date.UTC(date.year, date.month - 1, date.day) - prevOffset;
+    const offset = zoneOffsetMs(guess, zone);
+    if (offset === prevOffset) {
+      starts.push(guess);
+      offsets.push(offset);
+    } else {
+      const ms = startMs(zone, dz, date);
+      starts.push(ms);
+      offsets.push(zoneOffsetMs(ms, zone));
+    }
   }
   const out: LocalDay[] = [];
   for (let i = 0; i < count; i += 1) {
     const ms0 = starts[i]!;
     const ms1 = starts[i + 1]!;
     const date = dates[i]!;
+    const offsetStartMs = offsets[i]!;
     out.push({
       date,
       key: dateKey(date),
       jd_start: jdFromUnixMs(ms0),
       jd_end: jdFromUnixMs(ms1),
       hours: (ms1 - ms0) / MS_PER_HOUR,
-      offsetStartMs: zoneOffsetMs(ms0, zone),
-      offsetEndMs: zoneOffsetMs(ms1 - 1, zone),
+      offsetStartMs,
+      // Unchanged from this midnight to the next, the offset held all day.
+      offsetEndMs: offsets[i + 1] === offsetStartMs ? offsetStartMs : zoneOffsetMs(ms1 - 1, zone),
     });
   }
   return out;

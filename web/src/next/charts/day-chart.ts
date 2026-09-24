@@ -341,8 +341,10 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     for (const a of [90, 60, 30, 0, -30]) {
       axis.append(svgText(x0 - 6, ys(a) + 3.5, `${a < 0 ? '−' : ''}${Math.abs(a)}°`, { 'text-anchor': 'end' }));
     }
-    for (const [a] of TWILIGHT_LINES) {
-      axis.append(svgText(x0 - 6, ys(a) + 3.5, `−${Math.abs(a)}°`, { 'text-anchor': 'end', class: 'sfc-tick', opacity: 0.8 }));
+    if (ys(-12) - ys(-6) >= 13) {
+      for (const [a] of TWILIGHT_LINES) {
+        axis.append(svgText(x0 - 6, ys(a) + 3.5, `−${Math.abs(a)}°`, { 'text-anchor': 'end', class: 'sfc-tick', opacity: 0.8 }));
+      }
     }
     timeLabels = [];
     for (let k = 0; k <= Math.floor(day.hours + 1e-9); k += hourStep) {
@@ -833,6 +835,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       );
     }
     c.tableWrap.replaceChildren(ev.table, ph.table, hourly.table);
+    c.root.dataset.ready = '1';
   }
 
   // --- wiring ----------------------------------------------------------------------------

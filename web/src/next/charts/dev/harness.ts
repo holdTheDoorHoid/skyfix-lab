@@ -20,7 +20,13 @@ import { createExplorerStore, type AngleFormat, type ExplorerState, type Theme }
 import { formatWithUtc, jdFromWallClock, resolveZone, type ZoneChoice } from '../../time.js';
 import { applyTheme as applyThemeToDocument, installTooltips } from '../../theme/index.js';
 import { chartsView } from '../index.js';
+import { computeDay } from '../day-data.js';
+import { dayBodies } from '../day-chart.js';
 import type { ChartMode, ChartTab } from '../frame.js';
+import { computeMoonMonth } from '../moon-data.js';
+import { ALL_PLANETS, planetYearJob } from '../planet-data.js';
+import { localDay, zoneKey } from '../windows.js';
+import { computeYear, computeYearSky } from '../year-data.js';
 
 interface Place {
   id: string;
@@ -184,6 +190,10 @@ async function boot(root: HTMLElement): Promise<void> {
   document.head.append(style);
 
   installTooltips(document.body);
+  if (p.get('bench') === '1') {
+    await bench(stage, ctx, selection.engine);
+    return;
+  }
   const view = chartsView({ tab, mode })(stage, ctx);
   void view;
 
@@ -213,6 +223,66 @@ async function boot(root: HTMLElement): Promise<void> {
   new MutationObserver(showTimings).observe(stage, { subtree: true, attributes: true, attributeFilter: ['data-compute'] });
 
   if (import.meta.env.DEV) (globalThis as { __charts?: unknown }).__charts = { ctx, store };
+}
+
+/**
+ * `#bench=1`: time each chart's computation on the unmemoised engine, first on a cold page
+ * and then again for the next period (warm), and print the numbers. Development only.
+ */
+async function bench(stage: HTMLElement, ctx: Ctx, engine: Ctx['engine']): Promise<void> {
+  const out = h('pre', { class: 'dev-bench' });
+  stage.replaceChildren(out);
+  const lines: string[] = [`engine: ${engine.kind}`, `user agent: ${navigator.userAgent}`, ''];
+  const print = (): void => {
+    out.textContent = lines.join('\n');
+  };
+  const pause = (): Promise<void> => new Promise((r) => setTimeout(r, 30));
+  const s = ctx.store.get();
+  const zone = resolveZone(s.observer.zone, s.observer.lon_deg);
+  const observer = { lat_deg: s.observer.lat_deg, lon_deg: s.observer.lon_deg, height_m: s.observer.height_m };
+  const options = { horizon: s.settings.horizon, height_of_eye_m: s.settings.height_of_eye_m };
+  const bodies = dayBodies(ctx, 'Vega');
+  lines.push(`place: ${s.observer.label} (${zoneKey(zone)}); bodies for the day chart: ${bodies.length}`);
+  const stats = (xs: number[]): string => {
+    const sorted = [...xs].sort((a, b) => a - b);
+    return `min ${sorted[0]!.toFixed(0)}, median ${sorted[Math.floor(sorted.length / 2)]!.toFixed(0)} ms`;
+  };
+  const REPS = 7;
+  for (const [label, run] of [
+    ['day chart (sample_bodies + day_events)', (i: number) => computeDay(engine, { observer, zone, day: localDay(zone, { year: 2026, month: 9, day: 1 + i }), bodies, options }).timing],
+    ['year chart (one day_events_batch of the year + shaping)', (i: number) => computeYear(engine, { observer, zone, year: 2020 + i, options }).timing],
+    ['year Moon phases + seasons (after the first drawing)', (i: number) => ({ totalMs: computeYearSky(engine, zone, 2020 + i).engineMs, engineMs: 0 })],
+    ['Moon calendar month', (i: number) => computeMoonMonth(engine, { observer, zone, year: 2026, month: 1 + i, options }).timing],
+  ] as const) {
+    const total: number[] = [];
+    const eng: number[] = [];
+    for (let i = 0; i < REPS; i += 1) {
+      const t = run(i) as { totalMs: number; engineMs: number; batchMs?: number };
+      total.push(t.totalMs);
+      eng.push(t.batchMs ?? t.engineMs);
+      await pause();
+    }
+    lines.push(`${label}: first ${total[0]!.toFixed(0)} ms; then ${stats(total.slice(1))} (engine ${stats(eng.slice(1))})`);
+    print();
+  }
+  for (let i = 0; i < 2; i += 1) {
+    const year = computeYear(engine, { observer, zone, year: 2026 + i, options });
+    let first = -1;
+    let primary = -1;
+    const t0 = performance.now();
+    const job = planetYearJob(engine, { observer, zone, year: 2026 + i, options, planets: ALL_PLANETS }, year);
+    while (!job.step(45)) {
+      if (first < 0) first = performance.now() - t0;
+      if (primary < 0 && job.has('Saturn')) primary = performance.now() - t0;
+      await pause();
+    }
+    const total = performance.now() - t0 - 0;
+    lines.push(
+      `planet chart ${2026 + i}${i ? ' (warm)' : ' (cold)'}: first piece ${first.toFixed(0)} ms, Venus-Saturn done ${primary.toFixed(0)} ms, all ${total.toFixed(0)} ms wall (engine ${job.data.timing.engineMs.toFixed(0)} ms)`,
+    );
+    print();
+  }
+  document.documentElement.dataset.ready = '1';
 }
 
 const app = document.getElementById('app');

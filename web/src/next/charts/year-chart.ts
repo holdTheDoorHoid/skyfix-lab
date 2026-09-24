@@ -210,6 +210,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     sky = yearSkyMemo(ctx, data.input.zone, data.input.year);
     drawDirty = true;
     frame();
+    if (ui.get().mode === 'table') renderTable();
   };
 
   // --- header and legend -------------------------------------------------------------------
@@ -466,8 +467,8 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     dl.append(s('path', { class: 'sfc-daylen-area', d: area }), s('path', { class: 'sfc-daylen-line', d: line }));
     const ext = s('g', { class: 'sfc-extreme' });
     for (const [which, e] of [
-      ['Longest', data.longest],
-      ['Shortest', data.shortest],
+      ['Longest', data.longest && data.longest.hours < 23.99 ? data.longest : null],
+      ['Shortest', data.shortest && data.shortest.hours > 0.01 ? data.shortest : null],
     ] as const) {
       if (!e || (data.longest && data.shortest && data.longest.hours === data.shortest.hours)) continue;
       const x = xs(e.index + 0.5);
@@ -599,11 +600,11 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     if (!data) return 'Sunrise, sunset and twilight through the year.';
     const parts: string[] = [];
     const days = data.days;
-    if (data.longest && data.shortest) {
-      parts.push(
-        `The longest day is ${dayMonth(days[data.longest.index]!.day.date)} (${duration(data.longest.hours)}) and the shortest ${dayMonth(days[data.shortest.index]!.day.date)} (${duration(data.shortest.hours)}).`,
-      );
-    }
+    // Where the Sun stays up or down all day, the runs below say more than "the longest day".
+    const longest = data.longest && data.longest.hours < 23.99 ? data.longest : null;
+    const shortest = data.shortest && data.shortest.hours > 0.01 ? data.shortest : null;
+    if (longest) parts.push(`The longest day is ${dayMonth(days[longest.index]!.day.date)} (${duration(longest.hours)}).`);
+    if (shortest) parts.push(`The shortest is ${dayMonth(days[shortest.index]!.day.date)} (${duration(shortest.hours)}).`);
     for (const run of data.polar) {
       const name = run.kind === 'midnight_sun' ? 'The Sun does not set' : 'The Sun does not rise';
       parts.push(`${name} from ${dayMonth(days[run.first]!.day.date)} to ${dayMonth(days[run.last]!.day.date)}.`);
@@ -742,6 +743,8 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       tables.push(cc.table);
     }
     c.tableWrap.replaceChildren(...tables);
+    if (sky) c.root.dataset.ready = '1';
+    else setTimeout(loadSky, 0);
   }
 
   // --- wiring ------------------------------------------------------------------------------
