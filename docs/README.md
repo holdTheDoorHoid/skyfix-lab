@@ -12,10 +12,10 @@ with reference data is not field accuracy — see [Accuracy and limitations](ACC
 Live site: <https://holdthedoorhoid.github.io/skyfix-lab/> — this book:
 <https://holdthedoorhoid.github.io/skyfix-lab/docs/>.
 
-> The new map-first **explorer** lives at
-> [`/next/`](https://holdthedoorhoid.github.io/skyfix-lab/next/) until it is
-> feature-complete, when it will replace the page above. New to the site? Start with
-> [Using the explorer](EXPLORER_GUIDE.md).
+> The map-first **explorer** is the site's home page (since 2026-09-24; it was at `/next/`,
+> which now forwards there). The original workbench is kept for reference at
+> [`/classic/`](https://holdthedoorhoid.github.io/skyfix-lab/classic/). New to the site?
+> Start with [Using the explorer](EXPLORER_GUIDE.md).
 
 ## Quick start
 
