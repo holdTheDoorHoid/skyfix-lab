@@ -11,7 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "wasm": "wasm-pack build ../crates/skyfix-wasm --target web --out-dir ../../web/src/wasm-pkg --out-name skyfix_wasm --release"
+    "wasm": "wasm-pack build ../crates/skyfix-wasm --target web --out-dir ../../web/src/wasm-pkg --out-name skyfix_wasm --profile wasm-release"
   },
   "devDependencies": {
     "@types/node": "26.6.2",
