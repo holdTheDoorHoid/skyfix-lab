@@ -70,22 +70,29 @@ struct CatalogFile {
     schema: String,
     #[serde(default)]
     generator: Generator,
+    /// The authoritative Skyfield-generated file calls this array `cases`.
+    #[serde(alias = "cases")]
     stars: Vec<StarRecord>,
 }
 
 #[derive(Deserialize, Default)]
 struct Generator {
-    #[serde(default)]
+    /// The Skyfield-generated file records these under its own names.
+    #[serde(default, alias = "catalogue_reference")]
     source: String,
-    #[serde(default)]
+    #[serde(default, alias = "generated_utc")]
     retrieved: String,
-    #[serde(default)]
+    #[serde(alias = "licence", default = "default_license_note")]
     license: String,
     /// Absent means J2000.0.
     #[serde(default)]
     epoch: Option<Epoch>,
     #[serde(default)]
     provisional: bool,
+}
+
+fn default_license_note() -> String {
+    "see docs/THIRD_PARTY.md (Hipparcos, ESA 1997, served by CDS/VizieR)".to_string()
 }
 
 /// `"J2000.0"`, `"J1991.25"`, `1991.25`, or `{"jd": 2448349.0625}`.

@@ -238,6 +238,7 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
         Some(fix) => FixResult::Unique {
             fix,
             alternatives,
+            circles,
             warnings,
         },
         None => FixResult::Failed {

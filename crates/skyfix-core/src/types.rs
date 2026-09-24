@@ -210,7 +210,7 @@ pub struct CorrectionStep {
     pub applied: bool,
     pub before_deg: f64,
     pub after_deg: f64,
-    /// `after - before` in arcminutes (halving reports the amount removed).
+    /// `after - before` in arcminutes, for every step including halving.
     pub delta_arcmin: f64,
     pub note: String,
 }
@@ -237,6 +237,7 @@ pub struct ReducedSight {
     /// Where the direction came from: `"supplied"` or the provider name.
     pub direction_source: String,
     pub ho_deg: f64,
+    /// The final sigma the solver uses; always equal to `corrections.sigma_ho_arcmin`.
     pub sigma_arcmin: f64,
     pub corrections: CorrectionBreakdown,
     /// Computed at the assumed position (if any).
@@ -244,6 +245,7 @@ pub struct ReducedSight {
     pub zn_deg: Option<f64>,
     /// `Ho - Hc` in nautical miles, positive toward the body.
     pub intercept_nm: Option<f64>,
+    /// The complete list for this sight: a superset of `corrections.warnings`.
     pub warnings: Vec<Warning>,
 }
 
@@ -264,7 +266,11 @@ pub struct Sight {
 // Solver options and results (sections 8-9)
 // ---------------------------------------------------------------------------
 
+/// Every field has a default, so a JSON document may specify only what it changes.
+/// When a session declares `assumed_position_role = prior` AND `SolveOptions.prior` is
+/// set, `SolveOptions.prior` wins; callers (CLI, WASM) derive one from the other.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
 pub struct SolveOptions {
     /// Starting point only. Never a prior.
     pub initializer: Option<LatLon>,
@@ -359,10 +365,12 @@ pub enum FixResult {
         circles: Vec<CircleOfPosition>,
         warnings: Vec<Warning>,
     },
-    /// One fix; rejected alternatives listed with their chi-square gap.
+    /// One fix; rejected alternatives listed with their chi-square gap. The circles of
+    /// position are included so a plot never has to re-derive them.
     Unique {
         fix: Fix,
         alternatives: Vec<FixCandidate>,
+        circles: Vec<CircleOfPosition>,
         warnings: Vec<Warning>,
     },
     Failed {
