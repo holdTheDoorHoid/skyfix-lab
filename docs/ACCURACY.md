@@ -509,7 +509,7 @@ runs (one near the zenith, one from a vessel making 15 knots); Polaris latitude 
 0.0001′ at ten latitudes from 1° to 89.8° N; averaged altitudes within 0.0001′ of the
 truth; a 36 NM running fix within 0.4 m (36 m on a true rhumb line, the great-circle-leg
 model of `docs/MOTION.md`). Bowditch's worked examples reproduce to 0.07′ (Polaris,
-§1912), 0.02′ (the Almanac's Polaris illustration) and 0.18′ (LAN, §1910, every tenth of
+§1912), 0.02′ (the Almanac's Polaris illustration) and 0.19′ (LAN, §1910, every tenth of
 it accounted for). The stated sigmas cover 94-96 % in seeded Monte Carlo, except Polaris
 within 1.5° of the pole with a DR good only to 30 NM (19° of longitude): 89.8 %,
 documented as a limit and flagged by `polaris_near_pole`.

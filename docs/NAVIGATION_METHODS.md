@@ -158,10 +158,17 @@ chosen is reported in `alternative`. Either way `curvature` compares the two:
 `single_altitude: "maximum"` (the default) reads the one altitude as the **peak** the
 navigator watched for. On a vessel running north or south, or with the declination
 changing, the peak is `a²/4k` above the meridian altitude, so `H0 = Ho − a²/4k`
-(`max_minus_meridian_arcmin`; 0.07′ for Bowditch's 10 knots on 045). The recorded time
-only picks the declination. There is no longitude, and `longitude_caveat` says why. If
-the time is more than 15 minutes (plus three sigma of the DR's own prediction) from the
-DR's noon, `not_at_meridian_passage` asks whether this really was the peak.
+(`max_minus_meridian_arcmin`; 0.07′ for Bowditch's 10 knots on 045). `H0` belongs to
+the instant of meridian passage, so the declination is taken there too: at the passage
+the DR longitude predicts (`dr_check.predicted_passage_utc`), as a navigator takes the
+Almanac declination for the time of meridian passage. The recorded time is the peak's,
+`a/2k` from passage; for the Moon, whose declination moves up to 0.27′ a minute, that is
+minutes, and the declination at the recorded time would put the latitude out by `a²/2k`
+(1.3′ at 55° N in the verifier's noise-free check). When the DR's `sigma_nm` is stated,
+the passage time's own uncertainty moves the declination, and that is in the latitude's
+sigma. There is no longitude, and `longitude_caveat` says why. If the recorded time is
+more than 15 minutes (plus three sigma of the DR's own prediction) from the DR's noon,
+`not_at_meridian_passage` asks whether this really was the peak.
 
 `single_altitude: "ex_meridian"` reads it as an altitude **at the recorded time** and
 reduces it to the meridian by solving the altitude equation for latitude on the DR
@@ -423,15 +430,17 @@ public domain; the numbers are typed with provenance into
 | | Bowditch | SkyFix | difference |
 |---|---|---|---|
 | dip | −8.0′ | −8.013′ | −0.013′ |
-| declination | S 4°09.9′ | S 4°09.866′ | +0.034′ |
+| declination | S 4°09.9′ | S 4°09.858′ | +0.042′ |
 | Ho | 46°01.5′ | 46°01.427′ | −0.073′ |
-| latitude | N 39°48.6′ | N 39°48.777′ | +0.177′ |
+| latitude | N 39°48.6′ | N 39°48.785′ | +0.185′ |
 
-The +0.18′ is three tenths-level pieces, each accounted for: the Almanac's combined
+The +0.19′ is three tenths-level pieces, each accounted for: the Almanac's combined
 altitude correction is printed as +15.3′ where the unrounded chain gives +15.24′ (0.07′);
-the tabulated declination is rounded (0.03′); and the method reads one altitude as the
-*peak*, which on a vessel making 7 knots north is 0.070′ above the meridian altitude,
-while the book takes its altitude *at* LAN. Read as an altitude at 15:08:04 reduced on
+the declination (0.04′): the Almanac's is rounded, and SkyFix takes it at the meridian
+passage the DR predicts, 0.008′ from its value at the book's observed LAN (§2.4); and
+the method reads one altitude as the *peak*, which on a vessel
+making 7 knots north is 0.070′ above the meridian altitude, while the book takes its
+altitude *at* LAN. Read as an altitude at 15:08:04 reduced on
 the DR meridian (`ex_meridian`) the latitude is +0.157′ from the book.
 
 **§1912, latitude by Polaris** (22 March 2016, 23-18-56 UT, DR 40°46.0′ N 043°22.0′ W,

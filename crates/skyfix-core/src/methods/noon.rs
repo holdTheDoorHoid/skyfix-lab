@@ -832,18 +832,34 @@ impl<'a> Run<'a> {
 
     // --- one altitude, and latitude only ---------------------------------------
 
-    /// One altitude recorded at the peak: `H0 = Ho - a^2 / 4k`.
+    /// One altitude recorded at the peak: `H0 = Ho - a^2 / 4k`, with the declination at
+    /// meridian passage as the DR predicts it (`t_dr`).
     fn single_maximum(&self, side: MeridianSide, t_dr: f64) -> NoonSightResult {
         let s = &self.sights[0];
         let p_dr = self.dr_at(t_dr);
         let (a, k) = self.shape(p_dr, t_dr, t_dr);
         let correction = if k > 0.0 { a * a / (4.0 * k) } else { 0.0 };
         let h0 = s.ho_deg - correction / 60.0;
-        let dec = s.dec_deg;
+        // H0 is the altitude at meridian passage, so the declination that goes with it
+        // is the one at meridian passage. The recorded time is the peak's, a/2k away:
+        // minutes for the Moon, whose declination moves up to 0.27'/min, and its
+        // declination would put the latitude out by a^2/2k, twice the correction above.
+        let dec = self.track.direction(t_dr).dec_deg;
         let lat = dec + side_sign(side) * (90.0 - h0);
+        let dr_check = self.dr_check(t_dr, lat, None);
+        // The passage instant is only as good as the DR longitude; when its sigma is
+        // stated, the declination's change over that time goes into the latitude's.
+        let step = 60.0 / SECONDS_PER_DAY;
+        let dec_rate_arcmin_per_s = (self.track.direction(t_dr + step).dec_deg
+            - self.track.direction(t_dr - step).dec_deg)
+            * 60.0
+            / 120.0;
+        let sigma_passage = dr_check
+            .predicted_passage_sigma_s
+            .map_or(0.0, |sigma_s| dec_rate_arcmin_per_s.abs() * sigma_s);
         let latitude = LatitudeEstimate {
             lat_deg: lat,
-            sigma_arcmin: s.sigma_arcmin,
+            sigma_arcmin: s.sigma_arcmin.hypot(sigma_passage),
         };
         let p = Point::from_deg(lat, p_dr.lon_deg());
         let residuals = self.residuals(t_dr, |_, s| s.ho_deg);
@@ -863,8 +879,12 @@ impl<'a> Run<'a> {
             longitude_caveat: format!(
                 "One altitude cannot time the peak: near noon the {} hangs at almost the same \
                  height for minutes, so no longitude comes from this sight. It was taken as \
-                 the meridian altitude (the highest the {} rose); only the latitude is measured.",
-                self.body, self.body
+                 the meridian altitude (the highest the {} rose), with the declination at the \
+                 meridian passage your DR longitude predicts ({}); only the latitude is \
+                 measured.",
+                self.body,
+                self.body,
+                format_utc(t_dr)
             ),
             longitude_sensitivity_arcmin_per_nm: None,
             maximum: None,
@@ -878,7 +898,7 @@ impl<'a> Run<'a> {
                 consistent: None,
             },
             alternative: None,
-            dr_check: self.dr_check(s.jd_utc, lat, None),
+            dr_check,
             chi2: 0.0,
             dof: 0,
             residuals,
@@ -1424,6 +1444,70 @@ mod tests {
         assert!((r.latitude.lat_deg - 39.81).abs() * 60.0 < 1e-6);
         // At meridian passage the altitude does not depend on longitude at all.
         assert!(r.longitude_sensitivity_arcmin_per_nm.unwrap().abs() < 1e-6);
+    }
+
+    #[test]
+    fn a_single_maximum_takes_the_declination_at_meridian_passage() {
+        // Verifier regression: a body whose declination runs 15'/h (the Moon's pace)
+        // peaks a/2k from meridian passage, here minutes. Combining the meridian
+        // altitude with the declination at the recorded (peak) time put the latitude
+        // out by a^2/2k: 1.43' at 55 N, seven times the sight's sigma.
+        let body = SyntheticSun {
+            t0: T0,
+            gha0: 0.0,
+            dec0: -4.0,
+            dec_rate_deg_per_h: 0.25,
+        };
+        let truth = Point::from_deg(55.0, 10.0);
+        let t_pass = passage_for(&body, 10.0);
+        let h = |m: f64| {
+            let t = t_pass + m / MINUTES_PER_DAY;
+            hc_zn(truth, &body.direction("Sun", t).unwrap()).0
+        };
+        let (mut a, mut b) = (-30.0, 30.0);
+        for _ in 0..200 {
+            let (c, d) = (b - 0.618 * (b - a), a + 0.618 * (b - a));
+            if h(c) > h(d) {
+                b = d;
+            } else {
+                a = c;
+            }
+        }
+        let peak_minutes = 0.5 * (a + b);
+        assert!(peak_minutes.abs() > 2.0, "{peak_minutes} min from passage");
+        let obs = run_sights(&body, truth, t_pass, None, &[peak_minutes], 0.2);
+        let session = session_with(
+            obs,
+            LatLon {
+                lat_deg: 55.0,
+                lon_deg: 10.0,
+            },
+        );
+        let r = noon_sight(&session, &body, &NoonSightOptions::default()).unwrap();
+        assert_eq!(r.method, NoonMethod::MaximumAltitude);
+        let error = (r.latitude.lat_deg - 55.0) * 60.0;
+        assert!(error.abs() < 0.01, "latitude off by {error}'");
+        let dec_at_passage = body.direction("Sun", t_pass).unwrap().dec_deg;
+        assert!((r.declination_deg - dec_at_passage).abs() * 60.0 < 1e-3);
+        assert!((r.dr_check.predicted_passage_jd_utc - t_pass).abs() * SECONDS_PER_DAY < 0.01);
+        // A stated DR sigma times the passage: 10 NM at 55 N is 70 s of hour angle, in
+        // which the declination moves 0.29'.
+        let stated = NoonSightOptions {
+            dr: Some(DrPosition {
+                lat_deg: 55.0,
+                lon_deg: 10.0,
+                sigma_nm: Some(10.0),
+            }),
+            ..Default::default()
+        };
+        let r = noon_sight(&session, &body, &stated).unwrap();
+        let expected = 0.2f64
+            .hypot(0.25 / 3600.0 * 60.0 * (10.0 / 55f64.to_radians().cos() / 60.0 / 15.0 * 3600.0));
+        assert!(
+            (r.latitude.sigma_arcmin - expected).abs() < 0.005,
+            "{} vs {expected}",
+            r.latitude.sigma_arcmin
+        );
     }
 
     #[test]
