@@ -24,6 +24,7 @@ export type SkyMode = 'dome' | 'panorama';
 
 /** Altitudes beyond this are clamped in the panorama (Mercator reaches the zenith only at infinity). */
 const PANORAMA_MAX_ALT = 89.5 * DEG;
+const SIN_MAX = Math.sin(PANORAMA_MAX_ALT);
 
 export interface Projector {
   readonly mode: SkyMode;
@@ -34,6 +35,11 @@ export interface Projector {
   az: number;
   /** Project apparent altitude and azimuth (radians). Returns false when far outside the view. */
   project(alt: number, az: number): boolean;
+  /**
+   * The same from precomputed sines and cosines (`horizonDirections`): the per-star path,
+   * with no trigonometry in the dome and one `atan2` and one `log` in the panorama.
+   */
+  projectDir(alt: number, sinAlt: number, cosAlt: number, sinAz: number, cosAz: number): boolean;
   /** Screen point to apparent altitude and azimuth (radians), in `alt`/`az`. False outside the sky. */
   unproject(x: number, y: number): boolean;
   /** Unit screen vector toward the zenith at the last projected point, in `x`/`y` of `out`. */
@@ -84,6 +90,14 @@ export class DomeProjector implements Projector {
     this.y = this.cy - k * Math.cos(az);
     // Points well below the horizon (lines crossing it) are kept to 60° below; clipping
     // to the horizon circle hides them.
+    return alt > -60 * DEG;
+  }
+
+  projectDir(alt: number, sinAlt: number, cosAlt: number, sinAz: number, cosAz: number): boolean {
+    const r = sinAlt <= -0.999 ? this.radius * 1e3 : (this.radius * cosAlt) / (1 + sinAlt);
+    const k = this.sign * r;
+    this.x = this.cx - k * sinAz;
+    this.y = this.cy - k * cosAz;
     return alt > -60 * DEG;
   }
 
@@ -208,6 +222,14 @@ export class PanoramaProjector implements Projector {
     this.y = this.yHorizon - this.s * mercator(alt);
     // Anything more than 20° outside the field is dropped (it is also where the
     // azimuth seam behind the viewer lies).
+    return Math.abs(d) * this.s <= this.width / 2 + 20 * DEG * this.s;
+  }
+
+  projectDir(alt: number, sinAlt: number, _cosAlt: number, sinAz: number, cosAz: number): boolean {
+    const d = wrapPi(Math.atan2(sinAz, cosAz) - this.az0);
+    this.x = this.width / 2 + this.s * d;
+    const sa = alt > PANORAMA_MAX_ALT ? SIN_MAX : alt < -PANORAMA_MAX_ALT ? -SIN_MAX : sinAlt;
+    this.y = this.yHorizon - this.s * 0.5 * Math.log((1 + sa) / (1 - sa));
     return Math.abs(d) * this.s <= this.width / 2 + 20 * DEG * this.s;
   }
 

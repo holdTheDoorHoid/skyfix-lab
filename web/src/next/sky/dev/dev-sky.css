@@ -1,0 +1,118 @@
+/* Developer page for the Sky view: a thin strip over a full-height sky. OWNER: sky agent. */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #eef1f3;
+  color: #17202a;
+  font-family: 'Inter Variable', system-ui, sans-serif;
+}
+
+:root[data-theme='dark'],
+:root[data-theme='dark'] body {
+  background: #08111f;
+  color: #e9eff7;
+}
+
+:root[data-theme='night'],
+:root[data-theme='night'] body {
+  background: #000000;
+  color: #ff2e00;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.dv-banner {
+  margin: 0;
+  padding: 3px 12px;
+  font-size: 11.5px;
+  font-weight: 600;
+  background: #131a21;
+  color: #f1f4f7;
+}
+
+:root[data-theme='night'] .dv-banner {
+  background: #050000;
+  color: #ff2e00;
+}
+
+.dv-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(127, 127, 127, 0.3);
+}
+
+.dv-controls button,
+.dv-controls select {
+  font: inherit;
+  height: 26px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid rgba(127, 127, 127, 0.6);
+  border-radius: 5px;
+}
+
+:root[data-theme='night'] .dv-controls button,
+:root[data-theme='night'] .dv-controls select {
+  border-color: #c01800;
+  background: #080000;
+}
+
+.dv-engine {
+  font-weight: 700;
+}
+
+.dv-clock,
+.dv-stats {
+  font-family: 'JetBrains Mono Variable', ui-monospace, monospace;
+  font-size: 11.5px;
+  opacity: 0.85;
+}
+
+.dv-notices {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+}
+
+.dv-notice {
+  padding: 3px 12px;
+}
+
+.dv-caution {
+  background: rgba(242, 208, 75, 0.25);
+}
+
+.dv-error {
+  background: rgba(255, 129, 115, 0.25);
+}
+
+:root[data-theme='night'] .dv-caution,
+:root[data-theme='night'] .dv-error {
+  background: #1f0300;
+}
+
+.dv-sky {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.dv-bench:empty {
+  display: none;
+}
+
+.dv-bench {
+  margin: 0;
+  padding: 4px 12px;
+  font-size: 11px;
+}

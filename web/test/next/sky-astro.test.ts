@@ -14,10 +14,13 @@ import type { ExplorerEngine, Observer } from '../../src/next/engine/types.js';
 import { inspectWasmModule, type WasmLoad } from '../../src/next/engine/wasm.js';
 import {
   apparentAltitudeDeg,
+  azimuthOf,
   brightLimbScreenAngle,
   DEG,
   greatCircleUnits,
   horizonBatch,
+  horizonBuffers,
+  horizonDirections,
   horizonMatrix,
   limitingMagnitude,
   localSiderealDeg,
@@ -135,6 +138,33 @@ describe('horizon frame', () => {
     }
   });
 
+  it('the per-frame pass (sines, cosines, unit azimuth) equals the reference to 1e-12', () => {
+    const count = 2000;
+    const units = new Float64Array(3 * count);
+    let seed = 5;
+    const rnd = (): number => ((seed = (seed * 48271) % 2147483647) / 2147483647);
+    for (let i = 0; i < count; i += 1) unitFromRaDec(2 * Math.PI * rnd(), Math.asin(2 * rnd() - 1), units, i);
+    for (const [lst, lat, scale] of [
+      [17.3, 39.95, 1],
+      [250.1, -77.85, 1.07],
+      [101, 0.2, 0.93],
+    ] as const) {
+      const m = horizonMatrix(lst, lat);
+      const alt = new Float64Array(count);
+      const az = new Float64Array(count);
+      horizonBatch(units, count, m, scale, alt, az);
+      const hb = horizonBuffers(count);
+      horizonDirections(units, count, m, scale, hb);
+      for (let i = 0; i < count; i += 1) {
+        expect(Math.abs(hb.alt[i]! - alt[i]!)).toBeLessThan(1e-12);
+        expect(Math.abs(hb.sinAlt[i]! - Math.sin(alt[i]!))).toBeLessThan(1e-12);
+        expect(Math.abs(hb.cosAlt[i]! - Math.cos(alt[i]!))).toBeLessThan(1e-12);
+        const d = Math.abs(((azimuthOf(hb.sinAz[i]!, hb.cosAz[i]!) - az[i]! + 3 * Math.PI) % (2 * Math.PI)) - Math.PI);
+        expect(d * Math.cos(alt[i]!)).toBeLessThan(1e-12);
+      }
+    }
+  });
+
   it('rotates unit vectors with a row-major matrix', () => {
     const v = new Float64Array(3);
     unitFromRaDec(0, 0, v);
@@ -243,8 +273,7 @@ function agreement(engine: ExplorerEngine): Agreement {
   const catalog = engine.starfieldCatalog();
   const n = catalog.count;
   const units = new Float64Array(3 * n);
-  const alt = new Float64Array(n);
-  const az = new Float64Array(n);
+  const hb = horizonBuffers(n);
   const m = new Float64Array(9);
   const out: Agreement = { cases: 0, maxAlt: 0, maxSep: 0, maxRaDec: 0, maxGeometry: 0 };
   for (const iso of ISO_TIMES) {
@@ -254,7 +283,8 @@ function agreement(engine: ExplorerEngine): Agreement {
     const gha = engine.sidereal(jd).gha_aries_deg;
     for (const { observer } of PLACES) {
       horizonMatrix(localSiderealDeg(gha, observer.lon_deg), observer.lat_deg, m);
-      horizonBatch(units, n, m, refractionScale(), alt, az);
+      // Exactly the Sky view's per-frame pass (SkyScene.update).
+      horizonDirections(units, n, m, refractionScale(), hb);
       const state = engine.skyState(observer, jd, 'navigational');
       expect(Math.abs(((state.gha_aries_deg - gha + 540) % 360) - 180)).toBeLessThan(1e-9);
       const stars = new Map(state.bodies.filter((b) => b.kind === 'star').map((b) => [b.body, b]));
@@ -265,8 +295,10 @@ function agreement(engine: ExplorerEngine): Agreement {
         if (!b) continue;
         const h2 = b.alt_apparent_deg * DEG;
         const a2 = b.az_deg * DEG;
-        out.maxAlt = Math.max(out.maxAlt, Math.abs(alt[index]! * RAD - b.alt_apparent_deg));
-        out.maxSep = Math.max(out.maxSep, separationDeg(alt[index]!, az[index]!, h2, a2));
+        const h1 = hb.alt[index]!;
+        const a1 = azimuthOf(hb.sinAz[index]!, hb.cosAz[index]!);
+        out.maxAlt = Math.max(out.maxAlt, Math.abs(h1 * RAD - b.alt_apparent_deg));
+        out.maxSep = Math.max(out.maxSep, separationDeg(h1, a1, h2, a2));
         const ra = apparent[2 * index]! * RAD;
         const dec = apparent[2 * index + 1]! * RAD;
         const dRa = Math.abs(((ra - b.ra_deg + 540) % 360) - 180) * Math.cos(dec * DEG);

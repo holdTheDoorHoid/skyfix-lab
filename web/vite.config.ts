@@ -42,6 +42,9 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         next: resolve(import.meta.dirname, 'next/index.html'),
+        // The Sky view's developer page (sky agent): the view alone, for screenshots
+        // and frame-time measurements.
+        devSky: resolve(import.meta.dirname, 'next/dev-sky.html'),
       },
     },
   },

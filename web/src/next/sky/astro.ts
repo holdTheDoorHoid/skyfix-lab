@@ -186,6 +186,91 @@ export function horizonBatch(
   }
 }
 
+/** Where `horizonDirections` writes, one entry per direction. */
+export interface HorizonBuffers {
+  /** Apparent altitude, radians (display refraction included). */
+  alt: Float64Array;
+  /** Sine and cosine of the apparent altitude. */
+  sinAlt: Float64Array;
+  cosAlt: Float64Array;
+  /** Unit horizontal direction: sin and cos of the azimuth (from north, clockwise). */
+  sinAz: Float64Array;
+  cosAz: Float64Array;
+}
+
+export function horizonBuffers(count: number): HorizonBuffers {
+  return {
+    alt: new Float64Array(count),
+    sinAlt: new Float64Array(count),
+    cosAlt: new Float64Array(count),
+    sinAz: new Float64Array(count),
+    cosAz: new Float64Array(count),
+  };
+}
+
+/**
+ * The per-frame pass the Sky view runs for every star: the same answer as `horizonBatch`
+ * (tests hold them together), but shaped for drawing and about three times cheaper. The
+ * azimuth stays a unit vector (the dome never needs the angle) and the apparent
+ * altitude comes with its sine and cosine: one `asin` and one `tan` per direction.
+ *
+ * Refraction `δ` (at most 0.0113 rad) is added with `sin(h0 + δ)` expanded to fifth
+ * order in δ, exact to 1e-12. Directions below `skipBelowRad` get their geometric
+ * altitude only (never drawn).
+ */
+export function horizonDirections(
+  unit: Float64Array,
+  count: number,
+  m: Float64Array,
+  scale: number,
+  out: HorizonBuffers,
+  skipBelowRad = -Infinity,
+): void {
+  const m0 = m[0]!, m1 = m[1]!, m2 = m[2]!, m3 = m[3]!, m4 = m[4]!, m5 = m[5]!, m6 = m[6]!, m7 = m[7]!, m8 = m[8]!;
+  const { alt, sinAlt, cosAlt, sinAz, cosAz } = out;
+  const k = (scale * 1.02 * DEG) / 60;
+  for (let i = 0; i < count; i += 1) {
+    const x = unit[3 * i]!;
+    const y = unit[3 * i + 1]!;
+    const z = unit[3 * i + 2]!;
+    const e = m0 * x + m1 * y + m2 * z;
+    const n = m3 * x + m4 * y + m5 * z;
+    let u = m6 * x + m7 * y + m8 * z;
+    if (u > 1) u = 1;
+    else if (u < -1) u = -1;
+    const c = Math.sqrt(e * e + n * n);
+    if (c > 1e-12) {
+      sinAz[i] = e / c;
+      cosAz[i] = n / c;
+    } else {
+      sinAz[i] = 0;
+      cosAz[i] = 1;
+    }
+    const h0 = Math.asin(u);
+    if (h0 < skipBelowRad) {
+      alt[i] = h0;
+      sinAlt[i] = u;
+      cosAlt[i] = c;
+      continue;
+    }
+    const hd = h0 * RAD;
+    const hc = hd > -1 ? hd : -1;
+    const d = k / Math.tan((hc + 10.3 / (hc + 5.11)) * DEG);
+    const d2 = d * d;
+    const sd = d * (1 - d2 * (1 / 6 - d2 / 120));
+    const cd = 1 - d2 * (0.5 - d2 / 24);
+    alt[i] = h0 + d;
+    sinAlt[i] = u * cd + c * sd;
+    cosAlt[i] = c * cd - u * sd;
+  }
+}
+
+/** Azimuth in radians [0, 2π) from a unit horizontal direction. */
+export function azimuthOf(sinAz: number, cosAz: number): number {
+  const a = Math.atan2(sinAz, cosAz);
+  return a < 0 ? a + TWO_PI : a;
+}
+
 /** One direction, for tests and tooltips: apparent altitude and azimuth, degrees. */
 export interface AltAz {
   /** Geometric altitude (no refraction). */
