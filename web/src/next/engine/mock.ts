@@ -93,13 +93,43 @@ interface BodyDef {
   star?: { unit: A.Vec3; magnitude: number; con: string; hip: number };
 }
 
-interface Epoch {
-  jd: number;
-  t: number;
-  gmst: number;
-  P: A.Mat3;
-  sun: A.SunPosition;
-  earth?: A.Vec3;
+/** Everything shared by all bodies at one instant; the costlier parts are computed on first use. */
+class Epoch {
+  readonly t: number;
+  readonly gmst: number;
+  private precession?: A.Mat3;
+  private sunPos?: A.SunPosition;
+  private earthPos?: A.Vec3;
+  constructor(readonly jd: number) {
+    this.t = A.centuriesTT(jd);
+    this.gmst = A.gmstDeg(jd);
+  }
+  get P(): A.Mat3 {
+    return (this.precession ??= A.precessionMatrix(this.t));
+  }
+  get sun(): A.SunPosition {
+    return (this.sunPos ??= A.sunPosition(this.jd));
+  }
+  get earth(): A.Vec3 {
+    return (this.earthPos ??= A.heliocentric('EMBary', this.t));
+  }
+}
+
+/**
+ * Epochs shared across the bodies of one call (they are sampled on the same grid), and
+ * the Sun's samples, which the Sun's events and the sky phases both need.
+ */
+class EpochCache {
+  private readonly map = new Map<number, Epoch>();
+  readonly sun = new Map<number, Sample>();
+  at(jd: number): Epoch {
+    let ep = this.map.get(jd);
+    if (!ep) {
+      ep = new Epoch(jd);
+      this.map.set(jd, ep);
+    }
+    return ep;
+  }
 }
 
 interface Geo {
@@ -338,11 +368,12 @@ export class MockEngine implements ExplorerEngine {
     const errors: BodyError[] = [];
     const out: BodyEvents[] = [];
     const covered = inCoverage(t0) && inCoverage(t1);
+    const epochs = new EpochCache();
     for (const def of list) {
-      if (covered) out.push(this.bodyEvents(def, place, t0, t1, opts));
+      if (covered) out.push(this.bodyEvents(def, place, t0, t1, opts, epochs));
       else errors.push({ body: def.name, message: OUT_OF_COVERAGE });
     }
-    return { jd_start: t0, jd_end: t1, phases: this.phases(place, t0, t1), bodies: out, errors };
+    return { jd_start: t0, jd_end: t1, phases: this.phases(place, t0, t1, epochs), bodies: out, errors };
   }
 
   dayEventsBatch(
@@ -528,8 +559,7 @@ export class MockEngine implements ExplorerEngine {
   }
 
   private epoch(jd: number): Epoch {
-    const t = A.centuriesTT(jd);
-    return { jd, t, gmst: A.gmstDeg(jd), P: A.precessionMatrix(t), sun: A.sunPosition(jd) };
+    return new Epoch(jd);
   }
 
   private geocentric(def: BodyDef, ep: Epoch): Geo {
@@ -569,7 +599,6 @@ export class MockEngine implements ExplorerEngine {
       }
       case 'planet': {
         const p = A.heliocentric(def.name, ep.t);
-        ep.earth ??= A.heliocentric('EMBary', ep.t);
         const e = ep.earth;
         const geo: A.Vec3 = [p[0] - e[0], p[1] - e[1], p[2] - e[2]];
         const { ra_deg, dec_deg, r: delta } = A.vecToRaDec(A.applyMat(ep.P, A.eclipticToEquatorialVec(geo)));
@@ -636,6 +665,17 @@ export class MockEngine implements ExplorerEngine {
     };
   }
 
+  /** `sampleAt` through the per-call caches (the Sun's samples are reused by the phases). */
+  private sampleCached(def: BodyDef, t: number, place: Place, epochs: EpochCache): Sample {
+    if (def.kind !== 'sun') return this.sampleAt(def, epochs.at(t), place);
+    let s = epochs.sun.get(t);
+    if (!s) {
+      s = this.sampleAt(def, epochs.at(t), place);
+      epochs.sun.set(t, s);
+    }
+    return s;
+  }
+
   private bodyState(def: BodyDef, ep: Epoch, place: Place): BodyState {
     const g = this.geocentric(def, ep);
     const lst = ep.gmst + place.lon_deg;
@@ -671,8 +711,15 @@ export class MockEngine implements ExplorerEngine {
     };
   }
 
-  private bodyEvents(def: BodyDef, place: Place, t0: number, t1: number, options: EventOptions): BodyEvents {
-    const ev = (t: number): Sample => this.sampleAt(def, this.epoch(t), place);
+  private bodyEvents(
+    def: BodyDef,
+    place: Place,
+    t0: number,
+    t1: number,
+    options: EventOptions,
+    epochs: EpochCache,
+  ): BodyEvents {
+    const ev = (t: number): Sample => this.sampleCached(def, t, place, epochs);
     const times = grid(t0, t1, def.kind === 'moon' ? MOON_STEP_DAYS : OTHER_STEP_DAYS);
     const samples = Array.from(times, ev);
     const dip = options.horizon === 'dip' ? (1.76 * Math.sqrt(options.height_of_eye_m)) / 60 : 0;
@@ -735,9 +782,9 @@ export class MockEngine implements ExplorerEngine {
   }
 
   /** Contiguous sky phases over the window (CONVENTIONS 13.4); never uses dip. */
-  private phases(place: Place, t0: number, t1: number): PhaseSegment[] {
+  private phases(place: Place, t0: number, t1: number, epochs: EpochCache): PhaseSegment[] {
     const sun = this.defs[0]!;
-    const alt = (t: number): number => this.sampleAt(sun, this.epoch(t), place).alt;
+    const alt = (t: number): number => this.sampleCached(sun, t, place, epochs).alt;
     const times = grid(t0, t1, OTHER_STEP_DAYS);
     const values = sample(alt, times);
     const bounds: number[] = [];

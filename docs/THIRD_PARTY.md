@@ -388,3 +388,39 @@ The plan (details recorded by the star-field and map-data agents as they land):
 - **Optional street layer:** OpenStreetMap tiles are ODbL data and **do** require the
   on-map credit "© OpenStreetMap contributors" whenever that layer is shown. It is off
   by default.
+
+## Mock explorer engine (interface development only)
+
+Owner: shell-core agent (`web/src/next/engine/mock.ts`, `web/src/next/engine/mock/`).
+Added 2026-09-24. The mock is reachable only with `?engine=mock`, or on a development
+server whose WebAssembly build lacks the explorer; it says on screen that its numbers
+are illustrative and is never a source of results (EXPLORER_PLAN 3.1). It ships as a
+separate chunk that a normal page load never downloads. Nothing below is a runtime
+dependency of the real engine, and no third-party code was copied.
+
+- **Published formulas, used as algorithms (no data files):** the Astronomical
+  Almanac's low-precision formulas for the Sun (section C) and the Moon (section D);
+  from Meeus, *Astronomical Algorithms* (already listed above), the IAU 1976
+  precession angles (21.2-21.4), Greenwich mean sidereal time (12.4), the planetary
+  magnitude formulas (chapter 41), the parallactic angle (14.1) and the position angle
+  of the bright limb (48.5); Saemundsson's refraction as CONVENTIONS 13.2 states it.
+- **JPL approximate planetary elements:** E. M. Standish, "Keplerian Elements for
+  Approximate Positions of the Major Planets", Table 1 (valid 1800-2050),
+  <https://ssd.jpl.nasa.gov/planets/approx_pos.html>. The 48 element values and rates
+  are transcribed as published (facts); no download is involved. Checked during
+  development against Skyfield with DE421 on four dates: planets within 5', Sun 0.4',
+  Moon 7' (the mock's coverage table claims 10', 1' and 30').
+- **The 58 navigational stars:** no new data. The existing Hipparcos extract
+  (`fixtures/reference/navigational_stars_hip.json`; attribution and the owner's
+  decision in the Hipparcos sections above) propagated from J1991.25 to J2000.0 with
+  its proper motions and rounded to 0.0001 deg; `web/test/next/mock-engine.test.ts`
+  pins the table to the fixture. B-V colours are approximate and illustrative.
+- **Fourteen more bright stars** (Mintaka, Alnitak, Saiph, Meissa, Merak, Phecda,
+  Megrez, Mizar, Mimosa, Imai, Caph, Navi, Ruchbah, Segin), so four figures can be
+  drawn: approximate J2000 positions rounded to 0.01 deg and magnitudes, written from
+  general reference knowledge (facts), not copied from a catalogue file. Illustrative.
+- **Synthetic stars:** generated with a seeded pseudo-random generator; no source.
+- **Constellation figures** (Orion, the Plough in Ursa Major, Crux, Cassiopeia): drawn
+  by this project. The zodiac look-up uses approximate ecliptic longitudes (0.1 deg)
+  where the IAU boundaries cross the ecliptic, from general reference knowledge;
+  illustrative only.
