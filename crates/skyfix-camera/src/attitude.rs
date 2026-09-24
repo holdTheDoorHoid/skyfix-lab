@@ -426,11 +426,6 @@ fn rotation_from_davenport_quaternion(q: [f64; 4]) -> Rotation {
     Rotation::from_quaternion([q[0], -q[1], -q[2], -q[3]])
 }
 
-/// Cosine of the angle between two vectors, normalising both.
-pub fn cos_between(a: Vec3, b: Vec3) -> f64 {
-    dot(normalize(a), normalize(b))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -479,7 +474,6 @@ mod tests {
         assert_relative_eq!(simple.rows[1][0], 1.0, epsilon = 1e-12);
         assert_relative_eq!(simple.rows[2][2], 1.0, epsilon = 1e-12);
         assert_eq!(solve_wahba(&pairs[..1]), None);
-        assert_relative_eq!(cos_between([2.0, 0.0, 0.0], [3.0, 0.0, 0.0]), 1.0);
     }
 
     #[test]

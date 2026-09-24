@@ -65,7 +65,6 @@
 
 use serde::{Deserialize, Serialize};
 use skyfix_core::geometry::{Point, geographic_position};
-use std::f64::consts::TAU;
 
 // ---------------------------------------------------------------------------
 // Vector helpers
@@ -411,12 +410,6 @@ pub fn pointing_of_camera_from_enu(r: &Rotation) -> (f64, f64, f64) {
     (alt, az, roll)
 }
 
-/// Normalise an angle to `[0, 2 pi)`; re-exported for callers building pointings.
-pub fn norm_tau(a: f64) -> f64 {
-    let r = a % TAU;
-    if r < 0.0 { r + TAU } else { r }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -632,7 +625,6 @@ mod tests {
         let a: Vec3 = [1.0, 0.0, 0.0];
         let b: Vec3 = normalize([-1.0, eps, 0.0]);
         assert_relative_eq!(angle_between(a, b), PI - eps, epsilon = 1e-15);
-        assert_relative_eq!(norm_tau(-0.5), TAU - 0.5, epsilon = 1e-15);
         // add/sub/scale are used all over the crate; check them once.
         assert_eq!(add([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]), [5.0, 7.0, 9.0]);
         assert_eq!(sub([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]), [-3.0, -3.0, -3.0]);
