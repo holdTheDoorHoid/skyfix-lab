@@ -689,3 +689,21 @@ export function consumeShareFromLocation(
   }
   return true;
 }
+
+/**
+ * Apply a share link now, and again whenever one is pasted into the address bar of the
+ * open page (a same-page link changes only the fragment, so there is no reload).
+ * Returns the function that stops listening.
+ */
+export function listenForShareLinks(
+  store: ExplorerStore,
+  win: Pick<Window, 'location' | 'history' | 'addEventListener' | 'removeEventListener'> | undefined = globalThis.window,
+): () => void {
+  if (!win) return () => undefined;
+  consumeShareFromLocation(store, win.location, win.history);
+  const onHashChange = (): void => {
+    consumeShareFromLocation(store, win.location, win.history);
+  };
+  win.addEventListener('hashchange', onHashChange);
+  return () => win.removeEventListener('hashchange', onHashChange);
+}

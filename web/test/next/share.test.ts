@@ -8,6 +8,7 @@ import {
   createExplorerStore,
   decodeShare,
   encodeShare,
+  listenForShareLinks,
   shareUrl,
   type ExplorerState,
 } from '../../src/next/state.js';
@@ -177,5 +178,28 @@ describe('consuming a share at start-up', () => {
     );
     expect(applied).toBe(false);
     expect(replace).not.toHaveBeenCalled();
+  });
+});
+
+describe('share links pasted into an open page', () => {
+  it('applies a fragment-only navigation, then removes it; stops listening on request', () => {
+    const store = createExplorerStore({ storage: null, now: () => NOW });
+    const listeners = new Map<string, () => void>();
+    const location = { hash: '', pathname: '/next/', search: '' };
+    const history = { state: null, replaceState: vi.fn(() => (location.hash = '')) };
+    const win = {
+      location,
+      history,
+      addEventListener: (type: string, fn: () => void) => listeners.set(type, fn),
+      removeEventListener: (type: string) => listeners.delete(type),
+    };
+    const stop = listenForShareLinks(store, win as unknown as Window);
+    expect(history.replaceState).not.toHaveBeenCalled(); // nothing to consume at start
+    location.hash = encodeShare(sharedState());
+    listeners.get('hashchange')!();
+    expect(store.get().observer.label).toBe('Sydney Opera House & harbour');
+    expect(location.hash).toBe('');
+    stop();
+    expect(listeners.size).toBe(0);
   });
 });

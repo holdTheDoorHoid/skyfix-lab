@@ -75,7 +75,7 @@ describe('engine selection', () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const s = await selectEngine({ search: '', production: false, loadWasm: async () => incomplete, loadMock });
     expect(s.engine).toBe(mock);
-    expect(s.notices[0]!.text).toContain('`sky_state`, `day_events`');
+    expect(s.notices[0]!.text).toContain('sky_state, day_events');
     expect(s.notices[0]!.text).toContain('0.1.0');
   });
 
@@ -95,7 +95,7 @@ describe('engine selection', () => {
     }).catch((e: unknown) => e);
     expect(error).toBeInstanceOf(EngineUnavailableError);
     expect((error as EngineUnavailableError).missing).toEqual(['sky_state', 'day_events']);
-    expect((error as Error).message).toMatch(/`sky_state`, `day_events`/);
+    expect((error as Error).message).toMatch(/sky_state, day_events/);
     expect((error as Error).message).toMatch(/never used to produce results/);
     expect(loadMock).not.toHaveBeenCalled();
   });

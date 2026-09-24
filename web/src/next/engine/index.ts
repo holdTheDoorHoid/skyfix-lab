@@ -67,7 +67,7 @@ async function loadMockEngine(): Promise<ExplorerEngine> {
 }
 
 function nameList(names: readonly string[]): string {
-  return names.map((n) => `\`${n}\``).join(', ');
+  return names.join(', ');
 }
 
 export const MOCK_REQUESTED_NOTICE =
@@ -79,21 +79,21 @@ function developmentNotice(load: Exclude<WasmLoad, { status: 'ready' }>): string
   if (load.status === 'absent') {
     return (
       'MOCK ENGINE: no WebAssembly package has been built, so this development server is running the mock. ' +
-      'Every number on this page is illustrative. Build the real core with `npm run wasm --prefix web`, then reload.'
+      'Every number on this page is illustrative. Build the real core with: npm run wasm --prefix web (then reload).'
     );
   }
   return (
     `MOCK ENGINE: the WebAssembly package in web/src/wasm-pkg${load.version ? ` (core ${load.version})` : ''} ` +
     `does not have the explorer functions ${nameList(load.missing)}. It was probably built before the Rust ` +
     'explorer work landed. This development server is running the mock instead, so every number on this page ' +
-    'is illustrative. Rebuild with `npm run wasm --prefix web`, then reload.'
+    'is illustrative. Rebuild with: npm run wasm --prefix web (then reload).'
   );
 }
 
 function productionMessage(load: Exclude<WasmLoad, { status: 'ready' }>): string {
   const tail =
     ' The mock engine is a development tool and is never used to produce results. Rebuild the site with ' +
-    '`npm run wasm --prefix web` followed by `npm run build --prefix web`.';
+    'npm run wasm --prefix web followed by npm run build --prefix web.';
   if (load.status === 'absent') {
     return `This build of the SkyFix Lab explorer contains no WebAssembly core, so there is nothing to compute with.${tail}`;
   }
@@ -122,8 +122,8 @@ export async function selectEngine(options: SelectEngineOptions = {}): Promise<E
       level: 'info' as const,
       text:
         name === 'constellation_boundaries'
-          ? 'This build has no constellation boundaries yet (`constellation_boundaries` is not exported), so boundary lines are not drawn.'
-          : `This build does not export the optional function \`${name}\`.`,
+          ? 'This build has no constellation boundaries yet (constellation_boundaries is not exported), so boundary lines are not drawn.'
+          : `This build does not export the optional function ${name}.`,
     }));
     return { engine: load.engine, requested, notices };
   }
