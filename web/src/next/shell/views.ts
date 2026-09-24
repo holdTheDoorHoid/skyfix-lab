@@ -85,11 +85,11 @@ export const VIEW_META: Record<ViewId, ViewMeta> = {
     tab: 'events',
     label: 'Events',
     icon: 'events',
-    tip: 'Eclipses, Moon phases, equinoxes and solstices',
+    tip: 'Eclipses, Moon phases, equinoxes and solstices, planet events',
     title: 'Events',
     promise: [
       'Eclipses: a list, what you would see from your place, and their paths on the map.',
-      'Moon phases, equinoxes and solstices, and when planets pass close together.',
+      'Moon phases, equinoxes and solstices, and the planets’ oppositions, conjunctions and closest approaches.',
     ],
   },
   learn: {

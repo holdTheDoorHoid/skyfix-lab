@@ -29,6 +29,7 @@ pub mod eclipses;
 pub mod explorer;
 pub mod nav;
 pub mod navsky;
+pub mod planet_events;
 pub mod starfield;
 
 use serde::{Deserialize, Serialize};

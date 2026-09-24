@@ -1314,3 +1314,78 @@ export interface EclipseEngine {
   /** Solar: paths for the map (≤ 50 ms). Lunar: sub-lunar points. */
   eclipsePath(id: string): EclipsePath;
 }
+
+/** True when `engine` can compute eclipses (the memoised engine forwards the methods). */
+export function isEclipseEngine(engine: unknown): engine is EclipseEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<EclipseEngine>;
+  return (
+    typeof e.eclipses === 'function' &&
+    typeof e.eclipseLocal === 'function' &&
+    typeof e.eclipsePath === 'function'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Wave 2 — planet events. Rust: crates/skyfix-wasm/src/planet_events.rs over
+// skyfix_almanac::planet_events. Wire format: docs/EXPLORER_API.md,
+// "Wave 2 — planet events".
+// ---------------------------------------------------------------------------
+
+export type PlanetEventKind =
+  | 'opposition'
+  | 'conjunction'
+  | 'inferior_conjunction'
+  | 'superior_conjunction'
+  | 'greatest_elongation_east'
+  | 'greatest_elongation_west'
+  | 'perigee';
+
+export interface PlanetEvent {
+  kind: PlanetEventKind;
+  /** `Mercury` … `Neptune`. */
+  body: string;
+  jd_utc: number;
+  utc: string;
+  /** Apparent planet–Sun angle from the Earth's centre at that instant, degrees. */
+  elongation_deg: number;
+  /** Geocentric light-time distance. */
+  distance_au: number;
+  distance_km: number;
+  /** Apparent visual magnitude; null where the model does not cover the geometry. */
+  magnitude: number | null;
+  /** Apparent geocentric of date. */
+  ra_deg: number;
+  dec_deg: number;
+  /** Inferior conjunctions only: the planet crosses the Sun's disc (geocentric). */
+  transit: boolean;
+}
+
+export interface PlanetEventList {
+  /** The window actually searched: the request clipped to the coverage. */
+  jd_start: number;
+  jd_end: number;
+  /** The request extended beyond the coverage. */
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  /** Sorted by time. */
+  events: PlanetEvent[];
+}
+
+/** Planet events (wave 2). Geocentric: the same for every observer. */
+export interface PlanetEventsEngine {
+  /** Oppositions, conjunctions, greatest elongations and closest approaches in the
+   * window. About 30 ms a year natively. Throws a string for a non-finite or reversed
+   * window. */
+  planetEvents(jdStart: number, jdEnd: number): PlanetEventList;
+}
+
+/** True when `engine` can find planet events (the memoised engine forwards the method). */
+export function isPlanetEventsEngine(engine: unknown): engine is PlanetEventsEngine {
+  return (
+    typeof engine === 'object' &&
+    engine !== null &&
+    typeof (engine as Partial<PlanetEventsEngine>).planetEvents === 'function'
+  );
+}

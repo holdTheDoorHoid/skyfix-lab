@@ -8,7 +8,13 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
-import type { DayEvents } from '../../src/next/engine/types.js';
+import {
+  isEclipseEngine,
+  isPlanetEventsEngine,
+  type DayEvents,
+  type SolarEclipseLocal,
+  type SolarEclipsePath,
+} from '../../src/next/engine/types.js';
 import {
   bodiesJson,
   inspectWasmModule,
@@ -125,6 +131,39 @@ describe('serialisation', () => {
   });
 });
 
+describe('wave 2: eclipses and planet events', () => {
+  it('calls the optional exports with the documented argument order', () => {
+    const { module } = fakeModule();
+    const calls: Calls = {};
+    for (const name of ['eclipses', 'eclipse_local', 'eclipse_path', 'planet_events']) {
+      module[name] = (...args: unknown[]) => {
+        (calls[name] ??= []).push(args);
+        return { from: name };
+      };
+    }
+    const engine = new WasmEngine(module as unknown as ExplorerWasmExports);
+    expect(isEclipseEngine(engine)).toBe(true);
+    expect(isPlanetEventsEngine(engine)).toBe(true);
+    expect(engine.eclipses(1, 2)).toEqual({ from: 'eclipses' });
+    engine.eclipseLocal('2024-04-08-solar', { ...HERE, height_m: 12, label: 'x' } as never);
+    engine.eclipsePath('2024-04-08-solar');
+    engine.planetEvents(3, 4);
+    expect(calls.eclipses).toEqual([[1, 2]]);
+    expect(calls.eclipse_local).toEqual([['2024-04-08-solar', '{"lat_deg":39.95,"lon_deg":-75.17,"height_m":12}']]);
+    expect(calls.eclipse_path).toEqual([['2024-04-08-solar']]);
+    expect(calls.planet_events).toEqual([[3, 4]]);
+  });
+
+  it('says to rebuild the core when a package predates them', () => {
+    const { module } = fakeModule();
+    const engine = new WasmEngine(module as unknown as ExplorerWasmExports);
+    expect(() => engine.eclipses(1, 2)).toThrow(/eclipses: .*no eclipses\. Rebuild it with: npm run wasm/);
+    expect(() => engine.eclipseLocal('x', HERE)).toThrow(/^eclipse_local: /);
+    expect(() => engine.eclipsePath('x')).toThrow(/^eclipse_path: /);
+    expect(() => engine.planetEvents(1, 2)).toThrow(/planet_events: .*no planet events/);
+  });
+});
+
 describe('detecting what a package can do', () => {
   it('names exactly the missing exports', () => {
     const { module } = fakeModule();
@@ -212,5 +251,31 @@ describe.skipIf(!hasPackage)('the built WebAssembly package (src/wasm-pkg)', () 
     expect(engine.sidereal(t).gha_aries_deg).toBeCloseTo(state.gha_aries_deg, 6);
     const catalog = engine.starfieldCatalog();
     expect(engine.starfieldApparent(t).length).toBe(2 * catalog.count);
+  });
+
+  it('answers the eclipse and planet-event calls (smoke test, needs a wave-2 build)', ({ skip }) => {
+    if (load.status !== 'ready') {
+      skip();
+      return;
+    }
+    const engine = load.engine;
+    let list;
+    try {
+      list = engine.eclipses(2460310.5, 2460676.5); // 2024
+    } catch (error) {
+      if (/Rebuild it/.test(String(error))) {
+        skip();
+        return;
+      }
+      throw error;
+    }
+    expect(list.eclipses.map((e) => e.id)).toContain('2024-04-08-solar');
+    const dallas = engine.eclipseLocal('2024-04-08-solar', { lat_deg: 32.78, lon_deg: -96.8, height_m: 150 });
+    expect((dallas as SolarEclipseLocal).local_type).toBe('total');
+    const path = engine.eclipsePath('2024-04-08-solar') as SolarEclipsePath;
+    expect(path.central_line.segments.length).toBeGreaterThan(0);
+    const planets = engine.planetEvents(2460310.5, 2460676.5);
+    const jupiter = planets.events.find((e) => e.body === 'Jupiter' && e.kind === 'opposition');
+    expect(jupiter?.utc.slice(0, 10)).toBe('2024-12-07');
   });
 });

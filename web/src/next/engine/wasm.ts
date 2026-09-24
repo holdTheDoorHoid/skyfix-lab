@@ -19,11 +19,17 @@ import type {
   BodySelection,
   ConstellationBoundary,
   DayEvents,
+  EclipseEngine,
+  EclipseList,
+  EclipseLocal,
+  EclipsePath,
   EventOptions,
   ExplorerCoverage,
   ExplorerEngine,
   Observer,
   PhaseEvent,
+  PlanetEventList,
+  PlanetEventsEngine,
   Sampled,
   SeasonEvent,
   SkyState,
@@ -84,6 +90,12 @@ export interface ExplorerWasmExports {
   starfield_frame_matrix?(jdUtc: number): unknown;
   /** Wave 2, almanac pages (EXPLORER_API "Wave 2 — almanac pages"); absent in older builds. */
   almanac_day?(date: string): unknown;
+  /** Wave 2, eclipses (EXPLORER_API "Wave 2 — eclipses"); absent in older builds. */
+  eclipses?(jdStart: number, jdEnd: number): unknown;
+  eclipse_local?(id: string, observerJson: string): unknown;
+  eclipse_path?(id: string): unknown;
+  /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
+  planet_events?(jdStart: number, jdEnd: number): unknown;
   version?(): string;
 }
 
@@ -127,7 +139,14 @@ export function optionsJson(options: EventOptions | undefined): string {
   return JSON.stringify({ horizon: o.horizon, height_of_eye_m: o.height_of_eye_m });
 }
 
-export class WasmEngine implements ExplorerEngine, AlmanacEngine {
+/** The error an optional wave-2 export gives when this build of the core predates it. */
+function rebuildError(name: string, what: string): Error {
+  return new Error(
+    `${name}: this build of the numerical core has no ${what}. Rebuild it with: npm run wasm --prefix web`,
+  );
+}
+
+export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine {
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -286,6 +305,34 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine {
       );
     }
     return this.call('almanac_day', () => fn.call(this.x, date));
+  }
+
+  /** Every eclipse with greatest eclipse in the window (`eclipses`). */
+  eclipses(jdStart: number, jdEnd: number): EclipseList {
+    const fn = this.x.eclipses;
+    if (typeof fn !== 'function') throw rebuildError('eclipses', 'eclipses');
+    return this.call('eclipses', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  /** What one observer sees of an eclipse, by id (`eclipse_local`). */
+  eclipseLocal(id: string, observer: Observer): EclipseLocal {
+    const fn = this.x.eclipse_local;
+    if (typeof fn !== 'function') throw rebuildError('eclipse_local', 'eclipses');
+    return this.call('eclipse_local', () => fn.call(this.x, id, observerJson(observer)));
+  }
+
+  /** The lines to draw an eclipse on the map, by id (`eclipse_path`). */
+  eclipsePath(id: string): EclipsePath {
+    const fn = this.x.eclipse_path;
+    if (typeof fn !== 'function') throw rebuildError('eclipse_path', 'eclipses');
+    return this.call('eclipse_path', () => fn.call(this.x, id));
+  }
+
+  /** Oppositions, conjunctions, greatest elongations and closest approaches (`planet_events`). */
+  planetEvents(jdStart: number, jdEnd: number): PlanetEventList {
+    const fn = this.x.planet_events;
+    if (typeof fn !== 'function') throw rebuildError('planet_events', 'planet events');
+    return this.call('planet_events', () => fn.call(this.x, jdStart, jdEnd));
   }
 }
 
