@@ -133,6 +133,11 @@ low-altitude term above.
   equator and equinox of date, including precession, nutation, annual aberration and
   (Sun) light-time. No diurnal aberration, no topocentric parallax: parallax is an
   altitude correction (section 5). This is the Nautical Almanac convention.
+- **The Moon** is observed the way Skyfield observes it: light-time with barycentric
+  positions, then aberration with the Earth's barycentric velocity. The two nearly
+  cancel for a body that travels with the Earth, leaving about 0.7″ from the Moon's own
+  motion over the 1.28 s light-time. Applying the stars' 20.5″ annual aberration to the
+  Moon would be wrong by that much.
 - A topocentric direction vector is never mixed with a geocentric corrected altitude.
   Camera/attitude code (module A) produces *topocentric apparent* directions and must
   convert through the horizon frame explicitly.

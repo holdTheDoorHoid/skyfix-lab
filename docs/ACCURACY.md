@@ -162,9 +162,9 @@ reduction, agreeing to 12 milliarcseconds. Against Skyfield's UT1 instead, the
 same comparison gives 0.0235′ in GHA and 0.0179′ in Hc — still inside
 tolerance, and entirely explained by DUT1.
 
-USNO also returned the Moon and Saturn. Those are deferred bodies (section 5)
-and are not differenced, but the response stores them, so a future Moon or
-planet provider already has an independent check waiting.
+USNO also returned the Moon and Saturn. The Moon is now differenced in section 7
+(USNO's Moon runs 10.36 s late, worth 0.11′ of GHA); Saturn waits for the planet
+provider.
 
 ### Spherical model vs full topocentric computation
 
@@ -409,13 +409,12 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
 
 ## 5. Known limitations and things deliberately not modelled
 
-* **The Moon and planets are not covered.** Deferred by `docs/BRIEF.md`
-  ("Defer Moon/planets unless independently validated") and by
-  `docs/BACKLOG.md`. The offline ephemeris covers the Sun and the 57
-  Nautical Almanac stars plus Polaris only. The USNO response used for the
-  cross-check in section 2 also returned the Moon and Saturn; those values
-  are stored but not differenced, so a future Moon or planet provider already
-  has an independent check waiting.
+* **The Moon is covered for positions; planets are being added.** The brief
+  deferred the Moon and planets "unless independently validated". The Moon is
+  now validated against JPL DE440s to 0.015′ (section 7). Moon *sights* (limb,
+  augmentation) are added to the correction chain in a later step of the
+  explorer redesign (`docs/EXPLORER_PLAN.md`); until then the Moon is shown
+  in the explorer but not offered for sights.
 * **The core solver assumes a stationary observer.** `skyfix-core::solver`
   has no motion model. `skyfix-motion::running_fix` (see `docs/MOTION.md`)
   handles a moving observer by advancing each sight's geographic position to
