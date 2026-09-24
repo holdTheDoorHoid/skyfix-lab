@@ -534,7 +534,7 @@ fn low_altitude_inflates_sigma_below_five_degrees_and_flags_below_ten() {
     // Ha 3 deg: flagged, 1.0' added in quadrature -> sqrt(1 + 1) = 1.414 213 562 4'.
     let b = correct(3.0, AltitudeKind::SextantHs, 1.0, star("obs-3")).unwrap();
     assert_relative_eq!(b.ho_deg, 3.0 - BENNETT_3 / 60.0, epsilon = 1e-12);
-    assert_relative_eq!(b.sigma_ho_arcmin, 1.414_213_562_373_095_1, epsilon = 1e-12);
+    assert_relative_eq!(b.sigma_ho_arcmin, std::f64::consts::SQRT_2, epsilon = 1e-12);
     match b
         .warnings
         .iter()
