@@ -49,7 +49,7 @@ fn explorer_budget() {
     // sky_state, scrubbing: a new instant every call, as the time bar does.
     let mut k = 0.0;
     let ms_all = time(
-        "sky_state, all 67 bodies (Moon and planets stubs)",
+        "sky_state, all 67 bodies (the providers in this build)",
         2000,
         || {
             k += 1.0;
