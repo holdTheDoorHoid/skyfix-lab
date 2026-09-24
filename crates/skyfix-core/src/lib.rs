@@ -16,6 +16,7 @@
 //! - [`solver`]     section 8: weighted least squares, multistart, ambiguity
 //! - [`uncertainty`] section 9: covariance, ellipse, conditioning
 //! - [`linalg`]     small dense linear algebra used by the two modules above
+//! - [`misfit`]     sections 8-9: the solver's misfit on a lat/lon grid (residual heat map)
 //! - [`planner`]    observation planner (optional deliverable)
 //! - [`methods`]    noon sight, Polaris latitude, averaging a run (docs/NAVIGATION_METHODS.md)
 
@@ -24,6 +25,7 @@ pub mod error;
 pub mod geometry;
 pub mod linalg;
 pub mod methods;
+pub mod misfit;
 pub mod planner;
 pub mod reduce;
 pub mod session;
