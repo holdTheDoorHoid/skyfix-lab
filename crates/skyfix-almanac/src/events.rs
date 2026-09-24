@@ -900,6 +900,10 @@ pub fn moon_phases(
         Ok(ecliptic_longitude_deg(m.ra_deg, m.dec_deg, eps)
             - ecliptic_longitude_deg(s.ra_deg, s.dec_deg, eps))
     };
+    // The end first: a window that runs past the Moon's or the Sun's coverage then fails
+    // at once, instead of after scanning every day up to the edge (6 s for a window of
+    // centuries, found by fuzzing). The start is the scan's first evaluation.
+    elongation(jd_end)?;
     // The elongation grows 10.8 to 14.4 degrees a day: two days is always < 90.
     Ok(quarter_crossings(elongation, jd_start, jd_end, 2.0)?
         .into_iter()
@@ -1077,6 +1081,56 @@ mod tests {
             got,
             vec![(0.5, 1), (9.5, 2), (18.5, 3), (27.5, 0), (36.5, 1)]
         );
+    }
+
+    /// Counts provider calls, to show how much work a call does before it fails.
+    struct Counting {
+        sky: skyfix_ephemeris::body::Sky,
+        calls: std::cell::Cell<usize>,
+    }
+
+    impl skyfix_ephemeris::AstroProvider for Counting {
+        fn name(&self) -> &str {
+            "counting"
+        }
+        fn coverage(&self) -> skyfix_ephemeris::Coverage {
+            self.sky.coverage()
+        }
+        fn geocentric(
+            &self,
+            body: &str,
+            jd_utc: f64,
+        ) -> Result<skyfix_core::types::GeocentricDirection, skyfix_ephemeris::EphemerisError>
+        {
+            self.sky.geocentric(body, jd_utc)
+        }
+    }
+
+    impl BodyEphemeris for Counting {
+        fn apparent_state(
+            &self,
+            body: &str,
+            jd_utc: f64,
+        ) -> Result<ApparentState, skyfix_ephemeris::EphemerisError> {
+            self.calls.set(self.calls.get() + 1);
+            self.sky.apparent_state(body, jd_utc)
+        }
+    }
+
+    #[test]
+    fn a_phase_window_past_coverage_fails_before_scanning() {
+        // Verifier regression: 2060 to 2100 scanned every two days of 2060 (and refined
+        // each phase) before meeting the coverage edge; 1990 to 4728 took 6 s.
+        let eph = Counting {
+            sky: skyfix_ephemeris::body::Sky::new(),
+            calls: std::cell::Cell::new(0),
+        };
+        let e = moon_phases(&eph, civil_to_jd(2060, 1, 1), civil_to_jd(2100, 1, 1)).unwrap_err();
+        assert!(e.to_string().contains("Moon"), "{e}");
+        assert!(eph.calls.get() <= 2, "{} provider calls", eph.calls.get());
+        // Inside coverage nothing changes.
+        let p = moon_phases(&eph, civil_to_jd(2060, 1, 1), civil_to_jd(2060, 2, 1)).unwrap();
+        assert!((3..=5).contains(&p.len()), "{p:?}");
     }
 
     #[test]
