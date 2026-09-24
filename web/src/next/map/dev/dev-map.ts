@@ -18,7 +18,7 @@
 
 import '../../theme/index.js';
 import './dev-map.css';
-import { applyTheme as applyDocumentTheme } from '../../theme/theme.js';
+import { applyTheme as applyDocumentTheme, systemTheme } from '../../theme/theme.js';
 import { installTooltips } from '../../theme/primitives.js';
 import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
@@ -64,7 +64,7 @@ async function boot(app: HTMLElement): Promise<void> {
 
   // Theme on the document, as the shell will do.
   const applyTheme = (t: Theme) => {
-    applyDocumentTheme(t);
+    applyDocumentTheme(t === 'system' ? systemTheme() : t);
   };
   installTooltips();
   applyTheme(store.get().settings.theme);

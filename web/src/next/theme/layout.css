@@ -219,29 +219,15 @@
   right: 10px;
 }
 
-/* The tab that opens and closes the panel, attached to its edge. */
+/* The switch that hides and shows the panel: first in the app strip, so it never covers a
+   view. While the panel is hidden it stays lit, a reminder of where the panel went. */
 .sf-panel-toggle {
-  position: absolute;
-  z-index: var(--z-stage-overlay);
-  top: 12px;
-  left: 0;
-  display: grid;
-  place-items: center;
-  width: 22px;
-  height: 44px;
-  border-radius: 0 var(--radius-md) var(--radius-md) 0;
-  background: var(--chrome-bg);
-  color: var(--chrome-ink-2);
-  box-shadow: var(--shadow-2);
+  flex: none;
+  margin: 0 -6px 0 -6px;
 }
 
-.sf-panel-toggle:hover {
-  color: var(--chrome-ink);
-}
-
-.sf-panel-toggle .sf-icon {
-  width: 16px;
-  height: 16px;
+.sf-app[data-panel='closed'] .sf-panel-toggle {
+  color: var(--accent-ink);
 }
 
 /* ---------------------------------------------------------------------------------- */
@@ -347,6 +333,12 @@
 
   .sf-panel-toggle {
     display: none;
+  }
+
+  /* The view ends where the sheet begins (panel/sheet.ts), so the map's credits, the
+     bottom of a page and the place on the map all stay in sight. */
+  .sf-stage__fill {
+    bottom: var(--stage-view-inset, 0px);
   }
 
   .sf-overlay--tr {

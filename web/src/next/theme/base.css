@@ -78,6 +78,11 @@ svg {
   flex: none;
 }
 
+/* `hidden` always hides, whatever display a component's class sets. */
+[hidden] {
+  display: none !important;
+}
+
 a {
   color: var(--accent-ink);
   text-underline-offset: 2px;

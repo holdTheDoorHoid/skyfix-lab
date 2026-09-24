@@ -852,13 +852,9 @@ button.sf-chip:hover {
   overflow: visible;
 }
 
-/* The unlit part is always darker than the lit part, whatever the surface. */
+/* The unlit part is always darker than the lit part, whatever the surface and theme. */
 .sf-phase__dark {
-  fill: var(--phase-disc-dark, var(--chrome-bg-0));
-}
-
-.sf-on-stage .sf-phase__dark {
-  --phase-disc-dark: var(--stage-ink-2);
+  fill: var(--moon-unlit);
 }
 
 .sf-phase__lit {
@@ -1055,4 +1051,25 @@ button.sf-chip:hover {
   background: color-mix(in srgb, var(--ui-bg) 78%, transparent);
   color: var(--ui-ink-2);
   font-size: var(--text-2xs);
+}
+
+/* With a hint, the hint takes the free space and the check sits after it. */
+.sf-menu__hint + .sf-menu__check {
+  margin-left: 10px;
+}
+
+.sf-phase-chip[data-phase='none'] {
+  background: var(--ui-raised);
+  color: var(--ui-ink-2);
+}
+
+/* Body glyphs on light surfaces (the stage in the light theme) get an outline, so a white
+   star or the pale Venus stays visible on a light chip; the dark chrome needs none. */
+.sf-on-stage,
+.sf-stage {
+  --glyph-edge: var(--glyph-edge-light);
+}
+
+.sf-on-chrome {
+  --glyph-edge: transparent;
 }

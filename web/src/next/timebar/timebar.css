@@ -586,3 +586,36 @@
     margin: 2px 14px 4px;
   }
 }
+
+/* --- The clock is a button (type a time) ---------------------------------------------- */
+
+button.sf-tb-clock {
+  margin-left: 0;
+  padding: 1px 8px 1px 10px;
+  border-radius: var(--radius-sm);
+  color: inherit;
+  text-align: left;
+}
+
+button.sf-tb-clock:hover {
+  background: var(--chrome-raised);
+}
+
+/* No sky phases (outside the core's coverage): a neutral, hatched bar. */
+.sf-timebar--nodata .sf-ribbon__bar {
+  background: repeating-linear-gradient(135deg, var(--chrome-raised) 0 6px, var(--chrome-bg) 6px 12px);
+}
+
+@media (max-width: 767px) {
+  button.sf-tb-clock {
+    padding: 0 4px;
+  }
+}
+
+.sf-kbd-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}

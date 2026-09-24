@@ -25,7 +25,7 @@ function sharedState(): ExplorerState {
       lon_deg: 151.215297,
       height_m: 4,
       label: 'Sydney Opera House & harbour',
-      zone: { kind: 'iana', zone: 'Australia/Sydney' },
+      zone: { kind: 'iana', zone: 'Australia/Sydney', guessed: false },
     },
     time: { jd_utc: jdFromIso('2026-12-21T10:15:30.250Z')!, live: false },
     selection: { body: 'Moon' },
@@ -45,7 +45,7 @@ describe('share round trip', () => {
       lon_deg: 151.2153,
       height_m: 4,
       label: 'Sydney Opera House & harbour',
-      zone: { kind: 'iana', zone: 'Australia/Sydney' },
+      zone: { kind: 'iana', zone: 'Australia/Sydney', guessed: false },
     });
     expect(isoUtc(patch.time!.jd_utc)).toBe('2026-12-21T10:15:30.250Z');
     expect(patch.selection).toEqual({ body: 'Moon' });
@@ -62,7 +62,7 @@ describe('share round trip', () => {
 
   it('keeps nautical and UTC zone choices', () => {
     const state = sharedState();
-    for (const zone of [{ kind: 'nautical' }, { kind: 'utc' }] as const) {
+    for (const zone of [{ kind: 'nautical', guessed: false }, { kind: 'utc' }] as const) {
       const hash = encodeShare({ ...state, observer: { ...state.observer, zone } });
       expect(decodeShare(hash)!.observer!.zone).toEqual(zone);
     }
@@ -201,5 +201,41 @@ describe('share links pasted into an open page', () => {
     expect(location.hash).toBe('');
     stop();
     expect(listeners.size).toBe(0);
+  });
+});
+
+describe('time-zone pin in share links', () => {
+  it('keeps a pinned zone pinned and a guessed zone guessed', () => {
+    const store = createExplorerStore({ storage: null, now: () => NOW });
+    // The default place's zone is a guess: it follows the place.
+    expect(store.get().observer.zone).toEqual({ kind: 'iana', zone: 'America/New_York', guessed: true });
+    const guessedHash = encodeShare(store.get());
+    expect(guessedHash).not.toContain('tzpin');
+    expect(decodeShare(guessedHash)!.observer!.zone).toEqual({
+      kind: 'iana',
+      zone: 'America/New_York',
+      guessed: true,
+    });
+
+    store.patch({ observer: { zone: { kind: 'iana', zone: 'Europe/London', guessed: false } } });
+    const pinnedHash = encodeShare(store.get());
+    expect(pinnedHash).toContain('tzpin=1');
+    expect(decodeShare(pinnedHash)!.observer!.zone).toEqual({ kind: 'iana', zone: 'Europe/London', guessed: false });
+
+    // A zone with no flag came with a place: it follows the place, so the link carries no pin.
+    store.patch({ observer: { zone: { kind: 'iana', zone: 'Europe/London' } } });
+    expect(encodeShare(store.get())).not.toContain('tzpin');
+
+    store.patch({ observer: { zone: { kind: 'utc' } } });
+    expect(decodeShare(encodeShare(store.get()))!.observer!.zone).toEqual({ kind: 'utc' });
+  });
+
+  it('treats the zone of a link made before pins existed as a guess', () => {
+    expect(decodeShare('#v=1&lat=51.5&lon=0&tz=Europe%2FLondon')!.observer!.zone).toEqual({
+      kind: 'iana',
+      zone: 'Europe/London',
+      guessed: true,
+    });
+    expect(decodeShare('#v=1&lat=0&lon=-30&tz=nautical')!.observer!.zone).toEqual({ kind: 'nautical', guessed: true });
   });
 });

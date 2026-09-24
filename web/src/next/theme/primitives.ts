@@ -524,16 +524,19 @@ export function popover(anchor: HTMLElement, content: Node, options: PopoverOpti
       open = true;
       el.hidden = false;
       anchor.setAttribute('aria-expanded', 'true');
+      // Fill first (onOpen may draw the content), then measure, then focus.
+      options.onOpen?.();
       place();
       requestAnimationFrame(() => el.setAttribute('data-open', ''));
       document.addEventListener('pointerdown', onDocPointer, true);
       el.addEventListener('keydown', onKey);
       window.addEventListener('resize', onResize);
-      const first = el.querySelector<HTMLElement>(
-        '[aria-checked="true"], [aria-selected="true"], button:not([disabled]), [href], input, select, [tabindex]:not([tabindex="-1"])',
-      );
-      first?.focus({ preventScroll: true });
-      options.onOpen?.();
+      if (!el.contains(document.activeElement)) {
+        const first = el.querySelector<HTMLElement>(
+          '[aria-checked="true"], [aria-selected="true"], input:not([type="hidden"]), select, button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])',
+        );
+        first?.focus({ preventScroll: true });
+      }
     },
     close({ returnFocus = true } = {}) {
       if (!open) return;

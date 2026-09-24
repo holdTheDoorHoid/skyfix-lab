@@ -123,16 +123,26 @@ export interface GlyphOptions {
   halo?: boolean;
 }
 
-function glyphParts(shape: GlyphShape, halo: boolean): SVGElement[] {
+/**
+ * `plain`: the glyph in `currentColor`. `halo`: a dark casing drawn under it for the map
+ * and the sky (`--line-halo`). `edge`: a thin outline under it in `--glyph-edge`, which
+ * only light surfaces set (components.css), so a white star or the pale Venus stays
+ * visible on a light chip and nothing changes on the dark chrome.
+ */
+type GlyphLayer = 'plain' | 'halo' | 'edge';
+
+function glyphParts(shape: GlyphShape, layer: GlyphLayer): SVGElement[] {
   const out: SVGElement[] = [];
-  const strokeW = halo ? 1.9 + 3.2 : 1.9;
+  const under = layer === 'halo' ? 'var(--line-halo)' : layer === 'edge' ? 'var(--glyph-edge, transparent)' : null;
+  const extra = layer === 'halo' ? 3.2 : layer === 'edge' ? 2.2 : 0;
+  const strokeW = 1.9 + extra;
   for (const d of shape.fill ?? []) {
     const p = document.createElementNS(SVG_NS, 'path');
     p.setAttribute('d', d);
-    if (halo) {
-      p.setAttribute('fill', 'var(--line-halo)');
-      p.setAttribute('stroke', 'var(--line-halo)');
-      p.setAttribute('stroke-width', '3.2');
+    if (under) {
+      p.setAttribute('fill', under);
+      p.setAttribute('stroke', under);
+      p.setAttribute('stroke-width', String(extra));
       p.setAttribute('stroke-linejoin', 'round');
     } else {
       p.setAttribute('fill', 'currentColor');
@@ -143,7 +153,7 @@ function glyphParts(shape: GlyphShape, halo: boolean): SVGElement[] {
     const p = document.createElementNS(SVG_NS, 'path');
     p.setAttribute('d', d);
     p.setAttribute('fill', 'none');
-    p.setAttribute('stroke', halo ? 'var(--line-halo)' : 'currentColor');
+    p.setAttribute('stroke', under ?? 'currentColor');
     p.setAttribute('stroke-width', String(strokeW));
     p.setAttribute('stroke-linecap', 'round');
     p.setAttribute('stroke-linejoin', 'round');
@@ -155,7 +165,7 @@ function glyphParts(shape: GlyphShape, halo: boolean): SVGElement[] {
     c.setAttribute('cy', String(cy));
     c.setAttribute('r', String(r));
     c.setAttribute('fill', 'none');
-    c.setAttribute('stroke', halo ? 'var(--line-halo)' : 'currentColor');
+    c.setAttribute('stroke', under ?? 'currentColor');
     c.setAttribute('stroke-width', String(strokeW));
     out.push(c);
   }
@@ -176,8 +186,8 @@ export function drawGlyph(
   g.setAttribute('transform', `translate(${x - size / 2} ${y - size / 2}) scale(${scale})`);
   g.setAttribute('class', `sf-glyph sf-glyph--${name}`);
   if (options.color) g.setAttribute('color', options.color);
-  if (options.halo) for (const el of glyphParts(GLYPHS[name], true)) g.appendChild(el);
-  for (const el of glyphParts(GLYPHS[name], false)) g.appendChild(el);
+  for (const el of glyphParts(GLYPHS[name], options.halo ? 'halo' : 'edge')) g.appendChild(el);
+  for (const el of glyphParts(GLYPHS[name], 'plain')) g.appendChild(el);
   parent.appendChild(g);
   return g;
 }
@@ -200,8 +210,8 @@ export function bodyGlyph(body: string, options: GlyphOptions & { kind?: BodyKin
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('focusable', 'false');
   }
-  if (options.halo) for (const el of glyphParts(GLYPHS[name], true)) svg.appendChild(el);
-  for (const el of glyphParts(GLYPHS[name], false)) svg.appendChild(el);
+  for (const el of glyphParts(GLYPHS[name], options.halo ? 'halo' : 'edge')) svg.appendChild(el);
+  for (const el of glyphParts(GLYPHS[name], 'plain')) svg.appendChild(el);
   return svg;
 }
 

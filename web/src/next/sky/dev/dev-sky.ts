@@ -21,7 +21,7 @@
 // The design system (fonts, tokens, components), as the shell loads it.
 import '../../theme/index.js';
 import './dev-sky.css';
-import { applyTheme } from '../../theme/theme.js';
+import { applyTheme, systemTheme } from '../../theme/theme.js';
 import { installTooltips } from '../../theme/primitives.js';
 import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
@@ -165,7 +165,7 @@ async function boot(root: HTMLElement): Promise<void> {
   notices.subscribe(renderNotices);
   const syncChrome = (): void => {
     const s = store.get();
-    applyTheme(s.settings.theme);
+    applyTheme(s.settings.theme === 'system' ? systemTheme() : s.settings.theme);
     themeSelect.value = s.settings.theme;
     play.textContent = s.time.playing ? 'Pause' : 'Play';
   };

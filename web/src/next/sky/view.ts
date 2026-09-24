@@ -54,7 +54,7 @@ import {
 import { bodyKey, bodyToken, SkyRenderer, starKey, type Frame, type PathData } from './render.js';
 import { SkyScene } from './scene.js';
 import { button, iconButton, phaseChip, popover, segmented, setPressed, switchRow } from '../theme/primitives.js';
-import { onThemeChange } from '../theme/theme.js';
+import { onThemeChange, systemTheme } from '../theme/theme.js';
 import { starAlpha, starDesignation, starRadius, starTitle } from './stars.js';
 
 // ---------------------------------------------------------------------------
@@ -345,7 +345,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   }
 
   function currentPalette(state: ExplorerState): SkyPalette {
-    const theme = documentTheme(state.settings.theme);
+    // The theme on screen (<html data-theme>); the setting may be 'system' (follow the device).
+    const theme = documentTheme(state.settings.theme === 'system' ? systemTheme() : state.settings.theme);
     if (!palette || paletteTheme !== theme) {
       palette = readPalette(theme, documentReadVar);
       paletteTheme = theme;

@@ -27,6 +27,7 @@ import {
   zoneAbbreviation,
   zoneLabel,
   zoneOffsetMs,
+  roundToMinute,
   type Zone,
 } from '../../src/next/time.js';
 
@@ -229,5 +230,57 @@ describe('formatting with UTC beside local time', () => {
   it('formats durations', () => {
     expect(formatHours(12.08)).toBe('12 h 05 min');
     expect(formatHours(0.5)).toBe('30 min');
+  });
+});
+
+describe('zone offsets are remembered without changing any answer', () => {
+  it('agrees with a fresh Intl reading on both sides of daylight-saving changes', () => {
+    const zones = [NY, LONDON, KOLKATA, LORD_HOWE, SYDNEY, { kind: 'iana', zone: 'Pacific/Chatham' } as const];
+    for (const zone of zones) {
+      if (zone.kind !== 'iana') continue;
+      const f = new Intl.DateTimeFormat('en-US', {
+        timeZone: zone.zone,
+        hourCycle: 'h23',
+        year: 'numeric',
+        month: 'numeric',
+        day: 'numeric',
+        hour: 'numeric',
+        minute: 'numeric',
+        second: 'numeric',
+      });
+      const truth = (ms: number): number => {
+        const p = Object.fromEntries(f.formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+        return Date.UTC(+p.year!, +p.month! - 1, +p.day!, +p.hour! % 24, +p.minute!, +p.second!) - ms;
+      };
+      // Every six hours through 2026, and every 7.5 minutes for a day either side of each
+      // change of offset; each point twice (the second answer comes from the cache).
+      const points: number[] = [];
+      let previous = truth(Date.UTC(2026, 0, 1));
+      for (let ms = Date.UTC(2026, 0, 1); ms < Date.UTC(2027, 0, 1); ms += 6 * 3_600_000) {
+        points.push(ms);
+        const now = truth(ms);
+        if (now !== previous) for (let t = ms - 30 * 3_600_000; t < ms + 24 * 3_600_000; t += 450_000) points.push(t);
+        previous = now;
+      }
+      for (let pass = 0; pass < 2; pass += 1) {
+        for (const ms of points) {
+          if (zoneOffsetMs(ms, zone) !== truth(ms)) throw new Error(`${zone.zone} at ${new Date(ms).toISOString()}`);
+        }
+      }
+    }
+  });
+});
+
+describe('times without seconds are rounded to the nearest minute (the almanac’s practice)', () => {
+  it('rounds, and keeps the seconds when they are shown', () => {
+    const t = jd('2026-09-24T10:49:31Z'); // 06:49:31 EDT
+    expect(formatTime(t, NY)).toBe('06:50');
+    expect(formatTime(jd('2026-09-24T10:49:29Z'), NY)).toBe('06:49');
+    expect(formatTime(t, NY, { seconds: true })).toBe('06:49:31');
+    expect(formatWithUtc(t, NY)).toBe('2026-09-24 06:50 EDT · 10:50 UTC');
+    // The date follows the rounding across midnight.
+    expect(formatDateTime(jd('2026-09-25T03:59:40Z'), NY)).toBe('2026-09-25 00:00');
+    expect(formatDateTime(jd('2026-09-25T03:59:40Z'), NY, { seconds: true })).toBe('2026-09-24 23:59:40');
+    expect(isoUtc(roundToMinute(jd('2026-09-24T10:49:30.000Z')))).toBe('2026-09-24T10:50:00.000Z');
   });
 });

@@ -200,8 +200,13 @@
   --body-uranus: #5cc2bf;
   --body-neptune: #6e93ee;
   --body-star: #ffffff;
-  /* The lit part of a drawn Moon phase (large areas; dimmer than the body colour at night). */
+  /* A drawn Moon phase: the lit part, and the unlit part (always the darker of the two,
+     on any surface, so a new Moon never looks full). */
   --moon-disc: #b4c5dc;
+  --moon-unlit: #1a232d;
+  /* An outline for body glyphs where they sit on a light surface (a white star or the
+     pale Venus on a light chip); none on the dark chrome. See components.css. */
+  --glyph-edge-light: rgba(23, 32, 42, 0.78);
 
   /* Events: rise and dawn, transit, set and dusk. */
   --event-rise: #ff9f43;
@@ -297,6 +302,8 @@
   --body-neptune: #7a9df2;
   --body-star: #ffffff;
   --moon-disc: #c4d3e6;
+  --moon-unlit: #050a14;
+  --glyph-edge-light: transparent;
 
   --event-rise: #ffa24d;
   --event-transit: #ffdb82;
@@ -390,6 +397,8 @@
   --body-neptune: #c01c00;
   --body-star: #ff3000;
   --moon-disc: #c41c00;
+  --moon-unlit: #000000;
+  --glyph-edge-light: transparent;
 
   --event-rise: #ff4000;
   --event-transit: #d82800;

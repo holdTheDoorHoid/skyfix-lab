@@ -143,9 +143,12 @@ export function offsetOn(span: LocalDay | LocalNight, jd: number, zone: Zone): n
   return zoneOffsetMs(msFromJd(jd), zone);
 }
 
-/** `06:52` at a known zone offset. */
+/**
+ * `06:52` at a known zone offset, rounded to the nearest minute like `formatTime`
+ * (time.ts: the almanac's practice, an app-wide decision of 2026-09-24).
+ */
 export function clockAt(jd: number, offsetMs: number): string {
-  const d = new Date(msFromJd(jd) + offsetMs);
+  const d = new Date(Math.round((msFromJd(jd) + offsetMs) / 60_000) * 60_000);
   return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
 }
 

@@ -5,13 +5,13 @@
  * preferences; a share link in the address is applied and removed, now or when pasted) -> frame
  * scheduler -> memoised engine -> playback clock and time keys -> mount the page.
  *
- * The page mounted today is the developer harness (`harness/`); the shell replaces that
- * one import. The rest of the boot sequence is meant to stay.
+ * The page mounted is the explorer's shell (`shell/`). The developer harness
+ * (`harness/`, a plain page of engine outputs) is still there for checking numbers: add
+ * `?harness` to the address. It is a separate chunk that a normal load never fetches.
  */
 
-import { createScheduler, memoEngine, type Ctx, type Mounted } from './component.js';
+import { createScheduler, memoEngine, type Component, type Ctx, type Mounted } from './component.js';
 import { selectEngine } from './engine/index.js';
-import { harness } from './harness/harness.js';
 import { createNotices } from './notices.js';
 import { bindTimeKeys, startPlayback } from './playback.js';
 import { createExplorerStore, listenForShareLinks } from './state.js';
@@ -51,8 +51,17 @@ export interface Booted {
   stop(): void;
 }
 
+/** The page to mount: the shell, or the developer harness when the address asks for it. */
+async function pageComponent(): Promise<Component> {
+  if (new URLSearchParams(globalThis.location?.search ?? '').has('harness')) {
+    document.body.style.overflow = 'auto';
+    return (await import('./harness/harness.js')).harness;
+  }
+  return (await import('./shell/shell.js')).shell;
+}
+
 export async function boot(root: HTMLElement): Promise<Booted> {
-  const selection = await selectEngine();
+  const [selection, page0] = await Promise.all([selectEngine(), pageComponent()]);
   const notices = createNotices();
   selection.notices.forEach((n, i) =>
     notices.push(n.level, n.text, { key: `engine-${i}`, persistent: n.level !== 'info' }),
@@ -64,7 +73,7 @@ export async function boot(root: HTMLElement): Promise<Booted> {
   const ctx: Ctx = { store, engine, notices, scheduler };
   const stopPlayback = startPlayback(store, scheduler);
   const unbindKeys = bindTimeKeys(window, store);
-  const page = harness(root, ctx);
+  const page = page0(root, ctx);
   return {
     ctx,
     page,
@@ -82,6 +91,11 @@ const app = document.getElementById('app');
 if (app) {
   boot(app)
     .then((booted) => {
+      // `data-ready` once the first frame is painted with its fonts (screenshot tooling
+      // and tests wait for it; nothing else reads it).
+      void document.fonts?.ready.then(() =>
+        requestAnimationFrame(() => requestAnimationFrame(() => (document.documentElement.dataset.ready = '1'))),
+      );
       // Development only: inspect the running page from the console
       // (`__skyfix.ctx.store.get()`, `__skyfix.ctx.scheduler.flush()`).
       if (import.meta.env.DEV) (globalThis as { __skyfix?: Booted }).__skyfix = booted;
