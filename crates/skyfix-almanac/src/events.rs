@@ -24,8 +24,9 @@
 //! # Method
 //!
 //! 1. The body's apparent geocentric state is evaluated exactly every 3 hours (the
-//!    Moon) or 8 hours (everything else) and interpolated in between ([`crate::sky`]'s
-//!    track, under 0.01" of error), so the finder can afford a fine grid and many
+//!    Moon), 4 hours (planets) or 8 hours (the Sun and stars) and interpolated in
+//!    between ([`crate::sky`]'s track, under 0.01" of error), so the finder can afford
+//!    a fine grid and many
 //!    refinement steps. The topocentric step (Earth rotation, parallax, refraction)
 //!    is exact at every evaluation.
 //! 2. The altitude is sampled on a **10-minute grid** (CONVENTIONS 13.3 requires no

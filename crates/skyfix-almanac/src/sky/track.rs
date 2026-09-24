@@ -4,26 +4,28 @@
 //! Event finding and sampled paths ask for a body's position hundreds of times per day
 //! of window. The providers are exact but not cheap (the Sun alone is a 1020-term
 //! VSOP87 series), so [`Track`] evaluates the provider at **nodes no more than 3 hours
-//! apart for the Moon and 8 hours for everything else** and interpolates between them
-//! with the 4-point Lagrange formula on the nodes around the query instant. Only the
-//! slowly varying geocentric quantities are interpolated — GHA (unwrapped), RA
-//! (unwrapped), declination, distance and semidiameter — and the topocentric step
-//! (Earth rotation is inside GHA, parallax and refraction are applied afterwards by
-//! `topocentric::horizontal`) is exact.
+//! apart for the Moon, 4 hours for the planets and 8 hours for the Sun and stars** and
+//! interpolates between them with the 4-point Lagrange formula on the nodes around the
+//! query instant. Only the slowly varying geocentric quantities are interpolated — GHA
+//! (unwrapped), RA (unwrapped), declination, distance and semidiameter — and the
+//! topocentric step (Earth rotation is inside GHA, parallax and refraction are applied
+//! afterwards by `topocentric::horizontal`) is exact.
 //!
 //! Interpolation error of the cubic, `0.0234 f'''' h^4` in the middle interval and a
 //! few times that at the window edges:
 //!
 //! - the Moon: the fourth derivative of its longitude is about 0.08 deg/day^4 (the
 //!   largest periodic terms of the lunar theory), so 3-hour nodes give ~0.001";
-//! - the Sun, planets and stars: the fastest terms are the 13.7-day nutation (0.23")
-//!   and, for Mercury near inferior conjunction, a few 1e-4 deg/day^4; 8-hour nodes
-//!   give under 1e-4".
+//! - the planets: Mercury near inferior conjunction reverses its apparent motion
+//!   within days (a few 1e-2 deg/day^4); 8-hour nodes measured 0.015" on it, 4-hour
+//!   nodes a sixteenth of that;
+//! - the Sun and stars: the fastest term is the 13.7-day nutation (0.23"), so 8-hour
+//!   nodes give under 1e-4".
 //!
-//! `tests/track_interpolation.rs` measures it against exact evaluations (worst case
-//! under 0.01" for every body class; it also checks the real Moon and planet
-//! providers once they are merged). 0.01" is 0.0007 s of time at the horizon, so it
-//! never shows in an event time, nor in the altitude and azimuth reported with it.
+//! `tests/track_interpolation.rs` measures it against exact evaluations of the real
+//! providers and of a synthetic Moon (worst case under 0.01" for every body). 0.01" is
+//! 0.0007 s of time at the horizon, so it never shows in an event time, nor in the
+//! altitude and azimuth reported with it.
 
 use skyfix_core::units::{norm_180, norm_360};
 use skyfix_ephemeris::body::{ApparentState, BodyEphemeris};
@@ -32,13 +34,17 @@ use super::BodyError;
 
 /// Largest spacing between exact evaluations of the Moon, days (3 hours).
 pub(crate) const MOON_NODE_SPACING_DAYS: f64 = 3.0 / 24.0;
-/// Largest spacing between exact evaluations of any other body, days (8 hours).
+/// Largest spacing between exact evaluations of a planet, days (4 hours).
+pub(crate) const PLANET_NODE_SPACING_DAYS: f64 = 4.0 / 24.0;
+/// Largest spacing between exact evaluations of the Sun or a star, days (8 hours).
 pub(crate) const NODE_SPACING_DAYS: f64 = 8.0 / 24.0;
 
-/// Node spacing for `body`: the Moon moves fast enough to need closer nodes.
+/// Node spacing for `body`: the faster its apparent motion changes, the closer.
 pub(crate) fn node_spacing_days(body: &str) -> f64 {
+    use skyfix_ephemeris::body::BodyKind;
     match skyfix_ephemeris::body::kind(body) {
-        Some(skyfix_ephemeris::body::BodyKind::Moon) => MOON_NODE_SPACING_DAYS,
+        Some(BodyKind::Moon) => MOON_NODE_SPACING_DAYS,
+        Some(BodyKind::Planet) => PLANET_NODE_SPACING_DAYS,
         _ => NODE_SPACING_DAYS,
     }
 }
@@ -116,7 +122,11 @@ impl Track {
                 })
             })
             .collect();
-        for class in [NODE_SPACING_DAYS, MOON_NODE_SPACING_DAYS] {
+        for class in [
+            NODE_SPACING_DAYS,
+            PLANET_NODE_SPACING_DAYS,
+            MOON_NODE_SPACING_DAYS,
+        ] {
             let (times, _) = node_times(t0, t1, class);
             for (k, &t) in times.iter().enumerate() {
                 for ((body, slot), &sp) in bodies.iter().zip(out.iter_mut()).zip(&spacing) {
@@ -242,9 +252,12 @@ mod tests {
     }
 
     #[test]
-    fn only_the_moon_gets_close_nodes() {
+    fn node_spacing_follows_how_fast_the_motion_changes() {
         assert_eq!(node_spacing_days("moon"), MOON_NODE_SPACING_DAYS);
-        for b in ["Sun", "Mercury", "Vega"] {
+        for p in ["Mercury", "venus", "Neptune"] {
+            assert_eq!(node_spacing_days(p), PLANET_NODE_SPACING_DAYS);
+        }
+        for b in ["Sun", "Vega", "Polaris"] {
             assert_eq!(node_spacing_days(b), NODE_SPACING_DAYS);
         }
     }

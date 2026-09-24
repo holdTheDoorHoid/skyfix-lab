@@ -119,3 +119,37 @@ fn a_short_request_is_evaluated_exactly() {
         }
     }
 }
+
+/// The same bound for the real Moon and planet providers, which the synthetic Moon
+/// only stands in for: their series may carry faster terms than the synthetic one.
+/// Skips loudly while a provider is a stub.
+#[test]
+fn the_real_moon_and_planets_interpolate_within_a_hundredth_of_an_arcsecond() {
+    let jd = civil_to_jd(2026, 9, 24);
+    let eph = skyfix_ephemeris::body::Sky::new();
+    let site = Site::new(51.4769, -0.0005);
+    let mut report = Vec::new();
+    for body in [
+        "Moon", "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",
+    ] {
+        if common::skip_if_stub(body, jd, "the_real_moon_and_planets_interpolate") {
+            continue;
+        }
+        let mut worst = (0.0f64, 0.0f64);
+        for (t0, days, step) in [
+            (civil_to_jd(1990, 1, 3), 1.0, 1.0),
+            (civil_to_jd(2013, 11, 1), 3.0, 5.0),
+            (jd, 1.0, 1.0),
+            (civil_to_jd(2059, 5, 20), 20.0, 30.0),
+        ] {
+            let (geo, topo, _) = worst_error(&eph, &site, body, t0, t0 + days, step, 7);
+            worst = (worst.0.max(geo), worst.1.max(topo));
+        }
+        report.push(format!(
+            "{body:8}: geocentric {:.5}\", topocentric {:.5}\"",
+            worst.0, worst.1
+        ));
+        assert!(worst.0 < 0.01 && worst.1 < 0.01, "{body}: {worst:?}");
+    }
+    eprintln!("{}", report.join("\n"));
+}

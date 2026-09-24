@@ -105,8 +105,9 @@ computed at `jd_utc` (outside its coverage); the UI keeps time inside
 
 For paths on the map and charts. At most 20 000 samples per body. Samples are at
 `jd_start + k·step` for `k = 0, 1, …` while not after `jd_end`. Long requests are
-interpolated between exact evaluations (every 3 h for the Moon, 8 h otherwise) and agree
-with `sky_state` at the same instant to under 0.01″.
+interpolated between exact evaluations (every 3 h for the Moon, 4 h for the planets,
+8 h for the Sun and stars) and agree with `sky_state` at the same instant to under
+0.01″.
 
 ```ts
 { jd_utc: Float64Array,

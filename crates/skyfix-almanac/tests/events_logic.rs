@@ -11,7 +11,7 @@
 
 mod common;
 
-use common::{Exact, SyntheticSky, brute_crossings, brute_transits, dense_exact};
+use common::{Exact, Refusing, SyntheticSky, brute_crossings, brute_transits, dense_exact};
 use skyfix_almanac::events::{
     BodyEvents, DayEvents, EventKind, EventOptions, Horizon, day_events, find_altitude,
     standard_altitude_deg,
@@ -650,17 +650,20 @@ fn find_altitude_crosses_the_requested_apparent_altitude() {
     }
     assert!(find_altitude(&eph, &s, "Sun", t0, t0 + 1.0, 91.0).is_err());
     assert!(find_altitude(&eph, &s, "Vulcan", t0, t0 + 1.0, 10.0).is_err());
-    let e = find_altitude(&Sky::new(), &s, "Moon", t0, t0 + 1.0, 10.0).unwrap_err();
+    let refusing = Refusing::new(&["Moon"]);
+    let e = find_altitude(&refusing, &s, "Moon", t0, t0 + 1.0, 10.0).unwrap_err();
     assert!(matches!(e, AlmanacError::Unavailable { .. }), "{e}");
 }
 
 #[test]
 fn bodies_the_provider_cannot_answer_for_are_errors_not_guesses() {
-    let eph = Sky::new();
+    // A provider that refuses the Moon and Jupiter, as a stub or an out-of-coverage
+    // provider would.
+    let refusing = Refusing::new(&["Moon", "Jupiter"]);
     let s = site(39.9526, -75.1652);
     let t0 = civil_to_jd(2026, 9, 24);
     let d = day_events(
-        &eph,
+        &refusing,
         &s,
         t0,
         t0 + 1.0,
@@ -676,11 +679,8 @@ fn bodies_the_provider_cannot_answer_for_are_errors_not_guesses() {
     );
     let failed: Vec<&str> = d.errors.iter().map(|e| e.body.as_str()).collect();
     assert_eq!(failed, vec!["Moon", "Jupiter"]);
-    assert!(
-        d.errors
-            .iter()
-            .all(|e| e.message.contains("not implemented"))
-    );
+    assert!(d.errors.iter().all(|e| e.message.contains("refused")));
+    let eph = Sky::new();
 
     // The star catalogue stops one second before the Sun does.
     let t0 = civil_to_jd(2060, 12, 31) + 0.5;

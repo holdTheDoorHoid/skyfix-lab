@@ -595,7 +595,9 @@ mod tests {
         let t0 = civil_to_jd(2026, 9, 24);
         let s = sample_bodies(PHILLY, "[\"Sun\", \"Vega\", \"Moon\"]", t0, t0 + 1.0, 10.0).unwrap();
         assert_eq!(s.jd_utc.len(), 145);
-        assert_eq!(s.bodies.len(), 2);
+        // Every body is either sampled or listed with its reason, never both, never
+        // neither (whether the Moon provider is in this build or not).
+        assert_eq!(s.bodies.len() + s.errors.len(), 3);
         for b in &s.bodies {
             for v in [
                 &b.alt_deg,
@@ -607,7 +609,11 @@ mod tests {
                 assert_eq!(v.len(), 145, "{}", b.body);
             }
         }
-        assert_eq!(s.errors[0].body, "Moon");
+        assert!(
+            s.errors
+                .iter()
+                .all(|e| e.body == "Moon" && !e.message.is_empty())
+        );
         let e = sample_bodies(PHILLY, "\"Sun\"", t0, t0 + 20.0, 1.0).unwrap_err();
         assert!(e.contains("20000"), "{e}");
     }
@@ -659,7 +665,9 @@ mod tests {
         let v = find_altitude(PHILLY, "sun", t0, t0 + 1.0, 30.0).unwrap();
         assert_eq!(v.len(), 2);
         assert!(v[0].rising && !v[1].rising);
-        assert!(find_altitude(PHILLY, "Moon", t0, t0 + 1.0, 30.0).is_err());
+        // A body outside its coverage cannot be searched: that throws.
+        let e = find_altitude(PHILLY, "Vega", 2_446_000.5, 2_446_001.5, 30.0).unwrap_err();
+        assert!(e.contains("Vega"), "{e}");
 
         let s = json(&seasons(2026.0).unwrap());
         assert_eq!(s[0]["kind"], "march_equinox");

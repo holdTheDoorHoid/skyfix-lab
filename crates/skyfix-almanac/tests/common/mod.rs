@@ -147,6 +147,57 @@ impl BodyEphemeris for SyntheticSky {
     }
 }
 
+/// The real sky, except that the listed bodies are refused, the way a stub provider or
+/// a body outside its coverage is. Keeps the error paths tested whatever is
+/// implemented.
+#[derive(Debug, Clone)]
+pub struct Refusing {
+    pub real: Sky,
+    pub refuse: Vec<&'static str>,
+}
+
+impl Refusing {
+    pub fn new(refuse: &[&'static str]) -> Self {
+        Refusing {
+            real: Sky::new(),
+            refuse: refuse.to_vec(),
+        }
+    }
+
+    fn check(&self, body: &str) -> Result<(), EphemerisError> {
+        let c = skyfix_ephemeris::body::canonical(body).unwrap_or(body);
+        if self.refuse.contains(&c) {
+            Err(EphemerisError::Data(format!(
+                "{c} is refused by this test provider"
+            )))
+        } else {
+            Ok(())
+        }
+    }
+}
+
+impl AstroProvider for Refusing {
+    fn name(&self) -> &str {
+        "refusing test sky"
+    }
+
+    fn coverage(&self) -> Coverage {
+        self.real.coverage()
+    }
+
+    fn geocentric(&self, body: &str, jd_utc: f64) -> Result<GeocentricDirection, EphemerisError> {
+        self.check(body)?;
+        self.real.geocentric(body, jd_utc)
+    }
+}
+
+impl BodyEphemeris for Refusing {
+    fn apparent_state(&self, body: &str, jd_utc: f64) -> Result<ApparentState, EphemerisError> {
+        self.check(body)?;
+        self.real.apparent_state(body, jd_utc)
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Brute force: exact evaluation on a dense grid, linear interpolation
 // ---------------------------------------------------------------------------
