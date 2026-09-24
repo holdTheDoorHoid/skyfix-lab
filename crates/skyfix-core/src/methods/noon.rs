@@ -1060,8 +1060,15 @@ impl<'a> Run<'a> {
         let instant = result.meridian_passage.as_ref().map_or(t_dr, |p| p.jd_utc);
         let dr_lat = self.dr_at(instant).lat_deg();
         let separation = (lat - other).abs();
+        // With its sigma stated, the DR cannot tell the sides apart when the other answer
+        // lies within 3 sigma of it: it was then the DR that chose, and it may be wrong.
+        let dr_admits_other = self
+            .dr
+            .sigma_nm
+            .is_some_and(|sigma| (dr_lat - other).abs() * 60.0 < THREE_SIGMA * sigma);
         let ambiguous = (dr_lat - lat).abs() > (dr_lat - other).abs()
-            || (bearing == BodyBearing::Auto && (dr_lat - lat).abs() > separation / 3.0);
+            || (bearing == BodyBearing::Auto
+                && ((dr_lat - lat).abs() > separation / 3.0 || dr_admits_other));
         if ambiguous && (-90.0..=90.0).contains(&other) {
             warnings.push(Warning::MeridianSideAmbiguous {
                 body: self.body.clone(),
@@ -1602,6 +1609,42 @@ mod tests {
             "{:?}",
             r.warnings
         );
+
+        // Verifier regression: the Sun passes 0.2 deg south of the zenith (truth 19.8 N,
+        // declination 20 N) and the DR is 24 NM off, 0.2 deg north of the declination.
+        // It picks the other side, 20.2 N, and sits right on that answer, so the "a third
+        // of the way" rule stays quiet. With the DR's sigma stated as 10 NM the true
+        // answer is inside 3 sigma of it: the side is not settled, and it says so.
+        let near = Point::from_deg(19.8, -60.0);
+        let dr = LatLon {
+            lat_deg: 20.2,
+            lon_deg: -60.0,
+        };
+        let session = session_with(run_sights(&sun, near, t_pass, None, &minutes, 0.3), dr);
+        let flagged = |r: &NoonSightResult| {
+            r.warnings
+                .iter()
+                .any(|w| matches!(w, Warning::MeridianSideAmbiguous { .. }))
+        };
+        let quiet = noon_sight(&session, &sun, &NoonSightOptions::default()).unwrap();
+        assert!(
+            (quiet.latitude.lat_deg - 20.2).abs() < 0.01,
+            "{}",
+            quiet.latitude.lat_deg
+        );
+        assert!(!flagged(&quiet), "{:?}", quiet.warnings);
+        for (sigma_nm, expect) in [(10.0, true), (5.0, false)] {
+            let stated = NoonSightOptions {
+                dr: Some(DrPosition {
+                    lat_deg: dr.lat_deg,
+                    lon_deg: dr.lon_deg,
+                    sigma_nm: Some(sigma_nm),
+                }),
+                ..Default::default()
+            };
+            let r = noon_sight(&session, &sun, &stated).unwrap();
+            assert_eq!(flagged(&r), expect, "sigma {sigma_nm} NM: {:?}", r.warnings);
+        }
     }
 
     #[test]

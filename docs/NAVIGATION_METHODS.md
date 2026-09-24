@@ -211,8 +211,10 @@ the peak's *height* hardly changes, its *time* does.
   with a sextant, and the side decides the latitude by twice the zenith distance.
   `meridian_near_zenith`. The exact curve still fits the V-shaped peak.
 - **Which side?** When the DR sits closer to the other side's answer, or (with
-  `body_bearing: "auto"`) more than a third of the way towards it,
-  `meridian_side_ambiguous` gives both latitudes. `body_bearing` settles it.
+  `body_bearing: "auto"`) more than a third of the way towards it, or within three of its
+  stated `sigma_nm` of it, `meridian_side_ambiguous` gives both latitudes.
+  `body_bearing` settles it. (The third rule matters near the zenith, where the two
+  answers are a few tens of miles apart: a DR 24 NM off can sit right on the wrong one.)
 - **One-sided runs**: every sight before (or after) `T` means the peak time is an
   extrapolation. `one_sided_run`.
 - **Upper transit only.** Lower transit of circumpolar stars is not a noon sight here.
