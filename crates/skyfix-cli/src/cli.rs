@@ -139,7 +139,11 @@ pub enum Command {
     Plan {
         /// Approximate position, degrees, east-positive longitude. Disclosed in the
         /// output: a planner is allowed an approximate position, a solver is not.
-        #[arg(long, value_name = "LAT,LON", value_parser = parse_latlon)]
+        // `allow_hyphen_values`: a southern latitude starts with '-', which clap would
+        // otherwise read as the start of another flag ("unexpected argument '-3' found").
+        // `parse_latlon` rejects anything that is not a pair of numbers, so a mistyped
+        // flag still fails, with a message about the value rather than about the flag.
+        #[arg(long, value_name = "LAT,LON", value_parser = parse_latlon, allow_hyphen_values = true)]
         position: LatLon,
         /// Instant, RFC 3339 UTC with a trailing Z.
         #[arg(long, value_name = "RFC3339")]
@@ -174,13 +178,16 @@ pub struct SolveFlags {
     pub ephemeris: EphemerisChoice,
     /// Start the iteration here instead of at the session's assumed position. A
     /// starting point only; it never biases a converged fix.
-    #[arg(long, value_name = "LAT,LON", value_parser = parse_latlon, conflicts_with = "no_init")]
+    // `allow_hyphen_values`: see `Command::Plan::position`. Without it `--init -30,20`
+    // is rejected as an unknown flag, so half the planet needs `--init=-30,20`.
+    #[arg(long, value_name = "LAT,LON", value_parser = parse_latlon, conflicts_with = "no_init", allow_hyphen_values = true)]
     pub init: Option<LatLon>,
     /// Ignore the session's assumed position and rely on multistart.
     #[arg(long = "no-init")]
     pub no_init: bool,
     /// Add a genuine Gaussian position prior. Its effect on the answer is reported.
-    #[arg(long, value_name = "LAT,LON,SIGMA_NM", value_parser = parse_prior)]
+    // `allow_hyphen_values`: see `Command::Plan::position`.
+    #[arg(long, value_name = "LAT,LON,SIGMA_NM", value_parser = parse_prior, allow_hyphen_values = true)]
     pub prior: Option<PositionPrior>,
     /// Estimate a shared altitude bias as a third unknown.
     #[arg(long)]
@@ -329,6 +336,48 @@ mod tests {
             panic!("expected solve")
         };
         assert_eq!(options.robust, None);
+    }
+
+    /// Longitude is east-positive and latitude is north-positive (CONVENTIONS section 2),
+    /// so most of the world's positions start with a minus sign. Clap reads a leading '-'
+    /// as a flag unless the argument allows hyphen values, which made `--init -30,20`
+    /// fail with "unexpected argument '-3' found" and forced `--init=-30,20`.
+    #[test]
+    fn southern_and_western_positions_parse_in_the_space_separated_form() {
+        let cli =
+            Cli::try_parse_from(["skyfix", "solve", "s.json", "--init", "-33.87,151.21"]).unwrap();
+        let Command::Solve { options, .. } = cli.command else {
+            panic!("expected solve")
+        };
+        assert_eq!(options.init.unwrap().lat_deg, -33.87);
+
+        let cli = Cli::try_parse_from(["skyfix", "solve", "s.json", "--prior", "-33.87,-70.67,15"])
+            .unwrap();
+        let Command::Solve { options, .. } = cli.command else {
+            panic!("expected solve")
+        };
+        let p = options.prior.unwrap();
+        assert_eq!(
+            (p.center.lat_deg, p.center.lon_deg, p.sigma_nm),
+            (-33.87, -70.67, 15.0)
+        );
+
+        let cli = Cli::try_parse_from([
+            "skyfix",
+            "plan",
+            "--position",
+            "-45.0,-73.0",
+            "--utc",
+            "2026-10-01T01:30:00Z",
+        ])
+        .unwrap();
+        let Command::Plan { position, .. } = cli.command else {
+            panic!("expected plan")
+        };
+        assert_eq!((position.lat_deg, position.lon_deg), (-45.0, -73.0));
+
+        // A mistyped flag after `--init` is still an error: it is not a position.
+        assert!(Cli::try_parse_from(["skyfix", "solve", "s.json", "--init", "--json"]).is_err());
     }
 
     #[test]
