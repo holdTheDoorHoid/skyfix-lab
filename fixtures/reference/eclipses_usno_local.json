@@ -1,0 +1,1435 @@
+{
+  "cases": [
+    {
+      "id": "2017-08-21-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -123.0351,
+            44.9429
+          ],
+          "height": "60m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 21,
+          "delta_t": "69.4s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 32m 22.4s",
+          "duration_of_totality": "1m 56.6s",
+          "event": "Solar Eclipse of 2017 Aug. 21",
+          "local_data": [
+            {
+              "altitude": "27.8",
+              "azimuth": "101.3",
+              "day": "21",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "284.2",
+              "time": "16:05:25.7",
+              "vertex_angle": "329.4"
+            },
+            {
+              "altitude": "39.8",
+              "azimuth": "116.9",
+              "day": "21",
+              "phenomenon": "Totality Begins",
+              "position_angle": "88.0",
+              "time": "17:17:18.4",
+              "vertex_angle": "128.2"
+            },
+            {
+              "altitude": "39.9",
+              "azimuth": "117.1",
+              "day": "21",
+              "phenomenon": "Maximum Eclipse",
+              "time": "17:18:15.7"
+            },
+            {
+              "altitude": "40.1",
+              "azimuth": "117.4",
+              "day": "21",
+              "phenomenon": "Totality Ends",
+              "position_angle": "303.5",
+              "time": "17:19:15.0",
+              "vertex_angle": "343.5"
+            },
+            {
+              "altitude": "50.9",
+              "azimuth": "140.2",
+              "day": "21",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "107.5",
+              "time": "18:37:48.1",
+              "vertex_angle": "135.1"
+            }
+          ],
+          "magnitude": "1.009",
+          "month": 8,
+          "obscuration": "100.0%",
+          "year": 2017
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 60.0, "lat_deg": 44.9429, "lon_deg": -123.0351, "name": "salem_or"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2017-08-21&coords=44.9429,-123.0351&height=60"
+    },
+    {
+      "id": "2017-08-21-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -106.3131,
+            42.8666
+          ],
+          "height": "1560m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 21,
+          "delta_t": "69.4s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 47m 05.8s",
+          "duration_of_totality": "2m 27.5s",
+          "event": "Solar Eclipse of 2017 Aug. 21",
+          "local_data": [
+            {
+              "altitude": "42.6",
+              "azimuth": "118.2",
+              "day": "21",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "287.7",
+              "time": "16:22:17.3",
+              "vertex_angle": "329.1"
+            },
+            {
+              "altitude": "53.9",
+              "azimuth": "142.7",
+              "day": "21",
+              "phenomenon": "Totality Begins",
+              "position_angle": "103.5",
+              "time": "17:42:37.2",
+              "vertex_angle": "130.6"
+            },
+            {
+              "altitude": "54.0",
+              "azimuth": "143.1",
+              "day": "21",
+              "phenomenon": "Maximum Eclipse",
+              "time": "17:43:49.9"
+            },
+            {
+              "altitude": "54.1",
+              "azimuth": "143.6",
+              "day": "21",
+              "phenomenon": "Totality Ends",
+              "position_angle": "295.4",
+              "time": "17:45:04.7",
+              "vertex_angle": "321.8"
+            },
+            {
+              "altitude": "59.0",
+              "azimuth": "180.5",
+              "day": "21",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "111.0",
+              "time": "19:09:23.1",
+              "vertex_angle": "110.7"
+            }
+          ],
+          "magnitude": "1.013",
+          "month": 8,
+          "obscuration": "100.0%",
+          "year": 2017
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 1560.0, "lat_deg": 42.8666, "lon_deg": -106.3131, "name": "casper_wy"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2017-08-21&coords=42.8666,-106.3131&height=1560"
+    },
+    {
+      "id": "2017-08-21-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -89.2168,
+            37.7273
+          ],
+          "height": "120m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 21,
+          "delta_t": "69.4s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 55m 00.6s",
+          "duration_of_totality": "2m 39.6s",
+          "event": "Solar Eclipse of 2017 Aug. 21",
+          "local_data": [
+            {
+              "altitude": "60.1",
+              "azimuth": "145.3",
+              "day": "21",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "292.1",
+              "time": "16:52:25.6",
+              "vertex_angle": "319.6"
+            },
+            {
+              "altitude": "63.7",
+              "azimuth": "191.2",
+              "day": "21",
+              "phenomenon": "Totality Begins",
+              "position_angle": "103.2",
+              "time": "18:20:03.8",
+              "vertex_angle": "94.4"
+            },
+            {
+              "altitude": "63.7",
+              "azimuth": "191.9",
+              "day": "21",
+              "phenomenon": "Maximum Eclipse",
+              "time": "18:21:22.7"
+            },
+            {
+              "altitude": "63.6",
+              "azimuth": "192.7",
+              "day": "21",
+              "phenomenon": "Totality Ends",
+              "position_angle": "304.0",
+              "time": "18:22:43.4",
+              "vertex_angle": "293.9"
+            },
+            {
+              "altitude": "54.7",
+              "azimuth": "230.0",
+              "day": "21",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "114.3",
+              "time": "19:47:26.2",
+              "vertex_angle": "76.2"
+            }
+          ],
+          "magnitude": "1.013",
+          "month": 8,
+          "obscuration": "100.0%",
+          "year": 2017
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 120.0, "lat_deg": 37.7273, "lon_deg": -89.2168, "name": "carbondale_il"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2017-08-21&coords=37.7273,-89.2168&height=120"
+    },
+    {
+      "id": "2017-08-21-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -86.7816,
+            36.1627
+          ],
+          "height": "170m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 21,
+          "delta_t": "69.4s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 55m 29.9s",
+          "duration_of_totality": "1m 57.8s",
+          "event": "Solar Eclipse of 2017 Aug. 21",
+          "local_data": [
+            {
+              "altitude": "63.1",
+              "azimuth": "151.1",
+              "day": "21",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "293.6",
+              "time": "16:58:30.6",
+              "vertex_angle": "317.2"
+            },
+            {
+              "altitude": "64.3",
+              "azimuth": "201.4",
+              "day": "21",
+              "phenomenon": "Totality Begins",
+              "position_angle": "157.8",
+              "time": "18:27:23.8",
+              "vertex_angle": "140.5"
+            },
+            {
+              "altitude": "64.2",
+              "azimuth": "201.9",
+              "day": "21",
+              "phenomenon": "Maximum Eclipse",
+              "time": "18:28:21.8"
+            },
+            {
+              "altitude": "64.1",
+              "azimuth": "202.5",
+              "day": "21",
+              "phenomenon": "Totality Ends",
+              "position_angle": "250.5",
+              "time": "18:29:21.6",
+              "vertex_angle": "232.3"
+            },
+            {
+              "altitude": "53.0",
+              "azimuth": "236.8",
+              "day": "21",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "114.0",
+              "time": "19:54:00.5",
+              "vertex_angle": "70.4"
+            }
+          ],
+          "magnitude": "1.005",
+          "month": 8,
+          "obscuration": "100.0%",
+          "year": 2017
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 170.0, "lat_deg": 36.1627, "lon_deg": -86.7816, "name": "nashville_tn"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2017-08-21&coords=36.1627,-86.7816&height=170"
+    },
+    {
+      "id": "2017-08-21-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -81.0348,
+            34.0007
+          ],
+          "height": "90m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 21,
+          "delta_t": "69.4s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 53m 11.2s",
+          "duration_of_totality": "2m 31.9s",
+          "event": "Solar Eclipse of 2017 Aug. 21",
+          "local_data": [
+            {
+              "altitude": "67.6",
+              "azimuth": "170.9",
+              "day": "21",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "294.1",
+              "time": "17:13:07.3",
+              "vertex_angle": "302.0"
+            },
+            {
+              "altitude": "62.1",
+              "azimuth": "222.0",
+              "day": "21",
+              "phenomenon": "Totality Begins",
+              "position_angle": "99.3",
+              "time": "18:41:48.7",
+              "vertex_angle": "64.9"
+            },
+            {
+              "altitude": "61.9",
+              "azimuth": "222.5",
+              "day": "21",
+              "phenomenon": "Maximum Eclipse",
+              "time": "18:43:03.8"
+            },
+            {
+              "altitude": "61.7",
+              "azimuth": "223.1",
+              "day": "21",
+              "phenomenon": "Totality Ends",
+              "position_angle": "310.9",
+              "time": "18:44:20.6",
+              "vertex_angle": "275.7"
+            },
+            {
+              "altitude": "47.6",
+              "azimuth": "248.2",
+              "day": "21",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "115.2",
+              "time": "20:06:18.4",
+              "vertex_angle": "63.4"
+            }
+          ],
+          "magnitude": "1.011",
+          "month": 8,
+          "obscuration": "100.0%",
+          "year": 2017
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 90.0, "lat_deg": 34.0007, "lon_deg": -81.0348, "name": "columbia_sc"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2017-08-21&coords=34.0007,-81.0348&height=90"
+    },
+    {
+      "id": "2017-08-21-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -75.1652,
+            39.9526
+          ],
+          "height": "12m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 21,
+          "delta_t": "69.4s",
+          "description": "Sun in Partial Eclipse at this Location",
+          "duration": "2h 40m 03.3s",
+          "event": "Solar Eclipse of 2017 Aug. 21",
+          "local_data": [
+            {
+              "altitude": "61.7",
+              "azimuth": "189.1",
+              "day": "21",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "281.4",
+              "time": "17:21:13.8",
+              "vertex_angle": "274.5"
+            },
+            {
+              "altitude": "54.2",
+              "azimuth": "225.3",
+              "day": "21",
+              "phenomenon": "Maximum Eclipse",
+              "time": "18:44:17.0"
+            },
+            {
+              "altitude": "41.9",
+              "azimuth": "246.9",
+              "day": "21",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "126.0",
+              "time": "20:01:17.1",
+              "vertex_angle": "79.9"
+            }
+          ],
+          "magnitude": "0.800",
+          "month": 8,
+          "obscuration": "75.3%",
+          "year": 2017
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 12.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "name": "philadelphia_pa"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2017-08-21&coords=39.9526,-75.1652&height=12"
+    },
+    {
+      "id": "2017-08-21-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -157.8583,
+            21.3069
+          ],
+          "height": "5m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 21,
+          "delta_t": "69.4s",
+          "description": "Sun in Partial Eclipse at this Location",
+          "duration": "1h 13m 21.1s",
+          "event": "Solar Eclipse of 2017 Aug. 21",
+          "local_data": [
+            {
+              "altitude": "----",
+              "azimuth": "76.9",
+              "day": "21",
+              "phenomenon": "Sunrise",
+              "time": "16:12"
+            },
+            {
+              "altitude": "4.6",
+              "azimuth": "79.0",
+              "day": "21",
+              "phenomenon": "Maximum Eclipse",
+              "time": "16:35:51.7"
+            },
+            {
+              "altitude": "16.0",
+              "azimuth": "83.2",
+              "day": "21",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "62.1",
+              "time": "17:25:19.8",
+              "vertex_angle": "133.0"
+            }
+          ],
+          "magnitude": "0.387",
+          "month": 8,
+          "obscuration": "27.3%",
+          "year": 2017
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 5.0, "lat_deg": 21.3069, "lon_deg": -157.8583, "name": "honolulu_hi"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2017-08-21&coords=21.3069,-157.8583&height=5"
+    },
+    {
+      "id": "2017-08-21-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -17.4677,
+            14.7167
+          ],
+          "height": "20m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 21,
+          "delta_t": "69.4s",
+          "description": "Sun in Partial Eclipse at this Location",
+          "duration": "0h 27m 37.7s",
+          "event": "Solar Eclipse of 2017 Aug. 21",
+          "local_data": [
+            {
+              "altitude": "5.7",
+              "azimuth": "280.8",
+              "day": "21",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "280.7",
+              "time": "19:01:23.2",
+              "vertex_angle": "204.6"
+            },
+            {
+              "altitude": "----",
+              "azimuth": "282.5",
+              "day": "21",
+              "phenomenon": "Sunset",
+              "time": "19:29"
+            }
+          ],
+          "magnitude": "0.859",
+          "month": 8,
+          "obscuration": "82.4%",
+          "year": 2017
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 20.0, "lat_deg": 14.7167, "lon_deg": -17.4677, "name": "dakar_sn"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2017-08-21&coords=14.7167,-17.4677&height=20"
+    },
+    {
+      "id": "2023-10-14-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -123.0868,
+            44.0521
+          ],
+          "height": "130m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 14,
+          "delta_t": "72.5s",
+          "description": "Sun in Annular Eclipse at this Location",
+          "duration": "2h 34m 17.4s",
+          "duration_of_annularity": "3m 53.3s",
+          "event": "Solar Eclipse of 2023 Oct. 14",
+          "local_data": [
+            {
+              "altitude": "6.1",
+              "azimuth": "107.6",
+              "day": "14",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "304.3",
+              "time": "15:05:25.6",
+              "vertex_angle": "348.2"
+            },
+            {
+              "altitude": "17.8",
+              "azimuth": "121.2",
+              "day": "14",
+              "phenomenon": "Annularity Begins",
+              "position_angle": "95.6",
+              "time": "16:16:54.2",
+              "vertex_angle": "134.0"
+            },
+            {
+              "altitude": "18.0",
+              "azimuth": "121.6",
+              "day": "14",
+              "phenomenon": "Maximum Eclipse",
+              "time": "16:18:50.0"
+            },
+            {
+              "altitude": "18.3",
+              "azimuth": "122.0",
+              "day": "14",
+              "phenomenon": "Annularity Ends",
+              "position_angle": "338.5",
+              "time": "16:20:47.5",
+              "vertex_angle": "16.6"
+            },
+            {
+              "altitude": "29.0",
+              "azimuth": "139.9",
+              "day": "14",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "129.6",
+              "time": "17:39:43.0",
+              "vertex_angle": "157.6"
+            }
+          ],
+          "magnitude": "0.956",
+          "month": 10,
+          "obscuration": "88.8%",
+          "year": 2023
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 130.0, "lat_deg": 44.0521, "lon_deg": -123.0868, "name": "eugene_or"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2023-10-14&coords=44.0521,-123.0868&height=130"
+    },
+    {
+      "id": "2023-10-14-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -106.6504,
+            35.0844
+          ],
+          "height": "1500m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 14,
+          "delta_t": "72.5s",
+          "description": "Sun in Annular Eclipse at this Location",
+          "duration": "2h 56m 10.3s",
+          "duration_of_annularity": "4m 47.1s",
+          "event": "Solar Eclipse of 2023 Oct. 14",
+          "local_data": [
+            {
+              "altitude": "22.6",
+              "azimuth": "118.8",
+              "day": "14",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "310.9",
+              "time": "15:13:11.6",
+              "vertex_angle": "357.4"
+            },
+            {
+              "altitude": "35.8",
+              "azimuth": "136.2",
+              "day": "14",
+              "phenomenon": "Annularity Begins",
+              "position_angle": "139.2",
+              "time": "16:34:29.9",
+              "vertex_angle": "174.3"
+            },
+            {
+              "altitude": "36.1",
+              "azimuth": "136.8",
+              "day": "14",
+              "phenomenon": "Maximum Eclipse",
+              "time": "16:36:52.5"
+            },
+            {
+              "altitude": "36.5",
+              "azimuth": "137.4",
+              "day": "14",
+              "phenomenon": "Annularity Ends",
+              "position_angle": "306.1",
+              "time": "16:39:17.0",
+              "vertex_angle": "340.3"
+            },
+            {
+              "altitude": "45.5",
+              "azimuth": "164.7",
+              "day": "14",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "133.9",
+              "time": "18:09:22.0",
+              "vertex_angle": "146.8"
+            }
+          ],
+          "magnitude": "0.970",
+          "month": 10,
+          "obscuration": "89.7%",
+          "year": 2023
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 1500.0, "lat_deg": 35.0844, "lon_deg": -106.6504, "name": "albuquerque_nm"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2023-10-14&coords=35.0844,-106.6504&height=1500"
+    },
+    {
+      "id": "2023-10-14-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -98.4936,
+            29.4241
+          ],
+          "height": "200m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 14,
+          "delta_t": "72.5s",
+          "description": "Sun in Annular Eclipse at this Location",
+          "duration": "3h 09m 08.7s",
+          "duration_of_annularity": "4m 21.1s",
+          "event": "Solar Eclipse of 2023 Oct. 14",
+          "local_data": [
+            {
+              "altitude": "33.3",
+              "azimuth": "124.5",
+              "day": "14",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "313.4",
+              "time": "15:23:47.6",
+              "vertex_angle": "359.9"
+            },
+            {
+              "altitude": "46.8",
+              "azimuth": "147.2",
+              "day": "14",
+              "phenomenon": "Annularity Begins",
+              "position_angle": "107.0",
+              "time": "16:52:03.5",
+              "vertex_angle": "135.7"
+            },
+            {
+              "altitude": "47.1",
+              "azimuth": "147.9",
+              "day": "14",
+              "phenomenon": "Maximum Eclipse",
+              "time": "16:54:13.1"
+            },
+            {
+              "altitude": "47.3",
+              "azimuth": "148.6",
+              "day": "14",
+              "phenomenon": "Annularity Ends",
+              "position_angle": "344.8",
+              "time": "16:56:24.6",
+              "vertex_angle": "12.3"
+            },
+            {
+              "altitude": "52.2",
+              "azimuth": "185.2",
+              "day": "14",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "137.1",
+              "time": "18:32:56.3",
+              "vertex_angle": "132.8"
+            }
+          ],
+          "magnitude": "0.962",
+          "month": 10,
+          "obscuration": "90.1%",
+          "year": 2023
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 200.0, "lat_deg": 29.4241, "lon_deg": -98.4936, "name": "san_antonio_tx"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2023-10-14&coords=29.4241,-98.4936&height=200"
+    },
+    {
+      "id": "2023-10-14-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -75.1652,
+            39.9526
+          ],
+          "height": "12m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 14,
+          "delta_t": "72.5s",
+          "description": "Sun in Partial Eclipse at this Location",
+          "duration": "2h 32m 06.2s",
+          "event": "Solar Eclipse of 2023 Oct. 14",
+          "local_data": [
+            {
+              "altitude": "40.9",
+              "azimuth": "166.5",
+              "day": "14",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "275.2",
+              "time": "16:05:28.0",
+              "vertex_angle": "285.8"
+            },
+            {
+              "altitude": "41.2",
+              "azimuth": "191.4",
+              "day": "14",
+              "phenomenon": "Maximum Eclipse",
+              "time": "17:21:13.2"
+            },
+            {
+              "altitude": "35.4",
+              "azimuth": "214.4",
+              "day": "14",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "168.8",
+              "time": "18:37:34.2",
+              "vertex_angle": "143.0"
+            }
+          ],
+          "magnitude": "0.375",
+          "month": 10,
+          "obscuration": "25.6%",
+          "year": 2023
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 12.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "name": "philadelphia_pa"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2023-10-14&coords=39.9526,-75.1652&height=12"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -106.4111,
+            23.2494
+          ],
+          "height": "10m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 40m 41.6s",
+          "duration_of_totality": "4m 18.8s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "53.8",
+              "azimuth": "110.2",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "225.5",
+              "time": "16:51:24.7",
+              "vertex_angle": "286.0"
+            },
+            {
+              "altitude": "68.7",
+              "azimuth": "135.1",
+              "day": "8",
+              "phenomenon": "Totality Begins",
+              "position_angle": "29.4",
+              "time": "18:07:25.5",
+              "vertex_angle": "70.6"
+            },
+            {
+              "altitude": "69.1",
+              "azimuth": "136.2",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "18:09:33.7"
+            },
+            {
+              "altitude": "69.4",
+              "azimuth": "137.4",
+              "day": "8",
+              "phenomenon": "Totality Ends",
+              "position_angle": "240.5",
+              "time": "18:11:44.3",
+              "vertex_angle": "279.8"
+            },
+            {
+              "altitude": "73.3",
+              "azimuth": "201.9",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "45.4",
+              "time": "19:32:06.3",
+              "vertex_angle": "25.8"
+            }
+          ],
+          "magnitude": "1.021",
+          "month": 4,
+          "obscuration": "100.0%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 10.0, "lat_deg": 23.2494, "lon_deg": -106.4111, "name": "mazatlan_mx"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=23.2494,-106.4111&height=10"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -96.797,
+            32.7767
+          ],
+          "height": "150m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 39m 21.1s",
+          "duration_of_totality": "3m 52.5s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "60.6",
+              "azimuth": "145.3",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "226.2",
+              "time": "17:23:14.6",
+              "vertex_angle": "255.4"
+            },
+            {
+              "altitude": "64.7",
+              "azimuth": "186.9",
+              "day": "8",
+              "phenomenon": "Totality Begins",
+              "position_angle": "19.1",
+              "time": "18:40:37.7",
+              "vertex_angle": "13.7"
+            },
+            {
+              "altitude": "64.6",
+              "azimuth": "188.0",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "18:42:33.0"
+            },
+            {
+              "altitude": "64.6",
+              "azimuth": "189.1",
+              "day": "8",
+              "phenomenon": "Totality Ends",
+              "position_angle": "255.5",
+              "time": "18:44:30.2",
+              "vertex_angle": "248.2"
+            },
+            {
+              "altitude": "56.8",
+              "azimuth": "226.0",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "49.2",
+              "time": "20:02:35.7",
+              "vertex_angle": "11.8"
+            }
+          ],
+          "magnitude": "1.015",
+          "month": 4,
+          "obscuration": "100.0%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 150.0, "lat_deg": 32.7767, "lon_deg": -96.7970, "name": "dallas_tx"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=32.7767,-96.797&height=150"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -86.1581,
+            39.7684
+          ],
+          "height": "220m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 32m 37.5s",
+          "duration_of_totality": "3m 51.0s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "57.8",
+              "azimuth": "182.0",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "229.3",
+              "time": "17:50:30.1",
+              "vertex_angle": "228.1"
+            },
+            {
+              "altitude": "53.2",
+              "azimuth": "214.4",
+              "day": "8",
+              "phenomenon": "Totality Begins",
+              "position_angle": "32.6",
+              "time": "19:05:58.7",
+              "vertex_angle": "6.9"
+            },
+            {
+              "altitude": "53.0",
+              "azimuth": "215.1",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "19:07:53.3"
+            },
+            {
+              "altitude": "52.8",
+              "azimuth": "215.8",
+              "day": "8",
+              "phenomenon": "Totality Ends",
+              "position_angle": "249.4",
+              "time": "19:09:49.7",
+              "vertex_angle": "222.6"
+            },
+            {
+              "altitude": "42.5",
+              "azimuth": "238.2",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "53.1",
+              "time": "20:23:07.7",
+              "vertex_angle": "12.0"
+            }
+          ],
+          "magnitude": "1.019",
+          "month": 4,
+          "obscuration": "100.0%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 220.0, "lat_deg": 39.7684, "lon_deg": -86.1581, "name": "indianapolis_in"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=39.7684,-86.1581&height=220"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -81.6944,
+            41.4993
+          ],
+          "height": "200m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 29m 36.2s",
+          "duration_of_totality": "3m 51.2s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "55.4",
+              "azimuth": "193.6",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "231.2",
+              "time": "17:59:18.4",
+              "vertex_angle": "221.3"
+            },
+            {
+              "altitude": "48.9",
+              "azimuth": "221.9",
+              "day": "8",
+              "phenomenon": "Totality Begins",
+              "position_angle": "61.6",
+              "time": "19:13:39.9",
+              "vertex_angle": "31.4"
+            },
+            {
+              "altitude": "48.6",
+              "azimuth": "222.5",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "19:15:34.7"
+            },
+            {
+              "altitude": "48.4",
+              "azimuth": "223.2",
+              "day": "8",
+              "phenomenon": "Totality Ends",
+              "position_angle": "223.2",
+              "time": "19:17:31.1",
+              "vertex_angle": "192.2"
+            },
+            {
+              "altitude": "37.7",
+              "azimuth": "242.6",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "53.9",
+              "time": "20:28:54.6",
+              "vertex_angle": "11.8"
+            }
+          ],
+          "magnitude": "1.022",
+          "month": 4,
+          "obscuration": "100.0%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 200.0, "lat_deg": 41.4993, "lon_deg": -81.6944, "name": "cleveland_oh"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=41.4993,-81.6944&height=200"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -78.8784,
+            42.8864
+          ],
+          "height": "180m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 27m 12.0s",
+          "duration_of_totality": "3m 47.1s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "53.2",
+              "azimuth": "200.0",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "231.8",
+              "time": "18:04:52.7",
+              "vertex_angle": "217.4"
+            },
+            {
+              "altitude": "45.8",
+              "azimuth": "225.8",
+              "day": "8",
+              "phenomenon": "Totality Begins",
+              "position_angle": "50.4",
+              "time": "19:18:15.2",
+              "vertex_angle": "18.5"
+            },
+            {
+              "altitude": "45.6",
+              "azimuth": "226.4",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "19:20:07.9"
+            },
+            {
+              "altitude": "45.3",
+              "azimuth": "227.0",
+              "day": "8",
+              "phenomenon": "Totality Ends",
+              "position_angle": "236.3",
+              "time": "19:22:02.3",
+              "vertex_angle": "203.7"
+            },
+            {
+              "altitude": "34.7",
+              "azimuth": "245.0",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "55.1",
+              "time": "20:32:04.8",
+              "vertex_angle": "13.2"
+            }
+          ],
+          "magnitude": "1.025",
+          "month": 4,
+          "obscuration": "100.0%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 180.0, "lat_deg": 42.8864, "lon_deg": -78.8784, "name": "buffalo_ny"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=42.8864,-78.8784&height=180"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -73.2121,
+            44.4759
+          ],
+          "height": "60m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Total Eclipse at this Location",
+          "duration": "2h 23m 04.3s",
+          "duration_of_totality": "3m 17.5s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "49.2",
+              "azimuth": "211.2",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "234.0",
+              "time": "18:14:11.2",
+              "vertex_angle": "212.3"
+            },
+            {
+              "altitude": "40.6",
+              "azimuth": "233.3",
+              "day": "8",
+              "phenomenon": "Totality Begins",
+              "position_angle": "78.6",
+              "time": "19:26:02.0",
+              "vertex_angle": "43.5"
+            },
+            {
+              "altitude": "40.4",
+              "azimuth": "233.7",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "19:27:40.0"
+            },
+            {
+              "altitude": "40.1",
+              "azimuth": "234.2",
+              "day": "8",
+              "phenomenon": "Totality Ends",
+              "position_angle": "211.3",
+              "time": "19:29:19.5",
+              "vertex_angle": "175.7"
+            },
+            {
+              "altitude": "29.4",
+              "azimuth": "250.1",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "56.1",
+              "time": "20:37:15.5",
+              "vertex_angle": "13.6"
+            }
+          ],
+          "magnitude": "1.015",
+          "month": 4,
+          "obscuration": "100.0%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 60.0, "lat_deg": 44.4759, "lon_deg": -73.2121, "name": "burlington_vt"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=44.4759,-73.2121&height=60"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -75.1652,
+            39.9526
+          ],
+          "height": "12m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Partial Eclipse at this Location",
+          "duration": "2h 26m 54.3s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "54.4",
+              "azimuth": "208.9",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "239.0",
+              "time": "18:08:08.5",
+              "vertex_angle": "217.3"
+            },
+            {
+              "altitude": "44.8",
+              "azimuth": "233.9",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "19:23:37.0"
+            },
+            {
+              "altitude": "32.7",
+              "azimuth": "250.6",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "48.6",
+              "time": "20:35:02.8",
+              "vertex_angle": "1.8"
+            }
+          ],
+          "magnitude": "0.900",
+          "month": 4,
+          "obscuration": "88.6%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 12.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "name": "philadelphia_pa"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=39.9526,-75.1652&height=12"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -157.8583,
+            21.3069
+          ],
+          "height": "5m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Partial Eclipse at this Location",
+          "duration": "1h 21m 24.7s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "2.8",
+              "azimuth": "83.0",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "192.2",
+              "time": "16:33:30.1",
+              "vertex_angle": "261.1"
+            },
+            {
+              "altitude": "12.0",
+              "azimuth": "86.4",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "17:12:49.9"
+            },
+            {
+              "altitude": "21.8",
+              "azimuth": "90.2",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "102.2",
+              "time": "17:54:54.9",
+              "vertex_angle": "172.2"
+            }
+          ],
+          "magnitude": "0.285",
+          "month": 4,
+          "obscuration": "17.7%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 5.0, "lat_deg": 21.3069, "lon_deg": -157.8583, "name": "honolulu_hi"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=21.3069,-157.8583&height=5"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "apiversion": "4.0.1",
+        "geometry": {
+          "coordinates": [
+            -21.9426,
+            64.1466
+          ],
+          "height": "20m",
+          "type": "Point"
+        },
+        "properties": {
+          "day": 8,
+          "delta_t": "72.8s",
+          "description": "Sun in Partial Eclipse at this Location",
+          "duration": "1h 39m 08.0s",
+          "event": "Solar Eclipse of 2024 April 08",
+          "local_data": [
+            {
+              "altitude": "11.2",
+              "azimuth": "264.3",
+              "day": "8",
+              "phenomenon": "Eclipse Begins",
+              "position_angle": "216.4",
+              "time": "18:49:20.9",
+              "vertex_angle": "190.5"
+            },
+            {
+              "altitude": "5.7",
+              "azimuth": "275.7",
+              "day": "8",
+              "phenomenon": "Maximum Eclipse",
+              "time": "19:39:48.1"
+            },
+            {
+              "altitude": "0.5",
+              "azimuth": "286.6",
+              "day": "8",
+              "phenomenon": "Eclipse Ends",
+              "position_angle": "90.8",
+              "time": "20:28:28.9",
+              "vertex_angle": "65.9"
+            }
+          ],
+          "magnitude": "0.563",
+          "month": 4,
+          "obscuration": "46.7%",
+          "year": 2024
+        },
+        "type": "Feature"
+      },
+      "site": {"height_m": 20.0, "lat_deg": 64.1466, "lon_deg": -21.9426, "name": "reykjavik_is"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=64.1466,-21.9426&height=20"
+    },
+    {
+      "id": "2024-04-08-solar",
+      "response": {
+        "error": "Eclipse not visible from selected location.  Please try another location."
+      },
+      "site": {"height_m": 20.0, "lat_deg": -33.8688, "lon_deg": 151.2093, "name": "sydney_au"},
+      "url": "https://aa.usno.navy.mil/api/eclipses/solar/date?date=2024-04-08&coords=-33.8688,151.2093&height=20"
+    }
+  ],
+  "generator": {
+    "api_documentation": "https://aa.usno.navy.mil/data/api",
+    "description": "US Naval Observatory Astronomical Applications API, Solar Eclipse Computer (local circumstances, 2017-2024), stored verbatim. Times are UT computed with the response's own delta_t.",
+    "generated_utc": "2026-09-24T00:00:00Z",
+    "licence": "U.S. Government work (U.S. Naval Observatory).",
+    "never_a_runtime_dependency": "Development-time reference. CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "retrieved": "2026-09-24",
+    "tolerances": {
+      "contact_time_s": 60.0
+    },
+    "tool": "tools/reference/gen_eclipses.py"
+  },
+  "schema": "skyfix.reference/1"
+}

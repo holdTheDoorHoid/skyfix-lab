@@ -16,8 +16,8 @@ import sys
 import time
 
 from . import common as c
-from . import gen_geocentric, gen_moon, gen_sessions, gen_stars, gen_sun_sextant
-from . import gen_topocentric, gen_usno
+from . import gen_eclipses, gen_geocentric, gen_moon, gen_sessions, gen_stars
+from . import gen_sun_sextant, gen_topocentric, gen_usno
 
 STEPS = [
     ("navigational_stars_hip", gen_stars.main, False),
@@ -27,6 +27,12 @@ STEPS = [
     ("reference-sun-sextant", gen_sun_sextant.main, False),
     ("moon_geocentric + moon_topocentric", gen_moon.main, False),
     ("usno_celnav cross-check", gen_usno.main, True),
+    ("eclipses_skyfield", lambda: gen_eclipses.main(["--offline"]), False),
+    (
+        "eclipses_nasa_canon + eclipses_nasa_paths + eclipses_usno_local",
+        lambda: gen_eclipses.main(["--network-only"]),
+        True,
+    ),
 ]
 
 
