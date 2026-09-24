@@ -44,6 +44,7 @@ import {
 } from '../../src/next/events/mapping.js';
 import {
   brightnessWords,
+  clipSpan,
   covers,
   eclipseAtPhase,
   eclipsesAround,
@@ -194,6 +195,8 @@ describe('spans asked of the engine', () => {
     expect(covers({ start: 100, end: 200 }, { start: 99, end: 110 })).toBe(false);
     expect(covers(null, { start: 1, end: 2 })).toBe(false);
     expect(paddedSpan({ start: 99.2, end: 110.7 }, 5)).toEqual({ start: 94, end: 116 });
+    expect(clipSpan({ start: 90, end: 120 }, { start: 100, end: 200 })).toEqual({ start: 100, end: 120 });
+    expect(clipSpan({ start: 10, end: 20 }, { start: 100, end: 200 })).toBeNull();
   });
 
   it('computes once while the anchor moves inside the slack, and again beyond it', () => {

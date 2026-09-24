@@ -57,6 +57,13 @@ export function covers(have: Span | null, need: Span): boolean {
   return have !== null && have.start <= need.start && have.end >= need.end;
 }
 
+/** `span` inside `coverage`, or null when nothing of it is. */
+export function clipSpan(span: Span, coverage: Span): Span | null {
+  const start = Math.max(span.start, coverage.start);
+  const end = Math.min(span.end, coverage.end);
+  return start <= end ? { start, end } : null;
+}
+
 /** The span to compute for `need`: whole days, widened by `slackDays` both ways. */
 export function paddedSpan(need: Span, slackDays: number): Span {
   return { start: Math.floor(need.start - slackDays), end: Math.ceil(need.end + slackDays) };

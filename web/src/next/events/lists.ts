@@ -20,11 +20,12 @@ import {
 } from '../engine/types.js';
 import { dateMedium, dateShort, eventTime, formatAngle, formatMagnitude, KM_PER_AU, monthName } from '../shell/format.js';
 import { displayZone, type ExplorerState, type Units } from '../state.js';
-import { roundToMinute, UTC_ZONE, wallClock, type Zone } from '../time.js';
+import { jdFromIso, roundToMinute, UTC_ZONE, wallClock, type Zone } from '../time.js';
 import { bodyGlyph, phaseDisc } from '../theme/glyphs.js';
 import { segmented } from '../theme/primitives.js';
 import { errorText, watchAll, type TabComponent } from './env.js';
 import {
+  clipSpan,
   eclipseAtPhase,
   eclipseTitle,
   LUNATIONS,
@@ -46,6 +47,7 @@ import {
   SpanCache,
   type Direction,
   type PlanetRow,
+  type Span,
 } from './model.js';
 
 function zoneOf(s: ExplorerState): Zone {
@@ -87,7 +89,18 @@ export const moonTab: TabComponent = (host, env) => {
   host.append(root);
   d.add(() => root.remove());
 
-  const phases = new SpanCache((s) => ctx.engine.moonPhases(s.start, s.end), 30);
+  // The engine refuses a window that runs past its coverage: ask only for the part inside.
+  let coverage: Span = { start: -Infinity, end: Infinity };
+  try {
+    const c = ctx.engine.coverage();
+    coverage = { start: jdFromIso(c.start_utc) ?? -Infinity, end: jdFromIso(c.end_utc) ?? Infinity };
+  } catch {
+    // Keep asking for the whole span; the engine says what it cannot do.
+  }
+  const phases = new SpanCache((s) => {
+    const inside = clipSpan(s, coverage);
+    return inside ? ctx.engine.moonPhases(inside.start, inside.end) : [];
+  }, 30);
   const eclipses = isEclipseEngine(ctx.engine)
     ? new SpanCache((s) => (isEclipseEngine(ctx.engine) ? ctx.engine.eclipses(s.start, s.end).eclipses : []), 30)
     : null;
