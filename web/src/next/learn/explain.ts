@@ -399,7 +399,9 @@ export function correctionSummary(run: Pick<Run, 'reduced'>): string {
   const one = (r: [number, number] | null, what: string): string | null => {
     if (!r) return null;
     const [lo, hi] = r;
-    return Math.abs(hi - lo) < 0.005 ? `${what} ${arcmin(lo)}` : `${what} ${arcmin(lo)} to ${arcmin(hi)}`;
+    // Smaller correction first, by size, as the key number is written.
+    const [a, b] = Math.abs(lo) <= Math.abs(hi) ? [lo, hi] : [hi, lo];
+    return Math.abs(hi - lo) < 0.005 ? `${what} ${arcmin(lo)}` : `${what} ${arcmin(a)} to ${arcmin(b)}`;
   };
   const parts = [one(range('index_correction'), 'index correction'), one(range('dip'), 'dip'), one(range('refraction'), 'refraction')].filter(
     (x): x is string => x !== null,
