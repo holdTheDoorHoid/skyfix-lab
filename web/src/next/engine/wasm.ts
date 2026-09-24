@@ -44,8 +44,11 @@ export const REQUIRED_EXPORTS = [
   'constellation_at',
 ] as const;
 
-/** Exports that may be absent (EXPLORER_API: boundaries are optional in wave 1). */
-export const OPTIONAL_EXPORTS = ['constellation_boundaries'] as const;
+/**
+ * Exports that may be absent (EXPLORER_API: boundaries are optional in wave 1;
+ * `starfield_frame_matrix` is the star-field agent's optional addition).
+ */
+export const OPTIONAL_EXPORTS = ['constellation_boundaries', 'starfield_frame_matrix'] as const;
 
 /** The wasm-bindgen functions this engine calls (EXPLORER_API signatures). */
 export interface ExplorerWasmExports {
@@ -75,6 +78,7 @@ export interface ExplorerWasmExports {
   starfield_apparent(jdUtc: number): unknown;
   constellation_at(raDeg: number, decDeg: number, jdUtc: number): unknown;
   constellation_boundaries?(): unknown;
+  starfield_frame_matrix?(jdUtc: number): unknown;
   version?(): string;
 }
 
@@ -249,6 +253,16 @@ export class WasmEngine implements ExplorerEngine {
       fn.call(this.x),
     );
     return this.boundariesCache;
+  }
+
+  /**
+   * ICRS (J2000) to the true equator and equinox of date, row-major (EXPLORER_API
+   * `starfield_frame_matrix`). Throws when this build does not export it (optional).
+   */
+  starfieldFrameMatrix(jdUtc: number): Float64Array {
+    const fn = this.x.starfield_frame_matrix;
+    if (typeof fn !== 'function') throw new Error('starfield_frame_matrix: not exported by this build');
+    return this.call('starfield_frame_matrix', () => fn.call(this.x, jdUtc));
   }
 }
 

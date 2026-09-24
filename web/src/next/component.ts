@@ -338,6 +338,10 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     constellationAt: (ra, dec, jd) => engine.constellationAt(ra, dec, jd),
     constellationBoundaries: () =>
       cached('constellationBoundaries', '', 1, () => engine.constellationBoundaries()),
+    // Optional in the contract: present on the wrapper exactly when the engine has it.
+    starfieldFrameMatrix: engine.starfieldFrameMatrix
+      ? (jd) => cached('starfieldFrameMatrix', String(jd), 2, () => engine.starfieldFrameMatrix!(jd))
+      : undefined,
   };
   return memo;
 }

@@ -295,6 +295,8 @@ export interface Layers {
   constellations: boolean;
   /** Sky: constellation names. */
   constellationNames: boolean;
+  /** Sky: IAU constellation boundaries (display only). Added by the sky agent. */
+  constellationBoundaries: boolean;
   /** Sky: names of the brighter stars. */
   starNames: boolean;
   /** Sky: altitude and azimuth grid. */
@@ -368,6 +370,7 @@ export const DEFAULT_LAYERS: Layers = {
   streets: false,
   constellations: true,
   constellationNames: true,
+  constellationBoundaries: false,
   starNames: true,
   altAzGrid: false,
   ecliptic: false,

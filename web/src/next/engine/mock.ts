@@ -490,6 +490,11 @@ export class MockEngine implements ExplorerEngine {
     return this.field.boundaries;
   }
 
+  /** The mock's frame of date is precession only: the same matrix `starfieldApparent` uses. */
+  starfieldFrameMatrix(jdUtc: number): Float64Array {
+    return Float64Array.from(A.precessionMatrix(A.centuriesTT(finite(jdUtc, 'jd_utc'))));
+  }
+
   // -------------------------------------------------------------------------
   // Internals
   // -------------------------------------------------------------------------
