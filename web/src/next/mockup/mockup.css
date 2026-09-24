@@ -402,9 +402,6 @@
   font-size: var(--text-xs);
 }
 
-.kit-phase {
-  --phase-disc-dark: var(--stage-ink-2);
-}
 
 .kit-glyph-halo {
   display: inline-grid;

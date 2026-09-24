@@ -24,13 +24,6 @@
   line-height: var(--leading);
 }
 
-/* The Moon disc's unlit part is the night sky's colour, in every theme. (The design
-   system's stage default, --stage-ink-2, is light in the dark and night themes, where a
-   new Moon would then look full.) */
-.sfc .sf-phase__dark {
-  --phase-disc-dark: var(--phase-night);
-}
-
 /* Body colours: `--c` on an element with one of these classes. */
 .sfc-b-sun { --c: var(--body-sun); }
 .sfc-b-moon { --c: var(--body-moon); }

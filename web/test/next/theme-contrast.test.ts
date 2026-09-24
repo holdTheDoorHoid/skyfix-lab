@@ -54,6 +54,7 @@ function token(theme: Theme, name: string): string {
 }
 
 function parseColor(text: string): Rgba {
+  if (text === 'transparent') return [0, 0, 0, 0];
   const hex = /^#([0-9a-f]{6})$/i.exec(text);
   if (hex) {
     const n = parseInt(hex[1]!, 16);
@@ -134,7 +135,8 @@ const GRAPHIC_PAIRS: [string, string][] = [
   ['compass-ring', 'compass-fill>map-land'],
   ['compass-ring', 'compass-fill>map-water'],
   ['observer', 'observer-ring'],
-  // The lit part of a drawn Moon against its dark part (the panel draws that in chrome-bg-0).
+  // The lit part of a drawn Moon against its unlit part (always the darker) and the chrome.
+  ['moon-disc', 'moon-unlit'],
   ['moon-disc', 'chrome-bg-0'],
   ['moon-disc', 'chrome-bg'],
   ...[...BODIES.map((b) => `body-${b}`), ...EVENTS.map((e) => `event-${e}`)].flatMap((fg): [string, string][] => [
@@ -163,6 +165,23 @@ describe('design tokens: contrast (WCAG 2.2 AA)', () => {
           ratio: contrast(resolveColor(theme, fg), resolveColor(theme, bg)),
         })).filter((r) => r.ratio < 3);
         expect(failures.map((f) => `${f.pair}: ${f.ratio.toFixed(2)}`)).toEqual([]);
+      });
+
+      it('body glyphs stay visible on the stage: by their colour, or by the edge drawn on light surfaces', () => {
+        // A glyph on the stage is drawn over an edge (`--glyph-edge-light`, theme/glyphs.ts);
+        // where the theme draws none (transparent), the colour alone must stand out.
+        const failures: string[] = [];
+        for (const bg of ['stage-surface', 'stage-bg', 'stage-surface-2']) {
+          const surface = resolveColor(theme, bg);
+          const edge = resolveColor(theme, `glyph-edge-light>${bg}`);
+          const edgeVisible = contrast(edge, surface) >= 3;
+          for (const body of BODIES) {
+            const fill = resolveColor(theme, `body-${body}`);
+            const ratio = Math.max(contrast(fill, surface), contrast(fill, edge));
+            if (!edgeVisible && ratio < 3) failures.push(`body-${body} on ${bg}: ${ratio.toFixed(2)}`);
+          }
+        }
+        expect(failures).toEqual([]);
       });
 
       it('sky phases get lighter from night to day, so their order reads without hue', () => {
