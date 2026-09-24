@@ -296,9 +296,16 @@ fn unit(ra_deg: f64, dec_deg: f64) -> [f64; 3] {
     [cd * ca, cd * sa, sd]
 }
 
+/// Wrap into `[0, limit)`. `rem_euclid` alone can return `limit` itself for a value a
+/// hair below zero, which would put a point on 0h on the wrong side of the meridian.
+fn wrap_to(x: f64, limit: f64) -> f64 {
+    let w = x.rem_euclid(limit);
+    if w >= limit { 0.0 } else { w }
+}
+
 fn radec(v: [f64; 3]) -> (f64, f64) {
     let r = (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]).sqrt();
-    let ra = v[1].atan2(v[0]).to_degrees().rem_euclid(360.0);
+    let ra = wrap_to(v[1].atan2(v[0]).to_degrees(), 360.0);
     (ra, (v[2] / r).clamp(-1.0, 1.0).asin().to_degrees())
 }
 
@@ -458,10 +465,12 @@ pub fn icrs_to_b1875(ra_deg: f64, dec_deg: f64) -> (f64, f64) {
 }
 
 /// The constellation containing a point given in the mean equator and equinox of
-/// B1875.0 (degrees). `None` only if the embedded data failed to load.
+/// B1875.0 (degrees). `None` for a non-finite coordinate or a declination outside
+/// [-90, 90] (or if the embedded data failed to load).
 pub fn constellation_at_b1875(ra_deg: f64, dec_deg: f64) -> Option<&'static str> {
+    check_direction(ra_deg, dec_deg).ok()?;
     let sf = starfield().ok()?;
-    let ra_s = (ra_deg * 240.0).rem_euclid(86_400.0);
+    let ra_s = wrap_to(ra_deg * 240.0, 86_400.0);
     let dec_m = dec_deg * 60.0;
     sf.regions
         .iter()
@@ -473,10 +482,10 @@ pub fn constellation_at_b1875(ra_deg: f64, dec_deg: f64) -> Option<&'static str>
 /// polygons. Exactly one for any point of the sky; exposed so the tests can prove it,
 /// and prove that [`constellation_at_b1875`]'s shortcut finds the same one.
 pub fn regions_containing_b1875(ra_deg: f64, dec_deg: f64) -> Vec<&'static str> {
-    let Ok(sf) = starfield() else {
+    let (Ok(()), Ok(sf)) = (check_direction(ra_deg, dec_deg), starfield()) else {
         return Vec::new();
     };
-    let ra_s = (ra_deg * 240.0).rem_euclid(86_400.0);
+    let ra_s = wrap_to(ra_deg * 240.0, 86_400.0);
     let dec_m = dec_deg * 60.0;
     // The full test on every region, without the declination prefilter that
     // `constellation_at_b1875` uses, so the tests can hold one against the other.
@@ -707,6 +716,28 @@ mod tests {
         assert_eq!(constellation_at_b1875(a, d), Some("Ori"));
         let (a, d) = icrs_to_b1875(101.2872, -16.7161);
         assert_eq!(constellation_at_b1875(a, d), Some("CMa"));
+    }
+
+    #[test]
+    fn wrapping_never_returns_the_limit() {
+        assert_eq!(wrap_to(-1e-30, 360.0), 0.0);
+        assert_eq!(wrap_to(360.0, 360.0), 0.0);
+        assert_eq!(wrap_to(-90.0, 360.0), 270.0);
+        // A value a hair below 0h is 0h, not 24h: both land in the same constellation.
+        assert_eq!(
+            constellation_at_b1875(-1e-30, 30.0),
+            constellation_at_b1875(0.0, 30.0)
+        );
+    }
+
+    #[test]
+    fn non_finite_b1875_points_belong_nowhere() {
+        // Without the check every comparison against NaN fails and the polar polygon,
+        // whose parity is flipped, would claim the point.
+        assert_eq!(constellation_at_b1875(f64::NAN, 10.0), None);
+        assert_eq!(constellation_at_b1875(10.0, f64::NAN), None);
+        assert_eq!(constellation_at_b1875(10.0, 90.5), None);
+        assert!(regions_containing_b1875(f64::INFINITY, 0.0).is_empty());
     }
 
     #[test]
