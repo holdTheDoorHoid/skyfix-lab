@@ -2,17 +2,57 @@
 
 Every external algorithm, coefficient table and data file used by SkyFix Lab is
 recorded here with its URL, retrieval date and licence terms. Nothing in this list is
-a runtime dependency: all of it is either embedded in the binary with `include_str!`
-or transcribed into source. The build and the tests run with no network.
+a runtime dependency in the sense of a network call or an external service: all of it is
+either embedded in the binary or the browser bundle at build time, or transcribed into
+source code, or — for a clearly marked minority — read only by the development-time
+Python tools that generate this project's independent reference fixtures and never
+shipped at all. The build and the tests run with no network.
 
-Each agent owns its own section. Do not edit another section; add a new one.
+This page has three parts. **Runtime data** is what actually ships, in the CLI binary or
+the browser bundle: ephemerides and the models behind them, the star catalogues (one for
+navigation, one for display), the basemap and gazetteer, and the fonts and JavaScript
+libraries the explorer uses. **Development-time references** is everything used only to
+build or independently check that runtime data — Python, Skyfield, JPL kernels, the USNO
+API, NASA's eclipse canon, Bowditch's worked examples — none of which is linked, loaded,
+downloaded or shipped by any SkyFix Lab binary. **Licence decisions** is where a choice
+had to be made rather than just a fact recorded: the Hipparcos catalogue's licence against
+this project's own, and the owner's preference for data that needs no on-screen credit,
+and how each source was checked against it.
 
-## Star catalogue and frame models
+Each agent owns its own section below; sections were regrouped by the documentation agent
+into the three parts above on 2026-09-24, moving text rather than deleting any of it — if
+a fact you expect is not where you thought, it has moved, not gone.
+
+## At a glance
+
+| what | used for | licence / basis | on-screen credit |
+|---|---|---|---|
+| Published IAU models (precession, nutation, sidereal time, light deflection, aberration), via ERFA's published values | Every apparent position: Sun, Moon, planets, stars | Published models (facts); ERFA itself BSD-3-Clause, no code copied | None |
+| Meeus, *Astronomical Algorithms* | Stellar aberration's low-accuracy Sun, equation of time, Moon/planet angle formulas, the mock engine | Published formulas (facts); book copyrighted, not reproduced | None |
+| Hipparcos catalogue, 58 navigational stars + Polaris | Star positions used for real sight reduction | CDS/VizieR `CC-BY-NC-3.0 IGO` on the *served* extract; kept, with attribution — [owner's decision](#hipparcos-licence-vs-the-projects-mitapache-20-licence--decided) | None on screen; credited in this document |
+| VSOP87D (Sun) and VSOP87A (planets) | Sun and the seven planets' positions | CDS/VizieR, free with acknowledgement; no CC tag | None |
+| ELP 2000-82B | Moon's position | CDS, no catalogue-specific licence declared; general VizieR terms | None |
+| NASA HEASARC Bright Star Catalogue (BSC5P), ~9,095 stars | The Sky view's naked-eye star field (display only) | U.S. Government Work (public domain) | None |
+| Constellation figures | Sky view drawing | This project's own work | — |
+| Constellation boundaries (IAU, Delporte 1930) | "Which constellation is this body in" | Public domain by age | None |
+| Natural Earth vector data | Offline world map (basemap) | Public domain | None |
+| Natural Earth populated places + IANA tzdata | Place search and time-zone guess (gazetteer) | Public domain | None |
+| Inter, JetBrains Mono (Fontsource) | Interface and figures typefaces | SIL Open Font License 1.1 | None (licence ships with the files) |
+| `maplibre-gl` | Map and globe rendering | BSD-3-Clause | None |
+| Service worker, web app manifest, icons | Offline reload and install; written for this project, no library copied | This project's own work | None |
+| OpenStreetMap standard tiles (optional street layer, off by default) | Online street map, only while switched on | ODbL 1.0 | **Yes — "© OpenStreetMap contributors", shown only while the layer is on** |
+| JPL DE421 / DE440s, Skyfield, the USNO API, NASA's eclipse canon, Bowditch | Development-time-only independent truth for every accuracy check in `docs/ACCURACY.md` | Various (US Government works, MIT, or public domain); **never shipped** | None (not in the runtime at all) |
+
+## Runtime data
+
+Ephemerides and the frame models behind them, the star catalogues, the basemap and gazetteer, and the fonts and JavaScript libraries — everything that actually ships, in the CLI binary or the browser bundle.
+
+### Star catalogue and frame models
 
 Owner: ephemeris agent (`crates/skyfix-ephemeris/src/{sidereal,frames,catalog,stars}.rs`,
 `fixtures/reference/navigational_stars_hip.json`).
 
-### ERFA — Essential Routines for Fundamental Astronomy
+#### ERFA — Essential Routines for Fundamental Astronomy
 
 - **What is used:** numerical *models*, not code. Specifically: the 77-term luni-solar
   coefficient table of the IAU 2000B nutation model and its fixed planetary offsets
@@ -44,7 +84,7 @@ Owner: ephemeris agent (`crates/skyfix-ephemeris/src/{sidereal,frames,catalog,st
   same numbers published in the IERS Conventions (2010), IERS Technical Note 36 — and
   the published test values.
 
-### Underlying published models
+#### Underlying published models
 
 Cited in the source; no licence attaches to a published scientific model.
 
@@ -58,7 +98,7 @@ Cited in the source; no licence attaches to a published scientific model.
 - USNO/SOFA reference figure: Greenwich mean sidereal time at 2000-01-01 12:00 UT1 is
   18h 41m 50.548s (280.46061837 deg), the IAU 1982 GMST expression at `T = 0`.
 
-### Meeus, *Astronomical Algorithms*, 2nd edition (Willmann-Bell, 1998)
+#### Meeus, *Astronomical Algorithms*, 2nd edition (Willmann-Bell, 1998)
 
 - **What is used:** the low-accuracy solar model of chapter 25 (geometric mean
   longitude, mean anomaly, equation of the centre, radius vector; 0.01 deg in
@@ -73,7 +113,7 @@ Cited in the source; no licence attaches to a published scientific model.
   2026-09-23, MIT licence. Used only to confirm the published values were transcribed
   correctly; none of its code is used.
 
-### Hipparcos catalogue — `fixtures/reference/navigational_stars_hip.json`
+#### Hipparcos catalogue — `fixtures/reference/navigational_stars_hip.json`
 
 - **What is used:** ICRS position, proper motion, parallax and V magnitude for the 57
   Nautical Almanac navigational stars plus Polaris.
@@ -105,12 +145,17 @@ Cited in the source; no licence attaches to a published scientific model.
   the loader propagates to J2000.0 itself.** When `generator.epoch` is absent the
   loader assumes J2000.0, which is what this file provides.
 
-## Sun model and fixture packs
+**Licence note:** the Hipparcos extract's CC-BY-NC-3.0 IGO tag, and how it sits beside
+this project's MIT/Apache-2.0 licence, is a judgement call, not just a fact — see
+["Licence decisions"](#licence-decisions) below, "Hipparcos licence vs the project's
+MIT/Apache-2.0 licence — DECIDED".
+
+### Sun model and fixture packs
 
 Owner: ephemeris agent (`crates/skyfix-ephemeris/src/{sun,fixture_pack}.rs`,
 `crates/skyfix-ephemeris/data/vsop87_sun_terms.json`).
 
-### VSOP87D — the Earth's heliocentric motion
+#### VSOP87D — the Earth's heliocentric motion
 
 - **What is used:** the coefficients of the VSOP87 version D series for the Earth
   (heliocentric spherical `L`, `B`, `R`, referred to the mean dynamical ecliptic and
@@ -156,33 +201,7 @@ Owner: ephemeris agent (`crates/skyfix-ephemeris/src/{sun,fixture_pack}.rs`,
   series at all nine and is asserted in two tests. The full untruncated series reproduces
   the published check value to 0.00001".
 
-### Verification against the Skyfield reference fixture
-
-`crates/skyfix-ephemeris/tests/reference_fixtures_sun.rs` compares `SunProvider`
-against `fixtures/reference/geocentric_sun_stars.json` (Skyfield + JPL DE421, with
-DE440s for the one epoch outside DE421's coverage) at all 58 epochs, judged at the
-`generator.tolerance_arcmin` of 0.05' the file records. Worst deviation over those
-epochs:
-
-| quantity | worst | where |
-|---|---|---|
-| GHA, DUT1 = 0, vs `gha_deg_dut1_zero` | 0.0026' = 0.16" | 2055-01-01 |
-| GHA, the epoch's DUT1 supplied, vs `gha_deg` | 0.0026' = 0.16" | 2055-01-01 |
-| Dec | 0.0012' = 0.07" | 2028-02-29 |
-| RA of date | 0.0026' = 0.16" | 2055-01-01 |
-| semidiameter | 0.00005' | 2027-01-01 |
-| horizontal parallax | 0.00005' | 2003-01-01 |
-| radius vector (VSOP87D vs the JPL kernel) | 6.2e-8 au | 2023-01-01 |
-
-This is an independent check in every sense that matters: a different ephemeris
-(JPL numerical integration rather than the VSOP87 analytical fit), a different
-implementation, a different language. The file's DUT1 runs to -3.52 s, worth 0.88'
-of GHA, so the DUT1 = 0 column is the one a CONVENTIONS section 6 implementation
-must be judged on; the second row above additionally feeds each epoch's own DUT1 to
-`SunProvider::with_dut1_s` and checks the other column, which is what proves the
-DUT1 input is applied rather than ignored.
-
-### Solar constants
+#### Solar constants
 
 Cited in the source; no licence attaches to a published constant.
 
@@ -192,7 +211,7 @@ Cited in the source; no licence attaches to a published constant.
 - Aberration applied as **-20.4898"/R** in longitude, which to this order also carries
   the Sun's light-time (CONVENTIONS section 7).
 
-### Meeus, *Astronomical Algorithms*, 2nd edition (Willmann-Bell, 1998)
+#### Meeus, *Astronomical Algorithms*, 2nd edition (Willmann-Bell, 1998)
 
 - **What is used:** the VSOP87-to-FK5 rotation of chapter 25 (equation 25.9:
   `-0.09033"` in longitude, `+0.03916" (cos L' - sin L')` in latitude), the equation of
@@ -212,15 +231,7 @@ Cited in the source; no licence attaches to a published constant.
   worked examples are facts used as a reference, not reproduced text. No code was
   copied.
 
-### Season instants used as sanity checks
-
-`crates/skyfix-ephemeris/tests/sun_seasons.rs` uses the published 2026 equinox and
-solstice instants (March 20 14:46 UTC, June 21 08:24 UTC, September 23 00:05 UTC,
-December 21 20:50 UTC). They are *inputs*: the test asserts that the Sun's apparent
-longitude is 0/90/180/270 deg at those instants, so an error in either the instants or
-the model would show. No licence attaches to a published astronomical instant.
-
-### Fixture packs — no third-party data
+#### Fixture packs — no third-party data
 
 `fixture_pack.rs` carries no embedded data at all. It loads a `skyfix.almanac_pack/1`
 document handed to it by the caller, and every pack must record its own `generator`
@@ -232,14 +243,14 @@ from the classical main terms of the lunar theory (equation of the centre 6.289 
 evection 1.274 deg, variation 0.658 deg, and smaller terms) purely to give the
 interpolator realistic curvature; **it is not an ephemeris and is not used as one.**
 
-## Moon model
+### Moon model
 
 Owner: Moon agent (`crates/skyfix-ephemeris/src/moon.rs`,
 `crates/skyfix-ephemeris/data/elp82b_moon_terms.json`,
 `tools/reference/build_moon_series.py`, `tools/reference/gen_moon.py`,
 `fixtures/reference/moon_geocentric.json`, `fixtures/reference/moon_topocentric.json`).
 
-### ELP 2000-82B — the lunar theory
+#### ELP 2000-82B — the lunar theory
 
 - **What is used:** the series of the semi-analytical lunar theory ELP 2000-82B with the
   constants its authors fitted to JPL DE200/LE200: the 36 files `ELP1` … `ELP36` (main
@@ -300,7 +311,7 @@ Owner: Moon agent (`crates/skyfix-ephemeris/src/moon.rs`,
   0.72″ of DE440s over 1990-2061 (a secular drift of its DE200-fitted mean longitude,
   about `0.37″ t + 0.99″ t²`, t in centuries from J2000), against a 6″ target.
 
-### Constants and formulae around the theory
+#### Constants and formulae around the theory
 
 Cited in the source; no licence attaches to a published constant or formula.
 
@@ -320,28 +331,14 @@ Cited in the source; no licence attaches to a published constant or formula.
   2026-09-24. Scaled here by the inverse-square law to the actual Earth-Moon distance
   (mean 384 400 km) and Sun-Moon distance (1 au).
 
-### Reference fixtures for the Moon
-
-`fixtures/reference/moon_geocentric.json` and `moon_topocentric.json` are generated by
-`tools/reference/gen_moon.py` from Skyfield and the JPL kernels listed under "Reference
-data" below, with **DE440s as the primary ephemeris and DE421 as the cross-check** (the
-reverse of the older files; DE421 ends in 2053). The two kernels agree on the Moon's
-apparent direction to 0.0061″ and on its distance to 0.9 m over the 1515 instants both
-cover. The topocentric file is built with UT1 = UTC by giving each leap-second era its own
-Skyfield timescale with a constant ΔT of `32.184 s + (TAI − UTC)`
-(`load.timescale(delta_t=…)`). The Moon record already stored in the USNO response
-(`usno_celnav_2026-10-01T0130Z.json`, see "US Naval Observatory API" below) is used as a
-second, independent check by `tests/moon_reference.rs`; see `docs/ACCURACY.md`, "Moon",
-for what it showed.
-
-## Planet model
+### Planet model
 
 Owner: planets agent (`crates/skyfix-ephemeris/src/planets.rs`,
 `crates/skyfix-ephemeris/data/vsop87a_planets.json`, `tools/reference/gen_vsop87a.py`,
 `tools/reference/gen_planets.py`, `fixtures/reference/planets_*.json`). Added
 2026-09-24.
 
-### VSOP87A — heliocentric Mercury to Neptune, and the Earth
+#### VSOP87A — heliocentric Mercury to Neptune, and the Earth
 
 - **What is used:** the coefficients of the VSOP87 version A series (heliocentric
   rectangular X, Y, Z in au, dynamical ecliptic and equinox J2000, argument TT) for the
@@ -424,7 +421,7 @@ Owner: planets agent (`crates/skyfix-ephemeris/src/planets.rs`,
   them in a unit test. The generator also compares the embedded series with DE440s
   every day of the window and records the result in the file (`dense_vs_de440s`).
 
-### Planetary magnitudes — Mallama & Hilton (2018)
+#### Planetary magnitudes — Mallama & Hilton (2018)
 
 - **What is used:** the apparent-magnitude formulas (equations 2-4, 6-12 and 14-17) of
   A. Mallama and J. L. Hilton, "Computing apparent planetary magnitudes for The
@@ -441,7 +438,7 @@ Owner: planets agent (`crates/skyfix-ephemeris/src/planets.rs`,
   the paper defines r and the phase angle. `docs/ACCURACY.md` quantifies the
   difference (up to 0.21 mag at the fixture epochs, for Mercury as a thin crescent).
 
-### Physical constants
+#### Physical constants
 
 Cited in the source; no licence attaches to a published constant.
 
@@ -460,7 +457,7 @@ Cited in the source; no licence attaches to a published constant.
 - **GM of the Sun, c, au:** IAU 2009 `GM_sun` 1.32712440041e20 m^3 s^-2, exact `c`,
   IAU 2012 au (the same values `frames.rs` uses).
 
-### Algorithms
+#### Algorithms
 
 - **Gravitational light deflection for a source at finite distance:** the formula of
   NOVAS `grav_vec` (US Naval Observatory; public domain as a US Government work), in
@@ -471,285 +468,11 @@ Cited in the source; no licence attaches to a published constant.
 - **Annual aberration, bias-precession-nutation and sidereal time:** this crate's
   `frames` and `sidereal` modules (see "Star catalogue and frame models").
 
-### Reference fixtures
+### Navigation formulas
 
-`fixtures/reference/planets_<planet>.json` are generated by
-`tools/reference/gen_planets.py` from Skyfield 1.55 with **JPL DE440s as the primary
-ephemeris** (the explorer's reference, `docs/EXPLORER_PLAN.md`) and DE421 as the
-cross-check, both the files listed under "Downloaded data files" below. Nothing new is
-downloaded for them.
+Owner: navigation agent (`crates/skyfix-core/src/methods/polaris.rs`).
 
-## Reference data (development-time only)
-
-Sources used by `tools/reference/` to generate `fixtures/reference/*.json` and
-the `reference-*` files in `fixtures/sessions/` and `fixtures/expected/`.
-
-**None of this is a runtime dependency.** No SkyFix Lab binary links, loads,
-downloads or ships any of it. The Rust workspace reads the generated JSON only.
-Retrieval date for everything below: **2026-09-23**.
-
-### Downloaded data files — git-ignored, never committed
-
-Stored in `tools/reference/data/`, which is in `.gitignore`. About 100 MB.
-
-| File | URL | Size (bytes) | SHA-256 | Publisher / licence |
-|---|---|---|---|---|
-| `de421.bsp` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/a_old_versions/de421.bsp` | 16 790 528 | `08b20db2ae22488650641c5a9033e5bfda4b1c4b440cfeaf20f621cfa18ecdb3` | NASA JPL / NAIF. Work of the US Government; NAIF generic kernels are distributed for unrestricted use. Coverage 1899-07-28 to 2053-10-08. |
-| `de440s.bsp` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp` | 32 726 016 | `c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2` | NASA JPL / NAIF, same terms. The cross-check of DE421 for the Sun and stars, and the **primary** reference for the Moon, the planets and the explorer's events (DE421 is the cross-check there); also covers the epochs DE421 does not. Coverage 1849-12-25 to 2150-01-21. |
-| `hip_main.dat` | `https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat` | 53 316 318 | `58ceabb104d647160d9437ce6e513a02a036bb4ad9f8879a5a22fd52943616e0` | ESA (1997), *The Hipparcos and Tycho Catalogues*, ESA SP-1200. Served by CDS/VizieR as catalogue I/239. **VizieR declares its licence as `CC-BY-NC-3.0 IGO`** — see the open question below. |
-
-`de421.bsp` is the primary ephemeris, as the project brief specifies. It is no
-longer in NAIF's current `spk/planets/` directory and now lives under
-`a_old_versions/`; the URL above is the working one as of the retrieval date.
-
-### Python packages
-
-Pinned in `tools/reference/requirements.txt`. Installed into
-`tools/reference/.venv/`, which is git-ignored.
-
-| Package | Version | Licence | Role |
-|---|---|---|---|
-| `skyfield` | 1.55 | MIT | apparent places, timescale, refraction, alt/az |
-| `numpy` | 2.5.3 | BSD-3-Clause (with 0BSD, MIT, Zlib, CC0-1.0 components) | Skyfield's array backend |
-| `pandas` | 3.0.6 | BSD-3-Clause | required only by `skyfield.data.hipparcos.load_dataframe()` |
-| `jplephem` | 2.24 | MIT | reads the `.bsp` kernels |
-| `certifi` | 2026.7.22 | MPL-2.0 | transitive |
-| `python-dateutil` | 2.9.0.post0 | Apache-2.0 / BSD-3-Clause (dual) | transitive |
-| `sgp4` | 2.27 | MIT | transitive via Skyfield; unused here |
-| `six` | 1.17.0 | MIT | transitive |
-
-Generated under CPython 3.12.3, Linux x86_64.
-
-### Earth-orientation data (bundled inside Skyfield)
-
-`load.timescale(builtin=True)` uses `skyfield/data/iers.npz`, shipped inside the
-Skyfield 1.55 wheel under Skyfield's MIT licence. It is a daily ΔT table derived
-from the IERS `finals2000A.all` series; in this build it spans **1973-01-01 to
-2027-01-23**, and outside that range Skyfield extrapolates with its long-term
-ΔT model. No polar-motion table is installed. Nothing is downloaded at
-generation time for timescales.
-
-### US Naval Observatory API
-
-| Item | Value |
-|---|---|
-| Endpoint | `https://aa.usno.navy.mil/api/celnav?date=2026-10-01&time=01:30:00&coords=39.9526,-75.1652` |
-| Documentation | `https://aa.usno.navy.mil/data/api` |
-| `apiversion` returned | `4.0.1` |
-| Retrieved | 2026-09-23 |
-| Stored as | `fixtures/reference/usno_celnav_2026-10-01T0130Z.json` (verbatim response plus our comparison) |
-
-Produced by the US Naval Observatory, Astronomical Applications Department, a US
-Government agency; works of the US Government are not subject to copyright
-protection in the United States (17 U.S.C. § 105), which is the basis on which
-the response is stored in this repository.
-
-**Not verified:** the documentation page is rendered client-side and no
-machine-readable terms-of-use or licence statement could be retrieved on the
-date above. Confirm with USNO before redistributing this file outside the
-project. Note also that `aa.usno.navy.mil` resets connections from unfamiliar
-`User-Agent` strings, which is why `tools/reference/gen_usno.py` shells out to
-`curl` rather than using `urllib` directly.
-
-A second set of responses from the same API checks the Moon and planet sights
-(`docs/NAVIGATION_SKY.md`):
-
-| Item | Value |
-|---|---|
-| Endpoint | `https://aa.usno.navy.mil/api/celnav?date=…&time=…&coords=…`, 25 queries: 12 for Venus (2026-02-20 to 2027-01-03), 5 for Mars, 8 for the Moon |
-| Documentation | `https://aa.usno.navy.mil/data/celnav` (states that Venus is corrected for phase to its centre of light, and that the Moon's SD includes augmentation) |
-| Retrieved | 2026-09-24 |
-| Stored as | `fixtures/reference/usno_celnav_venus_phase.json`: the Venus, Mars and Moon entries of each response (GHA, Dec, and for the Moon Hc, Zn and the altitude corrections) verbatim, beside Skyfield + DE440s values and the fit, by `tools/reference/gen_usno_sights.py` |
-
-Same basis and the same caveat as above. The Nautical Almanac's explanation is quoted
-(one sentence, on Venus's phase and the Venus and Mars additional corrections) as
-reported on NavList, "Additional altitude correction for Venus" (May 2015,
-`navlist.net`); the Almanac itself was not consulted directly.
-
-### Hipparcos licence vs the project's MIT/Apache-2.0 licence — DECIDED
-
-**Decision by the project owner, 2026-09-24: keep the 58-row extract, with the
-attribution below.** The reasoning: the rows are individual astrometric measurements
-(facts), the extract is 58 of 118 218 entries and six of 78 fields, the raw catalogue is
-never redistributed, and ESA and CDS are credited wherever the data appear. Expanding to
-a substantial part of the catalogue would reopen this question and would need either
-ESA/CDS confirmation of the terms or a permissively licensed source.
-
-**Attribution:** This product uses data from the Hipparcos catalogue, ESA (1997), *The
-Hipparcos and Tycho Catalogues*, ESA SP-1200, as served by the Centre de Données
-astronomiques de Strasbourg (CDS/VizieR, catalogue I/239).
-
-The original analysis, kept for the record:
-
-`fixtures/reference/navigational_stars_hip.json` **is committed** and contains
-58 rows copied verbatim out of `hip_main.dat`: for each star, `ra_deg`,
-`dec_deg`, `pm_ra_cosdec_mas_yr`, `pm_dec_mas_yr`, `parallax_mas` and `mag`.
-That is 58 of the catalogue's 118 218 entries and six of its 78 fields.
-
-CDS/VizieR declares catalogue I/239 as **`CC-BY-NC-3.0 IGO`** (Creative Commons
-Attribution-NonCommercial 3.0 IGO). SkyFix Lab is dual MIT / Apache-2.0. A
-non-commercial restriction is not compatible with either.
-
-The considerations, stated without pretending to a legal opinion:
-
-* The underlying catalogue is an ESA science product (ESA SP-1200, 1997). The
-  `CC-BY-NC-3.0 IGO` tag is CDS/VizieR's declaration for the catalogue as
-  *served by VizieR*; it is not obviously ESA's own condition on the Hipparcos
-  results, and the two may differ.
-* Individual astrometric measurements are facts. Whether a 58-row, six-field
-  extract is a protected part of a database — and whether an EU *sui generis*
-  database right applies at all — is a question for a person, not for this
-  generator.
-* The raw catalogue itself is git-ignored and is never redistributed.
-
-Options, cheapest first:
-
-1. Keep the extract, attribute ESA and CDS prominently, and record the NC tag.
-   Acceptable only if the project accepts the restriction or concludes the
-   extract is not protected.
-2. Replace the six catalogue columns with a source whose terms are
-   unambiguously permissive. The Nautical Almanac's own SHA/Dec tables are a US
-   Government work; Gaia DR3 is published by ESA under CC BY 4.0 (but does not
-   contain most of these stars, which are too bright for Gaia). The cost is that
-   proper motion and parallax would have to come from somewhere too, and the
-   `name → HIP` mapping is itself the useful part of the file.
-3. Keep the file for development, and strip or replace it at release.
-
-Attribution to carry in any case: *ESA (1997), The Hipparcos and Tycho
-Catalogues, ESA SP-1200*, obtained from the VizieR catalogue access tool, CDS,
-Strasbourg, France (DOI: 10.26093/cds/vizier).
-
-## Explorer (browser) dependencies
-
-Added 2026-09-24 for the explorer redesign (`docs/EXPLORER_PLAN.md`). Bundled into the
-site by Vite; nothing is loaded from a CDN.
-
-| Package | Version | Licence | Use | Obligation |
-|---|---|---|---|---|
-| `maplibre-gl` | 6.11.2 | BSD-3-Clause | Map and globe rendering | Keep the copyright notice and licence text with redistributions (in the bundle's licence comment and this file); no on-screen credit required |
-| `@fontsource-variable/inter` | 5.3.0 | SIL Open Font License 1.1 | Interface typeface (Inter, Rasmus Andersson) | Ship the licence with the font files; the font may not be sold on its own |
-| `@fontsource-variable/jetbrains-mono` | 5.3.0 | SIL Open Font License 1.1 | Figures and coordinates (JetBrains Mono) | As above |
-
-### Data that needs no credit, by the owner's preference (2026-09-24)
-
-The owner asked for star and constellation data that needs no credit where possible.
-The plan (details recorded by the star-field and map-data agents as they land):
-
-- **Stars:** NASA HEASARC's `BSC5P` table (Yale Bright Star Catalogue, 5th revised
-  edition, as served by HEASARC). NASA's open-data catalogue lists this dataset with the
-  licence *U.S. Government Works* (<https://catalog.data.gov/dataset/bright-star-catalog>,
-  checked 2026-09-24). Star positions and magnitudes are also measurements, which are
-  facts. The compilers (Hoffleit & Warren, 1991) are cited in the documentation as a
-  courtesy, not as a licence obligation.
-- **Constellation figures:** drawn by this project, so they are covered by the project's
-  own MIT OR Apache-2.0 licence.
-- **Constellation boundaries:** the IAU definitions of Delporte (1930), which are
-  published definitions (facts) and in the public domain by age.
-- **Offline basemap and gazetteer:** Natural Earth, public domain; Natural Earth states
-  that crediting it is unnecessary.
-- **Optional street layer:** OpenStreetMap tiles are ODbL data and **do** require the
-  on-map credit "© OpenStreetMap contributors" whenever that layer is shown. It is off
-  by default.
-
-## Explorer events: rise, set, twilight, seasons, Moon phases
-
-Owner: events agent (`crates/skyfix-almanac/src/{events,sky}.rs`,
-`tools/reference/gen_events.py`, `fixtures/reference/events_*.json`). Retrieved
-2026-09-24. Development-time reference data only: nothing here is linked into or
-shipped with any binary.
-
-### Skyfield + JPL DE440s — `events_{sun,stars,moon_planets,seasons,moon_phases}.json`
-
-Generated by `tools/reference/gen_events.py` from the same Skyfield 1.55, JPL DE440s
-(DE421 as a cross-check for seasons and Moon phases up to 2052) and Hipparcos
-`hip_main.dat` already listed under "Reference data (development-time only)" above,
-with the same licences. No new external data: the files are Skyfield's output for the
-project's own definitions (CONVENTIONS 13.3 to 13.5), with UT1 = UTC.
-
-### US Naval Observatory API — `events_usno.json`
-
-| Endpoint | Used for |
-|---|---|
-| `https://aa.usno.navy.mil/api/rstt/oneday?date=YYYY-MM-DD&coords=LAT,LON&tz=0` | Sun and Moon rise, set, upper transit and civil twilight for 14 site-days |
-| `https://aa.usno.navy.mil/api/moon/phases/year?year=YYYY` | Moon phases for 1990, 2000, 2026, 2045, 2060 |
-| `https://aa.usno.navy.mil/api/seasons?year=YYYY` | Equinoxes and solstices for the same years |
-
-Same terms and the same caveat as the `celnav` endpoint above: produced by the US Naval
-Observatory, a US Government agency, and not subject to copyright in the United States
-(17 U.S.C. § 105); no machine-readable terms of use could be retrieved. The file keeps
-USNO's own values (to the minute) in the parts the tests use, with the query URL for
-each site-day. `gen_events.py` fetches with `curl` (the service resets unfamiliar
-`User-Agent` strings), waits a second between requests, and leaves the file untouched
-if the service cannot be reached.
-
-### Meeus, *Astronomical Algorithms*, 2nd edition, chapter 47 (test code only)
-
-The synthetic test Moon in `crates/skyfix-almanac/tests/common/mod.rs` uses the mean
-arguments and the largest periodic terms (14 in longitude, 7 in latitude, 5 in
-distance) of Meeus's lunar theory, as published numbers. It exercises the Moon code
-paths in tests independently of the real Moon provider (it was written while that was a
-stub); it is never compiled into the library and makes no accuracy claim. No code was
-copied.
-
-## Mock explorer engine (interface development only)
-
-Owner: shell-core agent (`web/src/next/engine/mock.ts`, `web/src/next/engine/mock/`).
-Added 2026-09-24. The mock is reachable only with `?engine=mock`, or on a development
-server whose WebAssembly build lacks the explorer; it says on screen that its numbers
-are illustrative and is never a source of results (EXPLORER_PLAN 3.1). It ships as a
-separate chunk that a normal page load never downloads. Nothing below is a runtime
-dependency of the real engine, and no third-party code was copied.
-
-- **Published formulas, used as algorithms (no data files):** the Astronomical
-  Almanac's low-precision formulas for the Sun (section C) and the Moon (section D);
-  from Meeus, *Astronomical Algorithms* (already listed above), the IAU 1976
-  precession angles (21.2-21.4), Greenwich mean sidereal time (12.4), the planetary
-  magnitude formulas (chapter 41), the parallactic angle (14.1) and the position angle
-  of the bright limb (48.5); Saemundsson's refraction as CONVENTIONS 13.2 states it.
-- **JPL approximate planetary elements:** E. M. Standish, "Keplerian Elements for
-  Approximate Positions of the Major Planets", Table 1 (valid 1800-2050),
-  <https://ssd.jpl.nasa.gov/planets/approx_pos.html>. The 48 element values and rates
-  are transcribed as published (facts); no download is involved. Checked during
-  development against Skyfield with DE421 on four dates: planets within 5', Sun 0.4',
-  Moon 7' (the mock's coverage table claims 10', 1' and 30').
-- **The 58 navigational stars:** no new data. The existing Hipparcos extract
-  (`fixtures/reference/navigational_stars_hip.json`; attribution and the owner's
-  decision in the Hipparcos sections above) propagated from J1991.25 to J2000.0 with
-  its proper motions and rounded to 0.0001 deg; `web/test/next/mock-engine.test.ts`
-  pins the table to the fixture. B-V colours are approximate and illustrative.
-- **Fourteen more bright stars** (Mintaka, Alnitak, Saiph, Meissa, Merak, Phecda,
-  Megrez, Mizar, Mimosa, Imai, Caph, Navi, Ruchbah, Segin), so four figures can be
-  drawn: approximate J2000 positions rounded to 0.01 deg and magnitudes, written from
-  general reference knowledge (facts), not copied from a catalogue file. Illustrative.
-- **Synthetic stars:** generated with a seeded pseudo-random generator; no source.
-- **Constellation figures** (Orion, the Plough in Ursa Major, Crux, Cassiopeia): drawn
-  by this project. The zodiac look-up uses approximate ecliptic longitudes (0.1 deg)
-  where the IAU boundaries cross the ecliptic, from general reference knowledge;
-  illustrative only.
-
-## Navigation methods — worked examples and the Polaris table formula
-
-Owner: navigation agent (`crates/skyfix-core/src/methods/`,
-`fixtures/reference/bowditch_worked_examples.json`, `tools/reference/gen_nav_methods.py`).
-
-### The American Practical Navigator (Bowditch), NGA Pub. No. 9
-
-- **What is used:** the numbers of three worked examples, as test data only — volume 1
-  (2019 edition), chapter 19 "Sight Reduction", section 1910 (latitude at local apparent
-  noon, with its strip form, figure 1910), section 1912 (latitude by Polaris, with figure
-  1912b) and figure 1912c (the Nautical Almanac 2016 Polaris-table page it reproduces,
-  whose "ILLUSTRATION" block is the Almanac's own worked example). No text or figure is
-  reproduced; the values are typed, with the book's rounding, into
-  `fixtures/reference/bowditch_worked_examples.json` and cited in
-  `docs/NAVIGATION_METHODS.md` section 6.2.
-- **URL:** <https://msi.nga.mil/Publications/APN>; the chapter was read from the copy at
-  <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2019-%20Sight%20Reductions.pdf>.
-- **Retrieved:** 2026-09-24.
-- **Licence:** a work of the U.S. Government (National Geospatial-Intelligence Agency),
-  not subject to copyright in the United States (17 U.S.C. 105). No credit is required;
-  it is cited as a source.
-
-### The Nautical Almanac's Polaris-table formula
+#### The Nautical Almanac's Polaris-table formula
 
 - **What is used:** the published formula behind the Almanac's Polaris tables —
   `Latitude − Ho = −p cos h + (1/2) p sin p sin² h tan(Latitude)` — and its split into
@@ -765,13 +488,230 @@ Owner: navigation agent (`crates/skyfix-core/src/methods/`,
   the formula with that year's mean position (computed from `skyfix-ephemeris`)
   reproduces the printed a0, a1 and a2 of both worked examples to 0.03′.
 
-### Skyfield-generated truth for the methods
+### Eclipses
 
-`tools/reference/gen_nav_methods.py` uses exactly the development-time inputs recorded
-under "Reference data (development-time only)" above (Skyfield, JPL DE421, Hipparcos);
-it adds no new data source.
+Owner: eclipse agent (`crates/skyfix-almanac/src/eclipses.rs` and `eclipses/`,
+`crates/skyfix-wasm/src/eclipses.rs`, `tools/reference/gen_eclipses.py`,
+`fixtures/reference/eclipses_*.json`). Added 2026-09-24.
 
-## Basemap and gazetteer
+**No third-party data is embedded in the runtime.** The engine computes every eclipse
+from the project's own Sun (VSOP87D) and Moon (ELP 2000-82B) providers, listed above.
+What follows is either a published method used as an algorithm, a published constant,
+or a development-time reference fixture that only the tests read.
+
+#### Methods and constants
+
+Cited in the source; no licence attaches to a published method, formula or constant.
+
+- **Besselian elements, local circumstances, limits of the path:** *Explanatory
+  Supplement to the Astronomical Ephemeris and the American Ephemeris and Nautical
+  Almanac* (HMSO, 1961), chapter 9 (the fundamental plane, the shadow cones `f1`, `f2`,
+  `l1`, `l2`, the observer's coordinates and their rates, the limit condition
+  `u' sin Q + v' cos Q = L'`); *Explanatory Supplement to the Astronomical Almanac*
+  (Seidelmann ed., 1992), chapter 8; Chauvenet, *A Manual of Spherical and Practical
+  Astronomy* (1891); Meeus, *Elements of Solar Eclipses 1951-2200* (Willmann-Bell,
+  1989). The engine works the same geometry in the Earth-fixed frame instead of with
+  the classical `rho sin phi'` series, and solves the limits with a bracketed root in
+  the observer's height; no code was copied from anywhere.
+- **Candidate syzygies:** Meeus, *Astronomical Algorithms* (2nd ed., 1998), chapter 49
+  (mean new and full moons and their arguments) and chapter 54 (quick instant and gamma
+  of an eclipse). Used only to decide where to look; listed above for other uses.
+- **Radius of the Moon for eclipses:** `k1 = 0.272488` (penumbra) and `k2 = 0.272281`
+  (umbra) Earth equatorial radii, as printed on NASA's Besselian-element pages (for
+  example `SE2024Apr08Tbeselm.html`, retrieved 2026-09-24; the 2017 page prints
+  `k1 = 0.272508`). The Sun's radius is the one that subtends 959.63″ at 1 au, the
+  constant already listed under "Solar constants".
+- **Shadow enlargement for lunar eclipses, Danjon's rule:** Danjon A., "Les éclipses de
+  Lune par la pénombre en 1951", *L'Astronomie* **65**, 51-53 (1951), in the form NASA
+  states it (penumbra `1.01 Pm + Ss + Ps`, umbra `1.01 Pm − Ss + Ps`): "Enlargement of
+  Earth's Shadows", <https://eclipse.gsfc.nasa.gov/LEcat5/shadow.html>, retrieved
+  2026-09-24.
+- **Saros and lunation numbers:** van den Bergh G., *Periodicity and Variation of Solar
+  (and Lunar) Eclipses* (Tjeenk Willink, 1955) for the saros-inex numbering (series
+  advance by one per inex of 358 lunations); NASA's lunation numbering (lunation 0 = the
+  new moon of 2000 January 6; Brown's number minus 953). Anchors, from the NASA
+  catalogues below: the solar eclipse of 2024-04-08 (lunation 300, saros 139) and the
+  lunar eclipse of 2025-03-14 (lunation 311, saros 123).
+- **Obscuration:** the area of intersection of two discs (elementary geometry).
+
+### Explorer (browser) dependencies
+
+Added 2026-09-24 for the explorer redesign (`docs/EXPLORER_PLAN.md`). Bundled into the
+site by Vite; nothing is loaded from a CDN.
+
+| Package | Version | Licence | Use | Obligation |
+|---|---|---|---|---|
+| `maplibre-gl` | 6.11.2 | BSD-3-Clause | Map and globe rendering | Keep the copyright notice and licence text with redistributions (in the bundle's licence comment and this file); no on-screen credit required |
+| `@fontsource-variable/inter` | 5.3.0 | SIL Open Font License 1.1 | Interface typeface (Inter, Rasmus Andersson) | Ship the licence with the font files; the font may not be sold on its own |
+| `@fontsource-variable/jetbrains-mono` | 5.3.0 | SIL Open Font License 1.1 | Figures and coordinates (JetBrains Mono) | As above |
+
+### Explorer map view
+
+Owner: map agent (`web/src/next/map/`). Added 2026-09-24. No new package and no bundled
+data: the map draws the basemap and gazetteer recorded above (Natural Earth, public domain)
+with `maplibre-gl` (listed above).
+
+- **Map labels:** drawn by MapLibre itself on a canvas (TinySDF) from the same
+  `@fontsource-variable/inter` files the interface ships (SIL OFL 1.1, listed above),
+  registered under the map's own family names (`web/src/next/map/fonts.ts`). No glyph
+  (PBF) files are generated or committed, and no glyph server is used.
+- **Optional street layer (runtime, online, never bundled):** the OpenStreetMap standard
+  tile layer, `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, operated by the
+  OpenStreetMap Foundation. Data © OpenStreetMap contributors, ODbL 1.0; the tile images
+  are shown with the credit "© OpenStreetMap contributors" linked to
+  <https://www.openstreetmap.org/copyright>, visible on the map exactly while the layer
+  is on. Use follows the OSMF Tile Usage Policy (<https://operations.osmfoundation.org/policies/tiles/>,
+  read 2026-09-24): off by default and requested only for what is on screen while the
+  person has it switched on; maximum zoom 19; no prefetching or bulk download; tiles are
+  cached only by the browser's normal HTTP cache (the release agent's service worker must
+  not store them).
+
+### Offline app: service worker, web app manifest, icons
+
+Owner: release agent (`web/src/sw/`, `web/src/pwa/`, `web/src/next/pwa/`, `web/plugins/`,
+`web/public/manifest.webmanifest`, `web/public/icons/`). Added 2026-09-24. No new package,
+no data and no third-party code.
+
+- **Service worker:** written for this project (`web/src/sw/`), built by this project's
+  own Vite plugin (`web/plugins/pwa.ts`). No service-worker library (Workbox or other) is
+  used or copied; the Cache Storage and service-worker APIs are browser standards.
+- **Icons:** drawn for this project from its own logo mark (`web/src/next/theme/primitives.ts`,
+  listed under "Explorer design system" below) in the design tokens' colours, and
+  rendered to PNG by `web/scripts/render-icons.mjs` with a local Chrome. Covered by the
+  project's licence.
+- **What the worker stores:** only files of this site. It never answers, stores or
+  inspects a request to another origin. In particular the optional OpenStreetMap street
+  layer (above) is left entirely to the browser: its tiles are cached only by the
+  browser's normal HTTP cache, as the OSMF Tile Usage Policy
+  (<https://operations.osmfoundation.org/policies/tiles/>) allows, and the layer does not
+  work offline. What the worker does store is what the site already ships: the Natural
+  Earth basemap and gazetteer (public domain) and the Inter and JetBrains Mono font files
+  (SIL OFL 1.1, listed under "Explorer (browser) dependencies" above), unchanged.
+
+### Star field and constellations
+
+Owner: star-field agent (`crates/skyfix-starfield/`, `crates/skyfix-wasm/src/starfield.rs`,
+`tools/starfield/`, `fixtures/reference/starfield_*.json`). Display-only data
+(CONVENTIONS 13.6): none of it reaches `reduce`, `solve`, the planner's navigation
+candidates or an accuracy claim, and a test (`crates/skyfix-starfield/tests/crate_boundary.rs`)
+keeps it out of every navigation crate.
+
+**Nothing below needs on-screen credit.** The stars are a U.S. Government Work, the
+figures are this project's own, and the boundaries and star names are facts. The
+courtesy citations are kept here, in the documentation.
+
+#### Stars: the Yale Bright Star Catalogue as served by NASA HEASARC
+
+- **What is used:** every stellar row of HEASARC's `bsc5p` table (the Bright Star
+  Catalogue, 5th revised edition, preliminary version; Hoffleit & Warren 1991): HR
+  number, the catalogue's own sexagesimal J2000 position (`cra`, `cdec`: RA to 0.1 s of
+  time, Dec to 1″), proper motions (`pmra` = μα·cos δ and `pmdec`, ″/yr), parallax,
+  V magnitude, B−V and the Bayer/Flamsteed name field (`alt_name`). Radial velocities
+  are read only by the validation fixture.
+- **Source:** NASA's High Energy Astrophysics Science Archive Research Center (HEASARC),
+  table description <https://heasarc.gsfc.nasa.gov/W3Browse/all/bsc5p.html>, fetched
+  through HEASARC's TAP service:
+  `https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=text/plain&MAXREC=20000&QUERY=…`
+  with ADQL `SELECT hr, name, alt_name, cra, cdec, ra, dec, vmag, vmag_uncert, vmag_code,
+  bv_color, bv_uncert, pmra, pmdec, parallax, par_code, radvel, var_id, multiple, m_cnt,
+  m_id, m_sep, m_mdiff, hd, spect_type, note FROM bsc5p ORDER BY hr`
+  (`tools/starfield/fetch.py` has the exact URL).
+- **Retrieved:** 2026-09-24T14:19:53Z. 9 110 rows, 2 086 467 bytes, SHA-256
+  `c411cb86ae371a89175b6d7d6246a657e604803398e63e6ce58e0025b2d6543a`. The raw download is
+  git-ignored (`tools/starfield/data/`); `python3 -m tools.starfield.fetch` repeats it.
+- **Licence evidence.** NASA's open-data listing on data.gov,
+  <https://catalog.data.gov/dataset/bright-star-catalog> ("Bright Star Catalog",
+  published by the High Energy Astrophysics Science Archive Research Center, National
+  Aeronautics and Space Administration), checked 2026-09-24. Its machine-readable
+  harvest record
+  (<https://catalog.data.gov/harvest_record/1e27ef96-47f7-4dfb-9271-2e4f04ffa57f/raw>,
+  2 597 bytes, SHA-256 `58aee48827b3608a55a0ddcb810631babf83b7b15d1a7504cfc1b81b36939c26`)
+  reads, verbatim: `"identifier": "ivo://nasa.heasarc/bsc5p"`,
+  `"accessLevel": "public"`, `"license": "https://www.usa.gov/government-works"`,
+  `"publisher": {"name": "High Energy Astrophysics Science Archive Research Center"}`,
+  `"modified": "2026-09-22"`. The licence URL now redirects to
+  <https://www.usa.gov/government-copyright>, USAGov's page on U.S. Government Works
+  (17 U.S.C. § 105).
+- **Caveats, recorded rather than hidden:**
+  - HEASARC's own provenance note says the table "was created by the HEASARC in 1995
+    based upon a file obtained from either the ADC or the CDS", with later HEASARC
+    corrections. The underlying numbers are astrometric and photometric measurements,
+    which are facts; the U.S. Government Work listing is NASA's statement about the
+    table it serves.
+  - USAGov notes that U.S. copyright law may not protect U.S. government works outside
+    the United States, and that not everything on a federal site is a government work.
+    For this table the data.gov listing is explicit, and the content is factual data.
+  - HEASARC asks research publications to acknowledge its services. That is a courtesy
+    request, not a licence condition; this section is where the project acknowledges
+    it: *This product uses the Bright Star Catalogue (Hoffleit, D. and Warren, Jr.,
+    W.H., 1991, 5th Revised Edition, Preliminary Version) as provided by NASA's High
+    Energy Astrophysics Science Archive Research Center (HEASARC).*
+- **Processing (`tools/starfield/build.py`):** positions converted exactly from the
+  sexagesimal strings to integers (0.1 s of time, 1″) and cross-checked against
+  HEASARC's decimal copies; proper motions and parallaxes to whole mas (the catalogue's
+  precision); negative published parallaxes stored as 0 (Skyfield treats them the same
+  way). Left out: the **14 non-stellar entries** that received HR numbers (novae,
+  clusters, and the historical supernovae S And and Tycho's and Kepler's stars; HR 92,
+  95, 182, 1057, 1841, 2472, 2496, 3515, 3671, 6309, 6515, 7189, 7539, 8296), which have
+  no catalogue position, magnitude or proper motion, and **HR 5958, T CrB**, a recurrent
+  nova catalogued at its 1866 outburst peak (V 2.0) that normally sits near V 10.
+  **9 095 stars** remain, written to `crates/skyfix-starfield/data/stars.bin` (227 391
+  bytes, 25-byte records, layout in `crates/skyfix-starfield/src/catalog.rs`, SHA-256
+  `2773f90c570317fb1fd4c98ccbf4f13c29c4bc379a34e151714602b0426663c3`).
+  `crates/skyfix-starfield/data/manifest.json` records every count, exclusion and check.
+
+#### Star names — facts
+
+`tools/starfield/names.txt` lists 252 proper names by designation (for example
+`Alp CMa = Sirius`), written for this project from the names in common use, which for
+most stars are the ones the IAU Working Group on Star Names has catalogued. Names are
+facts; no list was copied. The 57 Nautical Almanac navigational stars and Polaris use
+the Almanac's spelling, the spelling used everywhere else in SkyFix Lab; the build checks
+each against `fixtures/reference/navigational_stars_hip.json` (within 1′ and 1 mag).
+
+#### Constellation figures — this project's own work
+
+`tools/starfield/figures.txt` draws all 88 constellations as chains of stars, by
+designation, following the traditional modern Western stick figures. They were drawn
+for this project from the shape of each constellation and the catalogue positions of
+its stars; **no existing figure dataset (Stellarium, d3-celestial, the IAU / Sky &
+Telescope charts or any other) was copied or consulted.** They are covered by the
+project's own MIT OR Apache-2.0 licence. The build resolves every designation to an HR
+number (670 segments in `crates/skyfix-starfield/data/figures.txt`) and refuses a
+figure whose star is missing, lies more than 2° outside its constellation's boundary,
+or makes a segment longer than 25°. Only two figure stars lie outside their own
+constellation, both by tradition: Alpheratz (α And) closes the Square of Pegasus and
+Elnath (β Tau) closes the pentagon of Auriga.
+
+#### Constellation boundaries — IAU definitions, Delporte (1930)
+
+- **What is used:** the corners of the 88 constellation boundaries in the mean equator
+  and equinox of B1875.0, as defined for the IAU by Delporte, E. (1930), *Délimitation
+  scientifique des constellations* (Cambridge University Press).
+- **Public-domain basis:** the boundaries are an official definition, published facts
+  (numbers fixing a line on the sky), and not protected expression. The 1930
+  publication itself entered the U.S. public domain on 2026-01-01 (95 years after
+  publication), and Delporte died in 1955, so it is also out of copyright wherever the
+  term is the author's life plus 70 years.
+- **Digital transcription used:** Davenhall, A.C. & Leggett, S.K. (1989), *A Catalogue
+  of Constellation Boundary Data*, the "original" B1875 vertex file `bound_18.dat`,
+  <https://cdsarc.cds.unistra.fr/ftp/cats/VI/49/bound_18.dat>, retrieved
+  2026-09-24T14:19:53Z, 40 690 bytes, 1 565 records, SHA-256
+  `3f563d0e3002a410afbc551791db6297cbfc3d291a20deb18f1fd7b4df60d7b8`. It is a mechanical
+  transcription of Delporte's lists; CDS asks users of its service to acknowledge it,
+  which this line does as a courtesy.
+- **Processing:** every corner snapped back to the grid Delporte used (whole seconds of
+  time, whole arcminutes; the file's 5-decimal rendering is off by at most 0.012 s and
+  0.024″, so the snap is exact), and Octans' three plotting points at the south pole
+  (added by the transcription, not boundary corners) removed. Result:
+  `crates/skyfix-starfield/data/boundaries.txt`, 89 polygons (Serpens in two), 1 562
+  corners, as integers.
+- **Independent check:** Skyfield's bundled constellation map (built from Roman, N.G.
+  1987, PASP 99, 695, a separate digitisation of Delporte) was compared cell by cell:
+  all **47 200 cells of its grid fall in the same constellation**, and its grid lines are
+  the same set of RA and Dec values. Skyfield is used for this at development time only.
+
+### Basemap and gazetteer
 
 Owner: map-data agent (`tools/mapdata/**`, `web/public/data/**`, `web/src/next/geo/**`,
 `web/test/next/geo-*.test.ts`). Everything here is **display-only** (CONVENTIONS 13.6): the
@@ -783,7 +723,7 @@ timezone-boundary-builder polygons are ODbL) is used. Both sources below are pub
 so the offline map needs no credit on screen. The optional online street layer is the
 map agent's and carries its own OSM credit.
 
-### Sources
+#### Sources
 
 | Source | Version | URL | Retrieved | Licence |
 |---|---|---|---|---|
@@ -800,7 +740,7 @@ Natural Earth layers used: `ne_110m_land`, `ne_50m_land`, `ne_50m_lakes`,
 (each country's zones with the coordinates of each zone's principal location),
 `iso3166.tab`, and the `Link` lines (old and alternative zone names).
 
-### Reproducing
+#### Reproducing
 
 Development time only, Node 20 or later, network for the first command:
 
@@ -813,7 +753,7 @@ The build is deterministic (two runs give byte-identical files). It checks the c
 zones against the running Node's ICU data; the manifest records the version used
 (Node 24.20.0, ICU 78.3, tz 2026c). No npm dependency was added.
 
-### What was built
+#### What was built
 
 | File | Features | Vertices | Raw | Gzip | Precision (deg) | Simplified (deg) |
 |---|---|---|---|---|---|---|
@@ -838,7 +778,7 @@ zones against the running Node's ICU data; the manifest records the version used
 `basemap/manifest.json` lists the same with SHA-256s, sources and each layer's properties;
 a test fails if a file and the manifest disagree or the budget is exceeded.
 
-### Processing of the basemap
+#### Processing of the basemap
 
 - **Precision and simplification.** Coordinates rounded (0.001 deg is 111 m); Douglas-Peucker
   with longitude scaled by cos(latitude), so a tolerance of 0.005 deg is about 550 m, one
@@ -875,7 +815,7 @@ a test fails if a file and the manifest disagree or the budget is exceeded.
   Brazil, Australia, Indonesia, China); Natural Earth's 1:50m states layer also covers
   India and South Africa, one zone each, which are left out.
 
-### Processing of the gazetteer
+#### Processing of the gazetteer
 
 - **Places:** all 7 342 of `ne_10m_populated_places`, largest first. Positions come from
   the geometry, not the LATITUDE/LONGITUDE attributes, which are stale for about 300 places
@@ -895,7 +835,7 @@ a test fails if a file and the manifest disagree or the budget is exceeded.
   `zone.tab`, each assigned to its country (by ISO code, or by the polygon it lies in:
   French Guiana, Réunion and Svalbard are inside France's and Norway's polygons).
 
-### Time zones: source, cleaning and measured quality
+#### Time zones: source, cleaning and measured quality
 
 Natural Earth's populated places carry an IANA `TIMEZONE` for 6 159 of 7 342 places. It is
 the only time-zone information used; nothing is inferred from boundary data. It needed
@@ -957,130 +897,174 @@ a zone border elsewhere (Mexico, Kazakhstan, DR Congo) takes the nearest town's 
 guess never looks at the date (a position's zone is today's, while the browser's Intl data
 supply each zone's historical rules for the date shown).
 
-## Star field and constellations
+## Development-time references
 
-Owner: star-field agent (`crates/skyfix-starfield/`, `crates/skyfix-wasm/src/starfield.rs`,
-`tools/starfield/`, `fixtures/reference/starfield_*.json`). Display-only data
-(CONVENTIONS 13.6): none of it reaches `reduce`, `solve`, the planner's navigation
-candidates or an accuracy claim, and a test (`crates/skyfix-starfield/tests/crate_boundary.rs`)
-keeps it out of every navigation crate.
+Everything below is read only by the Python tools under `tools/reference/`, `tools/starfield/`
+and `tools/mapdata/` that generate this project's independent reference fixtures (or, for
+the design mockup, by a design-review page). **None of it is a runtime dependency**: no
+SkyFix Lab binary — CLI or browser — links, loads, downloads or ships any of it, and the
+Rust workspace and the browser bundle read only the fixtures and embedded data files that
+"Runtime data" above describes. See `docs/ACCURACY.md` for what each comparison found.
 
-**Nothing below needs on-screen credit.** The stars are a U.S. Government Work, the
-figures are this project's own, and the boundaries and star names are facts. The
-courtesy citations are kept here, in the documentation.
+### Reference data (development-time only)
 
-### Stars: the Yale Bright Star Catalogue as served by NASA HEASARC
+Sources used by `tools/reference/` to generate `fixtures/reference/*.json` and
+the `reference-*` files in `fixtures/sessions/` and `fixtures/expected/`.
 
-- **What is used:** every stellar row of HEASARC's `bsc5p` table (the Bright Star
-  Catalogue, 5th revised edition, preliminary version; Hoffleit & Warren 1991): HR
-  number, the catalogue's own sexagesimal J2000 position (`cra`, `cdec`: RA to 0.1 s of
-  time, Dec to 1″), proper motions (`pmra` = μα·cos δ and `pmdec`, ″/yr), parallax,
-  V magnitude, B−V and the Bayer/Flamsteed name field (`alt_name`). Radial velocities
-  are read only by the validation fixture.
-- **Source:** NASA's High Energy Astrophysics Science Archive Research Center (HEASARC),
-  table description <https://heasarc.gsfc.nasa.gov/W3Browse/all/bsc5p.html>, fetched
-  through HEASARC's TAP service:
-  `https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=text/plain&MAXREC=20000&QUERY=…`
-  with ADQL `SELECT hr, name, alt_name, cra, cdec, ra, dec, vmag, vmag_uncert, vmag_code,
-  bv_color, bv_uncert, pmra, pmdec, parallax, par_code, radvel, var_id, multiple, m_cnt,
-  m_id, m_sep, m_mdiff, hd, spect_type, note FROM bsc5p ORDER BY hr`
-  (`tools/starfield/fetch.py` has the exact URL).
-- **Retrieved:** 2026-09-24T14:19:53Z. 9 110 rows, 2 086 467 bytes, SHA-256
-  `c411cb86ae371a89175b6d7d6246a657e604803398e63e6ce58e0025b2d6543a`. The raw download is
-  git-ignored (`tools/starfield/data/`); `python3 -m tools.starfield.fetch` repeats it.
-- **Licence evidence.** NASA's open-data listing on data.gov,
-  <https://catalog.data.gov/dataset/bright-star-catalog> ("Bright Star Catalog",
-  published by the High Energy Astrophysics Science Archive Research Center, National
-  Aeronautics and Space Administration), checked 2026-09-24. Its machine-readable
-  harvest record
-  (<https://catalog.data.gov/harvest_record/1e27ef96-47f7-4dfb-9271-2e4f04ffa57f/raw>,
-  2 597 bytes, SHA-256 `58aee48827b3608a55a0ddcb810631babf83b7b15d1a7504cfc1b81b36939c26`)
-  reads, verbatim: `"identifier": "ivo://nasa.heasarc/bsc5p"`,
-  `"accessLevel": "public"`, `"license": "https://www.usa.gov/government-works"`,
-  `"publisher": {"name": "High Energy Astrophysics Science Archive Research Center"}`,
-  `"modified": "2026-09-22"`. The licence URL now redirects to
-  <https://www.usa.gov/government-copyright>, USAGov's page on U.S. Government Works
-  (17 U.S.C. § 105).
-- **Caveats, recorded rather than hidden:**
-  - HEASARC's own provenance note says the table "was created by the HEASARC in 1995
-    based upon a file obtained from either the ADC or the CDS", with later HEASARC
-    corrections. The underlying numbers are astrometric and photometric measurements,
-    which are facts; the U.S. Government Work listing is NASA's statement about the
-    table it serves.
-  - USAGov notes that U.S. copyright law may not protect U.S. government works outside
-    the United States, and that not everything on a federal site is a government work.
-    For this table the data.gov listing is explicit, and the content is factual data.
-  - HEASARC asks research publications to acknowledge its services. That is a courtesy
-    request, not a licence condition; this section is where the project acknowledges
-    it: *This product uses the Bright Star Catalogue (Hoffleit, D. and Warren, Jr.,
-    W.H., 1991, 5th Revised Edition, Preliminary Version) as provided by NASA's High
-    Energy Astrophysics Science Archive Research Center (HEASARC).*
-- **Processing (`tools/starfield/build.py`):** positions converted exactly from the
-  sexagesimal strings to integers (0.1 s of time, 1″) and cross-checked against
-  HEASARC's decimal copies; proper motions and parallaxes to whole mas (the catalogue's
-  precision); negative published parallaxes stored as 0 (Skyfield treats them the same
-  way). Left out: the **14 non-stellar entries** that received HR numbers (novae,
-  clusters, and the historical supernovae S And and Tycho's and Kepler's stars; HR 92,
-  95, 182, 1057, 1841, 2472, 2496, 3515, 3671, 6309, 6515, 7189, 7539, 8296), which have
-  no catalogue position, magnitude or proper motion, and **HR 5958, T CrB**, a recurrent
-  nova catalogued at its 1866 outburst peak (V 2.0) that normally sits near V 10.
-  **9 095 stars** remain, written to `crates/skyfix-starfield/data/stars.bin` (227 391
-  bytes, 25-byte records, layout in `crates/skyfix-starfield/src/catalog.rs`, SHA-256
-  `2773f90c570317fb1fd4c98ccbf4f13c29c4bc379a34e151714602b0426663c3`).
-  `crates/skyfix-starfield/data/manifest.json` records every count, exclusion and check.
+**None of this is a runtime dependency.** No SkyFix Lab binary links, loads,
+downloads or ships any of it. The Rust workspace reads the generated JSON only.
+Retrieval date for everything below: **2026-09-23**.
 
-### Star names — facts
+#### Downloaded data files — git-ignored, never committed
 
-`tools/starfield/names.txt` lists 252 proper names by designation (for example
-`Alp CMa = Sirius`), written for this project from the names in common use, which for
-most stars are the ones the IAU Working Group on Star Names has catalogued. Names are
-facts; no list was copied. The 57 Nautical Almanac navigational stars and Polaris use
-the Almanac's spelling, the spelling used everywhere else in SkyFix Lab; the build checks
-each against `fixtures/reference/navigational_stars_hip.json` (within 1′ and 1 mag).
+Stored in `tools/reference/data/`, which is in `.gitignore`. About 100 MB.
 
-### Constellation figures — this project's own work
+| File | URL | Size (bytes) | SHA-256 | Publisher / licence |
+|---|---|---|---|---|
+| `de421.bsp` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/a_old_versions/de421.bsp` | 16 790 528 | `08b20db2ae22488650641c5a9033e5bfda4b1c4b440cfeaf20f621cfa18ecdb3` | NASA JPL / NAIF. Work of the US Government; NAIF generic kernels are distributed for unrestricted use. Coverage 1899-07-28 to 2053-10-08. |
+| `de440s.bsp` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp` | 32 726 016 | `c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2` | NASA JPL / NAIF, same terms. The cross-check of DE421 for the Sun and stars, and the **primary** reference for the Moon, the planets and the explorer's events (DE421 is the cross-check there); also covers the epochs DE421 does not. Coverage 1849-12-25 to 2150-01-21. |
+| `hip_main.dat` | `https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat` | 53 316 318 | `58ceabb104d647160d9437ce6e513a02a036bb4ad9f8879a5a22fd52943616e0` | ESA (1997), *The Hipparcos and Tycho Catalogues*, ESA SP-1200. Served by CDS/VizieR as catalogue I/239. **VizieR declares its licence as `CC-BY-NC-3.0 IGO`** — kept, with attribution: see
+  "Licence decisions" below. |
 
-`tools/starfield/figures.txt` draws all 88 constellations as chains of stars, by
-designation, following the traditional modern Western stick figures. They were drawn
-for this project from the shape of each constellation and the catalogue positions of
-its stars; **no existing figure dataset (Stellarium, d3-celestial, the IAU / Sky &
-Telescope charts or any other) was copied or consulted.** They are covered by the
-project's own MIT OR Apache-2.0 licence. The build resolves every designation to an HR
-number (670 segments in `crates/skyfix-starfield/data/figures.txt`) and refuses a
-figure whose star is missing, lies more than 2° outside its constellation's boundary,
-or makes a segment longer than 25°. Only two figure stars lie outside their own
-constellation, both by tradition: Alpheratz (α And) closes the Square of Pegasus and
-Elnath (β Tau) closes the pentagon of Auriga.
+`de421.bsp` is the primary ephemeris, as the project brief specifies. It is no
+longer in NAIF's current `spk/planets/` directory and now lives under
+`a_old_versions/`; the URL above is the working one as of the retrieval date.
 
-### Constellation boundaries — IAU definitions, Delporte (1930)
+#### Python packages
 
-- **What is used:** the corners of the 88 constellation boundaries in the mean equator
-  and equinox of B1875.0, as defined for the IAU by Delporte, E. (1930), *Délimitation
-  scientifique des constellations* (Cambridge University Press).
-- **Public-domain basis:** the boundaries are an official definition, published facts
-  (numbers fixing a line on the sky), and not protected expression. The 1930
-  publication itself entered the U.S. public domain on 2026-01-01 (95 years after
-  publication), and Delporte died in 1955, so it is also out of copyright wherever the
-  term is the author's life plus 70 years.
-- **Digital transcription used:** Davenhall, A.C. & Leggett, S.K. (1989), *A Catalogue
-  of Constellation Boundary Data*, the "original" B1875 vertex file `bound_18.dat`,
-  <https://cdsarc.cds.unistra.fr/ftp/cats/VI/49/bound_18.dat>, retrieved
-  2026-09-24T14:19:53Z, 40 690 bytes, 1 565 records, SHA-256
-  `3f563d0e3002a410afbc551791db6297cbfc3d291a20deb18f1fd7b4df60d7b8`. It is a mechanical
-  transcription of Delporte's lists; CDS asks users of its service to acknowledge it,
-  which this line does as a courtesy.
-- **Processing:** every corner snapped back to the grid Delporte used (whole seconds of
-  time, whole arcminutes; the file's 5-decimal rendering is off by at most 0.012 s and
-  0.024″, so the snap is exact), and Octans' three plotting points at the south pole
-  (added by the transcription, not boundary corners) removed. Result:
-  `crates/skyfix-starfield/data/boundaries.txt`, 89 polygons (Serpens in two), 1 562
-  corners, as integers.
-- **Independent check:** Skyfield's bundled constellation map (built from Roman, N.G.
-  1987, PASP 99, 695, a separate digitisation of Delporte) was compared cell by cell:
-  all **47 200 cells of its grid fall in the same constellation**, and its grid lines are
-  the same set of RA and Dec values. Skyfield is used for this at development time only.
+Pinned in `tools/reference/requirements.txt`. Installed into
+`tools/reference/.venv/`, which is git-ignored.
 
-### Validation fixtures (development-time only)
+| Package | Version | Licence | Role |
+|---|---|---|---|
+| `skyfield` | 1.55 | MIT | apparent places, timescale, refraction, alt/az |
+| `numpy` | 2.5.3 | BSD-3-Clause (with 0BSD, MIT, Zlib, CC0-1.0 components) | Skyfield's array backend |
+| `pandas` | 3.0.6 | BSD-3-Clause | required only by `skyfield.data.hipparcos.load_dataframe()` |
+| `jplephem` | 2.24 | MIT | reads the `.bsp` kernels |
+| `certifi` | 2026.7.22 | MPL-2.0 | transitive |
+| `python-dateutil` | 2.9.0.post0 | Apache-2.0 / BSD-3-Clause (dual) | transitive |
+| `sgp4` | 2.27 | MIT | transitive via Skyfield; unused here |
+| `six` | 1.17.0 | MIT | transitive |
+
+Generated under CPython 3.12.3, Linux x86_64.
+
+#### Earth-orientation data (bundled inside Skyfield)
+
+`load.timescale(builtin=True)` uses `skyfield/data/iers.npz`, shipped inside the
+Skyfield 1.55 wheel under Skyfield's MIT licence. It is a daily ΔT table derived
+from the IERS `finals2000A.all` series; in this build it spans **1973-01-01 to
+2027-01-23**, and outside that range Skyfield extrapolates with its long-term
+ΔT model. No polar-motion table is installed. Nothing is downloaded at
+generation time for timescales.
+
+#### US Naval Observatory API
+
+| Item | Value |
+|---|---|
+| Endpoint | `https://aa.usno.navy.mil/api/celnav?date=2026-10-01&time=01:30:00&coords=39.9526,-75.1652` |
+| Documentation | `https://aa.usno.navy.mil/data/api` |
+| `apiversion` returned | `4.0.1` |
+| Retrieved | 2026-09-23 |
+| Stored as | `fixtures/reference/usno_celnav_2026-10-01T0130Z.json` (verbatim response plus our comparison) |
+
+Produced by the US Naval Observatory, Astronomical Applications Department, a US
+Government agency; works of the US Government are not subject to copyright
+protection in the United States (17 U.S.C. § 105), which is the basis on which
+the response is stored in this repository.
+
+**Not verified:** the documentation page is rendered client-side and no
+machine-readable terms-of-use or licence statement could be retrieved on the
+date above. Confirm with USNO before redistributing this file outside the
+project. Note also that `aa.usno.navy.mil` resets connections from unfamiliar
+`User-Agent` strings, which is why `tools/reference/gen_usno.py` shells out to
+`curl` rather than using `urllib` directly.
+
+A second set of responses from the same API checks the Moon and planet sights
+(`docs/NAVIGATION_SKY.md`):
+
+| Item | Value |
+|---|---|
+| Endpoint | `https://aa.usno.navy.mil/api/celnav?date=…&time=…&coords=…`, 25 queries: 12 for Venus (2026-02-20 to 2027-01-03), 5 for Mars, 8 for the Moon |
+| Documentation | `https://aa.usno.navy.mil/data/celnav` (states that Venus is corrected for phase to its centre of light, and that the Moon's SD includes augmentation) |
+| Retrieved | 2026-09-24 |
+| Stored as | `fixtures/reference/usno_celnav_venus_phase.json`: the Venus, Mars and Moon entries of each response (GHA, Dec, and for the Moon Hc, Zn and the altitude corrections) verbatim, beside Skyfield + DE440s values and the fit, by `tools/reference/gen_usno_sights.py` |
+
+Same basis and the same caveat as above. The Nautical Almanac's explanation is quoted
+(one sentence, on Venus's phase and the Venus and Mars additional corrections) as
+reported on NavList, "Additional altitude correction for Venus" (May 2015,
+`navlist.net`); the Almanac itself was not consulted directly.
+
+### Verifying the ephemerides against Skyfield, by body
+
+The fixtures these figures come from are generated once per module ("Reference data" above
+lists the shared JPL kernels and Python packages); this section collects the smaller,
+body-specific verification notes that were recorded alongside each provider.
+
+**Sun.**
+
+#### Verification against the Skyfield reference fixture
+
+`crates/skyfix-ephemeris/tests/reference_fixtures_sun.rs` compares `SunProvider`
+against `fixtures/reference/geocentric_sun_stars.json` (Skyfield + JPL DE421, with
+DE440s for the one epoch outside DE421's coverage) at all 58 epochs, judged at the
+`generator.tolerance_arcmin` of 0.05' the file records. Worst deviation over those
+epochs:
+
+| quantity | worst | where |
+|---|---|---|
+| GHA, DUT1 = 0, vs `gha_deg_dut1_zero` | 0.0026' = 0.16" | 2055-01-01 |
+| GHA, the epoch's DUT1 supplied, vs `gha_deg` | 0.0026' = 0.16" | 2055-01-01 |
+| Dec | 0.0012' = 0.07" | 2028-02-29 |
+| RA of date | 0.0026' = 0.16" | 2055-01-01 |
+| semidiameter | 0.00005' | 2027-01-01 |
+| horizontal parallax | 0.00005' | 2003-01-01 |
+| radius vector (VSOP87D vs the JPL kernel) | 6.2e-8 au | 2023-01-01 |
+
+This is an independent check in every sense that matters: a different ephemeris
+(JPL numerical integration rather than the VSOP87 analytical fit), a different
+implementation, a different language. The file's DUT1 runs to -3.52 s, worth 0.88'
+of GHA, so the DUT1 = 0 column is the one a CONVENTIONS section 6 implementation
+must be judged on; the second row above additionally feeds each epoch's own DUT1 to
+`SunProvider::with_dut1_s` and checks the other column, which is what proves the
+DUT1 input is applied rather than ignored.
+
+#### Season instants used as sanity checks
+
+`crates/skyfix-ephemeris/tests/sun_seasons.rs` uses the published 2026 equinox and
+solstice instants (March 20 14:46 UTC, June 21 08:24 UTC, September 23 00:05 UTC,
+December 21 20:50 UTC). They are *inputs*: the test asserts that the Sun's apparent
+longitude is 0/90/180/270 deg at those instants, so an error in either the instants or
+the model would show. No licence attaches to a published astronomical instant.
+
+**Moon.**
+
+#### Reference fixtures for the Moon
+
+`fixtures/reference/moon_geocentric.json` and `moon_topocentric.json` are generated by
+`tools/reference/gen_moon.py` from Skyfield and the JPL kernels listed under "Reference
+data" above, with **DE440s as the primary ephemeris and DE421 as the cross-check** (the
+reverse of the older files; DE421 ends in 2053). The two kernels agree on the Moon's
+apparent direction to 0.0061″ and on its distance to 0.9 m over the 1515 instants both
+cover. The topocentric file is built with UT1 = UTC by giving each leap-second era its own
+Skyfield timescale with a constant ΔT of `32.184 s + (TAI − UTC)`
+(`load.timescale(delta_t=…)`). The Moon record already stored in the USNO response
+(`usno_celnav_2026-10-01T0130Z.json`, see "US Naval Observatory API" above) is used as a
+second, independent check by `tests/moon_reference.rs`; see `docs/ACCURACY.md`, "Moon",
+for what it showed.
+
+**Planets.**
+
+#### Reference fixtures
+
+`fixtures/reference/planets_<planet>.json` are generated by
+`tools/reference/gen_planets.py` from Skyfield 1.55 with **JPL DE440s as the primary
+ephemeris** (the explorer's reference, `docs/EXPLORER_PLAN.md`) and DE421 as the
+cross-check, both the files listed under "Downloaded data files" above. Nothing new is
+downloaded for them.
+
+**Star field.**
+
+#### Validation fixtures (development-time only)
 
 `fixtures/reference/starfield_apparent.json` and `starfield_constellations.json` are
 generated by `tools/starfield/gen_fixtures.py` with the reference environment already
@@ -1088,7 +1072,189 @@ listed above (Skyfield 1.55, numpy, JPL DE440s with DE421 as a cross-check). The
 values fed to Skyfield are parsed from the raw HEASARC download by that script's own
 code, independently of the build and of the Rust decoder.
 
-## Explorer design system and design mockup
+### Explorer events: rise, set, twilight, seasons, Moon phases
+
+Owner: events agent (`crates/skyfix-almanac/src/{events,sky}.rs`,
+`tools/reference/gen_events.py`, `fixtures/reference/events_*.json`). Retrieved
+2026-09-24. Development-time reference data only: nothing here is linked into or
+shipped with any binary.
+
+#### Skyfield + JPL DE440s — `events_{sun,stars,moon_planets,seasons,moon_phases}.json`
+
+Generated by `tools/reference/gen_events.py` from the same Skyfield 1.55, JPL DE440s
+(DE421 as a cross-check for seasons and Moon phases up to 2052) and Hipparcos
+`hip_main.dat` already listed under "Reference data (development-time only)" above,
+with the same licences. No new external data: the files are Skyfield's output for the
+project's own definitions (CONVENTIONS 13.3 to 13.5), with UT1 = UTC.
+
+#### US Naval Observatory API — `events_usno.json`
+
+| Endpoint | Used for |
+|---|---|
+| `https://aa.usno.navy.mil/api/rstt/oneday?date=YYYY-MM-DD&coords=LAT,LON&tz=0` | Sun and Moon rise, set, upper transit and civil twilight for 14 site-days |
+| `https://aa.usno.navy.mil/api/moon/phases/year?year=YYYY` | Moon phases for 1990, 2000, 2026, 2045, 2060 |
+| `https://aa.usno.navy.mil/api/seasons?year=YYYY` | Equinoxes and solstices for the same years |
+
+Same terms and the same caveat as the `celnav` endpoint above: produced by the US Naval
+Observatory, a US Government agency, and not subject to copyright in the United States
+(17 U.S.C. § 105); no machine-readable terms of use could be retrieved. The file keeps
+USNO's own values (to the minute) in the parts the tests use, with the query URL for
+each site-day. `gen_events.py` fetches with `curl` (the service resets unfamiliar
+`User-Agent` strings), waits a second between requests, and leaves the file untouched
+if the service cannot be reached.
+
+#### Meeus, *Astronomical Algorithms*, 2nd edition, chapter 47 (test code only)
+
+The synthetic test Moon in `crates/skyfix-almanac/tests/common/mod.rs` uses the mean
+arguments and the largest periodic terms (14 in longitude, 7 in latitude, 5 in
+distance) of Meeus's lunar theory, as published numbers. It exercises the Moon code
+paths in tests independently of the real Moon provider (it was written while that was a
+stub); it is never compiled into the library and makes no accuracy claim. No code was
+copied.
+
+### Mock explorer engine (interface development only)
+
+Owner: shell-core agent (`web/src/next/engine/mock.ts`, `web/src/next/engine/mock/`).
+Added 2026-09-24. The mock is reachable only with `?engine=mock`, or on a development
+server whose WebAssembly build lacks the explorer; it says on screen that its numbers
+are illustrative and is never a source of results (EXPLORER_PLAN 3.1). It ships as a
+separate chunk that a normal page load never downloads. Nothing below is a runtime
+dependency of the real engine, and no third-party code was copied.
+
+- **Published formulas, used as algorithms (no data files):** the Astronomical
+  Almanac's low-precision formulas for the Sun (section C) and the Moon (section D);
+  from Meeus, *Astronomical Algorithms* (already listed above), the IAU 1976
+  precession angles (21.2-21.4), Greenwich mean sidereal time (12.4), the planetary
+  magnitude formulas (chapter 41), the parallactic angle (14.1) and the position angle
+  of the bright limb (48.5); Saemundsson's refraction as CONVENTIONS 13.2 states it.
+- **JPL approximate planetary elements:** E. M. Standish, "Keplerian Elements for
+  Approximate Positions of the Major Planets", Table 1 (valid 1800-2050),
+  <https://ssd.jpl.nasa.gov/planets/approx_pos.html>. The 48 element values and rates
+  are transcribed as published (facts); no download is involved. Checked during
+  development against Skyfield with DE421 on four dates: planets within 5', Sun 0.4',
+  Moon 7' (the mock's coverage table claims 10', 1' and 30').
+- **The 58 navigational stars:** no new data. The existing Hipparcos extract
+  (`fixtures/reference/navigational_stars_hip.json`; attribution and the owner's
+  decision under "Licence decisions" below) propagated from J1991.25 to J2000.0 with
+  its proper motions and rounded to 0.0001 deg; `web/test/next/mock-engine.test.ts`
+  pins the table to the fixture. B-V colours are approximate and illustrative.
+- **Fourteen more bright stars** (Mintaka, Alnitak, Saiph, Meissa, Merak, Phecda,
+  Megrez, Mizar, Mimosa, Imai, Caph, Navi, Ruchbah, Segin), so four figures can be
+  drawn: approximate J2000 positions rounded to 0.01 deg and magnitudes, written from
+  general reference knowledge (facts), not copied from a catalogue file. Illustrative.
+- **Synthetic stars:** generated with a seeded pseudo-random generator; no source.
+- **Constellation figures** (Orion, the Plough in Ursa Major, Crux, Cassiopeia): drawn
+  by this project. The zodiac look-up uses approximate ecliptic longitudes (0.1 deg)
+  where the IAU boundaries cross the ecliptic, from general reference knowledge;
+  illustrative only.
+
+### Navigation methods — worked examples
+
+Owner: navigation agent (`crates/skyfix-core/src/methods/`,
+`fixtures/reference/bowditch_worked_examples.json`, `tools/reference/gen_nav_methods.py`).
+The Polaris-table formula these examples also check is runtime code — see "Runtime data"
+above, "Navigation formulas".
+
+#### The American Practical Navigator (Bowditch), NGA Pub. No. 9
+
+- **What is used:** the numbers of three worked examples, as test data only — volume 1
+  (2019 edition), chapter 19 "Sight Reduction", section 1910 (latitude at local apparent
+  noon, with its strip form, figure 1910), section 1912 (latitude by Polaris, with figure
+  1912b) and figure 1912c (the Nautical Almanac 2016 Polaris-table page it reproduces,
+  whose "ILLUSTRATION" block is the Almanac's own worked example). No text or figure is
+  reproduced; the values are typed, with the book's rounding, into
+  `fixtures/reference/bowditch_worked_examples.json` and cited in
+  `docs/NAVIGATION_METHODS.md` section 6.2.
+- **URL:** <https://msi.nga.mil/Publications/APN>; the chapter was read from the copy at
+  <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2019-%20Sight%20Reductions.pdf>.
+- **Retrieved:** 2026-09-24.
+- **Licence:** a work of the U.S. Government (National Geospatial-Intelligence Agency),
+  not subject to copyright in the United States (17 U.S.C. 105). No credit is required;
+  it is cited as a source.
+
+#### Skyfield-generated truth for the methods
+
+`tools/reference/gen_nav_methods.py` uses exactly the development-time inputs recorded
+under "Reference data (development-time only)" above (Skyfield, JPL DE421, Hipparcos);
+it adds no new data source.
+
+### Almanac pages
+
+Owner: almanac agent (`crates/skyfix-almanac/src/pages.rs`, `tools/reference/gen_almanac.py`,
+`web/src/next/almanac/`). Added 2026-09-24. No new crate, npm package or runtime data:
+the pages are built from the providers and the event finder above. Development-time
+reference data only:
+
+#### Skyfield + JPL DE440s — `fixtures/reference/almanac_days.json`
+
+Generated by `tools/reference/gen_almanac.py` from the same Skyfield 1.55, JPL DE440s and
+Hipparcos `hip_main.dat` listed under "Reference data (development-time only)", with the
+same licences, and reusing `gen_events.py`'s searches and `gen_planets.py`'s magnitude
+function. No new external data: Skyfield's output for the project's own definitions
+(CONVENTIONS 13.9), with UT1 = UTC.
+
+#### US Naval Observatory API — `fixtures/reference/almanac_usno.json`
+
+| Endpoint | Used for |
+|---|---|
+| `https://aa.usno.navy.mil/api/celnav?date=YYYY-MM-DD&time=HH:00:00&coords=LAT,LON` | 24 queries: four whole hours (2000-02-29 06h, 2016-12-31 18h, 2026-09-24 00h and 12h), each at the ground point of the Sun, the Moon, Venus, Mars, Jupiter and Saturn; every response stored verbatim |
+| `https://aa.usno.navy.mil/api/rstt/oneday?date=YYYY-MM-DD&coords=LAT,0&tz=0` | rise, set, upper transit and civil twilight at the Greenwich meridian for six latitude-dates; the phenomena stored verbatim |
+
+Retrieved 2026-09-24. Same terms and the same caveat as the `celnav` endpoint above:
+produced by the US Naval Observatory, a US Government agency, and not subject to
+copyright in the United States (17 U.S.C. § 105); no machine-readable terms of use could
+be retrieved. Fetched with `curl`, a second apart; the file is left untouched if the
+service cannot be reached.
+
+### Eclipses: reference fixtures
+
+The eclipse engine's methods and constants are runtime code — see "Runtime data" above,
+"Eclipses: methods and constants". What follows is the independent truth its results were
+checked against.
+
+#### NASA eclipse catalogues, path tables and Besselian elements (reference fixtures)
+
+| Item | Value |
+|---|---|
+| Catalogue pages | `https://eclipse.gsfc.nasa.gov/SEcat5/SE1901-2000.html`, `…/SE2001-2100.html`, `https://eclipse.gsfc.nasa.gov/LEcat5/LE1901-2000.html`, `…/LE2001-2100.html` |
+| Path tables | `https://eclipse.gsfc.nasa.gov/SEpath/SEpath2001/SE{2017Aug21T,2021Dec04T,2023Apr20H,2023Oct14A,2024Apr08T,2026Aug12T}path.html` |
+| Besselian elements | `https://eclipse.gsfc.nasa.gov/SEbeselm/SEbeselm2001/SE{…}beselm.html` (the same six) |
+| Retrieved | 2026-09-24; the SHA-256 of every page is recorded in the fixtures' `generator.sources` |
+| Stored as | `fixtures/reference/eclipses_nasa_canon.json` (158 solar and 162 lunar rows for 1990-2060, parsed verbatim) and `fixtures/reference/eclipses_nasa_paths.json` (six path tables with their Delta-T and greatest-eclipse data, six sets of polynomial elements) |
+| Publications | Espenak F., Meeus J., *Five Millennium Canon of Solar Eclipses: −1999 to +3000*, NASA/TP-2006-214141 (2006); *Five Millennium Canon of Lunar Eclipses: −1999 to +3000*, NASA/TP-2009-214172 (2009); *Five Millennium Catalog of Lunar Eclipses*, NASA/TP-2009-214173 (2009) |
+
+Produced by NASA's Goddard Space Flight Center: works of the U.S. Government are not
+subject to copyright in the United States (17 U.S.C. § 105). The pages ask that
+reproduced data carry an acknowledgment, which the fixtures carry and this file repeats:
+**"Eclipse Predictions by Fred Espenak and Jean Meeus (NASA's GSFC)"** for the catalogues
+and **"Eclipse Predictions by Fred Espenak, NASA's GSFC"** for the path tables and
+elements. The pages state their own model: VSOP87 and ELP-2000/82 (the path pages since
+changed to ELP-2000/85), lunar secular acceleration −25.858″/cy², and a Delta-T observed
+to about 2006 and extrapolated after (74 s for 2024 in the catalogue; 68.4-71.4 s on the
+later path pages).
+
+#### USNO Solar Eclipse Computer (reference fixture)
+
+| Item | Value |
+|---|---|
+| Endpoint | `https://aa.usno.navy.mil/api/eclipses/solar/date?date=YYYY-MM-DD&coords=LAT,LON&height=H` (local circumstances are served for 2017-2024) |
+| Documentation | `https://aa.usno.navy.mil/data/api` |
+| `apiversion` returned | `4.0.1` |
+| Retrieved | 2026-09-24 |
+| Stored as | `fixtures/reference/eclipses_usno_local.json`: 22 responses verbatim (2017-08-21, 2023-10-14 and 2024-04-08 at U.S. cities, Mazatlán, Honolulu, Dakar, Reykjavík and Sydney) |
+
+Same basis and the same caveat as the "US Naval Observatory API" entry above (a U.S.
+Government work; no machine-readable terms could be retrieved).
+
+#### Skyfield + JPL DE440s (reference fixture)
+
+`fixtures/reference/eclipses_skyfield.json`, generated by `tools/reference/gen_eclipses.py`
+with the Skyfield version and the `de440s.bsp` kernel listed under "Reference data" above
+(checksums in the file's `generator` block): local contact instants at the 22 USNO sites,
+two lunar eclipses with the Moon's altitude at three sites each, and the latitudes where
+the limits of four eclipses cross thirteen meridians.
+
+### Explorer design system and design mockup
 
 Owner: shell-design agent (`web/src/next/theme/`, `web/src/next/mockup/`,
 `web/next/mockup.html`, `web/next/mockup-assets/`). Added 2026-09-24.
@@ -1120,166 +1286,7 @@ Owner: shell-design agent (`web/src/next/theme/`, `web/src/next/mockup/`,
 - **The mockup's numbers:** produced once by this project's MOCK engine (section above)
   for Philadelphia City Hall on 2026-09-24 and typed in; illustrative, never results.
 
-## Explorer map view
-
-Owner: map agent (`web/src/next/map/`). Added 2026-09-24. No new package and no bundled
-data: the map draws the basemap and gazetteer recorded above (Natural Earth, public domain)
-with `maplibre-gl` (listed above).
-
-- **Map labels:** drawn by MapLibre itself on a canvas (TinySDF) from the same
-  `@fontsource-variable/inter` files the interface ships (SIL OFL 1.1, listed above),
-  registered under the map's own family names (`web/src/next/map/fonts.ts`). No glyph
-  (PBF) files are generated or committed, and no glyph server is used.
-- **Optional street layer (runtime, online, never bundled):** the OpenStreetMap standard
-  tile layer, `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, operated by the
-  OpenStreetMap Foundation. Data © OpenStreetMap contributors, ODbL 1.0; the tile images
-  are shown with the credit "© OpenStreetMap contributors" linked to
-  <https://www.openstreetmap.org/copyright>, visible on the map exactly while the layer
-  is on. Use follows the OSMF Tile Usage Policy (<https://operations.osmfoundation.org/policies/tiles/>,
-  read 2026-09-24): off by default and requested only for what is on screen while the
-  person has it switched on; maximum zoom 19; no prefetching or bulk download; tiles are
-  cached only by the browser's normal HTTP cache (the release agent's service worker must
-  not store them).
-
-## Almanac pages
-
-Owner: almanac agent (`crates/skyfix-almanac/src/pages.rs`, `tools/reference/gen_almanac.py`,
-`web/src/next/almanac/`). Added 2026-09-24. No new crate, npm package or runtime data:
-the pages are built from the providers and the event finder above. Development-time
-reference data only:
-
-### Skyfield + JPL DE440s — `fixtures/reference/almanac_days.json`
-
-Generated by `tools/reference/gen_almanac.py` from the same Skyfield 1.55, JPL DE440s and
-Hipparcos `hip_main.dat` listed under "Reference data (development-time only)", with the
-same licences, and reusing `gen_events.py`'s searches and `gen_planets.py`'s magnitude
-function. No new external data: Skyfield's output for the project's own definitions
-(CONVENTIONS 13.9), with UT1 = UTC.
-
-### US Naval Observatory API — `fixtures/reference/almanac_usno.json`
-
-| Endpoint | Used for |
-|---|---|
-| `https://aa.usno.navy.mil/api/celnav?date=YYYY-MM-DD&time=HH:00:00&coords=LAT,LON` | 24 queries: four whole hours (2000-02-29 06h, 2016-12-31 18h, 2026-09-24 00h and 12h), each at the ground point of the Sun, the Moon, Venus, Mars, Jupiter and Saturn; every response stored verbatim |
-| `https://aa.usno.navy.mil/api/rstt/oneday?date=YYYY-MM-DD&coords=LAT,0&tz=0` | rise, set, upper transit and civil twilight at the Greenwich meridian for six latitude-dates; the phenomena stored verbatim |
-
-Retrieved 2026-09-24. Same terms and the same caveat as the `celnav` endpoint above:
-produced by the US Naval Observatory, a US Government agency, and not subject to
-copyright in the United States (17 U.S.C. § 105); no machine-readable terms of use could
-be retrieved. Fetched with `curl`, a second apart; the file is left untouched if the
-service cannot be reached.
-
-## Eclipses
-
-Owner: eclipse agent (`crates/skyfix-almanac/src/eclipses.rs` and `eclipses/`,
-`crates/skyfix-wasm/src/eclipses.rs`, `tools/reference/gen_eclipses.py`,
-`fixtures/reference/eclipses_*.json`). Added 2026-09-24.
-
-**No third-party data is embedded in the runtime.** The engine computes every eclipse
-from the project's own Sun (VSOP87D) and Moon (ELP 2000-82B) providers, listed above.
-What follows is either a published method used as an algorithm, a published constant,
-or a development-time reference fixture that only the tests read.
-
-### Methods and constants
-
-Cited in the source; no licence attaches to a published method, formula or constant.
-
-- **Besselian elements, local circumstances, limits of the path:** *Explanatory
-  Supplement to the Astronomical Ephemeris and the American Ephemeris and Nautical
-  Almanac* (HMSO, 1961), chapter 9 (the fundamental plane, the shadow cones `f1`, `f2`,
-  `l1`, `l2`, the observer's coordinates and their rates, the limit condition
-  `u' sin Q + v' cos Q = L'`); *Explanatory Supplement to the Astronomical Almanac*
-  (Seidelmann ed., 1992), chapter 8; Chauvenet, *A Manual of Spherical and Practical
-  Astronomy* (1891); Meeus, *Elements of Solar Eclipses 1951-2200* (Willmann-Bell,
-  1989). The engine works the same geometry in the Earth-fixed frame instead of with
-  the classical `rho sin phi'` series, and solves the limits with a bracketed root in
-  the observer's height; no code was copied from anywhere.
-- **Candidate syzygies:** Meeus, *Astronomical Algorithms* (2nd ed., 1998), chapter 49
-  (mean new and full moons and their arguments) and chapter 54 (quick instant and gamma
-  of an eclipse). Used only to decide where to look; listed above for other uses.
-- **Radius of the Moon for eclipses:** `k1 = 0.272488` (penumbra) and `k2 = 0.272281`
-  (umbra) Earth equatorial radii, as printed on NASA's Besselian-element pages (for
-  example `SE2024Apr08Tbeselm.html`, retrieved 2026-09-24; the 2017 page prints
-  `k1 = 0.272508`). The Sun's radius is the one that subtends 959.63″ at 1 au, the
-  constant already listed under "Solar constants".
-- **Shadow enlargement for lunar eclipses, Danjon's rule:** Danjon A., "Les éclipses de
-  Lune par la pénombre en 1951", *L'Astronomie* **65**, 51-53 (1951), in the form NASA
-  states it (penumbra `1.01 Pm + Ss + Ps`, umbra `1.01 Pm − Ss + Ps`): "Enlargement of
-  Earth's Shadows", <https://eclipse.gsfc.nasa.gov/LEcat5/shadow.html>, retrieved
-  2026-09-24.
-- **Saros and lunation numbers:** van den Bergh G., *Periodicity and Variation of Solar
-  (and Lunar) Eclipses* (Tjeenk Willink, 1955) for the saros-inex numbering (series
-  advance by one per inex of 358 lunations); NASA's lunation numbering (lunation 0 = the
-  new moon of 2000 January 6; Brown's number minus 953). Anchors, from the NASA
-  catalogues below: the solar eclipse of 2024-04-08 (lunation 300, saros 139) and the
-  lunar eclipse of 2025-03-14 (lunation 311, saros 123).
-- **Obscuration:** the area of intersection of two discs (elementary geometry).
-
-### NASA eclipse catalogues, path tables and Besselian elements (reference fixtures)
-
-| Item | Value |
-|---|---|
-| Catalogue pages | `https://eclipse.gsfc.nasa.gov/SEcat5/SE1901-2000.html`, `…/SE2001-2100.html`, `https://eclipse.gsfc.nasa.gov/LEcat5/LE1901-2000.html`, `…/LE2001-2100.html` |
-| Path tables | `https://eclipse.gsfc.nasa.gov/SEpath/SEpath2001/SE{2017Aug21T,2021Dec04T,2023Apr20H,2023Oct14A,2024Apr08T,2026Aug12T}path.html` |
-| Besselian elements | `https://eclipse.gsfc.nasa.gov/SEbeselm/SEbeselm2001/SE{…}beselm.html` (the same six) |
-| Retrieved | 2026-09-24; the SHA-256 of every page is recorded in the fixtures' `generator.sources` |
-| Stored as | `fixtures/reference/eclipses_nasa_canon.json` (158 solar and 162 lunar rows for 1990-2060, parsed verbatim) and `fixtures/reference/eclipses_nasa_paths.json` (six path tables with their Delta-T and greatest-eclipse data, six sets of polynomial elements) |
-| Publications | Espenak F., Meeus J., *Five Millennium Canon of Solar Eclipses: −1999 to +3000*, NASA/TP-2006-214141 (2006); *Five Millennium Canon of Lunar Eclipses: −1999 to +3000*, NASA/TP-2009-214172 (2009); *Five Millennium Catalog of Lunar Eclipses*, NASA/TP-2009-214173 (2009) |
-
-Produced by NASA's Goddard Space Flight Center: works of the U.S. Government are not
-subject to copyright in the United States (17 U.S.C. § 105). The pages ask that
-reproduced data carry an acknowledgment, which the fixtures carry and this file repeats:
-**"Eclipse Predictions by Fred Espenak and Jean Meeus (NASA's GSFC)"** for the catalogues
-and **"Eclipse Predictions by Fred Espenak, NASA's GSFC"** for the path tables and
-elements. The pages state their own model: VSOP87 and ELP-2000/82 (the path pages since
-changed to ELP-2000/85), lunar secular acceleration −25.858″/cy², and a Delta-T observed
-to about 2006 and extrapolated after (74 s for 2024 in the catalogue; 68.4-71.4 s on the
-later path pages).
-
-### USNO Solar Eclipse Computer (reference fixture)
-
-| Item | Value |
-|---|---|
-| Endpoint | `https://aa.usno.navy.mil/api/eclipses/solar/date?date=YYYY-MM-DD&coords=LAT,LON&height=H` (local circumstances are served for 2017-2024) |
-| Documentation | `https://aa.usno.navy.mil/data/api` |
-| `apiversion` returned | `4.0.1` |
-| Retrieved | 2026-09-24 |
-| Stored as | `fixtures/reference/eclipses_usno_local.json`: 22 responses verbatim (2017-08-21, 2023-10-14 and 2024-04-08 at U.S. cities, Mazatlán, Honolulu, Dakar, Reykjavík and Sydney) |
-
-Same basis and the same caveat as the "US Naval Observatory API" entry above (a U.S.
-Government work; no machine-readable terms could be retrieved).
-
-### Skyfield + JPL DE440s (reference fixture)
-
-`fixtures/reference/eclipses_skyfield.json`, generated by `tools/reference/gen_eclipses.py`
-with the Skyfield version and the `de440s.bsp` kernel listed under "Reference data" above
-(checksums in the file's `generator` block): local contact instants at the 22 USNO sites,
-two lunar eclipses with the Moon's altitude at three sites each, and the latitudes where
-the limits of four eclipses cross thirteen meridians.
-
-## Offline app: service worker, web app manifest, icons
-
-Owner: release agent (`web/src/sw/`, `web/src/pwa/`, `web/src/next/pwa/`, `web/plugins/`,
-`web/public/manifest.webmanifest`, `web/public/icons/`). Added 2026-09-24. No new package,
-no data and no third-party code.
-
-- **Service worker:** written for this project (`web/src/sw/`), built by this project's
-  own Vite plugin (`web/plugins/pwa.ts`). No service-worker library (Workbox or other) is
-  used or copied; the Cache Storage and service-worker APIs are browser standards.
-- **Icons:** drawn for this project from its own logo mark (`web/src/next/theme/primitives.ts`,
-  listed under "Explorer design system" above) in the design tokens' colours, and
-  rendered to PNG by `web/scripts/render-icons.mjs` with a local Chrome. Covered by the
-  project's licence.
-- **What the worker stores:** only files of this site. It never answers, stores or
-  inspects a request to another origin. In particular the optional OpenStreetMap street
-  layer (see "Explorer map view") is left entirely to the browser: its tiles are cached
-  only by the browser's normal HTTP cache, as the OSMF Tile Usage Policy
-  (<https://operations.osmfoundation.org/policies/tiles/>) allows, and the layer does not
-  work offline. What the worker does store is what the site already ships: the Natural
-  Earth basemap and gazetteer (public domain) and the Inter and JetBrains Mono font files
-  (SIL OFL 1.1, listed under "Explorer (browser) dependencies"), unchanged.
-
-## Planet events
+### Planet events (reference fixtures)
 
 Owner: eclipse agent (`crates/skyfix-almanac/src/planet_events.rs`,
 `crates/skyfix-wasm/src/planet_events.rs`, `tools/reference/gen_planet_events.py`,
@@ -1293,7 +1300,7 @@ date, planet minus Sun); the root and extremum searches reuse the eclipse module
 Brent routines. The transit test uses the Sun's 959.63″ at 1 au ("Solar constants")
 and each planet's IAU equatorial radius already listed under "Physical constants".
 
-### NASA SKYCAL Sky Events Calendar (reference fixture)
+#### NASA SKYCAL Sky Events Calendar (reference fixture)
 
 | Item | Value |
 |---|---|
@@ -1308,7 +1315,7 @@ reproduction with an acknowledgment, which the fixture carries and this file rep
 archived ("no longer being updated"); its instants are approximate (median 18 minutes
 from DE440s), which is why it serves for the list of events and not their timing.
 
-### NASA transit catalogues (twelve dates in a test)
+#### NASA transit catalogues (twelve dates in a test)
 
 `tests/planet_events.rs` (`the_transits_are_those_of_nasas_catalogues`) lists the twelve
 transits of Mercury and Venus of 1990-2060 by body and date, typed from F. Espenak's
@@ -1316,10 +1323,123 @@ catalogues on NASA's eclipse site (`https://eclipse.gsfc.nasa.gov/transit/catalo
 and `…/VenusCatalog.html`, retrieved 2026-09-24): facts from a U.S. Government work, cited
 in the test.
 
-### Skyfield + JPL DE440s (reference fixture)
+#### Skyfield + JPL DE440s (reference fixture)
 
 `fixtures/reference/planet_events_skyfield.json`, generated by
 `tools/reference/gen_planet_events.py` with the Skyfield version and `de440s.bsp` kernel
 listed under "Reference data" above: the 2266 events of 1990-2060 with Skyfield's own
 `almanac.oppositions_conjunctions`, `find_maxima` and `find_minima`, and whether each
 inferior conjunction is a transit.
+
+## Licence decisions
+
+Most of the sources above needed only a fact to be recorded — a URL, a retrieval date, a
+published licence statement. A few needed a judgement call, because the facts alone did
+not settle the question. Those are collected here.
+
+### Hipparcos licence vs the project's MIT/Apache-2.0 licence — DECIDED
+
+**Decision by the project owner, 2026-09-24: keep the 58-row extract, with the
+attribution below.** The reasoning: the rows are individual astrometric measurements
+(facts), the extract is 58 of 118 218 entries and six of 78 fields, the raw catalogue is
+never redistributed, and ESA and CDS are credited wherever the data appear. Expanding to
+a substantial part of the catalogue would reopen this question and would need either
+ESA/CDS confirmation of the terms or a permissively licensed source.
+
+**Attribution:** This product uses data from the Hipparcos catalogue, ESA (1997), *The
+Hipparcos and Tycho Catalogues*, ESA SP-1200, as served by the Centre de Données
+astronomiques de Strasbourg (CDS/VizieR, catalogue I/239).
+
+The original analysis, kept for the record:
+
+`fixtures/reference/navigational_stars_hip.json` **is committed** and contains
+58 rows copied verbatim out of `hip_main.dat`: for each star, `ra_deg`,
+`dec_deg`, `pm_ra_cosdec_mas_yr`, `pm_dec_mas_yr`, `parallax_mas` and `mag`.
+That is 58 of the catalogue's 118 218 entries and six of its 78 fields.
+
+CDS/VizieR declares catalogue I/239 as **`CC-BY-NC-3.0 IGO`** (Creative Commons
+Attribution-NonCommercial 3.0 IGO). SkyFix Lab is dual MIT / Apache-2.0. A
+non-commercial restriction is not compatible with either.
+
+The considerations, stated without pretending to a legal opinion:
+
+* The underlying catalogue is an ESA science product (ESA SP-1200, 1997). The
+  `CC-BY-NC-3.0 IGO` tag is CDS/VizieR's declaration for the catalogue as
+  *served by VizieR*; it is not obviously ESA's own condition on the Hipparcos
+  results, and the two may differ.
+* Individual astrometric measurements are facts. Whether a 58-row, six-field
+  extract is a protected part of a database — and whether an EU *sui generis*
+  database right applies at all — is a question for a person, not for this
+  generator.
+* The raw catalogue itself is git-ignored and is never redistributed.
+
+Options, cheapest first:
+
+1. Keep the extract, attribute ESA and CDS prominently, and record the NC tag.
+   Acceptable only if the project accepts the restriction or concludes the
+   extract is not protected.
+2. Replace the six catalogue columns with a source whose terms are
+   unambiguously permissive. The Nautical Almanac's own SHA/Dec tables are a US
+   Government work; Gaia DR3 is published by ESA under CC BY 4.0 (but does not
+   contain most of these stars, which are too bright for Gaia). The cost is that
+   proper motion and parallax would have to come from somewhere too, and the
+   `name → HIP` mapping is itself the useful part of the file.
+3. Keep the file for development, and strip or replace it at release.
+
+Attribution to carry in any case: *ESA (1997), The Hipparcos and Tycho
+Catalogues, ESA SP-1200*, obtained from the VizieR catalogue access tool, CDS,
+Strasbourg, France (DOI: 10.26093/cds/vizier).
+
+### The owner's no-credit preference, and how it was met
+
+A specific request from the explorer-redesign interview (`docs/EXPLORER_PLAN.md`) turned
+into a small audit: for each source recorded above, does showing it on screen actually
+require a credit? Only one answer below turned out to be yes.
+
+#### Data that needs no credit, by the owner's preference (2026-09-24)
+
+The owner asked for star and constellation data that needs no credit where possible.
+The plan (details recorded by the star-field and map-data agents as they land):
+
+- **Stars:** NASA HEASARC's `BSC5P` table (Yale Bright Star Catalogue, 5th revised
+  edition, as served by HEASARC). NASA's open-data catalogue lists this dataset with the
+  licence *U.S. Government Works* (<https://catalog.data.gov/dataset/bright-star-catalog>,
+  checked 2026-09-24). Star positions and magnitudes are also measurements, which are
+  facts. The compilers (Hoffleit & Warren, 1991) are cited in the documentation as a
+  courtesy, not as a licence obligation.
+- **Constellation figures:** drawn by this project, so they are covered by the project's
+  own MIT OR Apache-2.0 licence.
+- **Constellation boundaries:** the IAU definitions of Delporte (1930), which are
+  published definitions (facts) and in the public domain by age.
+- **Offline basemap and gazetteer:** Natural Earth, public domain; Natural Earth states
+  that crediting it is unnecessary.
+- **Optional street layer:** OpenStreetMap tiles are ODbL data and **do** require the
+  on-map credit "© OpenStreetMap contributors" whenever that layer is shown. It is off
+  by default.
+
+### Two more sources with no catalogue-specific licence
+
+Two runtime sources are on a similar footing to Hipparcos's CDS/VizieR terms, but without
+even a licence tag to weigh: **ELP 2000-82B** (the Moon; "Runtime data" above) is served by
+CDS catalogue VI/79 under **no catalogue-specific licence at all** — checked directly in
+VizieR's own metadata on 2026-09-24, where the same page declares `CC-BY-NC-3.0 IGO` for
+Hipparcos by contrast — so only the general VizieR rules of usage apply (free for
+scientific use with attribution; commercial use "subject to rules depending of the
+origin"). **VSOP87D and VSOP87A** (the Sun and the seven planets; same "Runtime data"
+section) are the same institute's, same journal, also without a declared licence, and are
+treated the same way: "freely usable with acknowledgement." None of the three is
+restrictive like Hipparcos's NC tag, so none forced the kind of decision Hipparcos did —
+but a future formal clearance request to the IMCCE / CDS, if the project ever needs one,
+would cover all three catalogues at once (noted where ELP 2000-82B is recorded above).
+
+### The USNO caveat: accepted, not verified
+
+Every US Naval Observatory API response used anywhere in this project (celestial
+navigation, Moon and planet sights, events, the almanac, eclipses — all under
+"Development-time references" above) rests on the same basis: works of the US
+government are not subject to copyright in the United States (17 U.S.C. § 105), which is
+why the raw responses are committed to the repository at all. No machine-readable
+terms-of-use could be retrieved from USNO's own site on any retrieval date recorded above.
+This is a standing, accepted risk rather than a settled fact — confirm with USNO before
+redistributing any `usno_*.json` fixture outside the project, exactly as first recorded
+under "US Naval Observatory API" above.
