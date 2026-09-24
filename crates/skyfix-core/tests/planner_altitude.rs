@@ -56,7 +56,8 @@ fn between_two_bodies_on_one_azimuth_the_higher_one_wins() {
     let plan = rank(&candidates, PHILADELPHIA, UTC, &options);
     assert_eq!(plan.bodies.len(), 2);
     assert_eq!(
-        plan.bodies[0].body, "High-40",
+        plan.bodies[0].body,
+        "High-40",
         "the higher body must be ranked first: {:?}",
         plan.bodies
             .iter()
@@ -134,11 +135,17 @@ fn a_near_zenith_body_at_eighty_degrees_is_excluded_for_its_azimuth_not_its_brig
         excluded.reason
     );
     assert!(
-        excluded.reason.contains("azimuth of the line of position is poorly defined"),
+        excluded
+            .reason
+            .contains("azimuth of the line of position is poorly defined"),
         "the near-zenith reason must be the azimuth one: {}",
         excluded.reason
     );
-    assert!(plan.notes.iter().any(|n| n.contains("excluded Overhead-80")));
+    assert!(
+        plan.notes
+            .iter()
+            .any(|n| n.contains("excluded Overhead-80"))
+    );
 
     // Raising the ceiling lets it back in: the bound is an option, not a law of nature.
     let relaxed = PlanOptions {

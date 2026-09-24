@@ -302,11 +302,12 @@ impl Default for PlanOptions {
 // ---------------------------------------------------------------------------
 
 /// Which quantity a step's `score` is the growth of.
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ScoreBasis {
     /// The geometry before the step was already rank 2: the score is the reduction in
     /// the objective's cost, in the objective's own units.
+    #[default]
     Objective,
     /// The geometry before the step was rank-deficient, so the covariance did not exist.
     /// The score is instead the growth of `ln det(J^T W J + ridge I)`, in nats. Larger is
@@ -352,12 +353,6 @@ fn default_score_units() -> String {
     Objective::MinTrace.score_units().to_string()
 }
 
-impl Default for ScoreBasis {
-    fn default() -> Self {
-        ScoreBasis::Objective
-    }
-}
-
 /// A candidate that never entered the selection, and why.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ExcludedBody {
@@ -388,10 +383,15 @@ pub struct PlanMetrics {
     /// Azimuth of the semi-major axis, degrees clockwise from north, `[0, 180)`.
     pub semi_major_azimuth_deg: Option<f64>,
     /// Geometry-only dilution: metres of position per arcminute of altitude noise.
-    /// 1852 m is the ideal (CONVENTIONS section 9).
-    pub geometric_dilution_m_per_arcmin: f64,
-    /// Condition number of `W^(1/2) J`; infinite when rank-deficient.
-    pub condition_number: f64,
+    /// 1852 m is the ideal (CONVENTIONS section 9). `None` when rank-deficient.
+    pub geometric_dilution_m_per_arcmin: Option<f64>,
+    /// Condition number of `W^(1/2) J` — **not** of the covariance, whose axis ratio is
+    /// this number squared (CONVENTIONS section 9). `None` when rank-deficient.
+    ///
+    /// Both this and the dilution are `Option` rather than `f64::INFINITY` on purpose:
+    /// `serde_json` writes a non-finite float as `null` and then refuses to read it back,
+    /// so an infinity here would make a rank-deficient plan fail to round-trip.
+    pub condition_number: Option<f64>,
     pub rank: usize,
     pub max_azimuth_gap_deg: f64,
     /// `true` when the covariance does not exist: fewer than two independent azimuths.
@@ -408,8 +408,8 @@ impl PlanMetrics {
             semi_major_sigma_m: None,
             semi_minor_sigma_m: None,
             semi_major_azimuth_deg: None,
-            geometric_dilution_m_per_arcmin: f64::INFINITY,
-            condition_number: f64::INFINITY,
+            geometric_dilution_m_per_arcmin: None,
+            condition_number: None,
             rank: 0,
             max_azimuth_gap_deg: 360.0,
             singular: true,
@@ -546,15 +546,13 @@ impl Info {
     /// reported elsewhere (CONVENTIONS section 9).
     fn is_singular(&self) -> bool {
         let (big, small) = self.eigenvalues();
-        !(big > 0.0)
-            || !(small > 0.0)
-            || small / big
-                < uncertainty::RANK_TOLERANCE_REL * uncertainty::RANK_TOLERANCE_REL
+        let positive = big > 0.0 && small > 0.0;
+        !positive || small / big < uncertainty::RANK_TOLERANCE_REL * uncertainty::RANK_TOLERANCE_REL
     }
 
     fn rank(&self) -> usize {
         let (big, _) = self.eigenvalues();
-        if !(big > 0.0) {
+        if big <= 0.0 || big.is_nan() {
             0
         } else if self.is_singular() {
             1
@@ -592,10 +590,12 @@ impl Info {
     /// `ln det(M + ridge I)`, always finite: `det + ridge * trace + ridge^2`.
     fn log_det_ridged(&self) -> f64 {
         let d = self.det + RIDGE * self.trace + RIDGE * RIDGE;
-        if !(d > 0.0) || !d.is_finite() {
-            return (RIDGE * RIDGE).ln();
+        if d.is_finite() && d > 0.0 {
+            d.ln()
+        } else {
+            // Rounding can only get here from a rank-0 matrix.
+            (RIDGE * RIDGE).ln()
         }
-        d.ln()
     }
 
     /// Objective cost. Lower is better. `None` when the covariance does not exist.
@@ -645,6 +645,11 @@ fn conditioning_of(rows: &[Vec<f64>], azimuths_rad: &[f64]) -> Conditioning {
     uncertainty::conditioning(rows, azimuths_rad)
 }
 
+/// `Some(v)` for a finite `v`, `None` for an infinity or a NaN.
+fn finite(v: f64) -> Option<f64> {
+    v.is_finite().then_some(v)
+}
+
 fn metrics(candidates: &[&Candidate]) -> PlanMetrics {
     let rows: Vec<Vec<f64>> = candidates.iter().filter_map(|c| c.weighted_row()).collect();
     let azimuths: Vec<f64> = candidates
@@ -663,8 +668,8 @@ fn metrics(candidates: &[&Candidate]) -> PlanMetrics {
         semi_major_sigma_m: None,
         semi_minor_sigma_m: None,
         semi_major_azimuth_deg: None,
-        geometric_dilution_m_per_arcmin: cond.geometric_dilution_m_per_arcmin,
-        condition_number: info.condition_number(),
+        geometric_dilution_m_per_arcmin: finite(cond.geometric_dilution_m_per_arcmin),
+        condition_number: finite(info.condition_number()),
         rank: info.rank(),
         max_azimuth_gap_deg: cond.max_azimuth_gap_deg,
         singular: cov.is_none(),
@@ -721,7 +726,7 @@ const NO_CONSTRAINT_RATIO: f64 = 1.0e12;
 
 fn weak_axis(info: &Info) -> WeakAxis {
     let (big, small) = info.eigenvalues();
-    if !big.is_finite() || big <= 0.0 {
+    if !(big.is_finite() && big > 0.0) {
         return WeakAxis::Unconstrained;
     }
     let ratio = if small > 0.0 && big / small <= NO_CONSTRAINT_RATIO {
@@ -791,7 +796,7 @@ fn rationale(weak: WeakAxis, c: &Candidate, base_sigma_arcmin: f64) -> String {
     }
     if let Some(mag) = c.magnitude {
         s.push_str(&format!(
-            ". Magnitude {mag:.1}, which did not enter the ranking"
+            ". Magnitude {mag:.2}, which did not enter the ranking"
         ));
     }
     if !c.note.trim().is_empty() {
@@ -892,7 +897,9 @@ pub fn rank(
             if used[i] {
                 continue;
             }
-            let Some(row) = c.weighted_row() else { continue };
+            let Some(row) = c.weighted_row() else {
+                continue;
+            };
             let mut rows_after = rows.clone();
             rows_after.push(row);
             let info_after = Info::of(&rows_after);
@@ -1052,7 +1059,7 @@ mod tests {
         let expect = s * NM_M;
         assert_relative_eq!(m.sigma_north_m.unwrap(), expect, epsilon = 1e-6);
         assert_relative_eq!(m.sigma_east_m.unwrap(), expect, epsilon = 1e-6);
-        assert_relative_eq!(m.condition_number, 1.0, epsilon = 1e-9);
+        assert_relative_eq!(m.condition_number.unwrap(), 1.0, epsilon = 1e-9);
         assert!(!m.singular);
     }
 
@@ -1086,7 +1093,10 @@ mod tests {
         match weak_axis(&info) {
             WeakAxis::Axis { azimuth_deg, ratio } => {
                 assert_relative_eq!(azimuth_deg, 90.0, epsilon = 1e-9);
-                assert!(ratio.is_infinite(), "a single sight constrains one axis only");
+                assert!(
+                    ratio.is_infinite(),
+                    "a single sight constrains one axis only"
+                );
             }
             other => panic!("expected a named weak axis, got {other:?}"),
         }
@@ -1138,7 +1148,7 @@ mod tests {
             epsilon = 1e-9
         );
         let m = metrics(&[&a, &b]);
-        assert_relative_eq!(m.condition_number, 3f64.sqrt(), epsilon = 1e-9);
+        assert_relative_eq!(m.condition_number.unwrap(), 3f64.sqrt(), epsilon = 1e-9);
         assert_relative_eq!(
             m.semi_major_sigma_m.unwrap() / m.semi_minor_sigma_m.unwrap(),
             3f64.sqrt(),

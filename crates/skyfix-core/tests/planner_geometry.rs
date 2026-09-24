@@ -30,9 +30,11 @@ fn azimuth_gap(a: f64, b: f64) -> f64 {
 
 fn clustered_options() -> PlanOptions {
     PlanOptions {
-        already_taken: vec![c("Taken-40", 45.0, 40.0), c("Taken-50", 45.0, 50.0), c(
-            "Taken-60", 45.0, 60.0,
-        )],
+        already_taken: vec![
+            c("Taken-40", 45.0, 40.0),
+            c("Taken-50", 45.0, 50.0),
+            c("Taken-60", 45.0, 60.0),
+        ],
         ..PlanOptions::default()
     }
 }
@@ -69,7 +71,11 @@ fn a_clustered_set_is_completed_perpendicular_not_alongside() {
     );
 
     // Three sights already exist, so every step is scored in the objective's own units.
-    assert!(plan.bodies.iter().all(|b| b.score_basis == ScoreBasis::Objective));
+    assert!(
+        plan.bodies
+            .iter()
+            .all(|b| b.score_basis == ScoreBasis::Objective)
+    );
     assert_eq!(top.score_units, Objective::MinTrace.score_units());
     assert!(top.score > 0.0, "the top pick must improve the fix");
 
@@ -83,7 +89,11 @@ fn a_clustered_set_is_completed_perpendicular_not_alongside() {
             .map(|x| x.azimuth_deg.rem_euclid(180.0))
             .unwrap()
     };
-    let order: Vec<f64> = plan.bodies.iter().map(|b| b.azimuth_deg.rem_euclid(180.0)).collect();
+    let order: Vec<f64> = plan
+        .bodies
+        .iter()
+        .map(|b| b.azimuth_deg.rem_euclid(180.0))
+        .collect();
     assert_eq!(order, vec![135.0, 135.0, 45.0, 45.0], "order was {order:?}");
     assert_eq!(axis_of("Az-135"), 135.0);
     assert_eq!(axis_of("Az-225"), 45.0);
@@ -100,8 +110,15 @@ fn min_trace_shrinks_the_predicted_sigma_at_every_step() {
     let plan = rank(&candidates, PHILADELPHIA, UTC, &clustered_options());
 
     assert_eq!(plan.bodies.len(), 4);
-    assert_eq!(plan.progression.len(), 5, "baseline plus one entry per pick");
-    assert!(!plan.baseline.singular, "three sights already determine a fix");
+    assert_eq!(
+        plan.progression.len(),
+        5,
+        "baseline plus one entry per pick"
+    );
+    assert!(
+        !plan.baseline.singular,
+        "three sights already determine a fix"
+    );
 
     let mut previous = f64::INFINITY;
     for (i, m) in plan.progression.iter().enumerate() {
@@ -119,7 +136,7 @@ fn min_trace_shrinks_the_predicted_sigma_at_every_step() {
     assert!(plan.predicted.sigma_north_m.unwrap() < plan.baseline.sigma_north_m.unwrap());
     assert!(plan.predicted.sigma_east_m.unwrap() < plan.baseline.sigma_east_m.unwrap());
     assert!(plan.predicted.semi_major_sigma_m.unwrap() < plan.baseline.semi_major_sigma_m.unwrap());
-    assert!(plan.predicted.condition_number < plan.baseline.condition_number);
+    assert!(plan.predicted.condition_number.unwrap() < plan.baseline.condition_number.unwrap());
     assert_eq!(plan.baseline.sight_count, 3);
     assert_eq!(plan.predicted.sight_count, 7);
 
@@ -127,15 +144,22 @@ fn min_trace_shrinks_the_predicted_sigma_at_every_step() {
     // (CONVENTIONS section 9), so the covariance's axis ratio is its square: 6.98 here
     // means an error ellipse 7 times longer than it is wide.
     assert!(
-        plan.baseline.condition_number > 5.0,
-        "the clustered baseline should be poor geometry, got {}",
+        plan.baseline.condition_number.unwrap() > 5.0,
+        "the clustered baseline should be poor geometry, got {:?}",
         plan.baseline.condition_number
     );
-    assert!(plan.predicted.condition_number < 2.0);
+    assert!(plan.predicted.condition_number.unwrap() < 2.0);
     // The geometric dilution improves too, toward the 1852 m/arcmin ideal.
     assert!(
-        plan.predicted.geometric_dilution_m_per_arcmin
-            < plan.baseline.geometric_dilution_m_per_arcmin
+        plan.predicted.geometric_dilution_m_per_arcmin.unwrap()
+            < plan.baseline.geometric_dilution_m_per_arcmin.unwrap()
+    );
+    // With every sigma at 1.0 arcmin the weighted and geometry-only measures coincide.
+    assert!(
+        (plan.predicted.geometric_dilution_m_per_arcmin.unwrap()
+            - plan.predicted.trace_sigma_m.unwrap())
+        .abs()
+            < 1e-6
     );
 }
 
@@ -255,12 +279,7 @@ fn after_two_perpendicular_equal_sights_the_third_azimuth_does_not_matter() {
     };
     let mut scores = Vec::new();
     for azimuth in [2.0, 45.0, 88.0, 200.0] {
-        let plan = rank(
-            &[c("Third", 45.0, azimuth)],
-            PHILADELPHIA,
-            UTC,
-            &options,
-        );
+        let plan = rank(&[c("Third", 45.0, azimuth)], PHILADELPHIA, UTC, &options);
         scores.push(plan.bodies[0].score);
         assert!(plan.bodies[0].rationale.contains("already balanced"));
     }
@@ -397,11 +416,7 @@ fn every_plan_carries_the_three_disclosures() {
                 .any(|n| n.starts_with("approximate position supplied:")
                     && n.ends_with("ranking is only as good as it"))
         );
-        assert!(
-            plan.notes
-                .iter()
-                .any(|n| n == NOTE_GEOMETRIC_VISIBILITY)
-        );
+        assert!(plan.notes.iter().any(|n| n == NOTE_GEOMETRIC_VISIBILITY));
         assert!(plan.notes.iter().any(|n| n == NOTE_BRIGHTNESS_SECONDARY));
         assert_eq!(plan.utc, UTC);
     }
@@ -420,10 +435,54 @@ fn a_plan_round_trips_through_json() {
     let plan = rank(&candidates, PHILADELPHIA, UTC, &clustered_options());
     let text = serde_json::to_string(&plan).expect("serialise");
     let back: skyfix_core::planner::Plan = serde_json::from_str(&text).expect("deserialise");
-    assert_eq!(back.bodies, plan.bodies);
+    // Structure and prose must survive exactly. The floats are compared with a
+    // tolerance: serde_json's parser is not bit-exact on every f64, and a plan is a
+    // report, not a checksum.
     assert_eq!(back.notes, plan.notes);
     assert_eq!(back.objective, plan.objective);
     assert_eq!(back.excluded, plan.excluded);
+    assert_eq!(back.approximate_position, plan.approximate_position);
+    assert_eq!(back.utc, plan.utc);
+    assert_eq!(back.progression.len(), plan.progression.len());
+    assert_eq!(back.predicted.rank, plan.predicted.rank);
+    assert_eq!(back.predicted.singular, plan.predicted.singular);
+    assert_eq!(back.bodies.len(), plan.bodies.len());
+    for (a, b) in back.bodies.iter().zip(&plan.bodies) {
+        assert_eq!(a.body, b.body);
+        assert_eq!(a.rationale, b.rationale);
+        assert_eq!(a.score_units, b.score_units);
+        assert_eq!(a.score_basis, b.score_basis);
+        assert_eq!(a.step, b.step);
+        assert!((a.score - b.score).abs() <= 1e-9 * b.score.abs());
+    }
+    assert!(
+        (back.predicted.trace_sigma_m.unwrap() - plan.predicted.trace_sigma_m.unwrap()).abs()
+            <= 1e-9 * plan.predicted.trace_sigma_m.unwrap()
+    );
+
+    // A rank-deficient plan must round-trip too: an infinity would be written as JSON
+    // null and then refuse to read back, so the undefined metrics are Option, not
+    // f64::INFINITY.
+    let singular = rank(
+        &[c("Only-one", 45.0, 30.0)],
+        PHILADELPHIA,
+        UTC,
+        &PlanOptions::default(),
+    );
+    assert!(singular.predicted.singular);
+    assert_eq!(singular.predicted.condition_number, None);
+    assert_eq!(singular.predicted.geometric_dilution_m_per_arcmin, None);
+    let text = serde_json::to_string(&singular).expect("serialise");
+    // `None` is written as JSON null and reads back as `None`. Had these stayed bare
+    // f64s holding f64::INFINITY, serde_json would also have written null and then
+    // refused to parse it back into an f64 at all, so this parse is the whole point.
+    let back: skyfix_core::planner::Plan = serde_json::from_str(&text).expect("deserialise");
+    assert_eq!(back.predicted.condition_number, None);
+    assert_eq!(back.predicted.geometric_dilution_m_per_arcmin, None);
+    assert_eq!(back.predicted.trace_sigma_m, None);
+    assert_eq!(back.predicted.rank, 1);
+    assert!(back.predicted.singular);
+    assert_eq!(back.notes, singular.notes);
     // Options carry their defaults through JSON too.
     let options: PlanOptions = serde_json::from_str("{}").expect("default options");
     assert_eq!(options, PlanOptions::default());

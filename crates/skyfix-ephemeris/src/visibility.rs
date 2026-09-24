@@ -45,11 +45,9 @@ pub const NAUTICAL_TWILIGHT_DEG: f64 = -12.0;
 /// Note attached when the Sun altitude is bright enough to drown the stars.
 pub const NOTE_TOO_BRIGHT: &str = "sky likely too bright for stars (civil twilight or day)";
 /// Note attached during nautical twilight, the classic star-sight window.
-pub const NOTE_NAUTICAL: &str =
-    "nautical twilight: horizon and stars both visible (sea horizon)";
+pub const NOTE_NAUTICAL: &str = "nautical twilight: horizon and stars both visible (sea horizon)";
 /// Note attached in full dark, when the stars are there but the horizon is not.
-pub const NOTE_DARK: &str =
-    "dark: stars visible, natural horizon likely not (artificial horizon or electronic \
+pub const NOTE_DARK: &str = "dark: stars visible, natural horizon likely not (artificial horizon or electronic \
      vertical needed)";
 /// Note attached when the caller did not supply a Sun altitude.
 pub const NOTE_SUN_UNKNOWN: &str = "Sun altitude unknown";
@@ -83,7 +81,8 @@ pub fn visible_bodies(
         let d = provider.geocentric(body, jd_utc)?;
         let (h, zn) = altitude_azimuth(observer, d.gha_deg.to_radians(), d.dec_deg.to_radians());
         let altitude_deg = h.to_degrees();
-        if !(altitude_deg >= min_altitude_deg) {
+        // A NaN altitude fails this test and is dropped, which is the intent.
+        if altitude_deg < min_altitude_deg || altitude_deg.is_nan() {
             continue;
         }
         out.push(Candidate {
