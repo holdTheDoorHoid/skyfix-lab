@@ -27,8 +27,8 @@
     "winding": "RFC 7946: exterior rings counter-clockwise, holes clockwise",
     "minzoom": "Natural Earth's own suggested zoom, defined for 256-pixel tiles: subtract 1 for MapLibre's 512-pixel tiles"
   },
-  "total_bytes": 6538971,
-  "total_gzip_bytes": 1977064,
+  "total_bytes": 6539085,
+  "total_gzip_bytes": 1977101,
   "files": [
     {
       "path": "land-110m.geojson",
@@ -258,9 +258,9 @@
       "zone_names_modernised": 319,
       "zones_corrected": 41,
       "anchors": 418,
-      "bytes": 685508,
-      "gzip_bytes": 268690,
-      "sha256": "a58632003426a1db1cbbf8cb305986d271af43dcae5ce907f80554b2edfe24b6",
+      "bytes": 685622,
+      "gzip_bytes": 268727,
+      "sha256": "7d43eb1a46f5d4249691b2a16b3570ff5616da9a35b77ada9e1358a16c496177",
       "use": "Search, \"near ...\", and the time-zone guess (web/src/next/geo). Paths in this manifest are relative to it."
     }
   ]

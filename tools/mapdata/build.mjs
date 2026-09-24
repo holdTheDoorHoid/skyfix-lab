@@ -674,9 +674,9 @@ const FLAG_STATION = 8;
 const tidy = (s) => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : '');
 
 /**
- * Natural Earth's ADM1NAME has encoding damage for about 40 states (mostly Vietnam and
- * Azerbaijan, where letters became "?"). The few with an obvious original are repaired;
- * the rest are dropped, so the label just leaves the state out.
+ * Natural Earth's ADM1NAME has encoding damage for about 45 states (mostly Vietnam and
+ * Azerbaijan, where letters became "?"; a few truncated or with a stray capital). Those with
+ * an obvious original are repaired; the rest are dropped, so the label leaves the state out.
  */
 const ADMIN1_REPAIRS = {
   Guinaa: 'Guyane',
@@ -685,11 +685,20 @@ const ADMIN1_REPAIRS = {
   'Los R': 'Los Ríos',
   'Thanh H': 'Thanh Hóa',
   Moyotte: 'Mayotte',
+  'ThMi Bmnh': 'Thái Bình',
+  'TrM Vinh': 'Trà Vinh',
+  'StMng Tr': 'Stung Treng',
+  HuRnuco: 'Huánuco',
+  BiO: 'Bío-Bío',
+  HuOla: 'Huila',
+  GrandKru: 'Grand Kru',
+  GrandGedeh: 'Grand Gedeh',
 };
 function cleanAdmin1(raw) {
   const t = tidy(raw);
   if (ADMIN1_REPAIRS[t]) return ADMIN1_REPAIRS[t];
-  if (/[?\uFFFD]|Ã|Â/.test(t) || /\s\S{1,2}$/.test(t)) return '';
+  // "?" or U+FFFD for a letter, UTF-8 read as Latin-1 ("Ã"), or cut off after one letter.
+  if (/[?\uFFFD]|Ã|Â/.test(t) || /\s\S$/.test(t)) return '';
   return t;
 }
 
