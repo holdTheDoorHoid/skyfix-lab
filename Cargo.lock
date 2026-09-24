@@ -430,6 +430,7 @@ dependencies = [
  "skyfix-almanac",
  "skyfix-core",
  "skyfix-ephemeris",
+ "skyfix-motion",
  "skyfix-sim",
  "skyfix-starfield",
  "wasm-bindgen",

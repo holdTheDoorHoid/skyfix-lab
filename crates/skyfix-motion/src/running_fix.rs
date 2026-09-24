@@ -147,6 +147,20 @@ pub fn running_fix(
     reference_utc_jd: f64,
     options: &SolveOptions,
 ) -> FixResult {
+    running_fix_report(sights, track, motion_uncertainty, reference_utc_jd, options).0
+}
+
+/// [`running_fix`] together with the preparation behind it — the advanced sights, each
+/// sight's sigma inflation, the linearisation point and the number of passes — for a
+/// caller that shows the workings (the WASM adapter). `running_fix` is exactly the
+/// first element of this.
+pub fn running_fix_report(
+    sights: &[TimedSight],
+    track: &Track,
+    motion_uncertainty: &MotionUncertainty,
+    reference_utc_jd: f64,
+    options: &SolveOptions,
+) -> (FixResult, PreparedRunningFix) {
     let prepared = prepare(sights, track, motion_uncertainty, reference_utc_jd, options);
     let mut opts = options.clone();
     if let Some(estimate) = prepared.reference_estimate {
@@ -155,8 +169,8 @@ pub fn running_fix(
         opts.initializer = Some(estimate);
     }
     let mut result = solve(&prepared.sights, &opts);
-    push_warnings(&mut result, prepared.warnings);
-    result
+    push_warnings(&mut result, prepared.warnings.clone());
+    (result, prepared)
 }
 
 /// Build the equivalent stationary problem without solving it. Exposed so a caller can
