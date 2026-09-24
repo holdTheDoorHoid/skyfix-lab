@@ -42,7 +42,7 @@
 // pub mod compare;
 // pub mod replay;
 pub mod rng;
-// pub mod running_fix;
+pub mod running_fix;
 // pub mod scenarios;
 pub mod track;
 

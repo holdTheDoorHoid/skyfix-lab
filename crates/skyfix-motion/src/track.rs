@@ -459,7 +459,11 @@ mod tests {
         assert_relative_eq!(back.lat, start.lat, epsilon = 1e-14);
         assert_relative_eq!(back.lon, start.lon, epsilon = 1e-14);
         // The great-circle run is 30 NM long.
-        assert_relative_eq!(rad_to_nm(angular_distance(start, end)), 30.0, epsilon = JD_NM);
+        assert_relative_eq!(
+            rad_to_nm(angular_distance(start, end)),
+            30.0,
+            epsilon = JD_NM
+        );
 
         // A reciprocal-bearing walk would NOT have got back: on a sphere the back-azimuth
         // of a 30 NM leg at 40 N differs from course + 180 by the meridian convergence.
@@ -491,8 +495,8 @@ mod tests {
     #[test]
     fn multiple_legs_integrate_piecewise_and_a_reciprocal_leg_cancels() {
         let track = Track::new(vec![
-            Leg::new(T0, 90.0, 12.0),             // 2 h due east  -> 24 NM east
-            Leg::new(T0 + 2.0 * HOUR, 0.0, 6.0),  // 1 h due north ->  6 NM north
+            Leg::new(T0, 90.0, 12.0),               // 2 h due east  -> 24 NM east
+            Leg::new(T0 + 2.0 * HOUR, 0.0, 6.0),    // 1 h due north ->  6 NM north
             Leg::new(T0 + 3.0 * HOUR, 270.0, 12.0), // 2 h due west -> 24 NM west
         ]);
         let (n, e) = track.position_offset(T0, T0 + 5.0 * HOUR);
@@ -540,7 +544,10 @@ mod tests {
         assert_relative_eq!(values[0], along, epsilon = 1e-9);
         assert_relative_eq!(values[1], cross, epsilon = 1e-9);
         // Major axis points along 045.
-        let major_az = vectors[1][0].atan2(vectors[0][0]).to_degrees().rem_euclid(180.0);
+        let major_az = vectors[1][0]
+            .atan2(vectors[0][0])
+            .to_degrees()
+            .rem_euclid(180.0);
         assert_relative_eq!(major_az, 45.0, epsilon = 1e-9);
 
         // Equal north/east variance and positive correlation on a 045 course.
@@ -607,7 +614,11 @@ mod tests {
         let m2 = mu.displacement_covariance_m2(&track, T0, T0 + 3.0 * HOUR);
         let rad2 = mu.displacement_covariance_rad2(&track, T0, T0 + 3.0 * HOUR);
         assert_relative_eq!(m2[0][0], nm2[0][0] * NM_M * NM_M, epsilon = 1e-6);
-        assert_relative_eq!(rad_to_nm(rad2[0][0].sqrt()), nm2[0][0].sqrt(), epsilon = 1e-12);
+        assert_relative_eq!(
+            rad_to_nm(rad2[0][0].sqrt()),
+            nm2[0][0].sqrt(),
+            epsilon = 1e-12
+        );
     }
 
     #[test]
