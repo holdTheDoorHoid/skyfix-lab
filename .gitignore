@@ -1,0 +1,11 @@
+/target
+/crates/*/target
+web/node_modules
+web/dist
+web/pkg
+crates/skyfix-wasm/pkg
+tools/reference/.venv
+tools/reference/*.bsp
+tools/reference/__pycache__
+*.pyc
+.DS_Store

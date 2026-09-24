@@ -1,0 +1,17 @@
+[package]
+name = "skyfix-core"
+description = "Units, conventions, sight reduction, corrections, position solver and uncertainty for SkyFix Lab. No I/O."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
+serde_json = { workspace = true }

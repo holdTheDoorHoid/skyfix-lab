@@ -1,0 +1,22 @@
+[package]
+name = "skyfix-cli"
+description = "skyfix: reduce, solve, simulate, validate and plan celestial fixes offline."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "skyfix"
+path = "src/main.rs"
+
+[dependencies]
+skyfix-core = { path = "../skyfix-core" }
+skyfix-ephemeris = { path = "../skyfix-ephemeris" }
+skyfix-sim = { path = "../skyfix-sim" }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+csv = { workspace = true }

@@ -1,0 +1,20 @@
+[package]
+name = "skyfix-sim"
+description = "Deterministic seeded observation simulator and error experiments for SkyFix Lab."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+skyfix-core = { path = "../skyfix-core" }
+skyfix-ephemeris = { path = "../skyfix-ephemeris" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+rand = { workspace = true }
+rand_chacha = { workspace = true }
+rand_distr = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
