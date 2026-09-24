@@ -40,7 +40,7 @@
 //! crate emits lists six causes that produce the same number and does not rank them.
 
 pub mod compare;
-// pub mod replay;
+pub mod replay;
 pub mod rng;
 pub mod running_fix;
 // pub mod scenarios;
