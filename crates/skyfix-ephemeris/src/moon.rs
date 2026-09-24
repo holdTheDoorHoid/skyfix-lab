@@ -1246,4 +1246,66 @@ mod tests {
         );
         assert!((quarter.elongation_deg - 90.0).abs() < 1e-9);
     }
+
+    #[test]
+    fn the_sky_registry_serves_the_moon_consistently() {
+        use crate::body::Sky;
+        let sky = Sky::new();
+        let jd = 2_461_314.562_5; // 2026-10-01T01:30Z
+        let st = sky.apparent_state(" moon", jd).unwrap();
+        let dir = sky.geocentric("MOON", jd).unwrap();
+        assert_eq!(st.body, "Moon");
+        assert_eq!(st.kind, BodyKind::Moon);
+        assert_eq!(st.gha_deg, dir.gha_deg);
+        assert_eq!(st.dec_deg, dir.dec_deg);
+        assert_eq!(st.semidiameter_arcmin, dir.semidiameter_arcmin);
+        assert_eq!(
+            st.horizontal_parallax_arcmin,
+            dir.horizontal_parallax_arcmin
+        );
+        // SD / HP is k to first order; HP about a degree.
+        let ratio = st.semidiameter_arcmin / st.horizontal_parallax_arcmin;
+        assert!((ratio - MOON_RADIUS_RATIO_K).abs() < 1e-4, "{ratio}");
+        assert!((53.0..62.0).contains(&st.horizontal_parallax_arcmin));
+        // Waning gibbous that night (USNO: 77 % illuminated).
+        let k = st.illuminated_fraction.unwrap();
+        assert!((0.76..0.79).contains(&k), "{k}");
+        assert!(st.magnitude.unwrap() < -11.0);
+        let cov = sky
+            .coverage_groups()
+            .into_iter()
+            .find(|c| c.bodies == ["Moon"])
+            .unwrap();
+        assert!(cov.accuracy_arcmin.is_finite() && cov.accuracy_arcmin <= 0.1);
+    }
+
+    #[test]
+    fn gha_runs_at_the_lunar_rate_not_the_sidereal_one() {
+        // CONVENTIONS 13.1: the clock term needs the Moon's own GHA rate, 15.04 deg/h
+        // less the Moon's motion in RA (0.45 to 0.7 deg/h), never the sidereal rate.
+        let p = MoonProvider::new();
+        let start = 2_461_300.5;
+        let (mut lo, mut hi) = (f64::MAX, f64::MIN);
+        for i in 0..60 {
+            let r = p
+                .gha_rate_deg_per_hour("Moon", start + f64::from(i) * 0.5)
+                .unwrap();
+            lo = lo.min(r);
+            hi = hi.max(r);
+        }
+        assert!(lo > 14.1 && hi < 14.9 && hi - lo > 0.1, "{lo}..{hi} deg/h");
+    }
+
+    #[test]
+    fn dut1_moves_only_the_hour_angle() {
+        let jd = 2_461_314.562_5;
+        let a = MoonProvider::new().position(jd).unwrap();
+        let b = MoonProvider::with_dut1_s(0.5).position(jd).unwrap();
+        assert_eq!(a.ra_deg, b.ra_deg);
+        assert_eq!(a.dec_deg, b.dec_deg);
+        // 0.5 s of UT1 is 7.52" of Earth rotation.
+        let d = (b.gha_deg - a.gha_deg) * 3600.0;
+        assert!((d - 7.52).abs() < 0.01, "{d}");
+        assert_eq!(MoonProvider::with_dut1_s(0.5).dut1_s(), 0.5);
+    }
 }
