@@ -25,6 +25,8 @@ use std::sync::OnceLock;
 
 use skyfix_core::reduce::{DirectionSource, SuppliedOnly};
 use skyfix_ephemeris::fixture_pack::CompositeProvider;
+use skyfix_ephemeris::moon::MoonProvider;
+use skyfix_ephemeris::sights::SightPlanetProvider;
 use skyfix_ephemeris::stars::StarProvider;
 use skyfix_ephemeris::sun::SunProvider;
 use skyfix_ephemeris::{AstroProvider, Coverage, ProviderSource, catalog};
@@ -57,10 +59,14 @@ impl EphemerisChoice {
 ///
 /// WIRING POINT: a new provider goes here and everything else follows. The
 /// `FixturePackProvider` is deliberately absent: it is built from a pack the caller
-/// supplies, and this build bundles none.
+/// supplies, and this build bundles none. The planets come through
+/// `SightPlanetProvider`: Venus, Mars, Jupiter and Saturn only, Venus at its centre of
+/// light (CONVENTIONS section 5).
 pub fn auto_provider() -> CompositeProvider {
     CompositeProvider::new(AUTO_PROVIDER_NAME)
         .with(SunProvider::new())
+        .with(MoonProvider::new())
+        .with(SightPlanetProvider::new())
         .with(StarProvider::new())
 }
 
@@ -85,18 +91,19 @@ pub struct ProviderInfo {
 /// Each member of the composite with its coverage, in the order the composite tries
 /// them.
 pub fn providers() -> Vec<ProviderInfo> {
-    let sun = SunProvider::new();
-    let star = StarProvider::new();
-    vec![
-        ProviderInfo {
-            name: sun.name().to_string(),
-            coverage: sun.coverage(),
-        },
-        ProviderInfo {
-            name: star.name().to_string(),
-            coverage: star.coverage(),
-        },
-    ]
+    let members: [Box<dyn AstroProvider>; 4] = [
+        Box::new(SunProvider::new()),
+        Box::new(MoonProvider::new()),
+        Box::new(SightPlanetProvider::new()),
+        Box::new(StarProvider::new()),
+    ];
+    members
+        .iter()
+        .map(|p| ProviderInfo {
+            name: p.name().to_string(),
+            coverage: p.coverage(),
+        })
+        .collect()
 }
 
 /// `(provider name, its body names folded to lowercase)`, computed once. Building a
@@ -120,13 +127,12 @@ fn body_index() -> &'static [(String, Vec<String>)] {
     })
 }
 
-/// Bodies the CLI will accept in a session file: the union of the Sun and the star
-/// catalogue (CONVENTIONS section 10). `"HIP <number>"` is always accepted too, by the
-/// core's own rule in `session::validate`.
+/// Bodies the CLI will accept in a session file: every body validated for sights — the
+/// Sun, the Moon, Venus, Mars, Jupiter, Saturn and the star catalogue (CONVENTIONS
+/// sections 10 and 13.1; `skyfix_ephemeris::sights::sight_bodies`). `"HIP <number>"` is
+/// always accepted too, by the core's own rule in `session::validate`.
 pub fn known_bodies() -> Vec<&'static str> {
-    let mut v = vec!["Sun"];
-    v.extend(catalog::names());
-    v
+    skyfix_ephemeris::sights::sight_bodies()
 }
 
 /// Which provider would answer for a body, or why none would.
@@ -206,7 +212,9 @@ mod tests {
         assert_eq!(b[0], "Sun");
         assert!(b.contains(&"Vega"), "catalogue names are missing");
         assert!(b.contains(&"Polaris"), "Polaris is missing");
-        assert_eq!(b.len(), catalog::names().len() + 1);
+        // The Sun, the Moon and the four navigational planets, then the catalogue.
+        assert_eq!(&b[1..6], &["Moon", "Venus", "Mars", "Jupiter", "Saturn"]);
+        assert_eq!(b.len(), catalog::names().len() + 6);
     }
 
     #[test]
@@ -225,7 +233,12 @@ mod tests {
         );
         assert_eq!(
             auto_provider().provider_names(),
-            vec![SunProvider::NAME, skyfix_ephemeris::stars::PROVIDER_NAME]
+            vec![
+                SunProvider::NAME,
+                MoonProvider::NAME,
+                SightPlanetProvider::NAME,
+                skyfix_ephemeris::stars::PROVIDER_NAME
+            ]
         );
     }
 

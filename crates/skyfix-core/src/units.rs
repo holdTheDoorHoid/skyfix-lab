@@ -13,6 +13,11 @@ pub const ARCSEC: f64 = PI / 648000.0;
 pub const SIDEREAL_RATE_DEG_PER_HOUR: f64 = 15.041_068_64;
 /// Mean solar rate of GHA change, degrees per hour (Sun, first order).
 pub const SOLAR_RATE_DEG_PER_HOUR: f64 = 15.0;
+/// Mean lunar rate of GHA change, degrees per hour: the sidereal rate less the Moon's
+/// mean motion in right ascension (360 deg per 27.321 661 d = 0.549 015 deg/h). The real
+/// rate runs from about 14.1 to 14.9 deg/h; this is used only where no ephemeris can be
+/// asked for the true one (CONVENTIONS 13.1).
+pub const MEAN_LUNAR_RATE_DEG_PER_HOUR: f64 = 14.492_054;
 /// chi-square 95 % quantile with 2 degrees of freedom (nominal 95 % ellipse scale).
 pub const CHI2_95_2DOF: f64 = 5.991_464_547;
 

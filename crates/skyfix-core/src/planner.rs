@@ -1021,6 +1021,140 @@ fn exclusion_reason(c: &Candidate, options: &PlanOptions) -> Option<String> {
     None
 }
 
+// ---------------------------------------------------------------------------
+// Azimuth spread with an unknown shared altitude error (navigation-Moon agent)
+// ---------------------------------------------------------------------------
+
+/// Largest number of subsets [`best_spread_subset`] examines exhaustively.
+pub const SPREAD_EXHAUSTIVE_LIMIT: u64 = 250_000;
+
+/// The position variance, square metres, of a fix from `candidates` in which a shared
+/// altitude error is estimated too: rows `[cos Zn, sin Zn, 1] / sigma` (CONVENTIONS
+/// sections 8-9 with the shared bias on), the trace of the position block of
+/// `(J^T W J)^-1`. Infinite when the three unknowns cannot all be determined (fewer
+/// than three distinct azimuths, or all on one side of a line through the observer
+/// with the bias unresolvable).
+pub fn spread_variance_m2(candidates: &[&Candidate]) -> f64 {
+    let mut m = [[0.0f64; 3]; 3];
+    for c in candidates {
+        if !c.is_usable() {
+            return f64::INFINITY;
+        }
+        let (n, e) = tangent_row(c.azimuth_deg.to_radians());
+        let s = c.sigma_arcmin * NM_M;
+        let r = [n / s, e / s, 1.0 / s];
+        for (i, ri) in r.iter().enumerate() {
+            for (j, rj) in r.iter().enumerate() {
+                m[i][j] += ri * rj;
+            }
+        }
+    }
+    let c00 = m[1][1] * m[2][2] - m[1][2] * m[2][1];
+    let c11 = m[0][0] * m[2][2] - m[0][2] * m[2][0];
+    let det = m[0][0] * c00 - m[0][1] * (m[1][0] * m[2][2] - m[1][2] * m[2][0])
+        + m[0][2] * (m[1][0] * m[2][1] - m[1][1] * m[2][0]);
+    let scale = m[0][0] * m[1][1] * m[2][2];
+    if !(det.is_finite() && scale > 0.0 && det > 1e-12 * scale) {
+        return f64::INFINITY;
+    }
+    (c00 + c11) / det
+}
+
+/// The `count` candidates (indices into `candidates`, ascending) whose fix is best
+/// when a shared altitude error is unknown: [`spread_variance_m2`] minimised.
+///
+/// A dip, index or refraction error moves every line of position the same way, toward
+/// or away from its body; it cancels in the fix only when the bodies surround the
+/// observer. Minimising the position variance with that error as a third unknown is the
+/// navigator's "best azimuth spread" (three bodies 120 degrees apart, four 90 degrees
+/// apart) made exact, and it still weighs each body's sigma. Exhaustive up to
+/// [`SPREAD_EXHAUSTIVE_LIMIT`] subsets, otherwise greedy with pairwise exchanges. Ties
+/// keep the earlier subset in input order, so the result is deterministic.
+pub fn best_spread_subset(candidates: &[Candidate], count: usize) -> Vec<usize> {
+    let n = candidates.len();
+    let k = count.min(n);
+    if k == n {
+        return (0..n).collect();
+    }
+    let cost = |idx: &[usize]| {
+        let set: Vec<&Candidate> = idx.iter().map(|&i| &candidates[i]).collect();
+        spread_variance_m2(&set)
+    };
+    let subsets = binomial(n as u64, k as u64);
+    if subsets <= SPREAD_EXHAUSTIVE_LIMIT {
+        let mut idx: Vec<usize> = (0..k).collect();
+        let mut best = (cost(&idx), idx.clone());
+        loop {
+            // Next combination in lexicographic order.
+            let mut i = k;
+            while i > 0 && idx[i - 1] == n - k + i - 1 {
+                i -= 1;
+            }
+            if i == 0 {
+                break;
+            }
+            idx[i - 1] += 1;
+            for j in i..k {
+                idx[j] = idx[j - 1] + 1;
+            }
+            let c = cost(&idx);
+            if c < best.0 {
+                best = (c, idx.clone());
+            }
+        }
+        return best.1;
+    }
+    // Greedy growth on the 2-D trace, then exchanges while any swap helps.
+    let mut chosen: Vec<usize> = Vec::with_capacity(k);
+    while chosen.len() < k {
+        let mut pick = None;
+        for i in (0..n).filter(|i| !chosen.contains(i)) {
+            let mut trial = chosen.clone();
+            trial.push(i);
+            let c = if trial.len() >= 3 {
+                cost(&trial)
+            } else {
+                -(trial.len() as f64)
+            };
+            if pick.is_none_or(|(_, pc)| c < pc) {
+                pick = Some((i, c));
+            }
+        }
+        chosen.push(pick.map(|p| p.0).unwrap_or(0));
+    }
+    let mut current = cost(&chosen);
+    let mut improved = true;
+    while improved {
+        improved = false;
+        for slot in 0..k {
+            for i in 0..n {
+                if chosen.contains(&i) {
+                    continue;
+                }
+                let mut trial = chosen.clone();
+                trial[slot] = i;
+                let c = cost(&trial);
+                if c < current {
+                    current = c;
+                    chosen = trial;
+                    improved = true;
+                }
+            }
+        }
+    }
+    chosen.sort_unstable();
+    chosen
+}
+
+fn binomial(n: u64, k: u64) -> u64 {
+    let k = k.min(n - k);
+    let mut r: u64 = 1;
+    for i in 0..k {
+        r = r.saturating_mul(n - i) / (i + 1);
+    }
+    r
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1154,5 +1288,28 @@ mod tests {
             3f64.sqrt(),
             epsilon = 1e-9
         );
+    }
+    #[test]
+    fn the_best_spread_surrounds_the_observer() {
+        // Six bodies: four crowded into the west, two east. Three of them should span
+        // the horizon, not sit in the west where a shared error would not cancel.
+        let c = [
+            Candidate::new("W1", 40.0, 250.0, 1.0),
+            Candidate::new("W2", 40.0, 270.0, 1.0),
+            Candidate::new("W3", 40.0, 290.0, 1.0),
+            Candidate::new("W4", 40.0, 310.0, 1.0),
+            Candidate::new("E1", 40.0, 30.0, 1.0),
+            Candidate::new("E2", 40.0, 150.0, 1.0),
+        ];
+        let pick = best_spread_subset(&c, 3);
+        let names: Vec<&str> = pick.iter().map(|&i| c[i].body.as_str()).collect();
+        assert_eq!(names, ["W2", "E1", "E2"], "{names:?}");
+        // All on one side, the shared error is unresolvable.
+        let west: Vec<&Candidate> = c[..3].iter().collect();
+        let ratio = spread_variance_m2(&west) / spread_variance_m2(&[&c[1], &c[4], &c[5]]);
+        assert!(ratio > 20.0, "{ratio}");
+        let same: Vec<&Candidate> = vec![&c[0], &c[0], &c[0]];
+        assert!(spread_variance_m2(&same).is_infinite());
+        assert_eq!(binomial(30, 5), 142_506);
     }
 }

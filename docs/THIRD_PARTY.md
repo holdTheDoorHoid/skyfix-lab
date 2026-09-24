@@ -551,6 +551,21 @@ project. Note also that `aa.usno.navy.mil` resets connections from unfamiliar
 `User-Agent` strings, which is why `tools/reference/gen_usno.py` shells out to
 `curl` rather than using `urllib` directly.
 
+A second set of responses from the same API checks the Moon and planet sights
+(`docs/NAVIGATION_SKY.md`):
+
+| Item | Value |
+|---|---|
+| Endpoint | `https://aa.usno.navy.mil/api/celnav?date=…&time=…&coords=…`, 25 queries: 12 for Venus (2026-02-20 to 2027-01-03), 5 for Mars, 8 for the Moon |
+| Documentation | `https://aa.usno.navy.mil/data/celnav` (states that Venus is corrected for phase to its centre of light, and that the Moon's SD includes augmentation) |
+| Retrieved | 2026-09-24 |
+| Stored as | `fixtures/reference/usno_celnav_venus_phase.json`: the Venus, Mars and Moon entries of each response (GHA, Dec, and for the Moon Hc, Zn and the altitude corrections) verbatim, beside Skyfield + DE440s values and the fit, by `tools/reference/gen_usno_sights.py` |
+
+Same basis and the same caveat as above. The Nautical Almanac's explanation is quoted
+(one sentence, on Venus's phase and the Venus and Mars additional corrections) as
+reported on NavList, "Additional altitude correction for Venus" (May 2015,
+`navlist.net`); the Almanac itself was not consulted directly.
+
 ### Hipparcos licence vs the project's MIT/Apache-2.0 licence — DECIDED
 
 **Decision by the project owner, 2026-09-24: keep the 58-row extract, with the

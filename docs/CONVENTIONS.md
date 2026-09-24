@@ -25,7 +25,11 @@ section it implements.
   display only:** the explorer's topocentric altitudes and azimuths (`alt_deg`,
   `az_deg`, rise/set/twilight, eclipse local circumstances; section 13) place the
   observer on the WGS84 ellipsoid, because the Moon's parallax and eclipse timing need
-  it. Those values never feed the navigation chain.
+  it. Those values never feed the navigation chain. **One exception for a time
+  method:** clearing a lunar distance (`skyfix_core::sights::lunar`) places the observer
+  on the WGS84 ellipsoid at the DR position, because a lunar's time needs the Moon's
+  parallax to 0.03' and the sphere is up to 0.22' out for the Moon. Sight reduction, the
+  solver, the planner's geometry and the predicted sextant readings stay on the sphere.
 
 ## 2. Coordinates and sign conventions
 
@@ -94,10 +98,45 @@ Order for `sextant_hs`:
    For `0 <= Ha < 5 deg` the sight is **flagged** `LowAltitudeRefraction` and 1.0' is
    added in quadrature to its sigma; for `5 <= Ha < 10 deg` it is flagged only.
    Bennett's own residual (<= 0.07') is inside the sigma floor and not modelled.
-4. **Semidiameter** (Sun only): lower limb `+SD`, upper limb `-SD`, centre `0`. SD comes
-   from the ephemeris record (`semidiameter_arcmin`), never a constant.
-5. **Parallax in altitude** (Sun only), added: `PA = HP * cos(Ha)`, `HP` from the
-   ephemeris record (`horizontal_parallax_arcmin`, ~0.146'). Stars: 0.
+4. **Semidiameter**, by body (`skyfix_core::corrections::SightBody`, from the name):
+   - **Sun**: lower limb `+SD`, upper limb `-SD`, centre `0`.
+   - **Moon**: the **topocentric** ("augmented") semidiameter `SD'`, lower `+SD'`, upper
+     `-SD'`. The observer is nearer the Moon than the Earth's centre is:
+     `sin SD' = sin SD / (sqrt(1 - sin^2 HP cos^2 h) - sin HP sin h)`, with `h` the
+     topocentric airless altitude of the centre (after refraction), found together with
+     `SD'` from the limb by fixed point (`corrections::limb_to_centre`). The augmentation
+     is 0.28' at the zenith, 0.002' on the horizon.
+   - **Planets**: none. A planet is observed at its **centre of light**. Venus's phase is
+     carried in its direction, as the Nautical Almanac carries it (section 7); the phases
+     of Mars, Jupiter and Saturn move their light by under 0.01' and are ignored, as the
+     Almanac ignores them. A lower or upper limb on a planet is ignored with the
+     `LimbIgnoredForStar` warning, exactly as for a star.
+   - **Stars**: none.
+   SD comes from the ephemeris record (`semidiameter_arcmin`), never a constant; `0.0`
+   with a limb means "unknown" and is warned about, not applied.
+5. **Parallax in altitude**, added, by body:
+   - **Sun**: `PA = HP * cos(Ha)`, `HP` from the ephemeris record
+     (`horizontal_parallax_arcmin`, ~0.146'). (The rigorous form below differs by under
+     0.001' for the Sun; this one is kept so Sun results never change.)
+   - **Moon and planets**: `p = asin(sin HP * cos h)`, `h` the topocentric airless
+     altitude of the centre (after refraction and, for the Moon's limb, step 4). This is
+     exact on the sphere of section 1 for an observer at the radius HP refers to. Using
+     `Ha` instead of `h`, or `HP cos h`, would be up to 0.2' and 0.001' wrong for the Moon.
+     The Moon's HP is required: a `sextant_hs` or `apparent_ha` Moon record whose
+     direction has `horizontal_parallax_arcmin = 0` is **rejected** (the Moon's parallax
+     reaches 61'). For Venus and Mars this step is the Nautical Almanac's "additional
+     correction", which its explanation says "allow[s] for parallax" (Venus's phase being
+     in the tabulated GHA and Dec); for Jupiter and Saturn it is under 0.04', which the
+     Almanac omits and this chain applies.
+   - **Stars**: 0.
+   - **Not modelled: the Earth's figure.** On the real (WGS84) Earth the observer's
+     geocentric radius is shorter than the equatorial radius and the plumb line does not
+     point at the Earth's centre, so the Moon's true parallax in altitude differs from
+     the sphere's by up to **0.22'** (median 0.09'; measured against 104 Skyfield sights,
+     and USNO's own values agree with the WGS84 figure to 0.004'). The term depends on
+     the observer's latitude and the Moon's azimuth, which a reduction does not know, so
+     the sphere of section 1 is kept and the residual is in the error budget
+     (`docs/ACCURACY.md`, section 8). Planets: under 0.005'.
 6. `Ho = Ha - R (+/- SD) + PA`.
 
 Limb with an artificial horizon: halving first, then the limb rule above, is correct.
@@ -120,7 +159,8 @@ low-altitude term above.
   error from this assumption; it is listed in the error budget, not hidden.
 - **Clock offset**: a shared offset `dt` makes every recorded time wrong by the same
   amount. It shifts every GHA by `omega * dt` (`omega = 15.041 07 deg/h` sidereal for
-  stars, 15.000 deg/h for the Sun to first order). For star-only sessions this is
+  stars, 15.000 deg/h for the Sun to first order, and the body's own rate for the Moon
+  and the planets, section 13.1). For star-only sessions this is
   **exactly degenerate with longitude**. The solver never estimates it. Instead
   `clock.uncertainty_s` is propagated: a rank-1 east-west term
   `(cos(phi) * omega * sigma_t)^2` is added to the position covariance and reported
@@ -138,6 +178,14 @@ low-altitude term above.
   cancel for a body that travels with the Earth, leaving about 0.7″ from the Moon's own
   motion over the 1.28 s light-time. Applying the stars' 20.5″ annual aberration to the
   Moon would be wrong by that much.
+- **Venus for sights is its centre of light.** The Nautical Almanac "incorporate[s]" the
+  phase correction for Venus "in the tabulations for GHA and Dec", and USNO's celnav
+  data does the same. `skyfix_ephemeris::sights::SightPlanetProvider` (the planets in
+  ephemeris mode `auto`) therefore returns Venus moved toward the bright limb by
+  `0.44 (1 - cos i) SD` (`i` the phase angle): the uniformly lit disc's centroid form
+  with the coefficient measured against twelve USNO responses (0.003'). A supplied
+  Venus direction typed from the Almanac means the same thing. The explorer's
+  `sky_state` shows the geometric centre (display only).
 - A topocentric direction vector is never mixed with a geocentric corrected altitude.
   Camera/attitude code (module A) produces *topocentric apparent* directions and must
   convert through the horizon frame explicitly.
@@ -227,12 +275,16 @@ low-altitude term above.
   present it wins over any ephemeris provider and the report says so. When absent, an
   ephemeris provider must be able to supply the body at that time or the sight is
   rejected with the provider's coverage in the message.
-- Body names: `"Sun"`, the 57 navigational stars and `"Polaris"` by Nautical Almanac
-  spelling (`"Vega"`, `"Rigil Kentaurus"`, ...), or `"HIP <number>"`.
+- Body names: `"Sun"`, `"Moon"`, `"Venus"`, `"Mars"`, `"Jupiter"`, `"Saturn"`, the 57
+  navigational stars and `"Polaris"` by Nautical Almanac spelling (`"Vega"`,
+  `"Rigil Kentaurus"`, ...), or `"HIP <number>"`. Mercury, Uranus and Neptune are not
+  offered for sights (section 13.1); with a supplied direction any name is accepted and
+  reduced by its class (section 5).
 - Validation rejects: non-finite numbers, angles outside their ranges, `sigma_arcmin <= 0`,
   timestamps not in RFC 3339 `Z` form, unknown bodies, unknown enum values, duplicate ids,
-  `limb != center` for a star, and (`observed_ho` with any correction parameter that
-  would have to be ignored) — the last is a warning, not an error.
+  `limb != center` for a star or a planet, and (`observed_ho` with any correction
+  parameter that would have to be ignored). The last two are warnings, not errors
+  (`LimbIgnoredForStar`, `AlreadyCorrected`).
 
 CSV import/export carries the same fields with one observation per row; the session-level
 fields ride in a `#`-prefixed header block. The CSV path must round-trip through JSON
@@ -272,7 +324,10 @@ Wire formats are in `docs/EXPLORER_API.md`; the program plan is `docs/EXPLORER_P
 - The GHA rate used for clock propagation (section 6) is per body: sidereal for stars,
   solar for the Sun, and for the Moon and planets a numerical derivative of the
   provider's GHA over +/-60 s. Never assume the sidereal rate for the Moon (it runs about
-  14.5 deg/h).
+  14.5 deg/h). The reducer asks `DirectionSource::gha_rate_deg_per_hour_at(body, jd_utc)`
+  for each sight's own instant; its default returns the older instant-free
+  `gha_rate_deg_per_hour(body)`, which for the Moon is the mean lunar rate 14.492 deg/h
+  (never the sidereal) when no ephemeris can be asked.
 
 ### 13.2 Topocentric display altitude and azimuth
 

@@ -44,7 +44,10 @@ export default defineConfig({
         main: resolve(import.meta.dirname, 'index.html'),
         next: resolve(import.meta.dirname, 'next/index.html'),
         mockup: resolve(import.meta.dirname, 'next/mockup.html'),
-        'next-dev-map': resolve(import.meta.dirname, 'next/dev-map.html'),
+        // The Charts view on its own, for its developer (charts agent).
+        devCharts: resolve(import.meta.dirname, 'next/dev-charts.html'),
+        // The Map view on its own, for its developer (map agent).
+        devMap: resolve(import.meta.dirname, 'next/dev-map.html'),
       },
     },
   },
