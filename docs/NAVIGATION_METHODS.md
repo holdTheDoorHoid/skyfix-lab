@@ -353,7 +353,12 @@ chain never runs on it again (CONVENTIONS 4), sigma as above, notes naming the s
 used. A run of supplied directions supplies one here too, read off the same line; a run
 the provider answered leaves it to the provider. Put into a session that declares an
 index correction or a height of eye, it draws the ordinary `already_corrected` note —
-which is right: those corrections are already inside it.
+which is right: those corrections are already inside it. The chronometer correction
+draws no such note, because the reducer applies it to every recorded time, so the
+observation's `utc` is written on the session's chronometer like the sights it averages
+(the averaged instant minus `clock.correction_s`): reduced in that session it lands on
+the averaged instant. Written on the corrected scale it would be corrected twice (a
+verifier's check: 30 s of correction moved a Vega line of position 5.7′).
 
 ---
 

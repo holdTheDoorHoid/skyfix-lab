@@ -433,7 +433,11 @@ with `sigma_nm` 10.)
 `free_slope` is `null` with fewer than four sights in use.
 `predicted_slope_sigma_arcmin_per_min` is `null` when the DR's `sigma_nm` was not stated.
 `observation` is a session `Observation`, fully corrected, ready to add to a session for
-`solve`; it carries a `geocentric` direction only when the run's own were supplied.
+`solve`; it carries a `geocentric` direction only when the run's own were supplied. Its
+`utc` is the one instant in a result on the session's chronometer rather than the
+corrected scale, like the observations it replaces: the averaged instant minus the
+session's `clock.correction_s`, so the reducer, which adds that correction to every
+recorded time, brings it back to `utc`/`jd_utc` above exactly once.
 
 ### `running_fix(session_json, request_json, ephemeris_mode) -> RunningFixOutput`
 
