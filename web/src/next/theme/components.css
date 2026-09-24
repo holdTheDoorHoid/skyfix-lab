@@ -1056,3 +1056,13 @@ button.sf-chip:hover {
   color: var(--ui-ink-2);
   font-size: var(--text-2xs);
 }
+
+/* With a hint, the hint takes the free space and the check sits after it. */
+.sf-menu__hint + .sf-menu__check {
+  margin-left: 10px;
+}
+
+.sf-phase-chip[data-phase='none'] {
+  background: var(--ui-raised);
+  color: var(--ui-ink-2);
+}

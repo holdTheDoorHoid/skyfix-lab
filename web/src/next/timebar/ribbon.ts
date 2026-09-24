@@ -68,6 +68,10 @@ export interface Ribbon {
   update(model: RibbonModel): void;
   /** Move only the handle (and its texts). */
   setHandle(jd: number, valueText: string, bubbleText: string, glyph: 'sun' | 'moon'): void;
+  /** Show the wall clock's "now" marker at `jd`, or hide it (null, or outside the day). */
+  setNow(jd: number | null): void;
+  /** The day shown, `[jd_start, jd_end)`. */
+  window(): readonly [number, number];
   /** The instant under a horizontal client coordinate (for pointer dragging). */
   jdAtClientX(clientX: number): number;
   destroy(): void;
@@ -82,6 +86,7 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
   const bar = h('div', { class: 'sf-ribbon__bar', 'aria-hidden': 'true' });
   const labels = h('div', { class: 'sf-ribbon__labels', 'aria-hidden': 'true' });
   const hours = h('div', { class: 'sf-ribbon__hours', 'aria-hidden': 'true' });
+  const nowEl = h('span', { class: 'sf-ribbon__now', hidden: true, 'data-tip': 'Now, by this device’s clock' });
   const knob = h('span', { class: 'sf-ribbon__knob' });
   const bubble = h('span', { class: 'sf-ribbon__bubble' });
   const handle = h(
@@ -159,10 +164,9 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
           mark.label,
         );
       }),
-      ...(m.nowJd !== null && m.nowJd !== undefined && m.nowJd >= m.window[0] && m.nowJd < m.window[1]
-        ? [h('span', { class: 'sf-ribbon__now', style: `left:${pct(frac(m.nowJd))}` })]
-        : []),
+      nowEl,
     );
+    api.setNow(m.nowJd ?? null);
     hours.replaceChildren(
       ...m.hours
         .filter((hr) => hr.label)
@@ -195,6 +199,12 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
         knob.replaceChildren(bodyGlyph(glyph === 'sun' ? 'Sun' : 'Moon'));
       }
     },
+    setNow(jd) {
+      const inside = jd !== null && jd >= current.window[0] && jd < current.window[1];
+      nowEl.hidden = !inside;
+      if (inside) nowEl.style.left = pct(frac(jd));
+    },
+    window: () => current.window,
     jdAtClientX(clientX) {
       const r = bar.getBoundingClientRect();
       const x = r.width ? (clientX - r.left) / r.width : 0;

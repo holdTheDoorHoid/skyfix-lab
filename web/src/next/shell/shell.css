@@ -1,0 +1,414 @@
+/*
+ * The shell's own pieces: the stage's view host, loading and placeholder pages, notices,
+ * the app strip's popovers (settings, share, help), the place editor, and the navigator-
+ * terms switch. OWNER: shell-design agent. Panel and time-bar styles live beside their
+ * code (panel/panel.css, timebar/timebar.css).
+ */
+
+/* --- Stage ---------------------------------------------------------------------------- */
+
+.sf-stage {
+  --stage-inset-bottom: 0px;
+}
+
+.sf-stage__view {
+  position: absolute;
+  inset: 0;
+}
+
+.sf-stage__loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  color: var(--stage-ink-2);
+  font-size: var(--text-md);
+}
+
+.sf-spinner {
+  width: 28px;
+  height: 28px;
+  border: 3px solid var(--stage-line);
+  border-top-color: var(--stage-accent-ink);
+  border-radius: 50%;
+  animation: sf-spin 0.9s linear infinite;
+}
+
+@keyframes sf-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* --- Placeholder ("coming soon") ------------------------------------------------------ */
+
+.sf-placeholder {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  display: grid;
+  place-items: center;
+  padding: 48px 32px calc(48px + var(--stage-inset-bottom));
+  background:
+    radial-gradient(1200px 600px at 20% 0%, color-mix(in srgb, var(--stage-accent-ink) 7%, transparent), transparent 60%),
+    var(--stage-bg);
+}
+
+.sf-placeholder__card {
+  width: min(560px, 100%);
+  padding: 32px 32px 28px;
+  border-radius: var(--radius-xl);
+  background: var(--stage-surface);
+  box-shadow:
+    var(--shadow-2),
+    inset 0 0 0 1px var(--stage-line);
+}
+
+.sf-placeholder__icon {
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: var(--stage-surface-2);
+  color: var(--stage-accent-ink);
+  box-shadow: inset 0 0 0 1px var(--stage-line);
+}
+
+.sf-placeholder__icon .sf-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.sf-placeholder__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--stage-ink);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  letter-spacing: -0.01em;
+}
+
+.sf-placeholder__title .sf-badge {
+  color: var(--stage-ink-2);
+  border-color: var(--stage-line-strong);
+}
+
+.sf-placeholder__lead {
+  margin-bottom: 8px;
+  color: var(--stage-ink-2);
+  font-size: var(--text-base);
+}
+
+.sf-placeholder__list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-placeholder__list li {
+  position: relative;
+  padding-left: 20px;
+  color: var(--stage-ink);
+  font-size: var(--text-base);
+  line-height: 1.5;
+}
+
+.sf-placeholder__list li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.62em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--stage-accent-ink);
+}
+
+.sf-placeholder__meanwhile,
+.sf-placeholder__note {
+  margin-top: 10px;
+  color: var(--stage-ink-2);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.sf-placeholder a {
+  color: var(--stage-accent-ink);
+  font-weight: var(--weight-semibold);
+}
+
+/* --- Notices ----------------------------------------------------------------------------- */
+
+.sf-notices {
+  position: absolute;
+  z-index: var(--z-stage-overlay);
+  top: 12px;
+  left: 50%;
+  display: grid;
+  gap: 6px;
+  width: min(560px, calc(100% - 96px));
+  transform: translateX(-50%);
+}
+
+.sf-notices[hidden] {
+  display: none;
+}
+
+.sf-notices .sf-notice {
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  background: var(--chrome-bg);
+  color: var(--chrome-ink);
+  box-shadow:
+    var(--shadow-2),
+    inset 3px 0 0 var(--info);
+}
+
+.sf-notices .sf-notice--caution {
+  box-shadow:
+    var(--shadow-2),
+    inset 3px 0 0 var(--caution);
+}
+
+.sf-notices .sf-notice--error {
+  box-shadow:
+    var(--shadow-2),
+    inset 3px 0 0 var(--danger);
+}
+
+.sf-notice__actions {
+  display: flex;
+  margin: -4px -4px -4px 0;
+}
+
+.sf-notice--folded .sf-notice__text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- Popover contents: settings, share, help, the place editor ------------------------ */
+
+.sf-settings {
+  display: grid;
+  gap: 2px;
+  width: 360px;
+  max-width: 100%;
+  padding: 0 4px 6px;
+}
+
+.sf-settings__row {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 6px;
+}
+
+.sf-settings__label {
+  color: var(--ui-ink-2);
+  font-size: var(--text-md);
+}
+
+.sf-settings__row .sf-seg {
+  justify-self: start;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.sf-settings .sf-switch {
+  padding-left: 6px;
+}
+
+.sf-settings__note {
+  margin: 6px 6px 0;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sf-share__options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.sf-share__status {
+  min-height: 1.3em;
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sf-help {
+  width: 330px;
+  max-width: 100%;
+  padding: 0 6px 6px;
+}
+
+.sf-help__row {
+  display: grid;
+  grid-template-columns: 124px minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  min-height: 28px;
+  color: var(--ui-ink);
+  font-size: var(--text-md);
+}
+
+.sf-help__keys {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 3px;
+}
+
+.sf-help__text {
+  margin: 6px 0;
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.sf-help__text a {
+  color: var(--ui-accent-ink);
+}
+
+.sf-editor {
+  display: grid;
+  gap: 10px;
+  width: 320px;
+  max-width: 100%;
+  padding: 0 6px 6px;
+}
+
+.sf-editor .sf-popover__title {
+  padding: 6px 0 0;
+}
+
+.sf-editor__field {
+  display: grid;
+  gap: 4px;
+}
+
+.sf-editor__field .sf-label {
+  margin: 0;
+}
+
+.sf-editor__hint {
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.sf-editor__error {
+  margin-top: -4px;
+  color: var(--danger);
+  font-size: var(--text-sm);
+}
+
+.sf-editor__error:empty {
+  display: none;
+}
+
+.sf-editor__with-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sf-editor__with-unit .sf-input {
+  width: 110px;
+}
+
+.sf-editor__unit {
+  color: var(--ui-ink-2);
+  font-size: var(--text-md);
+}
+
+.sf-editor__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+select.sf-input {
+  padding-right: 28px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ui-ink-2) 50%),
+    linear-gradient(135deg, var(--ui-ink-2) 50%, transparent 50%);
+  background-position:
+    calc(100% - 15px) 55%,
+    calc(100% - 10px) 55%;
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+}
+
+select.sf-input option,
+select.sf-input optgroup {
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+}
+
+.sf-speed {
+  width: 260px;
+  max-width: 100%;
+}
+
+.sf-speed__direction {
+  padding: 2px 8px 6px;
+}
+
+/* A text button that reads as a link. */
+.sf-link {
+  padding: 0;
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: var(--weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+/* A control that is waiting (my location). */
+.sf-busy .sf-icon {
+  animation: sf-spin 1.2s linear infinite;
+}
+
+/* Navigator's terms off: the plain words stand alone. */
+.sf-app[data-terms='off'] [data-term] {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .sf-appbar__share .sf-btn__label {
+    display: none;
+  }
+
+  .sf-appbar__share {
+    padding: 0;
+    width: var(--control-h-sm);
+  }
+
+  .sf-notices {
+    top: 8px;
+    width: calc(100% - 16px);
+  }
+
+  .sf-placeholder {
+    align-items: start;
+    padding: 20px 16px calc(24px + var(--stage-inset-bottom));
+  }
+
+  .sf-placeholder__card {
+    padding: 22px 20px;
+  }
+}

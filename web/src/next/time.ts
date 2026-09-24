@@ -19,10 +19,15 @@ export const MS_PER_MINUTE = 60_000;
 export const MS_PER_HOUR = 3_600_000;
 export const MS_PER_DAY = 86_400_000;
 
-/** What the user chose for a place (stored with the observer, never persisted). */
+/**
+ * What the user chose for a place (stored with the observer, never persisted).
+ * `guessed: true` means the zone was guessed from the place and follows it: the shell
+ * guesses again whenever the place moves. Without it the person pinned the zone and it
+ * stays (`zonePinned` in state.ts). UTC is always a pinned choice.
+ */
 export type ZoneChoice =
-  | { kind: 'iana'; zone: string; /** true when guessed from the place, not picked */ guessed?: boolean }
-  | { kind: 'nautical' }
+  | { kind: 'iana'; zone: string; guessed?: boolean }
+  | { kind: 'nautical'; guessed?: boolean }
   | { kind: 'utc' };
 
 /** A zone ready for arithmetic: an IANA zone, or a fixed offset from UTC. */

@@ -307,7 +307,14 @@ export interface Layers {
   meridian: boolean;
 }
 
-export type Theme = 'light' | 'dark' | 'night';
+/**
+ * The theme the person chose. `system` (the default) follows the device's light or dark
+ * preference until the person picks one; it never selects `night`. The theme actually on
+ * screen is `document.documentElement.dataset.theme` (`light` | `dark` | `night`, set by
+ * the shell); views that draw with WebGL or canvas read that through `theme/theme.ts`
+ * (`currentTheme`, `onThemeChange`), not this setting.
+ */
+export type Theme = 'system' | 'light' | 'dark' | 'night';
 /** Which clock is primary on screen; the other is always shown beside it. */
 export type TimeDisplay = 'local' | 'utc';
 /** `dm` = 39° 57.2′ (navigator), `dms` = 39° 57′ 09″, `decimal` = 39.9526°. */
@@ -351,7 +358,8 @@ export const DEFAULT_OBSERVER: ObserverState = {
   lon_deg: -75.1652,
   height_m: 0,
   label: 'Philadelphia City Hall',
-  zone: { kind: 'iana', zone: 'America/New_York' },
+  // Guessed: it follows the place when the person moves it (see ZoneChoice).
+  zone: { kind: 'iana', zone: 'America/New_York', guessed: true },
 };
 
 /** One hour per second: a day in 24 seconds. */
@@ -376,7 +384,7 @@ export const DEFAULT_LAYERS: Layers = {
 };
 
 export const DEFAULT_SETTINGS: Settings = {
-  theme: 'light',
+  theme: 'system',
   timeDisplay: 'local',
   angleFormat: 'dm',
   units: 'metric',
@@ -448,7 +456,7 @@ export function safeLocalStorage(): Storage | null {
   }
 }
 
-const THEMES: readonly Theme[] = ['light', 'dark', 'night'];
+const THEMES: readonly Theme[] = ['system', 'light', 'dark', 'night'];
 const TIME_DISPLAYS: readonly TimeDisplay[] = ['local', 'utc'];
 const ANGLE_FORMATS: readonly AngleFormat[] = ['dm', 'dms', 'decimal'];
 const UNITS: readonly Units[] = ['metric', 'nautical', 'imperial'];
@@ -577,6 +585,15 @@ function zoneParam(zone: ZoneChoice): string {
 }
 
 /**
+ * True when the person chose this zone (it stays when the place changes); false when it
+ * was guessed from the place (the shell guesses again whenever the place moves). UTC is
+ * always a choice: no guess produces it.
+ */
+export function zonePinned(zone: ZoneChoice): boolean {
+  return zone.kind === 'utc' || !zone.guessed;
+}
+
+/**
  * The URL fragment (`#v=1&lat=…`) for a share link. Call it ONLY when the person asks to
  * share; nothing in the explorer writes it to the address bar on its own. Coordinates
  * are rounded to 5 decimals (about a metre), time to the millisecond.
@@ -591,6 +608,9 @@ export function encodeShare(state: ExplorerState, options: ShareOptions = {}): s
     if (o.height_m) params.set('h', roundTo(o.height_m, 1));
     if (o.label) params.set('place', o.label.slice(0, MAX_LABEL));
     params.set('tz', zoneParam(o.zone));
+    // A zone the person pinned stays pinned for whoever opens the link; a guessed one
+    // keeps following the place there too.
+    if (zonePinned(o.zone)) params.set('tzpin', '1');
   }
   if (options.time ?? true) {
     params.set('t', isoUtc(state.time.jd_utc).replace('.000Z', 'Z'));
@@ -632,12 +652,14 @@ export function decodeShare(hash: string): SharePatch | null {
   if (lat !== null && lon !== null && lat >= -90 && lat <= 90) {
     const h = parseNumber(params.get('h'));
     const tz = params.get('tz') ?? '';
+    // Links made before `tzpin` existed carry no pin: their zone follows the place.
+    const guessed = params.get('tzpin') === '1' ? {} : { guessed: true };
     const zone: ZoneChoice =
       tz === 'utc'
         ? { kind: 'utc' }
         : tz === 'nautical' || !isValidIanaZone(tz)
-          ? { kind: 'nautical' } // a place with no usable zone gets its nautical zone time
-          : { kind: 'iana', zone: tz };
+          ? { kind: 'nautical', ...guessed } // a place with no usable zone gets its nautical zone time
+          : { kind: 'iana', zone: tz, ...guessed };
     out.observer = {
       lat_deg: lat,
       lon_deg: normLon(lon),
