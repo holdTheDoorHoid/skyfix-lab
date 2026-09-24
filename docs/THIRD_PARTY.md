@@ -245,7 +245,7 @@ Owner: planets agent (`crates/skyfix-ephemeris/src/planets.rs`,
   rectangular X, Y, Z in au, dynamical ecliptic and equinox J2000, argument TT) for the
   **Earth** and the seven planets, truncated for 1990-2060 and embedded in
   `crates/skyfix-ephemeris/data/vsop87a_planets.json` (schema
-  `skyfix.vsop87a_trunc/1`, 276 kB). Also the ecliptic-to-equator rotation and the
+  `skyfix.vsop87a_trunc/1`, 277.5 kB). Also the ecliptic-to-equator rotation and the
   time-scale statement in `vsop87.txt`, and the VSOP87A check values in `vsop87.chk`.
   The Earth series is `VSOP87A.ear`, **not** the Earth-Moon barycentre `VSOP87A.emb`,
   which is up to 4 700 km from the Earth (several arcseconds of Venus near inferior
