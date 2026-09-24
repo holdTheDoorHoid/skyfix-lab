@@ -381,7 +381,11 @@ mod tests {
         let d = Dir::from_deg(37.5, 212.25);
         let r = Dir::from_unit(d.to_unit());
         assert_relative_eq!(r.alt_deg(), 37.5, epsilon = 1e-12);
-        assert_relative_eq!(crate::angles::wrap360_deg(r.az_deg()), 212.25, epsilon = 1e-12);
+        assert_relative_eq!(
+            crate::angles::wrap360_deg(r.az_deg()),
+            212.25,
+            epsilon = 1e-12
+        );
     }
 
     #[test]
@@ -515,7 +519,10 @@ mod tests {
                 );
             }
         }
-        assert!(low > 0, "expected some low-DoLP points near the neutral points");
+        assert!(
+            low > 0,
+            "expected some low-DoLP points near the neutral points"
+        );
         // Exactly at the two neutral points DoLP is zero and AoLP undefined.
         for p in [sun, anti] {
             assert!(is_neutral(sun, p));
@@ -568,6 +575,10 @@ mod tests {
         // And the transpose maps world back into the frame.
         let s = sun_in_frame(Dir::from_deg(0.0, 30.0), &crate::vec3::transpose(&r));
         assert_relative_eq!(s[1], 1.0, epsilon = 1e-12);
-        assert_relative_eq!(crate::vec3::norm(scaled_unit(Dir::from_deg(0.0, 0.0), 3.0)), 3.0, epsilon = 1e-12);
+        assert_relative_eq!(
+            crate::vec3::norm(scaled_unit(Dir::from_deg(0.0, 0.0), 3.0)),
+            3.0,
+            epsilon = 1e-12
+        );
     }
 }

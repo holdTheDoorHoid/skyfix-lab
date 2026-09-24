@@ -90,8 +90,7 @@ pub mod vec3;
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 /// The standing caveat for anything this crate produces. Quote it verbatim.
-pub const SCOPE_CAVEAT: &str =
-    "skyfix-polar is a simulation laboratory. Its sky is an ideal single-scattering Rayleigh \
+pub const SCOPE_CAVEAT: &str = "skyfix-polar is a simulation laboratory. Its sky is an ideal single-scattering Rayleigh \
      model: a stress model, not validated atmosphere physics. Its results describe that model \
      under stated instrument defects. They are not an all-weather compass accuracy, and this \
      module does not estimate position at all.";

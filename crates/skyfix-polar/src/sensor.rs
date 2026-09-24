@@ -39,8 +39,7 @@ use crate::vec3::{Vec3, mat_vec};
 use serde::{Deserialize, Serialize};
 
 /// Why a few-channel sensor cannot be given the image sensor's mask.
-pub const MASK_NOT_REPRESENTABLE: &str =
-    "few-channel sensor: an image-plane mask is not representable. It has no image plane, \
+pub const MASK_NOT_REPRESENTABLE: &str = "few-channel sensor: an image-plane mask is not representable. It has no image plane, \
      so missing sky is all-or-nothing per photodiode (`blocked`), and the sensor cannot \
      report what fraction of the sky it lost.";
 
@@ -297,10 +296,7 @@ pub fn recover_views(
             s2,
             dolp,
             aolp_rad: aolp,
-            valid: solved
-                && k >= 3
-                && s0 >= thresholds.min_s0
-                && dolp >= thresholds.min_dolp,
+            valid: solved && k >= 3 && s0 >= thresholds.min_s0 && dolp >= thresholds.min_dolp,
             residual_rms,
         });
     }
@@ -311,9 +307,7 @@ pub fn recover_views(
 mod tests {
     use super::*;
     use crate::angles::diff180_deg;
-    use crate::camera::{
-        Camera, DEFAULT_ANALYZERS_DEG, Degradations, FisheyeIntrinsics, render,
-    };
+    use crate::camera::{Camera, DEFAULT_ANALYZERS_DEG, Degradations, FisheyeIntrinsics, render};
     use crate::stokes::stokes_from_four;
     use approx::assert_relative_eq;
 
@@ -368,7 +362,10 @@ mod tests {
         let two = FewChannelSensor::zenith_only(&[0.0, 90.0], Extrinsics::level(40.0));
         let r2 = read(&two, &scene(), &SensorDegradations::default());
         let v2 = recover_views(&two, &r2, &StokesThresholds::default());
-        assert!(!v2[0].valid, "two analyzer angles cannot determine S0, S1, S2");
+        assert!(
+            !v2[0].valid,
+            "two analyzer angles cannot determine S0, S1, S2"
+        );
     }
 
     #[test]
@@ -414,7 +411,11 @@ mod tests {
         assert_eq!(read(&sensor, &scene(), &d), read(&sensor, &scene(), &d));
         assert_ne!(
             read(&sensor, &scene(), &d),
-            read(&sensor, &scene(), &SensorDegradations::seeded(4).with_noise(0.02))
+            read(
+                &sensor,
+                &scene(),
+                &SensorDegradations::seeded(4).with_noise(0.02)
+            )
         );
 
         // Gains scale their own channel only.
@@ -422,7 +423,11 @@ mod tests {
         let gained = read(&sensor, &scene(), &d);
         for i in 0..n {
             let g = [1.0, 1.03, 0.98, 1.01][i % 4];
-            assert_relative_eq!(gained.intensities[i], g * clean.intensities[i], epsilon = 1e-12);
+            assert_relative_eq!(
+                gained.intensities[i],
+                g * clean.intensities[i],
+                epsilon = 1e-12
+            );
         }
 
         // A blocked view reads zero and is rejected; the others are untouched.
@@ -444,7 +449,11 @@ mod tests {
             depolarization: vec![0.2, 1.0, 1.0, 1.0, 1.0],
             ..Default::default()
         };
-        let depol = recover_views(&sensor, &read(&sensor, &scene(), &d), &StokesThresholds::default());
+        let depol = recover_views(
+            &sensor,
+            &read(&sensor, &scene(), &d),
+            &StokesThresholds::default(),
+        );
         let base = recover_views(&sensor, &clean, &StokesThresholds::default());
         assert_relative_eq!(depol[0].dolp, 0.2 * base[0].dolp, epsilon = 1e-10);
         assert_relative_eq!(depol[1].dolp, base[1].dolp, epsilon = 1e-12);

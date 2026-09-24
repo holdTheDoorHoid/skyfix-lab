@@ -57,7 +57,11 @@ pub fn add(a: Vec3, b: Vec3) -> Vec3 {
 #[inline]
 pub fn normalize(a: Vec3, tol: f64) -> Option<Vec3> {
     let n = norm(a);
-    if n < tol { None } else { Some(scale(a, 1.0 / n)) }
+    if n < tol {
+        None
+    } else {
+        Some(scale(a, 1.0 / n))
+    }
 }
 
 #[inline]

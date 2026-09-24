@@ -276,10 +276,7 @@ impl Extrinsics {
     pub fn tilt_then_yaw(heading_rad: f64, pitch_rad: f64, roll_rad: f64) -> Mat3 {
         mat_mul(
             &yaw_matrix(heading_rad),
-            &mat_mul(
-                &Self::pitch_matrix(pitch_rad),
-                &Self::roll_matrix(roll_rad),
-            ),
+            &mat_mul(&Self::pitch_matrix(pitch_rad), &Self::roll_matrix(roll_rad)),
         )
     }
 
@@ -702,7 +699,11 @@ mod tests {
             37.0,
             epsilon = 1e-9
         );
-        assert_relative_eq!(cam.pixel_to_world(50, 50).unwrap().alt_deg(), 90.0, epsilon = 1e-12);
+        assert_relative_eq!(
+            cam.pixel_to_world(50, 50).unwrap().alt_deg(),
+            90.0,
+            epsilon = 1e-12
+        );
         // Pitch 10 at heading 37 tips the optical axis to altitude 80, azimuth 37.
         let tilted = Camera::new(intr(), Extrinsics::new(37.0, 10.0, 0.0));
         let axis = tilted.pixel_to_world(50, 50).unwrap();
@@ -728,9 +729,17 @@ mod tests {
         let i = FisheyeIntrinsics::new(201, 201, 120.0);
         // radius 100.5 px maps to 60 deg, so 50.25 px maps to 30 deg.
         let g = i.pixel_geom(100 + 50, 100).unwrap();
-        assert_relative_eq!(g.theta_rad.to_degrees(), 50.0 / 100.5 * 60.0, epsilon = 1e-9);
+        assert_relative_eq!(
+            g.theta_rad.to_degrees(),
+            50.0 / 100.5 * 60.0,
+            epsilon = 1e-9
+        );
         let h = i.pixel_geom(100 + 100, 100).unwrap();
-        assert_relative_eq!(h.theta_rad.to_degrees(), 100.0 / 100.5 * 60.0, epsilon = 1e-9);
+        assert_relative_eq!(
+            h.theta_rad.to_degrees(),
+            100.0 / 100.5 * 60.0,
+            epsilon = 1e-9
+        );
         // Outside the image circle is not sky.
         assert!(i.pixel_geom(0, 0).is_none());
         assert!(i.pixel_geom(200, 200).is_none());
@@ -783,7 +792,12 @@ mod tests {
     fn rendering_reproduces_the_truth_when_undegraded() {
         let cam = Camera::new(intr(), Extrinsics::new(123.0, 4.0, -6.0));
         let scene = Scene::new(Dir::from_deg(28.0, 250.0));
-        let r = render(&cam, &scene, DEFAULT_ANALYZERS_DEG, &Degradations::default());
+        let r = render(
+            &cam,
+            &scene,
+            DEFAULT_ANALYZERS_DEG,
+            &Degradations::default(),
+        );
         assert_eq!(r.images.len(), 101 * 101);
         assert_relative_eq!(r.truth.masked_fraction(), 0.0, epsilon = 1e-15);
         // Closed-form Stokes inversion of the four ideal intensities.
@@ -812,7 +826,12 @@ mod tests {
     fn degradations_do_what_they_say() {
         let cam = Camera::new(intr(), Extrinsics::level(10.0));
         let scene = Scene::new(Dir::from_deg(40.0, 150.0));
-        let clean = render(&cam, &scene, DEFAULT_ANALYZERS_DEG, &Degradations::default());
+        let clean = render(
+            &cam,
+            &scene,
+            DEFAULT_ANALYZERS_DEG,
+            &Degradations::default(),
+        );
 
         // Mask: every channel takes masked_value inside the region.
         let d = Degradations::default().with_mask(PixelRegion::Rect {
@@ -840,7 +859,11 @@ mod tests {
         );
         let depol = render(&cam, &scene, DEFAULT_ANALYZERS_DEG, &d);
         let j = depol.images.index(30, 30);
-        assert_relative_eq!(depol.truth.dolp[j], 0.25 * clean.truth.dolp[j], epsilon = 1e-12);
+        assert_relative_eq!(
+            depol.truth.dolp[j],
+            0.25 * clean.truth.dolp[j],
+            epsilon = 1e-12
+        );
         let k = depol.images.index(70, 70);
         assert_relative_eq!(depol.truth.dolp[k], clean.truth.dolp[k], epsilon = 1e-15);
 

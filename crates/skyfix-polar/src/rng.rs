@@ -93,7 +93,11 @@ mod tests {
             bins[(u * 10.0) as usize] += 1;
         }
         // Mean of U(0,1) is 0.5; sigma of the mean over 2e5 draws is 6.5e-4.
-        assert!((sum / n as f64 - 0.5).abs() < 0.005, "mean {}", sum / n as f64);
+        assert!(
+            (sum / n as f64 - 0.5).abs() < 0.005,
+            "mean {}",
+            sum / n as f64
+        );
         for b in bins {
             let f = b as f64 / n as f64;
             assert!((f - 0.1).abs() < 0.01, "bin fraction {f}");

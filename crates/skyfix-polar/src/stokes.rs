@@ -217,7 +217,10 @@ mod tests {
     fn round_trip_to_one_part_in_a_billion() {
         // Independent numbers: synthesise from a known (S0, DoLP, AoLP) with
         // the forward model, then invert with the closed form.
-        let angles: Vec<f64> = DEFAULT_ANALYZERS_DEG.iter().map(|a| a.to_radians()).collect();
+        let angles: Vec<f64> = DEFAULT_ANALYZERS_DEG
+            .iter()
+            .map(|a| a.to_radians())
+            .collect();
         for &s0_true in &[0.25_f64, 1.0, 7.5] {
             for &p_true in &[0.0_f64, 0.137, 0.5, 0.75, 1.0] {
                 for psi_deg in (0..180).step_by(7) {
@@ -273,7 +276,12 @@ mod tests {
             Extrinsics::new(61.0, 3.0, -2.0),
         );
         let scene = Scene::new(Dir::from_deg(33.0, 140.0));
-        let r = render(&cam, &scene, DEFAULT_ANALYZERS_DEG, &Degradations::default());
+        let r = render(
+            &cam,
+            &scene,
+            DEFAULT_ANALYZERS_DEG,
+            &Degradations::default(),
+        );
         let f = recover(&r.images, &StokesThresholds::default());
         let mut checked = 0;
         for i in 0..f.len() {

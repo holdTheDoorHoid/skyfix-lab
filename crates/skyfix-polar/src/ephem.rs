@@ -127,7 +127,11 @@ mod tests {
         };
         let d = sun_direction(&p, 2_461_000.5, observer).unwrap();
         assert_relative_eq!(d.alt_deg(), 60.0, epsilon = 1e-9);
-        assert_relative_eq!(crate::angles::wrap360_deg(d.az_deg()), 180.0, epsilon = 1e-9);
+        assert_relative_eq!(
+            crate::angles::wrap360_deg(d.az_deg()),
+            180.0,
+            epsilon = 1e-9
+        );
         // Equator observer, body 30 deg east on the equator.
         let d = direction_from_gha_dec(330.0, 0.0, Point::from_deg(0.0, 0.0));
         assert_relative_eq!(d.alt_deg(), 60.0, epsilon = 1e-9);

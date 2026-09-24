@@ -75,18 +75,15 @@ use crate::vec3::{Mat3, Vec3, mat_mul, mat_vec, transpose};
 use serde::{Deserialize, Serialize};
 
 /// Standing caveat attached to every estimate.
-pub const MODEL_CAVEAT: &str =
-    "ideal single-scattering Rayleigh sky: a stress model, not validated atmosphere physics. \
+pub const MODEL_CAVEAT: &str = "ideal single-scattering Rayleigh sky: a stress model, not validated atmosphere physics. \
      These numbers describe the model, not the sky.";
 
 /// Standing caveat attached to every `sigma_deg`.
-pub const SIGMA_CAVEAT: &str =
-    "sigma_deg is nominal: the curvature of this cost curve under an independent-residual \
+pub const SIGMA_CAVEAT: &str = "sigma_deg is nominal: the curvature of this cost curve under an independent-residual \
      assumption. It is not a validated field accuracy.";
 
 /// Note emitted whenever the optional radiance disambiguator is used.
-pub const RADIANCE_HINT_CAVEAT: &str =
-    "radiance hint: uses a simplified radiance model, not validated. The true Rayleigh phase \
+pub const RADIANCE_HINT_CAVEAT: &str = "radiance hint: uses a simplified radiance model, not validated. The true Rayleigh phase \
      function is symmetric about 90 degrees of scattering angle and would resolve nothing; \
      this hint stands in for aerosol forward scattering and is not a measurement of it.";
 
@@ -237,7 +234,9 @@ impl HeadingEstimate {
         self.candidates
             .iter()
             .map(|c| diff360_deg(c.heading_deg, truth_deg).abs())
-            .fold(None, |acc: Option<f64>, e| Some(acc.map_or(e, |a| a.min(e))))
+            .fold(None, |acc: Option<f64>, e| {
+                Some(acc.map_or(e, |a| a.min(e)))
+            })
     }
 
     /// True when a candidate within `tol` of `best + 180` is present.
@@ -251,8 +250,7 @@ impl HeadingEstimate {
 
     /// True when the 180-degree alternative could not be separated by cost.
     pub fn ambiguity_flagged(&self) -> bool {
-        self.ambiguity.starts_with("unresolved-180")
-            || self.ambiguity.starts_with("unobservable")
+        self.ambiguity.starts_with("unresolved-180") || self.ambiguity.starts_with("unobservable")
     }
 }
 
@@ -343,6 +341,33 @@ fn cost_at(samples: &[AolpSample], sun_body: Vec3) -> (f64, usize) {
     }
     (cost, used)
 }
+
+/// Relative spread of the measured radiance across the samples.
+///
+/// The disambiguator has nothing to work with unless the measured `S0`
+/// actually varies. A uniform-radiance scene gives a spread at the level of
+/// floating-point rounding, and correlating *that* against anything yields a
+/// number that looks meaningful and is not: a guard here is what stops the
+/// hint from "resolving" the ambiguity out of arithmetic noise.
+fn radiance_spread(samples: &[AolpSample]) -> f64 {
+    if samples.len() < 3 {
+        return 0.0;
+    }
+    let n = samples.len() as f64;
+    let mean = samples.iter().map(|s| s.radiance).sum::<f64>() / n;
+    if mean.abs() < 1e-300 {
+        return 0.0;
+    }
+    let var = samples
+        .iter()
+        .map(|s| (s.radiance - mean) * (s.radiance - mean))
+        .sum::<f64>()
+        / n;
+    var.sqrt() / mean.abs()
+}
+
+/// Minimum relative radiance spread for the hint to be used at all.
+const RADIANCE_SPREAD_FLOOR: f64 = 1e-4;
 
 /// Pearson correlation between the measured radiance and the simplified
 /// brightness proxy under a trial heading. Positive means the bright half of
@@ -487,7 +512,9 @@ pub fn estimate(
         1.0
     };
     let n_grid = ((360.0 / step).round() as usize).max(4);
-    let grid_h: Vec<f64> = (0..n_grid).map(|i| 360.0 * i as f64 / n_grid as f64).collect();
+    let grid_h: Vec<f64> = (0..n_grid)
+        .map(|i| 360.0 * i as f64 / n_grid as f64)
+        .collect();
     let costs: Vec<f64> = grid_h.iter().map(|h| cost(*h)).collect();
     let cost_curve: Vec<CostPoint> = grid_h
         .iter()
@@ -536,34 +563,26 @@ pub fn estimate(
     candidates.sort_by(|a, b| a.cost.total_cmp(&b.cost));
     let best = candidates[0];
 
-    // The 180-degree alternative is always evaluated and always reported.
+    // The 180-degree alternative is always evaluated at *exactly* best + 180
+    // and always reported. That is the hypothesis "the instrument is pointing
+    // the other way"; refining it to a nearby minimum would move it off 180
+    // degrees and hide the very thing being reported.
     let anti_target = wrap360_deg(best.heading_deg + 180.0);
-    let anti = match candidates
+    let anti_cost = cost(anti_target);
+    let anti = HeadingCandidate {
+        heading_deg: anti_target,
+        cost: anti_cost,
+        sigma_deg: sigma_from_curvature(cost, anti_target, anti_cost, used, (step / 4.0).max(1e-3)),
+    };
+    // For the separation test, take the cheapest hypothesis anywhere in the
+    // opposite neighbourhood, so that a minimum sitting a few degrees off 180
+    // cannot be missed by insisting on exactly 180. Conservative on purpose:
+    // it can only make the alternative look better, never worse.
+    let anti_evidence = candidates
         .iter()
         .skip(1)
-        .find(|c| diff360_deg(c.heading_deg, anti_target).abs() <= 2.0)
-    {
-        // A genuine local minimum sits opposite: that is the alternative.
-        Some(c) => *c,
-        // Otherwise report the hypothesis at *exactly* best + 180 with the cost
-        // it actually incurs. Refining it would be meaningless (it is not a
-        // minimum) and would hide the very thing being reported: what it costs
-        // to assume the instrument is pointing the other way.
-        None => {
-            let c = cost(anti_target);
-            HeadingCandidate {
-                heading_deg: anti_target,
-                cost: c,
-                sigma_deg: sigma_from_curvature(
-                    cost,
-                    anti_target,
-                    c,
-                    used,
-                    (step / 4.0).max(1e-3),
-                ),
-            }
-        }
-    };
+        .filter(|c| diff360_deg(c.heading_deg, anti_target).abs() <= 15.0)
+        .fold(anti, |acc, c| if c.cost < acc.cost { *c } else { acc });
 
     // Keep the best and the alternative, then the next-best distinct minima.
     let mut kept = vec![best, anti];
@@ -586,23 +605,27 @@ pub fn estimate(
         f64::NAN
     };
     let mean_best = best.cost / used.max(1) as f64;
-    let mean_anti = anti.cost / used.max(1) as f64;
+    let mean_anti = anti_evidence.cost / used.max(1) as f64;
     // Delta chi-square against the best candidate's own residual variance,
     // one degree of freedom (heading). CONVENTIONS section 8 uses the same
     // machinery with 2 dof for a position fix.
     let s2 = (best.cost / (used.max(2) as f64 - 1.0))
         .max(cfg.ambiguity_floor_deg * cfg.ambiguity_floor_deg);
-    let delta_chi2 = (anti.cost - best.cost) / s2;
+    let delta_chi2 = (anti_evidence.cost - best.cost) / s2;
     let separated = delta_chi2 > cfg.ambiguity_delta_chi2;
 
     notes.push(format!(
-        "{used} of {} samples entered the cost; best residual RMS {:.4} deg, \
-         alternative at {:.3} deg has residual RMS {:.4} deg, delta chi-square {:.3}.",
+        "{used} of {} samples entered the cost; best residual RMS {:.4} deg at {:.3} deg. \
+         The opposite half is best explained at {:.3} deg with residual RMS {:.4} deg \
+         (delta chi-square {:.3}); the exact {:.3} deg alternative costs {:.4} deg RMS.",
         samples.len(),
         residual_rms_deg,
-        anti.heading_deg,
+        best.heading_deg,
+        anti_evidence.heading_deg,
         mean_anti.sqrt(),
-        delta_chi2
+        delta_chi2,
+        anti.heading_deg,
+        (anti.cost / used.max(1) as f64).sqrt()
     ));
     if best.cost == 0.0 {
         notes.push(
@@ -622,7 +645,7 @@ pub fn estimate(
              the Sun/anti-Sun symmetry) and with the Sun at the zenith (where heading leaves the \
              pattern unchanged). It also vanishes for a zenith-only sensor at any Sun altitude. \
              Both candidates are returned.",
-            anti.heading_deg,
+            anti_evidence.heading_deg,
             mean_anti.sqrt(),
             mean_best.sqrt(),
             best.heading_deg,
@@ -635,7 +658,7 @@ pub fn estimate(
              cannot choose between them: the Rayleigh field is exactly invariant under \
              Sun <-> anti-Sun. Both candidates are returned; resolving them needs an \
              independent input.",
-            anti.heading_deg,
+            anti_evidence.heading_deg,
             best.heading_deg,
             mean_anti.sqrt(),
             mean_best.sqrt(),
@@ -645,21 +668,28 @@ pub fn estimate(
 
     // Optional, opt-in radiance disambiguator.
     if cfg.use_radiance_hint {
+        let spread = radiance_spread(samples);
         let r_best = radiance_correlation(samples, predictor.sun_body(best.heading_deg));
-        let r_anti = radiance_correlation(samples, predictor.sun_body(anti.heading_deg));
+        let r_anti = radiance_correlation(samples, predictor.sun_body(anti_evidence.heading_deg));
         notes.push(RADIANCE_HINT_CAVEAT.to_string());
         notes.push(format!(
-            "radiance correlation {:.4} at {:.3} deg against {:.4} at {:.3} deg.",
-            r_best, best.heading_deg, r_anti, anti.heading_deg
+            "radiance correlation {:.4} at {:.3} deg against {:.4} at {:.3} deg; \
+             relative radiance spread {:.3e}.",
+            r_best, best.heading_deg, r_anti, anti_evidence.heading_deg, spread
         ));
-        if (r_best - r_anti).abs() < 1e-6 {
-            notes.push(
-                "the radiance hint is uninformative here: the two hypotheses correlate equally \
-                 (a uniform-radiance scene carries no gradient to exploit)."
-                    .to_string(),
-            );
+        if spread < RADIANCE_SPREAD_FLOOR || (r_best - r_anti).abs() < 1e-6 {
+            notes.push(format!(
+                "the radiance hint is uninformative here: the measured radiance varies by only \
+                 {spread:.3e} relative, below the {RADIANCE_SPREAD_FLOOR:.0e} floor. A \
+                 uniform-radiance scene carries no gradient to exploit, and correlating against \
+                 rounding noise would manufacture an answer."
+            ));
         } else {
-            let winner = if r_best >= r_anti { best } else { anti };
+            let winner = if r_best >= r_anti {
+                best
+            } else {
+                anti_evidence
+            };
             kept.sort_by(|a, b| {
                 let ka = diff360_deg(a.heading_deg, winner.heading_deg).abs() > 0.5;
                 let kb = diff360_deg(b.heading_deg, winner.heading_deg).abs() > 0.5;
@@ -671,7 +701,7 @@ pub fn estimate(
                  candidates remain in the list.",
                 winner.heading_deg,
                 if winner.heading_deg == best.heading_deg {
-                    anti.heading_deg
+                    anti_evidence.heading_deg
                 } else {
                     best.heading_deg
                 },
@@ -730,17 +760,16 @@ pub fn tilt_sensitivity(
     cfg: &HeadingConfig,
     delta_deg: f64,
 ) -> Option<TiltSensitivity> {
-    let base = estimate(samples, sun, assumed_tilt, cfg).best()?.heading_deg;
+    let base = estimate(samples, sun, assumed_tilt, cfg)
+        .best()?
+        .heading_deg;
     let at = |t: Tilt| -> Option<f64> {
         let e = estimate(samples, sun, t, cfg);
-        e.candidates
-            .iter()
-            .map(|c| c.heading_deg)
-            .min_by(|a, b| {
-                diff360_deg(*a, base)
-                    .abs()
-                    .total_cmp(&diff360_deg(*b, base).abs())
-            })
+        e.candidates.iter().map(|c| c.heading_deg).min_by(|a, b| {
+            diff360_deg(*a, base)
+                .abs()
+                .total_cmp(&diff360_deg(*b, base).abs())
+        })
     };
     let pp = at(Tilt::new(
         assumed_tilt.pitch_deg + delta_deg,
@@ -824,7 +853,10 @@ mod tests {
     fn predictor_matches_a_directly_built_camera() {
         let sun = Dir::from_deg(28.0, 143.0);
         for (h, p, r) in [(0.0, 0.0, 0.0), (77.0, 6.0, -4.0), (300.0, -3.0, 11.0)] {
-            let cam = Camera::new(FisheyeIntrinsics::new(31, 31, 180.0), Extrinsics::new(h, p, r));
+            let cam = Camera::new(
+                FisheyeIntrinsics::new(31, 31, 180.0),
+                Extrinsics::new(h, p, r),
+            );
             let direct = cam.sun_in_body(sun);
             let pred = Predictor::new(Tilt::new(p, r), sun).sun_body(h);
             for i in 0..3 {
@@ -859,16 +891,17 @@ mod tests {
         let sun = Dir::from_deg(35.0, 210.0);
         let sensor =
             FewChannelSensor::zenith_only(&DEFAULT_ANALYZERS_DEG, Extrinsics::level(truth));
-        let readings = crate::sensor::read(
-            &sensor,
-            &Scene::new(sun),
-            &SensorDegradations::default(),
-        );
+        let readings =
+            crate::sensor::read(&sensor, &Scene::new(sun), &SensorDegradations::default());
         let views = crate::sensor::recover_views(&sensor, &readings, &StokesThresholds::default());
         let samples = samples_from_views(&views);
         assert_eq!(samples.len(), 1);
         let est = estimate(&samples, sun, Tilt::default(), &HeadingConfig::default());
-        assert!(est.ambiguity.starts_with("unresolved-180"), "{}", est.ambiguity);
+        assert!(
+            est.ambiguity.starts_with("unresolved-180"),
+            "{}",
+            est.ambiguity
+        );
         assert!(est.ambiguity_flagged());
         let b = est.best().unwrap();
         assert!(est.has_anti_candidate(0.5));
@@ -976,7 +1009,11 @@ mod tests {
         let (samples, _) = image_samples(20.0, sun, 41);
         let est = estimate(&samples, sun, Tilt::default(), &HeadingConfig::default());
         assert!(est.candidates.is_empty());
-        assert!(est.ambiguity.starts_with("unobservable"), "{}", est.ambiguity);
+        assert!(
+            est.ambiguity.starts_with("unobservable"),
+            "{}",
+            est.ambiguity
+        );
         assert!(est.ambiguity_flagged());
         assert!(est.best().is_none());
         assert!(est.nearest_error_deg(20.0).is_none());

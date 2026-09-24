@@ -79,7 +79,7 @@ impl Default for ExperimentConfig {
             use_radiance_hint: false,
             mask: None,
             thresholds: StokesThresholds::default(),
-            seed: 2_026_09_23,
+            seed: 20_260_923,
         }
     }
 }
@@ -210,9 +210,7 @@ fn summarise(
     let anti = best.and_then(|b| {
         est.candidates
             .iter()
-            .find(|c| {
-                crate::angles::diff360_deg(c.heading_deg, b.heading_deg + 180.0).abs() < 2.0
-            })
+            .find(|c| crate::angles::diff360_deg(c.heading_deg, b.heading_deg + 180.0).abs() < 2.0)
             .copied()
     });
     ComparisonRow {
@@ -308,7 +306,15 @@ pub fn compare_sensors(cfg: &ExperimentConfig) -> ComparisonTable {
                 let views = crate::sensor::recover_views(&sensor, &readings, &cfg.thresholds);
                 let samples = samples_from_views(&views);
                 let est = estimate(&samples, sun, assumed, &hcfg);
-                rows.push(summarise(&est, "few-channel", cfg, alt, noise, tilt_err, None));
+                rows.push(summarise(
+                    &est,
+                    "few-channel",
+                    cfg,
+                    alt,
+                    noise,
+                    tilt_err,
+                    None,
+                ));
             }
         }
     }
