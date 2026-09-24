@@ -690,6 +690,10 @@ mod tests {
             d.0.rotation_camera_from_frame.angle_to(&d.1).to_degrees() * 60.0
         };
         let (v, u, c) = (err(&vacuum), err(&air_uncorrected), err(&air_corrected));
+        println!(
+            "refraction bias, 6-star 40-degree Orion field: vacuum {v:.4}', through air \
+             uncorrected {u:.4}', through air with a 0.5'-grade vertical {c:.4}'"
+        );
         assert!(v < 0.02, "vacuum error {v:.4}'");
         assert!(
             u > 1.0,
