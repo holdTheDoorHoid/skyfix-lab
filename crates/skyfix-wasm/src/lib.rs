@@ -505,7 +505,7 @@ mod tests {
     #[test]
     fn the_auto_provider_answers_both_the_sun_and_the_stars() {
         let p = auto_provider();
-        let jd = 2_461_314.5625; // 2026-10-01T01:30Z
+        let jd = 2_461_314.562_5; // 2026-10-01T01:30Z
         assert!(p.geocentric("Vega", jd).is_ok(), "no Vega");
         assert!(p.geocentric("Sun", jd).is_ok(), "no Sun");
         let e = p.geocentric("Ceres", jd).unwrap_err();
