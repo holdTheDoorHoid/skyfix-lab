@@ -207,9 +207,9 @@ describe('themes, the view fragment and the registry', () => {
     expect(createRegistry({}, {}, { charts: chartsEntry }).view('charts')).toBe(chartsEntry);
   });
 
-  it('mounts the merged Charts view from charts/index.ts', async () => {
-    const loader = registry.view('charts');
-    expect(loader).not.toBeNull();
+  it('mounts the merged views from their entry files (one module for Map and Globe)', () => {
+    for (const id of ['map', 'globe', 'sky', 'charts', 'about'] as const) expect(registry.view(id), id).not.toBeNull();
+    expect(registry.view('globe')).toBe(registry.view('map'));
   });
 });
 
@@ -223,7 +223,7 @@ describe('the time-zone guess rules', () => {
   });
 
   it('keeps a pinned zone, and a zone set together with the new place', () => {
-    const pinned = moved(DEFAULT_OBSERVER, { zone: { kind: 'iana', zone: 'Europe/London' } });
+    const pinned = moved(DEFAULT_OBSERVER, { zone: { kind: 'iana', zone: 'Europe/London', guessed: false } });
     expect(needsZoneGuess(pinned, moved(pinned, { lat_deg: 0, lon_deg: 0 }))).toBe(false);
     const withZone = moved(DEFAULT_OBSERVER, { lat_deg: 35.68, lon_deg: 139.69, zone: { kind: 'iana', zone: 'Asia/Tokyo', guessed: true } });
     expect(needsZoneGuess(DEFAULT_OBSERVER, withZone)).toBe(false);
@@ -233,6 +233,8 @@ describe('the time-zone guess rules', () => {
     expect(zoneChoiceFromGuess(null)).toEqual({ kind: 'nautical', guessed: true });
     const guess = { zone: { kind: 'iana', id: 'Asia/Tokyo' }, source: 'country', reason: '', anchor: null, anchorDistanceNm: 0, country: null } as const;
     expect(zoneChoiceFromGuess(guess)).toEqual({ kind: 'iana', zone: 'Asia/Tokyo', guessed: true });
-    expect(sameZone({ kind: 'iana', zone: 'Asia/Tokyo', guessed: true }, { kind: 'iana', zone: 'Asia/Tokyo' })).toBe(false);
+    expect(sameZone({ kind: 'iana', zone: 'Asia/Tokyo', guessed: true }, { kind: 'iana', zone: 'Asia/Tokyo', guessed: false })).toBe(false);
+    // No flag: the zone came with a place and follows it, like a guess (the map's rule too).
+    expect(sameZone({ kind: 'iana', zone: 'Asia/Tokyo', guessed: true }, { kind: 'iana', zone: 'Asia/Tokyo' })).toBe(true);
   });
 });

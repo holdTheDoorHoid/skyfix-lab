@@ -6,15 +6,15 @@
  *
  *   src/next/<folder>/view.ts        export default (host, ctx) => ({ destroy })
  *
- * A view with another entry file gets one line in `VIEW_ENTRIES` (Charts: `charts/index.ts`).
+ * A view with another entry file gets one line in `VIEW_ENTRIES` (Map and Globe: `map/index.ts`,
+ * Sky: `sky/index.ts`, Charts: `charts/index.ts`).
  *
  * `VIEW_FOLDERS` says which folder serves which view id (`map` and `globe` are both the
  * map agent's). A folder that is not there yet shows a friendly "coming soon" page
  * (`placeholder.ts`). The component takes over the stage element it is given: it fills
- * it (the stage is `position: relative`, the host `position: absolute; inset: 0`), keeps
- * clear of the panel tab in the top-left 28 x 56 px, and reads the phone sheet's height
- * from the stage's `--stage-inset-bottom` custom property when it has to keep something in
- * view. It is destroyed when another folder's view is chosen; switching between two ids
+ * it (the stage is `position: relative`, the host `position: absolute; inset: 0`; nothing
+ * of the shell's covers it) and reads the phone sheet's height from the stage's
+ * `--stage-inset-bottom` custom property when it has to keep something in view. It is destroyed when another folder's view is chosen; switching between two ids
  * served by the same folder (`map` <-> `globe`) keeps it mounted, and the component
  * follows `state.view` itself.
  *
@@ -64,6 +64,8 @@ export interface Registry {
  * must exist (the import is checked at build time), so add its line when it is merged.
  */
 export const VIEW_ENTRIES: Record<string, ModuleLoader> = {
+  map: () => import('../map/index.js').then((m) => ({ default: m.mapView })),
+  sky: () => import('../sky/index.js').then((m) => ({ default: m.sky })),
   charts: () => import('../charts/index.js').then((m) => ({ default: m.charts })),
 };
 
