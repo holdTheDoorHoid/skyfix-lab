@@ -1,6 +1,6 @@
 # Explorer engine — wire contract
 
-**Status:** normative. The Rust side is `crates/skyfix-wasm/src/{explorer,starfield,nav,navsky,almanac,eclipses}.rs`;
+**Status:** normative. The Rust side is `crates/skyfix-wasm/src/{explorer,starfield,nav,navsky,almanac,eclipses,planet_events}.rs`;
 the TypeScript mirror is `web/src/next/engine/types.ts`. Change both together, in one
 commit, and say so in your report. Numeric definitions are CONVENTIONS section 13.
 
@@ -882,3 +882,55 @@ that sees it (the Moon is up within about 89° of that point):
                "lat_deg": 3.413, "lon_deg": -58.145}, …, {"kind": "max", …}, …, {"kind": "p4", …}],
  "delta_t_s": 69.184}
 ```
+
+## Wave 2 — planet events (`planet_events.rs`)
+
+Specified by the eclipse agent (2026-09-24). Engine: `skyfix_almanac::planet_events`;
+definitions and validation in `docs/ACCURACY.md`, "Planet events". TypeScript: the
+`PlanetEventsEngine` interface and the `PlanetEvent*` types at the end of `types.ts`.
+
+### `planet_events(jd_start, jd_end) -> PlanetEventList`
+
+Every opposition, conjunction with the Sun, greatest elongation (Mercury and Venus) and
+closest approach of Mercury to Neptune whose instant falls in the window, sorted by
+time. Geocentric, so the same for every observer. About 30 ms a year natively; ask for
+the months on screen. A window that is not finite or ends before it starts throws; one
+that reaches outside the coverage (`1990-01-01T00:00:00Z` to `2060-12-31T23:59:59Z`, the
+planet provider's) is clipped and says so (`truncated`).
+
+```json
+{
+  "jd_start": 2461041.5, "jd_end": 2461406.5, "truncated": false,
+  "coverage_start_utc": "1990-01-01T00:00:00Z", "coverage_end_utc": "2060-12-31T23:59:59Z",
+  "events": [
+    {"kind": "superior_conjunction", "body": "Venus", "jd_utc": 2461047.191674,
+     "utc": "2026-01-06T16:36:00.648Z", "elongation_deg": 0.711, "distance_au": 1.710911,
+     "distance_km": 255948672.7, "magnitude": -3.91, "ra_deg": 287.844, "dec_deg": -23.141,
+     "transit": false},
+    {"kind": "opposition", "body": "Jupiter", "utc": "2026-01-10T08:42:…Z", "elongation_deg": 179.74, …},
+    {"kind": "greatest_elongation_east", "body": "Mercury", "utc": "2026-02-19T17:41:…Z", "elongation_deg": 18.12, …}
+  ]
+}
+```
+
+| `kind` | bodies | the instant when |
+|---|---|---|
+| `opposition` | Mars to Neptune | the planet's apparent ecliptic longitude of date is the Sun's + 180° (up all night, near its brightest) |
+| `conjunction` | Mars to Neptune | it equals the Sun's (behind the Sun, not observable) |
+| `inferior_conjunction` | Mercury, Venus | it equals the Sun's with the planet between the Earth and the Sun (phase angle over 90°) |
+| `superior_conjunction` | Mercury, Venus | it equals the Sun's with the planet beyond the Sun |
+| `greatest_elongation_east` / `_west` | Mercury, Venus | the angle from the Sun is greatest; east = evening sky, west = morning sky |
+| `perigee` | all seven | the geocentric (light-time) distance is least: the closest approach |
+
+| field | meaning |
+|---|---|
+| `elongation_deg` | apparent angle between the planet and the Sun from the Earth's centre at that instant (at a conjunction it is the planet's distance from the Sun's centre: 0.37° is close, a transit needs about 0.27° or less) |
+| `distance_au`, `distance_km` | geocentric light-time distance |
+| `magnitude` | apparent visual magnitude (Mallama & Hilton 2018, as the planet provider); `null` where that model does not cover the geometry (Saturn beyond phase angle 6.5° or ring tilt 27°). At a conjunction the planet is lost in the Sun's glare whatever its magnitude |
+| `ra_deg`, `dec_deg` | apparent geocentric right ascension and declination of date |
+| `transit` | inferior conjunctions only: the planet crosses the Sun's disc as seen from the Earth's centre (Mercury 2016-05-09, 2019-11-11, 2032-11-13, …; Venus 2004-06-08, 2012-06-06). Always `false` for other kinds; the local circumstances of a transit are not computed |
+
+Several kinds can fall close together: an outer planet's closest approach is within a
+day or two of its opposition (Mars: up to 8.4 days in 1990-2060), and Mercury's and
+Venus's within 3.4 and 1 days of their inferior conjunctions. They are separate events
+with separate instants.
