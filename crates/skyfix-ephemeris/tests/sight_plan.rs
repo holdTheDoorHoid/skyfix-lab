@@ -153,6 +153,15 @@ fn the_planet_parade_evening_gets_a_spread_of_bright_bodies_with_readings() {
     .unwrap();
     let kinds: Vec<&str> = plan.windows.iter().map(|w| w.kind.as_str()).collect();
     assert_eq!(kinds, ["evening", "morning"], "{:?}", plan.notes);
+    // Verifier regression: the notes are sentences for the page; a string literal
+    // split over lines without its continuation put runs of 13 spaces into one.
+    for note in plan
+        .notes
+        .iter()
+        .chain(plan.windows.iter().flat_map(|w| &w.notes))
+    {
+        assert!(!note.contains("  "), "{note:?}");
+    }
     for w in &plan.windows {
         println!(
             "{} twilight {} to {}, Sun {:.1} deg, limit {:.1} mag",

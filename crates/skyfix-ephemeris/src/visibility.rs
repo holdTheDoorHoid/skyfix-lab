@@ -610,7 +610,9 @@ fn plan_window(
         .collect();
     if !chosen.is_empty() {
         notes.push(format!(
-            "{} chosen from {} eligible bodies for the best spread round the horizon: the              smallest fix error when a shared altitude error (dip, index error, refraction)              is unknown too, which only bodies on all sides can cancel",
+            "{} chosen from {} eligible bodies for the best spread round the horizon: the \
+             smallest fix error when a shared altitude error (dip, index error, refraction) \
+             is unknown too, which only bodies on all sides can cancel",
             chosen.len(),
             eligible.len()
         ));
