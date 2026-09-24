@@ -1,7 +1,11 @@
 /*
  * The connection and update dock (dock.ts). OWNER: release agent. Tokens only.
- * Bottom centre of the window: clear of the map's corner controls and credits, above the
- * stage and the phone's bottom sheet, below popovers and tooltips.
+ *
+ * In the shell's stage: bottom centre of the view, raised clear of the map's bottom row
+ * (the shading legend on the left, the scale and the credits on the right: the
+ * OpenStreetMap credit must stay readable), and above the phone's bottom sheet
+ * (`--stage-view-inset`, set by panel/sheet.ts). Without a stage (the developer harness,
+ * a page that could not start): bottom centre of the window.
  */
 
 .sf-pwa {
@@ -14,15 +18,30 @@
   align-items: center;
   gap: var(--space-2);
   width: max-content;
-  max-width: calc(100vw - 2 * var(--space-4));
+  max-width: calc(100% - 2 * var(--space-4));
   transform: translateX(-50%);
-  /* The dock itself never blocks the map; only its cards and chip take the pointer. */
+  /* The dock itself never blocks the view; only its cards and chip take the pointer. */
   pointer-events: none;
+}
+
+.sf-pwa[data-home='stage'] {
+  position: absolute;
+  bottom: calc(var(--stage-view-inset, 0px) + 64px);
+  z-index: calc(var(--z-stage-overlay) + 1);
+}
+
+/* Phones: the map is short and the compass fills its middle; the gap is at the bottom,
+   between the place names on the left and the scale and credits on the right. */
+@media (max-width: 767px) {
+  .sf-pwa[data-home='stage'] {
+    bottom: calc(var(--stage-view-inset, 0px) + var(--space-3));
+  }
 }
 
 .sf-pwa__row {
   display: flex;
   justify-content: center;
+  max-width: 100%;
 }
 
 .sf-pwa__row:empty {

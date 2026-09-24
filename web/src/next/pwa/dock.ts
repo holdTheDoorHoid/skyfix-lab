@@ -1,6 +1,8 @@
 /**
- * The connection and update dock: a small area at the bottom centre of the window that
- * shows, only when there is something to say,
+ * The connection and update dock: a small area at the bottom centre of the view (the
+ * shell's stage, `#sf-stage`: over the map on a desktop, just above the bottom sheet on a
+ * phone; the window when there is no stage) that shows, only when there is something to
+ * say,
  *
  *   an Offline chip        while the browser reports no connection;
  *   "New version available  [Reload] [×]"   when a new version waits (never applied
@@ -9,8 +11,8 @@
  *   "Saved for offline use"                 once, after the first install (fades by
  *                          itself after a while; the others stay until answered).
  *
- * Built from the design system's primitives (theme/); floats above the stage and the
- * phone's bottom sheet, below popovers and tooltips. OWNER: release agent.
+ * Built from the design system's primitives (theme/), above the view's own overlays and
+ * clear of the map's corner controls and credits. OWNER: release agent.
  */
 
 import '../theme/index.js';
@@ -64,13 +66,28 @@ type CardKind = 'update' | 'elsewhere' | 'ready';
 /** A card never gives way to a less important one. */
 const RANK: Record<CardKind, number> = { ready: 0, update: 1, elsewhere: 2 };
 
-export function createDock(host: HTMLElement = document.body): Dock {
+/** The shell's view area (shell/shell.ts). */
+const STAGE_ID = 'sf-stage';
+
+export function createDock(doc: Document = document): Dock {
   const offline = chip({ label: 'Offline', lead: offlineGlyph(), tip: OFFLINE_TIP, class: 'sf-pwa__offline', attrs: { tabindex: 0 } });
   // A live region: "Offline" and each card are announced when they appear.
   const status = h('div', { class: 'sf-pwa__row', role: 'status' });
   const cards = h('div', { class: 'sf-pwa__row', role: 'status' });
   const el = h('div', { class: 'sf-pwa sf-on-chrome', role: 'region', 'aria-label': 'Connection and updates' }, cards, status);
-  host.appendChild(el);
+
+  // Live in the stage when there is one; the shell may mount after the dock appears (the
+  // page opened offline), or mount again, so follow #app's children.
+  const rehome = (): void => {
+    const stage = doc.getElementById(STAGE_ID);
+    const target = stage ?? doc.body;
+    if (el.parentElement !== target) target.appendChild(el);
+    el.dataset.home = stage ? 'stage' : 'window';
+  };
+  rehome();
+  const appRoot = doc.getElementById('app');
+  const observer = appRoot ? new MutationObserver(rehome) : null;
+  observer?.observe(appRoot as HTMLElement, { childList: true });
 
   let shown: { kind: CardKind; el: HTMLElement } | null = null;
   let readyTimer = 0;
@@ -140,6 +157,7 @@ export function createDock(host: HTMLElement = document.body): Dock {
     },
 
     destroy() {
+      observer?.disconnect();
       clearCard();
       el.remove();
     },
