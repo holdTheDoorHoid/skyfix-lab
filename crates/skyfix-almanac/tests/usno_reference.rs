@@ -15,7 +15,7 @@
 //!   predicted UT (TT minus a predicted Delta-T), while this project counts UTC with no
 //!   leap seconds after 2017 (TT - UTC = 69.184 s, CONVENTIONS 6). The instant is fixed
 //!   in TT, so the two clocks read differently by the difference of the Delta-T
-//!   assumptions: measured here as about +21 s in 2045 and +34 s in 2060 (Skyfield with
+//!   assumptions: measured here as about +20 s in 2045 and +30 s in 2060 (Skyfield with
 //!   our convention agrees with us to seconds). Rise and set are unaffected, being
 //!   fixed by the Earth's rotation. Up to 2026 the 1-minute bound is asserted as it
 //!   stands; for later years the check is that our instants sit in a one-minute band
