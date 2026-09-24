@@ -4,7 +4,7 @@
 //! that matter: Sun and Moon rise, set, upper transit and civil twilight for one UTC day
 //! at 14 places, and the Moon phases and equinoxes/solstices of five years. USNO
 //! publishes to the minute, so the target is **within 1 minute**. The Moon comparisons
-//! need the real Moon provider and skip loudly while it is a stub.
+//! use the real Moon provider (a provider that refuses fails the test).
 //!
 //! Two USNO conventions differ from ours and are handled explicitly, not hidden:
 //!

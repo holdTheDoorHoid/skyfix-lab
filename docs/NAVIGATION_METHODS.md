@@ -40,7 +40,8 @@ towards itself (CONVENTIONS 8). `sigma_nm` is the 1-sigma error in each of north
 east; when it is not stated nothing replaces it with a plausible guess, and every result
 that would have used it says what is missing.
 
-**A moving vessel.** `VesselMotion {course_deg, speed_kn}` is constant over the run and
+**A moving vessel.** `VesselMotion {course_deg, speed_kn}` (speed at most 1000 kn either
+way, which admits an aircraft's bubble sextant) is constant over the run and
 the track is the great circle through the method's reference position with that course
 there. Over the minutes of a noon or averaging run this is the dead-reckoning track to
 well under a metre; the running fix (§5) has its own leg model (`docs/MOTION.md`).
@@ -158,10 +159,17 @@ chosen is reported in `alternative`. Either way `curvature` compares the two:
 `single_altitude: "maximum"` (the default) reads the one altitude as the **peak** the
 navigator watched for. On a vessel running north or south, or with the declination
 changing, the peak is `a²/4k` above the meridian altitude, so `H0 = Ho − a²/4k`
-(`max_minus_meridian_arcmin`; 0.07′ for Bowditch's 10 knots on 045). The recorded time
-only picks the declination. There is no longitude, and `longitude_caveat` says why. If
-the time is more than 15 minutes (plus three sigma of the DR's own prediction) from the
-DR's noon, `not_at_meridian_passage` asks whether this really was the peak.
+(`max_minus_meridian_arcmin`; 0.07′ for Bowditch's 10 knots on 045). `H0` belongs to
+the instant of meridian passage, so the declination is taken there too: at the passage
+the DR longitude predicts (`dr_check.predicted_passage_utc`), as a navigator takes the
+Almanac declination for the time of meridian passage. The recorded time is the peak's,
+`a/2k` from passage; for the Moon, whose declination moves up to 0.27′ a minute, that is
+minutes, and the declination at the recorded time would put the latitude out by `a²/2k`
+(1.3′ at 55° N in the verifier's noise-free check). When the DR's `sigma_nm` is stated,
+the passage time's own uncertainty moves the declination, and that is in the latitude's
+sigma. There is no longitude, and `longitude_caveat` says why. If the recorded time is
+more than 15 minutes (plus three sigma of the DR's own prediction) from the DR's noon,
+`not_at_meridian_passage` asks whether this really was the peak.
 
 `single_altitude: "ex_meridian"` reads it as an altitude **at the recorded time** and
 reduces it to the meridian by solving the altitude equation for latitude on the DR
@@ -203,8 +211,10 @@ the peak's *height* hardly changes, its *time* does.
   with a sextant, and the side decides the latitude by twice the zenith distance.
   `meridian_near_zenith`. The exact curve still fits the V-shaped peak.
 - **Which side?** When the DR sits closer to the other side's answer, or (with
-  `body_bearing: "auto"`) more than a third of the way towards it,
-  `meridian_side_ambiguous` gives both latitudes. `body_bearing` settles it.
+  `body_bearing: "auto"`) more than a third of the way towards it, or within three of its
+  stated `sigma_nm` of it, `meridian_side_ambiguous` gives both latitudes.
+  `body_bearing` settles it. (The third rule matters near the zenith, where the two
+  answers are a few tens of miles apart: a DR 24 NM off can sit right on the wrong one.)
 - **One-sided runs**: every sight before (or after) `T` means the peak time is an
   extrapolation. `one_sided_run`.
 - **Upper transit only.** Lower transit of circumpolar stars is not a noon sight here.
@@ -347,7 +357,12 @@ chain never runs on it again (CONVENTIONS 4), sigma as above, notes naming the s
 used. A run of supplied directions supplies one here too, read off the same line; a run
 the provider answered leaves it to the provider. Put into a session that declares an
 index correction or a height of eye, it draws the ordinary `already_corrected` note —
-which is right: those corrections are already inside it.
+which is right: those corrections are already inside it. The chronometer correction
+draws no such note, because the reducer applies it to every recorded time, so the
+observation's `utc` is written on the session's chronometer like the sights it averages
+(the averaged instant minus `clock.correction_s`): reduced in that session it lands on
+the averaged instant. Written on the corrected scale it would be corrected twice (a
+verifier's check: 30 s of correction moved a Vega line of position 5.7′).
 
 ---
 
@@ -429,15 +444,17 @@ public domain; the numbers are typed with provenance into
 | | Bowditch | SkyFix | difference |
 |---|---|---|---|
 | dip | −8.0′ | −8.013′ | −0.013′ |
-| declination | S 4°09.9′ | S 4°09.866′ | +0.034′ |
+| declination | S 4°09.9′ | S 4°09.858′ | +0.042′ |
 | Ho | 46°01.5′ | 46°01.427′ | −0.073′ |
-| latitude | N 39°48.6′ | N 39°48.777′ | +0.177′ |
+| latitude | N 39°48.6′ | N 39°48.785′ | +0.185′ |
 
-The +0.18′ is three tenths-level pieces, each accounted for: the Almanac's combined
+The +0.19′ is three tenths-level pieces, each accounted for: the Almanac's combined
 altitude correction is printed as +15.3′ where the unrounded chain gives +15.24′ (0.07′);
-the tabulated declination is rounded (0.03′); and the method reads one altitude as the
-*peak*, which on a vessel making 7 knots north is 0.070′ above the meridian altitude,
-while the book takes its altitude *at* LAN. Read as an altitude at 15:08:04 reduced on
+the declination (0.04′): the Almanac's is rounded, and SkyFix takes it at the meridian
+passage the DR predicts, 0.008′ from its value at the book's observed LAN (§2.4); and
+the method reads one altitude as the *peak*, which on a vessel
+making 7 knots north is 0.070′ above the meridian altitude, while the book takes its
+altitude *at* LAN. Read as an altitude at 15:08:04 reduced on
 the DR meridian (`ex_meridian`) the latitude is +0.157′ from the book.
 
 **§1912, latitude by Polaris** (22 March 2016, 23-18-56 UT, DR 40°46.0′ N 043°22.0′ W,

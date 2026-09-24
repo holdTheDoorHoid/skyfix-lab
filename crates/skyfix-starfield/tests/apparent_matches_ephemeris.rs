@@ -93,3 +93,44 @@ fn navigational_stars_sit_where_the_ephemeris_puts_them() {
         worst.0, worst.1
     );
 }
+
+/// ACCURACY.md section 8: the star field draws the Bright Star Catalogue, whose places
+/// and proper motions are older than the Hipparcos ones the navigational provider uses.
+/// The documented distances between the two over 1990-2060 are held here: Rigil
+/// Kentaurus 8.6", Ankaa 3.8", Dubhe 2.9", every other navigational star under 1.5".
+#[test]
+fn navigational_stars_stay_within_the_documented_distance_of_the_ephemeris() {
+    use skyfix_ephemeris::stars::StarProvider;
+    let cat = skyfix_starfield::catalog().unwrap();
+    let provider = StarProvider::new();
+    let mut worst: std::collections::BTreeMap<&str, f64> = Default::default();
+    // 1990.0, J2000, 2026.0 and the last day of 2060: the proper-motion differences
+    // are linear in time, so the extremes are at the ends.
+    for jd in [2_447_892.5, 2_451_545.0, 2_461_041.5, 2_473_459.4] {
+        let all = skyfix_starfield::apparent_radec_all(jd).unwrap();
+        for m in skyfix_starfield::navigational().unwrap() {
+            let (ra, dec) = provider.apparent_radec_deg(m.name, jd).unwrap();
+            let d = sep_arcsec(
+                all[2 * m.index].to_degrees(),
+                all[2 * m.index + 1].to_degrees(),
+                ra,
+                dec,
+            );
+            let w = worst.entry(m.name).or_insert(0.0);
+            *w = w.max(d);
+        }
+    }
+    assert_eq!(worst.len(), 58, "{}", cat.len());
+    for (name, sep) in &worst {
+        let documented = match *name {
+            "Rigil Kentaurus" => 8.7,
+            "Ankaa" => 3.9,
+            "Dubhe" => 3.0,
+            _ => 1.5,
+        };
+        println!("{name:16} {sep:.2}\" (documented {documented}\")");
+        assert!(*sep <= documented, "{name}: {sep:.2}\" > {documented}\"");
+    }
+    // Rigil Kentaurus is the one star whose drawn place leaves CONVENTIONS 13.7's 0.1'.
+    assert!(worst["Rigil Kentaurus"] > 6.0);
+}
