@@ -34,7 +34,7 @@
 //! Coverage is the Moon provider's, 1990-01-01T00:00Z to 2060-12-31T23:59:59Z.
 
 mod bessel;
-mod cheb;
+pub(crate) mod cheb;
 mod local;
 mod lunar;
 mod path;
