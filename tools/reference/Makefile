@@ -19,7 +19,12 @@ EPHEMERIS_URL      := https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/pla
 EPHEMERIS_XCHK_URL := https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp
 CATALOGUE_URL      := https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat
 
-.PHONY: all offline venv data clean-venv clean-data help
+VSOP87_DIR   := $(DATA)/vsop87
+VSOP87_URL   := https://cdsarc.cds.unistra.fr/ftp/cats/VI/81
+VSOP87_FILES := VSOP87A.ear VSOP87A.mer VSOP87A.ven VSOP87A.mar VSOP87A.jup \
+                VSOP87A.sat VSOP87A.ura VSOP87A.nep vsop87.chk vsop87.txt
+
+.PHONY: all offline venv data vsop87 planet-series clean-venv clean-data help
 
 ## all: regenerate every fixture, including the USNO query (needs network)
 all: venv data
@@ -47,6 +52,16 @@ $(EPHEMERIS_XCHK):
 
 $(CATALOGUE):
 	mkdir -p $(DATA) && curl -fsSL -o $@ $(CATALOGUE_URL)
+
+## vsop87: download the CDS VI/81 files the embedded planet series are cut from (git-ignored)
+vsop87: $(addprefix $(VSOP87_DIR)/,$(VSOP87_FILES))
+
+$(VSOP87_DIR)/%:
+	mkdir -p $(VSOP87_DIR) && curl -fsSL -o $@ $(VSOP87_URL)/$*
+
+## planet-series: regenerate crates/skyfix-ephemeris/data/vsop87a_planets.json (embedded data, about 9 minutes)
+planet-series: venv data vsop87
+	cd $(REPO) && $(PY) -m tools.reference.gen_vsop87a --source $(VSOP87_DIR)
 
 clean-venv:
 	rm -rf $(VENV)
