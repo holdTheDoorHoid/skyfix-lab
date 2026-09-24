@@ -39,6 +39,7 @@ import { icon } from '../theme/icons.js';
 import { navToolsFor, sessionApiFor } from './api.js';
 import { sightBodiesFor, type NavCtx } from './context.js';
 import { EXAMPLES, exampleById } from './examples.js';
+import { takeNavigateHandoff } from './handoff.js';
 import { fileStem } from './gpx.js';
 import { averageMethod } from './methods/average.js';
 import { fixMethod } from './methods/fix.js';
@@ -330,6 +331,23 @@ export function navigateView(options: NavigateOptions = {}): Component {
       d.add(working.autosave.subscribe(renderAutosave));
       renderAutosave();
 
+      // A session another view handed over (Learn's "Open in Navigate"): loaded like an
+      // example, with Undo. It is labelled SIMULATED and holds no answer key (handoff.ts).
+      const handoff = takeNavigateHandoff(ctx.store);
+      if (handoff) {
+        const n = handoff.session.observations.length;
+        replaceWorking(
+          {
+            ...defaultWorking(),
+            session: handoff.session,
+            method: 'fix',
+            mode: handoff.mode,
+            solve: { ...defaultWorking().solve, ...handoff.solve },
+          },
+          `Opened ${handoff.from}: ${n} simulated sight${n === 1 ? '' : 's'}, exactly as its solver received them. The answer key stayed behind.`,
+        );
+      }
+
       if (initial && options.example) {
         const e = exampleById(options.example);
         if (e) {
@@ -353,3 +371,4 @@ export const navigate: Component = (host, ctx) => navigateView()(host, ctx);
 export { tonight, tonightSights, type TonightOptions } from './tonight.js';
 export { overlayLayers, publishOverlays, clearOverlays, OVERLAY_PREFIX } from './overlays.js';
 export { workingFor } from './working.js';
+export { handOffToNavigate, type NavigateHandoff } from './handoff.js';
