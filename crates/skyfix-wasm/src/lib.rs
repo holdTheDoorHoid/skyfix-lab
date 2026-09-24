@@ -274,8 +274,8 @@ pub fn solve(session_json: &str, options_json: &str) -> Result<JsValue, JsValue>
     {
         let (session, _warnings) =
             skyfix_core::session::parse_session(session_json).map_err(|e| err(e.to_string()))?;
-        let options: skyfix_core::types::SolveOptions = serde_json::from_str(options_json)
-            .map_err(|e| err(format!("solve options: {e}")))?;
+        let options: skyfix_core::types::SolveOptions =
+            serde_json::from_str(options_json).map_err(|e| err(format!("solve options: {e}")))?;
         let source = direction_source("auto")?;
         let reduced: Vec<skyfix_core::types::ReducedSight> =
             skyfix_core::reduce::reduce_session(&session, &*source)
@@ -294,9 +294,7 @@ pub fn solve(session_json: &str, options_json: &str) -> Result<JsValue, JsValue>
 }
 
 #[cfg(feature = "core-ready")]
-fn direction_source(
-    mode: &str,
-) -> Result<Box<dyn skyfix_core::reduce::DirectionSource>, JsValue> {
+fn direction_source(mode: &str) -> Result<Box<dyn skyfix_core::reduce::DirectionSource>, JsValue> {
     match mode {
         "supplied" => Ok(Box::new(skyfix_core::reduce::SuppliedOnly)),
         #[cfg(feature = "ephemeris-ready")]
@@ -336,8 +334,7 @@ pub fn simulate(scenario_json: &str) -> Result<JsValue, JsValue> {
     {
         let scenario: Scenario =
             serde_json::from_str(scenario_json).map_err(|e| err(format!("scenario: {e}")))?;
-        let (session, truth) =
-            skyfix_sim::simulate(&scenario).map_err(|e| err(e.to_string()))?;
+        let (session, truth) = skyfix_sim::simulate(&scenario).map_err(|e| err(e.to_string()))?;
         to_js(&SimulationOutput { session, truth })
     }
     #[cfg(not(feature = "sim-ready"))]
