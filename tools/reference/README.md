@@ -63,6 +63,8 @@ are never committed; see `docs/THIRD_PARTY.md`, "Reference data
 | `gen_sessions.py` | `fixtures/sessions/reference-philadelphia-*.json` and their `truth`/`expected` files | the "first numerical slice": 5-, 2- and 1-sight sessions |
 | `gen_sun_sextant.py` | `fixtures/sessions/reference-sun-sextant.json` and its `truth`/`expected` files | the CONVENTIONS section 5 chain run backwards from a known Ho to raw `sextant_hs` |
 | `gen_usno.py` | `fixtures/reference/usno_celnav_2026-10-01T0130Z.json` | a verbatim US Naval Observatory API response, differenced against ours. **Needs network** |
+| `gen_events.py` | `fixtures/reference/events_{sun,stars,moon_planets,seasons,moon_phases}.json` | rise, set, transit, twilight, sky phases (34 sites × 21 dates for the Sun), star, Moon and planet events, equinoxes/solstices and Moon phases 1990–2060, from Skyfield + **DE440s** with UT1 = UTC and exactly the definitions of CONVENTIONS 13.3–13.5 |
+| `gen_events.py` (USNO part) | `fixtures/reference/events_usno.json` | USNO rise/set/transit/civil twilight for 14 site-days, Moon phases and seasons for five years. **Needs network**; `--usno-only` refreshes just this file |
 | `common.py` | — | shared helpers: the deterministic JSON writer, the CONVENTIONS sections 3 and 5 formulas coded from the text of `CONVENTIONS.md`, star identity verification, loaders |
 
 `generate_all.py` runs them in that order and reports which steps failed
