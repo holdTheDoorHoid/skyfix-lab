@@ -39,7 +39,7 @@
 //! Nothing here detects spoofing. A disagreement is a disagreement. The statement this
 //! crate emits lists six causes that produce the same number and does not rank them.
 
-// pub mod compare;
+pub mod compare;
 // pub mod replay;
 pub mod rng;
 pub mod running_fix;
