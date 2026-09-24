@@ -16,7 +16,7 @@ import sys
 import time
 
 from . import common as c
-from . import gen_geocentric, gen_moon, gen_sessions, gen_stars, gen_sun_sextant
+from . import gen_geocentric, gen_moon, gen_planets, gen_sessions, gen_stars, gen_sun_sextant
 from . import gen_topocentric, gen_usno
 
 STEPS = [
@@ -26,6 +26,7 @@ STEPS = [
     ("philadelphia star sessions", gen_sessions.main, False),
     ("reference-sun-sextant", gen_sun_sextant.main, False),
     ("moon_geocentric + moon_topocentric", gen_moon.main, False),
+    ("planets_* (Mercury to Neptune, DE440s)", gen_planets.main, False),
     ("usno_celnav cross-check", gen_usno.main, True),
 ]
 

@@ -334,6 +334,151 @@ Skyfield timescale with a constant ΔT of `32.184 s + (TAI − UTC)`
 second, independent check by `tests/moon_reference.rs`; see `docs/ACCURACY.md`, "Moon",
 for what it showed.
 
+## Planet model
+
+Owner: planets agent (`crates/skyfix-ephemeris/src/planets.rs`,
+`crates/skyfix-ephemeris/data/vsop87a_planets.json`, `tools/reference/gen_vsop87a.py`,
+`tools/reference/gen_planets.py`, `fixtures/reference/planets_*.json`). Added
+2026-09-24.
+
+### VSOP87A — heliocentric Mercury to Neptune, and the Earth
+
+- **What is used:** the coefficients of the VSOP87 version A series (heliocentric
+  rectangular X, Y, Z in au, dynamical ecliptic and equinox J2000, argument TT) for the
+  **Earth** and the seven planets, truncated for 1990-2060 and embedded in
+  `crates/skyfix-ephemeris/data/vsop87a_planets.json` (schema
+  `skyfix.vsop87a_trunc/1`, 277.5 kB). Also the ecliptic-to-equator rotation and the
+  time-scale statement in `vsop87.txt`, and the VSOP87A check values in `vsop87.chk`.
+  The Earth series is `VSOP87A.ear`, **not** the Earth-Moon barycentre `VSOP87A.emb`,
+  which is up to 4 700 km from the Earth (several arcseconds of Venus near inferior
+  conjunction). The Sun keeps its own VSOP87D Earth series (previous section); the two
+  are the same theory of the same body.
+- **Source:** CDS catalogue **VI/81**, *Planetary Solutions VSOP87*, Bretagnon P.,
+  Francou G. (1988), *A&A* **202**, 309 (1988A&A...202..309B). Bureau des Longitudes /
+  CNRS. The same catalogue as the Sun's series.
+- **URL:** <https://cdsarc.cds.unistra.fr/ftp/cats/VI/81/>
+- **Retrieved:** 2026-09-24. Stored for regeneration in `tools/reference/data/vsop87/`
+  (git-ignored); `gen_vsop87a.py` refuses files with other checksums:
+
+  | file | bytes | SHA-256 |
+  |---|---|---|
+  | `VSOP87A.ear` | 472 948 | `69d0b4c7525f094a03099e64558321eb64f2402a478472ee537239bcc59b7cb6` |
+  | `VSOP87A.mer` | 848 141 | `01f6f82af31f347fc50affaa920d653e441fc74f2b4738166528adc4c78fa870` |
+  | `VSOP87A.ven` | 315 875 | `ecaeceff071db6692820d962ffabfdb7de438db44145bfe0cbcda70f8dbed2a8` |
+  | `VSOP87A.mar` | 943 103 | `2c1e9b5cd68276138c2f99506d348e626abe0a5c600b4e50bb588d568b0d13fe` |
+  | `VSOP87A.jup` | 592 116 | `212bcea552e759fa0a9d732680c05120de2c15d36049b2f6d115ceb25b03d405` |
+  | `VSOP87A.sat` | 1 001 490 | `2e72d18684246e2ecd143e35736b45b101cdd06bbcaf2f2502e348c233abff29` |
+  | `VSOP87A.ura` | 705 299 | `6fb9626c770eb9972a86050e151cc866e703f503261c79ba0691160e727bf0b9` |
+  | `VSOP87A.nep` | 352 450 | `4ad09bd799336d8f76dcf6f98be57c45d7289db134556c204f098d6bbf888f3a` |
+  | `vsop87.chk` | 104 341 | `f8fa52449262be05a22a96840c1acbad0b35c8999e00b5c0477ba8a91a67a51a` |
+  | `vsop87.txt` | 14 046 | `8e2067276413f2feffde70a4292d8b3dc70b8c0355ff5d00a7ccdf4c3af5f121` |
+
+- **Licence:** as for the Sun's series: CDS/VizieR data, freely usable with
+  acknowledgement of the Centre de Données astronomiques de Strasbourg and citation of
+  Bretagnon & Francou (1988). Compatible with this workspace's MIT OR Apache-2.0.
+- **Stated accuracy (`vsop87.txt`):** 1" over 4000 years around J2000 for Mercury to
+  Mars, 2000 years for Jupiter and Saturn, 6000 years for Uranus and Neptune; the
+  series were fitted to JPL DE200. Against DE440s over 1990-2060 the full series are
+  0.08-0.12" (geocentric) for Mercury to Mars, 0.3-0.4" for Jupiter and Saturn, and
+  1.5" and 2.2" for Uranus and Neptune: DE200's outer-planet orbits, not a flaw of the
+  series expansion. `docs/ACCURACY.md`, "Planets", has the measured figures.
+- **Frame:** `vsop87.txt` gives the rotation from the VSOP87A ecliptic to "FK5" J2000.
+  The frame it produces is DE200's; fitting it against DE440s gives per-planet
+  residual rotations of 1-28 mas that are not a common frame offset, and applying the
+  FK5-to-ICRS bias of Mignard & Froeschlé (2000) makes the fit worse, so no further
+  rotation is applied and the result is treated as ICRS-aligned.
+- **Truncation, and the rule:** `tools/reference/gen_vsop87a.py`. A term
+  `A T^n cos(B + C T)` is kept when its peak contribution over the window,
+  `|A| T_abs^n` (window 1989-12-31 to 2061-01-02 TT, the coverage plus a day either
+  side for light-time), exceeds a per-body threshold. The threshold is the largest for
+  which the vector sum of every dropped term, evaluated every day of the window, stays
+  within 90 % of the body's budget; the result is then re-measured every 6 hours and
+  must stay within the budget. The budget is 0.2" of geocentric direction at the
+  body's closest approach to the Earth in the window (for the Earth itself, the
+  closest approach of any planet, Venus at 0.264 au). Unlike the Sun's file, the rule
+  judges the *measured* error rather than the sum of the dropped amplitudes: that sum
+  is about ten times the error that actually occurs and would have needed two to three
+  times as many terms.
+
+  | body | terms kept | of | measured heliocentric error | geocentric, worst |
+  |---|---|---|---|---|
+  | Earth | 679 | 3 538 | 2.25e-7 au | (in each planet's figure) |
+  | Mercury | 389 | 6 359 | 4.78e-7 au | 0.128" |
+  | Venus | 395 | 2 357 | 2.28e-7 au | 0.226" |
+  | Mars | 1 525 | 7 073 | 3.25e-7 au | 0.173" |
+  | Jupiter | 840 | 4 434 | 3.36e-6 au | 0.163" |
+  | Saturn | 1 108 | 7 512 | 7.00e-6 au | 0.160" |
+  | Uranus | 691 | 5 289 | 1.48e-5 au | 0.146" |
+  | Neptune | 215 | 2 636 | 2.42e-5 au | 0.166" |
+  | **total** | **5 842** | **39 198** | | |
+
+  The geocentric column combines the planet's and the Earth's truncation at the actual
+  geometry, every 6 hours over the window (103 741 epochs). The Earth's velocity, used
+  for aberration, is within 2.8e-8 au/day of the full series (5 cm/s, 0.00003" of
+  aberration).
+- **Verification that the transcription is right:** the full series reproduce every
+  `vsop87.chk` value at J2000 (position and velocity) to its printed 10 decimals before
+  truncation, or the generator stops. The data file carries 72 checkpoints — the
+  catalogue's own J2000 value and eight full-series values across the window for each
+  body — and `planets::vsop87a_self_check` re-evaluates the embedded series at all of
+  them in a unit test. The generator also compares the embedded series with DE440s
+  every day of the window and records the result in the file (`dense_vs_de440s`).
+
+### Planetary magnitudes — Mallama & Hilton (2018)
+
+- **What is used:** the apparent-magnitude formulas (equations 2-4, 6-12 and 14-17) of
+  A. Mallama and J. L. Hilton, "Computing apparent planetary magnitudes for The
+  Astronomical Almanac", *Astronomy and Computing* **25**, 10-24 (2018),
+  arXiv:1808.01973, with the branch limits that `skyfield.magnitudelib` (Skyfield 1.55,
+  MIT) applies. Published formulas and coefficients are facts; the Rust is written from
+  the paper and checked against Skyfield, not copied.
+- **Test values:** the paper's own test data (`Ap_Mag_Output_V3.txt` of its
+  supplementary code, as reproduced in Skyfield's `test_magnitudes_raw.py`) are used as
+  unit-test inputs in `planets.rs`: published r, delta, phase angle and V for each
+  planet. Numbers, not code.
+- **Where this differs from Skyfield:** Skyfield's `planetary_magnitude` treats the
+  solar-system barycentre as the Sun (its source says so); this crate uses the Sun, as
+  the paper defines r and the phase angle. `docs/ACCURACY.md` quantifies the
+  difference (up to 0.21 mag at the fixture epochs, for Mercury as a thin crescent).
+
+### Physical constants
+
+Cited in the source; no licence attaches to a published constant.
+
+- **Planet equatorial radii** for semidiameters: IAU WGCCRE 2015, B. A. Archinal et al.,
+  "Report of the IAU Working Group on Cartographic Coordinates and Rotational Elements:
+  2015", *Celest. Mech. Dyn. Astron.* **130**:22 (2018), table 1: Mercury 2440.53 km,
+  Venus 6051.8, Mars 3396.19, Jupiter 71 492, Saturn 60 268, Uranus 25 559, Neptune
+  24 764 km.
+- **Saturn and Uranus pole directions** (ring tilt and sub-latitude terms of the
+  magnitude): the same report, J2000 values (Saturn 40.589 deg, +83.537 deg; Uranus
+  257.311 deg, -15.175 deg), the same unit vectors Skyfield's `magnitudelib` uses.
+- **Earth equatorial radius** for horizontal parallax: WGS84, 6378.137 km (as
+  `topocentric::WGS84_A_KM`).
+- **Solar radius** for the behind-the-Sun deflection cap: IAU 2015 Resolution B3 nominal
+  value, 695 700 km.
+- **GM of the Sun, c, au:** IAU 2009 `GM_sun` 1.32712440041e20 m^3 s^-2, exact `c`,
+  IAU 2012 au (the same values `frames.rs` uses).
+
+### Algorithms
+
+- **Gravitational light deflection for a source at finite distance:** the formula of
+  NOVAS `grav_vec` (US Naval Observatory; public domain as a US Government work), in
+  the form Skyfield writes it (`skyfield.relativity._compute_deflection`, MIT).
+  Re-implemented in Rust from the formula, not translated line by line.
+- **Bright-limb position angle:** Meeus, *Astronomical Algorithms*, 2nd ed.,
+  equation 48.5 (a published formula).
+- **Annual aberration, bias-precession-nutation and sidereal time:** this crate's
+  `frames` and `sidereal` modules (see "Star catalogue and frame models").
+
+### Reference fixtures
+
+`fixtures/reference/planets_<planet>.json` are generated by
+`tools/reference/gen_planets.py` from Skyfield 1.55 with **JPL DE440s as the primary
+ephemeris** (the explorer's reference, `docs/EXPLORER_PLAN.md`) and DE421 as the
+cross-check, both the files listed under "Downloaded data files" below. Nothing new is
+downloaded for them.
+
 ## Reference data (development-time only)
 
 Sources used by `tools/reference/` to generate `fixtures/reference/*.json` and
@@ -350,7 +495,7 @@ Stored in `tools/reference/data/`, which is in `.gitignore`. About 100 MB.
 | File | URL | Size (bytes) | SHA-256 | Publisher / licence |
 |---|---|---|---|---|
 | `de421.bsp` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/a_old_versions/de421.bsp` | 16 790 528 | `08b20db2ae22488650641c5a9033e5bfda4b1c4b440cfeaf20f621cfa18ecdb3` | NASA JPL / NAIF. Work of the US Government; NAIF generic kernels are distributed for unrestricted use. Coverage 1899-07-28 to 2053-10-08. |
-| `de440s.bsp` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp` | 32 726 016 | `c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2` | NASA JPL / NAIF, same terms. Used only as an independent cross-check of DE421 and for the one epoch DE421 does not cover. Coverage 1849-12-25 to 2150-01-21. |
+| `de440s.bsp` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp` | 32 726 016 | `c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2` | NASA JPL / NAIF, same terms. The cross-check of DE421 for the Sun and stars, and the **primary** reference for the Moon, the planets and the explorer's events (DE421 is the cross-check there); also covers the epochs DE421 does not. Coverage 1849-12-25 to 2150-01-21. |
 | `hip_main.dat` | `https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat` | 53 316 318 | `58ceabb104d647160d9437ce6e513a02a036bb4ad9f8879a5a22fd52943616e0` | ESA (1997), *The Hipparcos and Tycho Catalogues*, ESA SP-1200. Served by CDS/VizieR as catalogue I/239. **VizieR declares its licence as `CC-BY-NC-3.0 IGO`** — see the open question below. |
 
 `de421.bsp` is the primary ephemeris, as the project brief specifies. It is no
