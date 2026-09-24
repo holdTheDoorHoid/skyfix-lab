@@ -273,6 +273,43 @@ with no assumed position still works.
 An instant outside a provider's coverage is refused (exit 1) rather than answered with
 half a sky.
 
+### `skyfix almanac --date YYYY-MM-DD [--format text|json]`
+
+The daily pages of a nautical almanac for one UT date (definitions: CONVENTIONS 13.9;
+accuracy: docs/ACCURACY.md section 11), laid out in plain text the way the printed
+Nautical Almanac lays them out:
+
+- **left page:** GHA of Aries and GHA/Dec of Venus, Mars, Jupiter and Saturn for every
+  hour 00h-23h, with each planet's magnitude, v, d, SHA and meridian passage; Aries'
+  meridian passage; SHA and Dec of the 57 navigational stars and Polaris at 12h UT;
+- **right page:** GHA/Dec of the Sun and GHA, v, Dec, d, HP of the Moon for every hour,
+  the Sun's SD and d, the Moon's SD; twilight, sunrise, sunset, moonrise and moonset for
+  the 31 standard latitudes 72 N to 60 S at the Greenwich meridian; the equation of time
+  at 00h and 12h, the Sun's and the Moon's meridian passages, the Moon's age and
+  percentage illuminated; and the notes that say what every column means.
+
+| flag | meaning |
+|---|---|
+| `--date YYYY-MM-DD` | the UT date, 1990-01-01 to 2060-12-31. Required |
+| `--format text \| json` | `text` (default): the two pages in columns; `json`: the `AlmanacDay` document of `docs/EXPLORER_API.md`, raw and printed values |
+
+Every number is exactly the `printed` value of the JSON: rounded as the printed almanac
+rounds (0.1′, times to the minute). Symbols: `□` above the horizon all day, `■` below it
+(or below the twilight altitude) all day, `////` twilight all night, `24 hh mm` on the
+following date, `--` not on the date nor the next. The printed almanac shades a negative
+equation of time; plain text cannot, so it prints a minus sign. A malformed date or one
+outside the coverage exits 1.
+
+```
+$ skyfix almanac --date 2026-09-24 | sed -n '/^RIGHT PAGE/,/^01 /p'
+RIGHT PAGE: SUN, MOON, TWILIGHT, SUNRISE, MOONRISE
+
+UT          SUN                             MOON
+          GHA        Dec        GHA     v        Dec     d    HP
+00   181 57.1  S  0 23.3    32 25.8  14.1  S 12 13.1  13.7  56.0
+01   196 57.3  S  0 24.2    46 58.9  14.1  S 11 59.4  13.8  56.1
+```
+
 ---
 
 ## Worked examples

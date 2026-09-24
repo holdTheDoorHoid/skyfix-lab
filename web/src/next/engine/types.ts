@@ -893,3 +893,184 @@ export interface NavSkyEngine {
     instrument: SightInstrument,
   ): SightPlan;
 }
+
+// ---------------------------------------------------------------------------
+// Wave 2 — almanac pages (docs/EXPLORER_API.md; crates/skyfix-wasm/src/almanac.rs)
+//
+// Mirrors `skyfix_almanac::pages` (definitions: CONVENTIONS 13.9). Every tabulated
+// quantity has its raw value (unit in the field name) and, under `printed`, the text the
+// page prints, already rounded as the printed Nautical Almanac rounds. Views show
+// `printed` and never round the raw values themselves.
+// ---------------------------------------------------------------------------
+
+/**
+ * What a time cell holds: a time; the body above (□) or below (■) the horizon all day;
+ * twilight all night (////); not on the date nor the next (--); or outside the
+ * ephemeris coverage (n/a).
+ */
+export type AlmanacTimeKind = 'time' | 'above' | 'below' | 'all_night' | 'later' | 'unavailable';
+
+export interface AlmanacTime {
+  kind: AlmanacTimeKind;
+  /** The instant, when `kind` is `time`. */
+  jd_utc: number | null;
+  utc: string | null;
+  /** Hours after 00h UT of the column's date (LMT at Greenwich); may be negative or ≥ 24. */
+  hours: number | null;
+  /** `06 42`, `24 05` (the next date), `-00 02`, `□`, `■`, `////`, `--`, `n/a`. */
+  printed: string;
+}
+
+export interface AlmanacAriesHour {
+  gha_deg: number;
+  printed: { gha: string };
+}
+
+/** The Sun or a planet at one hour (apparent geocentric, CONVENTIONS §7). */
+export interface AlmanacBodyHour {
+  body: string;
+  gha_deg: number;
+  dec_deg: number;
+  printed: { gha: string; dec: string };
+}
+
+/** The Moon at one hour; `v` and `d` are from this hour to the next. */
+export interface AlmanacMoonHour {
+  gha_deg: number;
+  dec_deg: number;
+  v_arcmin: number;
+  /** Signed, north positive; printed without a sign. */
+  d_arcmin: number;
+  hp_arcmin: number;
+  printed: { gha: string; v: string; dec: string; d: string; hp: string };
+}
+
+export interface AlmanacHour {
+  /** 0 to 23. */
+  hour: number;
+  jd_utc: number;
+  utc: string;
+  aries: AlmanacAriesHour;
+  sun: AlmanacBodyHour;
+  /** `null` when the Moon cannot be computed (listed in `errors`). */
+  moon: AlmanacMoonHour | null;
+  /** In the order of `AlmanacDay.planets`. */
+  planets: AlmanacBodyHour[];
+}
+
+export interface AlmanacSunDay {
+  /** At 12h UT. */
+  sd_arcmin: number;
+  /** Mean hourly change of declination over the day, signed. */
+  d_arcmin: number;
+  /** Equation of time, apparent minus mean, seconds; negative is shaded on the page. */
+  eot_00h_s: number;
+  eot_12h_s: number;
+  mer_pass: AlmanacTime;
+  printed: { sd: string; d: string; eot_00h: string; eot_12h: string };
+}
+
+export interface AlmanacMoonDay {
+  /** At 12h UT. */
+  sd_arcmin: number;
+  mer_pass_upper: AlmanacTime;
+  mer_pass_lower: AlmanacTime;
+  /** Days since the preceding new moon at 12h UT; `null` before the coverage allows. */
+  age_days: number | null;
+  /** At 12h UT. */
+  illuminated_fraction: number | null;
+  /** A principal phase during the date, if any. */
+  phase: PhaseEvent | null;
+  printed: { sd: string; age: string; illuminated: string };
+}
+
+export interface AlmanacPlanetDay {
+  body: string;
+  /** At 12h UT. */
+  magnitude: number | null;
+  /** Mean over the day. */
+  v_arcmin: number;
+  d_arcmin: number;
+  /** At 12h UT. */
+  sha_deg: number;
+  mer_pass: AlmanacTime;
+  printed: { magnitude: string; v: string; d: string; sha: string };
+}
+
+/** A star at 12h UT of the date. */
+export interface AlmanacStar {
+  body: string;
+  sha_deg: number;
+  dec_deg: number;
+  /** Catalogue visual magnitude. */
+  magnitude: number;
+  printed: { sha: string; dec: string };
+}
+
+/** One latitude of the twilight, sunrise, sunset, moonrise and moonset tables. */
+export interface AlmanacLatitudeRow {
+  lat_deg: number;
+  /** `N 72`, `0`, `S 60`. */
+  label: string;
+  nautical_dawn: AlmanacTime;
+  civil_dawn: AlmanacTime;
+  sunrise: AlmanacTime;
+  sunset: AlmanacTime;
+  civil_dusk: AlmanacTime;
+  nautical_dusk: AlmanacTime;
+  /** One per `AlmanacRiseSet.moon_dates`. */
+  moonrise: AlmanacTime[];
+  moonset: AlmanacTime[];
+}
+
+export interface AlmanacRiseSet {
+  /** The UT dates of the moonrise and moonset columns: the page's date and the next. */
+  moon_dates: string[];
+  /** 31 latitudes, 72 N to 60 S, in the printed almanac's order. */
+  rows: AlmanacLatitudeRow[];
+}
+
+/** Everything the two facing daily pages give for one UT date (EXPLORER_API `AlmanacDay`). */
+export interface AlmanacDay {
+  /** `YYYY-MM-DD`, UT. */
+  date: string;
+  weekday: string;
+  /** 00h UT of the date. */
+  jd_utc: number;
+  /** 12h UT: the instant of every once-a-day value. */
+  noon_jd_utc: number;
+  /** 24 rows, 00h to 23h. */
+  hours: AlmanacHour[];
+  aries: { mer_pass: AlmanacTime };
+  sun: AlmanacSunDay;
+  moon: AlmanacMoonDay | null;
+  /** Venus, Mars, Jupiter, Saturn. */
+  planets: AlmanacPlanetDay[];
+  /** The 57 navigational stars in the printed almanac's order, then Polaris. */
+  stars: AlmanacStar[];
+  rise_set: AlmanacRiseSet;
+  /** Sentences the page prints under its tables. */
+  notes: string[];
+  errors: BodyError[];
+}
+
+/**
+ * Daily almanac pages. A separate interface from `ExplorerEngine` so the Almanac view can
+ * depend on it alone; the WASM engine and the mock implement both.
+ */
+export interface AlmanacEngine {
+  /**
+   * The daily pages for one UT calendar date, `YYYY-MM-DD` (a date, not an instant).
+   * Throws a string for a malformed date or one outside the coverage (1990-2060).
+   */
+  almanacDay(date: string): AlmanacDay;
+}
+
+/** True when `engine` can make almanac pages (the memoised engine forwards the method). */
+export function isAlmanacEngine(engine: unknown): engine is AlmanacEngine {
+  return (
+    typeof engine === 'object' &&
+    engine !== null &&
+    typeof (engine as Partial<AlmanacEngine>).almanacDay === 'function'
+  );
+}

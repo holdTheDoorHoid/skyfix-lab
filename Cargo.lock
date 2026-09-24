@@ -346,6 +346,7 @@ dependencies = [
  "clap",
  "serde",
  "serde_json",
+ "skyfix-almanac",
  "skyfix-core",
  "skyfix-ephemeris",
  "skyfix-sim",

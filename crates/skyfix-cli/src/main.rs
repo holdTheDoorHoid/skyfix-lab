@@ -133,5 +133,6 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
             taken,
             json,
         }),
+        Command::Almanac { date, format } => commands::almanac::run(&date, format),
     }
 }

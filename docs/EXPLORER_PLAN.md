@@ -90,7 +90,7 @@ Shared chrome, SunCalc-style:
 7. **Performance budget.** Scrubbing time redraws at 60 fps on a mid-range laptop:
    `sky_state` for all solar-system bodies plus 58 stars ≤ 2 ms; star-field apparent
    places ≤ 5 ms and recomputed at most once per simulated hour; the Sky view draws 9 000
-   stars in ≤ 8 ms. The WASM module stays ≤ 2 MB uncompressed.
+   stars in ≤ 8 ms. The WASM module stays ≤ 1 MB gzipped, which is what a visitor downloads, and ≤ 2.5 MB uncompressed (raised from 2 MB on 2026-09-24: with the Moon, planet, star-field and almanac code it measured 1.87 MB, and most of it is embedded ephemeris data that compresses well; `wasm-opt -Oz` saved only 6 KB).
 
 ## 4. Architecture
 
