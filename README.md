@@ -1,32 +1,65 @@
 # SkyFix Lab
 
-SkyFix Lab is an offline celestial-navigation workbench in Rust: a digital-sextant sight
-reducer, a weighted least-squares position solver with honest uncertainty, and a
-deterministic error simulator, sharing one numerical core between a command-line tool and
-a browser workbench (Rust compiled to WebAssembly). It answers one question throughout:
-*where do these sky observations place me, and how much should I trust the answer?*
+SkyFix Lab is an offline celestial-navigation workbench in Rust: where the Sun, the Moon,
+the planets and the navigational stars are from any place at any time, a digital-sextant
+sight reducer, a weighted least-squares position solver that reports its own honest
+uncertainty, and a deterministic error simulator — one numerical core shared between a
+command-line tool and a browser app (Rust compiled to WebAssembly).
 
-**This is a simulation and analysis tool, not a navigation instrument.** Numerical
-agreement with reference data is not field accuracy — see
-[`docs/ACCURACY.md`](docs/ACCURACY.md).
+**Simulation and analysis workbench. Not a navigation instrument.** Numerical agreement
+with reference data is not field accuracy — see [`docs/ACCURACY.md`](docs/ACCURACY.md).
 
-**Live workbench:** <https://holdthedoorhoid.github.io/skyfix-lab/>
-**Documentation:** <https://holdthedoorhoid.github.io/skyfix-lab/docs/>
+**Live site:** <https://holdthedoorhoid.github.io/skyfix-lab/> · **Documentation:**
+<https://holdthedoorhoid.github.io/skyfix-lab/docs/>
 
-## Quick start: build and run the CLI
+> The new map-first **explorer** lives at
+> **<https://holdthedoorhoid.github.io/skyfix-lab/next/>** until it is feature-complete,
+> when it will replace the page above. New user? Start with
+> [`docs/EXPLORER_GUIDE.md`](docs/EXPLORER_GUIDE.md).
+
+## What it does
+
+- A time bar for moving through time — drag, step, play at up to a month a second — over a
+  map, a globe, or the sky itself, with day/night/twilight shading and a SunCalc-style
+  compass at your place.
+- The Sun, the Moon and the four navigational planets, plus a naked-eye star field of
+  about 9,000 stars and all 88 constellations, for display; the Sun, Moon, Venus, Mars,
+  Jupiter, Saturn and 58 navigational stars are independently validated and usable for
+  real sight reduction.
+- Sight reduction with every correction reported, a position solver with a nominal 95 %
+  ellipse, conditioning diagnostics and explicit ambiguity — never a false point where the
+  geometry does not support one.
+- Noon sight, latitude by Polaris, averaging a run of sights, a running fix under way, and
+  lunar distance (Greenwich time from the Moon, with no chronometer).
+- Printable nautical-almanac daily pages, and eclipses, Moon phases, equinoxes and
+  solstices computed from the same Sun and Moon models.
+- A seeded simulator and ten packaged demonstrations that check whether the reported
+  uncertainty actually covers the true error — see [`docs/DEMOS.md`](docs/DEMOS.md).
+- Works offline once loaded, on a phone or a desktop, in light, dark or a red night-vision
+  theme.
+
+Three follow-on, simulation-only modules go further: a synthetic camera star-sextant
+(`docs/CAMERA.md`), a polarization heading compass (`docs/POLARIZATION.md`), and running
+fixes with independent-estimate disagreement checks (`docs/MOTION.md`).
+
+## Quick start: the web app
+
+```console
+$ npm install --prefix web
+$ npm run wasm  --prefix web     # compiles crates/skyfix-wasm to WebAssembly
+$ npm run build --prefix web     # emits web/dist
+```
+
+`npm run dev --prefix web` starts a local server at <http://localhost:5173> (the explorer
+at `/next/`); `npm test --prefix web` runs the TypeScript unit tests. No CDN fonts,
+scripts or map tiles: every asset is bundled, so the built site needs no network once
+loaded (the one exception is an optional online street-map layer, off by default).
+
+## Quick start: the command line
 
 ```console
 $ cargo build --release -p skyfix-cli
-   Compiling skyfix-cli v0.1.0 (.../crates/skyfix-cli)
-    Finished `release` profile [optimized] target(s)
-```
-
-Three real runs, from the repository root, output trimmed to the essentials.
-
-### 1. Solve a five-star Philadelphia fix from supplied directions
-
-```console
-$ cargo run -p skyfix-cli --release -- solve fixtures/sessions/reference-philadelphia-5star.json
+$ ./target/release/skyfix solve fixtures/sessions/reference-philadelphia-5star.json
 UNIQUE FIX
 Position     39.952599, -75.165273
              39 57.16' N, 075 09.92' W
@@ -35,116 +68,43 @@ Ellipse 95%  semi-major 291.1 m, semi-minor 282.5 m, orientation 1.2 deg clockwi
 Fit          chi2 0.0000 on 3 degree(s) of freedom, converged after 5 iteration(s)
 ```
 
-This fixture's truth is 39.9526, -75.1652 — the fix agrees to the last printed digit. The
-fixture's own target is 10 m on clean, well-conditioned synthetic geometry
-(`docs/ACCURACY.md` section 3): a numerical regression target, not a field-accuracy claim.
-
-### 2. A shared clock offset moves a fix that looks perfect
-
-```console
-$ cargo run -p skyfix-cli --release -- simulate --demo clock-offset \
-      --out-session clock.session.json --out-truth clock.truth.json
-$ cargo run -p skyfix-cli --release -- solve clock.session.json
-UNIQUE FIX
-Position     39.952600, -75.415884
-             39 57.16' N, 075 24.95' W
-Fit          chi2 0.0000 on 3 degree(s) of freedom, converged after 3 iteration(s)
-
-Residuals
-  obs-1 .. obs-5   resid ' 0.00 (every one)
-```
-
-A watch one minute fast moves this fix 0.2507 degrees (about 21.3 km) west of the truth
-(39.9526, -75.1652), and **every residual is exactly zero**: clock error and longitude are
-the same unknown for star sights, so the solver never estimates one. See
-[`docs/DEMOS.md`](docs/DEMOS.md), demo 4, for what to declare instead.
-
-### 3. Plan which stars to shoot, from Philadelphia
-
-```console
-$ cargo run -p skyfix-cli --release -- plan --position 39.9526,-75.1652 --utc 2026-10-01T01:30:00Z
-OBSERVATION PLAN
-Position   39 57.16' N, 075 09.91' W (39.952600, -75.165200)
-Shoot in this order
-  #   body                  alt      Zn    mag  sigma '       score
-  1   Vega                 61.1   280.1   0.03     1.00        21.8
-  2   Polaris              40.0     0.8   1.97     1.00        21.8
-  3   Mirfak               27.0    46.0   1.79     1.00       457.1
-```
-
-Ranked by what each sight does to the fix's conditioning, never by brightness — Vega wins
-the first slot for altitude, and Polaris is picked second because it is the only body that
-constrains the otherwise-unconstrained north-south axis. See `docs/PLANNER.md`.
-
-## Run the tests
-
-```console
-$ cargo test --workspace
-...
-test result: ok. 675 passed; 0 failed; ...
-```
-
-**675 tests passed, 0 failed**, summed across every crate's unit, integration and doc
-tests, run in this worktree. Run one crate's suite with `cargo test -p <crate>`.
-
-## Build the browser workbench
-
-Full instructions: [`web/README.md`](web/README.md). The short version, from the
-repository root:
-
-```console
-$ npm install --prefix web
-$ npm run wasm  --prefix web     # compiles crates/skyfix-wasm to WebAssembly
-$ npm run build --prefix web     # emits web/dist
-dist/assets/skyfix_wasm_bg-*.wasm  822.28 kB │ gzip: 304.38 kB
-dist/assets/index-*.css             11.04 kB │ gzip:   3.17 kB
-dist/assets/index-*.js             108.48 kB │ gzip:  35.56 kB
-```
-
-No CDN fonts, scripts or map tiles: every asset is bundled. `npm run dev --prefix web`
-starts a local dev server at <http://localhost:5173>; `npm test --prefix web` runs the
-TypeScript unit tests (98 passing, across 6 files, at the time of writing).
+That fixture's truth is 39.9526, -75.1652 — the fix agrees to the last printed digit; the
+target is 10 m on clean, well-conditioned synthetic geometry, a numerical regression
+target rather than a field-accuracy claim (`docs/ACCURACY.md`, section 3). The CLI also
+answers `sky`, `events`, `phases`, `seasons`, `almanac`, and every navigation method the
+explorer will eventually expose on screen — see [`docs/CLI.md`](docs/CLI.md) for every
+subcommand with worked examples, and run `cargo test --workspace` for the full test suite.
 
 ## Layout
 
 | path | what |
 |---|---|
-| `crates/skyfix-core` | units, conventions, sight reduction, corrections, solver, uncertainty (no I/O) |
-| `crates/skyfix-ephemeris` | offline Sun and navigational-star providers, fixture packs, coverage metadata |
+| `crates/skyfix-core` | units, conventions, sight reduction, corrections, solver, uncertainty, navigation methods (no I/O) |
+| `crates/skyfix-ephemeris` | offline Sun, Moon, planet and navigational-star providers, fixture packs, coverage metadata |
+| `crates/skyfix-almanac` | rise/set/twilight/seasons/Moon phases, printable almanac pages, eclipses |
+| `crates/skyfix-starfield` | the display-only star field and constellations (never a source for a fix) |
+| `crates/skyfix-motion` | running fixes and independent-estimate disagreement checks |
 | `crates/skyfix-sim` | seeded simulator, error experiments, Monte Carlo coverage checks |
-| `crates/skyfix-cli` | `skyfix validate\|reduce\|solve\|catalog\|coverage\|convert\|demos\|simulate\|experiment\|plan`, and the explorer engine's `sky\|events\|phases\|seasons\|noon\|polaris\|average\|running-fix\|predict\|lunar\|plan-sights` |
+| `crates/skyfix-cli` | the `skyfix` command line |
 | `crates/skyfix-wasm` | wasm-bindgen adapter for the browser |
-| `crates/skyfix-camera` | module A: stationary camera star-sextant on synthetic images |
-| `crates/skyfix-polar` | module B: polarization compass heading laboratory (simulation only) |
-| `crates/skyfix-motion` | module C: running fixes and independent-estimate disagreement checks |
-| `web/` | TypeScript + Vite workbench, all assets bundled |
+| `crates/skyfix-camera` | synthetic camera star-sextant (simulation only) |
+| `crates/skyfix-polar` | polarization compass heading laboratory (simulation only) |
+| `web/src/next/` | the explorer (map, sky, charts, almanac, learn) |
+| `web/src/views/` | the original workbench (sights, corrections, fix, planner, simulator) |
 | `fixtures/` | sessions, separate truth files, independent reference cases |
-| `tools/reference/` | Python + Skyfield fixture generators (development-time only) |
-| `docs/` | brief, conventions, architecture, demos, accuracy, third-party inventory, backlog |
+| `tools/reference/`, `tools/starfield/`, `tools/mapdata/` | development-time generators (Python + Skyfield, or Node); never a runtime dependency |
+| `docs/` | this book: guide, conventions, architecture, demos, accuracy, third-party inventory, backlog |
 
 `docs/CONVENTIONS.md` is normative for every sign, unit and frame in the project.
 
 ## Documentation
 
-- [`docs/README.md`](docs/README.md) — the documentation book's front page and quick start
-- [`docs/BRIEF.md`](docs/BRIEF.md) — the original design brief and proposal
-- [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md) — every sign, unit, frame and file format (normative)
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — crate map, data flow, why these choices
-- [`docs/DEMOS.md`](docs/DEMOS.md) — the six required demos, with commands and headline numbers
-- [`docs/CLI.md`](docs/CLI.md) — every `skyfix` subcommand, with worked examples
-- [`docs/PLANNER.md`](docs/PLANNER.md) — what the observation planner optimises
-- [`docs/SIMULATOR.md`](docs/SIMULATOR.md) — the seeded simulator and its sign conventions
-- [`docs/CAMERA.md`](docs/CAMERA.md) — the synthetic camera sextant
-- [`docs/POLARIZATION.md`](docs/POLARIZATION.md) — the polarization compass laboratory
-- [`docs/MOTION.md`](docs/MOTION.md) — running fixes and disagreement checks
-- [`docs/ACCURACY.md`](docs/ACCURACY.md) — what every number is worth, and how to reproduce it
-- [`docs/THIRD_PARTY.md`](docs/THIRD_PARTY.md) — every external algorithm, data file and licence
-- [`docs/BACKLOG.md`](docs/BACKLOG.md) — completed, partial and unstarted, with reasons
-- [`docs/COMPLETION_REPORT.md`](docs/COMPLETION_REPORT.md) — the sprint's final honest-state report
-
-Or read the whole book at once: `mdbook build docs` (needs
-[mdBook](https://rust-lang.github.io/mdBook/)), then open `docs/book/index.html` — this is
-what the documentation URL above serves.
+Read the whole book at <https://holdthedoorhoid.github.io/skyfix-lab/docs/>, or build it
+locally with [mdBook](https://rust-lang.github.io/mdBook/): `mdbook build docs`, then open
+`docs/book/index.html`. Start with [`docs/EXPLORER_GUIDE.md`](docs/EXPLORER_GUIDE.md) if
+you are new; [`docs/SUMMARY.md`](docs/SUMMARY.md) lists every chapter, including
+conventions, architecture, the CLI, accuracy and limitations, third-party sources and
+licences, and the backlog.
 
 ## License
 

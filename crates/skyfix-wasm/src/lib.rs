@@ -27,6 +27,7 @@
 pub mod almanac;
 pub mod eclipses;
 pub mod explorer;
+pub mod misfit;
 pub mod nav;
 pub mod navsky;
 pub mod planet_events;

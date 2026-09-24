@@ -374,6 +374,8 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     starfieldFrameMatrix: engine.starfieldFrameMatrix
       ? (jd) => cached('starfieldFrameMatrix', String(jd), 2, () => engine.starfieldFrameMatrix!(jd))
       : undefined,
+    // The residual heat map passes through unmemoised: it runs on demand, never per frame.
+    ...(engine.misfit ? { misfit: engine.misfit } : {}),
   };
   return memo;
 }

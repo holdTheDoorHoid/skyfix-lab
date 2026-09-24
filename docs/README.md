@@ -1,15 +1,21 @@
 # SkyFix Lab documentation
 
-SkyFix Lab is an offline celestial-navigation workbench: a digital-sextant sight reducer,
-a weighted least-squares position solver that reports its own uncertainty and its own
-ambiguities, and a seeded error simulator, sharing one Rust core between a command-line
-tool and a browser workbench.
+SkyFix Lab is an offline celestial-navigation workbench: where the Sun, the Moon, the
+planets and the navigational stars are from any place at any time, a digital-sextant
+sight reducer, a weighted least-squares position solver that reports its own uncertainty
+and its own ambiguities, and a seeded error simulator, sharing one Rust core between a
+command-line tool and a browser app.
 
 **It is a simulation and analysis tool, not a navigation instrument.** Numerical agreement
 with reference data is not field accuracy — see [Accuracy and limitations](ACCURACY.md).
 
-Live workbench: <https://holdthedoorhoid.github.io/skyfix-lab/> — this book:
+Live site: <https://holdthedoorhoid.github.io/skyfix-lab/> — this book:
 <https://holdthedoorhoid.github.io/skyfix-lab/docs/>.
+
+> The new map-first **explorer** lives at
+> [`/next/`](https://holdthedoorhoid.github.io/skyfix-lab/next/) until it is
+> feature-complete, when it will replace the page above. New to the site? Start with
+> [Using the explorer](EXPLORER_GUIDE.md).
 
 ## Quick start
 
@@ -35,6 +41,9 @@ book; the chapters below are the current, maintained record.
 
 ## In this book
 
+- [Using the explorer](EXPLORER_GUIDE.md) is the friendly walkthrough: setting a place,
+  moving through time, each view, themes, sharing a link, and a five-minute primer on
+  celestial navigation.
 - [Demos](DEMOS.md) — the six required demonstrations from the brief, with commands,
   what to look at in the browser, and measured coverage numbers.
 - [Conventions](CONVENTIONS.md) fix every sign, unit, frame and file format. Normative:
@@ -47,12 +56,19 @@ book; the chapters below are the current, maintained record.
 - [Simulator](SIMULATOR.md) is normative for the seeded generator, the sign conventions
   of its error knobs, and the coverage statistic.
 - [Camera sextant (synthetic)](CAMERA.md), [Polarization compass laboratory](POLARIZATION.md)
-  and [Motion and independent checks](MOTION.md) are the three follow-on modules: a
+  and [Motion and independent checks](MOTION.md) are three follow-on modules: a
   stationary camera star-sextant, a polarization heading laboratory, and running fixes
   with independent disagreement checks. All three are simulation-only so far.
+- [Navigation methods](NAVIGATION_METHODS.md) — noon sight, latitude by Polaris, averaging
+  a run of sights, and the running fix. [Moon and planet sights](NAVIGATION_SKY.md) extends
+  all of it to the Moon and the four navigational planets, and adds lunar distance and a
+  twilight sight planner.
 - [Accuracy and limitations](ACCURACY.md) is where every measured number in the project
   lives, with its provenance and how to reproduce it.
 - [Third-party sources and licences](THIRD_PARTY.md) records every external algorithm,
   coefficient table and data file, with its URL, retrieval date and licence.
 - [Backlog](BACKLOG.md) lists what is completed, partial and unstarted, and why.
 - [Completion report](COMPLETION_REPORT.md) is the sprint's final honest-state summary.
+
+For developers: [the explorer's program plan](EXPLORER_PLAN.md) and
+[its wire contract between Rust and the browser](EXPLORER_API.md).
