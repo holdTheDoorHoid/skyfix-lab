@@ -296,6 +296,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   let pathKey = '';
   let dayWindowCache: { zone: string; a: number; b: number } | null = null;
   let tipText = '';
+  let tipSize = { w: 0, h: 0 };
   let liveText = '';
 
   const highlightKeys = new Set<string>();
@@ -323,10 +324,16 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     if (!destroyed) scheduler.schedule(drawTask);
   }
 
+  /** The host's size from the ResizeObserver (no layout read per frame); null until known. */
+  let observed: { w: number; h: number } | null = null;
+
   function resizeCanvas(): boolean {
-    const rect = root.getBoundingClientRect();
-    const w = Math.max(1, Math.round(rect.width));
-    const h = Math.max(1, Math.round(rect.height));
+    if (!observed) {
+      const rect = root.getBoundingClientRect();
+      observed = { w: rect.width, h: rect.height };
+    }
+    const w = Math.max(1, Math.round(observed.w));
+    const h = Math.max(1, Math.round(observed.h));
     const d = Math.max(1, Math.min(3, globalThis.devicePixelRatio || 1));
     if (w === cssW && h === cssH && d === dpr) return false;
     cssW = w;
@@ -712,18 +719,20 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       return;
     }
     const text = `${d.title}\n${d.sub}\n${d.lines.map((l) => l.join(':')).join('\n')}`;
-    if (text !== tipText) {
+    const wasHidden = tooltip.hidden;
+    tooltip.hidden = false;
+    if (text !== tipText || wasHidden) {
       tipText = text;
       tooltip.replaceChildren(
         el('strong', { class: 'sky-tip-title' }, d.title),
         ...(d.sub ? [el('span', { class: 'sky-tip-sub' }, d.sub)] : []),
         ...d.lines.map(([k, v]) => el('span', { class: 'sky-tip-line' }, ...(v ? [`${k} `, el('b', {}, v)] : [k]))),
       );
+      // Measured only when the text changed (a layout read).
+      tipSize = { w: tooltip.offsetWidth, h: tooltip.offsetHeight };
     }
-    tooltip.hidden = false;
     // Beside the body, kept inside the stage.
-    const w = tooltip.offsetWidth;
-    const h = tooltip.offsetHeight;
+    const { w, h } = tipSize;
     const ax = hoverKey && hoverAt ? hoverAt.x : at.x;
     const ay = hoverKey && hoverAt ? hoverAt.y : at.y;
     let x = ax + 16;
@@ -987,11 +996,18 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     }),
   );
   if (typeof ResizeObserver === 'function') {
-    const ro = new ResizeObserver(() => requestDraw());
+    const ro = new ResizeObserver((entries) => {
+      const box = entries[entries.length - 1]?.contentRect;
+      if (box) observed = { w: box.width, h: box.height };
+      requestDraw();
+    });
     ro.observe(root);
     cleanups.push(() => ro.disconnect());
   }
-  const onWindowResize = (): void => requestDraw();
+  const onWindowResize = (): void => {
+    if (typeof ResizeObserver !== 'function') observed = null;
+    requestDraw();
+  };
   globalThis.addEventListener?.('resize', onWindowResize);
   cleanups.push(() => globalThis.removeEventListener?.('resize', onWindowResize));
   const onFonts = (): void => {
