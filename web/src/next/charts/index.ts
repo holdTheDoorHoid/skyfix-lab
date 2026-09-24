@@ -17,10 +17,12 @@
  * ```
  */
 
+import '../theme/index.js';
 import './charts.css';
 import { h } from '../../dom.js';
 import { disposer, type Component, type Ctx, type Mounted } from '../component.js';
 import { createStore } from '../state.js';
+import { segmented } from '../theme/primitives.js';
 import { dayChart } from './day-chart.js';
 import type { ChartComponent, ChartMode, ChartTab, ChartUi } from './frame.js';
 import { moonCalendar } from './moon-calendar.js';
@@ -54,17 +56,17 @@ export function chartsView(options: ChartsOptions = {}): Component {
       mode: options.mode ?? lastMode,
     });
 
-    const root = h('div', { class: 'sfc' });
+    const root = h('div', { class: 'sfc sf-on-stage' });
     host.append(root);
     d.add(() => root.remove());
 
     // Tabs (WAI-ARIA tabs, automatic activation, arrows move between them).
-    const tablist = h('div', { class: 'sfc-tabs', role: 'tablist', 'aria-label': 'Charts' });
+    const tablist = h('div', { class: 'sf-seg sfc-tabs', role: 'tablist', 'aria-label': 'Charts' });
     const panel = h('div', { class: 'sfc-panel', role: 'tabpanel', tabindex: '-1' });
     const tabs = CHART_TABS.map((t) => {
       const el = h(
         'button',
-        { type: 'button', class: 'sfc-tab', role: 'tab', id: `sfc-tab-${t.id}`, title: t.title, 'aria-controls': 'sfc-chart-panel' },
+        { type: 'button', class: 'sf-seg__opt', role: 'tab', id: `sfc-tab-${t.id}`, 'data-tip': t.title, 'aria-controls': 'sfc-chart-panel' },
         t.label,
       );
       el.addEventListener('click', () => ui.patch({ tab: t.id }));
@@ -86,18 +88,21 @@ export function chartsView(options: ChartsOptions = {}): Component {
     panel.id = 'sfc-chart-panel';
 
     // Chart or table.
-    const modeButtons = (['chart', 'table'] as const).map((mode) => {
-      const el = h(
-        'button',
-        { type: 'button', 'aria-pressed': 'false', title: mode === 'chart' ? 'Show the chart' : 'Show the same numbers as a table' },
-        mode === 'chart' ? 'Chart' : 'Table',
-      );
-      el.addEventListener('click', () => ui.patch({ mode }));
-      return el;
+    const mode = segmented<ChartMode>({
+      label: 'View as',
+      size: 'sm',
+      value: ui.get().mode,
+      options: [
+        { value: 'chart', label: 'Chart', tip: 'Show the chart' },
+        { value: 'table', label: 'Table', tip: 'Show the same numbers as a table' },
+      ],
+      onChange: (value) => ui.patch({ mode: value }),
     });
-    const seg = h('div', { class: 'sfc-seg', role: 'group', 'aria-label': 'View as' }, ...modeButtons);
 
-    root.append(h('div', { class: 'sfc-bar' }, tablist, h('div', {}, h('span', { class: 'sfc-seg-label' }, 'View as'), seg)), panel);
+    root.append(
+      h('div', { class: 'sfc-bar' }, tablist, h('div', { class: 'sfc-mode' }, h('span', {}, 'View as'), mode.el)),
+      panel,
+    );
 
     let mounted: { destroy(): void } | null = null;
     let mountedTab: ChartTab | null = null;
@@ -133,9 +138,9 @@ export function chartsView(options: ChartsOptions = {}): Component {
     d.add(
       ui.select(
         (u) => u.mode,
-        (mode) => {
-          lastMode = mode;
-          modeButtons.forEach((el, i) => el.setAttribute('aria-pressed', String((i === 0 ? 'chart' : 'table') === mode)));
+        (value) => {
+          lastMode = value;
+          mode.set(value);
         },
         { immediate: true },
       ),

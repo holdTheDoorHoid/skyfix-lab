@@ -30,14 +30,16 @@ import {
 import {
   applyMode,
   bindTimeButtons,
-  button,
   card,
   errorText,
+  glyph,
   message,
+  mockBadge,
   observeWidth,
   phaseGlyph,
   pill,
   round,
+  stepperNav,
   svgText,
   table,
   timeButtonText,
@@ -52,6 +54,7 @@ import {
   placement,
   planetYearJob,
   PRIMARY_PLANETS,
+  visibilityRuns,
   visibleHours,
   type PlanetInput,
   type PlanetJob,
@@ -82,39 +85,6 @@ const PLACEMENT_WORDS: Record<Placement, string> = {
   'all night': 'all night',
   midnight: 'middle of the night',
 };
-
-/** A run of consecutive nights with the planet up in the dark, in the same part of the night. */
-export interface VisibilityRun {
-  readonly planet: string;
-  readonly placement: Placement;
-  readonly first: number;
-  readonly last: number;
-  readonly bestIndex: number;
-  readonly bestHours: number;
-}
-
-/** Group a planet's nights into runs (for the summary table and the caption). */
-export function visibilityRuns(nights: readonly PlanetNight[], planet: string): VisibilityRun[] {
-  const out: VisibilityRun[] = [];
-  let cur: { placement: Placement; first: number; last: number; bestIndex: number; bestHours: number } | null = null;
-  for (const n of nights) {
-    const spans = n.visible.get(planet) ?? [];
-    const hours = visibleHours(spans);
-    const place = hours >= 1 / 60 ? placement(spans, n.darkWindow) : null;
-    if (cur && place === cur.placement && cur.last === n.index - 1) {
-      cur.last = n.index;
-      if (hours > cur.bestHours) {
-        cur.bestHours = hours;
-        cur.bestIndex = n.index;
-      }
-      continue;
-    }
-    if (cur) out.push({ planet, ...cur });
-    cur = place ? { placement: place, first: n.index, last: n.index, bestIndex: n.index, bestHours: hours } : null;
-  }
-  if (cur) out.push({ planet, ...cur });
-  return out;
-}
 
 interface Band {
   planet: string;
@@ -158,12 +128,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
   let sky: YearSky | null = null;
 
   const tip = tooltip(c.plot);
-  const nav = h('span', { class: 'sfc-nav-label', 'aria-live': 'polite' });
-  c.nav.replaceChildren(
-    button('◀', () => stepTime(store, { unit: 'year', count: -1 }), { 'aria-label': 'Previous year', title: 'Previous year', class: 'sfc-btn--icon' }),
-    nav,
-    button('▶', () => stepTime(store, { unit: 'year', count: 1 }), { 'aria-label': 'Next year', title: 'Next year', class: 'sfc-btn--icon' }),
-  );
+  const nav = stepperNav(c.nav, 'Previous year', 'Next year', (dir) => stepTime(store, { unit: 'year', count: dir }));
 
   // --- data --------------------------------------------------------------------------------
   let inputCache: { key: string; start: number; end: number; input: PlanetInput } | null = null;
@@ -213,6 +178,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
         if (!job || sky) return;
         sky = yearSkyMemo(ctx, job.data.input.zone, job.data.input.year);
         drawStrip();
+        updateStatus();
       }, 0);
     }
     if (timer !== null || !job || job.done) {
@@ -245,6 +211,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
 
   function updateStatus(): void {
     c.status.textContent = job && !job.done ? `Working out the planets night by night… ${Math.round(job.progress * 100)} %` : '';
+    c.root.dataset.ready = job?.done && sky && geom ? '1' : '0';
   }
 
   // --- header and legend -------------------------------------------------------------------
@@ -252,7 +219,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     const st = store.get();
     const input = inputFor(st);
     c.title.replaceChildren(`Planets in the dark sky · ${input.year}`);
-    if (ctx.engine.kind === 'mock') c.title.append(h('span', { class: 'sfc-badge', title: ctx.engine.description }, 'Mock engine'));
+    if (ctx.engine.kind === 'mock') c.title.append(mockBadge(ctx.engine.description));
     const place = st.observer.label || `${st.observer.lat_deg.toFixed(3)}°, ${st.observer.lon_deg.toFixed(3)}°`;
     c.subtitle.textContent = `${place} · when each planet is above the horizon while the Sun is more than 12° down · ${zoneLabel(st.time.jd_utc, input.zone)}`;
     nav.textContent = String(input.year);
@@ -260,11 +227,11 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
 
   function renderLegend(): void {
     c.legend.replaceChildren(
-      h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-swatch', style: 'background: var(--sfc-surface-2)', 'aria-hidden': 'true' }), 'Too light (Sun less than 12° down)'),
+      h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-swatch sfc-swatch--light', 'aria-hidden': 'true' }), 'Too light (Sun less than 12° down)'),
       h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-swatch sfc-swatch--astronomical', 'aria-hidden': 'true' }), 'Astronomical twilight'),
       h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-swatch sfc-swatch--night', 'aria-hidden': 'true' }), 'Night'),
       h('span', { class: 'sfc-legend-sep', 'aria-hidden': 'true' }),
-      h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-swatch sfc-b-venus', style: 'background: var(--c)', 'aria-hidden': 'true' }), 'Planet up in the dark (its own colour)'),
+      h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-swatch sfc-swatch--body sfc-b-jupiter', 'aria-hidden': 'true' }), 'Planet up in the dark (in its own colour)'),
       h('span', { class: 'sfc-legend-sep', 'aria-hidden': 'true' }),
       h('span', { class: 'sfc-legend-item sfc-muted' }, 'Each column is one night: evening at the top, morning at the bottom'),
     );
@@ -278,6 +245,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       c.plot.append(tip.el);
       svg = null;
       geom = null;
+      c.root.dataset.ready = '1';
       return;
     }
     if (!job || width <= 0) return;
@@ -421,6 +389,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     if (hover) drawHover();
     renderCaption();
     if (ui.get().mode === 'table') renderTable();
+    updateStatus();
   }
 
   /** Clock ticks for a band: at most one per 15 px, on 2, 3, 6 or 12-hour marks. */
@@ -570,12 +539,12 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       const spans = nt.visible.get(planet);
       if (!dark) break;
       if (!spans) {
-        rows.push(tipRow('…', planet, bodyClass(planet, 'planet')));
+        rows.push(tipRow('…', planet, glyph(planet, 'planet', 13)));
         continue;
       }
       const hours = visibleHours(spans);
       if (hours < 1 / 60) {
-        rows.push(tipRow('—', planet, bodyClass(planet, 'planet'), 'not up in the dark'));
+        rows.push(tipRow('—', planet, glyph(planet, 'planet', 13), 'not up in the dark'));
         continue;
       }
       const place = placement(spans, dark);
@@ -583,7 +552,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
         tipRow(
           spans.map((sp) => spanText(nt, sp, zone)).join(', '),
           planet,
-          bodyClass(planet, 'planet'),
+          glyph(planet, 'planet', 13),
           `${duration(hours)}${place ? `, ${PLACEMENT_WORDS[place]}` : ''}`,
         ),
       );

@@ -9,11 +9,13 @@
 
 import { h, s } from '../../dom.js';
 import type { Ctx } from '../component.js';
+import type { BodyKind, PhaseEvent } from '../engine/types.js';
 import { setTime } from '../playback.js';
 import type { Store } from '../state.js';
+import { bodyGlyph, drawGlyph, phaseDisc, type GlyphName } from '../theme/glyphs.js';
+import { badge, iconButton } from '../theme/primitives.js';
 import type { Zone } from '../time.js';
-import type { PhaseEvent } from '../engine/types.js';
-import { fallbackRotation, litPath } from './disc.js';
+import { fallbackLimbFromUp } from './disc.js';
 import { clockUtc, clockZoned } from './format.js';
 
 export type ChartMode = 'chart' | 'table';
@@ -57,26 +59,29 @@ export function textWidth(text: string, size: number): number {
 }
 
 /**
- * A label with a surface-coloured pill behind it, legible on any sky colour. `anchor` is
- * the text anchor; returns the group and its box.
+ * A label with a surface-coloured pill behind it, legible on any sky colour, optionally led
+ * by a body's glyph (in the body's colour: give the pill the body's class in `cls`).
+ * `anchor` is the text anchor; returns the group and its box.
  */
 export function pill(
   x: number,
   y: number,
   text: string,
-  options: { anchor?: 'start' | 'middle' | 'end'; size?: number; cls?: string } = {},
+  options: { anchor?: 'start' | 'middle' | 'end'; size?: number; cls?: string; glyph?: GlyphName } = {},
 ): { el: SVGGElement; box: Box } {
   const size = options.size ?? 11;
-  const w = textWidth(text, size) + 10;
+  const g0 = options.glyph ? size + 3 : 0;
+  const w = textWidth(text, size) + 10 + g0;
   const hgt = size + 7;
   const anchor = options.anchor ?? 'middle';
   const left = anchor === 'start' ? x - 5 : anchor === 'end' ? x - w + 5 : x - w / 2;
   const top = y - hgt / 2;
   const g = s('g', { class: `sfc-pill ${options.cls ?? ''}`.trim() }) as SVGGElement;
+  g.append(s('rect', { x: round(left), y: round(top), width: round(w), height: round(hgt), rx: hgt / 2 }));
+  if (options.glyph) drawGlyph(g, options.glyph, left + 5 + size / 2, y, size);
   g.append(
-    s('rect', { x: round(left), y: round(top), width: round(w), height: round(hgt), rx: hgt / 2 }),
-    svgText(anchor === 'start' ? x : anchor === 'end' ? x : x, y + size * 0.36, text, {
-      'text-anchor': anchor,
+    svgText(left + 5 + g0, y + size * 0.36, text, {
+      'text-anchor': 'start',
       style: `font-size:${size}px`,
     }),
   );
@@ -104,17 +109,21 @@ export function clampBox(box: Box, minX: number, maxX: number): number {
 // ---------------------------------------------------------------------------------------
 // Moon glyphs
 
-/** A small Moon-phase glyph for a principal phase. */
-export function phaseGlyph(kind: PhaseEvent['kind'], x: number, y: number, r: number, southUp: boolean): SVGGElement {
-  const g = s('g', { class: 'sfc-phase-glyph', transform: `translate(${round(x)} ${round(y)})` }) as SVGGElement;
-  g.append(s('circle', { class: 'sfc-disc-dark', r }));
+/**
+ * The design system's Moon disc for a principal phase, `2r` across, centred on (x, y) when
+ * placed inside a chart's SVG.
+ */
+export function phaseGlyph(kind: PhaseEvent['kind'], x: number, y: number, r: number, southUp: boolean): SVGSVGElement {
   const k = kind === 'new_moon' ? 0 : kind === 'full_moon' ? 1 : 0.5;
-  const d = litPath(k, r - 0.5);
-  if (d) {
-    const rot = fallbackRotation(kind === 'first_quarter', southUp);
-    g.append(s('path', { class: 'sfc-disc-lit', d, transform: rot ? `rotate(${rot})` : undefined }));
-  }
-  return g;
+  const el = phaseDisc({ illuminated: k, limbFromUpDeg: fallbackLimbFromUp(kind === 'first_quarter', southUp), size: 2 * r });
+  el.setAttribute('x', String(round(x - r)));
+  el.setAttribute('y', String(round(y - r)));
+  return el;
+}
+
+/** A body's glyph in its colour (design system), for legends, readouts and tooltips. */
+export function glyph(body: string, kind?: BodyKind, size = 14): SVGSVGElement {
+  return bodyGlyph(body, { size, ...(kind ? { kind } : {}) });
 }
 
 // ---------------------------------------------------------------------------------------
@@ -166,32 +175,23 @@ export function card(kind: string, headingText: string): Card {
   return { root, title, subtitle, nav, legend, figure, plot, caption, tableWrap, notes, status };
 }
 
-/** A small button. */
-export function button(label: string, onClick: () => void, attrs: Record<string, string | undefined> = {}): HTMLButtonElement {
-  const el = h('button', { type: 'button', class: `sfc-btn ${attrs.class ?? ''}`.trim() }, label);
-  for (const [k, v] of Object.entries(attrs)) if (k !== 'class' && v !== undefined) el.setAttribute(k, v);
-  el.addEventListener('click', onClick);
-  return el;
-}
-
-/** ◀ label ▶ navigation. The label is live so screen readers hear where they moved to. */
-export function stepper(
-  nav: HTMLElement,
-  prevLabel: string,
-  nextLabel: string,
-  onStep: (dir: -1 | 1) => void,
-): { setLabel(text: string): void } {
+/**
+ * ◀ label ▶ in the card's header, with the design system's buttons. The label is live, so
+ * screen readers hear where they moved to. Returns the label element.
+ */
+export function stepperNav(nav: HTMLElement, prevLabel: string, nextLabel: string, onStep: (dir: -1 | 1) => void): HTMLElement {
   const label = h('span', { class: 'sfc-nav-label', 'aria-live': 'polite' });
   nav.replaceChildren(
-    button('◀', () => onStep(-1), { 'aria-label': prevLabel, title: prevLabel, class: 'sfc-btn--icon' }),
+    iconButton('chevron-left', prevLabel, { size: 'sm', variant: 'secondary', tip: prevLabel, onClick: () => onStep(-1) }),
     label,
-    button('▶', () => onStep(1), { 'aria-label': nextLabel, title: nextLabel, class: 'sfc-btn--icon' }),
+    iconButton('chevron-right', nextLabel, { size: 'sm', variant: 'secondary', tip: nextLabel, onClick: () => onStep(1) }),
   );
-  return {
-    setLabel(text) {
-      label.textContent = text;
-    },
-  };
+  return label;
+}
+
+/** The engine badge for a title, when the numbers are not the real core's. */
+export function mockBadge(description: string): HTMLElement {
+  return badge('mock', { tip: description });
 }
 
 /** Show the chart or the table. */
@@ -263,12 +263,12 @@ export function tooltip(container: HTMLElement): Tooltip {
   };
 }
 
-/** A tooltip row: a coloured key, the value first (strong), then the label. */
-export function tipRow(value: string, label: string, keyClass?: string, extra?: string): HTMLElement {
+/** A tooltip row: the body's glyph (or nothing), the value first (strong), then the label. */
+export function tipRow(value: string, label: string, lead?: Node | null, extra?: string): HTMLElement {
   return h(
     'div',
     { class: 'sfc-tip-row' },
-    keyClass ? h('span', { class: `sfc-key ${keyClass}`, 'aria-hidden': 'true' }) : h('span', { class: 'sfc-key sfc-key--none' }),
+    lead ?? h('span', { 'aria-hidden': 'true' }),
     h('strong', {}, value),
     h('span', { class: 'sfc-tip-label' }, label),
     extra ? h('span', { class: 'sfc-tip-extra' }, extra) : null,
@@ -323,7 +323,7 @@ export function table(captionText: string, headers: string[], cls = ''): { table
   const body = h('tbody');
   const t = h(
     'table',
-    { class: `sfc-table ${cls}`.trim() },
+    { class: `sf-table sfc-table ${cls}`.trim() },
     h('caption', {}, captionText),
     h('thead', {}, h('tr', {}, ...headers.map((text) => h('th', { scope: 'col' }, text)))),
     body,

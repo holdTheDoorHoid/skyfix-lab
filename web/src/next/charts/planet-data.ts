@@ -167,6 +167,39 @@ export function visibleHours(spans: readonly VisibleSpan[]): number {
   return total;
 }
 
+/** A run of consecutive nights with the planet up in the dark, in the same part of the night. */
+export interface VisibilityRun {
+  readonly planet: string;
+  readonly placement: Placement;
+  readonly first: number;
+  readonly last: number;
+  readonly bestIndex: number;
+  readonly bestHours: number;
+}
+
+/** Group a planet's nights into runs (for the summary table and the caption). */
+export function visibilityRuns(nights: readonly PlanetNight[], planet: string): VisibilityRun[] {
+  const out: VisibilityRun[] = [];
+  let cur: { placement: Placement; first: number; last: number; bestIndex: number; bestHours: number } | null = null;
+  for (const n of nights) {
+    const spans = n.visible.get(planet) ?? [];
+    const hours = visibleHours(spans);
+    const place = hours >= 1 / 60 ? placement(spans, n.darkWindow) : null;
+    if (cur && place === cur.placement && cur.last === n.index - 1) {
+      cur.last = n.index;
+      if (hours > cur.bestHours) {
+        cur.bestHours = hours;
+        cur.bestIndex = n.index;
+      }
+      continue;
+    }
+    if (cur) out.push({ planet, ...cur });
+    cur = place ? { placement: place, first: n.index, last: n.index, bestIndex: n.index, bestHours: hours } : null;
+  }
+  if (cur) out.push({ planet, ...cur });
+  return out;
+}
+
 /**
  * Set up the year's nights from the Sun's year (`computeYear`) and return a job that fills
  * in the planets: the primary planets for every night first, then the secondary ones.

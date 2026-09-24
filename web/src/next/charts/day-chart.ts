@@ -33,17 +33,21 @@ import {
   dateShort,
   duration,
 } from './format.js';
+import { glyphFor } from '../theme/glyphs.js';
+import { chip } from '../theme/primitives.js';
 import {
   applyMode,
   bindTimeButtons,
-  button,
   card,
   errorText,
+  glyph,
   message,
+  mockBadge,
   observeWidth,
   overlaps,
   pill,
   round,
+  stepperNav,
   svgText,
   table,
   timeButton,
@@ -151,23 +155,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
   const readout = h('div', { class: 'sfc-readout', 'aria-live': 'off' });
   c.figure.insertBefore(readout, c.caption);
 
-  const nav = (() => {
-    const label = h('span', { class: 'sfc-nav-label', 'aria-live': 'polite' });
-    c.nav.replaceChildren(
-      button('◀', () => stepTime(store, { unit: 'day', count: -1 }), {
-        'aria-label': 'Previous day',
-        title: 'Previous day',
-        class: 'sfc-btn--icon',
-      }),
-      label,
-      button('▶', () => stepTime(store, { unit: 'day', count: 1 }), {
-        'aria-label': 'Next day',
-        title: 'Next day',
-        class: 'sfc-btn--icon',
-      }),
-    );
-    return label;
-  })();
+  const nav = stepperNav(c.nav, 'Previous day', 'Next day', (dir) => stepTime(store, { unit: 'day', count: dir }));
 
   // --- the day being shown -----------------------------------------------------------
   let dayCache: { zoneKey: string; day: LocalDay } | null = null;
@@ -210,7 +198,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     const { zone, day } = currentDay(s);
     c.title.replaceChildren('Height above the horizon');
     if (s.settings.navigatorTerms) c.title.append(h('span', { class: 'sfc-term' }, ' · altitude'));
-    if (ctx.engine.kind === 'mock') c.title.append(h('span', { class: 'sfc-badge', title: ctx.engine.description }, 'Mock engine'));
+    if (ctx.engine.kind === 'mock') c.title.append(mockBadge(ctx.engine.description));
     const place = s.observer.label || `${s.observer.lat_deg.toFixed(3)}°, ${s.observer.lon_deg.toFixed(3)}°`;
     c.subtitle.textContent = `${dateLong(day.date)} · ${place} · ${zoneLabel(day.jd_start + 0.5, zone)}${
       day.hours !== 24 ? ` · a ${day.hours}-hour day (the clocks change)` : ''
@@ -223,27 +211,22 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     const s = store.get();
     const selected = s.selection.body;
     const bodies = dayBodies(ctx, selected);
-    const chips = bodies.map((body) => {
+    const chips = bodies.map((body, i) => {
       const on = !hidden.has(body);
-      const chip = h(
-        'button',
-        {
-          type: 'button',
-          class: `sfc-chip ${bodyClass(body, kindOf(ctx, body))}${body === selected ? ' sfc-chip--selected' : ''}`,
-          'aria-pressed': String(on),
-          title: on ? `Hide ${body}` : `Show ${body}`,
+      return chip({
+        label: body,
+        lead: glyph(body, kindOf(ctx, body)),
+        selected: on,
+        class: body === selected ? 'sfc-chip--selected' : undefined,
+        tip: on ? `Hide ${body}` : `Show ${body}`,
+        onClick: () => {
+          if (hidden.has(body)) hidden.delete(body);
+          else hidden.add(body);
+          renderLegend();
+          schedule();
+          (c.legend.querySelectorAll('.sf-chip')[i] as HTMLElement | undefined)?.focus();
         },
-        h('span', { class: 'sfc-key', 'aria-hidden': 'true' }),
-        body,
-      );
-      chip.addEventListener('click', () => {
-        if (hidden.has(body)) hidden.delete(body);
-        else hidden.add(body);
-        renderLegend();
-        schedule();
-        (c.legend.querySelectorAll('.sfc-chip')[bodies.indexOf(body)] as HTMLElement | undefined)?.focus();
       });
-      return chip;
     });
     const stars = ctx.engine.bodies().filter((b) => b.kind === 'star').map((b) => b.body).sort((a, b) => a.localeCompare(b));
     const selectedStar = selected && kindOf(ctx, selected) === 'star' ? selected : '';
@@ -273,6 +256,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       c.plot.append(tip.el);
       svg = null;
       geom = null;
+      c.root.dataset.ready = '1';
       return;
     }
     if (!data || width <= 0) return;
@@ -453,7 +437,11 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       const px0 = xAt[ser.peakIndex]!;
       const py = ys(Math.min(ser.peakAlt, ALT_MAX));
       for (const dy of [-13, 13, -28, 28]) {
-        const lp = pill(px0, py + dy, ser.body, { size: 10.5, cls: ser.body === selected ? 'sfc-pill--selected' : '' });
+        const lp = pill(px0, py + dy, ser.body, {
+          size: 10.5,
+          glyph: glyphFor(ser.body, ser.kind),
+          cls: `${bodyClass(ser.body, ser.kind)}${ser.body === selected ? ' sfc-pill--selected' : ''}`,
+        });
         const shift = clamp(px0, x0 + lp.box.w / 2 + 1, x1 - lp.box.w / 2 - 1) - px0;
         const box = { ...lp.box, x: lp.box.x + shift };
         if (box.y < y0 - 2 || box.y + box.h > yH - 1) continue;
@@ -502,6 +490,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     if (hoverJd !== null) drawHover();
     renderCaption();
     if (ui.get().mode === 'table') renderTable();
+    c.root.dataset.ready = '1';
   }
 
   function s_(tag: string, attrs: Record<string, string | number | undefined> = {}): SVGElement {
@@ -563,8 +552,8 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       items.push(
         h(
           'span',
-          { class: `sfc-readout-item ${bodyClass(name, st.kind)}${up ? '' : ' sfc-readout-item--down'}` },
-          h('span', { class: 'sfc-key', 'aria-hidden': 'true' }),
+          { class: `sfc-readout-item${up ? '' : ' sfc-readout-item--down'}` },
+          glyph(name, st.kind, 13),
           name,
           h('strong', {}, altitude(st.alt_apparent_deg, s.settings.angleFormat)),
           h('span', { class: 'sfc-muted' }, bearing(st.az_deg)),
@@ -606,14 +595,14 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
         tipRow(
           clock(m.event.jd_utc, zone),
           `${m.body} ${verb}`,
-          bodyClass(m.body, kindOf(ctx, m.body)),
+          glyph(m.body, kindOf(ctx, m.body), 13),
           m.kind === 'transit' ? clockUtc(m.event.jd_utc) : `${bearing(m.event.az_deg)} · ${clockUtc(m.event.jd_utc)}`,
         ),
       );
     }
     if (near.length) rows.push(h('div', { class: 'sfc-tip-sep' }));
     for (const st of states) {
-      rows.push(tipRow(altitude(st.alt_apparent_deg, s.settings.angleFormat), st.body, bodyClass(st.body, st.kind), bearing(st.az_deg)));
+      rows.push(tipRow(altitude(st.alt_apparent_deg, s.settings.angleFormat), st.body, glyph(st.body, st.kind, 13), bearing(st.az_deg)));
     }
     tip.show(x, hoverY, rows);
   }

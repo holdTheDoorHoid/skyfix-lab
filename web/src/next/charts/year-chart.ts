@@ -33,14 +33,16 @@ import {
 import {
   applyMode,
   bindTimeButtons,
-  button,
   card,
   errorText,
+  glyph,
   message,
+  mockBadge,
   observeWidth,
   overlaps,
   pill,
   round,
+  stepperNav,
   svgText,
   table,
   timeButtonText,
@@ -166,12 +168,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
   const clipId = uid('sfc-clip-year');
 
   const tip = tooltip(c.plot);
-  const nav = h('span', { class: 'sfc-nav-label', 'aria-live': 'polite' });
-  c.nav.replaceChildren(
-    button('◀', () => stepTime(store, { unit: 'year', count: -1 }), { 'aria-label': 'Previous year', title: 'Previous year', class: 'sfc-btn--icon' }),
-    nav,
-    button('▶', () => stepTime(store, { unit: 'year', count: 1 }), { 'aria-label': 'Next year', title: 'Next year', class: 'sfc-btn--icon' }),
-  );
+  const nav = stepperNav(c.nav, 'Previous year', 'Next year', (dir) => stepTime(store, { unit: 'year', count: dir }));
 
   // --- data --------------------------------------------------------------------------------
   let yearCache: { key: string; start: number; end: number; input: YearInput } | null = null;
@@ -220,7 +217,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     const s2 = store.get();
     const input = inputFor(s2);
     c.title.replaceChildren(`Sunrise, sunset and twilight · ${input.year}`);
-    if (ctx.engine.kind === 'mock') c.title.append(h('span', { class: 'sfc-badge', title: ctx.engine.description }, 'Mock engine'));
+    if (ctx.engine.kind === 'mock') c.title.append(mockBadge(ctx.engine.description));
     const place = s2.observer.label || `${s2.observer.lat_deg.toFixed(3)}°, ${s2.observer.lon_deg.toFixed(3)}°`;
     c.subtitle.textContent = `${place} · every day of ${input.year} on the local clock, ${zoneLabel(s2.time.jd_utc, input.zone)}`;
     nav.textContent = String(input.year);
@@ -232,8 +229,8 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     );
     items.push(
       h('span', { class: 'sfc-legend-sep', 'aria-hidden': 'true' }),
-      h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-key-line', style: 'border-color: var(--sfc-rise)', 'aria-hidden': 'true' }), 'Sunrise'),
-      h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-key-line', style: 'border-color: var(--sfc-set)', 'aria-hidden': 'true' }), 'Sunset'),
+      h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-key-line sfc-key-line--rise', 'aria-hidden': 'true' }), 'Sunrise (dashed)'),
+      h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-key-line sfc-key-line--set', 'aria-hidden': 'true' }), 'Sunset (dotted)'),
       h('span', { class: 'sfc-legend-sep', 'aria-hidden': 'true' }),
       h('span', { class: 'sfc-legend-item' }, legendGlyph('new_moon'), 'New'),
       h('span', { class: 'sfc-legend-item' }, legendGlyph('first_quarter'), 'First quarter'),
@@ -244,10 +241,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
   }
 
   function legendGlyph(kind: PhaseEvent['kind']): SVGSVGElement {
-    const south = store.get().observer.lat_deg < 0;
-    const el = s('svg', { width: 14, height: 14, viewBox: '-7 -7 14 14', 'aria-hidden': 'true' }) as SVGSVGElement;
-    el.append(phaseGlyph(kind, 0, 0, 6, south));
-    return el;
+    return phaseGlyph(kind, 7, 7, 7, store.get().observer.lat_deg < 0);
   }
 
   // --- drawing -----------------------------------------------------------------------------
@@ -258,6 +252,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       c.plot.append(tip.el);
       svg = null;
       geom = null;
+      c.root.dataset.ready = '1';
       return;
     }
     if (!data || width <= 0) return;
@@ -409,10 +404,11 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     for (const ev of sky?.moonPhases ?? []) {
       const pos = dayPosition(days, ev.jd_utc);
       if (pos === null) continue;
-      const glyph = phaseGlyph(ev.kind, xs(pos), ym, narrow ? 4.5 : 5.5, south);
-      glyph.append(s('title', {}));
-      glyph.lastChild!.textContent = `${MOON_LABELS[ev.kind]} ${dayMonth(localDateOf(ev.jd_utc, zone))} ${clockWithUtc(ev.jd_utc, zone)}`;
-      strip.append(glyph);
+      const disc = phaseGlyph(ev.kind, xs(pos), ym, narrow ? 4.5 : 5.5, south);
+      const title = s('title', {});
+      title.textContent = `${MOON_LABELS[ev.kind]} ${dayMonth(localDateOf(ev.jd_utc, zone))} ${clockWithUtc(ev.jd_utc, zone)}`;
+      disc.prepend(title);
+      strip.append(disc);
     }
     if (!sky) strip.append(svgText(x0, ym + 3.5, 'Moon phases…', { class: 'sfc-strip-label' }));
     root.append(strip);
@@ -502,6 +498,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     if (hover) drawHover();
     renderCaption();
     if (ui.get().mode === 'table') renderTable();
+    c.root.dataset.ready = sky ? '1' : '0';
   }
 
   function placeToday(): void {
@@ -575,8 +572,8 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     const off = offsetOn(day.day, day.day.jd_start + 0.5, zone);
     const rows: Node[] = [tipHead(dateShort(day.day.date), `${zoneNameAt(day.day.jd_start + 0.5, zone, off)} · pointer ${clockWithUtc(jdPointer, zone)}`)];
     if (day.error) rows.push(tipRow('—', day.error));
-    else if (day.alwaysAbove) rows.push(tipRow('24 h', 'Sun up all day (midnight sun)', 'sfc-b-sun'));
-    else if (day.alwaysBelow) rows.push(tipRow('0 h', 'Sun below the horizon all day', 'sfc-b-sun'));
+    else if (day.alwaysAbove) rows.push(tipRow('24 h', 'Sun up all day (midnight sun)', glyph('Sun', 'sun', 13)));
+    else if (day.alwaysBelow) rows.push(tipRow('0 h', 'Sun below the horizon all day', glyph('Sun', 'sun', 13)));
     for (const kind of SUN_EVENT_ORDER) {
       if (kind === 'transit') continue;
       for (const ev of eventsOf(day, kind)) {

@@ -207,7 +207,9 @@ export function clockChangeIn(day: LocalDay, zone: Zone): ClockChange | null {
     if (zoneOffsetMs(mid, zone) === before) lo = mid;
     else hi = mid;
   }
-  const at = Math.ceil(hi / 1000) * 1000;
+  // Offsets change on whole seconds, and (lo, hi] is at most a second long: the change is
+  // the first whole second after lo.
+  const at = Math.floor(lo / 1000) * 1000 + 1000;
   return { day, jd: jdFromUnixMs(at), fromOffsetMs: before, toOffsetMs: zoneOffsetMs(at, zone) };
 }
 

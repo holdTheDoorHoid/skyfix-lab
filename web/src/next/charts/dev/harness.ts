@@ -11,8 +11,6 @@
  * gets no storage, so this page never touches the explorer's saved preferences.
  */
 
-import '@fontsource-variable/inter';
-import '@fontsource-variable/jetbrains-mono';
 import { h } from '../../../dom.js';
 import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
@@ -20,15 +18,9 @@ import { createNotices } from '../../notices.js';
 import { bindTimeKeys, goNow, setTime, startPlayback } from '../../playback.js';
 import { createExplorerStore, type AngleFormat, type ExplorerState, type Theme } from '../../state.js';
 import { formatWithUtc, jdFromWallClock, resolveZone, type ZoneChoice } from '../../time.js';
+import { applyTheme as applyThemeToDocument, installTooltips } from '../../theme/index.js';
 import { chartsView } from '../index.js';
 import type { ChartMode, ChartTab } from '../frame.js';
-
-// The design system's tokens when this branch has them; otherwise a dev-only snapshot.
-const realTokens = import.meta.glob('../../theme/tokens.css', { eager: true });
-if (Object.keys(realTokens).length === 0) {
-  const preview = import.meta.glob('./theme-preview.css');
-  for (const load of Object.values(preview)) void load();
-}
 
 interface Place {
   id: string;
@@ -71,7 +63,7 @@ function jdFrom(p: URLSearchParams, place: Place): number | null {
 }
 
 function applyTheme(theme: Theme): void {
-  document.documentElement.dataset.theme = theme;
+  applyThemeToDocument(theme);
 }
 
 async function boot(root: HTMLElement): Promise<void> {
@@ -83,8 +75,6 @@ async function boot(root: HTMLElement): Promise<void> {
   const zoneParam = p.get('zone');
   const zone: ZoneChoice = zoneParam === 'utc' ? { kind: 'utc' } : zoneParam === 'nautical' ? { kind: 'nautical' } : place.zone;
   applyTheme(theme);
-  document.body.style.margin = '0';
-  document.body.style.background = 'var(--stage-bg, #eef1f3)';
 
   const selection = await selectEngine();
   const notices = createNotices();
@@ -178,23 +168,34 @@ async function boot(root: HTMLElement): Promise<void> {
 
   const style = document.createElement('style');
   style.textContent = `
+    #app { display: flex; flex-direction: column; height: 100vh; }
     .dev-bar { display:flex; flex-wrap:wrap; gap:8px 12px; align-items:center; padding:8px 16px;
-      background: var(--chrome-bg, #1c242d); color: var(--chrome-ink, #f1f4f7);
-      font: 12px/1.4 var(--font-ui, system-ui, sans-serif); }
-    .dev-bar select, .dev-bar input, .dev-bar button { font: inherit; background: var(--chrome-raised, #26303b);
-      color: inherit; border: 1px solid var(--chrome-line-strong, #6f7f90); border-radius: 6px; padding: 3px 6px; }
+      background: var(--chrome-bg); color: var(--chrome-ink); font: 12px/1.4 var(--font-ui); }
+    .dev-bar select, .dev-bar input, .dev-bar button { font: inherit; background: var(--chrome-raised);
+      color: inherit; border: 1px solid var(--chrome-line-strong); border-radius: 6px; padding: 3px 6px; }
     .dev-engine { padding: 1px 8px; border-radius: 999px; font-weight: 600; }
-    .dev-engine--mock { background: var(--caution, #f2d04b); color: var(--on-caution, #1e1800); }
-    .dev-engine--wasm { background: var(--ok, #62d096); color: #04210f; }
-    .dev-timings, .dev-bar output { font-family: var(--font-num, monospace); color: var(--chrome-ink-2, #b6c2cd); }
-    .dev-notices p { margin: 0; padding: 4px 16px; font: 12px/1.4 var(--font-ui, system-ui);
-      background: var(--caution, #f2d04b); color: var(--on-caution, #1e1800); }
-    .dev-stage { min-height: calc(100vh - 44px); }
+    .dev-engine--mock { background: var(--caution); color: var(--on-caution); }
+    .dev-engine--wasm { background: var(--ok); color: var(--chrome-bg-0); }
+    .dev-timings, .dev-bar output { font-family: var(--font-num); color: var(--chrome-ink-2); }
+    .dev-notices p { margin: 0; padding: 4px 16px; font: 12px/1.4 var(--font-ui);
+      background: var(--caution); color: var(--on-caution); }
+    .dev-stage { flex: 1; min-height: 0; background: var(--stage-bg); }
   `;
   document.head.append(style);
 
+  installTooltips(document.body);
   const view = chartsView({ tab, mode })(stage, ctx);
   void view;
+
+  // "Ready" for screenshots (scripts in charts/dev): fonts loaded and the chart drawn in
+  // full, including every night of the planet chart.
+  const markReady = (): void => {
+    const card = stage.querySelector<HTMLElement>('.sfc-card');
+    const drawn = card?.dataset.ready === '1';
+    if (drawn && document.fonts.status === 'loaded') document.documentElement.dataset.ready = '1';
+    else setTimeout(markReady, 100);
+  };
+  void document.fonts.ready.then(markReady);
 
   const syncTime = (s: ExplorerState): void => {
     const z = resolveZone(s.observer.zone, s.observer.lon_deg);

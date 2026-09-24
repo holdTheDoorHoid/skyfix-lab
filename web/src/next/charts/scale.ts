@@ -39,8 +39,10 @@ export function ticks(min: number, max: number, step: number): number[] {
   if (!(step > 0) || !(max >= min)) return [];
   const eps = step * 1e-9;
   const out: number[] = [];
-  for (let v = Math.ceil((min - eps) / step) * step; v <= max + eps; v += step) {
-    out.push(Math.abs(v) < eps ? 0 : Math.round(v / step) * step);
+  const first = Math.ceil((min - eps) / step);
+  for (let k = first; k * step <= max + eps; k += 1) {
+    const v = Number((k * step).toPrecision(12));
+    out.push(v === 0 ? 0 : v);
   }
   return out;
 }

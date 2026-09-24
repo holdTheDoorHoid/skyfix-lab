@@ -13,13 +13,14 @@
  *   the time of day; a rise or set time moves it to that moment.
  */
 
-import { h, s } from '../../dom.js';
+import { h } from '../../dom.js';
 import { disposer, memoize, observerKey, watch, type Ctx } from '../component.js';
 import type { PhaseEvent } from '../engine/types.js';
 import { setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { wallClock, zoneLabel, type Zone } from '../time.js';
-import { fallbackRotation, limbRotation, litPath } from './disc.js';
+import { phaseDisc } from '../theme/glyphs.js';
+import { fallbackLimbFromUp, limbFromUp } from './disc.js';
 import {
   clockAt,
   clockUtcFast,
@@ -35,12 +36,13 @@ import {
 import {
   applyMode,
   bindTimeButtons,
-  button,
   card,
   errorText,
   message,
+  mockBadge,
   observeWidth,
   phaseGlyph,
+  stepperNav,
   table,
   timeButtonText,
   type ChartComponent,
@@ -77,26 +79,11 @@ export function moonInputFor(state: ExplorerState): MoonInput {
   return { observer: engineObserver(state), zone, year: date.year, month: date.month, options: eventOptions(state) };
 }
 
-/** The phase disc of one day, as an SVG element `size` px across. */
+/** The phase disc of one day (the design system's disc), `size` px across. */
 function disc(day: MoonDay, size: number, southUp: boolean): SVGSVGElement {
-  const r = size / 2 - 1;
-  const el = s('svg', {
-    class: 'sfc-cal-disc',
-    width: size,
-    height: size,
-    viewBox: `${-size / 2} ${-size / 2} ${size} ${size}`,
-    'aria-hidden': 'true',
-  }) as SVGSVGElement;
-  el.append(s('circle', { class: 'sfc-disc-dark', r }));
-  if (day.illuminated !== null) {
-    const d = litPath(day.illuminated, r - 0.5);
-    const rot =
-      day.brightLimbDeg !== null
-        ? limbRotation(day.brightLimbDeg, southUp)
-        : fallbackRotation(day.waxing ?? true, southUp);
-    if (d) el.append(s('path', { class: 'sfc-disc-lit', d, transform: rot ? `rotate(${rot})` : undefined }));
-  }
-  return el;
+  const limb =
+    day.brightLimbDeg !== null ? limbFromUp(day.brightLimbDeg, southUp) : fallbackLimbFromUp(day.waxing ?? true, southUp);
+  return phaseDisc({ illuminated: day.illuminated ?? 0, limbFromUpDeg: limb, size });
 }
 
 export const moonCalendar: ChartComponent = (host, ctx, ui) => {
@@ -111,12 +98,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
   let width = 0;
   let focusKey: string | null = null;
 
-  const nav = h('span', { class: 'sfc-nav-label', 'aria-live': 'polite' });
-  c.nav.replaceChildren(
-    button('◀', () => stepTime(store, { unit: 'month', count: -1 }), { 'aria-label': 'Previous month', title: 'Previous month', class: 'sfc-btn--icon' }),
-    nav,
-    button('▶', () => stepTime(store, { unit: 'month', count: 1 }), { 'aria-label': 'Next month', title: 'Next month', class: 'sfc-btn--icon' }),
-  );
+  const nav = stepperNav(c.nav, 'Previous month', 'Next month', (dir) => stepTime(store, { unit: 'month', count: dir }));
   const phaseList = h('div', { class: 'sfc-cal-phases' });
   c.legend.replaceChildren(phaseList);
 
@@ -136,7 +118,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     const st = store.get();
     const input = moonInputFor(st);
     c.title.replaceChildren(`Moon phases · ${MONTHS_LONG[input.month - 1]} ${input.year}`);
-    if (ctx.engine.kind === 'mock') c.title.append(h('span', { class: 'sfc-badge', title: ctx.engine.description }, 'Mock engine'));
+    if (ctx.engine.kind === 'mock') c.title.append(mockBadge(ctx.engine.description));
     const place = st.observer.label || `${st.observer.lat_deg.toFixed(3)}°, ${st.observer.lon_deg.toFixed(3)}°`;
     c.subtitle.textContent = `${place} · ${zoneLabel(st.time.jd_utc, input.zone)} · ${
       st.observer.lat_deg < 0 ? 'discs drawn south up, as seen from the southern hemisphere' : 'discs drawn north up'
@@ -165,12 +147,10 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     phaseList.replaceChildren(
       ...data.events.map((ev) => {
         const t = eventText(ev, zone);
-        const glyph = s('svg', { width: 14, height: 14, viewBox: '-7 -7 14 14', 'aria-hidden': 'true' });
-        glyph.append(phaseGlyph(ev.kind, 0, 0, 6, south));
         return h(
           'span',
           { title: `${t.local} · ${t.utc}` },
-          glyph,
+          phaseGlyph(ev.kind, 7, 7, 7, south),
           h('strong', {}, PHASE_NAMES[ev.kind]),
           `${t.date.replace(/ \d{4}$/, '')}, ${t.local}`,
         );
@@ -183,6 +163,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     renderPhaseList();
     if (failure !== null) {
       message(c.plot, `The engine could not compute this month: ${failure}`);
+      c.root.dataset.ready = '1';
       return;
     }
     if (!data) return;
@@ -298,6 +279,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     if (hadFocus) (buttons.find((b) => b.getAttribute('data-key') === focusKey) ?? active)?.focus();
     renderCaption();
     if (ui.get().mode === 'table') renderTable();
+    c.root.dataset.ready = '1';
   }
 
   function renderCaption(): void {
