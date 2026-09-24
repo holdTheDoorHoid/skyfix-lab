@@ -7,7 +7,10 @@
  *   src/next/<folder>/view.ts        export default (host, ctx) => ({ destroy })
  *
  * A view with another entry file gets one line in `VIEW_ENTRIES` (Map and Globe: `map/index.ts`,
- * Sky: `sky/index.ts`, Charts: `charts/index.ts`).
+ * Sky: `sky/index.ts`, Charts: `charts/index.ts`, Almanac: `almanac/almanac.ts`).
+ *
+ * PRINTING. The shell has no print styles of its own: a view that prints (the Almanac)
+ * marks `<html data-print-view>` while mounted and hides everything around itself.
  *
  * `VIEW_FOLDERS` says which folder serves which view id (`map` and `globe` are both the
  * map agent's). A folder that is not there yet shows a friendly "coming soon" page
@@ -67,6 +70,7 @@ export const VIEW_ENTRIES: Record<string, ModuleLoader> = {
   map: () => import('../map/index.js').then((m) => ({ default: m.mapView })),
   sky: () => import('../sky/index.js').then((m) => ({ default: m.sky })),
   charts: () => import('../charts/index.js').then((m) => ({ default: m.charts })),
+  almanac: () => import('../almanac/almanac.js').then((m) => ({ default: m.almanacView })),
 };
 
 /** A registry over explicit module maps (the keys are paths as `import.meta.glob` gives them). */

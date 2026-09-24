@@ -208,7 +208,7 @@ describe('themes, the view fragment and the registry', () => {
   });
 
   it('mounts the merged views from their entry files (one module for Map and Globe)', () => {
-    for (const id of ['map', 'globe', 'sky', 'charts', 'about'] as const) expect(registry.view(id), id).not.toBeNull();
+    for (const id of ['map', 'globe', 'sky', 'charts', 'almanac', 'about'] as const) expect(registry.view(id), id).not.toBeNull();
     expect(registry.view('globe')).toBe(registry.view('map'));
   });
 });
