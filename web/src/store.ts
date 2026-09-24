@@ -1,9 +1,18 @@
 /** Application state and a minimal subscribe/notify store. No framework. */
 
-import type { EphemerisMode, ReduceEntry, Scenario, SkyfixApi } from './api/adapter.js';
-import { defaultScenario } from './api/adapter.js';
+import type {
+  DemoEntry,
+  EphemerisMode,
+  ExperimentSummary,
+  Plan,
+  PlanOptions,
+  ReduceEntry,
+  Scenario,
+  SkyfixApi,
+} from './api/adapter.js';
+import { defaultPlanOptions } from './api/adapter.js';
 import { emptySession } from './api/mock.js';
-import type { FixResult, Session, SolveOptions, Truth } from './types.js';
+import type { FixResult, LatLon, Session, SolveOptions, Truth } from './types.js';
 import { defaultSolveOptions } from './types.js';
 
 export type ViewId = 'observations' | 'corrections' | 'fix' | 'simulator' | 'planner' | 'about';
@@ -23,13 +32,16 @@ export interface Notice {
 }
 
 export interface SimulationState {
-  scenario: Scenario;
+  /** The scenario being edited. Null until the demo list has loaded. */
+  scenario: Scenario | null;
   session: Session | null;
   truth: Truth | null;
   fix: FixResult | null;
   error: string | null;
-  /** Set when the demo/simulator fell back to the mock generator. */
-  usedMock: boolean;
+  /** Repetitions for the coverage experiment. */
+  repetitions: number;
+  summary: ExperimentSummary | null;
+  running: boolean;
 }
 
 export interface AppState {
@@ -45,12 +57,21 @@ export interface AppState {
   fixError: string | null;
   solveOptions: SolveOptions;
   bodyCatalog: string[];
+  /** The packaged demonstrations, straight from the core. */
+  demos: DemoEntry[];
   coreVersion: string;
+  /** Set only when the mock adapter is running. Shown on every view. */
   apiNotice: string | null;
   simulation: SimulationState;
   notices: Notice[];
-  /** Which demo variant produced the current session, if any. */
+  /** Which demo produced the current session, if any. */
   loadedDemo: string | null;
+  /** Planner: an APPROXIMATE position, disclosed in every plan it produces. */
+  planPosition: LatLon;
+  planUtc: string;
+  planOptions: PlanOptions;
+  plan: Plan | null;
+  planError: string | null;
 }
 
 export class Store {
@@ -71,18 +92,26 @@ export class Store {
       fixError: null,
       solveOptions: defaultSolveOptions(),
       bodyCatalog: [],
+      demos: [],
       coreVersion: 'unknown',
       apiNotice: null,
       simulation: {
-        scenario: defaultScenario(),
+        scenario: null,
         session: null,
         truth: null,
         fix: null,
         error: null,
-        usedMock: false,
+        repetitions: 50,
+        summary: null,
+        running: false,
       },
       notices: [],
       loadedDemo: null,
+      planPosition: { lat_deg: 39.9526, lon_deg: -75.1652 },
+      planUtc: '2026-10-01T01:30:00Z',
+      planOptions: defaultPlanOptions(),
+      plan: null,
+      planError: null,
       ...initial,
     };
   }

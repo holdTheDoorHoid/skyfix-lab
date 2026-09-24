@@ -1,15 +1,21 @@
 /**
- * MOCK ADAPTER — not the numerical core.
+ * MOCK ADAPTER — a UI development stand-in, NOT the numerical core.
  *
- * While `skyfix-core` is still `todo!()`, the UI runs against this. It produces JSON in
- * the exact contract shapes so that swapping in `wasm.ts` is a one-line change, and it
- * is deliberately loud about being a stand-in: the header shows "mock adapter" whenever
- * it is active and nothing it returns should be read as a navigational result.
+ * `skyfix-core`, `skyfix-ephemeris` and `skyfix-sim` are all real now, and `wasm.ts` is
+ * what the application uses. This file survives for one purpose: working on the
+ * interface with no WebAssembly build to hand (`npm run dev` before the first
+ * `npm run wasm`, or `?api=mock`). It is never selected silently, and the header says
+ * "MOCK adapter" the whole time it is active.
  *
- * What is genuinely computed here (spherical geometry only, CONVENTIONS sections 2-3):
- * circles of position, two-circle intersections, and a plain weighted Gauss-Newton fit
- * with its a priori covariance. What is canned: the `failed` result, and anything that
- * needs an ephemeris.
+ * It understands the real `skyfix_sim::scenario::Scenario`, but only the parts the
+ * packaged demos use, and it refuses rather than approximates anything it cannot do:
+ *
+ * - `BodySource::Named` is refused — the mock has no star catalogue.
+ * - a shared bias, robust weighting and priors are reported as unsupported, not faked.
+ *
+ * What it genuinely computes (spherical geometry, CONVENTIONS sections 2-3): circles of
+ * position, two-circle intersections, the six-step correction chain, and a plain
+ * weighted Gauss-Newton fit with its a priori covariance.
  */
 
 import { BODY_NAMES, isStar } from '../bodies.js';
@@ -19,6 +25,7 @@ import {
   circleOfPosition,
   destination,
   geographicPosition,
+  norm180Deg,
   norm360,
   pointFromDeg,
   pointToLatLon,
@@ -42,14 +49,23 @@ import type {
 } from '../types.js';
 import { NM_M, SESSION_SCHEMA, TRUTH_SCHEMA, CHI2_95_2DOF } from '../types.js';
 import type {
+  Aggregate,
+  BodySource,
   CoverageReport,
+  DemoEntry,
   EphemerisMode,
+  Experiment,
+  ExperimentSummary,
   ParsedSession,
   ReduceEntry,
+  Plan,
+  PlanOptions,
+  RunRecord,
   Scenario,
   SimulationOutput,
   SkyfixApi,
 } from './adapter.js';
+import { MOCK_DEMOS } from './mockDemos.js';
 import { FAILED_FIX } from './fixtures.js';
 
 const SIDEREAL_RATE_DEG_PER_HOUR = 15.04106864;
@@ -423,14 +439,15 @@ function analyse(
   ]);
   const singular = info.values.map((v) => Math.sqrt(Math.max(v, 0)));
   const udet = ua * uc - ub * ub;
-  const dilution =
-    Math.abs(udet) > 1e-18 ? Math.sqrt((uc + ua) / udet) * NM_M : Number.POSITIVE_INFINITY;
+  const dilution = Math.abs(udet) > 1e-18 ? Math.sqrt((uc + ua) / udet) * NM_M : null;
   const conditioning: Conditioning = {
     singular_values: singular,
-    condition_number: singular[1]! > 0 ? singular[0]! / singular[1]! : Number.POSITIVE_INFINITY,
+    // serde_json writes an infinite f64 as null, so the mock does too.
+    condition_number: singular[1]! > 0 ? singular[0]! / singular[1]! : null,
     rank: singular.filter((v) => v > 1e-8 * (singular[0] || 1)).length,
     geometric_dilution_m_per_arcmin: dilution,
     max_azimuth_gap_deg: azimuthGap(azimuths),
+    columns: 'position (north, east)',
   };
 
   // Clock uncertainty: a rank-1 east-west term (CONVENTIONS section 6).
@@ -499,10 +516,14 @@ function mockSolve(session: Session, options: SolveOptions): FixResult {
           'two circles of position meet at two points and nothing in this session distinguishes them',
       },
     ];
-    if (geometry.condition_number > 10 || geometry.max_azimuth_gap_deg > 180) {
+    if (
+      geometry.condition_number === null ||
+      geometry.condition_number > 10 ||
+      geometry.max_azimuth_gap_deg > 180
+    ) {
       ambiguityWarnings.push({
         code: 'poor_geometry',
-        condition_number: geometry.condition_number,
+        condition_number: geometry.condition_number ?? Number.POSITIVE_INFINITY,
         max_azimuth_gap_deg: geometry.max_azimuth_gap_deg,
       });
     }
@@ -536,10 +557,14 @@ function mockSolve(session: Session, options: SolveOptions): FixResult {
     });
   }
   if (!converged) warnings.push({ code: 'not_converged', iterations });
-  if (conditioning.condition_number > 10 || conditioning.max_azimuth_gap_deg > 180) {
+  if (
+    conditioning.condition_number === null ||
+    conditioning.condition_number > 10 ||
+    conditioning.max_azimuth_gap_deg > 180
+  ) {
     warnings.push({
       code: 'poor_geometry',
-      condition_number: conditioning.condition_number,
+      condition_number: conditioning.condition_number ?? Number.POSITIVE_INFINITY,
       max_azimuth_gap_deg: conditioning.max_azimuth_gap_deg,
     });
   }
@@ -559,7 +584,11 @@ function mockSolve(session: Session, options: SolveOptions): FixResult {
     warnings.push({ code: 'posterior_scaling_skipped', dof });
   }
 
-  const wellConditioned = converged && conditioning.rank === 2 && conditioning.condition_number < 1e6;
+  const wellConditioned =
+    converged &&
+    conditioning.rank === 2 &&
+    conditioning.condition_number !== null &&
+    conditioning.condition_number < 1e6;
   const ellipse = wellConditioned ? ellipseFrom(cov) : null;
   if (!ellipse) {
     warnings.push({
@@ -572,6 +601,7 @@ function mockSolve(session: Session, options: SolveOptions): FixResult {
 
   return {
     kind: 'unique',
+    circles,
     fix: {
       position,
       shared_bias_arcmin: null,
@@ -602,111 +632,409 @@ function mockSolve(session: Session, options: SolveOptions): FixResult {
 // Simulator
 // ---------------------------------------------------------------------------
 
-const PRESET_AZIMUTHS: Record<string, number[]> = {
-  good: [35, 125, 215, 305, 80, 260],
-  clustered: [100, 112, 124, 136, 148, 160],
-  two_body: [45, 135],
-  single_sight: [300],
-  custom: [35, 125, 215, 305, 80, 260],
-};
+/** Degrees of GHA per hour for a `supplied` source that does not say. */
+const SIDEREAL_RATE = SIDEREAL_RATE_DEG_PER_HOUR;
 
-const PRESET_ALTITUDES = [61.2, 43.9, 28.4, 46.0, 35.2, 52.8];
+function rfc3339(ms: number): string {
+  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
 
+/** The direction of a `supplied` source at `hoursFromStart`. */
+function suppliedDirection(
+  source: Extract<BodySource, { source: 'supplied' }>,
+  hoursFromStart: number,
+): { gha_deg: number; dec_deg: number } {
+  const rate = Number.isFinite(source.gha_rate_deg_per_hour)
+    ? source.gha_rate_deg_per_hour
+    : SIDEREAL_RATE;
+  return {
+    gha_deg: norm360(source.gha_deg_at_start + rate * hoursFromStart),
+    dec_deg: source.dec_deg,
+  };
+}
+
+/** Azimuth of each source at the truth position and the start time. */
+function startAzimuths(scenario: Scenario): number[] {
+  return scenario.sources.map((source) => {
+    if (source.source !== 'supplied') return Number.NaN;
+    const d = suppliedDirection(source, 0);
+    return altitudeAzimuthDeg(scenario.truth, d.gha_deg, d.dec_deg).azimuth_deg;
+  });
+}
+
+/**
+ * Apply the geometry preset. `clustered` keeps the largest set of bodies that fits in
+ * one azimuth window; `well_spread` reorders by greedy farthest-point selection. Both
+ * are evaluated at the truth position and the start time, as the Rust does.
+ */
+function applyGeometry(scenario: Scenario): number[] {
+  const indices = scenario.sources.map((_, i) => i);
+  const preset = scenario.geometry;
+  if (preset.preset === 'as_given') return indices;
+  const azimuths = startAzimuths(scenario);
+
+  if (preset.preset === 'clustered') {
+    let best: number[] = [];
+    for (const anchor of azimuths) {
+      if (!Number.isFinite(anchor)) continue;
+      const kept = indices.filter((i) => {
+        const gap = Math.abs(norm180Deg(azimuths[i]! - anchor));
+        return gap <= preset.window_deg;
+      });
+      if (kept.length > best.length) best = kept;
+    }
+    if (best.length >= 2) return best;
+    // No window holds two: keep the closest pair, a valid and very poor geometry.
+    let pair: number[] = indices.slice(0, 2);
+    let smallest = Infinity;
+    for (let a = 0; a < indices.length; a++) {
+      for (let b = a + 1; b < indices.length; b++) {
+        const gap = Math.abs(norm180Deg(azimuths[a]! - azimuths[b]!));
+        if (gap < smallest) {
+          smallest = gap;
+          pair = [a, b];
+        }
+      }
+    }
+    return pair;
+  }
+
+  // well_spread: greedy farthest point in azimuth.
+  const remaining = [...indices];
+  const order: number[] = [];
+  order.push(remaining.shift()!);
+  while (remaining.length > 0) {
+    let bestIndex = 0;
+    let bestGap = -1;
+    remaining.forEach((candidate, k) => {
+      const gap = Math.min(
+        ...order.map((chosen) => Math.abs(norm180Deg(azimuths[candidate]! - azimuths[chosen]!))),
+      );
+      if (gap > bestGap) {
+        bestGap = gap;
+        bestIndex = k;
+      }
+    });
+    order.push(remaining.splice(bestIndex, 1)[0]!);
+  }
+  return preset.keep === null ? order : order.slice(0, Math.max(preset.keep, 1));
+}
+
+function assumedPositionOf(scenario: Scenario): LatLon | null {
+  const mode = scenario.assumed_position.mode;
+  switch (mode.mode) {
+    case 'none':
+      return null;
+    case 'explicit':
+      return { lat_deg: mode.lat_deg, lon_deg: mode.lon_deg };
+    case 'truth':
+      return { ...scenario.truth };
+    case 'offset_from_truth':
+      return pointToLatLon(
+        destination(
+          pointFromDeg(scenario.truth.lat_deg, scenario.truth.lon_deg),
+          toRad(mode.bearing_deg),
+          toRad(mode.distance_nm / 60),
+        ),
+      );
+  }
+}
+
+/**
+ * Generate a session and its truth from a real `Scenario`. Supports the subset the
+ * packaged demos use; anything else throws with the reason.
+ */
 function mockSimulate(scenario: Scenario): SimulationOutput {
-  const rng = mulberry32(scenario.seed);
-  const azimuths = PRESET_AZIMUTHS[scenario.geometry] ?? PRESET_AZIMUTHS['good']!;
-  const wanted =
-    scenario.geometry === 'two_body'
-      ? 2
-      : scenario.geometry === 'single_sight'
-        ? 1
-        : Math.max(1, Math.min(scenario.sight_count, azimuths.length));
+  const named = scenario.sources.find((s) => s.source === 'named');
+  if (named) {
+    throw new Error(
+      `the mock adapter has no star catalogue, so it cannot resolve the body "${named.name}". ` +
+        'Build the WebAssembly package (`npm run wasm --prefix web`) to run this scenario.',
+    );
+  }
+  const reportedSigma = scenario.reported_sigma_arcmin ?? scenario.altitude_noise_arcmin;
+  if (!(reportedSigma > 0)) {
+    throw new Error(
+      'a session needs sigma_arcmin > 0: set reported_sigma_arcmin when the scenario is noise-free',
+    );
+  }
 
-  const session = emptySession(scenario.name || 'Simulated session');
+  const rng = mulberry32(Number(BigInt.asUintN(32, BigInt(scenario.seed))));
+  const chosen = applyGeometry(scenario);
+  if (chosen.length === 0) throw new Error('the geometry preset kept no bodies');
+
+  const emitted = scenario.altitude_kind;
+  const session = emptySession(scenario.name);
   session.meta.kind = 'simulated';
   session.meta.notes =
-    'Generated by the simulator. Every altitude in this session is synthetic.';
-  session.observer.height_of_eye_m = scenario.height_of_eye_m;
-  session.observer.assumed_position = { lat_deg: 40, lon_deg: -75 };
-  session.observer.assumed_position_role = { role: 'initializer' };
+    'Simulated session generated by the browser mock adapter, not by skyfix-sim. The ' +
+    "observer's real position, the seed and the size of every effect are in a separate " +
+    'truth document and are deliberately absent from this file.';
+  session.observer.height_of_eye_m =
+    emitted.kind === 'sextant_hs' ? emitted.height_of_eye_m : 0;
+  session.observer.pressure_hpa = emitted.kind === 'sextant_hs' ? emitted.pressure_hpa : 1010;
+  session.observer.temperature_c = emitted.kind === 'sextant_hs' ? emitted.temperature_c : 10;
+  session.observer.assumed_position = assumedPositionOf(scenario);
+  session.observer.assumed_position_role = scenario.assumed_position.role;
   session.instrument = {
     name: 'simulated',
-    index_correction_arcmin: scenario.index_correction_arcmin,
-    horizon: scenario.horizon,
+    index_correction_arcmin:
+      emitted.kind === 'sextant_hs' ? emitted.index_correction_arcmin : 0,
+    horizon: 'sea',
   };
-  session.clock = { uncertainty_s: scenario.clock_uncertainty_s, correction_s: 0 };
+  session.clock = {
+    uncertainty_s: scenario.reported_clock_uncertainty_s,
+    correction_s: 0,
+  };
 
-  const truthPoint = scenario.truth_position;
-  const wrongIds: string[] = [];
-  const startMs = Date.parse(scenario.utc);
-  const bodies =
-    scenario.geometry === 'custom' && scenario.bodies.length > 0
-      ? scenario.bodies
-      : ['Vega', 'Altair', 'Arcturus', 'Kochab', 'Deneb', 'Alphecca'];
+  const startMs = Date.parse(scenario.start_utc);
+  if (!Number.isFinite(startMs)) throw new Error(`start_utc ${scenario.start_utc} is not RFC 3339`);
 
-  for (let i = 0; i < wanted; i++) {
-    if (scenario.missing_fraction > 0 && rng() < scenario.missing_fraction) continue;
+  const count = scenario.schedule.count;
+  const perBody = Math.ceil(count / chosen.length);
+  const drop = Math.round(count * scenario.missing_fraction);
+  // Which scheduled sights never make it into the session: spread through the run so a
+  // gap is visible rather than a truncated tail.
+  const dropped = new Set<number>();
+  for (let k = 0; k < drop; k++) dropped.add(Math.floor(((k + 1) * count) / (drop + 1)));
 
-    const azimuth = azimuths[i % azimuths.length]!;
-    const trueAltitude = PRESET_ALTITUDES[i % PRESET_ALTITUDES.length]!;
-    // Place the body's geographic position so the truth position sees exactly that
-    // altitude at that azimuth: GP = truth walked `90 - h` degrees along the azimuth.
-    const gp = pointToLatLon(
-      destination(
-        pointFromDeg(truthPoint.lat_deg, truthPoint.lon_deg),
-        toRad(azimuth),
-        toRad(90 - trueAltitude),
-      ),
-    );
-    // GHA is west-positive: GHA = -lon_east. A clock offset shifts every GHA equally,
-    // which is exactly the longitude degeneracy of CONVENTIONS section 6.
-    const ghaTrue = norm360(-gp.lon_deg);
-    const gha = norm360(
-      ghaTrue + (SIDEREAL_RATE_DEG_PER_HOUR * scenario.clock_offset_s) / 3600,
-    );
+  const observations: Observation[] = [];
+  const truthAltitudes: number[] = [];
+  for (let i = 0; i < count; i++) {
+    if (dropped.has(i)) continue;
+    const sourceIndex =
+      scenario.schedule.ordering === 'round_robin'
+        ? chosen[i % chosen.length]!
+        : chosen[Math.min(Math.floor(i / perBody), chosen.length - 1)]!;
+    const source = scenario.sources[sourceIndex] as Extract<BodySource, { source: 'supplied' }>;
+
+    const trueMs = startMs + i * scenario.schedule.spacing_s * 1000;
+    const recordedMs = trueMs + scenario.clock_offset_s * 1000;
+    const trueHours = (trueMs - startMs) / 3600000;
+    const lookupHours =
+      scenario.almanac_lookup === 'recorded_time' ? (recordedMs - startMs) / 3600000 : trueHours;
+
+    // The TRUE direction is at the true instant; the direction WRITTEN INTO the session
+    // is at whichever instant `almanac_lookup` names. That difference is the clock
+    // experiment (CONVENTIONS section 6).
+    const trueDirection = suppliedDirection(source, trueHours);
+    const recordedDirection = suppliedDirection(source, lookupHours);
+    const trueAltitude = altitudeAzimuthDeg(
+      scenario.truth,
+      trueDirection.gha_deg,
+      trueDirection.dec_deg,
+    ).altitude_deg;
+    truthAltitudes.push(trueAltitude);
 
     let ho = trueAltitude;
-    ho += (scenario.noise_arcmin * gaussian(rng)) / 60;
+    ho += (scenario.altitude_noise_arcmin * gaussian(rng)) / 60;
     ho += scenario.shared_altitude_bias_arcmin / 60;
-    const id = `obs-${i + 1}`;
-    if (scenario.wrong_sight && scenario.wrong_sight.index === i) {
-      ho += scenario.wrong_sight.error_arcmin / 60;
-      wrongIds.push(id);
-    }
 
-    const horizon = scenario.horizon;
-    const reading = inverseToSextantReading(session, ho, horizon);
-    session.observations.push({
+    const id = `obs-${observations.length + 1}`;
+    observations.push({
       id,
-      body: bodies[i % bodies.length]!,
-      utc: new Date(startMs + i * 120000).toISOString().replace(/\.\d{3}Z$/, 'Z'),
-      altitude_deg: Number(reading.toFixed(5)),
-      altitude_kind: 'sextant_hs',
-      sigma_arcmin: scenario.sigma_arcmin,
+      body: source.name,
+      utc: rfc3339(recordedMs),
+      altitude_deg: ho,
+      altitude_kind: emitted.kind === 'sextant_hs' ? 'sextant_hs' : 'observed_ho',
+      sigma_arcmin: reportedSigma,
       limb: 'center',
       horizon: null,
-      geocentric: {
-        gha_deg: Number(gha.toFixed(6)),
-        dec_deg: Number(gp.lat_deg.toFixed(6)),
-        semidiameter_arcmin: 0,
-        horizontal_parallax_arcmin: 0,
-      },
+      geocentric: scenario.emit_supplied_directions
+        ? {
+            gha_deg: recordedDirection.gha_deg,
+            dec_deg: recordedDirection.dec_deg,
+            semidiameter_arcmin: 0,
+            horizontal_parallax_arcmin: 0,
+          }
+        : null,
       notes: '',
     });
   }
 
+  // The blunder indexes the EMITTED list, after anything was dropped.
+  const wrongIds: string[] = [];
+  if (scenario.wrong_sight) {
+    const target = observations[scenario.wrong_sight.index];
+    if (target) {
+      target.altitude_deg += scenario.wrong_sight.error_arcmin / 60;
+      wrongIds.push(target.id);
+    }
+  }
+
+  // Raw sextant readings: run the correction chain backwards, last.
+  if (emitted.kind === 'sextant_hs') {
+    for (const obs of observations) {
+      obs.altitude_deg = inverseToSextantReading(session, obs.altitude_deg, 'sea');
+    }
+  }
+  for (const obs of observations) obs.altitude_deg = Number(obs.altitude_deg.toFixed(6));
+  session.observations = observations;
+
   const truth: Truth = {
     schema: TRUTH_SCHEMA,
-    session_name: session.meta.name,
-    position: truthPoint,
+    session_name: scenario.name,
+    position: { ...scenario.truth },
     seed: scenario.seed,
     clock_offset_s: scenario.clock_offset_s,
     shared_altitude_bias_arcmin: scenario.shared_altitude_bias_arcmin,
     wrong_sight_ids: wrongIds,
     notes:
-      'Simulated truth. Never read by the solver and never merged into the session (CONVENTIONS section 11).',
+      'Simulated truth from the browser mock adapter. Never read by the solver and never ' +
+      'merged into the session (CONVENTIONS section 11).',
   };
   return { session, truth };
+}
+
+// ---------------------------------------------------------------------------
+// Experiments: repetitions, coverage, and the Wilson interval
+// ---------------------------------------------------------------------------
+
+/** Wilson score interval for k successes in m trials, 95 %. */
+export function wilsonInterval(k: number, m: number): [number, number] {
+  if (m <= 0) return [0, 1];
+  const z = 1.959963984540054;
+  const p = k / m;
+  const denom = 1 + (z * z) / m;
+  const centre = (p + (z * z) / (2 * m)) / denom;
+  const half = (z * Math.sqrt((p * (1 - p)) / m + (z * z) / (4 * m * m))) / denom;
+  return [Math.max(centre - half, 0), Math.min(centre + half, 1)];
+}
+
+function insideEllipse(fix: LatLon, truth: LatLon, ellipse: ErrorEllipse): boolean {
+  const north = (truth.lat_deg - fix.lat_deg) * 60 * NM_M;
+  const east =
+    norm180Deg(truth.lon_deg - fix.lon_deg) * 60 * NM_M * Math.cos(toRad(fix.lat_deg));
+  const t = toRad(ellipse.orientation_deg);
+  const major = north * Math.cos(t) + east * Math.sin(t);
+  const minor = -north * Math.sin(t) + east * Math.cos(t);
+  return (major / ellipse.semi_major_m) ** 2 + (minor / ellipse.semi_minor_m) ** 2 <= 1;
+}
+
+function mockExperiment(experiment: Experiment): ExperimentSummary {
+  const runs: RunRecord[] = [];
+  const notes: string[] = [
+    'Run by the browser mock adapter, not by skyfix_sim::experiment. Every number here is illustrative.',
+  ];
+  for (let i = 0; i < experiment.repetitions; i++) {
+    const seed = experiment.scenario.seed + i;
+    const record: RunRecord = {
+      repetition: i,
+      seed,
+      result_kind: 'failed',
+      converged: false,
+      sights_used: 0,
+      error_m: null,
+      error_north_m: null,
+      error_east_m: null,
+      sigma_north_m: null,
+      sigma_east_m: null,
+      clock_sigma_east_m: null,
+      ellipse_semi_major_m: null,
+      ellipse_semi_minor_m: null,
+      ellipse_orientation_deg: null,
+      mahalanobis: null,
+      inside_ellipse95: null,
+      residual_rms_arcmin: null,
+      max_abs_residual_arcmin: null,
+      chi2: null,
+      dof: null,
+      shared_bias_arcmin: null,
+      note: '',
+    };
+    try {
+      const { session, truth } = mockSimulate({ ...experiment.scenario, seed });
+      const result = mockSolve(session, experiment.solve_options);
+      record.result_kind = result.kind;
+      if (result.kind === 'unique') {
+        const fix = result.fix;
+        record.converged = fix.converged;
+        record.sights_used = fix.residuals.length;
+        const north = (truth.position.lat_deg - fix.position.lat_deg) * 60 * NM_M;
+        const east =
+          norm180Deg(truth.position.lon_deg - fix.position.lon_deg) *
+          60 *
+          NM_M *
+          Math.cos(toRad(fix.position.lat_deg));
+        record.error_north_m = north;
+        record.error_east_m = east;
+        record.error_m = Math.hypot(north, east);
+        record.sigma_north_m = fix.sigma_north_m;
+        record.sigma_east_m = fix.sigma_east_m;
+        record.clock_sigma_east_m = fix.clock_sigma_east_m;
+        record.chi2 = fix.chi2;
+        record.dof = fix.dof;
+        const residuals = fix.residuals.map((r) => r.residual_arcmin);
+        record.residual_rms_arcmin = Math.sqrt(
+          residuals.reduce((a, r) => a + r * r, 0) / Math.max(residuals.length, 1),
+        );
+        record.max_abs_residual_arcmin = Math.max(...residuals.map(Math.abs));
+        if (fix.ellipse95) {
+          record.ellipse_semi_major_m = fix.ellipse95.semi_major_m;
+          record.ellipse_semi_minor_m = fix.ellipse95.semi_minor_m;
+          record.ellipse_orientation_deg = fix.ellipse95.orientation_deg;
+          record.inside_ellipse95 = insideEllipse(fix.position, truth.position, fix.ellipse95);
+        }
+      }
+    } catch (error) {
+      record.note = String(error);
+    }
+    runs.push(record);
+  }
+
+  const evaluated = runs.filter((r) => r.inside_ellipse95 !== null);
+  const inside = evaluated.filter((r) => r.inside_ellipse95).length;
+  const kinds = new Map<string, number>();
+  for (const r of runs) kinds.set(r.result_kind, (kinds.get(r.result_kind) ?? 0) + 1);
+  const errors = runs.map((r) => r.error_m).filter((v): v is number => v !== null);
+  const sigmas = runs
+    .map((r) => (r.sigma_north_m !== null && r.sigma_east_m !== null
+      ? Math.hypot(r.sigma_north_m, r.sigma_east_m)
+      : null))
+    .filter((v): v is number => v !== null);
+  const mean = (xs: number[]): number | null =>
+    xs.length === 0 ? null : xs.reduce((a, b) => a + b, 0) / xs.length;
+  const rms = (xs: number[]): number | null =>
+    xs.length === 0 ? null : Math.sqrt(xs.reduce((a, b) => a + b * b, 0) / xs.length);
+  const meanError = mean(errors);
+  const meanSigma = mean(sigmas);
+
+  const aggregate: Aggregate = {
+    repetitions: experiment.repetitions,
+    evaluated: evaluated.length,
+    result_kind_counts: [...kinds.entries()],
+    coverage_fraction: evaluated.length > 0 ? inside / evaluated.length : null,
+    coverage_stderr:
+      evaluated.length > 0
+        ? Math.sqrt(
+            ((inside / evaluated.length) * (1 - inside / evaluated.length)) / evaluated.length,
+          )
+        : null,
+    coverage_ci95: evaluated.length > 0 ? wilsonInterval(inside, evaluated.length) : null,
+    mean_error_m: meanError,
+    rms_error_m: rms(errors),
+    mean_error_north_m: mean(
+      runs.map((r) => r.error_north_m).filter((v): v is number => v !== null),
+    ),
+    mean_error_east_m: mean(
+      runs.map((r) => r.error_east_m).filter((v): v is number => v !== null),
+    ),
+    mean_predicted_sigma_m: meanSigma,
+    rms_predicted_sigma_m: rms(sigmas),
+    error_to_sigma_ratio:
+      meanError !== null && meanSigma !== null && meanSigma > 0 ? meanError / meanSigma : null,
+    mean_residual_rms_arcmin: mean(
+      runs.map((r) => r.residual_rms_arcmin).filter((v): v is number => v !== null),
+    ),
+  };
+
+  return {
+    name: experiment.scenario.name,
+    description: experiment.scenario.description,
+    runs,
+    aggregate,
+    notes,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -716,16 +1044,7 @@ function mockSimulate(scenario: Scenario): SimulationOutput {
 export class MockApi implements SkyfixApi {
   readonly kind = 'mock' as const;
   readonly description =
-    'Mock adapter: spherical geometry is real, everything that needs an ephemeris is invented. Not a result.';
-  readonly mockedCalls = [
-    'parse_session',
-    'reduce',
-    'solve',
-    'circle_points',
-    'simulate',
-    'catalog',
-    'coverage',
-  ] as const;
+    'Browser mock adapter: spherical geometry is real, there is no star catalogue, and nothing here is a result. For UI development only.';
 
   async init(): Promise<void> {}
 
@@ -743,7 +1062,7 @@ export class MockApi implements SkyfixApi {
     return reduceEntries(session, mode);
   }
 
-  async solve(session: Session, options: SolveOptions): Promise<FixResult> {
+  async solve(session: Session, options: SolveOptions, _mode: EphemerisMode): Promise<FixResult> {
     return mockSolve(session, options);
   }
 
@@ -762,20 +1081,40 @@ export class MockApi implements SkyfixApi {
     return mockSimulate(scenario);
   }
 
+  async demos(): Promise<DemoEntry[]> {
+    return MOCK_DEMOS.map((scenario) => ({
+      name: scenario.name,
+      description: scenario.description,
+      requires_provider: scenario.sources.some((s) => s.source === 'named'),
+      scenario,
+    }));
+  }
+
+  async experiment(experiment: Experiment): Promise<ExperimentSummary> {
+    return mockExperiment(experiment);
+  }
+
   async catalog(): Promise<string[]> {
     return [...BODY_NAMES];
+  }
+
+  async plan(_position: LatLon, _utc: string, _options: PlanOptions): Promise<Plan> {
+    throw new Error(
+      'the mock adapter has no astronomy, so it cannot say which bodies are up. ' +
+        'Build the WebAssembly package (`npm run wasm --prefix web`) to use the planner.',
+    );
   }
 
   async coverage(): Promise<CoverageReport> {
     return {
       providers: [
         {
-          provider: 'mock',
+          provider: 'mock (none)',
           start_utc: '',
           end_utc: '',
           bodies: [],
           notes:
-            'The mock adapter has no ephemeris. Every observation must carry its own apparent geocentric gha_deg / dec_deg.',
+            'The mock adapter has no astronomy at all. Every observation must carry its own apparent geocentric gha_deg / dec_deg, and any scenario naming a real body is refused.',
           accuracy_arcmin: 0,
         },
       ],
@@ -784,4 +1123,4 @@ export class MockApi implements SkyfixApi {
   }
 }
 
-export { mockSolve, mockSimulate, reduceEntries, validate, gaussNewton, azimuthGap };
+export { mockSolve, mockSimulate, mockExperiment, reduceEntries, validate, gaussNewton, azimuthGap };

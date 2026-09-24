@@ -17,9 +17,6 @@
 export const SESSION_SCHEMA = 'skyfix.session/1';
 export const REFERENCE_SCHEMA = 'skyfix.reference/1';
 export const TRUTH_SCHEMA = 'skyfix.truth/1';
-/** Owned by the WASM adapter (crates/skyfix-wasm/src/lib.rs), not by types.rs. */
-export const SCENARIO_SCHEMA = 'skyfix.scenario/1';
-
 /** chi-square 95 % quantile, 2 dof. `skyfix_core::units::CHI2_95_2DOF`. */
 export const CHI2_95_2DOF = 5.991464547;
 /** Metres per nautical mile, exact. */
@@ -215,8 +212,13 @@ export interface SolveOptions {
 }
 
 /**
- * `SolveOptions` in types.rs carries no `#[serde(default)]`, so every field must be
- * present on the wire. This matches `SolveOptions::default()` exactly.
+ * Mirrors `SolveOptions::default()`. Since main, the Rust type is `#[serde(default)]`
+ * throughout, so a document may carry only the fields it changes — `{}` means
+ * "all defaults". The UI still sends the whole record so that what it asked for is
+ * visible in the network/console rather than implied.
+ *
+ * `prior` wins over the session's `assumed_position_role = prior` when both are set;
+ * the WASM adapter derives one from the other, and so does the Fix view.
  */
 export function defaultSolveOptions(): SolveOptions {
   return {
@@ -283,12 +285,26 @@ export interface Residual {
 
 export interface Conditioning {
   singular_values: number[];
-  condition_number: number;
+  /**
+   * NULL for singular geometry. The Rust field is `f64` and is infinite when the
+   * Jacobian has rank < 2 (one sight, or every sight in one direction), and
+   * `serde_json` writes infinity as `null`. Render it as "singular", never as 0.
+   */
+  condition_number: number | null;
   rank: number;
-  /** sqrt(trace((J^T J)^-1)): metres of position per arcminute of altitude noise. */
-  geometric_dilution_m_per_arcmin: number;
+  /**
+   * sqrt(trace((J^T J)^-1)): metres of position per arcminute of altitude noise.
+   * NULL for singular geometry, for the same reason as `condition_number`.
+   */
+  geometric_dilution_m_per_arcmin: number | null;
   /** Largest gap between consecutive sight azimuths, degrees. */
   max_azimuth_gap_deg: number;
+  /**
+   * Which Jacobian columns the singular values and rank describe:
+   * "position (north, east)", or "position (north, east) and shared bias" when a shared
+   * altitude bias is estimated. Serde-defaulted in Rust, so older documents omit it.
+   */
+  columns: string;
 }
 
 export interface PriorReport {
@@ -333,7 +349,14 @@ export type FixResult =
       circles: CircleOfPosition[];
       warnings: Warning[];
     }
-  | { kind: 'unique'; fix: Fix; alternatives: FixCandidate[]; warnings: Warning[] }
+  | {
+      kind: 'unique';
+      fix: Fix;
+      alternatives: FixCandidate[];
+      /** Included so a plot never has to re-derive them from the reduction. */
+      circles: CircleOfPosition[];
+      warnings: Warning[];
+    }
   | { kind: 'failed'; reason: string; warnings: Warning[] };
 
 // ---------------------------------------------------------------------------
