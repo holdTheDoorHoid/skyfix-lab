@@ -294,7 +294,8 @@ impl MotionUncertaintyInput {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SigmaInflationReport {
     pub id: String,
-    /// Hours from the sight to the reference instant, signed (negative: sight first).
+    /// Hours from the sight to the reference instant, `reference - sight`: positive when
+    /// the sight was taken first (the usual running fix), negative when after.
     pub hours_to_reference: f64,
     pub run_nm: f64,
     pub zn_deg: f64,
@@ -501,6 +502,9 @@ mod tests {
         assert!(out.applied);
         assert_eq!(out.inflations.len(), 3);
         assert!((out.inflations[0].run_nm - 36.0).abs() < 1e-3);
+        // The first sight was taken three hours before the reference: +3, as documented
+        // (the field comment used to say a sight taken first is negative).
+        assert!((out.inflations[0].hours_to_reference - 3.0).abs() < 1e-9);
         assert_eq!(
             out.reference_utc,
             case["truth"]["reference_utc"].as_str().unwrap()
