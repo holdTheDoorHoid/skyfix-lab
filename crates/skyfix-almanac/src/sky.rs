@@ -500,8 +500,11 @@ pub fn sample_bodies(
     };
     let first = times[0];
     let last = *times.last().unwrap_or(&first);
-    let nodes_needed = ((last - first) / track::MOON_NODE_SPACING_DAYS).ceil() as usize + 4;
-    let use_tracks = times.len() > 2 * nodes_needed && last > first;
+    // Counted in f64: a span of about 2e18 days or more would overflow a usize count
+    // (a panic, which aborts the WebAssembly module), and such a request is answered
+    // instant by instant anyway.
+    let nodes_needed = ((last - first) / track::MOON_NODE_SPACING_DAYS).ceil() + 4.0;
+    let use_tracks = (times.len() as f64) > 2.0 * nodes_needed && last > first;
 
     let empty = |name: &str| SampledBody {
         body: name.to_string(),
@@ -636,6 +639,20 @@ mod tests {
             ..Site::new(0.0, 0.0)
         };
         assert!(checked_site(&hot).is_err());
+    }
+
+    #[test]
+    fn an_enormous_window_is_an_answer_not_a_panic() {
+        // Verifier regression: 1441 samples spread over 1e308 days made the node count
+        // overflow a usize (capacity overflow in release, arithmetic overflow in debug).
+        let sky = Sky::new();
+        let site = Site::new(0.0, 0.0);
+        for (a, b, step) in [(0.0, 1e308, 1e308), (-1e308, 2_461_308.0, 1e308)] {
+            let s = sample_bodies(&sky, &site, &["Sun", "Moon"], a, b, step).unwrap();
+            assert_eq!(s.jd_utc.len(), 1441);
+            assert!(s.bodies.is_empty());
+            assert_eq!(s.errors.len(), 2);
+        }
     }
 
     #[test]
