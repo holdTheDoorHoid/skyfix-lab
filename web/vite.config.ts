@@ -36,18 +36,23 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     assetsInlineLimit: 0,
-    // Two pages while the explorer is built (docs/EXPLORER_PLAN.md): the current
-    // workbench at / and the new explorer at /next/.
+    // Pages while the explorer is built (docs/EXPLORER_PLAN.md): the current workbench
+    // at /, the new explorer at /next/, and the explorer's static design mockup at
+    // /next/mockup.html (hard-coded numbers, no engine; for design review only).
     rollupOptions: {
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         next: resolve(import.meta.dirname, 'next/index.html'),
+mockup: resolve(import.meta.dirname, 'next/mockup.html'),
         // The Sky view's developer page (sky agent): the view alone, for screenshots
         // and frame-time measurements.
         devSky: resolve(import.meta.dirname, 'next/dev-sky.html'),
       },
     },
   },
+  // MapLibre's web worker is an ES module that imports a shared chunk; bundle workers as
+  // ES modules so that import survives (the page loads it with `?worker&url`).
+  worker: { format: 'es' },
   server: { port: 5173, strictPort: false },
   test: {
     environment: 'node',
