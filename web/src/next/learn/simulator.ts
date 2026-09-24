@@ -416,7 +416,7 @@ function runPanel(env: LearnEnv, sim: SimState): { el: HTMLElement; fig: Figure 
     title: run.scenario.name,
   });
   const download = button({
-    label: 'Download the session (no answer key inside)',
+    label: `Download the session: ${run.session.observations.length} sight${run.session.observations.length === 1 ? '' : 's'}, no answer key inside`,
     icon: 'external',
     size: 'sm',
     variant: 'outline',

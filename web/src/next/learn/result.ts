@@ -528,7 +528,15 @@ export function numbersList(result: FixResult, facts: Facts, fmt: Fmt): HTMLElem
       ),
     );
     rows.push(row('Mahalanobis distance of the truth', facts.mahalanobis === null ? '—' : `${facts.mahalanobis.toFixed(2)} (the 95 % edge is 2.45)`));
-    rows.push(row('Condition number', `${conditionText(f.conditioning.condition_number)} (rank ${f.conditioning.rank})`));
+    rows.push(row('Condition number', `${conditionText(f.conditioning.condition_number)} (rank ${f.conditioning.rank}; singular values ${f.conditioning.singular_values.map((v) => v.toPrecision(3)).join(', ')})`));
+    rows.push(
+      row(
+        'Geometric dilution',
+        f.conditioning.geometric_dilution_m_per_arcmin === null
+          ? 'singular (no finite value)'
+          : `${fmt.dist(f.conditioning.geometric_dilution_m_per_arcmin)} of position per arcminute of altitude noise`,
+      ),
+    );
     rows.push(row('Largest gap between bearings', `${f.conditioning.max_azimuth_gap_deg.toFixed(1)}°`));
     rows.push(row('Fit', `χ² ${f.chi2.toFixed(2)} on ${f.dof} degree${f.dof === 1 ? '' : 's'} of freedom, ${f.converged ? 'converged' : 'NOT converged'} after ${f.iterations} iteration${f.iterations === 1 ? '' : 's'}`));
     if (f.shared_bias_arcmin !== null) rows.push(row('Estimated shared bias', arcmin(f.shared_bias_arcmin)));
