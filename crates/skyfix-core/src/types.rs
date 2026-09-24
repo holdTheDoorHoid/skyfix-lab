@@ -833,3 +833,70 @@ pub struct LunarDistanceResult {
     pub warnings: Vec<Warning>,
     pub notes: Vec<String>,
 }
+
+/// One body recommended for a twilight round of sights, with what the sextant will read
+/// at the start of the twilight window.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RecommendedSight {
+    pub body: String,
+    /// `"moon"`, `"planet"` or `"star"`.
+    pub kind: String,
+    /// Apparent visual magnitude, when modelled.
+    pub magnitude: Option<f64>,
+    /// 1-based position in the planner's shooting order.
+    pub step: usize,
+    /// The limb to observe: the Moon's lit one; `center` for a planet or star.
+    pub limb: Limb,
+    /// Computed altitude and true azimuth at the window's start (CONVENTIONS section 3).
+    pub hc_deg: f64,
+    pub zn_deg: f64,
+    /// The predicted sextant reading at the window's start.
+    pub hs_deg: f64,
+    /// Why the planner chose it (its geometry), from `skyfix_core::planner`.
+    pub rationale: String,
+    /// The full prediction: direction, every correction, warnings.
+    pub prediction: PredictedSight,
+}
+
+/// One nautical twilight: the Sun's centre between -6 and -12 degrees (CONVENTIONS
+/// 13.3-13.4), evening or morning, and the sights recommended for it.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TwilightPlan {
+    /// `"evening"` (Sun going down from -6 to -12 degrees) or `"morning"` (up from -12
+    /// to -6 degrees).
+    pub kind: String,
+    pub jd_start: f64,
+    pub utc_start: String,
+    pub jd_end: f64,
+    pub utc_end: String,
+    /// The instant the predictions refer to: the window's start, or the search window's
+    /// start when the twilight had already begun.
+    pub jd_predicted: f64,
+    pub utc_predicted: String,
+    /// The Sun's topocentric geometric altitude at `jd_predicted`, degrees.
+    pub sun_altitude_deg: f64,
+    /// Bodies fainter than this were not offered (see `notes`).
+    pub limiting_magnitude: f64,
+    pub sights: Vec<RecommendedSight>,
+    /// Bodies bright enough and high enough that were not chosen, for a navigator who
+    /// wants more sights or a substitute.
+    pub also_eligible: Vec<String>,
+    /// The planner's ranking of the chosen bodies: shooting order, predicted fix
+    /// quality, disclosures.
+    pub plan: crate::planner::Plan,
+    pub notes: Vec<String>,
+}
+
+/// The twilight sight plan for a place and a span of time.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct SightPlan {
+    pub observer: SightObserver,
+    pub jd_start: f64,
+    pub utc_start: String,
+    pub jd_end: f64,
+    pub utc_end: String,
+    /// The next evening and the next morning nautical twilight in the window, in time
+    /// order (none when the Sun does not pass through -6 to -12 degrees).
+    pub windows: Vec<TwilightPlan>,
+    pub notes: Vec<String>,
+}

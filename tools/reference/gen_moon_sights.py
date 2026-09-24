@@ -3,6 +3,7 @@
 Produces
     fixtures/reference/moon_planet_sights.json
     fixtures/reference/lunar_distances.json
+    fixtures/reference/nautical_twilight.json
     fixtures/sessions/reference-moon-planets-atlantic.json          (+ -sphere)
     fixtures/sessions/reference-moon-venus-timor.json               (+ -sphere)
     fixtures/expected/<each of the four>.truth.json and .expected.json
@@ -814,6 +815,59 @@ def build_lunar_cases(sky):
 
 
 # ---------------------------------------------------------------------------
+# Nautical twilight instants (for the twilight sight planner)
+# ---------------------------------------------------------------------------
+
+TWILIGHT_SITES = [
+    ("philadelphia", 39.9526, -75.1652, "2026-10-01"),
+    ("off_cape_may", 38.90, -74.80, "2025-02-10"),
+    ("timor_sea", -12.20, 128.50, "2026-11-26"),
+    ("equator_pacific", 0.0, -160.0, "2027-03-20"),
+    ("cape_horn", -56.0, -67.3, "2026-12-21"),
+    ("north_sea", 57.0, 3.0, "2026-06-10"),
+    ("reykjavik", 64.15, -21.94, "2026-01-15"),
+    ("sydney", -33.87, 151.21, "2028-07-04"),
+]
+
+
+def build_twilights(sky):
+    """The Sun's centre, topocentric and geometric on the WGS84 Earth at sea level,
+    crossing -6 and -12 degrees (CONVENTIONS 13.3), found with Skyfield's
+    find_discrete over two days from the given date."""
+    from skyfield.searchlib import find_discrete
+
+    cases = []
+    for name, lat, lon, day in TWILIGHT_SITES:
+        start = _dt.datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=_dt.timezone.utc)
+        t0 = sky.time(start)
+        t1 = sky.time(start + _dt.timedelta(days=2))
+        ts = sky._ts[round((float(t0.tai) - c.jd_utc_of(t0)) * 86400.0)]
+        site = sky.site("wgs84", lat, lon)
+        events = []
+        for level in (-6.0, -12.0):
+            def above(t, level=level):
+                alt, _, _ = site.at(t).observe(sky.sun).apparent().altaz()
+                return alt.degrees > level
+            above.step_days = 1.0 / 48.0
+            times, values = find_discrete(ts.tt_jd(t0.tt), ts.tt_jd(t1.tt), above)
+            for t, v in zip(times, values):
+                events.append((c.jd_utc_of(t), level, bool(v), t.utc_strftime("%Y-%m-%dT%H:%M:%SZ")))
+        events.sort()
+        cases.append(c.Inline({
+            "site": name,
+            "lat_deg": c.deg(lat),
+            "lon_deg": c.deg(lon),
+            "from_utc": start.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "jd_from": c.jd(c.jd_utc_of(t0)),
+            "crossings": [
+                c.Inline({"jd_utc": c.jd(j), "utc": u, "level_deg": c.Num(lv, 1), "rising": r})
+                for (j, lv, r, u) in events
+            ],
+        }))
+    return cases
+
+
+# ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
 
@@ -907,6 +961,19 @@ def main():
         "cases": lunar,
     }
     c.write_json(os.path.join(c.FIX_REFERENCE, "lunar_distances.json"), doc)
+
+    doc = {
+        "schema": "skyfix.reference/1",
+        "name": "nautical_twilight",
+        "generator": generator(
+            "Instants at which the Sun's centre (topocentric, geometric, WGS84 sea level) crosses -6 and -12 degrees over two days at eight sites.",
+            0.0,
+            "CONVENTIONS 13.7: twilight within 10 s of Skyfield with the same definition.",
+            extra={"time_tolerance_s": c.Num(10.0, 1)},
+        ),
+        "cases": build_twilights(sky),
+    }
+    c.write_json(os.path.join(c.FIX_REFERENCE, "nautical_twilight.json"), doc)
 
 
 if __name__ == "__main__":

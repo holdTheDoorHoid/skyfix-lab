@@ -1,0 +1,82 @@
+{
+  "cases": [
+    {"crossings": [{"jd_utc": 2461314.915714337, "level_deg": -12.0, "rising": true, "utc": "2026-10-01T09:58:38Z"}, {"jd_utc": 2461314.937514050, "level_deg": -6.0, "rising": true, "utc": "2026-10-01T10:30:01Z"}, {"jd_utc": 2461315.465138716, "level_deg": -6.0, "rising": false, "utc": "2026-10-01T23:09:48Z"}, {"jd_utc": 2461315.486893129, "level_deg": -12.0, "rising": false, "utc": "2026-10-01T23:41:08Z"}, {"jd_utc": 2461315.916401174, "level_deg": -12.0, "rising": true, "utc": "2026-10-02T09:59:37Z"}, {"jd_utc": 2461315.938190553, "level_deg": -6.0, "rising": true, "utc": "2026-10-02T10:31:00Z"}, {"jd_utc": 2461316.464021428, "level_deg": -6.0, "rising": false, "utc": "2026-10-02T23:08:11Z"}, {"jd_utc": 2461316.485766648, "level_deg": -12.0, "rising": false, "utc": "2026-10-02T23:39:30Z"}], "from_utc": "2026-10-01T00:00:00Z", "jd_from": 2461314.500000000, "lat_deg": 39.952600000, "lon_deg": -75.165200000, "site": "philadelphia"},
+    {"crossings": [{"jd_utc": 2460716.956242885, "level_deg": -12.0, "rising": true, "utc": "2025-02-10T10:56:59Z"}, {"jd_utc": 2460716.978051964, "level_deg": -6.0, "rising": true, "utc": "2025-02-10T11:28:24Z"}, {"jd_utc": 2460717.457569554, "level_deg": -6.0, "rising": false, "utc": "2025-02-10T22:58:54Z"}, {"jd_utc": 2460717.479395045, "level_deg": -12.0, "rising": false, "utc": "2025-02-10T23:30:20Z"}, {"jd_utc": 2460717.955521932, "level_deg": -12.0, "rising": true, "utc": "2025-02-11T10:55:57Z"}, {"jd_utc": 2460717.977299933, "level_deg": -6.0, "rising": true, "utc": "2025-02-11T11:27:19Z"}, {"jd_utc": 2460718.458322584, "level_deg": -6.0, "rising": false, "utc": "2025-02-11T22:59:59Z"}, {"jd_utc": 2460718.480117701, "level_deg": -12.0, "rising": false, "utc": "2025-02-11T23:31:22Z"}], "from_utc": "2025-02-10T00:00:00Z", "jd_from": 2460716.500000000, "lat_deg": 38.900000000, "lon_deg": -74.800000000, "site": "off_cape_may"},
+    {"crossings": [{"jd_utc": 2461370.915823980, "level_deg": -6.0, "rising": false, "utc": "2026-11-26T09:58:47Z"}, {"jd_utc": 2461370.934484692, "level_deg": -12.0, "rising": false, "utc": "2026-11-26T10:25:39Z"}, {"jd_utc": 2461371.333946221, "level_deg": -12.0, "rising": true, "utc": "2026-11-26T20:00:53Z"}, {"jd_utc": 2461371.352612703, "level_deg": -6.0, "rising": true, "utc": "2026-11-26T20:27:46Z"}, {"jd_utc": 2461371.916199634, "level_deg": -6.0, "rising": false, "utc": "2026-11-27T09:59:20Z"}, {"jd_utc": 2461371.934888791, "level_deg": -12.0, "rising": false, "utc": "2026-11-27T10:26:14Z"}, {"jd_utc": 2461372.333993367, "level_deg": -12.0, "rising": true, "utc": "2026-11-27T20:00:57Z"}, {"jd_utc": 2461372.352688174, "level_deg": -6.0, "rising": true, "utc": "2026-11-27T20:27:52Z"}], "from_utc": "2026-11-26T00:00:00Z", "jd_from": 2461370.500000000, "lat_deg": -12.200000000, "lon_deg": 128.500000000, "site": "timor_sea"},
+    {"crossings": [{"jd_utc": 2461484.716390990, "level_deg": -6.0, "rising": false, "utc": "2027-03-20T05:11:36Z"}, {"jd_utc": 2461484.733054470, "level_deg": -12.0, "rising": false, "utc": "2027-03-20T05:35:36Z"}, {"jd_utc": 2461485.166311720, "level_deg": -12.0, "rising": true, "utc": "2027-03-20T15:59:29Z"}, {"jd_utc": 2461485.182975108, "level_deg": -6.0, "rising": true, "utc": "2027-03-20T16:23:29Z"}, {"jd_utc": 2461485.716184910, "level_deg": -6.0, "rising": false, "utc": "2027-03-21T05:11:18Z"}, {"jd_utc": 2461485.732848281, "level_deg": -12.0, "rising": false, "utc": "2027-03-21T05:35:18Z"}, {"jd_utc": 2461486.166104570, "level_deg": -12.0, "rising": true, "utc": "2027-03-21T15:59:11Z"}, {"jd_utc": 2461486.182768177, "level_deg": -6.0, "rising": true, "utc": "2027-03-21T16:23:11Z"}], "from_utc": "2027-03-20T00:00:00Z", "jd_from": 2461484.500000000, "lat_deg": 0.000000000, "lon_deg": -160.000000000, "site": "equator_pacific"},
+    {"crossings": [{"jd_utc": 2461395.596045806, "level_deg": -6.0, "rising": false, "utc": "2026-12-21T02:18:18Z"}, {"jd_utc": 2461395.774929476, "level_deg": -6.0, "rising": true, "utc": "2026-12-21T06:35:54Z"}, {"jd_utc": 2461396.596410328, "level_deg": -6.0, "rising": false, "utc": "2026-12-22T02:18:50Z"}, {"jd_utc": 2461396.775266674, "level_deg": -6.0, "rising": true, "utc": "2026-12-22T06:36:23Z"}], "from_utc": "2026-12-21T00:00:00Z", "jd_from": 2461395.500000000, "lat_deg": -56.000000000, "lon_deg": -67.300000000, "site": "cape_horn"},
+    {"crossings": [{"jd_utc": 2461201.575809184, "level_deg": -6.0, "rising": true, "utc": "2026-06-10T01:49:10Z"}, {"jd_utc": 2461202.407414407, "level_deg": -6.0, "rising": false, "utc": "2026-06-10T21:46:41Z"}, {"jd_utc": 2461202.575174339, "level_deg": -6.0, "rising": true, "utc": "2026-06-11T01:48:15Z"}, {"jd_utc": 2461203.408279642, "level_deg": -6.0, "rising": false, "utc": "2026-06-11T21:47:55Z"}], "from_utc": "2026-06-10T00:00:00Z", "jd_from": 2461201.500000000, "lat_deg": 57.000000000, "lon_deg": 3.000000000, "site": "north_sea"},
+    {"crossings": [{"jd_utc": 2461055.863461505, "level_deg": -12.0, "rising": true, "utc": "2026-01-15T08:43:23Z"}, {"jd_utc": 2461055.908043597, "level_deg": -6.0, "rising": true, "utc": "2026-01-15T09:47:35Z"}, {"jd_utc": 2461056.227368595, "level_deg": -6.0, "rising": false, "utc": "2026-01-15T17:27:25Z"}, {"jd_utc": 2461056.271984508, "level_deg": -12.0, "rising": false, "utc": "2026-01-15T18:31:39Z"}, {"jd_utc": 2461056.862519242, "level_deg": -12.0, "rising": true, "utc": "2026-01-16T08:42:02Z"}, {"jd_utc": 2461056.906877983, "level_deg": -6.0, "rising": true, "utc": "2026-01-16T09:45:54Z"}, {"jd_utc": 2461057.229029660, "level_deg": -6.0, "rising": false, "utc": "2026-01-16T17:29:48Z"}, {"jd_utc": 2461057.273423885, "level_deg": -12.0, "rising": false, "utc": "2026-01-16T18:33:44Z"}], "from_utc": "2026-01-15T00:00:00Z", "jd_from": 2461055.500000000, "lat_deg": 64.150000000, "lon_deg": -21.940000000, "site": "reykjavik"},
+    {"crossings": [{"jd_utc": 2461956.809809290, "level_deg": -6.0, "rising": false, "utc": "2028-07-04T07:26:08Z"}, {"jd_utc": 2461956.831397788, "level_deg": -12.0, "rising": false, "utc": "2028-07-04T07:57:13Z"}, {"jd_utc": 2461957.334786985, "level_deg": -12.0, "rising": true, "utc": "2028-07-04T20:02:06Z"}, {"jd_utc": 2461957.356358789, "level_deg": -6.0, "rising": true, "utc": "2028-07-04T20:33:09Z"}, {"jd_utc": 2461957.810123140, "level_deg": -6.0, "rising": false, "utc": "2028-07-05T07:26:35Z"}, {"jd_utc": 2461957.831694832, "level_deg": -12.0, "rising": false, "utc": "2028-07-05T07:57:38Z"}, {"jd_utc": 2461958.334719625, "level_deg": -12.0, "rising": true, "utc": "2028-07-05T20:02:00Z"}, {"jd_utc": 2461958.356273530, "level_deg": -6.0, "rising": true, "utc": "2028-07-05T20:33:02Z"}], "from_utc": "2028-07-04T00:00:00Z", "jd_from": 2461956.500000000, "lat_deg": -33.870000000, "lon_deg": 151.210000000, "site": "sydney"}
+  ],
+  "generator": {
+    "catalogue": {
+      "file": "hip_main.dat",
+      "sha256": "58ceabb104d647160d9437ce6e513a02a036bb4ad9f8879a5a22fd52943616e0",
+      "size_bytes": 53316318,
+      "url": "https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat"
+    },
+    "description": "Instants at which the Sun's centre (topocentric, geometric, WGS84 sea level) crosses -6 and -12 degrees over two days at eight sites.",
+    "ephemeris": {
+      "file": "de440s.bsp",
+      "sha256": "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2",
+      "size_bytes": 32726016,
+      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp"
+    },
+    "frame": {
+      "computed_as": "earth.at(t).observe(body).apparent().radec(epoch='date'); GHA = normalise(t.gast * 15 - RA_deg) into [0, 360).",
+      "definition": "Apparent geocentric of date (CONVENTIONS section 7): true equator and equinox of date.",
+      "excludes": [
+        "polar motion",
+        "diurnal aberration (this is a geocentric frame; the observer is not moving in it)",
+        "topocentric parallax (CONVENTIONS section 5 applies it as an altitude correction)",
+        "atmospheric refraction"
+      ],
+      "gha_sign": "west-positive, [0, 360), as tabulated in the Nautical Almanac",
+      "includes": [
+        "precession and nutation to the true equator and equinox of date (Skyfield's IAU 2000A/2006 model)",
+        "annual aberration (Earth's barycentric velocity)",
+        "relativistic light deflection by the Sun",
+        "light-time (Sun and planets)",
+        "stellar proper motion and annual parallax from the Hipparcos catalogue (stars)"
+      ],
+      "sha": "SHA = 360 - RA_deg; GHA_star = GHA_Aries + SHA"
+    },
+    "generated_utc": "2026-09-24T16:14:02Z",
+    "horizontal_parallax": "Moon asin(6378.14 km / geometric distance); planets asin(6378.137 km / light-time distance); Sun 8.794 arcsec at 1 au",
+    "never_a_runtime_dependency": "Generated by tools/reference/ (Python + Skyfield). CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "refraction": {
+      "applied_as": "true -> apparent by solving H - R(H) = h for the apparent altitude H",
+      "formula": "CONVENTIONS section 5 step 3 (Bennett 1982), common.py:bennett_refraction_arcmin, coded from the text",
+      "skyfield_refraction": "not used (it differs from CONVENTIONS by 0.07 % of the refraction)"
+    },
+    "semidiameters": "Moon asin(0.2725076 x 6378.14 km / d); Sun 959.63 arcsec at 1 au; planets asin(IAU 2015 equatorial radius / d); topocentric d for the sights, geocentric d for the supplied directions",
+    "time_tolerance_s": 10.0,
+    "timescale": {
+      "call": "skyfield.api.load.timescale(builtin=True)",
+      "delta_t_source": "Skyfield's bundled skyfield/data/iers.npz, a daily Delta-T table built from the IERS finals2000A.all series at the time the Skyfield wheel was released. Outside the table Skyfield extrapolates with its long-term Delta-T model (Morrison & Stephenson / Espenak & Meeus).",
+      "delta_t_table_utc_span": [
+        "1973-01-02T00:00:00Z",
+        "2027-01-23T00:00:00Z"
+      ],
+      "dut1_definition": "DUT1 = UT1 - UTC = 32.184 + Delta_AT - Delta_T, as Skyfield derives it",
+      "leap_second_table": "bundled in the same iers.npz; latest offset 37 s from 2017-01-01",
+      "polar_motion": "not applied (no polar-motion table installed)",
+      "warning_dut1": "CONVENTIONS section 6 assumes DUT1 = 0. Skyfield does not: every GHA in these fixtures uses Skyfield's UT1. The per-epoch dut1_s is recorded, and gha_deg_dut1_zero gives the same GHA recomputed with UT1 = UTC so a DUT1 = 0 implementation has a directly comparable number. 1 s of DUT1 = 15.0410686 arcsec of GHA. Beyond the Delta-T table's end the extrapolated Delta-T implies |DUT1| far above the 0.9 s that real leap seconds enforce (about -3.5 s at 2055), so gha_deg alone is not a physically meaningful prediction for far-future epochs; gha_deg_dut1_zero is."
+    },
+    "tolerance_arcmin": 0.000000,
+    "tolerance_justification": "CONVENTIONS 13.7: twilight within 10 s of Skyfield with the same definition.",
+    "tool": "tools/reference/gen_moon_sights.py",
+    "ut1": "Every instant is on a timescale with UT1 = UTC (Delta-T = 32.184 s + TAI - UTC), so GHA and the horizon frame carry DUT1 = 0 (CONVENTIONS section 6).",
+    "venus": "centre of light: moved toward the Sun by 0.44 (1 - cos i) SD (the Nautical Almanac convention, skyfix_ephemeris::sights)",
+    "versions": {
+      "jplephem": "2.24",
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "python": "3.12.3",
+      "skyfield": "1.55"
+    }
+  },
+  "name": "nautical_twilight",
+  "schema": "skyfix.reference/1"
+}
