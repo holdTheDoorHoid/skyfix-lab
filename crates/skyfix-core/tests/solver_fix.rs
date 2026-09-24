@@ -502,3 +502,46 @@ fn non_unique_results_say_the_ellipse_is_suppressed() {
         );
     }
 }
+
+/// The global grid has to work anywhere, not just off the US east coast. Truths are drawn
+/// uniformly over the sphere (uniform in sin(latitude)) with a random azimuth rotation,
+/// and solved with no initializer at all.
+#[test]
+fn the_global_grid_finds_the_fix_anywhere_on_the_sphere() {
+    let mut rng = Rng::new(0xA11_9091);
+    let options = SolveOptions::default();
+    let trials = 40;
+    let mut worst = 0.0f64;
+    let started = std::time::Instant::now();
+    for t in 0..trials {
+        // |lat| <= 80 deg: the poles have no longitude to recover.
+        let lat = (2.0 * rng.next_f64() - 1.0)
+            .clamp(-0.985, 0.985)
+            .asin()
+            .to_degrees()
+            * 0.89;
+        let lon = 360.0 * rng.next_f64() - 180.0;
+        let truth = Point::from_deg(lat, lon);
+        let rotation = 360.0 * rng.next_f64();
+        let sights: Vec<_> = [(0.0, 30.0), (85.0, 55.0), (170.0, 24.0), (265.0, 47.0)]
+            .iter()
+            .enumerate()
+            .map(|(k, &(zn, alt))| {
+                sight_at(&format!("g{k}"), "Star", truth, zn + rotation, alt, 1.0)
+            })
+            .collect();
+        let result = solve(&sights, &options);
+        let fix = unique(&result);
+        let err = distance_m(point_of(fix.position), truth);
+        assert!(
+            err < 10.0,
+            "trial {t} at {lat:.3}, {lon:.3}: {err:.3} m from truth"
+        );
+        worst = worst.max(err);
+    }
+    let per_solve = started.elapsed().as_secs_f64() * 1e3 / trials as f64;
+    println!(
+        "global grid: {trials} truths over the whole sphere, worst error {worst:.4} m, \
+         {per_solve:.1} ms per grid solve"
+    );
+}
