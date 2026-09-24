@@ -177,14 +177,7 @@ fn sight_block(s: &ReducedSight, session: &Session) -> String {
         "  GHA {:.4} deg   Dec {:+.4} deg\n",
         s.gha_deg, s.dec_deg
     ));
-    out.push_str(&format!(
-        "  {}{}{:>11}{:>12}{:>9}  note\n",
-        report::pad("step", 28),
-        report::pad("applied", 9),
-        "before deg",
-        "after deg",
-        "delta '"
-    ));
+    out.push_str(&step_header());
     for step in &s.corrections.steps {
         out.push_str(&step_row(step));
     }
@@ -218,7 +211,20 @@ fn sight_block(s: &ReducedSight, session: &Session) -> String {
     out
 }
 
-fn step_row(step: &CorrectionStep) -> String {
+/// The column headings of [`step_row`].
+pub fn step_header() -> String {
+    format!(
+        "  {}{}{:>11}{:>12}{:>9}  note\n",
+        report::pad("step", 28),
+        report::pad("applied", 9),
+        "before deg",
+        "after deg",
+        "delta '"
+    )
+}
+
+/// One correction step as a table row (`skyfix predict` prints the same table).
+pub fn step_row(step: &CorrectionStep) -> String {
     format!(
         "  {}{}{:>11.6}{:>12.6}{:>9.2}  {}\n",
         report::pad(report::correction_kind_name(step.kind), 28),

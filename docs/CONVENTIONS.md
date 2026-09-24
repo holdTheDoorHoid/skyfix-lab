@@ -391,8 +391,9 @@ drawing), constellation boundaries (IAU 1930 definitions), the offline basemap a
 gazetteer (Natural Earth) are **display-only**. They never enter `reduce`, `solve`, the
 planner's navigation candidates or any accuracy claim. Enforced by crate boundaries:
 `skyfix-starfield` is not a dependency of `skyfix-core`, `skyfix-ephemeris`,
-`skyfix-sim` or `skyfix-almanac`; only `skyfix-wasm` joins it with the engine (for
-example, to label a planet's constellation).
+`skyfix-sim` or `skyfix-almanac`; only the adapters join it with the engine, to label a
+body's constellation: `skyfix-wasm` (the `sky_state` export) and `skyfix-cli` (the
+constellation column of `skyfix sky`).
 
 ### 13.7 Accuracy targets and validation
 

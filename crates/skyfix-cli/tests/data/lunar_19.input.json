@@ -1,0 +1,26 @@
+{
+  "body": "Venus",
+  "body_altitude": null,
+  "body_limb": null,
+  "distance_deg": 74.240349,
+  "dr_uncertainty_nm": 0,
+  "instrument": {
+    "horizon": "sea",
+    "index_correction_arcmin": -1.5
+  },
+  "moon_altitude": {
+    "altitude_deg": 49.267192,
+    "altitude_kind": "sextant_hs",
+    "limb": "lower",
+    "sigma_arcmin": 1.0
+  },
+  "moon_limb": "near",
+  "observer": {
+    "height_of_eye_m": 10,
+    "lat_deg": 23.1443,
+    "lon_deg": -103.1079
+  },
+  "search_hours": 12,
+  "sigma_arcmin": 0.2,
+  "utc_estimate": "2029-10-17T01:05:43Z"
+}

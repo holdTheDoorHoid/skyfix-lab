@@ -304,7 +304,8 @@ pub struct BodyState {
     pub bright_limb_angle_deg: Option<f64>,
     pub parallactic_angle_deg: f64,
     /// IAU abbreviation from `skyfix-starfield`; always `None` in this crate, which
-    /// must not depend on the star field (CONVENTIONS 13.6). The WASM layer fills it.
+    /// must not depend on the star field (CONVENTIONS 13.6). The adapters fill it: the
+    /// WASM `sky_state` export and `skyfix sky`.
     pub constellation: Option<String>,
 }
 

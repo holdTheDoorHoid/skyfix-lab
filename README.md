@@ -112,7 +112,7 @@ TypeScript unit tests (98 passing, across 6 files, at the time of writing).
 | `crates/skyfix-core` | units, conventions, sight reduction, corrections, solver, uncertainty (no I/O) |
 | `crates/skyfix-ephemeris` | offline Sun and navigational-star providers, fixture packs, coverage metadata |
 | `crates/skyfix-sim` | seeded simulator, error experiments, Monte Carlo coverage checks |
-| `crates/skyfix-cli` | `skyfix validate\|reduce\|solve\|catalog\|coverage\|convert\|demos\|simulate\|experiment\|plan` |
+| `crates/skyfix-cli` | `skyfix validate\|reduce\|solve\|catalog\|coverage\|convert\|demos\|simulate\|experiment\|plan`, and the explorer engine's `sky\|events\|phases\|seasons\|noon\|polaris\|average\|running-fix\|predict\|lunar\|plan-sights` |
 | `crates/skyfix-wasm` | wasm-bindgen adapter for the browser |
 | `crates/skyfix-camera` | module A: stationary camera star-sextant on synthetic images |
 | `crates/skyfix-polar` | module B: polarization compass heading laboratory (simulation only) |

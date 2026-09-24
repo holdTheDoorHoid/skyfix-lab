@@ -106,7 +106,8 @@ impl TimedSight {
 #[derive(Debug, Clone, PartialEq)]
 pub struct SigmaInflation {
     pub id: String,
-    /// Hours from the sight to the reference instant, signed (negative = sight first).
+    /// Hours from the sight to the reference instant, `reference - sight`: positive when
+    /// the sight was taken first, negative when it was taken after the reference.
     pub hours_to_reference: f64,
     /// Straight-line displacement over that interval, nautical miles.
     pub run_nm: f64,
