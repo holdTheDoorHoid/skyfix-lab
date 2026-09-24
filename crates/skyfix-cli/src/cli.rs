@@ -12,7 +12,6 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use skyfix_core::types::{LatLon, PositionPrior};
 
-use crate::commands::almanac::AlmanacFormat;
 use crate::commands::plan::ObjectiveArg;
 use crate::commands::solve;
 use crate::provider::EphemerisChoice;
@@ -182,9 +181,27 @@ pub enum Command {
         date: String,
         /// `text`: the two pages laid out in columns; `json`: the AlmanacDay document with
         /// raw and printed values.
-        #[arg(long, value_enum, default_value_t = AlmanacFormat::Text, value_name = "FORMAT")]
-        format: AlmanacFormat,
+        #[arg(long, value_enum, default_value_t = OutputFormat::Text, value_name = "FORMAT")]
+        format: OutputFormat,
     },
+}
+
+/// `--format text|json`: the one output-format choice of `almanac` and of the explorer
+/// commands (`commands::explorer`, which add `--json` as the older commands spell it).
+///
+/// `almanac` and the explorer commands used to declare two identical enums for this. One
+/// type means one spelling of the values, one help text and one place to change them.
+/// `skyfix eclipse` alone can also write GeoJSON, a format only a map path has, so it
+/// takes its own three-valued `--format` (text, json, geojson)
+/// rather than give every other command a value it would have to refuse.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
+pub enum OutputFormat {
+    /// Plain text for a person to read: navigator-style angles, UTC with Z, sentences.
+    #[default]
+    Text,
+    /// The engine's own result, as serde emits it (the wire shapes of
+    /// docs/EXPLORER_API.md).
+    Json,
 }
 
 /// Solver options shared by `solve` and `experiment`. Every one of these overrides
@@ -444,5 +461,46 @@ mod tests {
     #[test]
     fn reduce_json_and_csv_cannot_both_be_given() {
         assert!(Cli::try_parse_from(["skyfix", "reduce", "s.json", "--json", "--csv"]).is_err());
+    }
+
+    /// `almanac` and the explorer commands share one `--format` type, with the same
+    /// values and the same default, and neither takes a value the other does not.
+    #[test]
+    fn almanac_and_the_explorer_commands_share_one_output_format() {
+        let almanac = |extra: &[&str]| -> Result<OutputFormat, clap::Error> {
+            let mut args = vec!["skyfix", "almanac", "--date", "2026-09-24"];
+            args.extend_from_slice(extra);
+            let Command::Almanac { format, .. } = Cli::try_parse_from(args)?.command else {
+                panic!("expected almanac")
+            };
+            Ok(format)
+        };
+        let seasons = |extra: &[&str]| -> Result<OutputFormat, clap::Error> {
+            let mut args = vec!["skyfix", "seasons", "--year", "2026"];
+            args.extend_from_slice(extra);
+            let Command::Explorer(crate::commands::explorer::ExplorerCommand::Seasons(a)) =
+                Cli::try_parse_from(args)?.command
+            else {
+                panic!("expected seasons")
+            };
+            Ok(a.format.format)
+        };
+        assert_eq!(almanac(&[]).unwrap(), OutputFormat::Text);
+        assert_eq!(seasons(&[]).unwrap(), OutputFormat::Text);
+        assert_eq!(almanac(&["--format", "json"]).unwrap(), OutputFormat::Json);
+        assert_eq!(seasons(&["--format", "json"]).unwrap(), OutputFormat::Json);
+        for bad in ["pdf", "geojson", "csv"] {
+            assert!(
+                almanac(&["--format", bad]).is_err(),
+                "almanac --format {bad}"
+            );
+            assert!(
+                seasons(&["--format", bad]).is_err(),
+                "seasons --format {bad}"
+            );
+        }
+        // Unchanged by the merge: `--json` is the explorer commands' spelling only.
+        assert!(almanac(&["--json"]).is_err());
+        assert!(seasons(&["--json"]).is_ok());
     }
 }

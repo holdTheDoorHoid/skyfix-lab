@@ -14,24 +14,17 @@ use anyhow::{Result, anyhow};
 use skyfix_almanac::pages::{AlmanacDay, TableTime, almanac_day};
 use skyfix_ephemeris::body::Sky;
 
+use crate::cli::OutputFormat;
 use crate::exit;
 use crate::report;
 
-/// `--format` values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
-pub enum AlmanacFormat {
-    /// The two pages, laid out in columns.
-    #[default]
-    Text,
-    /// The `AlmanacDay` document (docs/EXPLORER_API.md), raw and printed values.
-    Json,
-}
-
-pub fn run(date: &str, format: AlmanacFormat) -> Result<u8> {
+/// `--format text` prints the two pages laid out in columns; `--format json` the
+/// `AlmanacDay` document (docs/EXPLORER_API.md) with raw and printed values.
+pub fn run(date: &str, format: OutputFormat) -> Result<u8> {
     let day = almanac_day(&Sky::new(), date).map_err(|e| anyhow!("{e}"))?;
     match format {
-        AlmanacFormat::Json => report::emit_line(&serde_json::to_string_pretty(&day)?)?,
-        AlmanacFormat::Text => report::emit(&render(&day))?,
+        OutputFormat::Json => report::emit_line(&serde_json::to_string_pretty(&day)?)?,
+        OutputFormat::Text => report::emit(&render(&day))?,
     }
     Ok(exit::OK)
 }

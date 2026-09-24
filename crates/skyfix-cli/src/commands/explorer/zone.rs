@@ -17,6 +17,50 @@
 //! An IANA name is refused with a sentence that says why and what to type instead. It is
 //! never guessed at: a wrong guess about daylight saving would put every event an hour
 //! out with nothing on the screen to say so.
+//!
+//! `events` takes the nautical zone's longitude from its observer. `phases` and `seasons`
+//! have no observer — their instants are the same everywhere on Earth — so they take
+//! [`ZoneArgs`]: `--zone`, and `--lon` for the nautical zone only.
+
+use anyhow::{Result, bail};
+
+use super::args::parse_lon;
+
+/// `--zone` and, for `--zone nautical` only, the `--lon` that sets it: the zone flags of a
+/// command whose results do not depend on where the observer is (`phases`, `seasons`).
+#[derive(clap::Args, Debug, Clone, Copy)]
+pub struct ZoneArgs {
+    /// The zone to show local times in, beside UTC; a date given to --from or --to is a
+    /// date in this zone too. `utc` (default), a fixed offset such as -04:00, or
+    /// `nautical` for the zone time of --lon. Named zones (America/New_York) need a tz
+    /// database this offline tool does not carry; see docs/CLI.md.
+    #[arg(long, value_name = "ZONE", default_value = "utc", value_parser = parse_zone, allow_hyphen_values = true)]
+    pub zone: Zone,
+    /// East longitude, degrees (75.17 W is -75.17), for --zone nautical only: it sets the
+    /// zone, ZD = round(lon / -15). Refused with any other zone, where it would do nothing.
+    #[arg(long, value_name = "DEG", allow_negative_numbers = true, value_parser = parse_lon)]
+    pub lon: Option<f64>,
+}
+
+impl ZoneArgs {
+    /// The zone made concrete, or why the flags contradict each other: the nautical zone
+    /// needs a longitude, and a longitude with any other zone would silently do nothing.
+    pub fn resolve(&self) -> Result<ResolvedZone> {
+        match (self.zone, self.lon) {
+            (Zone::Nautical, Some(lon)) => Ok(Zone::Nautical.resolve(lon)),
+            (Zone::Nautical, None) => bail!(
+                "--zone nautical is the zone time of a longitude, ZD = round(lon / -15): give \
+                 the longitude with --lon DEG (east positive, so 75.17 W is -75.17)"
+            ),
+            (zone, None) => Ok(zone.resolve(0.0)),
+            (_, Some(_)) => bail!(
+                "--lon only sets the nautical zone (--zone nautical). The Moon's phases and the \
+                 seasons are the same instants everywhere on Earth, so a longitude does nothing \
+                 else here"
+            ),
+        }
+    }
+}
 
 /// A parsed `--zone`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -179,5 +223,26 @@ mod tests {
         assert_eq!(Zone::Nautical.resolve(3.0).label, "nautical ZD +0 (UTC)");
         assert_eq!(Zone::Fixed(330).resolve(0.0).label, "UTC+05:30");
         assert!(Zone::Utc.resolve(-75.0).is_utc());
+    }
+
+    #[test]
+    fn without_an_observer_the_nautical_zone_needs_lon_and_nothing_else_takes_it() {
+        let args = |zone: Zone, lon: Option<f64>| ZoneArgs { zone, lon }.resolve();
+        assert_eq!(
+            args(Zone::Nautical, Some(-75.17)).unwrap().label,
+            "nautical ZD +5 (UTC-05:00)"
+        );
+        assert!(
+            args(Zone::Nautical, None)
+                .unwrap_err()
+                .to_string()
+                .contains("--lon")
+        );
+        assert_eq!(args(Zone::Fixed(-240), None).unwrap().offset_minutes, -240);
+        assert!(args(Zone::Utc, None).unwrap().is_utc());
+        for zone in [Zone::Utc, Zone::Fixed(60)] {
+            let e = args(zone, Some(10.0)).unwrap_err().to_string();
+            assert!(e.contains("only sets the nautical zone"), "{e}");
+        }
     }
 }

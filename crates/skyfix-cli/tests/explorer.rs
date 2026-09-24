@@ -435,6 +435,128 @@ fn a_date_as_to_means_the_end_of_that_day() {
         .expect_stderr("--to must come after --from");
 }
 
+/// `--zone` works as it does for `events`: a date is a local date, from local midnight,
+/// and the text shows local time beside UTC. The JSON stays the engine's UTC list.
+#[test]
+fn phases_in_a_zone_run_from_local_midnight_and_show_local_time_beside_utc() {
+    let v = skyfix([
+        "phases",
+        "--from",
+        "2026-09-01",
+        "--to",
+        "2026-09-30",
+        "--zone",
+        "-04:00",
+        "--json",
+    ])
+    .expect_code(0)
+    .json();
+    let want = events::moon_phases(
+        &Sky::new(),
+        jd("2026-09-01T04:00:00Z"),
+        jd("2026-10-01T04:00:00Z"),
+    )
+    .expect("phases");
+    assert_same(&v, &want, "phases in UTC-04:00");
+    skyfix([
+        "phases",
+        "--from",
+        "2026-09-01",
+        "--to",
+        "2026-09-30",
+        "--zone",
+        "-04:00",
+    ])
+    .expect_code(0)
+    .expect_stdout("MOON PHASES  2026-09-01T04:00:00Z to 2026-10-01T04:00:00Z, shown in UTC-04:00")
+    .expect_stdout("  local                UTC                   phase")
+    // The new moon of 11 September at 03:27Z is still the 10th four hours west.
+    .expect_stdout("  2026-09-10 23:27:00  2026-09-11T03:27:00Z  new moon")
+    .expect_stdout_flat("A date given to --from or --to is a date in that zone");
+
+    // Twelve hours east, the full moon of 26 September 16:49Z falls on the 27th.
+    skyfix([
+        "phases",
+        "--from",
+        "2026-09-27",
+        "--to",
+        "2026-09-27",
+        "--zone",
+        "+12:00",
+    ])
+    .expect_code(0)
+    .expect_stdout("  2026-09-27 04:49:02  2026-09-26T16:49:02Z  full moon");
+    skyfix([
+        "phases",
+        "--from",
+        "2026-09-26",
+        "--to",
+        "2026-09-26",
+        "--zone",
+        "+12:00",
+    ])
+    .expect_code(0)
+    .expect_stdout("none in this window");
+    // An instant is an instant in any zone.
+    let a = skyfix([
+        "phases",
+        "--from",
+        "2026-09-01T00:00:00Z",
+        "--to",
+        "2026-10-01T00:00:00Z",
+        "--json",
+    ])
+    .expect_code(0);
+    let b = skyfix([
+        "phases",
+        "--from",
+        "2026-09-01T00:00:00Z",
+        "--to",
+        "2026-10-01T00:00:00Z",
+        "--zone",
+        "+05:30",
+        "--json",
+    ])
+    .expect_code(0);
+    assert_eq!(a.stdout, b.stdout);
+}
+
+#[test]
+fn seasons_in_the_nautical_zone_take_its_longitude_from_lon() {
+    skyfix([
+        "seasons", "--year", "2026", "--zone", "nautical", "--lon", "151.21",
+    ])
+    .expect_code(0)
+    .expect_stdout("SEASONS 2026, shown in nautical ZD -10 (UTC+10:00)")
+    .expect_stdout("  2026-12-22 06:50:13  2026-12-21T20:50:13Z  December solstice");
+    // The JSON is the engine's UTC list whatever the zone.
+    let v = skyfix(["seasons", "--year", "2026", "--zone", "+10:00", "--json"])
+        .expect_code(0)
+        .json();
+    assert_same(
+        &v,
+        &events::seasons(&Sky::new(), 2026).expect("seasons"),
+        "seasons in a zone",
+    );
+    skyfix(["seasons", "--year", "2026", "--zone", "nautical"])
+        .expect_code(1)
+        .expect_stderr("--lon");
+    skyfix(["seasons", "--year", "2026", "--lon", "151.21"])
+        .expect_code(1)
+        .expect_stderr("only sets the nautical zone");
+    skyfix([
+        "phases",
+        "--from",
+        "2026-09-01",
+        "--to",
+        "2026-09-30",
+        "--zone",
+        "Europe/Paris",
+    ])
+    .expect_code(1)
+    .expect_stderr("tz database");
+}
+
 #[test]
 fn seasons_json_is_the_library_list_and_a_year_outside_coverage_is_refused() {
     let run = skyfix(["seasons", "--year", "2026", "--json"]).expect_code(0);
@@ -1042,6 +1164,9 @@ fn every_new_command_has_help_and_needs_no_network() {
         "events",
         "phases",
         "seasons",
+        "eclipses",
+        "eclipse",
+        "planet-events",
         "noon",
         "polaris",
         "average",

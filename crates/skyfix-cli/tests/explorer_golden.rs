@@ -94,6 +94,66 @@ const CASES: &[(&str, &[&str])] = &[
             "40.766666667,-43.366666667,10",
         ],
     ),
+    (
+        "phases_2026_09_zone.txt",
+        &[
+            "phases",
+            "--from",
+            "2026-09-01",
+            "--to",
+            "2026-09-30",
+            "--zone",
+            "-04:00",
+        ],
+    ),
+    // Eclipses: the listing and two local reports, pinned to NASA's canon, USNO and
+    // Skyfield in skyfix-almanac (docs/ACCURACY.md section 12).
+    (
+        "eclipses_2024_2026_dallas.txt",
+        &[
+            "eclipses",
+            "--from",
+            "2024-01-01",
+            "--to",
+            "2026-12-31",
+            "--lat",
+            "32.78",
+            "--lon",
+            "-96.80",
+        ],
+    ),
+    (
+        "eclipse_2024_04_08_dallas.txt",
+        &[
+            "eclipse",
+            "2024-04-08-solar",
+            "--lat",
+            "32.78",
+            "--lon",
+            "-96.80",
+        ],
+    ),
+    (
+        "eclipse_2025_03_14_london.txt",
+        &[
+            "eclipse",
+            "2025-03-14-lunar",
+            "--lat",
+            "51.5074",
+            "--lon",
+            "-0.1278",
+        ],
+    ),
+    (
+        "planet_events_2026.txt",
+        &[
+            "planet-events",
+            "--from",
+            "2026-01-01",
+            "--to",
+            "2026-12-31",
+        ],
+    ),
 ];
 
 fn golden_dir() -> PathBuf {
