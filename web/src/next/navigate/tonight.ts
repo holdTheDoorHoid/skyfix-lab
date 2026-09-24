@@ -156,7 +156,8 @@ export function renderPlan(
         h('span', { class: 'sfn-tonight__zn sfn-num', title: 'True bearing' }, fmtBearing(b.zn_deg)),
       ),
     );
-    const use = btn('Use these bodies', () => options.onUse(w), { variant: options.compact ? 'outline' : 'primary', icon: 'plus', tip: 'Add them to the sights to take, in Navigate' });
+    // Two windows each have this button: the name says which (a screen reader lists them apart).
+    const use = btn('Use these bodies', () => options.onUse(w), { variant: options.compact ? 'outline' : 'primary', icon: 'plus', tip: 'Add them to the sights to take, in Navigate', ariaLabel: `Use these bodies: ${title}` });
     const block = h(
       'section',
       { class: 'sfn-tonight__window' },
