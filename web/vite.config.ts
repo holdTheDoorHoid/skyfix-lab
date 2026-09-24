@@ -44,7 +44,7 @@ export default defineConfig({
         main: resolve(import.meta.dirname, 'index.html'),
         next: resolve(import.meta.dirname, 'next/index.html'),
         mockup: resolve(import.meta.dirname, 'next/mockup.html'),
-// The Charts view on its own, for its developer (charts agent).
+        // The Charts view on its own, for its developer (charts agent).
         devCharts: resolve(import.meta.dirname, 'next/dev-charts.html'),
         // The Sky view's developer page (sky agent): the view alone, for screenshots
         // and frame-time measurements.
