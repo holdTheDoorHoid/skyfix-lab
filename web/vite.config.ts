@@ -53,6 +53,9 @@ export default defineConfig({
         devMap: resolve(import.meta.dirname, 'next/dev-map.html'),
         // The Almanac view's developer harness (almanac agent).
         devAlmanac: resolve(import.meta.dirname, 'next/dev-almanac.html'),
+        // The Learn view on its own, for its developer (learn agent): stories, primer,
+        // simulator, with address options for reproducible screenshots.
+        devLearn: resolve(import.meta.dirname, 'next/dev-learn.html'),
       },
     },
   },
