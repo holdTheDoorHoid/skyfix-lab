@@ -232,6 +232,108 @@ from the classical main terms of the lunar theory (equation of the centre 6.289 
 evection 1.274 deg, variation 0.658 deg, and smaller terms) purely to give the
 interpolator realistic curvature; **it is not an ephemeris and is not used as one.**
 
+## Moon model
+
+Owner: Moon agent (`crates/skyfix-ephemeris/src/moon.rs`,
+`crates/skyfix-ephemeris/data/elp82b_moon_terms.json`,
+`tools/reference/build_moon_series.py`, `tools/reference/gen_moon.py`,
+`fixtures/reference/moon_geocentric.json`, `fixtures/reference/moon_topocentric.json`).
+
+### ELP 2000-82B — the lunar theory
+
+- **What is used:** the series of the semi-analytical lunar theory ELP 2000-82B with the
+  constants its authors fitted to JPL DE200/LE200: the 36 files `ELP1` … `ELP36` (main
+  problem; Earth-figure, planetary (tables 1 and 2), tidal, Moon-figure, relativistic
+  and solar-eccentricity perturbations), truncated for 1990-2060 and embedded in
+  `crates/skyfix-ephemeris/data/elp82b_moon_terms.json`. Every embedded record is a
+  verbatim copy of a record of the CDS file (the informative period column is dropped).
+  Also used, as published facts: the notice `elp82b.ps` — record formats (sect. 2), the
+  arguments and constants (sect. 4-7, including the corrections fitted to DE200/LE200),
+  the coordinate systems and the ecliptic-to-FK5 matrix (sect. 8: `ε_I = 23°26′21.40883″`,
+  arc `γ_I γ_FK5 = 0.09845″`) and the check values of Table H — and the reference
+  subroutine `elp82b.f`, whose evaluation order `moon.rs` follows. No code was copied;
+  `moon.rs` and `build_moon_series.py` are independent implementations of the published
+  model and reproduce all five Table H values (the complete series, in the builder) to
+  0.005 m.
+- **Source:** CDS catalogue **VI/79**, *Lunar Solution ELP 2000-82B*, Chapront-Touzé M.,
+  Chapront J., Bureau des Longitudes: *A&A* **124**, 50 (1983, 1983A&A...124...50C) and
+  *A&A* **190**, 342 (1988, 1988A&A...190..342C).
+- **URL:** <https://cdsarc.cds.unistra.fr/ftp/cats/VI/79/> — `ELP1` … `ELP36`, `ReadMe`,
+  `elp82b.f.gz`, `elp82b.ps.gz`. The SHA-256 of every file is pinned in
+  `tools/reference/build_moon_series.py` and repeated in the data file's
+  `source.sha256` (e.g. `ELP1` `ae30cbffb83a7bd4582a83a32a322d08a48ba057a4df7bf9dd5df9f06b1688fa`,
+  `ELP10` `dbd82ddc6064e4cc7b4f08fa27b2fcb48f82456ad36a850a0d3ddae098c3e2e6`).
+- **Retrieved:** 2026-09-24.
+- **Licence / terms:** the CDS declares **no catalogue-specific licence** for VI/79
+  (checked 2026-09-24 in the catalogue page's metadata, which for comparison declares
+  `CC-BY-NC-3.0 IGO` for the Hipparcos catalogue I/239), and the VI/79 `ReadMe` carries no
+  copyright statement. The VizieR rules of usage
+  (<https://cds.unistra.fr/vizier-org/licences_vizier.html>) apply: the data are free of
+  usage in a scientific context provided the authors, the original articles and VizieR
+  are cited; commercial usage is "subject to rules depending of the origin" (the
+  `ReadMe`, then the originating journal's policy — here *A&A*). This is exactly the
+  standing of VSOP87 (VI/81, same institute, same journal, also without a declared
+  licence), which the project already embeds. The embedded file is 5 % of the theory's
+  terms, and the terms are the numerical results of a published scientific theory.
+  **Attribution carried here and in the data file:** Chapront-Touzé & Chapront (1983,
+  1988), ELP 2000-82B, obtained from the CDS, Strasbourg (VizieR catalogue VI/79,
+  DOI 10.26093/cds/vizier). If the project ever needs a formal clearance for commercial
+  redistribution, one request to the IMCCE / CDS would cover both VSOP87 and ELP 2000-82B.
+- **Truncation applied, and the rule:** a term is kept when its peak contribution over
+  1990-2060, `|A| · |t|max^p` (`|t|max` = 0.61 Julian centuries, `p` the power of `t`
+  multiplying its series), reaches **0.002″** in longitude or latitude or **0.01 km** in
+  distance. **2023 of 37 872 terms are kept** (786 of the main problem). Measured against
+  the complete theory at 20 000 random epochs: **0.134″ in longitude, 0.113″ in latitude,
+  0.35 km in distance, 0.134″ in direction.** The sum of the peak contributions of every
+  dropped term, a bound that assumes they all align, is 1.94″, 1.04″ and 3.4 km. The
+  builder records the rule, the thresholds and all these figures in the data file's
+  `truncation` block, plus checkpoints of both the complete theory (Table H) and the
+  truncated series, which `skyfix_ephemeris::moon::elp82b_self_check` re-evaluates in a
+  unit test. Size: 125 kB of JSON.
+- **Why ELP 2000-82B and not ELP/MPP02:** ELP/MPP02 (Chapront & Francou 2003) was the
+  first choice, but its only official distribution, `cyrano-se.obspm.fr` (Observatoire de
+  Paris), refused FTP, HTTP and HTTPS connections from this machine on 2026-09-24; the
+  IMCCE FTP server (`ftp.imcce.fr/pub/ephem/moon/`) carries ELP 2000-82B but not
+  ELP/MPP02, and the Internet Archive holds only the directory listing (2025-05-27), not
+  the files. Unofficial copies on GitHub exist but were not used. ELP 2000-82B turned out
+  to be ample: the complete theory, run through this project's frame chain, stays within
+  0.72″ of DE440s over 1990-2061 (a secular drift of its DE200-fitted mean longitude,
+  about `0.37″ t + 0.99″ t²`, t in centuries from J2000), against a 6″ target.
+
+### Constants and formulae around the theory
+
+Cited in the source; no licence attaches to a published constant or formula.
+
+- Earth's equatorial radius **6378.14 km** (IAU 1976, the value ELP 2000-82B uses) for the
+  horizontal parallax `HP = asin(6378.14 km / d)`.
+- Lunar radius ratio **k = 0.2725076** (IAU 1982; the value of the *Explanatory
+  Supplement* and of the NASA eclipse canons for the mean lunar limb) for the
+  semidiameter `SD = asin(k · 6378.14 km / d)`.
+- IAU 2006 frame bias from the Fukushima-Williams angles already in `frames.rs` (ERFA
+  `pfw06`, see above), used to take the theory's J2000 frame to the GCRS.
+- Meeus, *Astronomical Algorithms*, 2nd ed., eq. 48.3 (phase angle from elongation and
+  the two distances) and eq. 48.5 (position angle of the bright limb). Formulae only.
+- Lunar magnitude, **approximate**: `V = −12.73 + 0.026 |i| + 4×10⁻⁹ i⁴` (i the phase angle
+  in degrees) at mean distance, Krisciunas K., Schaefer B. E., 1991, *PASP* **103**, 1033,
+  after Allen's *Astrophysical Quantities*; the same law appears as eq. 15 of Noll S. et
+  al., 2012, *A&A* **543**, A92, which is where the coefficients were confirmed on
+  2026-09-24. Scaled here by the inverse-square law to the actual Earth-Moon distance
+  (mean 384 400 km) and Sun-Moon distance (1 au).
+
+### Reference fixtures for the Moon
+
+`fixtures/reference/moon_geocentric.json` and `moon_topocentric.json` are generated by
+`tools/reference/gen_moon.py` from Skyfield and the JPL kernels listed under "Reference
+data" below, with **DE440s as the primary ephemeris and DE421 as the cross-check** (the
+reverse of the older files; DE421 ends in 2053). The two kernels agree on the Moon's
+apparent direction to 0.0061″ and on its distance to 0.9 m over the 1515 instants both
+cover. The topocentric file is built with UT1 = UTC by giving each leap-second era its own
+Skyfield timescale with a constant ΔT of `32.184 s + (TAI − UTC)`
+(`load.timescale(delta_t=…)`). The Moon record already stored in the USNO response
+(`usno_celnav_2026-10-01T0130Z.json`, see "US Naval Observatory API" below) is used as a
+second, independent check by `tests/moon_reference.rs`; see `docs/ACCURACY.md`, "Moon",
+for what it showed.
+
 ## Reference data (development-time only)
 
 Sources used by `tools/reference/` to generate `fixtures/reference/*.json` and

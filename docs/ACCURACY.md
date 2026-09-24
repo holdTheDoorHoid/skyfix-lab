@@ -487,3 +487,117 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
   experiment --demo <name> --repetitions 50` for any of the ten scenario
   names `skyfix demos` lists.
 - **Everything at once:** `cargo test --workspace`.
+
+## 7. Moon
+
+Owner: Moon agent. The provider is `skyfix_ephemeris::moon::MoonProvider`: ELP 2000-82B
+(CDS VI/79, 2023 of 37 872 terms) through the project's IAU 2006/2000B frame chain; see
+the module documentation for the model and `docs/THIRD_PARTY.md`, "Moon model", for the
+data. It declares **`accuracy_arcmin` = 0.02′**, excluding (like the Sun and the stars)
+the DUT1 = 0 assumption of CONVENTIONS section 6, which is worth up to 0.23′ of GHA.
+
+### Geocentric, against Skyfield + JPL DE440s
+
+`fixtures/reference/moon_geocentric.json`: 1757 instants over 1990-2060 — 1200 random,
+100 perigees, 100 apogees, 353 declination extremes (every northern and southern extreme
+beyond 28.3°, i.e. the major standstills around 2006, 2024-25 and 2043, plus 100 of
+each spread over the window) and 4 fixed instants. DE421 and DE440s agree on the Moon to 0.0061″ in
+direction and 0.9 m in distance over the 1515 instants both cover, so the reference is
+not a limiting factor. GHA is compared with the DUT1 = 0 column.
+
+| quantity | worst | target (CONVENTIONS 13.7) | where |
+|---|---|---|---|
+| GHA (DUT1 = 0) | **0.0149′** (0.89″) | 0.1′ | 2060-12-08, northern declination extreme |
+| GHA × cos Dec (on the sky) | 0.0131′ (0.79″) | | same |
+| Dec | **0.0064′** (0.38″) | 0.1′ | 2060-12-31 |
+| RA of date | 0.0149′ | | 2060-12-08 |
+| apparent ecliptic longitude / latitude of date | 0.0133′ / 0.0026′ | | 2060 |
+| horizontal parallax | **0.00009′** (0.005″) | 0.05′ | a perigee, 2039 |
+| semidiameter | 0.00006′ | | |
+| geocentric distance | 0.31 km | | |
+| illuminated fraction | **0.00007** | 0.001 | |
+| elongation | 0.00018° (0.63″) | | |
+| bright-limb position angle (elongation 5°-175°) | 0.0013° (4.6″) | | |
+| phase angle | 0.0115° (41.5″) | | definition, see below |
+| GHA with each instant's own DUT1 (176 instants) | 0.0149′ | | |
+
+Worst on-sky error by instant set: random 0.76″, perigees 0.80″, apogees 0.57″,
+northern extremes 0.79″, southern extremes 0.77″. Every worst case falls in 2060. To
+check that the samples do not miss a larger error between them, a dense development-time
+scan of the last 121 days of 2060 at 3-hour steps (968 instants against Skyfield +
+DE440s, not committed) found worst GHA 0.90″ and worst Dec 0.42″: the declared 0.02′
+(1.2″) holds with a quarter of it to spare.
+
+**Where the error comes from**, largest first:
+
+| source | size |
+|---|---|
+| ELP 2000-82B itself: its mean longitude was fitted to DE200 in the 1980s and drifts from DE440 by about `+0.02″ + 0.37″ t + 0.99″ t²` (t in centuries from J2000; measured with the complete theory, geometric, 4000 epochs) | 0.72″ by 2061, 0.1″ in the 2020s |
+| truncation to 2023 terms (measured over 20 000 epochs) | 0.13″ |
+| frame tie of the theory's J2000 ecliptic to the GCRS | ~0.02″ |
+| IAU 2000B instead of 2000A nutation; TT used for TDB | ~0.001″ each |
+| light-time applied as `p − τ ṗ` | < 0.0001″ |
+
+The pitfall this avoids: applying the stars' 20.5″ annual aberration to the Moon. For a
+geocentric body Skyfield's barycentric light-time (−v⊕τ) and its aberration (+v⊕τ)
+cancel to about 1 mas, leaving only the Moon's own motion over `τ = r/c ≈ 1.28 s`
+(about 0.7″). Adding the aberration would have cost up to 20″, a third of the budget.
+
+**The phase angle** is computed from the apparent directions of the Moon and the Sun
+(Meeus 48.3). Skyfield builds it from astrometric directions, which differ from the
+apparent ones by the aberration; the two definitions can differ by up to twice the
+constant of aberration (41″), which is what the table shows. It moves the illuminated
+fraction by at most 1e-4.
+
+**The magnitude** is an approximate phase law (Krisciunas & Schaefer 1991) with no
+opposition surge and no eclipse model; it has no reference and is not validated.
+
+### Topocentric altitude and azimuth
+
+`fixtures/reference/moon_topocentric.json`: 600 Moon cases at 12 sites (equator,
+tropics, 2000 m, 60°+ north and south, both hemispheres, the antimeridian), plus 307 Sun
+and 1322 star cases at the same instants, all built with UT1 = UTC so the comparison
+carries no DUT1 term. `topocentric::horizontal` (WGS84 site, geometric altitude, no
+refraction) against Skyfield's `altaz()` without refraction:
+
+| body | cases | worst altitude | worst azimuth × cos(alt) | worst raw azimuth below 70° |
+|---|---|---|---|---|
+| Moon | 600 | 0.0105′ (0.63″) | 0.0117′ (0.70″) | 0.0142′ (0.85″) |
+| Sun | 307 | 0.0050′ (0.30″) | 0.0060′ (0.36″) | 0.0147′ (0.88″) |
+| stars | 1322 | 0.0040′ (0.24″) | 0.0055′ (0.33″) | 0.0121′ (0.73″) |
+
+Target: 0.1′. The Sun and star residuals are diurnal aberration (0.32″ at most), which
+Skyfield applies and the display model does not; the Moon's add its geocentric error.
+`topocentric.rs` needed no change.
+
+### USNO: an independent check, and a finding about it
+
+The USNO Celestial Navigation Data response stored for 2026-10-01T01:30Z also carries
+the Moon. Against it this provider is **+0.108′ in GHA and −0.017′ in Dec** off, and
+Skyfield + DE440s is +0.112′ and −0.018′ off: USNO disagrees with both by the same
+amount. The whole difference is the Moon's own motion over **10.36 s**: Skyfield's
+apparent Moon with its time argument 10.36 s later (sidereal time unchanged) reproduces
+USNO's GHA and Dec to **0.003″**. USNO's API therefore evaluates the lunar ephemeris
+about 10 s late; the stars and GHA Aries, which agree with USNO to 0.006″, cannot show
+it because 10 s moves them by microarcseconds. Allowing for it, this provider and USNO
+agree to −0.004′ in GHA and +0.001′ in Dec (`tests/moon_reference.rs` pins both
+numbers). Only one instant is available, so whether the offset is constant is unknown;
+**anyone validating a Moon against USNO's API should allow for about 0.1′ of GHA.**
+
+### Speed
+
+Release build, x86-64, measured on a shared 8-core machine under load
+(`cargo test --release -p skyfix-ephemeris --test moon_reference -- --ignored --nocapture`):
+**43 µs per `MoonProvider::position`**, 74 µs per `apparent_state` (which adds the Sun
+for the illumination quantities), plus about 2 ms once per process to parse the
+embedded series. The main problem's arguments are built from tabulated multiples of the
+four Delaunay angles, so only the 1237 perturbation terms cost a sine each. The embedded
+data is 125 kB of the release WASM module's 1.55 MB.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python -m tools.reference.gen_moon` (about a minute)
+  regenerates both fixtures; `tools/reference/.venv/bin/python -m
+  tools.reference.build_moon_series --fetch` rebuilds the embedded series from the CDS.
+- `cargo test -p skyfix-ephemeris --test moon_reference --test topocentric_reference
+  -- --nocapture` prints every number above.
