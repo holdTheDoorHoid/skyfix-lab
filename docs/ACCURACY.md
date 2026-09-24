@@ -500,6 +500,20 @@ bias narrows the reported covariance without correcting the position. The
 0.4225 measured here and the 42 % figure `docs/BACKLOG.md` quotes for the same
 test are the same number, rounded.
 
+### Navigation methods: noon sight, Polaris, averaging, running fix
+
+`docs/NAVIGATION_METHODS.md` section 6 holds these numbers in full. From raw sextant
+readings of `fixtures/reference/nav_methods.json` (Skyfield truth, noise-free): noon
+latitude and longitude within 0.0013′ and meridian passage within 0.001 s over five
+runs (one near the zenith, one from a vessel making 15 knots); Polaris latitude within
+0.0001′ at ten latitudes from 1° to 89.8° N; averaged altitudes within 0.0001′ of the
+truth; a 36 NM running fix within 0.4 m (36 m on a true rhumb line, the great-circle-leg
+model of `docs/MOTION.md`). Bowditch's worked examples reproduce to 0.07′ (Polaris,
+§1912), 0.02′ (the Almanac's Polaris illustration) and 0.18′ (LAN, §1910, every tenth of
+it accounted for). The stated sigmas cover 94-96 % in seeded Monte Carlo, except Polaris
+within 1.5° of the pole with a DR good only to 30 NM (19° of longitude): 89.8 %,
+documented as a limit and flagged by `polaris_near_pole`.
+
 ## 4. Error budget
 
 Every term below that this project models is either applied in the correction
@@ -603,6 +617,11 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
 - **The packaged-demo coverage numbers in `docs/DEMOS.md`:** `skyfix
   experiment --demo <name> --repetitions 50` for any of the ten scenario
   names `skyfix demos` lists.
+- **Navigation methods (section 3):** `cargo test -p skyfix-core --test
+  nav_methods_reference --test nav_methods_worked_examples --test
+  nav_methods_coverage -- --nocapture`, and `cargo test -p skyfix-wasm nav --
+  --nocapture` for the running fix; `tools/reference/.venv/bin/python -m
+  tools.reference.gen_nav_methods` regenerates their fixture.
 - **Everything at once:** `cargo test --workspace`.
 
 ## 7. Moon

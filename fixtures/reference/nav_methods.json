@@ -1,0 +1,292 @@
+{
+  "averaging": [
+    {
+      "body": "Vega",
+      "dr": {"lat_deg": 40.077256408, "lon_deg": -74.882250386},
+      "name": "vega-run-philadelphia",
+      "notes": "Seven sights of Vega over three minutes, stationary.",
+      "sights": [
+        {"dec_deg": 38.812937671, "gha_deg": 112.467991029, "ho_deg": 61.356363410, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 61.436228321, "id": "a00", "jd_utc": 2461314.561458333, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T01:28:30.000Z", "zn_deg": 279.905690258},
+        {"dec_deg": 38.812937677, "gha_deg": 112.593333297, "ho_deg": 61.261718701, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 61.341619233, "id": "a01", "jd_utc": 2461314.561805556, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T01:29:00.000Z", "zn_deg": 279.955901169},
+        {"dec_deg": 38.812937683, "gha_deg": 112.718675565, "ho_deg": 61.167088545, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 61.247024756, "id": "a02", "jd_utc": 2461314.562152778, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T01:29:30.000Z", "zn_deg": 280.006079575},
+        {"dec_deg": 38.812937689, "gha_deg": 112.844017833, "ho_deg": 61.072473005, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 61.152444955, "id": "a03", "jd_utc": 2461314.562500000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T01:30:00.000Z", "zn_deg": 280.056226046},
+        {"dec_deg": 38.812937695, "gha_deg": 112.969360101, "ho_deg": 60.977872145, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 61.057879893, "id": "a04", "jd_utc": 2461314.562847222, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T01:30:30.000Z", "zn_deg": 280.106341145},
+        {"dec_deg": 38.812937700, "gha_deg": 113.094702369, "ho_deg": 60.883286028, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 60.963329632, "id": "a05", "jd_utc": 2461314.563194444, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T01:31:00.000Z", "zn_deg": 280.156425427},
+        {"dec_deg": 38.812937706, "gha_deg": 113.220044637, "ho_deg": 60.788714717, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 60.868794238, "id": "a06", "jd_utc": 2461314.563541667, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T01:31:30.000Z", "zn_deg": 280.206479443}
+      ],
+      "truth": {"ho_at_reference_deg": 61.072473005, "lat_deg": 39.952600000, "lon_deg": -75.165200000, "rate_at_dr_arcmin_per_min": -11.3360, "rate_at_truth_arcmin_per_min": -11.3530, "reference_jd_utc": 2461314.562500000, "reference_utc": "2026-10-01T01:30:00.000Z"},
+      "vessel": null
+    },
+    {
+      "body": "Sun",
+      "dr": {"lat_deg": 30.086589923, "lon_deg": -40.057785493},
+      "name": "sun-morning-run-moving",
+      "notes": "A morning Sun run from a vessel making 12 kn east (toward the Sun).",
+      "sights": [
+        {"dec_deg": 23.319250077, "gha_deg": 352.374847292, "ho_deg": 47.211350081, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 47.033570211, "id": "a00", "jd_utc": 2461206.979166667, "limb": "lower", "semidiameter_arcmin": 15.7458, "true_lat_deg": 29.999999844, "true_lon_deg": -40.006415004, "utc": "2026-06-15T11:30:00.000Z", "zn_deg": 87.182045675},
+        {"dec_deg": 23.319268794, "gha_deg": 352.541489019, "ho_deg": 47.357722154, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 47.179867902, "id": "a01", "jd_utc": 2461206.979629630, "limb": "lower", "semidiameter_arcmin": 15.7458, "true_lat_deg": 29.999999944, "true_lon_deg": -40.003849002, "utc": "2026-06-15T11:30:40.000Z", "zn_deg": 87.258927145},
+        {"dec_deg": 23.319287510, "gha_deg": 352.708130578, "ho_deg": 47.504103487, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 47.326175229, "id": "a02", "jd_utc": 2461206.980092593, "limb": "lower", "semidiameter_arcmin": 15.7458, "true_lat_deg": 29.999999994, "true_lon_deg": -40.001283001, "utc": "2026-06-15T11:31:20.000Z", "zn_deg": 87.335982914},
+        {"dec_deg": 23.319306224, "gha_deg": 352.874772305, "ho_deg": 47.650494131, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 47.472492239, "id": "a03", "jd_utc": 2461206.980555556, "limb": "lower", "semidiameter_arcmin": 15.7458, "true_lat_deg": 29.999999994, "true_lon_deg": -39.998716999, "utc": "2026-06-15T11:32:00.000Z", "zn_deg": 87.413215620},
+        {"dec_deg": 23.319324936, "gha_deg": 353.041413865, "ho_deg": 47.796893548, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 47.618818390, "id": "a04", "jd_utc": 2461206.981018519, "limb": "lower", "semidiameter_arcmin": 15.7458, "true_lat_deg": 29.999999944, "true_lon_deg": -39.996150998, "utc": "2026-06-15T11:32:40.000Z", "zn_deg": 87.490627620},
+        {"dec_deg": 23.319343647, "gha_deg": 353.208055424, "ho_deg": 47.943301638, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 47.765153578, "id": "a05", "jd_utc": 2461206.981481481, "limb": "lower", "semidiameter_arcmin": 15.7458, "true_lat_deg": 29.999999844, "true_lon_deg": -39.993584998, "utc": "2026-06-15T11:33:20.000Z", "zn_deg": 87.568221535}
+      ],
+      "truth": {"ho_at_reference_deg": 47.577297679, "lat_deg": 30.000000000, "lon_deg": -40.000000000, "rate_at_dr_arcmin_per_min": 13.1645, "rate_at_truth_arcmin_per_min": 13.1751, "reference_jd_utc": 2461206.980324074, "reference_utc": "2026-06-15T11:31:40.000Z"},
+      "vessel": {"course_deg": 90.000000000, "speed_kn": 12.000000000}
+    },
+    {
+      "body": "Sirius",
+      "dr": {"lat_deg": 39.785933333, "lon_deg": -75.165200000},
+      "name": "sirius-low-rising-run",
+      "notes": "Sirius rising through 8 deg: refraction matters in the sextant readings.",
+      "sights": [
+        {"dec_deg": -16.749034149, "gha_deg": 11.376454703, "ho_deg": 7.999414706, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 8.179229925, "id": "a00", "jd_utc": 2461314.785925926, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T06:51:44.000Z", "zn_deg": 119.824606997},
+        {"dec_deg": -16.749034161, "gha_deg": 11.564468151, "ho_deg": 8.124370023, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 8.302705472, "id": "a01", "jd_utc": 2461314.786446759, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T06:52:29.000Z", "zn_deg": 119.955513882},
+        {"dec_deg": -16.749034173, "gha_deg": 11.752481430, "ho_deg": 8.249160676, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 8.426055203, "id": "a02", "jd_utc": 2461314.786967593, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T06:53:14.000Z", "zn_deg": 120.086621453},
+        {"dec_deg": -16.749034185, "gha_deg": 11.940494710, "ho_deg": 8.373785871, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 8.549276867, "id": "a03", "jd_utc": 2461314.787488426, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T06:53:59.000Z", "zn_deg": 120.217930994},
+        {"dec_deg": -16.749034197, "gha_deg": 12.128507989, "ho_deg": 8.498244698, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 8.672368171, "id": "a04", "jd_utc": 2461314.788009259, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-10-01T06:54:44.000Z", "zn_deg": 120.349443670}
+      ],
+      "truth": {"ho_at_reference_deg": 8.249160676, "lat_deg": 39.952600000, "lon_deg": -75.165200000, "rate_at_dr_arcmin_per_min": 10.0030, "rate_at_truth_arcmin_per_min": 9.9766, "reference_jd_utc": 2461314.786967593, "reference_utc": "2026-10-01T06:53:14.000Z"},
+      "vessel": null
+    }
+  ],
+  "generator": {
+    "description": "Noise-free sights with known truth for the navigation methods: noon sight, latitude by Polaris, averaging a run, running fix.",
+    "frame": {
+      "computed_as": "earth.at(t).observe(body).apparent().radec(epoch='date'); GHA = normalise(t.gast * 15 - RA_deg) into [0, 360).",
+      "definition": "Apparent geocentric of date (CONVENTIONS section 7): true equator and equinox of date.",
+      "excludes": [
+        "polar motion",
+        "diurnal aberration (this is a geocentric frame; the observer is not moving in it)",
+        "topocentric parallax (CONVENTIONS section 5 applies it as an altitude correction)",
+        "atmospheric refraction"
+      ],
+      "gha_sign": "west-positive, [0, 360), as tabulated in the Nautical Almanac",
+      "includes": [
+        "precession and nutation to the true equator and equinox of date (Skyfield's IAU 2000A/2006 model)",
+        "annual aberration (Earth's barycentric velocity)",
+        "relativistic light deflection by the Sun",
+        "light-time (Sun and planets)",
+        "stellar proper motion and annual parallax from the Hipparcos catalogue (stars)"
+      ],
+      "sha": "SHA = 360 - RA_deg; GHA_star = GHA_Aries + SHA"
+    },
+    "generated_utc": "2026-09-24T00:00:00Z",
+    "motion_model": "noon and averaging: the great circle through the reference position with the stated course there; running_fix: from the first sight, a great circle (due north) or a rhumb line (045).",
+    "never_a_runtime_dependency": "Generated by tools/reference/ (Python + Skyfield). CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "observer_for_sextant_readings": {
+      "height_of_eye_m": 3.000,
+      "horizon": "sea",
+      "index_correction_arcmin": -1.2000,
+      "pressure_hpa": 1010.0,
+      "temperature_c": 10.0
+    },
+    "timescale": {
+      "call": "skyfield.api.load.timescale(builtin=True)",
+      "delta_t_source": "Skyfield's bundled skyfield/data/iers.npz, a daily Delta-T table built from the IERS finals2000A.all series at the time the Skyfield wheel was released. Outside the table Skyfield extrapolates with its long-term Delta-T model (Morrison & Stephenson / Espenak & Meeus).",
+      "delta_t_table_utc_span": [
+        "1973-01-02T00:00:00Z",
+        "2027-01-23T00:00:00Z"
+      ],
+      "dut1_definition": "DUT1 = UT1 - UTC = 32.184 + Delta_AT - Delta_T, as Skyfield derives it",
+      "leap_second_table": "bundled in the same iers.npz; latest offset 37 s from 2017-01-01",
+      "polar_motion": "not applied (no polar-motion table installed)",
+      "warning_dut1": "CONVENTIONS section 6 assumes DUT1 = 0. Skyfield does not: every GHA in these fixtures uses Skyfield's UT1. The per-epoch dut1_s is recorded, and gha_deg_dut1_zero gives the same GHA recomputed with UT1 = UTC so a DUT1 = 0 implementation has a directly comparable number. 1 s of DUT1 = 15.0410686 arcsec of GHA. Beyond the Delta-T table's end the extrapolated Delta-T implies |DUT1| far above the 0.9 s that real leap seconds enforce (about -3.5 s at 2055), so gha_deg alone is not a physically meaningful prediction for far-future epochs; gha_deg_dut1_zero is."
+    },
+    "tolerance_arcmin": 0.0100,
+    "tolerance_justification": "The truth is exact by construction: every altitude is the CONVENTIONS section 3 spherical altitude of Skyfield's apparent geocentric direction (DE421, UT1 = UTC) at the stated true position. A Rust method that recovers it to 0.01 arcmin (18.5 m) is limited by its own ephemeris (Sun 0.003', stars 0.001' against this same reference, docs/ACCURACY.md), not by the method. The sextant readings add only the CONVENTIONS section 5 chain, which the Rust reducer implements from the same text.",
+    "tool": "tools/reference/gen_nav_methods.py",
+    "versions": {
+      "jplephem": "2.24",
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "python": "3.12.3",
+      "skyfield": "1.55"
+    }
+  },
+  "noon": [
+    {
+      "body": "Sun",
+      "dr": {"lat_deg": 39.779322089, "lon_deg": -75.295321012},
+      "name": "philadelphia-equinox-sun",
+      "notes": "Stationary observer, Sun lower limb, 21 sights every 2 min over +/-20 min.",
+      "sights": [
+        {"dec_deg": -0.266899539, "gha_deg": 70.165277800, "ho_deg": 49.522362299, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.340197617, "id": "n00", "jd_utc": 2461307.189560185, "limb": "lower", "semidiameter_arcmin": 15.9399, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:32:58.000Z", "zn_deg": 172.284310849},
+        {"dec_deg": -0.267440025, "gha_deg": 70.665399759, "ho_deg": 49.570752120, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.388564570, "id": "n01", "jd_utc": 2461307.190949074, "limb": "lower", "semidiameter_arcmin": 15.9399, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:34:58.000Z", "zn_deg": 173.051495708},
+        {"dec_deg": -0.267980511, "gha_deg": 71.165521717, "ho_deg": 49.614040878, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.431832890, "id": "n02", "jd_utc": 2461307.192337963, "limb": "lower", "semidiameter_arcmin": 15.9399, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:36:58.000Z", "zn_deg": 173.820125620},
+        {"dec_deg": -0.268520997, "gha_deg": 71.665643842, "ho_deg": 49.652211669, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.469985671, "id": "n03", "jd_utc": 2461307.193726852, "limb": "lower", "semidiameter_arcmin": 15.9399, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:38:58.000Z", "zn_deg": 174.590044021},
+        {"dec_deg": -0.269061484, "gha_deg": 72.165765798, "ho_deg": 49.685249488, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.503007905, "id": "n04", "jd_utc": 2461307.195115741, "limb": "lower", "semidiameter_arcmin": 15.9399, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:40:58.000Z", "zn_deg": 175.361091570},
+        {"dec_deg": -0.269601971, "gha_deg": 72.665887753, "ho_deg": 49.713141331, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.530886587, "id": "n05", "jd_utc": 2461307.196504630, "limb": "lower", "semidiameter_arcmin": 15.9399, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:42:58.000Z", "zn_deg": 176.133107939},
+        {"dec_deg": -0.270142458, "gha_deg": 73.166009707, "ho_deg": 49.735876169, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.553610688, "id": "n06", "jd_utc": 2461307.197893518, "limb": "lower", "semidiameter_arcmin": 15.9399, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:44:58.000Z", "zn_deg": 176.905931020},
+        {"dec_deg": -0.270682945, "gha_deg": 73.666131661, "ho_deg": 49.753444985, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.571171188, "id": "n07", "jd_utc": 2461307.199282407, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:46:58.000Z", "zn_deg": 177.679397435},
+        {"dec_deg": -0.271223432, "gha_deg": 74.166253613, "ho_deg": 49.765840785, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.583561092, "id": "n08", "jd_utc": 2461307.200671296, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:48:58.000Z", "zn_deg": 178.453342786},
+        {"dec_deg": -0.271763920, "gha_deg": 74.666375732, "ho_deg": 49.773058618, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.590775449, "id": "n09", "jd_utc": 2461307.202060185, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:50:58.000Z", "zn_deg": 179.227602175},
+        {"dec_deg": -0.272304408, "gha_deg": 75.166497682, "ho_deg": 49.775095574, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.592811350, "id": "n10", "jd_utc": 2461307.203449074, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:52:58.000Z", "zn_deg": 180.002009427},
+        {"dec_deg": -0.272844896, "gha_deg": 75.666619631, "ho_deg": 49.771950810, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.589667950, "id": "n11", "jd_utc": 2461307.204837963, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:54:58.000Z", "zn_deg": 180.776398905},
+        {"dec_deg": -0.273385385, "gha_deg": 76.166741579, "ho_deg": 49.763625532, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.581346455, "id": "n12", "jd_utc": 2461307.206226852, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:56:58.000Z", "zn_deg": 181.550604739},
+        {"dec_deg": -0.273925873, "gha_deg": 76.666863526, "ho_deg": 49.750123001, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.567850129, "id": "n13", "jd_utc": 2461307.207615741, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T16:58:58.000Z", "zn_deg": 182.324461350},
+        {"dec_deg": -0.274466362, "gha_deg": 77.166985473, "ho_deg": 49.731448528, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.549184280, "id": "n14", "jd_utc": 2461307.209004629, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T17:00:58.000Z", "zn_deg": 183.097803705},
+        {"dec_deg": -0.275006852, "gha_deg": 77.667107585, "ho_deg": 49.707609451, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.525356249, "id": "n15", "jd_utc": 2461307.210393519, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T17:02:58.000Z", "zn_deg": 183.870467846},
+        {"dec_deg": -0.275547341, "gha_deg": 78.167229530, "ho_deg": 49.678615155, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.496375423, "id": "n16", "jd_utc": 2461307.211782407, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T17:04:58.000Z", "zn_deg": 184.642290103},
+        {"dec_deg": -0.276087831, "gha_deg": 78.667351473, "ho_deg": 49.644477009, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.462253172, "id": "n17", "jd_utc": 2461307.213171296, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T17:06:58.000Z", "zn_deg": 185.413108902},
+        {"dec_deg": -0.276628321, "gha_deg": 79.167473415, "ho_deg": 49.605208373, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.423002857, "id": "n18", "jd_utc": 2461307.214560185, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T17:08:58.000Z", "zn_deg": 186.182763981},
+        {"dec_deg": -0.277168811, "gha_deg": 79.667595356, "ho_deg": 49.560824565, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.378639799, "id": "n19", "jd_utc": 2461307.215949074, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T17:10:58.000Z", "zn_deg": 186.951096886},
+        {"dec_deg": -0.277709301, "gha_deg": 80.167717464, "ho_deg": 49.511342817, "horizontal_parallax_arcmin": 0.1461, "hs_deg": 49.329181231, "id": "n20", "jd_utc": 2461307.217337963, "limb": "lower", "semidiameter_arcmin": 15.9400, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-09-23T17:12:58.000Z", "zn_deg": 187.717951464}
+      ],
+      "truth": {"azimuth_at_passage_deg": 180.000000022, "declination_deg": -0.272303006, "lat_deg": 39.952600000, "lon_deg": -75.165200000, "meridian_altitude_deg": 49.775096994, "passage_jd_utc": 2461307.203445470, "passage_utc": "2026-09-23T16:52:57.689Z"},
+      "vessel": null
+    },
+    {
+      "body": "Sun",
+      "dr": {"lat_deg": -33.724421877, "lon_deg": 151.309494181},
+      "name": "sydney-solstice-sun",
+      "notes": "Southern hemisphere, Sun north of the zenith (bears north at noon).",
+      "sights": [
+        {"dec_deg": -23.434878313, "gha_deg": 202.792255549, "ho_deg": 78.319911853, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 78.122748453, "id": "n00", "jd_utc": 2461395.561817130, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:29:01.000Z", "zn_deg": 28.269048409},
+        {"dec_deg": -23.434891426, "gha_deg": 203.541997714, "ho_deg": 78.599697433, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 78.402461079, "id": "n01", "jd_utc": 2461395.563900463, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:32:01.000Z", "zn_deg": 25.127169000},
+        {"dec_deg": -23.434904504, "gha_deg": 204.291740046, "ho_deg": 78.847883065, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 78.650582144, "id": "n02", "jd_utc": 2461395.565983796, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:35:01.000Z", "zn_deg": 21.845529525},
+        {"dec_deg": -23.434917549, "gha_deg": 205.041482210, "ho_deg": 79.062307143, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 78.864950543, "id": "n03", "jd_utc": 2461395.568067130, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:38:01.000Z", "zn_deg": 18.433098238},
+        {"dec_deg": -23.434930559, "gha_deg": 205.791224373, "ho_deg": 79.240942214, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.043539299, "id": "n04", "jd_utc": 2461395.570150463, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:41:01.000Z", "zn_deg": 14.902895785},
+        {"dec_deg": -23.434943536, "gha_deg": 206.540966535, "ho_deg": 79.381974554, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.184535113, "id": "n05", "jd_utc": 2461395.572233796, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:44:01.000Z", "zn_deg": 11.272080113},
+        {"dec_deg": -23.434956479, "gha_deg": 207.290708864, "ho_deg": 79.483885502, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.286419681, "id": "n06", "jd_utc": 2461395.574317130, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:47:01.000Z", "zn_deg": 7.561724060},
+        {"dec_deg": -23.434969387, "gha_deg": 208.040451024, "ho_deg": 79.545526790, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.348045008, "id": "n07", "jd_utc": 2461395.576400463, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:50:01.000Z", "zn_deg": 3.796257037},
+        {"dec_deg": -23.434982262, "gha_deg": 208.790193183, "ho_deg": 79.566182252, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.368695095, "id": "n08", "jd_utc": 2461395.578483796, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:53:01.000Z", "zn_deg": 0.002567705},
+        {"dec_deg": -23.434995103, "gha_deg": 209.539935342, "ho_deg": 79.545608145, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.348126256, "id": "n09", "jd_utc": 2461395.580567129, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:56:01.000Z", "zn_deg": 356.208850682},
+        {"dec_deg": -23.435007909, "gha_deg": 210.289677667, "ho_deg": 79.484047266, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.286581232, "id": "n10", "jd_utc": 2461395.582650463, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T01:59:01.000Z", "zn_deg": 352.443301042},
+        {"dec_deg": -23.435020682, "gha_deg": 211.039419824, "ho_deg": 79.382214963, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.184775201, "id": "n11", "jd_utc": 2461395.584733796, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T02:02:01.000Z", "zn_deg": 348.732813688},
+        {"dec_deg": -23.435033421, "gha_deg": 211.789161980, "ho_deg": 79.241258675, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 79.043855332, "id": "n12", "jd_utc": 2461395.586817130, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T02:05:01.000Z", "zn_deg": 345.101821280},
+        {"dec_deg": -23.435046126, "gha_deg": 212.538904302, "ho_deg": 79.062696398, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 78.865339265, "id": "n13", "jd_utc": 2461395.588900463, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T02:08:01.000Z", "zn_deg": 341.571403897},
+        {"dec_deg": -23.435058796, "gha_deg": 213.288646456, "ho_deg": 78.848341454, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 78.651039895, "id": "n14", "jd_utc": 2461395.590983796, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T02:11:01.000Z", "zn_deg": 338.158729010},
+        {"dec_deg": -23.435071433, "gha_deg": 214.038388610, "ho_deg": 78.600220993, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 78.402983898, "id": "n15", "jd_utc": 2461395.593067130, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T02:14:01.000Z", "zn_deg": 334.876825237},
+        {"dec_deg": -23.435084036, "gha_deg": 214.788130762, "ho_deg": 78.320496332, "horizontal_parallax_arcmin": 0.1490, "hs_deg": 78.123332088, "id": "n16", "jd_utc": 2461395.595150463, "limb": "lower", "semidiameter_arcmin": 16.2574, "true_lat_deg": -33.868800000, "true_lon_deg": 151.209300000, "utc": "2026-12-21T02:17:01.000Z", "zn_deg": 331.734667012}
+      ],
+      "truth": {"azimuth_at_passage_deg": 0.000000271, "declination_deg": -23.434982271, "lat_deg": -33.868800000, "lon_deg": 151.209300000, "meridian_altitude_deg": 79.566182271, "passage_jd_utc": 2461395.578485204, "passage_utc": "2026-12-21T01:53:01.122Z"},
+      "vessel": null
+    },
+    {
+      "body": "Sun",
+      "dr": {"lat_deg": 44.933217158, "lon_deg": -39.836890617},
+      "name": "moving-north-15kn-sun",
+      "notes": "Vessel making 15 kn on 010: the peak comes well before meridian passage.",
+      "sights": [
+        {"dec_deg": 23.323989923, "gha_deg": 35.001772184, "ho_deg": 68.019162385, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.833411501, "id": "n00", "jd_utc": 2461207.097592593, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.920119326, "true_lon_deg": -40.019890420, "utc": "2026-06-15T14:20:32.000Z", "zn_deg": 167.608145141},
+        {"dec_deg": 23.324044940, "gha_deg": 35.501696960, "ho_deg": 68.083748725, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.897978534, "id": "n01", "jd_utc": 2461207.098981482, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.928326403, "true_lon_deg": -40.017849433, "utc": "2026-06-15T14:22:32.000Z", "zn_deg": 168.830143118},
+        {"dec_deg": 23.324099944, "gha_deg": 36.001621735, "ho_deg": 68.140837566, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.955050331, "id": "n02", "jd_utc": 2461207.100370370, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.936533444, "true_lon_deg": -40.015807862, "utc": "2026-06-15T14:24:32.000Z", "zn_deg": 170.057970568},
+        {"dec_deg": 23.324154935, "gha_deg": 36.501546510, "ho_deg": 68.190371248, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.004569241, "id": "n03", "jd_utc": 2461207.101759259, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.944740448, "true_lon_deg": -40.013765708, "utc": "2026-06-15T14:26:32.000Z", "zn_deg": 171.290936919},
+        {"dec_deg": 23.324209912, "gha_deg": 37.001471284, "ho_deg": 68.232299607, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.046485111, "id": "n04", "jd_utc": 2461207.103148148, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.952947416, "true_lon_deg": -40.011722969, "utc": "2026-06-15T14:28:32.000Z", "zn_deg": 172.528330631},
+        {"dec_deg": 23.324264876, "gha_deg": 37.501396225, "ho_deg": 68.266580245, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.080755552, "id": "n05", "jd_utc": 2461207.104537037, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.961154350, "true_lon_deg": -40.009679646, "utc": "2026-06-15T14:30:32.000Z", "zn_deg": 173.769422300},
+        {"dec_deg": 23.324319827, "gha_deg": 38.001320997, "ho_deg": 68.293178714, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.107346119, "id": "n06", "jd_utc": 2461207.105925926, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.969361245, "true_lon_deg": -40.007635739, "utc": "2026-06-15T14:32:32.000Z", "zn_deg": 175.013465866},
+        {"dec_deg": 23.324374765, "gha_deg": 38.501245768, "ho_deg": 68.312068765, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.126230571, "id": "n07", "jd_utc": 2461207.107314815, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.977568103, "true_lon_deg": -40.005591246, "utc": "2026-06-15T14:34:32.000Z", "zn_deg": 176.259704139},
+        {"dec_deg": 23.324429689, "gha_deg": 39.001170539, "ho_deg": 68.323232448, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.137390959, "id": "n08", "jd_utc": 2461207.108703704, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.985774925, "true_lon_deg": -40.003546169, "utc": "2026-06-15T14:36:32.000Z", "zn_deg": 177.507370302},
+        {"dec_deg": 23.324484600, "gha_deg": 39.501095309, "ho_deg": 68.326660220, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.140817742, "id": "n09", "jd_utc": 2461207.110092592, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 44.993981711, "true_lon_deg": -40.001500505, "utc": "2026-06-15T14:38:32.000Z", "zn_deg": 178.755691583},
+        {"dec_deg": 23.324539498, "gha_deg": 40.001020245, "ho_deg": 68.322350998, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.136509838, "id": "n10", "jd_utc": 2461207.111481482, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.002188462, "true_lon_deg": -39.999454255, "utc": "2026-06-15T14:40:32.000Z", "zn_deg": 180.003892998},
+        {"dec_deg": 23.324594383, "gha_deg": 40.500945013, "ho_deg": 68.310312185, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.124474646, "id": "n11", "jd_utc": 2461207.112870371, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.010395175, "true_lon_deg": -39.997407420, "utc": "2026-06-15T14:42:32.000Z", "zn_deg": 181.251199031},
+        {"dec_deg": 23.324649254, "gha_deg": 41.000869781, "ho_deg": 68.290559616, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.104728001, "id": "n12", "jd_utc": 2461207.114259259, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.018601851, "true_lon_deg": -39.995359998, "utc": "2026-06-15T14:44:32.000Z", "zn_deg": 182.496839484},
+        {"dec_deg": 23.324704113, "gha_deg": 41.500794548, "ho_deg": 68.263117491, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.077294095, "id": "n13", "jd_utc": 2461207.115648148, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.026808490, "true_lon_deg": -39.993311988, "utc": "2026-06-15T14:46:32.000Z", "zn_deg": 183.740051109},
+        {"dec_deg": 23.324758957, "gha_deg": 42.000719313, "ho_deg": 68.228018247, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 68.042205360, "id": "n14", "jd_utc": 2461207.117037037, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.035015092, "true_lon_deg": -39.991263392, "utc": "2026-06-15T14:48:32.000Z", "zn_deg": 184.980081244},
+        {"dec_deg": 23.324813789, "gha_deg": 42.500644078, "ho_deg": 68.185302393, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.999502296, "id": "n15", "jd_utc": 2461207.118425926, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.043221658, "true_lon_deg": -39.989214208, "utc": "2026-06-15T14:50:32.000Z", "zn_deg": 186.216190929},
+        {"dec_deg": 23.324868608, "gha_deg": 43.000569010, "ho_deg": 68.135018284, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.949233251, "id": "n16", "jd_utc": 2461207.119814815, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.051428190, "true_lon_deg": -39.987164435, "utc": "2026-06-15T14:52:32.000Z", "zn_deg": 187.447658276},
+        {"dec_deg": 23.324923413, "gha_deg": 43.500493774, "ho_deg": 68.077221954, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.891454244, "id": "n17", "jd_utc": 2461207.121203704, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.059634683, "true_lon_deg": -39.985114074, "utc": "2026-06-15T14:54:32.000Z", "zn_deg": 188.673779624},
+        {"dec_deg": 23.324978205, "gha_deg": 44.000418536, "ho_deg": 68.011976725, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.826228588, "id": "n18", "jd_utc": 2461207.122592593, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.067841139, "true_lon_deg": -39.983063125, "utc": "2026-06-15T14:56:32.000Z", "zn_deg": 189.893874607},
+        {"dec_deg": 23.325032983, "gha_deg": 44.500343298, "ho_deg": 67.939352973, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.753626644, "id": "n19", "jd_utc": 2461207.123981481, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.076047558, "true_lon_deg": -39.981011587, "utc": "2026-06-15T14:58:32.000Z", "zn_deg": 191.107286890},
+        {"dec_deg": 23.325087749, "gha_deg": 45.000268059, "ho_deg": 67.859427764, "horizontal_parallax_arcmin": 0.1443, "hs_deg": 67.673725463, "id": "n20", "jd_utc": 2461207.125370370, "limb": "lower", "semidiameter_arcmin": 15.7456, "true_lat_deg": 45.084253941, "true_lon_deg": -39.978959460, "utc": "2026-06-15T15:00:32.000Z", "zn_deg": 192.313386718}
+      ],
+      "truth": {"azimuth_at_passage_deg": 179.999999920, "declination_deg": 23.324539327, "lat_deg": 45.002162859, "lon_deg": -39.999460640, "meridian_altitude_deg": 68.322376468, "passage_jd_utc": 2461207.111477149, "passage_utc": "2026-06-15T14:40:31.626Z"},
+      "vessel": {"course_deg": 10.000000000, "speed_kn": 15.000000000}
+    },
+    {
+      "body": "Sun",
+      "dr": {"lat_deg": 21.041649204, "lon_deg": -157.977324824},
+      "name": "near-zenith-sun",
+      "notes": "Sun about 2 deg from the zenith at noon: a V-shaped peak.",
+      "sights": [
+        {"dec_deg": 23.064624833, "gha_deg": 155.401952445, "ho_deg": 86.897776190, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 86.706843031, "id": "n00", "jd_utc": 2461202.431354166, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:21:09.000Z", "zn_deg": 47.816933732},
+        {"dec_deg": 23.064674473, "gha_deg": 155.651917260, "ho_deg": 87.066608805, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 86.875633534, "id": "n01", "jd_utc": 2461202.432048611, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:22:09.000Z", "zn_deg": 44.849112837},
+        {"dec_deg": 23.064724110, "gha_deg": 155.901881908, "ho_deg": 87.226351323, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.035336225, "id": "n02", "jd_utc": 2461202.432743056, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:23:09.000Z", "zn_deg": 41.523849346},
+        {"dec_deg": 23.064773743, "gha_deg": 156.151846555, "ho_deg": 87.375343183, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.184290952, "id": "n03", "jd_utc": 2461202.433437500, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:24:09.000Z", "zn_deg": 37.801460363},
+        {"dec_deg": 23.064823373, "gha_deg": 156.401811202, "ho_deg": 87.511652110, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.320565919, "id": "n04", "jd_utc": 2461202.434131945, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:25:09.000Z", "zn_deg": 33.646247086},
+        {"dec_deg": 23.064873000, "gha_deg": 156.651775848, "ho_deg": 87.633085515, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.441969080, "id": "n05", "jd_utc": 2461202.434826389, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:26:09.000Z", "zn_deg": 29.032563504},
+        {"dec_deg": 23.064922624, "gha_deg": 156.901740494, "ho_deg": 87.737246866, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.546104499, "id": "n06", "jd_utc": 2461202.435520833, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:27:09.000Z", "zn_deg": 23.953106398},
+        {"dec_deg": 23.064972244, "gha_deg": 157.151705140, "ho_deg": 87.821656801, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.630493425, "id": "n07", "jd_utc": 2461202.436215278, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:28:09.000Z", "zn_deg": 18.428593261},
+        {"dec_deg": 23.065021861, "gha_deg": 157.401669785, "ho_deg": 87.883950115, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.692771244, "id": "n08", "jd_utc": 2461202.436909722, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:29:09.000Z", "zn_deg": 12.516517916},
+        {"dec_deg": 23.065071475, "gha_deg": 157.651634429, "ho_deg": 87.922136576, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.730948214, "id": "n09", "jd_utc": 2461202.437604167, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:30:09.000Z", "zn_deg": 6.315197838},
+        {"dec_deg": 23.065121085, "gha_deg": 157.901599073, "ho_deg": 87.934878383, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.743686869, "id": "n10", "jd_utc": 2461202.438298611, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:31:09.000Z", "zn_deg": 359.959172230},
+        {"dec_deg": 23.065170692, "gha_deg": 158.151563717, "ho_deg": 87.921707482, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.730519270, "id": "n11", "jd_utc": 2461202.438993055, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:32:09.000Z", "zn_deg": 353.604476349},
+        {"dec_deg": 23.065220296, "gha_deg": 158.401528360, "ho_deg": 87.883107551, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.691928975, "id": "n12", "jd_utc": 2461202.439687500, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:33:09.000Z", "zn_deg": 347.406954238},
+        {"dec_deg": 23.065269897, "gha_deg": 158.651493170, "ho_deg": 87.820429283, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.629266341, "id": "n13", "jd_utc": 2461202.440381945, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:34:09.000Z", "zn_deg": 341.500632470},
+        {"dec_deg": 23.065319494, "gha_deg": 158.901457812, "ho_deg": 87.735671578, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.544529774, "id": "n14", "jd_utc": 2461202.441076389, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:35:09.000Z", "zn_deg": 335.983166648},
+        {"dec_deg": 23.065369088, "gha_deg": 159.151422454, "ho_deg": 87.631203527, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.440087775, "id": "n15", "jd_utc": 2461202.441770833, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:36:09.000Z", "zn_deg": 330.911382425},
+        {"dec_deg": 23.065418679, "gha_deg": 159.401387095, "ho_deg": 87.509504529, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.318419129, "id": "n16", "jd_utc": 2461202.442465278, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:37:09.000Z", "zn_deg": 326.305452264},
+        {"dec_deg": 23.065468267, "gha_deg": 159.651351736, "ho_deg": 87.372968523, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.181917183, "id": "n17", "jd_utc": 2461202.443159722, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:38:09.000Z", "zn_deg": 322.157690137},
+        {"dec_deg": 23.065517851, "gha_deg": 159.901316377, "ho_deg": 87.223784084, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 87.032769968, "id": "n18", "jd_utc": 2461202.443854167, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:39:09.000Z", "zn_deg": 318.442220618},
+        {"dec_deg": 23.065567432, "gha_deg": 160.151281016, "ho_deg": 87.063878970, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 86.872904765, "id": "n19", "jd_utc": 2461202.444548611, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:40:09.000Z", "zn_deg": 315.123235339},
+        {"dec_deg": 23.065617010, "gha_deg": 160.401245656, "ho_deg": 86.894909423, "horizontal_parallax_arcmin": 0.1444, "hs_deg": 86.703977407, "id": "n20", "jd_utc": 2461202.445243055, "limb": "lower", "semidiameter_arcmin": 15.7533, "true_lat_deg": 21.000000000, "true_lon_deg": -157.900000000, "utc": "2026-06-10T22:41:09.000Z", "zn_deg": 312.161025685}
+      ],
+      "truth": {"azimuth_at_passage_deg": 359.999999178, "declination_deg": 23.065120768, "lat_deg": 21.000000000, "lon_deg": -157.900000000, "meridian_altitude_deg": 87.934879232, "passage_jd_utc": 2461202.438294169, "passage_utc": "2026-06-10T22:31:08.616Z"},
+      "vessel": null
+    },
+    {
+      "body": "Altair",
+      "dr": {"lat_deg": 40.070349341, "lon_deg": -75.011197527},
+      "name": "altair-upper-transit",
+      "notes": "A star at meridian passage: any body works.",
+      "sights": [
+        {"dec_deg": 8.940408133, "gha_deg": 71.155694178, "ho_deg": 58.782307844, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 58.863165456, "id": "n00", "jd_utc": 2461253.665000000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T03:57:36.000Z", "zn_deg": 172.341427610},
+        {"dec_deg": 8.940408181, "gha_deg": 71.657063086, "ho_deg": 58.830363805, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 58.911202406, "id": "n01", "jd_utc": 2461253.666388889, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T03:59:36.000Z", "zn_deg": 173.293182794},
+        {"dec_deg": 8.940408230, "gha_deg": 72.158431995, "ho_deg": 58.872071260, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 58.952893377, "id": "n02", "jd_utc": 2461253.667777778, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:01:36.000Z", "zn_deg": 174.247288018},
+        {"dec_deg": 8.940408278, "gha_deg": 72.659800903, "ho_deg": 58.907404056, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 58.988212220, "id": "n03", "jd_utc": 2461253.669166666, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:03:36.000Z", "zn_deg": 175.203418418},
+        {"dec_deg": 8.940408326, "gha_deg": 73.161169979, "ho_deg": 58.936339939, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.017136683, "id": "n04", "jd_utc": 2461253.670555556, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:05:36.000Z", "zn_deg": 176.161244434},
+        {"dec_deg": 8.940408374, "gha_deg": 73.662538888, "ho_deg": 58.958860582, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.039648444, "id": "n05", "jd_utc": 2461253.671944445, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:07:36.000Z", "zn_deg": 177.120431312},
+        {"dec_deg": 8.940408422, "gha_deg": 74.163907796, "ho_deg": 58.974951700, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.055733218, "id": "n06", "jd_utc": 2461253.673333333, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:09:36.000Z", "zn_deg": 178.080641846},
+        {"dec_deg": 8.940408470, "gha_deg": 74.665276704, "ho_deg": 58.984603054, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.065380767, "id": "n07", "jd_utc": 2461253.674722222, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:11:36.000Z", "zn_deg": 179.041535928},
+        {"dec_deg": 8.940408519, "gha_deg": 75.166645612, "ho_deg": 58.987808492, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.068584942, "id": "n08", "jd_utc": 2461253.676111111, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:13:36.000Z", "zn_deg": 180.002771724},
+        {"dec_deg": 8.940408567, "gha_deg": 75.668014689, "ho_deg": 58.984565967, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.065343695, "id": "n09", "jd_utc": 2461253.677500000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:15:36.000Z", "zn_deg": 180.964006856},
+        {"dec_deg": 8.940408615, "gha_deg": 76.169383597, "ho_deg": 58.974877550, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.055659097, "id": "n10", "jd_utc": 2461253.678888889, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:17:36.000Z", "zn_deg": 181.924897983},
+        {"dec_deg": 8.940408663, "gha_deg": 76.670752505, "ho_deg": 58.958749415, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.039537321, "id": "n11", "jd_utc": 2461253.680277778, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:19:36.000Z", "zn_deg": 182.885103598},
+        {"dec_deg": 8.940408711, "gha_deg": 77.172121414, "ho_deg": 58.936191827, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.016988630, "id": "n12", "jd_utc": 2461253.681666667, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:21:36.000Z", "zn_deg": 183.844283608},
+        {"dec_deg": 8.940408760, "gha_deg": 77.673490322, "ho_deg": 58.907219103, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 58.988027340, "id": "n13", "jd_utc": 2461253.683055555, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:23:36.000Z", "zn_deg": 184.802100502},
+        {"dec_deg": 8.940408808, "gha_deg": 78.174859230, "ho_deg": 58.871849575, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 58.952671779, "id": "n14", "jd_utc": 2461253.684444444, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:25:36.000Z", "zn_deg": 185.758220192},
+        {"dec_deg": 8.940408856, "gha_deg": 78.676228307, "ho_deg": 58.830105512, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 58.910944215, "id": "n15", "jd_utc": 2461253.685833334, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:27:36.000Z", "zn_deg": 186.712313140},
+        {"dec_deg": 8.940408904, "gha_deg": 79.177597215, "ho_deg": 58.782013118, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 58.862870846, "id": "n16", "jd_utc": 2461253.687222222, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 39.952600000, "true_lon_deg": -75.165200000, "utc": "2026-08-01T04:29:36.000Z", "zn_deg": 187.664053876}
+      ],
+      "truth": {"azimuth_at_passage_deg": 179.999999958, "declination_deg": 8.940408519, "lat_deg": 39.952600000, "lon_deg": -75.165200000, "meridian_altitude_deg": 58.987808519, "passage_jd_utc": 2461253.676107106, "passage_utc": "2026-08-01T04:13:35.654Z"},
+      "vessel": null
+    }
+  ],
+  "polaris": [
+    {"azimuth_deg": 359.424344599, "dec_deg": 89.378950963, "gha_aries_deg": 144.543646291, "gha_deg": 97.925494420, "ho_deg": 1.233343271, "jd_utc": 2461055.583333333, "lha_aries_deg": 114.543646291, "name": "polaris-lat-1", "sha_deg": 313.381848129, "true_lat_deg": 1.000000000, "true_lon_deg": -30.000000000, "utc": "2026-01-15T02:00:00.000Z"},
+    {"azimuth_deg": 0.625843838, "dec_deg": 89.378957157, "gha_aries_deg": 189.666856056, "gha_deg": 143.049463213, "ho_deg": 9.924262890, "jd_utc": 2461055.708333333, "lha_aries_deg": 309.666856056, "name": "polaris-lat-10", "sha_deg": 313.382607157, "true_lat_deg": 10.000000000, "true_lon_deg": 120.000000000, "utc": "2026-01-15T05:00:00.000Z"},
+    {"azimuth_deg": 359.349971030, "dec_deg": 89.378963404, "gha_aries_deg": 234.790065905, "gha_deg": 188.173435428, "ho_deg": 24.804891003, "jd_utc": 2461055.833333333, "lha_aries_deg": 154.790065905, "name": "polaris-lat-25", "sha_deg": 313.383369523, "true_lat_deg": 25.000000000, "true_lon_deg": -80.000000000, "utc": "2026-01-15T08:00:00.000Z"},
+    {"azimuth_deg": 0.139729542, "dec_deg": 89.378969704, "gha_aries_deg": 279.913275832, "gha_deg": 233.297411396, "ho_deg": 40.188127740, "jd_utc": 2461055.958333333, "lha_aries_deg": 236.513275832, "name": "polaris-lat-40.8", "sha_deg": 313.384135564, "true_lat_deg": 40.800000000, "true_lon_deg": -43.400000000, "utc": "2026-01-15T11:00:00.000Z"},
+    {"azimuth_deg": 1.032219950, "dec_deg": 89.378976055, "gha_aries_deg": 325.036485828, "gha_deg": 278.421391442, "ho_deg": 55.191894503, "jd_utc": 2461056.083333333, "lha_aries_deg": 335.036485828, "name": "polaris-lat-55", "sha_deg": 313.384905614, "true_lat_deg": 55.000000000, "true_lon_deg": 10.000000000, "utc": "2026-01-15T14:00:00.000Z"},
+    {"azimuth_deg": 0.481986127, "dec_deg": 89.378982456, "gha_aries_deg": 10.159695886, "gha_deg": 323.545375891, "ho_deg": 68.594896401, "jd_utc": 2461056.208333333, "lha_aries_deg": 30.159695886, "name": "polaris-lat-68", "sha_deg": 313.385680004, "true_lat_deg": 68.000000000, "true_lon_deg": 20.000000000, "utc": "2026-01-15T17:00:00.000Z"},
+    {"azimuth_deg": 1.453052109, "dec_deg": 89.378988906, "gha_aries_deg": 55.282905999, "gha_deg": 8.669365060, "ho_deg": 74.510387305, "jd_utc": 2461056.333333333, "lha_aries_deg": 265.282905999, "name": "polaris-lat-75", "sha_deg": 313.386459061, "true_lat_deg": 75.000000000, "true_lon_deg": -150.000000000, "utc": "2026-01-15T20:00:00.000Z"},
+    {"azimuth_deg": 353.814621586, "dec_deg": 89.378995405, "gha_aries_deg": 100.406116159, "gha_deg": 53.793359266, "ho_deg": 84.718882424, "jd_utc": 2461056.458333333, "lha_aries_deg": 160.406116159, "name": "polaris-lat-85", "sha_deg": 313.387243106, "true_lat_deg": 85.000000000, "true_lon_deg": 60.000000000, "utc": "2026-01-15T23:00:00.000Z"},
+    {"azimuth_deg": 343.568906746, "dec_deg": 89.378954054, "gha_aries_deg": 167.105251163, "gha_deg": 120.487478409, "ho_deg": 88.107674526, "jd_utc": 2461055.645833333, "lha_aries_deg": 167.105251163, "name": "polaris-lat-88.5", "sha_deg": 313.382227247, "true_lat_deg": 88.500000000, "true_lon_deg": 0.000000000, "utc": "2026-01-15T03:30:00.000Z"},
+    {"azimuth_deg": 59.607859209, "dec_deg": 89.378966548, "gha_aries_deg": 257.351670859, "gha_deg": 210.735422922, "ho_deg": 89.302224890, "jd_utc": 2461055.895833333, "lha_aries_deg": 302.351670859, "name": "polaris-lat-89.8", "sha_deg": 313.383752063, "true_lat_deg": 89.800000000, "true_lon_deg": 45.000000000, "utc": "2026-01-15T09:30:00.000Z"}
+  ],
+  "running_fix": [
+    {
+      "name": "due-north-12kn",
+      "notes": "Due north: rhumb line and great circle coincide, so the truth is exact.",
+      "sights": [
+        {"dec_deg": 56.686046509, "gha_deg": 359.225522823, "ho_deg": 42.508710744, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 42.597590097, "id": "r0", "jd_utc": 2461314.500000000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 40.000000000, "true_lon_deg": -70.000000000, "utc": "2026-10-01T00:00:00.000Z", "zn_deg": 44.707781017},
+        {"dec_deg": 10.001090304, "gha_deg": 65.925811163, "ho_deg": 59.486222569, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.566803601, "id": "r1", "jd_utc": 2461314.562500000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 40.300000000, "true_lon_deg": -70.000000000, "utc": "2026-10-01T01:30:00.000Z", "zn_deg": 172.079307301},
+        {"dec_deg": 38.812938729, "gha_deg": 135.405627447, "ho_deg": 40.852954222, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 40.942911178, "id": "r2", "jd_utc": 2461314.625000000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 40.600000000, "true_lon_deg": -70.000000000, "utc": "2026-10-01T03:00:00.000Z", "zn_deg": 290.496723355}
+      ],
+      "track": {"along": "great_circle", "course_deg": 0.000000000, "speed_kn": 12.000000000, "start_utc": "2026-10-01T00:00:00.000Z"},
+      "truth": {"lat_deg": 40.600000000, "lon_deg": -70.000000000, "reference_jd_utc": 2461314.625000000, "reference_utc": "2026-10-01T03:00:00.000Z"}
+    },
+    {
+      "name": "northeast-12kn-rhumb",
+      "notes": "Course 045 held as a rhumb line for 36 NM: includes the great-circle-leg approximation of skyfix-motion's dead reckoning (docs/MOTION.md).",
+      "sights": [
+        {"dec_deg": 56.686046509, "gha_deg": 359.225522823, "ho_deg": 42.508710744, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 42.597590097, "id": "r0", "jd_utc": 2461314.500000000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 40.000000000, "true_lon_deg": -70.000000000, "utc": "2026-10-01T00:00:00.000Z", "zn_deg": 44.707781017},
+        {"dec_deg": 10.001090304, "gha_deg": 65.925811163, "ho_deg": 59.601529651, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 59.682065757, "id": "r1", "jd_utc": 2461314.562500000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 40.212132034, "true_lon_deg": -69.722649618, "utc": "2026-10-01T01:30:00.000Z", "zn_deg": 172.595357855},
+        {"dec_deg": 38.812938729, "gha_deg": 135.405627447, "ho_deg": 40.395726161, "horizontal_parallax_arcmin": 0.0000, "hs_deg": 40.485993229, "id": "r2", "jd_utc": 2461314.625000000, "limb": "center", "semidiameter_arcmin": 0.0000, "true_lat_deg": 40.424264069, "true_lon_deg": -69.444429733, "utc": "2026-10-01T03:00:00.000Z", "zn_deg": 290.870683751}
+      ],
+      "track": {"along": "rhumb", "course_deg": 45.000000000, "speed_kn": 12.000000000, "start_utc": "2026-10-01T00:00:00.000Z"},
+      "truth": {"lat_deg": 40.424264069, "lon_deg": -69.444429733, "reference_jd_utc": 2461314.625000000, "reference_utc": "2026-10-01T03:00:00.000Z"}
+    }
+  ],
+  "schema": "skyfix.reference/1"
+}

@@ -195,8 +195,226 @@ Boundary polylines at J2000, for drawing. Optional in wave 1.
 
 ## Wave 1 — navigation methods (`nav.rs`, navigation agent)
 
-Specified by the navigation agent in this section: noon sight, Polaris latitude,
-averaging a run of sights, running fix. Inputs reuse the session JSON types.
+What each method computes, and why, is `docs/NAVIGATION_METHODS.md`; this section is the
+wire. TypeScript: the `NavEngine` interface and the types after it in
+`web/src/next/engine/types.ts`. Rust: the shapes live in `skyfix_core::types`
+("Navigation methods") except the running fix's, which live in `skyfix_wasm::nav`.
+
+**Common to all four.**
+
+- Signature `(session_json, method_json, ephemeris_mode) -> Result`. `session_json` is a
+  `skyfix.session/1` document (CONVENTIONS §10) holding the sights; it is validated
+  exactly as `solve` validates it. `ephemeris_mode` is `"auto"` (a supplied `geocentric`
+  wins, otherwise the bundled Sun and star providers) or `"supplied"`, exactly as `reduce`
+  and `solve` take it. `method_json` may be `""` or `"{}"` for all defaults (the running
+  fix needs its legs).
+- **These are not `jd_utc` exports.** Instants are RFC 3339 `utc` strings, as in the
+  session; results carry both `utc` (milliseconds, `Z`) and `jd_utc`. Every instant in a
+  result, and every `reference_utc` in a request, is on the same scale as the sights
+  after the session's `clock.correction_s`.
+- Every result carries `sights: ReducedSight[]` (the correction workings, one per
+  observation used) and `warnings: Warning[]` (CONVENTIONS §12; the codes added for these
+  methods are listed in `docs/NAVIGATION_METHODS.md` §1). A rejected observation is a
+  `{"code": "other"}` warning, not an error; an error is thrown only when nothing usable
+  is left or an input is malformed.
+- `DrPosition` is `{"lat_deg", "lon_deg", "sigma_nm": number | null}` — `sigma_nm` the
+  1-sigma DR error in each of north and east, `null`/absent meaning not stated. Every
+  method's `dr` defaults to the session's `observer.assumed_position` (and its prior
+  `sigma_nm` when `assumed_position_role` is `prior`). The DR is never a prior on the
+  answer.
+- `VesselMotion` is `{"course_deg", "speed_kn"}`, constant over the run.
+- Shared result pieces: `LatitudeEstimate {lat_deg, sigma_arcmin}`;
+  `LongitudeEstimate {lon_deg, sigma_arcmin, sigma_nm, clock_sigma_arcmin}` (sigma in
+  arcminutes *of longitude* and as nautical miles east–west, clock term included);
+  `TimeEstimate {utc, jd_utc, sigma_s}`;
+  `RunResidual {id, utc, jd_utc, minutes, ho_deg, model_deg, residual_arcmin, normalized,
+  normalized_loo, used, outlier}` (`minutes` from the method's reference instant;
+  `normalized_loo` is `null` except in averaging);
+  `CurvePoint {jd_utc, minutes, altitude_deg}` for drawing the fitted curve.
+
+### `noon_sight(session_json, options_json, ephemeris_mode) -> NoonSightResult`
+
+All observations must be of one body (else it throws). `options_json`:
+
+```json
+{"dr": {"lat_deg": 39.8, "lon_deg": -44.6, "sigma_nm": 10},
+ "vessel": {"course_deg": 45, "speed_kn": 10},
+ "body_bearing": "auto",
+ "curvature": "predicted",
+ "single_altitude": "maximum"}
+```
+
+`body_bearing`: `"auto" | "north" | "south"` (which side of the zenith the body crossed;
+`auto` decides from the DR). `curvature`: `"predicted"` (exact curve, default) or
+`"fitted"` (free parabola, three or more sights). `single_altitude` (one observation):
+`"maximum"` (the recorded peak, default) or `"ex_meridian"` (an altitude at the recorded
+time, reduced on the DR meridian). A DR is required.
+
+```json
+{
+  "body": "Sun", "method": "curve_fit", "n_sights": 21, "side": "south",
+  "latitude": {"lat_deg": 39.952583, "sigma_arcmin": 0.109},
+  "meridian_altitude_deg": 49.775097, "declination_deg": -0.272320, "zenith_distance_deg": 40.224903,
+  "latitude_rule": "The Sun crossed your meridian SOUTH of the zenith, so latitude = declination + zenith distance, counting north as positive: −0°16.3′ + 40°13.5′ = +39°57.2′ (39°57.2′ N). Zenith distance = 90° − meridian altitude 49°46.5′.",
+  "meridian_passage": {"utc": "2026-09-23T16:52:57.689Z", "jd_utc": 2461307.2034455, "sigma_s": 6.98},
+  "longitude": {"lon_deg": -75.165190, "sigma_arcmin": 1.747, "sigma_nm": 1.339, "clock_sigma_arcmin": 0},
+  "longitude_caveat": "Near noon the Sun's height hardly changes: for about 5 minutes either side of the peak it is within 1′ of its highest. …",
+  "longitude_sensitivity_arcmin_per_nm": null,
+  "maximum": {"utc": "2026-09-23T16:52:45.172Z", "jd_utc": 2461307.2033006, "altitude_deg": 49.775125,
+              "seconds_after_passage": -12.5},
+  "curvature": {"predicted_arcmin_per_min2": 0.03886, "rate_at_passage_arcmin_per_min": -0.0162,
+                "max_minus_meridian_arcmin": 0.0017, "fitted_arcmin_per_min2": 0.03886,
+                "fitted_sigma_arcmin_per_min2": 0.00083, "z": 0.0, "consistent": true},
+  "alternative": {"method": "curve_fit_free_curvature",
+                  "latitude": {"lat_deg": 39.952583, "sigma_arcmin": 0.164},
+                  "meridian_altitude_deg": 49.775097,
+                  "meridian_passage": {"utc": "2026-09-23T16:52:57.689Z", "jd_utc": 2461307.2034455, "sigma_s": 6.95},
+                  "longitude": {"lon_deg": -75.165190, "sigma_arcmin": 1.739, "sigma_nm": 1.333, "clock_sigma_arcmin": 0},
+                  "chi2": 0.0, "dof": 18},
+  "dr_check": {"predicted_passage_utc": "2026-09-23T16:53:28.912Z", "predicted_passage_jd_utc": 2461307.2038069,
+               "predicted_passage_sigma_s": 52.0, "latitude_difference_arcmin": 10.40,
+               "longitude_difference_arcmin": 7.81},
+  "chi2": 0.0, "dof": 19,
+  "residuals": [RunResidual], "model_curve": [CurvePoint],
+  "sights": [ReducedSight],
+  "warnings": [{"code": "flat_peak_longitude", "body": "Sun", "sigma_time_s": 6.98,
+                "sigma_lon_arcmin": 1.747, "sigma_east_nm": 1.339}]
+}
+```
+
+(The Philadelphia equinox run of `fixtures/reference/nav_methods.json`: 21 noise-free
+lower-limb sextant readings of sigma 0.5′, DR 12 NM off with `sigma_nm` 10; the Sun's
+declination falling 1′ an hour puts the peak 12.5 s before passage.)
+
+`method`: `"curve_fit" | "curve_fit_free_curvature" | "ex_meridian" | "maximum_altitude"`.
+`meridian_passage`, `longitude` and `maximum` are `null` for the single-altitude and
+ex-meridian methods, which cannot time the peak; `longitude_caveat` then says why.
+`longitude_sensitivity_arcmin_per_nm` is set only for `ex_meridian`. The `curvature`
+block's `fitted_*`, `z` and `consistent` are `null` with fewer than three sights.
+`alternative` is the computation not chosen (the free-curvature one by default), `null`
+when there is none.
+
+### `polaris_latitude(session_json, options_json, ephemeris_mode) -> PolarisResult`
+
+Uses the session's Polaris observations and ignores the rest with a warning.
+`options_json`: `{"dr": DrPosition, "vessel": VesselMotion, "reference_utc": "…"}` — the
+DR longitude is required; `reference_utc` (default: the last sight) is the instant a
+combined latitude refers to.
+
+```json
+{
+  "latitude": {"lat_deg": 40.807792, "sigma_arcmin": 0.252},
+  "reference_utc": "2016-03-22T23:18:56.000Z", "reference_jd_utc": 2457470.4714815,
+  "polaris": [{
+    "id": "p", "utc": "2016-03-22T23:18:56.000Z", "jd_utc": 2457470.4714815, "ho_deg": 40.868333,
+    "gha_deg": 127.861658, "dec_deg": 89.334398, "dr_lon_deg": -43.366667, "lha_deg": 84.494991,
+    "azimuth_deg": 359.124,
+    "latitude": {"lat_deg": 40.807792, "sigma_arcmin": 0.252},
+    "sigma_from_altitude_arcmin": 0.200, "sigma_from_longitude_arcmin": 0.153,
+    "sigma_from_clock_arcmin": 0, "longitude_sensitivity_arcmin_per_nm": 0.0153,
+    "correction_arcmin": -3.632, "normalized_residual": null,
+    "almanac": {"lha_aries_deg": 127.251981, "a0_arcmin": 54.932, "a1_arcmin": 0.524,
+                "a2_arcmin": 0.913, "latitude_deg": 40.807803, "difference_arcmin": -0.001,
+                "table_latitude_deg": 40.766667, "mean_sha_deg": 316.815, "mean_dec_deg": 89.33185,
+                "within_printed_table": true, "note": "Unrounded Nautical Almanac Polaris-table terms: …"}
+  }],
+  "chi2": null, "dof": 0,
+  "sights": [ReducedSight], "warnings": []
+}
+```
+
+(Bowditch §1912: Ho 40°52.1′ at 2016-03-22T23:18:56Z, DR 40°46.0′ N 43°22.0′ W with
+`sigma_nm` 10; the book's answer is 40°48.4′.)
+
+`sigma_from_longitude_arcmin` is `null` when the DR's `sigma_nm` was not stated (a
+warning says so). `chi2` and each `normalized_residual` are set when there are several
+sights. `almanac` is the Nautical Almanac's `Latitude = Ho − 1° + a0 + a1 + a2`,
+unrounded, for teaching; the answer is always the rigorous `latitude`.
+
+### `average_sights(session_json, options_json, ephemeris_mode) -> AveragedSight`
+
+All observations must be of one body. `options_json`:
+`{"reference_utc": "…", "dr": DrPosition, "vessel": VesselMotion,
+"reject_outliers": true, "outlier_threshold": 3}` — `reference_utc` defaults to the
+weighted mean time of the sights used; a DR is required.
+
+```json
+{
+  "body": "Vega", "utc": "2026-10-01T01:30:00.000Z", "jd_utc": 2461314.5625,
+  "ho_deg": 61.072473, "sigma_arcmin": 0.189, "n_used": 7, "n_total": 7,
+  "predicted_slope_arcmin_per_min": -11.336, "predicted_slope_sigma_arcmin_per_min": 0.018,
+  "predicted_curvature_arcmin_per_min2": 0.0035,
+  "chi2": 0.008, "dof": 6,
+  "free_slope": {"slope_arcmin_per_min": -11.353, "slope_sigma_arcmin_per_min": 0.189,
+                 "ho_deg": 61.072473, "sigma_arcmin": 0.189, "z": -0.09, "consistent": true,
+                 "chi2": 0.0, "dof": 5},
+  "outliers": [],
+  "residuals": [RunResidual], "model_curve": [CurvePoint],
+  "observation": {"id": "avg-vega-013000", "body": "Vega", "utc": "2026-10-01T01:30:00.000Z",
+                  "altitude_deg": 61.072473, "altitude_kind": "observed_ho", "sigma_arcmin": 0.189,
+                  "limb": "center", "horizon": null, "geocentric": null,
+                  "notes": "Average of 7 sights (a00, …, a06) at a predicted slope of -11.336′/min; …"},
+  "sights": [ReducedSight], "warnings": []
+}
+```
+
+(Seven noise-free sextant readings of Vega over three minutes, sigma 0.5′, DR 15 NM off
+with `sigma_nm` 10.)
+
+`free_slope` is `null` with fewer than four sights in use.
+`predicted_slope_sigma_arcmin_per_min` is `null` when the DR's `sigma_nm` was not stated.
+`observation` is a session `Observation`, fully corrected, ready to add to a session for
+`solve`; it carries a `geocentric` direction only when the run's own were supplied.
+
+### `running_fix(session_json, request_json, ephemeris_mode) -> RunningFixOutput`
+
+The session's sights, advanced along the dead-reckoning track to one instant and solved
+(`skyfix-motion`, `docs/MOTION.md`). `request_json`:
+
+```json
+{"reference_utc": "2026-10-01T03:00:00Z",
+ "legs": [{"start_utc": "2026-10-01T00:00:00Z", "course_deg": 45, "speed_kn": 12},
+          {"start_utc": "2026-10-01T02:00:00Z", "course_deg": 90, "speed_kn": 10}],
+ "end_utc": null,
+ "motion_uncertainty": {"speed_sigma_kn": 0.5, "course_sigma_deg": 2, "random_walk_nm_per_sqrt_hour": 0},
+ "options": {}}
+```
+
+`legs` is required and non-empty; only the first leg may omit `start_utc` (it then starts
+at the earliest sight). Before the first leg and after `end_utc` the vessel is stationary
+(the result warns when a sight falls outside the track). `motion_uncertainty` defaults to
+all zeros, meaning *not stated*: the fix then treats the run as exact and says so.
+`options` is a `SolveOptions` document exactly as `solve` takes it; the session's assumed
+position and clock uncertainty fill it as they do for `solve`.
+
+```json
+{
+  "result": {"kind": "unique", "fix": {"position": {"lat_deg": 40.423957, "lon_deg": -69.444554},
+             "sigma_north_m": 1447, "sigma_east_m": 1088, "ellipse95": {…}, …},
+             "alternatives": [], "circles": [CircleOfPosition], "warnings": [{"code": "other", …}, …]},
+  "reference_utc": "2026-10-01T03:00:00.000Z", "reference_jd_utc": 2461314.625,
+  "applied": true, "passes": 2,
+  "reference_estimate": {"lat_deg": 40.423161, "lon_deg": -69.444863},
+  "inflations": [
+    {"id": "r0", "hours_to_reference": 3.0, "run_nm": 36.0, "zn_deg": 45.07,
+     "sigma_sight_arcmin": 0.5, "sigma_motion_arcmin": 1.500, "sigma_total_arcmin": 1.581},
+    {"id": "r1", "hours_to_reference": 1.5, "run_nm": 18.0, "zn_deg": 172.77,
+     "sigma_sight_arcmin": 0.5, "sigma_motion_arcmin": 0.677, "sigma_total_arcmin": 0.841},
+    {"id": "r2", "hours_to_reference": 0.0, "run_nm": 0.0, "zn_deg": 290.87,
+     "sigma_sight_arcmin": 0.5, "sigma_motion_arcmin": 0.0, "sigma_total_arcmin": 0.5}],
+  "sights": [ReducedSight]
+}
+```
+
+(The rhumb-line case of `fixtures/reference/nav_methods.json`: Schedar, Enif and Vega
+taken three hours apart from a vessel making 12 knots on 045, one leg starting at
+00:00Z, speed sigma 0.5 kn, course sigma 2°. The truth is 36 m from `position`.)
+
+`result` is the same `FixResult` `solve` returns (unique, ambiguous, underdetermined or
+failed), with the running fix's two standing warnings: the sigmas behind it are not the
+instrument's, and its covariance is optimistic because the dead-reckoning error is shared
+by every sight. `applied` is `false` when no linearisation point could be found and the
+sights were solved as if stationary (a warning says so).
 
 ## Wave 2 — Moon and planet sights, predicted sextant readings, lunar distance (`nav.rs`)
 

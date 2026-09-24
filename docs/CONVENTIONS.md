@@ -364,3 +364,25 @@ The engine works only in UTC. The UI displays one chosen zone and always shows U
 beside it: an IANA zone (formatted with the browser's `Intl`), guessed from the
 gazetteer and overridable; the nautical zone time for positions at sea
 (`ZD = round(lon_east / -15)`, so zone time + ZD = UTC; 75 W is ZD +5); or UTC itself.
+
+## 14. Navigation methods: noon sight, Polaris, averaging, running fix
+
+`docs/NAVIGATION_METHODS.md` is normative for these methods (`skyfix_core::methods`,
+`skyfix_wasm::nav`); their wire shapes are in `docs/EXPLORER_API.md`. What binds them to
+the rest of this file:
+
+- Every method reduces its observations with `reduce::reduce_observation` (sections
+  4-5): the chain runs once per sight, and a rejected sight becomes a warning naming it,
+  never a silent drop. Results carry the reduced sights.
+- A DR position given to a method (default: the session's assumed position) chooses
+  between answers, predicts and propagates uncertainty. It is never a prior (section 8),
+  and an unstated DR uncertainty is never replaced by a guess.
+- Meridian passage is `LHA = 0` of the apparent geocentric GHA (section 13.3). The noon
+  latitude at that instant is `dec + (90° − H0)` with the body south of the zenith and
+  `dec − (90° − H0)` with it north, exact on the sphere.
+- Rates — GHA, altitude, curvature — come numerically from the body's own direction
+  track, never from an assumed rate (section 13.1).
+- Outlier flags and consistency checks use 3 standard deviations.
+- A vessel's motion over a noon or averaging run is a constant course and speed along the
+  great circle through the method's reference position; the running fix keeps
+  `docs/MOTION.md`'s leg model.
