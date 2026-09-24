@@ -1,0 +1,1018 @@
+/*
+ * Charts view. OWNER: charts agent.
+ *
+ * Only design tokens (theme/tokens.css), never a literal colour; the design system's
+ * primitives (buttons, segmented controls, chips, badges, tables, the Moon disc) come from
+ * theme/components.css. The view sits on the stage (`.sf-on-stage`), and `data-theme` on
+ * <html> switches everything with no script.
+ */
+
+.sfc {
+  --sfc-ground: var(--map-shade);
+
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+  background: var(--stage-bg);
+  color: var(--stage-ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--leading);
+}
+
+/* The Moon disc's unlit part is the night sky's colour, in every theme. (The design
+   system's stage default, --stage-ink-2, is light in the dark and night themes, where a
+   new Moon would then look full.) */
+.sfc .sf-phase__dark {
+  --phase-disc-dark: var(--phase-night);
+}
+
+/* Body colours: `--c` on an element with one of these classes. */
+.sfc-b-sun { --c: var(--body-sun); }
+.sfc-b-moon { --c: var(--body-moon); }
+.sfc-b-mercury { --c: var(--body-mercury); }
+.sfc-b-venus { --c: var(--body-venus); }
+.sfc-b-mars { --c: var(--body-mars); }
+.sfc-b-jupiter { --c: var(--body-jupiter); }
+.sfc-b-saturn { --c: var(--body-saturn); }
+.sfc-b-uranus { --c: var(--body-uranus); }
+.sfc-b-neptune { --c: var(--body-neptune); }
+.sfc-b-star { --c: var(--body-star); }
+
+.sfc-ph-night { fill: var(--phase-night); }
+.sfc-ph-astronomical { fill: var(--phase-astronomical); }
+.sfc-ph-nautical { fill: var(--phase-nautical); }
+.sfc-ph-civil { fill: var(--phase-civil); }
+.sfc-ph-day { fill: var(--phase-day); }
+
+/* ------------------------------------------------------------------------------------ */
+/* View header: tabs and the chart/table switch                                          */
+
+.sfc-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+/* The tabs look like the design system's segmented control (they are WAI-ARIA tabs). */
+.sfc-tabs .sf-seg__opt[aria-selected='true'] {
+  background: var(--stage-surface);
+  color: var(--stage-ink);
+  box-shadow: var(--shadow-1);
+}
+
+.sfc-tabs .sf-seg__opt[aria-selected='true']::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.sfc-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--stage-ink-3);
+  font-size: var(--text-sm);
+}
+
+.sfc-panel:focus {
+  outline: none;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Card                                                                                  */
+
+.sfc-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-4) var(--space-4) var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-lg);
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sfc-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.sfc-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.sfc-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+
+.sfc-title .sfc-term {
+  color: var(--stage-ink-3);
+  font-weight: var(--weight-regular);
+}
+
+.sfc-title .sf-badge {
+  align-self: center;
+}
+
+.sfc-sub {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sfc-nav-label {
+  min-width: 7.5em;
+  padding: 0 var(--space-1);
+  text-align: center;
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Legend and body toggles */
+
+.sfc-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-legend[hidden] {
+  display: none;
+}
+
+/* A body shown on the chart is a plain chip; a hidden one fades and is struck through.
+   The selected body wears the accent, as selection does everywhere in the explorer. */
+.sfc-legend .sf-chip[aria-pressed='true'] {
+  border-color: transparent;
+  background: var(--stage-surface-2);
+}
+
+.sfc-legend .sf-chip[aria-pressed='false'] {
+  background: transparent;
+  border-color: var(--stage-line);
+  color: var(--stage-ink-3);
+}
+
+.sfc-legend .sf-chip[aria-pressed='false'] > span {
+  text-decoration: line-through;
+}
+
+.sfc-legend .sf-chip[aria-pressed='false'] .sf-glyph {
+  opacity: 0.45;
+}
+
+.sfc-legend .sf-chip.sfc-chip--selected {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-legend-sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 var(--space-1);
+  background: var(--stage-line);
+}
+
+.sfc-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.sfc-legend-note {
+  flex-basis: 100%;
+}
+
+.sfc-select {
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-sm);
+  background: var(--stage-surface);
+  color: var(--stage-ink);
+  font: inherit;
+}
+
+.sfc-swatch {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--stage-ink) 18%, transparent);
+}
+
+.sfc-swatch--night { background: var(--phase-night); }
+.sfc-swatch--astronomical { background: var(--phase-astronomical); }
+.sfc-swatch--nautical { background: var(--phase-nautical); }
+.sfc-swatch--civil { background: var(--phase-civil); }
+.sfc-swatch--day { background: var(--phase-day); }
+.sfc-swatch--light { background: var(--stage-surface-2); }
+.sfc-swatch--body { background: var(--c); }
+
+.sfc-key-line {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 2.5px solid var(--c);
+}
+
+.sfc-key-line--rise {
+  border-top-color: var(--event-rise);
+  border-top-style: dashed;
+}
+
+.sfc-key-line--set {
+  border-top-color: var(--event-set);
+  border-top-style: dotted;
+  border-top-width: 3px;
+}
+
+/* Figure */
+
+.sfc-figure {
+  min-width: 0;
+}
+
+.sfc-figure[hidden],
+.sfc-table-wrap[hidden] {
+  display: none;
+}
+
+.sfc-plot {
+  position: relative;
+  width: 100%;
+  min-height: 120px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.sfc-plot > svg {
+  display: block;
+  overflow: visible;
+  font-family: var(--font-ui);
+}
+
+.sfc-caption {
+  margin-top: var(--space-2);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-status {
+  color: var(--stage-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sfc-status:empty,
+.sfc-notes:empty,
+.sfc-progress:empty {
+  display: none;
+}
+
+.sfc-progress {
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+}
+
+.sfc-note {
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--caution);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--stage-surface-2);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-message {
+  margin: var(--space-6) 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--stage-line-strong);
+  border-radius: var(--radius-md);
+  color: var(--stage-ink-2);
+  text-align: center;
+}
+
+.sfc-muted {
+  color: var(--stage-ink-3);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* SVG marks                                                                             */
+
+.sfc-axis text,
+.sfc-tick {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.sfc-axis .sfc-axis-title,
+.sfc-strip-label {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-2xs);
+}
+
+.sfc-axis line {
+  stroke: var(--stage-line-strong);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.sfc-grid line {
+  stroke: var(--stage-line-strong);
+  stroke-opacity: 0.4;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.sfc-grid line.sfc-grid--faint {
+  stroke-opacity: 0.2;
+}
+
+.sfc-ground {
+  fill: var(--sfc-ground);
+  fill-opacity: 0.42;
+}
+
+.sfc-horizon {
+  stroke: var(--stage-line-strong);
+  stroke-width: 1.5;
+}
+
+.sfc-frame {
+  fill: none;
+  stroke: var(--stage-line);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+/* A body's path through the day: solid and cased above the horizon, thin dashes below
+   (the design system's "today's path" and "below the horizon" line styles). */
+.sfc-line {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: var(--line-w);
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.sfc-casing {
+  fill: none;
+  stroke: var(--line-halo);
+  stroke-width: calc(var(--line-w) + 2 * var(--halo-w) - 1px);
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.sfc-series--selected .sfc-line {
+  stroke-width: var(--line-w-strong);
+}
+
+.sfc-series--selected .sfc-casing {
+  stroke-width: calc(var(--line-w-strong) + 2 * var(--halo-w) - 1px);
+}
+
+.sfc-series--minor .sfc-line {
+  stroke-width: 1.6px;
+}
+
+.sfc-series--minor .sfc-casing {
+  stroke-width: 4px;
+}
+
+.sfc-below {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 1.5;
+  stroke-dasharray: var(--dash-below);
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+.sfc-marker {
+  stroke: var(--stage-surface);
+  stroke-width: 1.5;
+}
+
+.sfc-marker--rise { fill: var(--event-rise); }
+.sfc-marker--set { fill: var(--event-set); }
+.sfc-marker--transit { fill: var(--event-transit); }
+
+.sfc-pill rect {
+  fill: var(--stage-surface);
+  fill-opacity: 0.95;
+  stroke: var(--stage-line);
+  stroke-width: 1;
+}
+
+.sfc-pill text {
+  fill: var(--stage-ink);
+  font-weight: var(--weight-medium);
+}
+
+.sfc-pill .sf-glyph {
+  color: var(--c);
+}
+
+.sfc-pill--selected rect {
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.sfc-pill--selected text {
+  font-weight: var(--weight-bold);
+}
+
+.sfc-pill--zone rect {
+  fill-opacity: 0.82;
+  stroke: none;
+}
+
+.sfc-pill--zone text {
+  fill: var(--stage-ink-2);
+  font-weight: var(--weight-regular);
+}
+
+.sfc-pill--accent rect {
+  fill: var(--accent);
+  fill-opacity: 1;
+  stroke: none;
+}
+
+.sfc-pill--accent text {
+  fill: var(--on-accent);
+  font-family: var(--font-num);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-callout path {
+  fill: none;
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.25;
+}
+
+.sfc-callout .sfc-callout-bar {
+  fill: var(--accent);
+}
+
+.sfc-cursor line {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.sfc-cursor .sfc-cursor-hit {
+  stroke: transparent;
+  stroke-width: 18;
+  cursor: ew-resize;
+}
+
+.sfc-cursor:focus {
+  outline: none;
+}
+
+.sfc-cursor:focus-visible .sfc-pill rect {
+  stroke: var(--stage-focus);
+  stroke-width: 2;
+}
+
+.sfc-hover line {
+  stroke: var(--stage-ink);
+  stroke-opacity: 0.55;
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.sfc-hover-dot {
+  fill: var(--c, var(--stage-surface));
+  stroke: var(--stage-surface);
+  stroke-width: 1.5;
+}
+
+/* Year chart */
+
+.sfc-sunline {
+  fill: none;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sfc-sunline--rise {
+  stroke: var(--event-rise);
+  stroke-dasharray: var(--dash-rise);
+}
+
+.sfc-sunline--set {
+  stroke: var(--event-set);
+  stroke-dasharray: var(--dash-set);
+  stroke-width: 3;
+}
+
+.sfc-sunline-casing {
+  fill: none;
+  stroke: var(--line-halo);
+  stroke-width: 5.5;
+  stroke-opacity: 0.6;
+  stroke-linejoin: round;
+}
+
+.sfc-season line {
+  stroke: var(--stage-line-strong);
+  stroke-width: 1.25;
+  stroke-dasharray: 3 3;
+}
+
+.sfc-today line {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.sfc-today circle {
+  fill: var(--accent);
+  stroke: var(--stage-surface);
+  stroke-width: 2;
+}
+
+.sfc-polar path {
+  fill: none;
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.25;
+}
+
+.sfc-daylen-area {
+  fill: var(--body-sun);
+  fill-opacity: 0.16;
+}
+
+.sfc-daylen-line {
+  fill: none;
+  stroke: var(--stage-accent-ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.sfc-extreme circle {
+  fill: var(--stage-accent-ink);
+  stroke: var(--stage-surface);
+  stroke-width: 2;
+}
+
+.sfc-extreme text {
+  fill: var(--stage-ink);
+  font-size: var(--text-2xs);
+  paint-order: stroke;
+  stroke: var(--stage-surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+/* Planet chart */
+
+.sfc-band-bg {
+  fill: var(--stage-surface-2);
+}
+
+.sfc-dark-night {
+  fill: var(--phase-night);
+}
+
+.sfc-dark-astro {
+  fill: var(--phase-astronomical);
+}
+
+.sfc-visible {
+  fill: var(--c);
+}
+
+.sfc-dark-edge {
+  fill: none;
+  stroke: var(--stage-line-strong);
+  stroke-width: 1;
+  stroke-opacity: 0.8;
+  stroke-linejoin: round;
+}
+
+.sfc-band-name {
+  fill: var(--stage-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-band-name--minor {
+  fill: var(--stage-ink-2);
+  font-weight: var(--weight-medium);
+}
+
+.sfc-band-sub {
+  fill: var(--stage-ink-3);
+  font-size: var(--text-2xs);
+}
+
+.sfc-group-label {
+  fill: var(--stage-ink-3);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.sfc-pending {
+  fill: var(--stage-ink-3);
+  fill-opacity: 0.12;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Tooltip and readout                                                                   */
+
+.sfc-tip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: var(--z-tooltip);
+  min-width: 200px;
+  max-width: min(360px, 92%);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-2);
+  color: var(--stage-ink);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+  pointer-events: none;
+}
+
+.sfc-tip[hidden] {
+  display: none;
+}
+
+.sfc-tip-head {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 6px;
+}
+
+.sfc-tip-head strong {
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-tip-head span {
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+}
+
+.sfc-tip-row {
+  display: grid;
+  grid-template-columns: 14px auto 1fr auto;
+  align-items: center;
+  column-gap: 8px;
+  padding: 1px 0;
+}
+
+.sfc-tip-row strong {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-tip-label {
+  color: var(--stage-ink-2);
+}
+
+.sfc-tip-extra {
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+.sfc-tip-sep {
+  height: 1px;
+  margin: 5px 0;
+  background: var(--stage-line);
+}
+
+.sfc-readout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px var(--space-4);
+  margin-top: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-readout-time {
+  color: var(--stage-ink);
+  font-family: var(--font-num);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-readout-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  color: var(--stage-ink-2);
+}
+
+.sfc-readout-item strong {
+  color: var(--stage-ink);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-readout-item--down strong {
+  color: var(--stage-ink-3);
+  font-weight: var(--weight-regular);
+}
+
+.sfc-readout-item .sfc-muted {
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Tables (the design system's .sf-table, plus month groups and times that move the app) */
+
+.sfc-table-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow-x: auto;
+}
+
+.sfc-table caption {
+  padding: 0 0 var(--space-2);
+  color: var(--stage-ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  text-align: left;
+}
+
+.sfc-table th,
+.sfc-table td {
+  padding: 0 var(--space-2);
+}
+
+.sfc-table thead th {
+  position: sticky;
+  top: calc(-1 * var(--space-4));
+  z-index: 1;
+  background: var(--stage-surface);
+}
+
+.sfc-table td.sfc-text {
+  font-family: var(--font-ui);
+  white-space: normal;
+}
+
+.sfc-table tr.sfc-row-month th {
+  height: 32px;
+  padding-top: var(--space-2);
+  background: var(--stage-surface-2);
+  color: var(--stage-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-table tr.sfc-row-current > * {
+  background: var(--accent-soft);
+}
+
+.sfc-time {
+  appearance: none;
+  padding: 0 2px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--stage-line-strong);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.sfc-time:hover {
+  background: var(--accent-soft);
+  text-decoration-color: var(--stage-accent-ink);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Moon calendar                                                                         */
+
+.sfc-cal {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+}
+
+.sfc-cal-wd {
+  padding: 2px 0 4px;
+  color: var(--stage-ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.sfc-cal-blank {
+  border-radius: var(--radius-md);
+  background: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, var(--stage-line) 50%, transparent) 6px 7px);
+  opacity: 0.7;
+}
+
+.sfc-cal-day {
+  appearance: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  padding: 6px 4px 7px;
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface);
+  color: var(--stage-ink);
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.sfc-cal-day:hover {
+  border-color: var(--stage-line-strong);
+}
+
+.sfc-cal-day[aria-current='date'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.sfc-cal-day--principal {
+  background: var(--stage-surface-2);
+}
+
+.sfc-cal-num {
+  align-self: flex-start;
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1;
+}
+
+.sfc-cal-day .sf-phase {
+  margin: 1px 0 2px;
+}
+
+.sfc-cal-name {
+  max-width: 100%;
+  overflow: hidden;
+  color: var(--stage-ink-2);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sfc-cal-day--principal .sfc-cal-name {
+  color: var(--stage-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-cal-times {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0 6px;
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+}
+
+.sfc-cal-times [data-jd] {
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.sfc-cal-times [data-jd]:hover {
+  background: var(--accent-soft);
+  color: var(--stage-ink);
+}
+
+.sfc-cal-rise::before {
+  content: '↑';
+  margin-right: 1px;
+  color: var(--event-rise);
+}
+
+.sfc-cal-set::before {
+  content: '↓';
+  margin-right: 1px;
+  color: var(--event-set);
+}
+
+.sfc-cal-pct {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  line-height: 1;
+}
+
+.sfc-cal-phases {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-cal-phases > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sfc-cal-phases strong {
+  color: var(--stage-ink);
+  font-weight: var(--weight-semibold);
+}
+
+@media (max-width: 640px) {
+  .sfc {
+    padding: var(--space-2);
+  }
+  .sfc-card {
+    padding: var(--space-3) var(--space-2);
+  }
+  .sfc-cal {
+    gap: 2px;
+  }
+  .sfc-cal-day {
+    padding: 4px 1px 5px;
+  }
+  .sfc-cal-name,
+  .sfc-cal-pct {
+    display: none;
+  }
+  .sfc-cal-times {
+    flex-direction: column;
+    font-size: 9.5px;
+  }
+}
+
+@media (forced-colors: active) {
+  .sfc-line,
+  .sfc-below {
+    stroke: CanvasText;
+  }
+}
