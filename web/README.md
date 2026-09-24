@@ -65,6 +65,21 @@ features and return `Err("not implemented: <name>")` instead. Each is a one-line
 `version()`, `circle_points()` and `catalog()` are real in every build; `circle_points`
 calls `skyfix_core::geometry::circle_of_position`, which is not stubbed.
 
+`cargo check -p skyfix-wasm --features core-ready` **passes today** — that path is
+written against the current `skyfix-core` signatures and only needs the `todo!()`s
+filled. The other two features additionally need symbols that do not exist yet:
+
+- `sim-ready`: `skyfix_sim::simulate(&Scenario) -> Result<(Session, Truth), E>` where
+  `E: Display`. `Scenario` is defined in `crates/skyfix-wasm/src/lib.rs` and mirrored in
+  `web/src/api/adapter.ts`; it is a **proposal**, so change both together if the sim
+  agent wants a different shape.
+- `ephemeris-ready`: `skyfix_ephemeris::catalog::body_names() -> &[&str]`,
+  `skyfix_ephemeris::fixture_pack::default_provider() -> impl AstroProvider`, and
+  `skyfix_ephemeris::providers() -> &[&dyn AstroProvider]`.
+
+Always run `cargo check -p skyfix-wasm --features <feature>` before switching a default
+on.
+
 ## The adapter switch — the one file to change
 
 `web/src/api/index.ts` is the only place an implementation is chosen. Everything else

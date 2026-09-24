@@ -13,6 +13,20 @@
 //!
 //! Until a feature is on, the corresponding export returns
 //! `Err("not implemented: <name> (build skyfix-wasm with --features <feature>)")`.
+//!
+//! `core-ready` already compiles against today's `skyfix-core` signatures: switching it
+//! on is all that is needed once the `todo!()`s are filled. The other two also need
+//! their crate to export symbols that do not exist yet:
+//!
+//! - `sim-ready` needs `skyfix_sim::simulate(&Scenario) -> Result<(Session, Truth), E>`
+//!   where `E: Display`. `Scenario` is defined below and is a PROPOSAL: if the sim agent
+//!   prefers a different shape, change it here and in `web/src/api/adapter.ts` together.
+//! - `ephemeris-ready` needs `skyfix_ephemeris::catalog::body_names() -> &[&str]`,
+//!   `skyfix_ephemeris::fixture_pack::default_provider() -> impl AstroProvider`, and
+//!   `skyfix_ephemeris::providers() -> &[&dyn AstroProvider]`.
+//!
+//! Verify with `cargo check -p skyfix-wasm --features <feature>` before switching a
+//! default on.
 //! `version()`, `circle_points()` and `catalog()` are real in every build.
 //!
 //! JSON crossing this boundary is exactly `serde_json`'s encoding of
