@@ -19,11 +19,13 @@
  * `destroy`.
  */
 
-import type {
-  BodySelection,
-  EventOptions,
-  ExplorerEngine,
-  Observer,
+import {
+  isAlmanacEngine,
+  type AlmanacEngine,
+  type BodySelection,
+  type EventOptions,
+  type ExplorerEngine,
+  type Observer,
 } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
@@ -288,7 +290,13 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     return value;
   }
 
-  const memo: ExplorerEngine = {
+  const memo: ExplorerEngine & Partial<AlmanacEngine> = {
+    // Optional: present on the wrapper exactly when the engine makes almanac pages (the
+    // Almanac view checks with `isAlmanacEngine`). A page is tens of milliseconds, so a
+    // few dates are kept.
+    ...(isAlmanacEngine(engine)
+      ? { almanacDay: (date: string) => cached('almanacDay', date, 4, () => engine.almanacDay(date)) }
+      : {}),
     kind: engine.kind,
     description: engine.description,
     bodies: () => cached('bodies', '', 1, () => engine.bodies()),

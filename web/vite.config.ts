@@ -42,6 +42,8 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         next: resolve(import.meta.dirname, 'next/index.html'),
+        // The Almanac view's developer harness (almanac agent).
+        devAlmanac: resolve(import.meta.dirname, 'next/dev-almanac.html'),
       },
     },
   },
