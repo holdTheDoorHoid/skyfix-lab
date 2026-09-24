@@ -1,0 +1,99 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Philadelphia four-star, raw sextant readings",
+    "notes": "The same sky as phl_four_star, recorded as raw sextant_hs readings: index error 2.0' on the arc, 2.5 m height of eye, 1013.25 hPa and 7.5 C. Each reading is the value that reduces to the exact Ho at the truth position, so reducing it forwards must land back on the truth. obs-4 was taken with a reflected artificial horizon, so its reading is the double angle and its sigma describes that double angle.",
+    "kind": "simulated"
+  },
+  "observer": {
+    "height_of_eye_m": 2.5,
+    "pressure_hpa": 1013.25,
+    "temperature_c": 7.5,
+    "assumed_position": {
+      "lat_deg": 40.5,
+      "lon_deg": -75.8
+    },
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "simulated sextant, 2.0' index error on the arc",
+    "index_correction_arcmin": -2.0,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "obs-1",
+      "body": "Schedar",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 52.071828103133,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 21.787119437363,
+        "dec_deg": 56.686056200561,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    },
+    {
+      "id": "obs-2",
+      "body": "Markab",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 54.590567847399,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 45.7760470333,
+        "dec_deg": 15.352700531952,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    },
+    {
+      "id": "obs-3",
+      "body": "Altair",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 54.710416270567,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 94.280904973683,
+        "dec_deg": 8.942168802975,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    },
+    {
+      "id": "obs-4",
+      "body": "Eltanin",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 110.806864655395,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 2.0,
+      "limb": "center",
+      "horizon": "artificial_reflected",
+      "geocentric": {
+        "gha_deg": 122.999743284283,
+        "dec_deg": 51.489849558162,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    }
+  ]
+}

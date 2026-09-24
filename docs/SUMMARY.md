@@ -5,6 +5,7 @@
 - [Design brief](BRIEF.md)
 - [Conventions (normative)](CONVENTIONS.md)
 - [Architecture](ARCHITECTURE.md)
+- [Command line](CLI.md)
 - [Observation planner](PLANNER.md)
 - [Simulator](SIMULATOR.md)
 - [Accuracy and limitations](ACCURACY.md)

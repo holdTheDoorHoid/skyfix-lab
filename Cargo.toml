@@ -25,7 +25,6 @@ serde_json = { version = "1.0.151", features = ["float_roundtrip"] }
 thiserror = "2.0.21"
 anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive"] }
-csv = "1.4.0"
 chrono = { version = "0.4.45", default-features = false, features = ["std", "serde"] }
 approx = "0.5.1"
 wasm-bindgen = "0.2.128"

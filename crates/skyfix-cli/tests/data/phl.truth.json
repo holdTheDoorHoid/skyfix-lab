@@ -1,0 +1,13 @@
+{
+  "schema": "skyfix.truth/1",
+  "session_name": "Philadelphia four-star",
+  "position": {
+    "lat_deg": 39.9526,
+    "lon_deg": -75.1652
+  },
+  "seed": 0,
+  "clock_offset_s": 0.0,
+  "shared_altitude_bias_arcmin": 0.0,
+  "wrong_sight_ids": [],
+  "notes": "Philadelphia City Hall. Noise-free fixtures: the only error in a fix from these sessions is numerical."
+}
