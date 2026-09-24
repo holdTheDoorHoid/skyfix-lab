@@ -11,6 +11,13 @@
 //! vector is their difference, resolved on the local east/north/up axes of the
 //! geodetic normal. Polar motion (< 0.5") and diurnal aberration (< 0.32") are not
 //! modelled.
+//!
+//! Validated by `tests/topocentric_reference.rs` against Skyfield + DE440s built with
+//! UT1 = UTC (`fixtures/reference/moon_topocentric.json`, 12 sites from the equator to
+//! 78° N and S, one at 2000 m): worst altitude 0.63" and worst azimuth on the sky 0.70"
+//! for the Moon (600 cases), 0.30" / 0.36" for the Sun and 0.24" / 0.33" for stars,
+//! against the 0.1' target of CONVENTIONS 13.7. The Sun and star residuals are the
+//! diurnal aberration left out above.
 
 use serde::{Deserialize, Serialize};
 
