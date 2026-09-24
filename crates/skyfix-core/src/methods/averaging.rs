@@ -15,8 +15,8 @@
 //!
 //! `p` is computed through the ordinary geometry and the body's own ephemeris, so its
 //! slope is the true rate of change at the DR (including the body's own motion and the
-//! vessel's) and its small curvature comes along for free. A few minutes of run make
-//! `p`'s slope wrong only by how far the DR is wrong: about 1 % per 30 NM.
+//! vessel's) and its small curvature comes along for free. The DR's own error enters
+//! only through that slope, and weakly (15 NM off changed Vega's rate by 0.15 %).
 //!
 //! The averaged altitude's sigma is `sqrt(1 / sum w)` (`sigma / sqrt(N)` for equal
 //! sigmas) at the weighted mean time, growing away from it by the predicted slope's own

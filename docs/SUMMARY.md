@@ -12,6 +12,7 @@
 - [Camera sextant (synthetic)](CAMERA.md)
 - [Polarization compass laboratory](POLARIZATION.md)
 - [Motion and independent checks](MOTION.md)
+- [Navigation methods](NAVIGATION_METHODS.md)
 - [Accuracy and limitations](ACCURACY.md)
 - [Third-party sources and licences](THIRD_PARTY.md)
 - [Backlog](BACKLOG.md)

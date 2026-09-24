@@ -388,3 +388,47 @@ The plan (details recorded by the star-field and map-data agents as they land):
 - **Optional street layer:** OpenStreetMap tiles are ODbL data and **do** require the
   on-map credit "© OpenStreetMap contributors" whenever that layer is shown. It is off
   by default.
+
+## Navigation methods — worked examples and the Polaris table formula
+
+Owner: navigation agent (`crates/skyfix-core/src/methods/`,
+`fixtures/reference/bowditch_worked_examples.json`, `tools/reference/gen_nav_methods.py`).
+
+### The American Practical Navigator (Bowditch), NGA Pub. No. 9
+
+- **What is used:** the numbers of three worked examples, as test data only — volume 1
+  (2019 edition), chapter 19 "Sight Reduction", section 1910 (latitude at local apparent
+  noon, with its strip form, figure 1910), section 1912 (latitude by Polaris, with figure
+  1912b) and figure 1912c (the Nautical Almanac 2016 Polaris-table page it reproduces,
+  whose "ILLUSTRATION" block is the Almanac's own worked example). No text or figure is
+  reproduced; the values are typed, with the book's rounding, into
+  `fixtures/reference/bowditch_worked_examples.json` and cited in
+  `docs/NAVIGATION_METHODS.md` section 6.2.
+- **URL:** <https://msi.nga.mil/Publications/APN>; the chapter was read from the copy at
+  <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2019-%20Sight%20Reductions.pdf>.
+- **Retrieved:** 2026-09-24.
+- **Licence:** a work of the U.S. Government (National Geospatial-Intelligence Agency),
+  not subject to copyright in the United States (17 U.S.C. 105). No credit is required;
+  it is cited as a source.
+
+### The Nautical Almanac's Polaris-table formula
+
+- **What is used:** the published formula behind the Almanac's Polaris tables —
+  `Latitude − Ho = −p cos h + (1/2) p sin p sin² h tan(Latitude)` — and its split into
+  `a0` (constant 58.8′, mean SHA and declination of Polaris, latitude 50°), `a1`
+  (constant 0.6′, the latitude correction) and `a2` (constant 0.6′, the correction for
+  the date), with `Latitude = Ho − 1° + a0 + a1 + a2`. A formula and its constants are
+  facts; nothing is copied. Used only for the teaching terms `PolarisAlmanacTerms` in
+  `crates/skyfix-core/src/methods/polaris.rs`; the latitude itself is solved rigorously.
+- **Source:** the explanation of the Polaris tables in the Nautical Almanac (HM Nautical
+  Almanac Office and the U.S. Naval Observatory), as quoted in the NavList thread
+  "Latitude by Polaris" (<https://navlist.net/Latitude-Polaris-RonJones-mar-2016-g34952>),
+  retrieved 2026-09-24. Checked against the 2016 table page in Bowditch figure 1912c:
+  the formula with that year's mean position (computed from `skyfix-ephemeris`)
+  reproduces the printed a0, a1 and a2 of both worked examples to 0.03′.
+
+### Skyfield-generated truth for the methods
+
+`tools/reference/gen_nav_methods.py` uses exactly the development-time inputs recorded
+under "Reference data (development-time only)" above (Skyfield, JPL DE421, Hipparcos);
+it adds no new data source.

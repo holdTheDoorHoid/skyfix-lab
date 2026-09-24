@@ -82,6 +82,12 @@ fn noon_sights_recover_latitude_passage_and_longitude() {
             let dt = (passage.jd_utc - f(&truth["passage_jd_utc"])) * 86_400.0;
             let dh0 = (r.meridian_altitude_deg - f(&truth["meridian_altitude_deg"])) * 60.0;
             let ddec = (r.declination_deg - f(&truth["declination_deg"])) * 60.0;
+            if curvature == NoonCurvature::Predicted && name == "philadelphia-equinox-sun" {
+                println!(
+                    "  [{name}] latitude sigma {:.3}', caveat: {}",
+                    r.latitude.sigma_arcmin, r.longitude_caveat
+                );
+            }
             if curvature == NoonCurvature::Predicted {
                 println!(
                     "{name:<26} {dlat:>10.4} {dlon:>10.4} {dt:>10.3} {:>9.1} {:>9.5} {:>9.1}",
