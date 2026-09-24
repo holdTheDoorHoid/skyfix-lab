@@ -33,9 +33,9 @@ export function dateLong(jd: number, zone: Zone): string {
   return `${DAYS_LONG[w.weekday]} ${w.day} ${MONTHS_LONG[w.month - 1]} ${w.year}`;
 }
 
-/** `06:50`, rounded to the nearest minute as almanacs do. */
+/** `06:50`, rounded to the nearest minute as almanacs do (time.ts `formatTime`). */
 export function hm(jd: number, zone: Zone): string {
-  return formatTime(jd + 30 / 86_400, zone);
+  return formatTime(jd, zone);
 }
 
 /** Whole degrees and arcminutes: `26° 02′`; negative with a true minus. */

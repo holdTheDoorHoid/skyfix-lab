@@ -8,7 +8,7 @@ import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import type { PhaseSegment, SkyPhase } from '../engine/types.js';
 import { aroundToday, dayOf, setAttr, setText, skySelected } from '../shell/derived.js';
-import { dateShort, clock, eventTime, otherDay, relative } from '../shell/format.js';
+import { dateShort, eventTime, otherDay, relative } from '../shell/format.js';
 import { PHASE_LABEL, PHASE_MEANING, skyFacts, type SkyFacts } from '../shell/sky.js';
 import { displayZone, eventOptions, shallowEqual } from '../state.js';
 import { icon, type IconName } from '../theme/icons.js';
@@ -76,7 +76,7 @@ export function nowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     const s = store.get();
     const zone = displayZone(s);
     const jd = s.time.jd_utc;
-    setText(meta, `${dateShort(jd, zone)}, ${clock(jd, zone)}`);
+    setText(meta, dateShort(jd, zone));
     const sky = skySelected(ctx, s);
     if (!sky) {
       setAttr(chip, 'data-phase', 'none');
@@ -85,6 +85,7 @@ export function nowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
         chipIcon.replaceChildren(icon('info'));
         lastIcon = 'none';
       }
+      text.dataset.key = 'none';
       text.replaceChildren('Nothing can be computed for this moment: it is outside the years the core covers.');
       return;
     }

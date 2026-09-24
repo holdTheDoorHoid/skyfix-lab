@@ -265,9 +265,12 @@ export function monthName(month: number): string {
   return MONTHS_LONG[month - 1] ?? '';
 }
 
-/** `16:30` on the zone's clock (truncated, as a clock shows it). */
+/**
+ * `16:30`: the reading of a clock showing the current time without its seconds (the
+ * minute it is in), so it agrees with `clockSeconds` shown beside it.
+ */
 export function clock(jd: number, zone: Zone): string {
-  return formatTime(jd, zone);
+  return formatTime(jd, zone, { seconds: true }).slice(0, 5);
 }
 
 /** `16:30:05`. */
@@ -275,9 +278,9 @@ export function clockSeconds(jd: number, zone: Zone): string {
   return formatTime(jd, zone, { seconds: true });
 }
 
-/** An event's time rounded to the nearest minute, as almanacs print it: `06:50`. */
+/** An event's time rounded to the nearest minute, as almanacs print it: `06:50` (time.ts `formatTime`). */
 export function eventTime(jd: number, zone: Zone): string {
-  return formatTime(jd + 30 / 86_400, zone);
+  return formatTime(jd, zone);
 }
 
 /** The short weekday of `jd` when its local date differs from `ref`'s (`Fri`), else ''. */

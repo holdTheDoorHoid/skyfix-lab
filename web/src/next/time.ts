@@ -482,9 +482,21 @@ export interface TimeFormat {
   seconds?: boolean;
 }
 
-/** `08:05` or `08:05:09` on the wall clock of `zone`. */
+/**
+ * `08:05` (rounded to the nearest minute) or `08:05:09` (the clock's reading) on the wall
+ * clock of `zone`.
+ */
 export function formatTime(jd: number, zone: Zone, options: TimeFormat = {}): string {
-  return clockText(wallClock(jd, zone), options);
+  return clockText(wallClock(options.seconds ? jd : roundToMinute(jd), zone), options);
+}
+
+/**
+ * `jd` moved to the nearest whole minute. Times shown without seconds are rounded this
+ * way, as the printed almanac rounds them (06:49:31 shows as 06:50, 06:49:29 as 06:49);
+ * times shown with seconds are the clock's own reading.
+ */
+export function roundToMinute(jd: number): number {
+  return jdFromUnixMs(Math.round(msFromJd(jd) / MS_PER_MINUTE) * MS_PER_MINUTE);
 }
 
 function clockText(w: WallClock, options: TimeFormat): string {
@@ -502,9 +514,9 @@ function dateText(w: WallClock): string {
   return `${y}-${pad(w.month)}-${pad(w.day)}`;
 }
 
-/** `2026-09-24 08:05`. */
+/** `2026-09-24 08:05`, rounded to the nearest minute (the date too: 23:59:40 is the next day's 00:00). */
 export function formatDateTime(jd: number, zone: Zone, options: TimeFormat = {}): string {
-  const w = wallClock(jd, zone);
+  const w = wallClock(options.seconds ? jd : roundToMinute(jd), zone);
   return `${dateText(w)} ${clockText(w, options)}`;
 }
 
@@ -514,11 +526,12 @@ export function formatDateTime(jd: number, zone: Zone, options: TimeFormat = {})
  * `2026-09-24 20:05 EDT · 2026-09-25 00:05 UTC`. In UTC itself: `2026-09-24 12:05 UTC`.
  */
 export function formatWithUtc(jd: number, zone: Zone, options: TimeFormat = {}): string {
-  const utc = wallClock(jd, UTC_ZONE);
+  const t = options.seconds ? jd : roundToMinute(jd);
+  const utc = wallClock(t, UTC_ZONE);
   const utcText = `${clockText(utc, options)} UTC`;
   if (zone.kind === 'fixed' && zone.offsetMs === 0) return `${dateText(utc)} ${utcText}`;
-  const local = wallClock(jd, zone);
-  const localText = `${dateText(local)} ${clockText(local, options)} ${zoneShortName(jd, zone)}`;
+  const local = wallClock(t, zone);
+  const localText = `${dateText(local)} ${clockText(local, options)} ${zoneShortName(t, zone)}`;
   const sameDate = local.year === utc.year && local.month === utc.month && local.day === utc.day;
   return sameDate ? `${localText} · ${utcText}` : `${localText} · ${dateText(utc)} ${utcText}`;
 }
