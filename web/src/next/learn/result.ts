@@ -342,8 +342,17 @@ export function residualSvg(facts: UniqueFacts, width: number): SVGSVGElement {
   svg.append(s('rect', { class: 'sfl-resid__band', x: pad.l, y: r2(y(3)), width: pw, height: r2(y(-3) - y(3)) }));
   for (const v of [3, 0, -3]) {
     svg.append(s('path', { class: v === 0 ? 'sfl-resid__zero' : 'sfl-resid__guide', d: `M${pad.l} ${r2(y(v))}H${W - pad.r}` }));
+  }
+  // Axis labels: ±3 σ when there is room beside zero, and the scale's own ends when it is larger.
+  const labels: [number, string][] = [[0, '0']];
+  if (y(-3) - y(3) >= 28) labels.push([3, '+3σ'], [-3, '−3σ']);
+  if (max > 4.5) {
+    const top = Math.floor(max);
+    labels.push([top, `+${top}σ`], [-top, `−${top}σ`]);
+  }
+  for (const [v, text] of labels) {
     const t = s('text', { class: 'sfl-resid__axis', x: pad.l - 6, y: r2(y(v) + 4), 'text-anchor': 'end' });
-    t.textContent = v === 0 ? '0' : `${v > 0 ? '+' : '−'}3σ`;
+    t.textContent = text;
     svg.append(t);
   }
   const n = Math.max(rs.length, 1);
@@ -381,8 +390,37 @@ export function residualSvg(facts: UniqueFacts, width: number): SVGSVGElement {
  * One column per sight: its residual in multiples of its own stated uncertainty. Under an
  * honest model nearly all sit inside ±2 σ; the ±3 σ band is marked.
  */
+/** What the residual bars show, in words that depend on what they actually show. */
+export function residualCaption(facts: UniqueFacts): string {
+  const rs = facts.residuals;
+  if (!rs.length) return 'No residuals.';
+  const sorted = [...rs].sort((a, b) => Math.abs(b.normalized) - Math.abs(a.normalized));
+  const worst = sorted[0]!;
+  const next = sorted[1];
+  const outside = rs.filter((r) => Math.abs(r.normalized) > 3).length;
+  const fit = facts.dof > 0 ? `χ² ${facts.chi2.toFixed(1)} where about ${facts.dof} is expected` : `χ² ${facts.chi2.toFixed(1)}`;
+  const largest = `Largest: ${worst.id} (${worst.body}) ${arcmin(worst.residual_arcmin)}, ${times(Math.abs(worst.normalized))} σ.`;
+  if (outside === 0) {
+    return `${largest} Every bar is inside ±3 σ, as honest, independent errors leave them (${fit}).`;
+  }
+  const standsOut = next ? Math.abs(worst.normalized) >= 1.6 * Math.abs(next.normalized) : true;
+  const lead =
+    outside === 1
+      ? `${largest} One bar is outside ±3 σ`
+      : `${largest} ${outside} of ${rs.length} bars are outside ±3 σ: the sights disagree with each other more than their stated uncertainty allows (${fit})`;
+  const tail = standsOut
+    ? next
+      ? `. ${worst.id} stands out, ${(Math.abs(worst.normalized) / Math.abs(next.normalized)).toFixed(1)} times the next largest: the mark of one bad sight rather than a bad position.`
+      : '.'
+    : '. None stands out on its own, so no single sight is to blame.';
+  return `${lead}${tail}`;
+}
+
+/**
+ * One column per sight: its residual in multiples of its own stated uncertainty. Under an
+ * honest model nearly all sit inside ±2 σ; the ±3 σ band is marked.
+ */
 export function residualChart(facts: UniqueFacts): HTMLElement {
-  const worst = facts.worst;
   return h(
     'figure',
     { class: 'sfl-resid-fig' },
@@ -390,17 +428,10 @@ export function residualChart(facts: UniqueFacts): HTMLElement {
       'div',
       { class: 'sfl-resid-fig__head' },
       h('h3', { class: 'sfl-h3' }, 'Residuals'),
-      h('span', { class: 'sfl-muted' }, 'how far each sight’s line misses the fix, in multiples of its stated uncertainty (σ); numbers are the sights'),
+      h('span', { class: 'sfl-muted' }, 'how far each sight’s line misses the fix, in multiples of its stated uncertainty (σ); the numbers are the sights'),
     ),
     responsive('sfl-resid-wrap', (w) => residualSvg(facts, w)),
-    h(
-      'figcaption',
-      { class: 'sfl-muted' },
-      worst
-        ? `Largest: ${worst.id} (${worst.body}) ${arcmin(worst.residual_arcmin)}, ${times(Math.abs(worst.normalized))} σ. RMS ${facts.residualRmsArcmin === null ? '—' : arcmin(facts.residualRmsArcmin, 2).replace('+', '')}. ` +
-            'With honest, independent errors nearly every bar stays inside ±2 σ; one far outside the band points at a bad sight.'
-        : 'No residuals.',
-    ),
+    h('figcaption', { class: 'sfl-muted' }, residualCaption(facts)),
   );
 }
 

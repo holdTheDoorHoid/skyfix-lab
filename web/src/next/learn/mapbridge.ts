@@ -17,9 +17,9 @@ import type { FeatureCollection } from 'geojson';
 import type { Ctx } from '../component.js';
 import { circleOfPositionFeature, ellipseFeature, mapServiceFor, pathFeature, pointFeature } from '../map/overlays.js';
 import { NM_M } from '../../types.js';
-import { PALETTE_SIZE, type ChartModel } from './chart-model.js';
+import { PALETTE_SIZE, sheetFrame, type ChartModel } from './chart-model.js';
 import { candidateLetter, metric } from './facts.js';
-import { distanceM } from './geo.js';
+import { applyOffsetM, distanceM } from './geo.js';
 
 /** Every overlay id this module may create. */
 export const OVERLAY_IDS = [
@@ -28,6 +28,7 @@ export const OVERLAY_IDS = [
   'learn-error',
   'learn-points',
   'learn-truth',
+  'learn-frame',
 ] as const;
 
 /** Palette tokens, in the order learn.css assigns `--sfl-c0` … `--sfl-c5`. */
@@ -78,6 +79,18 @@ export function overlaysFor(model: ChartModel, title: string): Map<string, Featu
       features: [pointFeature(model.truth, { label: 'Truth · answer key (simulated)' })],
     });
   }
+  // The close-up's own frame (fix, answer key, ellipse, the nearby lines), as four
+  // invisible corner points, so the map frames what the Learn chart shows.
+  const frame = sheetFrame(model);
+  if (frame) {
+    const corners: [number, number][] = [
+      [frame.maxN, frame.minE],
+      [frame.maxN, frame.maxE],
+      [frame.minN, frame.minE],
+      [frame.minN, frame.maxE],
+    ];
+    out.set('learn-frame', { type: 'FeatureCollection', features: corners.map(([n, e]) => pointFeature(applyOffsetM(frame.origin, n, e))) });
+  }
   return out;
 }
 
@@ -96,16 +109,19 @@ export function showOnMap(ctx: Pick<Ctx, 'store'>, model: ChartModel, title: str
       map.addOverlay(id, data, { color: '--info', dash: [2, 4], labelProperty: 'label', z: 1 });
     } else if (id === 'learn-points') {
       map.addOverlay(id, data, { color: '--accent', pointRadius: 6, labelProperty: 'label', z: 2 });
+    } else if (id === 'learn-frame') {
+      // Invisible: only for framing the camera.
+      map.addOverlay(id, data, { color: 'rgba(0,0,0,0)', pointRadius: 0, casing: false, fillOpacity: 0 });
     } else {
       map.addOverlay(id, data, { color: '--info', pointRadius: 5, labelProperty: 'label', z: 3 });
     }
   }
-  // Frame what matters: the fix and the answer key, the candidates, or the circle itself.
-  const frame = overlays.has('learn-error')
-    ? 'learn-error'
+  // Frame what matters: the close-up's own frame, the candidates, or the circle itself.
+  const frame = overlays.has('learn-frame')
+    ? 'learn-frame'
     : model.kind === 'underdetermined' || !overlays.has('learn-points')
       ? [...overlays.keys()][0]
       : 'learn-points';
-  if (frame) map.fitOverlay(frame, { padding: 72, maxZoom: model.fix ? 12 : 4 });
+  if (frame) map.fitOverlay(frame, { padding: 40, maxZoom: model.fix ? 13 : 4 });
   ctx.store.patch({ view: 'map' });
 }

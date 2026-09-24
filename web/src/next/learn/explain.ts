@@ -98,7 +98,7 @@ function claimed(f: UniqueFacts, fmt: Fmt): string {
 // Key numbers
 
 /** The one number each story turns on. Generic for Simulator runs. */
-export function keyNumber(story: StoryId | null, run: Pick<Run, 'variant' | 'scenario'>, facts: Facts, fmt: Fmt): KeyNumber {
+export function keyNumber(story: StoryId | null, run: Pick<Run, 'variant' | 'scenario' | 'reduced'>, facts: Facts, fmt: Fmt): KeyNumber {
   if (facts.kind === 'failed') return { value: 'No answer', caption: `The solver failed: ${facts.reason}` };
   if (facts.kind === 'underdetermined') {
     return {
@@ -163,6 +163,16 @@ export function keyNumber(story: StoryId | null, run: Pick<Run, 'variant' | 'sce
       };
     case 'two-sight-ambiguous':
       return { value: fmt.dist(f.errorM), caption: `from the truth: three circles meet at one point` };
+    case 'philadelphia-stars-sextant': {
+      const total = totalCorrection(run);
+      if (total) {
+        return {
+          value: total,
+          caption: `taken off each raw reading before solving; the fix is then ${fmt.dist(f.errorM)} from the truth, ${insidePhrase(f, fmt)}`,
+        };
+      }
+      break;
+    }
     default:
       break;
   }
@@ -178,7 +188,7 @@ export function keyNumber(story: StoryId | null, run: Pick<Run, 'variant' | 'sce
 /** "What happened" and "why", for a story run or (story = null) a Simulator run. */
 export function explain(
   story: StoryId | null,
-  run: Pick<Run, 'variant' | 'scenario' | 'truth' | 'reduced' | 'options'>,
+  run: Pick<Run, 'variant' | 'scenario' | 'truth' | 'reduced' | 'options' | 'session'>,
   facts: Facts,
   fmt: Fmt,
 ): Explanation {
@@ -310,7 +320,8 @@ export function explain(
       return {
         happened: [
           `The fix is ${fmt.dist(f.errorM)} from the truth but claims ${claimed(f, fmt)}, because every sight shares the same bias — the model assumes independent errors. ` +
-            `The error is ${times(f.ratio)} times the stated uncertainty and the truth is ${f.inside95 ? 'inside' : 'far outside'} the 95 % ellipse (${f.ellipse ? ellipseSize(f.ellipse, fmt) : '—'}), yet the residuals look ordinary (largest ${arcmin(f.maxResidualArcmin)}).`,
+            `The error is ${times(f.ratio)} times the stated uncertainty, and ${truthVsEllipse(f, fmt)}.`,
+          residualHint(f, run.session),
         ],
         why: [
           `The instrument read ${arcmin(bias, 1)} high on all ${f.residuals.length} sights. Many sights average random noise away, which is why the ellipse is small; an error that is the same on every sight does not average away. ` +
@@ -331,6 +342,24 @@ export function explain(
 }
 
 /** The largest residual (signed, arcminutes) apart from the worst one. */
+/**
+ * What the residuals of a shared-error run do and do not say: small in arcminutes, so
+ * nothing points at the cause; compared with the uncertainty each sight claims, possibly
+ * too big as a whole (chi-square), which is a hint and no more.
+ */
+function residualHint(f: UniqueFacts, session: Pick<Run['session'], 'observations'>): string {
+  const sigma = session.observations[0]?.sigma_arcmin;
+  const lead = `No residual is bigger than ${arcmin(f.maxResidualArcmin).replace('+', '')}, the scatter of an ordinary sextant, and none points at the bias.`;
+  if (f.dof <= 0 || sigma === undefined) return lead;
+  if (f.chi2 > 2 * f.dof) {
+    return (
+      `${lead} Against the ${arcmin(sigma, 1).replace('+', '')} each sight claims they are too big as a whole (χ² ${f.chi2.toFixed(1)} where about ${f.dof} is expected): ` +
+      'a hint that something is wrong, but not what, nor which way.'
+    );
+  }
+  return `${lead} Even against the ${arcmin(sigma, 1).replace('+', '')} each sight claims they look like ordinary noise (χ² ${f.chi2.toFixed(1)} on ${f.dof} degrees of freedom).`;
+}
+
 function secondLargest(f: UniqueFacts): number {
   const others = f.residuals.filter((r) => r.id !== f.worst?.id).map((r) => r.residual_arcmin);
   return others.length ? others.reduce((a, b) => (Math.abs(b) > Math.abs(a) ? b : a)) : 0;
@@ -340,6 +369,17 @@ function wrongSightSentence(truth: Truth): string {
   const ids = truth.wrong_sight_ids;
   if (!ids.length) return 'No sight was deliberately wrong in this run.';
   return `The answer key says ${list(ids)} ${ids.length === 1 ? 'was' : 'were'} deliberately misread.`;
+}
+
+/** The whole correction (observed minus raw), smallest to largest: "−4.55′ to −5.92′". */
+export function totalCorrection(run: Pick<Run, 'reduced'>): string | null {
+  const totals = (run.reduced ?? []).flatMap((e) => (e.status === 'ok' ? [(e.sight.corrections.ho_deg - e.sight.corrections.input_deg) * 60] : []));
+  if (!totals.length) return null;
+  const lo = Math.min(...totals);
+  const hi = Math.max(...totals);
+  // Smaller correction first, by size.
+  const [a, b] = Math.abs(lo) <= Math.abs(hi) ? [lo, hi] : [hi, lo];
+  return Math.abs(hi - lo) < 0.005 ? arcmin(lo) : `${arcmin(a)} to ${arcmin(b)}`;
 }
 
 /** The correction chain of a raw-reading session, in one or two sentences. */

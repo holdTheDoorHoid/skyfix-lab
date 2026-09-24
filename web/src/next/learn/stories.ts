@@ -123,7 +123,7 @@ export const STORIES: readonly Story[] = [
     title: 'Raw sextant readings',
     summary:
       'The same sky, but the session holds what the sextant actually read, before the index error, the dip of the horizon and refraction are taken out. ' +
-      'The tool undoes each correction step by step and the fix behaves exactly like the corrected version.',
+      'The tool undoes each correction step by step, and over many runs the fix behaves exactly like the corrected-altitude version.',
     lookAt:
       'The correction table: one row per step, with its size and sign, for every sight.',
     next: {
@@ -202,7 +202,7 @@ export const STORIES: readonly Story[] = [
       'Twenty-four sights from an instrument that reads 3 arcminutes too high every time. ' +
       'Averaging shrinks the ellipse but cannot remove an error every sight shares, so the fix is kilometres off with a tiny ellipse.',
     lookAt:
-      'Three numbers side by side: the small stated uncertainty, the large actual error, and residuals that look entirely ordinary.',
+      'Three things side by side: the small stated uncertainty, the large actual error, and residuals no bigger than an ordinary sextant’s scatter.',
     next: {
       text:
         'Ask the solver to estimate a shared bias as well as the position, or open the Simulator and set the bias to zero.',

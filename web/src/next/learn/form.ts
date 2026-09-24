@@ -20,12 +20,12 @@ export interface FieldBase {
   id?: string;
 }
 
-function wrap(base: FieldBase, control: HTMLElement, id: string, extra?: HTMLElement | null): HTMLElement {
+function wrap(base: FieldBase, control: HTMLElement, id: string, extra?: HTMLElement | null, cls = ''): HTMLElement {
   const helpId = base.help ? `${id}-help` : undefined;
   if (helpId) control.setAttribute('aria-describedby', helpId);
   return h(
     'div',
-    { class: 'sfl-field' },
+    { class: `sfl-field ${cls}`.trim() },
     h('label', { class: 'sf-label', for: id }, base.label),
     extra ? h('div', { class: 'sfl-field__row' }, control, extra) : control,
     base.help ? h('p', { class: 'sfl-help', id: helpId }, base.help) : null,
@@ -92,7 +92,7 @@ export function selectField<T extends string>(base: FieldBase & { value: T; opti
   for (const o of base.options) select.append(h('option', { value: o.value, selected: o.value === base.value, disabled: o.disabled }, o.label));
   select.value = base.value;
   select.addEventListener('change', () => onChange(select.value as T));
-  return wrap(base, select, id);
+  return wrap(base, select, id, null, 'sfl-field--select');
 }
 
 export function checkField(base: FieldBase & { checked: boolean }, onChange: (checked: boolean) => void): HTMLElement {

@@ -61,10 +61,11 @@ export function textWidth(text: string, size: number): number {
 type Side = 'e' | 'w' | 'n' | 's' | 'ne' | 'nw' | 'se' | 'sw';
 
 class Labeler {
-  private readonly boxes: Box[] = [];
   constructor(
     private readonly layer: SVGElement,
     private readonly bounds: Box,
+    /** Occupied areas; pass another labeler's `boxes` to share them across bounds. */
+    readonly boxes: Box[] = [],
   ) {}
 
   /** Reserve an area (a marker) so labels keep off it. */
@@ -478,7 +479,9 @@ function renderGlobe(model: ChartModel, opts: ChartOptions): RenderedChart {
   svg.append(marks, top);
   for (const place of pointLabels) place();
   for (const l of gpLabels) labeler.place(l.x, l.y, l.text, `sfl-ch-pill--gp sfl-c${l.color}`, ['e', 'w', 'n', 's', 'ne', 'nw', 'se', 'sw']);
-  for (const l of circleLabels) labeler.place(l.x, l.y, l.text, `sfl-ch-pill--line sfl-c${l.color}`, ['ne', 'nw', 'se', 'sw', 'e', 'w']);
+  // Circle labels stay on the globe's disc, next to their line.
+  const onDisc = new Labeler(top, { x: cx - r, y: cy - r, w: 2 * r, h: 2 * r }, labeler.boxes);
+  for (const l of circleLabels) onDisc.place(l.x, l.y, l.text, `sfl-ch-pill--line sfl-c${l.color}`, ['ne', 'nw', 'se', 'sw', 'e', 'w', 'n', 's']);
 
   const parts: string[] = [];
   parts.push(`${model.circles.length} circle${model.circles.length === 1 ? '' : 's'} of position`);

@@ -77,8 +77,8 @@ let clipSeq = 0;
 
 function groundPoint(): Svg {
   const cx = 240;
-  const cy = 170;
-  const R = 62;
+  const cy = 158;
+  const R = 58;
   const rays: SVGElement[] = [];
   for (const x of [240, 262, 284]) {
     const surface = cy - Math.sqrt(Math.max(0, R * R - (x - cx) ** 2));
@@ -89,15 +89,15 @@ function groundPoint(): Svg {
     s('circle', { class: 'sfl-dg-earth', cx, cy, r: R }),
     ...rays,
     s('path', { class: 'sfl-dg-dotted', d: `M${cx} ${cy - R}V${cy}` }),
-    s('path', { class: 'sfl-dg-dotted', d: `M156 106L${cx - 6} ${cy - R}` }),
+    s('path', { class: 'sfl-dg-dotted', d: `M156 ${cy - R - 2}L${cx - 6} ${cy - R}` }),
     dot(cx, cy, 'sfl-dg-centre', 2.5),
     text(cx, cy + 20, 'Earth’s centre', 'sfl-dg-small', 'middle'),
     star(cx, 22, 10),
     dot(cx, cy - R, 'sfl-dg-gp', 4.5),
     text(cx + 18, 27, 'A star, very far away', 'sfl-dg-strong'),
     ...lines(296, 62, ['Its light arrives', 'in parallel lines'], 'sfl-dg-small'),
-    ...lines(150, 96, ['Ground point:'], 'sfl-dg-strong', 'end'),
-    ...lines(150, 110, ['the star is straight', 'overhead here'], 'sfl-dg-text', 'end'),
+    ...lines(150, cy - R - 6, ['Ground point:'], 'sfl-dg-strong', 'end'),
+    ...lines(150, cy - R + 8, ['the star is straight', 'overhead here'], 'sfl-dg-text', 'end'),
   );
 }
 
@@ -148,8 +148,8 @@ function heightCircle(): Svg {
     text(yx - 9, yy + 4, 'you', 'sfl-dg-strong', 'end'),
     text(gx, 30, 'Seen from above', 'sfl-dg-strong', 'middle'),
     text(gx, gy + 20, '60° high', 'sfl-dg-small', 'middle'),
-    text(gx, 192, '40° high everywhere on this circle', 'sfl-dg-text', 'middle'),
-    text(gx, 206, 'round the ground point ★', 'sfl-dg-small', 'middle'),
+    text(gx, 194, '40° high everywhere', 'sfl-dg-text', 'middle'),
+    text(gx, 208, 'on this circle round ★', 'sfl-dg-small', 'middle'),
   );
 }
 
@@ -180,12 +180,12 @@ function twoCircles(): Svg {
     line(circlePath(c2.x, c2.y, c2.r), 1),
     gpMark(c1.x, c1.y, 0),
     gpMark(c2.x, c2.y, 1),
-    text(c1.x, c1.y + 22, 'star 1 overhead', 'sfl-dg-small', 'middle'),
-    text(c2.x, c2.y + 22, 'star 2 overhead', 'sfl-dg-small', 'middle'),
+    text(c1.x, c1.y + 22, 'star 1', 'sfl-dg-small', 'middle'),
+    text(c2.x, c2.y + 22, 'star 2', 'sfl-dg-small', 'middle'),
     s('circle', { class: 'sfl-dg-dr', cx: r2(dr.x), cy: r2(dr.y), r: 13 }),
     s('path', { class: 'sfl-dg-dotted', d: `M132 34L${r2(dr.x - 10)} ${r2(dr.y - 8)}` }),
-    text(8, 26, 'A rough idea of where', 'sfl-dg-strong'),
-    text(8, 40, 'you are picks A', 'sfl-dg-small'),
+    text(8, 26, 'Where you roughly are', 'sfl-dg-strong'),
+    text(8, 40, 'picks A: outside knowledge', 'sfl-dg-small'),
     candidateMark(a[0], a[1]),
     candidateMark(b[0], b[1]),
     text(a[0] + 12, a[1] + 5, 'A', 'sfl-dg-strong'),
@@ -227,15 +227,15 @@ function thirdSight(): Svg {
     s(
       'g',
       { 'clip-path': `url(#${id}-l)` },
-      s('ellipse', { class: 'sfl-ch-ellipse', cx: lc.x, cy: lc.y, rx: 21, ry: 19 }),
-      ...cockedHat(lc.x, lc.y, [0, 60, 120], [9, -9, 9], 110),
+      s('ellipse', { class: 'sfl-ch-ellipse', cx: lc.x, cy: lc.y, rx: 24, ry: 22 }),
+      ...cockedHat(lc.x, lc.y, [0, 60, 120], [11, -11, 11], 110),
       miniFix(lc.x, lc.y),
     ),
     s(
       'g',
       { 'clip-path': `url(#${id}-r)` },
-      s('ellipse', { class: 'sfl-ch-ellipse', cx: rc.x, cy: rc.y, rx: 78, ry: 10, transform: `rotate(-20 ${rc.x} ${rc.y})` }),
-      ...cockedHat(rc.x, rc.y, [-12, -20, -28], [8, -8, 8], 120),
+      s('ellipse', { class: 'sfl-ch-ellipse', cx: rc.x, cy: rc.y, rx: 80, ry: 11, transform: `rotate(-20 ${rc.x} ${rc.y})` }),
+      ...cockedHat(rc.x, rc.y, [-14, -20, -26], [4, -4, 4], 120),
       miniFix(rc.x, rc.y),
     ),
     text(lc.x, 20, 'Stars spread round the sky', 'sfl-dg-strong', 'middle'),

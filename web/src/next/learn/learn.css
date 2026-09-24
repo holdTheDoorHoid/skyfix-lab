@@ -933,7 +933,7 @@
 
 .sfl-step__grid {
   display: grid;
-  grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
   gap: var(--space-4);
   align-items: start;
 }
@@ -1075,6 +1075,15 @@
   stroke-dasharray: 3 3;
 }
 
+/* Sketch lines are thinner than chart lines. */
+.sfl-dg .sfl-ch-cop .sfl-ch-casing {
+  stroke-width: 4;
+}
+
+.sfl-dg .sfl-ch-cop .sfl-ch-line {
+  stroke-width: 2;
+}
+
 /* ------------------------------------------------------------------------------------ */
 /* Simulator                                                                              */
 
@@ -1170,6 +1179,7 @@
 
 .sfl-field--check,
 .sfl-field--wide,
+.sfl-field--select,
 .sfl-fields > .sf-notice,
 .sfl-bodies {
   grid-column: 1 / -1;
@@ -1420,9 +1430,11 @@
     padding-right: var(--sfl-gap);
   }
 
+  /* The result comes first; the list of demonstrations follows it. */
   .sfl-stage {
+    order: -1;
     overflow: visible;
-    border-top: 1px solid var(--stage-line);
+    border-bottom: 1px solid var(--stage-line);
   }
 
   .sfl-step__grid {

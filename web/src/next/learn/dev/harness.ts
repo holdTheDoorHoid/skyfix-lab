@@ -10,6 +10,11 @@
  *   ?story=one-bad-sight&variant=robust&view=globe
  *   ?tab=simulator&sim=shared-bias&run=1&experiment=50
  *   &theme=dark|night   &units=nautical   &angles=decimal   &engine=mock
+ *   &then=map          press "Show on map" once the story has run
+ *
+ * Like the shell, the page follows the store's view: when "Show on map" switches it to
+ * `map`, the explorer's real Map view is mounted in place of Learn (loaded on demand) with
+ * a "Back to Learn" button, so the overlays can be seen where they are meant to be drawn.
  *
  * The page sets `<html data-ready="1">` once the view has settled (the story run and its
  * picture, the globe's coastlines, the fonts). Nothing here is persisted: the store gets
@@ -76,7 +81,8 @@ async function boot(root: HTMLElement): Promise<void> {
   notices.subscribe(renderNotices);
   renderNotices();
   const stage = h('main', { class: 'dev-stage' });
-  root.replaceChildren(bar, noticeList, stage);
+  const mapStage = h('div', { class: 'dev-stage dev-map', hidden: true });
+  root.replaceChildren(bar, noticeList, stage, mapStage);
 
   const style = document.createElement('style');
   style.textContent = `
@@ -92,6 +98,9 @@ async function boot(root: HTMLElement): Promise<void> {
     .dev-notices p { margin: 0; padding: 4px 16px; font: 12px/1.4 var(--font-ui);
       background: var(--caution); color: var(--on-caution); }
     .dev-stage { flex: 1; min-height: 0; background: var(--stage-bg); }
+    .dev-stage[hidden] { display: none; }
+    .dev-map { position: relative; }
+    .dev-back { position: absolute; left: 12px; bottom: 12px; z-index: 5; }
   `;
   document.head.append(style);
   installTooltips(document.body);
@@ -113,10 +122,46 @@ async function boot(root: HTMLElement): Promise<void> {
         : null,
   })(stage, ctx);
 
+  // Follow the store's view as the shell does: the Map view when Learn sends overlays to it.
+  let map: { destroy(): void } | null = null;
+  let mapReady = false;
+  const follow = async (view: string): Promise<void> => {
+    const onMap = view === 'map' || view === 'globe';
+    stage.hidden = onMap;
+    mapStage.hidden = !onMap;
+    if (onMap && !map) {
+      const { createMapView } = await import('../../map/map-view.js');
+      const back = h('button', { type: 'button', class: 'sf-btn sf-btn--primary dev-back' }, 'Back to Learn');
+      back.addEventListener('click', () => store.patch({ view: 'learn' }));
+      mapStage.append(back);
+      map = createMapView({
+        onReady: (m) => {
+          // Settled: the detailed land loaded, tiles in, and the camera still.
+          const check = (): void => {
+            const detail = mapStage.querySelector<HTMLElement>('.sfm')?.dataset.detail === '1';
+            if (detail && m.loaded() && m.areTilesLoaded() && !m.isMoving()) setTimeout(() => (mapReady = true), 600);
+            else setTimeout(check, 150);
+          };
+          check();
+        },
+      })(mapStage, ctx);
+    }
+  };
+  store.select((s) => s.view, (v) => void follow(v));
+  if (p.get('then') === 'map') {
+    const press = (): void => {
+      const button = [...stage.querySelectorAll<HTMLButtonElement>('.sfl-figure__bar button')].find((b) => b.textContent?.includes('Show on map'));
+      if (button && stage.querySelector('.sfl')?.getAttribute('data-state') === 'ready') button.click();
+      else setTimeout(press, 100);
+    };
+    press();
+  }
+
   // "Ready" for screenshots: fonts loaded and the view settled.
   const ready = (): void => {
     const view = stage.querySelector<HTMLElement>('.sfl');
-    if (view?.dataset.state === 'ready' && document.fonts.status === 'loaded') document.documentElement.dataset.ready = '1';
+    const settled = p.get('then') === 'map' ? mapReady : view?.dataset.state === 'ready';
+    if (settled && document.fonts.status === 'loaded') document.documentElement.dataset.ready = '1';
     else setTimeout(ready, 100);
   };
   void document.fonts.ready.then(ready);

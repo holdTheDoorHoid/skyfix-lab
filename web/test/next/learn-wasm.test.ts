@@ -137,6 +137,14 @@ describe.skipIf(!hasPackage)(
         expect(step('refraction').delta_arcmin).toBeLessThan(0);
       }
       expect(explain('philadelphia-stars-sextant', run, facts, fmt).happened[0]).toContain('index correction −1.50′, dip −2.49′ and refraction');
+      // The key number is the whole correction taken off each reading, and it is the sum of the steps.
+      for (const s of sights) {
+        const sum = s.corrections.steps.filter((x) => x.applied).reduce((a, x) => a + x.delta_arcmin, 0);
+        expect((s.corrections.ho_deg - s.corrections.input_deg) * 60).toBeCloseTo(sum, 6);
+      }
+      const key = keyNumber('philadelphia-stars-sextant', run, facts, fmt);
+      expect(key.value).toMatch(/^−\d\.\d\d′ to −\d\.\d\d′$/);
+      expect(key.caption).toContain('taken off each raw reading before solving');
     });
 
     it('the healthy-fix experiments reproduce DEMOS.md: coverage 0.96 / 0.98 / 0.96, ratio 1.02 / 1.01 / 1.02', async () => {
@@ -292,9 +300,13 @@ describe.skipIf(!hasPackage)(
       const key = keyNumber('shared-bias', run, f, fmt);
       expect(key.value).toBe('7.07 km');
       expect(key.caption).toBe('from the truth, while the fix claims 231 m (1 σ)');
-      expect(explain('shared-bias', run, f, fmt).happened[0]).toContain(
+      const said = explain('shared-bias', run, f, fmt).happened;
+      expect(said[0]).toContain(
         'The fix is 7.07 km from the truth but claims 231 m (1 σ), because every sight shares the same bias — the model assumes independent errors.',
       );
+      // Honest about the residuals: small in arcminutes, too big against the 0.3′ each sight claims.
+      expect(said[1]).toContain('No residual is bigger than 1.20′');
+      expect(said[1]).toContain('χ² 129.5 where about 22 is expected');
     });
 
     it('shared-bias with the bias estimated: 795 m from the truth, bias 2.70′, and an honest ellipse that covers it', async () => {

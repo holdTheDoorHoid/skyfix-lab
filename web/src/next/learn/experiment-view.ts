@@ -94,7 +94,7 @@ export function runDots(summary: ExperimentSummary, width = 600): SVGSVGElement 
   const ds = summary.runs.map((r) => r.mahalanobis).filter((d): d is number => d !== null && Number.isFinite(d));
   if (!ds.length) return null;
   const W = Math.max(260, Math.round(width));
-  const H = 78;
+  const H = 88;
   const lo = Math.log10(0.05);
   const hi = Math.log10(Math.max(100, ...ds) * 1.2);
   const x = (v: number): number => 12 + ((Math.log10(Math.max(0.05, v)) - lo) / (hi - lo)) * (W - 24);
@@ -107,17 +107,17 @@ export function runDots(summary: ExperimentSummary, width = 600): SVGSVGElement 
     'aria-label': `${ds.length} repetitions: ${ds.filter((d) => d <= MAHALANOBIS_95).length} with the truth inside the 95 % ellipse.`,
   }) as SVGSVGElement;
   const edge = x(MAHALANOBIS_95);
-  svg.append(s('rect', { class: 'sfl-dots__inside', x: 12, y: 6, width: r2(edge - 12), height: H - 30, rx: 4 }));
-  svg.append(s('path', { class: 'sfl-dots__edge', d: `M${r2(edge)} 2V${H - 22}` }));
-  const t1 = s('text', { class: 'sfl-band__label', x: r2(edge - 6), y: 16, 'text-anchor': 'end' });
-  t1.textContent = 'inside';
-  const t2 = s('text', { class: 'sfl-band__label', x: r2(edge + 6), y: 16 });
-  t2.textContent = 'outside the 95 % ellipse';
+  const t1 = s('text', { class: 'sfl-band__label', x: r2(edge - 6), y: 12, 'text-anchor': 'end' });
+  t1.textContent = '← truth inside';
+  const t2 = s('text', { class: 'sfl-band__label', x: r2(edge + 6), y: 12 });
+  t2.textContent = 'outside the 95 % ellipse →';
   svg.append(t1, t2);
+  svg.append(s('rect', { class: 'sfl-dots__inside', x: 12, y: 18, width: r2(edge - 12), height: H - 42, rx: 4 }));
+  svg.append(s('path', { class: 'sfl-dots__edge', d: `M${r2(edge)} 16V${H - 22}` }));
   // A fixed jitter so the picture is the same every time it is drawn.
   ds.forEach((d, i) => {
     const jitter = ((i * 37) % 17) / 16;
-    svg.append(s('circle', { class: `sfl-dots__dot${d > MAHALANOBIS_95 ? ' sfl-dots__dot--out' : ''}`, cx: r2(x(d)), cy: r2(24 + jitter * (H - 58)), r: 3.6 }));
+    svg.append(s('circle', { class: `sfl-dots__dot${d > MAHALANOBIS_95 ? ' sfl-dots__dot--out' : ''}`, cx: r2(x(d)), cy: r2(26 + jitter * (H - 58)), r: 3.6 }));
   });
   for (const v of [0.1, 1, 10, 100]) {
     if (Math.log10(v) > hi) continue;

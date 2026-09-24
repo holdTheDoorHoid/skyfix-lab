@@ -24,6 +24,7 @@ import {
   tangentOffsetM,
 } from '../../src/next/learn/geo.js';
 import { overlaysFor } from '../../src/next/learn/mapbridge.js';
+import { residualCaption } from '../../src/next/learn/result.js';
 import { Ortho, SheetProjection, visibleRuns } from '../../src/next/learn/project.js';
 import {
   CLOCK_SIGMA_S,
@@ -457,6 +458,7 @@ describe('key numbers and explanations', () => {
   const run = (overrides: Partial<Scenario> = {}, truth: Partial<{ clock_offset_s: number; shared_altitude_bias_arcmin: number; wrong_sight_ids: string[] }> = {}) => ({
     variant: null,
     scenario: scenario(overrides),
+    session: { ...session(null), observations: [{ id: 'obs-1', body: 'sim-A', utc: '2026-10-01T01:30:00Z', altitude_deg: 40, altitude_kind: 'observed_ho' as const, sigma_arcmin: 0.3, limb: 'center' as const, horizon: null, geocentric: null, notes: '' }] },
     options: defaultSolveOptions(),
     reduced: null,
     truth: { schema: '', session_name: '', position: PHILLY, seed: 1, clock_offset_s: 0, shared_altitude_bias_arcmin: 0, wrong_sight_ids: [], notes: '', ...truth },
@@ -471,7 +473,9 @@ describe('key numbers and explanations', () => {
     expect(key.caption).toBe('from the truth, while the fix claims 231 m (1 σ)');
     const text = explain('shared-bias', run({}, { shared_altitude_bias_arcmin: 3 }), facts, fmt).happened.join(' ');
     expect(text).toContain('is 7.02 km from the truth but claims 231 m (1 σ), because every sight shares the same bias — the model assumes independent errors');
-    expect(text).toContain('far outside');
+    expect(text).toContain('the truth is outside the 95 % ellipse');
+    expect(text).toContain('No residual is bigger than 9.00′, the scatter of an ordinary sextant');
+    expect(text).toContain('Against the 0.3′ each sight claims they are too big as a whole (χ² 82.0 where about 1 is expected)');
   });
 
   it('give the clock story its east-west shift in degrees of longitude', () => {
@@ -495,6 +499,25 @@ describe('key numbers and explanations', () => {
     const words = explain('two-sight-ambiguous', run(), factsOf(AMBIGUOUS, PHILLY), fmt).happened.join(' ');
     expect(words).toContain('neither preferred');
     expect(words).toContain('the sights alone cannot say that');
+  });
+
+  it('describe the residuals by what they show: one outlier, several, or none', () => {
+    const base = factsOf(unique(PHILLY), PHILLY);
+    if (base.kind !== 'unique') throw new Error('expected unique');
+    const one = residualCaption(base);
+    expect(one).toContain('One bar is outside ±3 σ');
+    expect(one).toContain('obs-2 stands out, 7.5 times the next largest: the mark of one bad sight');
+    const many = residualCaption({
+      ...base,
+      residuals: base.residuals.map((r, i) => ({ ...r, normalized: [3.9, -3.7, 3.8][i]!, residual_arcmin: [1.17, -1.11, 1.14][i]! })),
+      chi2: 129.5,
+      dof: 22,
+    });
+    expect(many).toContain('3 of 3 bars are outside ±3 σ');
+    expect(many).toContain('χ² 129.5 where about 22 is expected');
+    expect(many).toContain('None stands out on its own');
+    const none = residualCaption({ ...base, residuals: base.residuals.map((r) => ({ ...r, normalized: 0.4, residual_arcmin: 0.4 })), chi2: 0.5, dof: 1 });
+    expect(none).toContain('Every bar is inside ±3 σ');
   });
 
   it('report a failure as a failure', () => {
