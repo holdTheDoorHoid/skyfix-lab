@@ -53,6 +53,8 @@ export default defineConfig({
         devMap: resolve(import.meta.dirname, 'next/dev-map.html'),
         // The Almanac view's developer harness (almanac agent).
         devAlmanac: resolve(import.meta.dirname, 'next/dev-almanac.html'),
+        // The Navigate view on its own, with "Tonight's star sights" beside it (navigate agent).
+        devNavigate: resolve(import.meta.dirname, 'next/dev-navigate.html'),
       },
     },
   },
