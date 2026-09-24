@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { parseGazetteer } from '../../src/next/geo/gazetteer.js';
 import { buildRegionIndex } from '../../src/next/geo/regions.js';
 import { describePlace, sameZone, zoneChoiceFromGuess, zonePinned } from '../../src/next/map/place.js';
+import { zonePinned as storeZonePinned } from '../../src/next/state.js';
 
 const DATA = join(import.meta.dirname, '../../public/data');
 const g = parseGazetteer(JSON.parse(readFileSync(join(DATA, 'gazetteer.json'), 'utf8')));
@@ -22,10 +23,28 @@ describe('which zones are the person’s own choice', () => {
     expect(zonePinned({ kind: 'iana', zone: 'Asia/Tokyo', guessed: false })).toBe(true);
   });
 
-  it('re-guesses zones that came with a place, guessed zones and the nautical zone', () => {
+  it('re-guesses zones that came with a place and guessed zones, nautical included', () => {
     expect(zonePinned({ kind: 'iana', zone: 'America/New_York' })).toBe(false);
     expect(zonePinned({ kind: 'iana', zone: 'America/New_York', guessed: true })).toBe(false);
     expect(zonePinned({ kind: 'nautical' })).toBe(false);
+    expect(zonePinned({ kind: 'nautical', guessed: true })).toBe(false);
+  });
+
+  it('keeps a nautical zone chosen by hand (the panel writes guessed: false)', () => {
+    expect(zonePinned({ kind: 'nautical', guessed: false })).toBe(true);
+  });
+
+  it('is the store’s rule, so the map and the panel agree', () => {
+    const zones = [
+      { kind: 'utc' },
+      { kind: 'nautical' },
+      { kind: 'nautical', guessed: true },
+      { kind: 'nautical', guessed: false },
+      { kind: 'iana', zone: 'Asia/Tokyo' },
+      { kind: 'iana', zone: 'Asia/Tokyo', guessed: true },
+      { kind: 'iana', zone: 'Asia/Tokyo', guessed: false },
+    ] as const;
+    for (const z of zones) expect(zonePinned(z)).toBe(storeZonePinned(z));
   });
 
   it('compares choices', () => {
@@ -52,6 +71,12 @@ describe('describing a clicked position', () => {
 
   it('keeps a zone the person chose', () => {
     const info = describePlace(g, regions, 51.5, -0.12, { kind: 'utc' });
+    expect(info.label).toMatch(/London/);
+    expect(info.zone).toBeNull();
+  });
+
+  it('keeps a nautical zone chosen by hand when the place moves ashore', () => {
+    const info = describePlace(g, regions, 51.5, -0.12, { kind: 'nautical', guessed: false });
     expect(info.label).toMatch(/London/);
     expect(info.zone).toBeNull();
   });
