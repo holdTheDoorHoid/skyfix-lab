@@ -1070,7 +1070,6 @@ mod tests {
 
     // ---- things that need the solver -----------------------------------------
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn a_clean_scenario_recovers_its_truth_within_ten_metres() {
         // The brief's numerical regression target: clean, well-conditioned synthetic
@@ -1085,7 +1084,6 @@ mod tests {
         assert!(r.error_m.unwrap() < 10.0, "error {:?} m", r.error_m);
     }
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn coverage_of_the_nominal_ellipse_is_near_95_percent_under_its_own_model() {
         // Independent noise, honest sigma, good geometry: the ellipse should mean what
@@ -1107,7 +1105,6 @@ mod tests {
         assert!((0.85..1.18).contains(&ratio), "error/sigma ratio {ratio}");
     }
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn a_shared_bias_breaks_coverage_while_the_residuals_stay_small() {
         // The brief's requirement: many repeated sights, small residuals, wrong answer.
@@ -1141,7 +1138,6 @@ mod tests {
         );
     }
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn a_clock_offset_moves_the_fix_west_by_the_predicted_amount() {
         let s = demos::clock_offset();
@@ -1167,7 +1163,6 @@ mod tests {
         assert!(r.residual_rms_arcmin.unwrap() < 0.1);
     }
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn clustered_geometry_is_worse_than_spread_geometry() {
         let good = run(&Experiment::new(demos::good_geometry(), 30), None);
@@ -1186,7 +1181,6 @@ mod tests {
         );
     }
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn one_bad_sight_shows_up_in_the_residuals() {
         let summary = run(&Experiment::new(demos::one_bad_sight(), 1), None);
@@ -1201,7 +1195,6 @@ mod tests {
         );
     }
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn one_sight_is_underdetermined_and_two_are_ambiguous() {
         let one = run(&Experiment::new(demos::single_sight(), 1), None);
@@ -1212,7 +1205,6 @@ mod tests {
         assert!(two.runs[0].error_m.is_none());
     }
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn sextant_readings_solve_to_the_same_place_as_corrected_ones() {
         // The reverse correction chain and the reducer's forward chain must agree well
@@ -1248,7 +1240,6 @@ mod tests {
         assert!((da - db).abs() < 1.0, "Ho fix {da} m vs Hs fix {db} m");
     }
 
-    #[ignore = "needs solver merge"]
     #[test]
     fn every_demo_runs_end_to_end() {
         for s in demos::all() {

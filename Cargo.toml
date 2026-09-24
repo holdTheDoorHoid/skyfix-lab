@@ -21,7 +21,7 @@ rust-version = "1.85"
 # Pinned in Cargo.lock; keep this list short and justify every addition in THIRD_PARTY.md.
 [workspace.dependencies]
 serde = { version = "1.0.229", features = ["derive"] }
-serde_json = "1.0.151"
+serde_json = { version = "1.0.151", features = ["float_roundtrip"] }
 thiserror = "2.0.21"
 anyhow = "1.0.104"
 clap = { version = "4.6.7", features = ["derive"] }

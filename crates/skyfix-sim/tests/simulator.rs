@@ -6,7 +6,6 @@
 //! pieces; these check the promises.
 //!
 //! Anything that needs `skyfix_core::solver` or `skyfix_core::reduce` lives in
-//! `experiment.rs` behind `#[ignore = "needs solver merge"]`; nothing here calls them.
 
 use skyfix_core::geometry::{self, Point};
 use skyfix_core::time;

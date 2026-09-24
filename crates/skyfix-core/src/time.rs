@@ -28,9 +28,11 @@ pub fn parse_utc(s: &str) -> Result<f64, SkyfixError> {
 
 /// Format `jd_utc` back to RFC 3339 with millisecond precision and a `Z` suffix.
 pub fn format_utc(jd_utc: f64) -> String {
-    let secs = (jd_utc - JD_UNIX_EPOCH) * 86_400.0;
-    let whole = secs.floor();
-    let nanos = ((secs - whole) * 1e9).round().clamp(0.0, 999_999_999.0) as u32;
+    // Round to the nearest millisecond first: f64 Julian dates resolve ~40 microseconds,
+    // so truncation would print 01:32:00 as 01:31:59.999.
+    let millis = ((jd_utc - JD_UNIX_EPOCH) * 86_400_000.0).round();
+    let whole = (millis / 1000.0).floor();
+    let nanos = ((millis - whole * 1000.0) * 1e6) as u32;
     match Utc.timestamp_opt(whole as i64, nanos) {
         chrono::LocalResult::Single(dt) => dt.to_rfc3339_opts(SecondsFormat::Millis, true),
         _ => format!("JD {jd_utc}"),
