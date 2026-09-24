@@ -169,6 +169,10 @@ impl RelativeDisplacement {
         }
     }
 
+    /// Eight arguments, because eight distinct quantities are genuinely required: two
+    /// instants, two components, a covariance, the nominal scale, its sigma, and the
+    /// source. Collapsing any pair would hide something the caller must state.
+    #[allow(clippy::too_many_arguments)]
     pub fn unscaled(
         from_utc_jd: f64,
         to_utc_jd: f64,

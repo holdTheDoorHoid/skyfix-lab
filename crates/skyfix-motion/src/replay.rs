@@ -229,9 +229,12 @@ fn interpolate(
 
     // Conservative blend: what perfectly correlated endpoint errors would give.
     let mut cov = [[0.0f64; 2]; 2];
-    for r in 0..2 {
-        for c in 0..2 {
-            cov[r][c] = (1.0 - w) * a.covariance_ne_m2[r][c] + w * b.covariance_ne_m2[r][c];
+    for (row, (ra, rb)) in cov
+        .iter_mut()
+        .zip(a.covariance_ne_m2.iter().zip(b.covariance_ne_m2.iter()))
+    {
+        for (v, (va, vb)) in row.iter_mut().zip(ra.iter().zip(rb.iter())) {
+            *v = (1.0 - w) * va + w * vb;
         }
     }
     // Plus what linear interpolation cannot know: the path between the samples.
@@ -350,7 +353,7 @@ mod tests {
 
     #[test]
     fn interpolation_hits_the_endpoints_exactly() {
-        let track = vec![
+        let track = [
             gnss(T0, 40.0, -70.0, 5.0),
             gnss(T0 + HOUR, 40.1, -69.9, 7.0),
         ];
@@ -366,7 +369,7 @@ mod tests {
 
     #[test]
     fn interpolation_is_conservative_in_the_middle_of_a_gap() {
-        let track = vec![
+        let track = [
             gnss(T0, 40.0, -70.0, 5.0),
             gnss(T0 + HOUR, 40.0, -70.0, 5.0),
         ];
@@ -377,7 +380,7 @@ mod tests {
         assert_relative_eq!(mid.covariance_ne_m2[0][0], 25.0, epsilon = 1e-9);
 
         // Separated samples: the sag term is (L / 4)^2 at the midpoint.
-        let far = vec![
+        let far = [
             gnss(T0, 40.0, -70.0, 5.0),
             AbsolutePosition::isotropic(
                 T0 + HOUR,
