@@ -291,6 +291,8 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
   const memo: ExplorerEngine = {
     kind: engine.kind,
     description: engine.description,
+    // Navigation tools pass through unmemoised: they run on demand, never per frame.
+    ...(engine.nav ? { nav: engine.nav } : {}),
     bodies: () => cached('bodies', '', 1, () => engine.bodies()),
     coverage: () => cached('coverage', '', 1, () => engine.coverage()),
     skyState: (observer, jd, bodies) =>

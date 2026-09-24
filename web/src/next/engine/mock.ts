@@ -13,6 +13,7 @@
  */
 
 import { isoUtc, jdFromIso, jdFromMs, utcMs } from '../time.js';
+import { createMockNav } from './mock-nav.js';
 import * as A from './mock/astro.js';
 import { crossings, grid, sample } from './mock/roots.js';
 import {
@@ -44,6 +45,7 @@ import type {
   SkyState,
   StarfieldCatalog,
 } from './types.js';
+import type { NavTools } from './wasm-nav.js';
 
 export const MOCK_DESCRIPTION =
   'MOCK ENGINE for developing the interface. Every number on this page is illustrative: positions come from ' +
@@ -193,6 +195,8 @@ function inCoverage(jd: number): boolean {
 export class MockEngine implements ExplorerEngine {
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
+  /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
+  readonly nav: NavTools = createMockNav(this);
 
   private readonly defs: BodyDef[];
   private readonly byName = new Map<string, BodyDef>();
