@@ -3,6 +3,7 @@
 import './styles.css';
 import { selectApi } from './api/index.js';
 import { mount } from './app.js';
+import { startWorkbenchPwa } from './pwa/workbench-prompt.js';
 import { Store, VIEWS, type ViewId } from './store.js';
 
 /**
@@ -65,3 +66,7 @@ async function start(): Promise<void> {
 void start().catch((error: unknown) => {
   fatal(error instanceof Error ? error.message : String(error));
 });
+
+// Offline use (service worker), independent of whether the page started: a fixed
+// version can still be offered to a page that failed.
+startWorkbenchPwa();

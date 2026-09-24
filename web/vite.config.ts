@@ -1,6 +1,7 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vitest/config';
+import { skyfixPwa } from './plugins/pwa.ts';
 
 const WASM_ENTRY = resolve(import.meta.dirname, 'src/wasm-pkg/skyfix_wasm.js');
 
@@ -25,43 +26,80 @@ function requireWasmPackage(): Plugin {
   };
 }
 
+/**
+ * The pages the site ships: the current workbench at /, the new explorer at /next/
+ * (docs/EXPLORER_PLAN.md). Both work offline (plugins/pwa.ts).
+ */
+const APP_PAGES = {
+  main: resolve(import.meta.dirname, 'index.html'),
+  next: resolve(import.meta.dirname, 'next/index.html'),
+};
+
+/**
+ * Developer pages: every other `next/*.html` — the design mockup (`mockup.html`) and each
+ * view on its own (`dev-map.html`, `dev-sky.html`, `dev-charts.html`, `dev-almanac.html`,
+ * …), for screenshots and frame-time measurements. Found by name, so a new one needs no
+ * entry here. `vite` (the development server) serves them; production builds leave them
+ * out, so they are never deployed, precached or linked. `SKYFIX_DEV_PAGES=1 npm run build`
+ * includes them in a local build.
+ */
+function devPages(): Record<string, string> {
+  const dir = resolve(import.meta.dirname, 'next');
+  const pages: Record<string, string> = {};
+  for (const file of readdirSync(dir)) {
+    if (!file.endsWith('.html') || file === 'index.html') continue;
+    const name = file.replace(/\.html$/, '').replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+    pages[name] = resolve(dir, file);
+  }
+  return pages;
+}
+
 // `base: './'` so the built site works from any subdirectory — it is served under
 // /skyfix-lab/ on GitHub Pages. Nothing is fetched from a CDN: every asset, including
 // the WebAssembly module, is emitted next to the page.
-export default defineConfig({
-  base: './',
-  plugins: [requireWasmPackage()],
-  build: {
-    target: 'es2022',
-    outDir: 'dist',
-    emptyOutDir: true,
-    assetsInlineLimit: 0,
-    // Pages while the explorer is built (docs/EXPLORER_PLAN.md): the current workbench
-    // at /, the new explorer at /next/, and the explorer's static design mockup at
-    // /next/mockup.html (hard-coded numbers, no engine; for design review only).
-    rollupOptions: {
-      input: {
-        main: resolve(import.meta.dirname, 'index.html'),
-        next: resolve(import.meta.dirname, 'next/index.html'),
-        mockup: resolve(import.meta.dirname, 'next/mockup.html'),
-        // The Charts view on its own, for its developer (charts agent).
-        devCharts: resolve(import.meta.dirname, 'next/dev-charts.html'),
-        // The Sky view's developer page (sky agent): the view alone, for screenshots
-        // and frame-time measurements.
-        devSky: resolve(import.meta.dirname, 'next/dev-sky.html'),
-        // The Map view on its own, for its developer (map agent).
-        devMap: resolve(import.meta.dirname, 'next/dev-map.html'),
-        // The Almanac view's developer harness (almanac agent).
-        devAlmanac: resolve(import.meta.dirname, 'next/dev-almanac.html'),
+export default defineConfig(({ command }) => {
+  const withDevPages = command === 'serve' || process.env.SKYFIX_DEV_PAGES === '1';
+  return {
+    base: './',
+    plugins: [
+      requireWasmPackage(),
+      skyfixPwa({
+        pages: [
+          { file: 'next/index.html', label: 'SkyFix Lab explorer' },
+          { file: 'index.html', label: 'SkyFix Lab workbench' },
+        ],
+        // Chunks that only developers load: `?engine=mock` and `?harness` on /next/.
+        devModules: ['src/next/engine/mock.ts', 'src/next/harness/harness.ts'],
+        manifests: ['data/basemap/manifest.json'],
+        extra: [
+          'data/gazetteer.json',
+          'manifest.webmanifest',
+          'icons/icon.svg',
+          'icons/icon-192.png',
+          'icons/icon-512.png',
+          'icons/icon-maskable-512.png',
+          'icons/apple-touch-icon.png',
+        ],
+        worker: 'src/sw/sw.ts',
+        allowOtherPages: withDevPages,
+      }),
+    ],
+    build: {
+      target: 'es2022',
+      outDir: 'dist',
+      emptyOutDir: true,
+      assetsInlineLimit: 0,
+      rollupOptions: {
+        input: { ...APP_PAGES, ...(withDevPages ? devPages() : {}) },
       },
     },
-  },
-  // MapLibre's web worker is an ES module that imports a shared chunk; bundle workers as
-  // ES modules so that import survives (the page loads it with `?worker&url`).
-  worker: { format: 'es' },
-  server: { port: 5173, strictPort: false },
-  test: {
-    environment: 'node',
-    include: ['test/**/*.test.ts'],
-  },
+    // MapLibre's web worker is an ES module that imports a shared chunk; bundle workers as
+    // ES modules so that import survives (the page loads it with `?worker&url`).
+    worker: { format: 'es' },
+    server: { port: 5173, strictPort: false },
+    test: {
+      environment: 'node',
+      include: ['test/**/*.test.ts'],
+    },
+  };
 });

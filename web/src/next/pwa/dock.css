@@ -1,0 +1,79 @@
+/*
+ * The connection and update dock (dock.ts). OWNER: release agent. Tokens only.
+ * Bottom centre of the window: clear of the map's corner controls and credits, above the
+ * stage and the phone's bottom sheet, below popovers and tooltips.
+ */
+
+.sf-pwa {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-4) + env(safe-area-inset-bottom, 0px));
+  z-index: calc(var(--z-sheet) + 5);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  width: max-content;
+  max-width: calc(100vw - 2 * var(--space-4));
+  transform: translateX(-50%);
+  /* The dock itself never blocks the map; only its cards and chip take the pointer. */
+  pointer-events: none;
+}
+
+.sf-pwa__row {
+  display: flex;
+  justify-content: center;
+}
+
+.sf-pwa__row:empty {
+  display: none;
+}
+
+.sf-pwa__offline,
+.sf-pwa__card {
+  pointer-events: auto;
+  box-shadow: var(--shadow-2);
+  animation: sf-pwa-in var(--dur-slow) var(--ease-out);
+}
+
+.sf-pwa__offline {
+  border-color: var(--ui-line-strong);
+}
+
+.sf-pwa__card {
+  /* .sf-notice gives the layout: icon, text, actions. */
+  align-items: center;
+  min-width: 0;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--ui-line-strong);
+  font-size: var(--text-md);
+}
+
+.sf-pwa__card > .sf-icon {
+  margin-top: 0;
+}
+
+.sf-pwa__text {
+  font-weight: var(--weight-medium);
+}
+
+.sf-pwa__actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-left: var(--space-2);
+}
+
+@keyframes sf-pwa-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-pwa__offline,
+  .sf-pwa__card {
+    animation: none;
+  }
+}
