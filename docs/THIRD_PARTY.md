@@ -356,3 +356,35 @@ Options, cheapest first:
 Attribution to carry in any case: *ESA (1997), The Hipparcos and Tycho
 Catalogues, ESA SP-1200*, obtained from the VizieR catalogue access tool, CDS,
 Strasbourg, France (DOI: 10.26093/cds/vizier).
+
+## Explorer (browser) dependencies
+
+Added 2026-09-24 for the explorer redesign (`docs/EXPLORER_PLAN.md`). Bundled into the
+site by Vite; nothing is loaded from a CDN.
+
+| Package | Version | Licence | Use | Obligation |
+|---|---|---|---|---|
+| `maplibre-gl` | 6.11.2 | BSD-3-Clause | Map and globe rendering | Keep the copyright notice and licence text with redistributions (in the bundle's licence comment and this file); no on-screen credit required |
+| `@fontsource-variable/inter` | 5.3.0 | SIL Open Font License 1.1 | Interface typeface (Inter, Rasmus Andersson) | Ship the licence with the font files; the font may not be sold on its own |
+| `@fontsource-variable/jetbrains-mono` | 5.3.0 | SIL Open Font License 1.1 | Figures and coordinates (JetBrains Mono) | As above |
+
+### Data that needs no credit, by the owner's preference (2026-09-24)
+
+The owner asked for star and constellation data that needs no credit where possible.
+The plan (details recorded by the star-field and map-data agents as they land):
+
+- **Stars:** NASA HEASARC's `BSC5P` table (Yale Bright Star Catalogue, 5th revised
+  edition, as served by HEASARC). NASA's open-data catalogue lists this dataset with the
+  licence *U.S. Government Works* (<https://catalog.data.gov/dataset/bright-star-catalog>,
+  checked 2026-09-24). Star positions and magnitudes are also measurements, which are
+  facts. The compilers (Hoffleit & Warren, 1991) are cited in the documentation as a
+  courtesy, not as a licence obligation.
+- **Constellation figures:** drawn by this project, so they are covered by the project's
+  own MIT OR Apache-2.0 licence.
+- **Constellation boundaries:** the IAU definitions of Delporte (1930), which are
+  published definitions (facts) and in the public domain by age.
+- **Offline basemap and gazetteer:** Natural Earth, public domain; Natural Earth states
+  that crediting it is unnecessary.
+- **Optional street layer:** OpenStreetMap tiles are ODbL data and **do** require the
+  on-map credit "© OpenStreetMap contributors" whenever that layer is shown. It is off
+  by default.

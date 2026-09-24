@@ -20,7 +20,12 @@ section it implements.
   arc = 1 nautical mile (NM) = 1852 m exactly.** Therefore the sphere radius used for
   all metre conversions is `EARTH_RADIUS_M = 1852 * 10800 / pi = 6 366 707.02 m`
   (`skyfix_core::units::EARTH_RADIUS_M`). The model is a sphere; no ellipsoid
-  correction is applied anywhere. This is the documented "spherical Earth model".
+  correction is applied anywhere in sight reduction, the solver, uncertainty or the
+  simulator. This is the documented "spherical Earth model". **One exception, for
+  display only:** the explorer's topocentric altitudes and azimuths (`alt_deg`,
+  `az_deg`, rise/set/twilight, eclipse local circumstances; section 13) place the
+  observer on the WGS84 ellipsoid, because the Moon's parallax and eclipse timing need
+  it. Those values never feed the navigation chain.
 
 ## 2. Coordinates and sign conventions
 
@@ -243,3 +248,114 @@ the solver or the CLI `solve` command.
 
 `skyfix_core::types::Warning` is the single enum for machine-readable caveats. Add
 variants there, never ad-hoc strings, so the CLI, WASM adapter and UI show them the same way.
+
+## 13. Explorer: bodies, topocentric display values, events and display-only data
+
+Wire formats are in `docs/EXPLORER_API.md`; the program plan is `docs/EXPLORER_PLAN.md`.
+
+### 13.1 Bodies
+
+- Canonical names: `Sun`, `Moon`, `Mercury`, `Venus`, `Mars`, `Jupiter`, `Saturn`,
+  `Uranus`, `Neptune`, and the 58 star names of section 10. Input matches
+  case-insensitively after trimming; output always uses the canonical spelling.
+- Kinds: `sun`, `moon`, `planet`, `star`. **Navigational bodies** (offered for sights
+  once their provider is validated): Sun, Moon, Venus, Mars, Jupiter, Saturn and the 58
+  stars. Mercury, Uranus and Neptune are shown but never offered for sights.
+- `GeocentricDirection` (section 7) stays the navigation interface. `ApparentState`
+  (`skyfix_ephemeris::body`) adds distance, magnitude and phase for display and
+  planning.
+- The GHA rate used for clock propagation (section 6) is per body: sidereal for stars,
+  solar for the Sun, and for the Moon and planets a numerical derivative of the
+  provider's GHA over +/-60 s. Never assume the sidereal rate for the Moon (it runs about
+  14.5 deg/h).
+
+### 13.2 Topocentric display altitude and azimuth
+
+- Site: WGS84 geodetic latitude, east longitude and height above the ellipsoid. Earth
+  rotation by GAST with DUT1 = 0 (section 6) and no polar motion.
+- `alt_deg` / `az_deg`: the body centre seen from the site, **geometric** (parallax from
+  the geocentric distance applied, no refraction), altitude measured from the plane
+  perpendicular to the ellipsoid normal. Stars have no parallax.
+- `alt_apparent_deg = alt_deg + R`, with Saemundsson's true-to-apparent refraction
+  `R[arcmin] = 1.02 / tan(h + 10.3 / (h + 5.11))` (h in degrees), evaluated at
+  `h = max(alt_deg, -1)`, scaled by `(pressure_hpa / 1010) * (283 / (273 + temperature_c))`.
+  It is the approximate inverse of the Bennett correction of section 5 and is used for
+  display only; sight reduction still uses section 5.
+- `hc_deg` / `zn_deg` in the explorer are exactly section 3 from the apparent
+  geocentric GHA/Dec: what a navigator's tables give. The UI labels the two families
+  differently and never subtracts one from the other as if they were comparable.
+
+### 13.3 Rise, set, transit and twilight
+
+All events are instants in UTC computed from the topocentric geometric altitude of the
+body's centre, `alt_deg`, crossing a threshold `h0`:
+
+| body | `h0` (sea-level horizon, `horizon = "standard"`) |
+|---|---|
+| Sun | `-50'` (34' standard refraction + 16' standard semidiameter) |
+| Moon | `-34' - SD`, SD = the Moon's geocentric semidiameter at that instant |
+| planets, stars | `-34'` |
+
+- `horizon = "dip"`: `h0` is lowered further by the dip of section 5,
+  `1.76' * sqrt(height_of_eye_m)` — the body rises earlier and sets later for an
+  observer above the sea.
+- Twilight: the Sun's centre at `alt_deg = -6, -12, -18` degrees (civil, nautical,
+  astronomical); dawn crosses upward, dusk downward. Twilight never uses dip.
+- Transit: upper transit when `LHA = 0` computed from the apparent geocentric GHA
+  (the Nautical Almanac's meridian passage); lower transit when `LHA = 180`.
+- A body that does not cross `h0` inside the window is `always_above` or
+  `always_below`; the window's edges never create events.
+- Root finding brackets sign changes on a grid no coarser than 10 minutes (Moon) or 20
+  minutes (others) and refines to 1 second or better.
+
+### 13.4 Sky phases
+
+From the Sun's `alt_deg = h`: `day` when `h > -50'`; `civil` when `-6 < h <= -50'`;
+`nautical` when `-12 < h <= -6`; `astronomical` when `-18 < h <= -12`; `night` when
+`h <= -18` degrees. The time bar and the map's twilight shading use exactly these bands.
+
+### 13.5 Moon phases, illumination and seasons
+
+- New moon, first quarter, full moon and last quarter are the instants when the
+  apparent geocentric ecliptic longitude of the Moon minus that of the Sun (ecliptic and
+  equinox of date) is 0, 90, 180 and 270 degrees.
+- Illuminated fraction `k = (1 + cos i) / 2`, `i` the phase angle (Sun-body-Earth).
+  Moon age is the time since the preceding new moon.
+- Equinoxes and solstices: the Sun's apparent geocentric ecliptic longitude is 0, 90,
+  180 and 270 degrees.
+
+### 13.6 Display-only data
+
+The star field (NASA HEASARC BSC5P), constellation figures (this project's own
+drawing), constellation boundaries (IAU 1930 definitions), the offline basemap and the
+gazetteer (Natural Earth) are **display-only**. They never enter `reduce`, `solve`, the
+planner's navigation candidates or any accuracy claim. Enforced by crate boundaries:
+`skyfix-starfield` is not a dependency of `skyfix-core`, `skyfix-ephemeris`,
+`skyfix-sim` or `skyfix-almanac`; only `skyfix-wasm` joins it with the engine (for
+example, to label a planet's constellation).
+
+### 13.7 Accuracy targets and validation
+
+Reference: Skyfield with JPL DE440s (DE421 as a cross-check), DUT1 = 0 columns as in
+section 11, over 1990-2060.
+
+| quantity | target (worst case) |
+|---|---|
+| Moon GHA and Dec | 0.1' |
+| Moon HP | 0.05' |
+| Planets GHA and Dec | 0.1' |
+| Topocentric `alt_deg` / `az_deg` (any body) | 0.1' |
+| Rise, set, twilight vs Skyfield with the same `h0` | 10 s |
+| Rise, set, twilight vs USNO (rounded to the minute) | 1 min |
+| Moon phases, equinoxes and solstices | 1 min |
+| Star-field apparent places | 0.1' |
+
+A provider that misses its target is shipped only with `validated: false` in
+`explorer_coverage` and is not offered for sights.
+
+### 13.8 Displayed time
+
+The engine works only in UTC. The UI displays one chosen zone and always shows UTC
+beside it: an IANA zone (formatted with the browser's `Intl`), guessed from the
+gazetteer and overridable; the nautical zone time for positions at sea
+(`ZD = round(lon_east / -15)`, so zone time + ZD = UTC; 75 W is ZD +5); or UTC itself.

@@ -15,8 +15,11 @@ crate-type = ["cdylib", "rlib"]
 skyfix-core = { path = "../skyfix-core" }
 skyfix-ephemeris = { path = "../skyfix-ephemeris" }
 skyfix-sim = { path = "../skyfix-sim" }
+skyfix-almanac = { path = "../skyfix-almanac" }
+skyfix-starfield = { path = "../skyfix-starfield" }
 wasm-bindgen = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
+js-sys = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 console_error_panic_hook = { workspace = true }

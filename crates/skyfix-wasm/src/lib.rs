@@ -20,6 +20,14 @@
 //! `skyfix_ephemeris::fixture_pack::CompositeProvider` holding the `SunProvider` and the
 //! `StarProvider`, in that order. `coverage()` reports each of them separately.
 
+// Explorer exports, one module per feature so parallel work never collides here
+// (docs/EXPLORER_PLAN.md section 4). Wire formats: docs/EXPLORER_API.md.
+pub mod almanac;
+pub mod eclipses;
+pub mod explorer;
+pub mod nav;
+pub mod starfield;
+
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 

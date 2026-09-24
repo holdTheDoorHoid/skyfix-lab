@@ -36,6 +36,14 @@ export default defineConfig({
     outDir: 'dist',
     emptyOutDir: true,
     assetsInlineLimit: 0,
+    // Two pages while the explorer is built (docs/EXPLORER_PLAN.md): the current
+    // workbench at / and the new explorer at /next/.
+    rollupOptions: {
+      input: {
+        main: resolve(import.meta.dirname, 'index.html'),
+        next: resolve(import.meta.dirname, 'next/index.html'),
+      },
+    },
   },
   server: { port: 5173, strictPort: false },
   test: {

@@ -316,6 +316,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "skyfix-almanac"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "serde",
+ "serde_json",
+ "skyfix-core",
+ "skyfix-ephemeris",
+ "thiserror",
+]
+
+[[package]]
 name = "skyfix-camera"
 version = "0.1.0"
 dependencies = [
@@ -394,16 +406,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "skyfix-starfield"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "serde",
+ "serde_json",
+ "skyfix-core",
+ "skyfix-ephemeris",
+ "thiserror",
+]
+
+[[package]]
 name = "skyfix-wasm"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "js-sys",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "skyfix-almanac",
  "skyfix-core",
  "skyfix-ephemeris",
  "skyfix-sim",
+ "skyfix-starfield",
  "wasm-bindgen",
 ]
 

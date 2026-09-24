@@ -9,6 +9,8 @@ members = [
     "crates/skyfix-camera",
     "crates/skyfix-polar",
     "crates/skyfix-motion",
+    "crates/skyfix-almanac",
+    "crates/skyfix-starfield",
 ]
 
 [workspace.package]
@@ -29,6 +31,7 @@ chrono = { version = "0.4.45", default-features = false, features = ["std", "ser
 approx = "0.5.1"
 wasm-bindgen = "0.2.128"
 serde-wasm-bindgen = "0.6.5"
+js-sys = "0.3.105"
 console_error_panic_hook = "0.1.7"
 
 [profile.release]
