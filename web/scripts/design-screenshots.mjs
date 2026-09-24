@@ -1,21 +1,23 @@
 #!/usr/bin/env node
 /**
- * Screenshots of the explorer's design mockup (web/next/mockup.html) for design review,
- * written to docs/design/. Development tool only: Node built-ins and a local Chrome, no
- * npm dependency.
+ * Screenshots of the explorer for design review, written to docs/design/local/ (ignored by
+ * git: working images; only a few curated copies are committed in docs/design/): the live
+ * page at /next/ (the real engine, at a fixed moment given by a share link) and the static
+ * design mockup at /next/mockup.html. Development tool only: Node built-ins and a local
+ * Chrome, no npm dependency.
  *
  *   npx vite --port 5190 --strictPort          # in web/, in another terminal
- *   node scripts/design-screenshots.mjs        # all shots
- *   node scripts/design-screenshots.mjs map-dark evening-night
+ *   npm run wasm                               # once, for the real engine
+ *   node scripts/design-screenshots.mjs        # every shot
+ *   node scripts/design-screenshots.mjs app-dark mockup-kit-light
  *
- * Why not `chrome --headless --screenshot`: MapLibre draws in a web worker and on
- * animation frames, which Chrome's virtual time does not wait for, so those shots come
- * out without a map. This script drives Chrome over the DevTools protocol and waits for
- * the mockup's own "ready" signal (`<html data-ready="1">`, set once the map is idle and
- * the fonts are loaded).
+ * Why not `chrome --headless --screenshot`: MapLibre and the explorer draw on animation
+ * frames, which Chrome's virtual time does not wait for. This script drives Chrome over
+ * the DevTools protocol and waits for the page's own "ready" signal (`<html
+ * data-ready="1">`: the first frame painted with its fonts, or the mockup's map idle).
  *
  * Environment: BASE (default http://localhost:5190), CHROME (default google-chrome),
- * OUT (default ../docs/design relative to this file).
+ * OUT (default ../../docs/design/local relative to this file).
  */
 
 import { spawn } from 'node:child_process';
@@ -27,29 +29,62 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BASE ?? 'http://localhost:5190';
 const CHROME = process.env.CHROME ?? 'google-chrome';
-const OUT = resolve(process.env.OUT ?? join(here, '../../docs/design'));
+const OUT = resolve(process.env.OUT ?? join(here, '../../docs/design/local'));
 
 const DESKTOP = { width: 1440, height: 900, scale: 1 };
 const PHONE = { width: 390, height: 844, scale: 2 };
 
-/** name -> [fragment, viewport]. Phones are shot at device pixel ratio 2 (780 x 1688 pixels). */
+/** A share link (state.ts `encodeShare`): Philadelphia City Hall on 24 September 2026. */
+function moment(utc, body) {
+  const p = new URLSearchParams({
+    v: '1',
+    lat: '39.9526',
+    lon: '-75.1652',
+    place: 'Philadelphia City Hall',
+    tz: 'America/New_York',
+    t: utc,
+    body,
+    view: 'map',
+  });
+  return `#${p}`;
+}
+const AFTERNOON = moment('2026-09-24T20:30:00Z', 'Sun'); // 16:30 EDT
+const EVENING = moment('2026-09-24T23:35:00Z', 'Moon'); // 19:35 EDT, nautical twilight
+
+/** Settings stored before the page loads (the explorer keeps only settings and layers). */
+const night = { settings: { theme: 'night' } };
+
+/**
+ * name -> [path with fragment, viewport, colour scheme, stored preferences].
+ * Phones are shot at device pixel ratio 2 (780 x 1688 pixels).
+ */
 const SHOTS = {
-  'map-light': ['theme=light', DESKTOP],
-  'map-dark': ['theme=dark', DESKTOP],
-  'map-night': ['theme=night', DESKTOP],
-  'map-light-phone': ['theme=light', PHONE],
-  'map-dark-phone': ['theme=dark', PHONE],
-  'map-night-phone': ['theme=night', PHONE],
-  'evening-light': ['theme=light&moment=evening', DESKTOP],
-  'evening-night': ['theme=night&moment=evening', DESKTOP],
-  'evening-night-phone': ['theme=night&moment=evening', PHONE],
-  'evening-dark-panel': ['theme=dark&moment=evening&scroll=470', DESKTOP],
-  'kit-light': ['theme=light&screen=kit', { width: 1440, height: 3560, scale: 1 }],
+  'app-light': [`/next/${AFTERNOON}`, DESKTOP, 'light'],
+  'app-dark': [`/next/${AFTERNOON}`, DESKTOP, 'dark'],
+  'app-night': [`/next/${EVENING}`, DESKTOP, 'dark', night],
+  'app-evening-dark': [`/next/${EVENING}`, DESKTOP, 'dark'],
+  'app-light-phone': [`/next/${AFTERNOON}`, PHONE, 'light'],
+  'app-dark-phone': [`/next/${AFTERNOON}`, PHONE, 'dark'],
+  'app-night-phone': [`/next/${EVENING}`, PHONE, 'dark', night],
+  'app-about-light': [`/next/${AFTERNOON.replace('view=map', 'view=about')}`, DESKTOP, 'light'],
+  'app-charts-light': [`/next/${AFTERNOON.replace('view=map', 'view=charts')}`, DESKTOP, 'light'],
+  'app-charts-night': [`/next/${EVENING.replace('view=map', 'view=charts')}`, DESKTOP, 'dark', night],
+  'map-light': ['/next/mockup.html#theme=light', DESKTOP],
+  'map-dark': ['/next/mockup.html#theme=dark', DESKTOP],
+  'map-night': ['/next/mockup.html#theme=night', DESKTOP],
+  'map-light-phone': ['/next/mockup.html#theme=light', PHONE],
+  'map-dark-phone': ['/next/mockup.html#theme=dark', PHONE],
+  'map-night-phone': ['/next/mockup.html#theme=night', PHONE],
+  'evening-light': ['/next/mockup.html#theme=light&moment=evening', DESKTOP],
+  'evening-night': ['/next/mockup.html#theme=night&moment=evening', DESKTOP],
+  'evening-night-phone': ['/next/mockup.html#theme=night&moment=evening', PHONE],
+  'evening-dark-panel': ['/next/mockup.html#theme=dark&moment=evening&scroll=470', DESKTOP],
+  'kit-light': ['/next/mockup.html#theme=light&screen=kit', { width: 1440, height: 3560, scale: 1 }],
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-async function shoot(name, fragment, view) {
+async function shoot(name, path, view, scheme, prefs) {
   const port = 9300 + Math.floor(Math.random() * 600);
   const profile = mkdtempSync(join(tmpdir(), 'skyfix-shot-'));
   const chrome = spawn(
@@ -109,9 +144,15 @@ async function shoot(name, fragment, view) {
       mobile: view.width < 768,
     });
     if (view.width < 768) await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-    await send('Page.navigate', { url: `${BASE}/next/mockup.html#${fragment}` });
+    if (scheme) await send('Emulation.setEmulatedMedia', { features: [{ name: 'prefers-color-scheme', value: scheme }] });
+    if (prefs) {
+      await send('Page.addScriptToEvaluateOnNewDocument', {
+        source: `try { localStorage.setItem('skyfix.explorer.prefs.v1', ${JSON.stringify(JSON.stringify(prefs))}); } catch {}`,
+      });
+    }
+    await send('Page.navigate', { url: `${BASE}${path}` });
     let ready = false;
-    for (const start = Date.now(); Date.now() - start < 45_000 && !ready; ) {
+    for (const start = Date.now(); Date.now() - start < 60_000 && !ready; ) {
       await sleep(250);
       const r = await send('Runtime.evaluate', {
         expression: "document.documentElement.dataset.ready === '1'",
@@ -119,11 +160,11 @@ async function shoot(name, fragment, view) {
       }).catch(() => null);
       ready = r?.result?.value === true;
     }
-    await sleep(700);
+    await sleep(1500);
     const shot = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, `${name}.png`), Buffer.from(shot.data, 'base64'));
     ws.close();
-    console.log(`${name}.png${ready ? '' : '  (not ready: the map may be missing)'}`);
+    console.log(`${name}.png${ready ? '' : '  (not ready: the page may be incomplete)'}`);
   } finally {
     chrome.kill('SIGTERM');
     await sleep(300);
@@ -133,7 +174,7 @@ async function shoot(name, fragment, view) {
 
 mkdirSync(OUT, { recursive: true });
 const wanted = process.argv.slice(2);
-for (const [name, [fragment, view]] of Object.entries(SHOTS)) {
+for (const [name, [path, view, scheme, prefs]] of Object.entries(SHOTS)) {
   if (wanted.length && !wanted.includes(name)) continue;
-  await shoot(name, fragment, view);
+  await shoot(name, path, view, scheme, prefs);
 }
