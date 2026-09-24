@@ -74,6 +74,41 @@ fn refuses_non_finite_times_and_bodies_it_does_not_provide() {
     }
 }
 
+/// `skyfix_core::session::validate` accepts a body name with surrounding whitespace
+/// (`body_is_known` trims), `catalog::find` resolves `"vega "`, and
+/// `skyfix_core::reduce::is_sun` trims before deciding whether to apply semidiameter and
+/// parallax. The Sun provider has to agree, or the same record is legal to validate,
+/// corrected as the Sun, and then refused a direction.
+#[test]
+fn a_padded_sun_name_resolves_exactly_as_a_padded_star_name_does() {
+    let p = SunProvider::new();
+    let jd = parse_utc("2026-10-01T15:30:00Z").unwrap();
+    let reference = p.geocentric("Sun", jd).unwrap();
+    for name in ["Sun ", " Sun", "  sun  ", "\tSUN\n"] {
+        assert!(
+            skyfix_core::reduce::is_sun(name),
+            "{name:?}: the correction chain calls this the Sun"
+        );
+        match p.geocentric(name, jd) {
+            Ok(d) => assert_eq!(d, reference, "{name:?} must give the same direction"),
+            Err(e) => panic!("{name:?} was refused a direction: {e}"),
+        }
+    }
+    // And the clock rate is the solar one, not the sidereal one, for the same names.
+    let source = skyfix_ephemeris::ProviderSource(SunProvider::new());
+    for name in ["Sun", "Sun ", " sun"] {
+        assert_eq!(
+            skyfix_core::reduce::DirectionSource::gha_rate_deg_per_hour(&source, name),
+            skyfix_core::units::SOLAR_RATE_DEG_PER_HOUR,
+            "{name:?} must use the solar GHA rate"
+        );
+    }
+    assert_eq!(
+        skyfix_core::reduce::DirectionSource::gha_rate_deg_per_hour(&source, "Vega "),
+        skyfix_core::units::SIDEREAL_RATE_DEG_PER_HOUR
+    );
+}
+
 #[test]
 fn geocentric_matches_the_full_position_and_carries_sd_and_hp() {
     let p = SunProvider::new();

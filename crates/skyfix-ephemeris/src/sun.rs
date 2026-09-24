@@ -466,7 +466,9 @@ impl AstroProvider for SunProvider {
     }
 
     fn geocentric(&self, body: &str, jd_utc: f64) -> Result<GeocentricDirection, EphemerisError> {
-        if !body.eq_ignore_ascii_case("sun") {
+        // `is_sun` trims, exactly as `catalog::find` does for a star name, so `"Sun "`
+        // and `" sun"` resolve here as well as they do everywhere else in the project.
+        if !skyfix_core::reduce::is_sun(body) {
             return Err(EphemerisError::UnknownBody(
                 body.to_string(),
                 Self::NAME.to_string(),

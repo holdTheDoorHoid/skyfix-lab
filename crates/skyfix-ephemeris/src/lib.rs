@@ -59,7 +59,9 @@ impl<P: AstroProvider> skyfix_core::reduce::DirectionSource for ProviderSource<P
         self.0.geocentric(body, jd_utc).map_err(|e| e.to_string())
     }
     fn gha_rate_deg_per_hour(&self, body: &str) -> f64 {
-        if body.eq_ignore_ascii_case("sun") {
+        // `is_sun` trims: the same record must not be the Sun for the correction chain
+        // (semidiameter, parallax) and a star for the clock rate.
+        if skyfix_core::reduce::is_sun(body) {
             skyfix_core::units::SOLAR_RATE_DEG_PER_HOUR
         } else {
             skyfix_core::units::SIDEREAL_RATE_DEG_PER_HOUR

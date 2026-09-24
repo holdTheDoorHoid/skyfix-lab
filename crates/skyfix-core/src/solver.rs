@@ -115,13 +115,18 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
             warnings,
         );
     }
-    // Exactly two sights: the analytic geometry decides, so a pair whose circles miss or
-    // merely touch can never be polished into a confident-looking point fix.
-    if usable.len() == 2
-        && n_params == 2
-        && let Some(reason) = two_sight_degeneracy(usable[0], usable[1])
-    {
-        return underdetermined(circles, reason, warnings);
+    // Two circles of position, however many records carry them: the analytic geometry
+    // decides, so a pair whose circles miss or merely touch can never be polished into a
+    // confident-looking point fix. Repeating a sight adds weight but no geometry, so a
+    // duplicate record must not be able to defeat this test.
+    if n_params == 2 {
+        let independent = independent_circles(&usable);
+        if independent.len() <= 2
+            && let Some(reason) =
+                two_sight_degeneracy(independent[0], independent[independent.len() - 1])
+        {
+            return underdetermined(circles, reason, warnings);
+        }
     }
 
     let prior = match options.prior {
@@ -571,8 +576,35 @@ fn analytic_pair(a: &Sight, b: &Sight) -> Option<CircleIntersection> {
     ))
 }
 
-/// For exactly two sights: the reason there is no point fix, or `None` when the circles
-/// genuinely cross (which is the ambiguous two-intersection case, not a unique fix).
+/// The distinct circles of position among `usable`, stopping once a third is found.
+///
+/// Two records describing the same circle (same geographic position and the same zenith
+/// distance) are two measurements of one line of position: they raise the degrees of
+/// freedom and shrink the covariance, but they add no geometry. Sigma is deliberately not
+/// compared — a circle is the same circle however well it was measured.
+///
+/// The early stop keeps this O(n): three distinct circles is already more than
+/// [`two_sight_degeneracy`] can say anything about, so the exact count beyond that is of
+/// no interest and a 10 000-sight session is not walked quadratically.
+fn independent_circles<'a>(usable: &[&'a Sight]) -> Vec<&'a Sight> {
+    let mut out: Vec<&'a Sight> = Vec::new();
+    for s in usable {
+        let seen = out
+            .iter()
+            .any(|k| k.gha_rad == s.gha_rad && k.dec_rad == s.dec_rad && k.ho_rad == s.ho_rad);
+        if !seen {
+            out.push(s);
+            if out.len() > 2 {
+                break;
+            }
+        }
+    }
+    out
+}
+
+/// For two circles of position: the reason there is no point fix, or `None` when the
+/// circles genuinely cross (which is the ambiguous two-intersection case, not a unique
+/// fix). Passing the same sight twice reports the coincident case.
 fn two_sight_degeneracy(a: &Sight, b: &Sight) -> Option<String> {
     match analytic_pair(a, b)? {
         CircleIntersection::Two(..) => None,
