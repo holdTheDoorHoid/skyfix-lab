@@ -502,7 +502,6 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       focusKey: document.activeElement === canvas ? focusKey : null,
       hoverKey,
       path: path && path.body === state.selection.body ? path : null,
-      navigatorTerms: state.settings.navigatorTerms,
     };
     const t1 = performance.now();
     g2!.setTransform(dpr, 0, 0, dpr, 0, 0);

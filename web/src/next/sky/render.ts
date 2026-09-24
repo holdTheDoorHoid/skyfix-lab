@@ -86,8 +86,6 @@ export interface Frame {
   focusKey: string | null;
   hoverKey: string | null;
   path: PathData | null;
-  /** Show the navigator words ("altitude") in on-canvas text. */
-  navigatorTerms: boolean;
 }
 
 const BODY_TOKEN: Record<string, BodyKey> = {
