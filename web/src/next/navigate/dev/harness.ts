@@ -164,14 +164,37 @@ async function boot(root: HTMLElement): Promise<void> {
   installTooltips(document.body);
 
   const autosave = p.get('autosave') === '1';
-  const view = navigateView({ storage: autosave ? undefined : null, ...(method ? { method } : {}), ...(example ? { example } : {}) })(stage, ctx);
-  void view;
+  const navigateMount = navigateView({ storage: autosave ? undefined : null, ...(method ? { method } : {}), ...(example ? { example } : {}) });
+  // "Show on the map" switches the explorer's view to the map: mount the map agent's view
+  // here then (with the Navigate view's overlays on it), and come back with the dev bar.
+  let mounted: { destroy(): void } | null = null;
+  let mountedView = '';
+  const back = h('button', { type: 'button', hidden: true }, '← Back to Navigate');
+  back.addEventListener('click', () => store.patch({ view: 'navigate' }));
+  bar.append(back);
+  const mountView = async (v: string): Promise<void> => {
+    const want = v === 'map' || v === 'globe' ? 'map' : 'navigate';
+    if (want === mountedView) return;
+    mountedView = want;
+    mounted?.destroy();
+    stage.replaceChildren();
+    back.hidden = want !== 'map';
+    if (want === 'map') {
+      const { mapView } = await import('../../map/index.js');
+      mounted = mapView(stage, ctx);
+    } else {
+      mounted = navigateMount(stage, ctx);
+    }
+  };
+  void mountView(p.get('view') === 'map' ? 'map' : 'navigate');
+  store.select((st) => st.view, (v) => void mountView(v));
+  if (p.get('view') === 'map') store.patch({ view: 'map' });
   if (showPanel) tonight(tonightSection.body, ctx);
 
   const sync = (): void => {
     const s = store.get();
     timeOut.textContent = formatWithUtc(s.time.jd_utc, resolveZone(s.observer.zone, s.observer.lon_deg));
-    viewOut.textContent = s.view === 'navigate' ? '' : `view → ${s.view} (the shell would switch)`;
+    viewOut.textContent = s.view === 'navigate' ? '' : `view: ${s.view}`;
   };
   sync();
   store.subscribe(sync);

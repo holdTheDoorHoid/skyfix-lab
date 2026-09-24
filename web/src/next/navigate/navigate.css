@@ -396,7 +396,7 @@
 }
 
 .sfn-error::before {
-  content: 'Not understood: ';
+  content: 'Check: ';
   font-weight: var(--weight-semibold);
 }
 
@@ -630,7 +630,7 @@
 }
 
 /* A narrow column (a phone): the buttons go under the sight instead of beside it. */
-@container (max-width: 480px) {
+@container (max-width: 420px) {
   .sfn-sight__row {
     grid-template-columns: auto auto minmax(0, 1fr);
     grid-template-areas: 'use glyph body' '. . actions';

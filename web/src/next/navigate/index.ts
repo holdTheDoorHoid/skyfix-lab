@@ -76,7 +76,12 @@ const METHOD_MOUNT: Record<MethodId, (host: HTMLElement, nc: NavCtx) => Mounted>
 };
 
 export function navigateView(options: NavigateOptions = {}): Component {
+  // The example and the method are applied on the first mount only, so leaving the view and
+  // coming back (to the map and back, say) never overwrites the person's edits.
+  let firstMount = true;
   return (host: HTMLElement, ctx: Ctx): Mounted => {
+    const initial = firstMount;
+    firstMount = false;
     const d = disposer();
     const root = h('div', { class: 'sfn sf-on-stage' });
     host.append(root);
@@ -323,7 +328,7 @@ export function navigateView(options: NavigateOptions = {}): Component {
       d.add(working.autosave.subscribe(renderAutosave));
       renderAutosave();
 
-      if (options.example) {
+      if (initial && options.example) {
         const e = exampleById(options.example);
         if (e) {
           try {
@@ -333,7 +338,7 @@ export function navigateView(options: NavigateOptions = {}): Component {
           }
         }
       }
-      if (options.method) working.store.patch({ method: options.method });
+      if (initial && options.method) working.store.patch({ method: options.method });
     }
 
     return { destroy: () => d.dispose() };

@@ -353,8 +353,8 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     bodySelect.value = known ? known.body : OTHER;
     otherBody.value = known ? '' : p.body;
     limbSeg.set(p.limb);
-    timeInput.value = utcInputText(p.utc.replace(/\.000Z$/, 'Z'));
-    formTitle.textContent = `Add your sight of ${p.body}`;
+    timeInput.value = utcInputText(p.utc.replace(/\.\d+Z$/, 'Z'));
+    formTitle.textContent = `Add your sight of ${p.kind === 'sun' || p.kind === 'moon' ? 'the ' : ''}${p.body}`;
     hsField.setHelp(`Predicted about ${fmtAngle(p.hs_deg, 'dm')} at ${utcInputText(p.utc.replace(/\.\d+Z$/, 'Z'))} UTC, bearing ${fmtBearing(p.zn_deg)}. Type what YOUR sextant reads; the time too.`);
     updateTimeHelp();
     syncBodyUi();

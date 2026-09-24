@@ -76,7 +76,7 @@ export function angleInputText(deg: number, digits = 1): string {
     min -= 60;
     whole += 1;
   }
-  return `${sign}${whole} ${min.toFixed(digits)}`;
+  return `${sign}${whole} ${min.toFixed(digits).padStart(digits ? digits + 3 : 2, '0')}`;
 }
 
 /** Signed arcminutes with a true minus: `+0.2′`, `−8.0′`, `0.0′`. */

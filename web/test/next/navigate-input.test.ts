@@ -76,7 +76,8 @@ describe('parseAngle (sextant readings, degrees and decimal minutes)', () => {
       const text = angleInputText(v, 2);
       expect(ok(parseAngle(text, { min: -180, max: 180, what: 'x' }))).toBeCloseTo(v, 3);
     }
-    expect(angleInputText(45.9999999, 1)).toBe('46 0.0');
+    expect(angleInputText(45.9999999, 1)).toBe('46 00.0');
+    expect(angleInputText(71.0883333, 2)).toBe('71 05.30');
   });
 });
 
