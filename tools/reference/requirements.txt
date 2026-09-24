@@ -1,0 +1,24 @@
+# Exact versions used to generate every file in fixtures/reference/ and the
+# reference-* files in fixtures/sessions/ and fixtures/expected/.
+#
+# Development-time only. Nothing here is a runtime dependency of the Rust
+# workspace, is linked into any binary, or is needed to run SkyFix Lab.
+#
+#   python3 -m venv tools/reference/.venv
+#   tools/reference/.venv/bin/pip install -r tools/reference/requirements.txt
+#
+# Direct dependencies
+skyfield==1.55
+numpy==2.5.3
+pandas==3.0.6
+
+# Transitive, pinned so a regeneration is reproducible
+certifi==2026.7.22
+jplephem==2.24
+python-dateutil==2.9.0.post0
+sgp4==2.27
+six==1.17.0
+
+# Generated under CPython 3.12.3 on Linux x86_64.
+# pandas is required only by skyfield.data.hipparcos.load_dataframe().
+# sgp4 is pulled in by skyfield and is unused here.

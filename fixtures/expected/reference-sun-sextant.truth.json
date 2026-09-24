@@ -1,0 +1,10 @@
+{
+  "clock_offset_s": 0.000000,
+  "notes": "Philadelphia City Hall. Synthetic, zero noise, no clock offset and no shared bias, so `seed` is unused and recorded as 0. A Sun-only sequence over one hour around local noon cannot produce a good fix: the azimuths span about 22 deg, so latitude is well determined and longitude is not. The file exists to test the correction chain and to demonstrate poor geometry honestly, not to recover this position accurately.",
+  "position": {"lat_deg": 39.952600000, "lon_deg": -75.165200000},
+  "schema": "skyfix.truth/1",
+  "seed": 0,
+  "session_name": "reference-sun-sextant",
+  "shared_altitude_bias_arcmin": 0.0000,
+  "wrong_sight_ids": []
+}

@@ -1,0 +1,17 @@
+[package]
+name = "skyfix-polar"
+description = "Module B: polarization compass laboratory. Rayleigh sky model, synthetic analyzer images, Stokes/DoLP/AoLP recovery, heading candidates with their ambiguities."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+skyfix-core = { path = "../skyfix-core" }
+skyfix-ephemeris = { path = "../skyfix-ephemeris" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }

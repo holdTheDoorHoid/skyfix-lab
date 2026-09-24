@@ -32,20 +32,40 @@
 //!
 //! # Accuracy
 //!
-//! Every term above is carried far past the 0.1' target. The residuals that matter:
+//! **Measured against the independent reference.**
+//! `tests/reference_fixtures_sun.rs` compares this provider with
+//! `fixtures/reference/geocentric_sun_stars.json` (Skyfield + JPL DE421/DE440s) at 58
+//! epochs spanning 1995-2055 plus an hourly run through 2026-10-01. Worst deviation:
+//!
+//! | quantity | worst | where |
+//! |---|---|---|
+//! | GHA (DUT1 = 0) | 0.0026' = 0.16" | 2055-01-01 |
+//! | GHA (the epoch's DUT1 supplied) | 0.0026' = 0.16" | 2055-01-01 |
+//! | Dec | 0.0012' = 0.07" | 2028-02-29 |
+//! | RA | 0.0026' = 0.16" | 2055-01-01 |
+//! | semidiameter | 0.00005' | 2027-01-01 |
+//! | horizontal parallax | 0.00005' | 2003-01-01 |
+//! | radius vector | 6.2e-8 au | 2023-01-01 |
+//!
+//! That is 19x inside the fixture's own 0.05' tolerance and 38x inside the 0.1' target.
+//! The GHA and RA figures are identical, so the whole GHA error is the apparent place;
+//! sidereal time contributes less than that.
+//!
+//! **Where the remaining error comes from.** The terms that make up the 0.16":
 //!
 //! | source | bound |
 //! |---|---|
-//! | VSOP87D itself (Earth, `p0 = 0.6e-8`) | ~0.0012" |
-//! | series truncation, measured over 1990-2060 | 0.0072" in L, 0.0135" in B |
+//! | VSOP87D itself (Earth, `p0 = 0.6e-8`), growing with epoch | ~0.0012" at J2000 |
+//! | series truncation, measured over 1990-2060 | 0.0073" in L, 0.0135" in B |
 //! | IAU 2000B nutation vs IAU 2000A | ~0.001" |
 //! | FK5/ICRS frame residual after step 3 | ~0.02" |
 //! | first-order aberration vs the rigorous form | ~0.02" |
 //!
-//! So RA and Dec are good to well under 0.1" ~= 0.002'. **GHA additionally carries the
-//! DUT1 = 0 assumption** (CONVENTIONS section 6): |DUT1| < 0.9 s is up to 13.5" = 0.23'
-//! of GHA. That term is in the error budget, not hidden, and a caller who knows DUT1
-//! can supply it with [`SunProvider::with_dut1_s`].
+//! **GHA additionally carries the DUT1 = 0 assumption** (CONVENTIONS section 6):
+//! |DUT1| < 0.9 s is up to 13.5" = 0.23' of GHA, two orders above the model error and
+//! the dominant term in this provider's budget. It is in the error budget, not hidden;
+//! a caller who knows DUT1 can supply it with [`SunProvider::with_dut1_s`], and the
+//! fixture test checks that path too.
 //!
 //! # Time scales
 //!
@@ -435,11 +455,13 @@ impl AstroProvider for SunProvider {
                  semidiameter 959.63\"/R and horizontal parallax 8.794\"/R. {dut1}. \
                  Nutation, obliquity and sidereal time are the shared IAU 2006/2000B frame \
                  model in skyfix_ephemeris::frames and ::sidereal, the same one the star \
-                 provider uses."
+                 provider uses. Verified against Skyfield with JPL DE421/DE440s at 58 epochs \
+                 spanning 1995-2055: worst GHA 0.0026' (0.16\"), worst Dec 0.0012' (0.07\")."
             ),
-            // The model alone; the DUT1 term above is reported separately because it is
-            // an input assumption, not a model error, and a caller can remove it.
-            accuracy_arcmin: 0.02,
+            // The model alone, rounded up from the 0.0026' measured against the
+            // independent reference. The DUT1 term above is reported separately because
+            // it is an input assumption, not a model error, and a caller can remove it.
+            accuracy_arcmin: 0.01,
         }
     }
 

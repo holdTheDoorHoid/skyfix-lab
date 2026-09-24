@@ -10,3 +10,4 @@ tools/reference/__pycache__
 *.pyc
 .DS_Store
 docs/book
+tools/reference/data/

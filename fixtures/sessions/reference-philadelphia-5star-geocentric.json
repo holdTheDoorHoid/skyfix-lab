@@ -1,0 +1,86 @@
+{
+  "clock": {
+    "correction_s": 0.000000,
+    "uncertainty_s": 0.000000
+  },
+  "instrument": {
+    "horizon": "sea",
+    "index_correction_arcmin": 0.0000,
+    "name": "synthetic (no instrument)"
+  },
+  "meta": {
+    "kind": "simulated",
+    "name": "Philadelphia five-star (geocentric, model-exact)",
+    "notes": "Schedar; Markab; Altair; Vega; Kochab"
+  },
+  "observations": [
+    {
+      "altitude_deg": 51.979207696,
+      "altitude_kind": "observed_ho",
+      "body": "Schedar",
+      "geocentric": {"dec_deg": 56.686052680, "gha_deg": 21.787511270, "horizontal_parallax_arcmin": 0.0000, "semidiameter_arcmin": 0.0000},
+      "horizon": null,
+      "id": "obs-1",
+      "limb": "center",
+      "notes": "Synthetic, zero noise. The geocentric altitude implied by this observation's own gha_deg/dec_deg under CONVENTIONS section 3 at the truth position. Exactly consistent with the supplied direction by construction. Already a fully corrected Ho (altitude_kind observed_ho).",
+      "sigma_arcmin": 0.1000,
+      "utc": "2026-10-01T01:30:00Z"
+    },
+    {
+      "altitude_deg": 54.499123789,
+      "altitude_kind": "observed_ho",
+      "body": "Markab",
+      "geocentric": {"dec_deg": 15.352699319, "gha_deg": 45.776436348, "horizontal_parallax_arcmin": 0.0000, "semidiameter_arcmin": 0.0000},
+      "horizon": null,
+      "id": "obs-2",
+      "limb": "center",
+      "notes": "Synthetic, zero noise. The geocentric altitude implied by this observation's own gha_deg/dec_deg under CONVENTIONS section 3 at the truth position. Exactly consistent with the supplied direction by construction. Already a fully corrected Ho (altitude_kind observed_ho).",
+      "sigma_arcmin": 0.1000,
+      "utc": "2026-10-01T01:30:00Z"
+    },
+    {
+      "altitude_deg": 54.618617083,
+      "altitude_kind": "observed_ho",
+      "body": "Altair",
+      "geocentric": {"dec_deg": 8.942168505, "gha_deg": 94.281291299, "horizontal_parallax_arcmin": 0.0000, "semidiameter_arcmin": 0.0000},
+      "horizon": null,
+      "id": "obs-3",
+      "limb": "center",
+      "notes": "Synthetic, zero noise. The geocentric altitude implied by this observation's own gha_deg/dec_deg under CONVENTIONS section 3 at the truth position. Exactly consistent with the supplied direction by construction. Already a fully corrected Ho (altitude_kind observed_ho).",
+      "sigma_arcmin": 0.1000,
+      "utc": "2026-10-01T01:30:00Z"
+    },
+    {
+      "altitude_deg": 61.072178507,
+      "altitude_kind": "observed_ho",
+      "body": "Vega",
+      "geocentric": {"dec_deg": 38.812937689, "gha_deg": 112.844408001, "horizontal_parallax_arcmin": 0.0000, "semidiameter_arcmin": 0.0000},
+      "horizon": null,
+      "id": "obs-4",
+      "limb": "center",
+      "notes": "Synthetic, zero noise. The geocentric altitude implied by this observation's own gha_deg/dec_deg under CONVENTIONS section 3 at the truth position. Exactly consistent with the supplied direction by construction. Already a fully corrected Ho (altitude_kind observed_ho).",
+      "sigma_arcmin": 0.1000,
+      "utc": "2026-10-01T01:30:00Z"
+    },
+    {
+      "altitude_deg": 36.937103688,
+      "altitude_kind": "observed_ho",
+      "body": "Kochab",
+      "geocentric": {"dec_deg": 74.047251328, "gha_deg": 169.652931809, "horizontal_parallax_arcmin": 0.0000, "semidiameter_arcmin": 0.0000},
+      "horizon": null,
+      "id": "obs-5",
+      "limb": "center",
+      "notes": "Synthetic, zero noise. The geocentric altitude implied by this observation's own gha_deg/dec_deg under CONVENTIONS section 3 at the truth position. Exactly consistent with the supplied direction by construction. Already a fully corrected Ho (altitude_kind observed_ho).",
+      "sigma_arcmin": 0.1000,
+      "utc": "2026-10-01T01:30:00Z"
+    }
+  ],
+  "observer": {
+    "assumed_position": {"lat_deg": 40.500000000, "lon_deg": -74.500000000},
+    "assumed_position_role": {"role": "initializer"},
+    "height_of_eye_m": 0.0000,
+    "pressure_hpa": 1010.00,
+    "temperature_c": 10.00
+  },
+  "schema": "skyfix.session/1"
+}

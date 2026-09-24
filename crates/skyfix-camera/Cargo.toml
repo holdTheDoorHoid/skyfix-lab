@@ -1,0 +1,17 @@
+[package]
+name = "skyfix-camera"
+description = "Module A: stationary camera sextant on synthetic images. Attitude from star identification; altitudes only with an independent local vertical."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+skyfix-core = { path = "../skyfix-core" }
+skyfix-ephemeris = { path = "../skyfix-ephemeris" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }
