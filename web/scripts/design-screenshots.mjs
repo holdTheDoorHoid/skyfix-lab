@@ -153,6 +153,8 @@ async function shoot(name, path, view, scheme, prefs) {
         source: `try { localStorage.setItem('skyfix.explorer.prefs.v1', ${JSON.stringify(JSON.stringify(prefs))}); } catch {}`,
       });
     }
+    // A fresh profile is a first visit: keep the first-run tour (shell/tour.ts) out of the shots.
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('skyfix.explorer.tour.v1', 'done'); } catch {}` });
     await send('Page.navigate', { url: `${BASE}${path}` });
     // The page's first frame; on the Map and Globe views also the map's detail data and place
     // names (map/map-view.ts sets them on its root when they have loaded).

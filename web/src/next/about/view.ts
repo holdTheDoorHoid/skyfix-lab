@@ -8,7 +8,8 @@
 import './about.css';
 import { h } from '../../dom.js';
 import type { Component } from '../component.js';
-import { badge } from '../theme/primitives.js';
+import { hasTour, openTour } from '../shell/tour.js';
+import { badge, button } from '../theme/primitives.js';
 
 const view: Component = (host, ctx) => {
   const { engine } = ctx;
@@ -45,6 +46,14 @@ const view: Component = (host, ctx) => {
         { class: 'sf-about__lead' },
         'Choose a place and a moment, and see where the Sun, the Moon, the planets and the navigational stars are from there: how high, in which direction, and when they rise and set. It works offline once loaded.',
       ),
+      hasTour(ctx)
+        ? h(
+            'p',
+            { class: 'sf-about__tour' },
+            button({ label: 'Show the tour', icon: 'info', variant: 'secondary', size: 'sm', onClick: () => openTour(ctx) }),
+            ' Four short steps: the place, the time, the views, and what the numbers are.',
+          )
+        : null,
       h('h2', {}, 'Where the numbers come from'),
       h(
         'p',
@@ -73,7 +82,7 @@ const view: Component = (host, ctx) => {
       h(
         'p',
         {},
-        'The place you choose is never saved and never sent anywhere. It goes into a link only when you press Share, and then only into the link you are shown. Your settings (theme, units, angle format) are remembered on this device.',
+        'The place you choose is never saved and never sent anywhere. It goes into a link only when you press Share, and then only into the link you are shown. Your settings (theme, units, angle format, the map’s layers) and whether you have seen the tour are remembered on this device. Sights you enter in Navigate are kept on this device, with their assumed position, only while its “Keep my sights in this browser” is on.',
       ),
       h('h2', {}, 'Also here'),
       h(

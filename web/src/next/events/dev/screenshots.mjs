@@ -164,6 +164,8 @@ async function shoot(name, path, view, scheme, prefs, steps) {
         source: `try { localStorage.setItem('skyfix.explorer.prefs.v1', ${JSON.stringify(JSON.stringify(prefs))}); } catch {}`,
       });
     }
+    // A fresh profile is a first visit: keep the first-run tour (shell/tour.ts) out of the shots.
+    await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('skyfix.explorer.tour.v1', 'done'); } catch {}` });
     await send('Page.navigate', { url: `${BASE}${path}` });
     let ok = await until("document.documentElement.dataset.ready === '1' && !!document.querySelector('.sfe')");
     for (const step of steps ?? []) {

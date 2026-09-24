@@ -107,3 +107,11 @@
     padding: 20px 16px 40px;
   }
 }
+
+.sf-about__tour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--stage-ink-2);
+}
