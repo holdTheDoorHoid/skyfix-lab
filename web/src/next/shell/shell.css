@@ -7,10 +7,6 @@
 
 /* --- Stage ---------------------------------------------------------------------------- */
 
-.sf-stage {
-  --stage-inset-bottom: 0px;
-}
-
 .sf-stage__view {
   position: absolute;
   inset: 0;
@@ -50,7 +46,7 @@
   overflow-y: auto;
   display: grid;
   place-items: center;
-  padding: 48px 32px calc(48px + var(--stage-inset-bottom));
+  padding: 48px 32px;
   background:
     radial-gradient(1200px 600px at 20% 0%, color-mix(in srgb, var(--stage-accent-ink) 7%, transparent), transparent 60%),
     var(--stage-bg);
@@ -405,7 +401,7 @@ select.sf-input optgroup {
 
   .sf-placeholder {
     align-items: start;
-    padding: 20px 16px calc(24px + var(--stage-inset-bottom));
+    padding: 20px 16px 24px;
   }
 
   .sf-placeholder__card {

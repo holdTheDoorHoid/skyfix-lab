@@ -14,12 +14,12 @@
  *
  * `VIEW_FOLDERS` says which folder serves which view id (`map` and `globe` are both the
  * map agent's). A folder that is not there yet shows a friendly "coming soon" page
- * (`placeholder.ts`). The component takes over the stage element it is given: it fills
- * it (the stage is `position: relative`, the host `position: absolute; inset: 0`; nothing
- * of the shell's covers it) and reads the phone sheet's height from the stage's
- * `--stage-inset-bottom` custom property when it has to keep something in view. It is destroyed when another folder's view is chosen; switching between two ids
- * served by the same folder (`map` <-> `globe`) keeps it mounted, and the component
- * follows `state.view` itself.
+ * (`placeholder.ts`). The component takes over the element it is given and fills it (the
+ * host is `position: absolute`). Nothing of the shell's covers it: on phones the host ends
+ * where the bottom sheet begins, so its size changes when the sheet moves. It is destroyed
+ * when another folder's view is chosen; switching between two ids served by the same
+ * folder (`map` <-> `globe`) keeps it mounted, and the component follows `state.view`
+ * itself.
  *
  * PANEL SLOTS. A section of the side panel that another agent fills:
  *

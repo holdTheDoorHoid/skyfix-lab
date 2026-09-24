@@ -3,9 +3,10 @@
  * bar, the view tabs and the search), `peek` (about half the screen) and `full`. Drag the
  * bar, tap it, or use the arrow keys on it. OWNER: shell-design agent.
  *
- * The stage learns how much of it the sheet covers through `--stage-inset-bottom` (px) on
- * the stage element, and a `sf-stage-insets` event on it when that changes, so a map can
- * keep the place in view.
+ * The view's host ends where the sheet begins (`--stage-view-inset` on the stage, px), so no
+ * view has anything under the sheet: a map centres its place in what is visible, its
+ * credits stay in sight, and a page scrolls to its end. Under the full sheet the view is
+ * hidden; it keeps its peek size rather than shrinking to nothing.
  */
 
 export type SheetState = 'min' | 'peek' | 'full';
@@ -34,14 +35,10 @@ export function bottomSheet(app: HTMLElement, panel: HTMLElement, grab: HTMLElem
   };
 
   const publish = (): void => {
-    const covered = phone.matches ? heightOf(state) : 0;
-    const previous = stage.style.getPropertyValue('--stage-inset-bottom');
+    const covered = phone.matches ? heightOf(state === 'full' ? 'peek' : state) : 0;
     const next = `${Math.round(covered)}px`;
     app.style.setProperty('--sheet-top', `${Math.round(top())}px`);
-    if (previous !== next) {
-      stage.style.setProperty('--stage-inset-bottom', next);
-      stage.dispatchEvent(new CustomEvent('sf-stage-insets', { detail: { bottom: covered } }));
-    }
+    if (stage.style.getPropertyValue('--stage-view-inset') !== next) stage.style.setProperty('--stage-view-inset', next);
   };
 
   const describe = (): void => {

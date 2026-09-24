@@ -335,6 +335,12 @@
     display: none;
   }
 
+  /* The view ends where the sheet begins (panel/sheet.ts), so the map's credits, the
+     bottom of a page and the place on the map all stay in sight. */
+  .sf-stage__fill {
+    bottom: var(--stage-view-inset, 0px);
+  }
+
   .sf-overlay--tr {
     top: 10px;
     right: 10px;
