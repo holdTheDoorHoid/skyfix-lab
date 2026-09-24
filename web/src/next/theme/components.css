@@ -612,6 +612,55 @@ button.sf-chip:hover {
   font-size: var(--text-xs);
 }
 
+/* --- The fit map's words under a chart (misfit/toggle.ts) -------------------------- */
+
+.sf-fitmap {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.sf-fitmap[hidden] {
+  display: none;
+}
+
+.sf-fitmap__key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sf-fitmap__key[hidden] {
+  display: none;
+}
+
+.sf-fitmap__ramp {
+  flex: 0 1 220px;
+  height: 8px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--ui-line);
+}
+
+.sf-fitmap__caption {
+  margin: 0;
+}
+
+.sf-fitmap__notes {
+  margin: 0;
+  padding-left: 1.1em;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sf-fitmap__notes:empty {
+  display: none;
+}
+
 /* --- Popovers ---------------------------------------------------------------------- */
 
 .sf-popover {

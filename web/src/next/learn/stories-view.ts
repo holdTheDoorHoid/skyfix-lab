@@ -13,7 +13,7 @@ import type { LearnEnv, StoryRunState } from './env.js';
 import { explain, keyNumber } from './explain.js';
 import { factsOf } from './facts.js';
 import { answerKey, correctionTable, figure, kindChip, mockBadge, numbersList, residualChart, simulatedBadge, tiles, warningsList, type Figure } from './result.js';
-import { VARIANTS } from './run.js';
+import { EPHEMERIS_MODE, VARIANTS } from './run.js';
 import { GROUPS, STORIES, groupOf, storyById, type Story, type StoryId, type TryAction } from './stories.js';
 
 export interface StoriesTab {
@@ -128,6 +128,22 @@ function failed(env: LearnEnv, story: Story, message: string): HTMLElement {
   );
 }
 
+/** The fit map switch each story was last left in, per Learn page (the story's default until then). */
+const fitMapChoice = new WeakMap<object, Map<StoryId, boolean>>();
+
+function fitMapShown(env: LearnEnv, story: Story): boolean {
+  return fitMapChoice.get(env.state)?.get(story.id) ?? story.fitMap ?? false;
+}
+
+function rememberFitMap(env: LearnEnv, story: Story, on: boolean): void {
+  let choices = fitMapChoice.get(env.state);
+  if (!choices) {
+    choices = new Map();
+    fitMapChoice.set(env.state, choices);
+  }
+  choices.set(story.id, on);
+}
+
 /** The full result of a story run. */
 function storyResult(env: LearnEnv, st: StoryRunState): { el: HTMLElement; fig: Figure | null } {
   const story = storyById(st.id);
@@ -143,6 +159,12 @@ function storyResult(env: LearnEnv, st: StoryRunState): { el: HTMLElement; fig: 
     onView: (v) => env.state.patch({ chartView: v }),
     lookAt: story.lookAt,
     title: story.title,
+    // The fit map of this very solve; on to start with where it teaches the most.
+    misfit: {
+      input: { session: run.session, mode: EPHEMERIS_MODE, options: run.options },
+      on: fitMapShown(env, story),
+      onToggle: (on) => rememberFitMap(env, story, on),
+    },
   });
 
   const badges = h('div', { class: 'sfl-result__badges' }, kindChip(run.result), simulatedBadge(), env.engineLabel() === 'mock adapter' ? mockBadge() : null);

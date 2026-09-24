@@ -145,6 +145,20 @@
   fill: var(--compass-fill);
 }
 
+/* Another view's drawing on the map (a fix, an eclipse path): no frosted disc and a lighter
+   band, so what lies under the dial stays readable (map-view.ts, controls.ts drawnGroups). */
+.sfm--drawings .sfm-dial__blur {
+  display: none;
+}
+
+.sfm--drawings .sfm-dial__disc {
+  fill: transparent;
+}
+
+.sfm--drawings .sfm-dial__band {
+  opacity: 0.35;
+}
+
 .sfm-dial__alt {
   fill: none;
   stroke: var(--compass-tick);

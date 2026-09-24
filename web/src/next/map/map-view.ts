@@ -789,6 +789,9 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     syncWorld(s, sky);
     syncDial(s, sky);
     const drawn = drawnGroups(service.overlays().map((e) => e.id));
+    // While another view's result is on the map, the dial is see-through, so the fix and
+    // lines it sits on stay readable (it is usually centred on them: the place is the DR).
+    root.classList.toggle('sfm--drawings', drawn.length > 0);
     const controlsKey = `${measuring.active}|${currentView}|${drawn.map((g) => `${g.prefix}:${g.count}`).join(',')}`;
     if (controls && (s.layers !== controlsLayers || controlsKey !== controlsState)) {
       controlsLayers = s.layers;

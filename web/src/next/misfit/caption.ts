@@ -27,7 +27,7 @@ export interface CaptionOptions {
  * 3-sigma line only, "the solid line" when the 1-sigma line is drawn too, "the line" alone.
  */
 export function misfitCaption(
-  grid?: Pick<MisfitGrid, 'bias_profiled' | 'weighted' | 'min'> | null,
+  grid?: (Pick<MisfitGrid, 'bias_profiled' | 'weighted' | 'min'> & Partial<Pick<MisfitGrid, 'levels'>>) | null,
   options: CaptionOptions = {},
 ): string {
   const levels = options.levels ?? DEFAULT_LEVELS;
@@ -38,10 +38,15 @@ export function misfitCaption(
       : 'The line';
   const parts: string[] = [];
   if (grid?.bias_profiled) {
+    // Three unknowns (position and the bias): the 95 % level is Δχ² 7.81, not the 5.99 of
+    // a position alone, so the region is wider than the solver's position-only ellipse.
+    const p95 = grid.levels?.find((l) => l.name === 'p95')?.delta_chi2 ?? 7.81;
     parts.push(
       `Darker = worse fit, judging every point with the sextant bias that suits it best. ${which} is where ` +
         'the fit is within the 95 % level of the best point for position and bias together, under the ' +
-        'independent-noise model; a wrong clock still moves the whole picture without widening it.',
+        'independent-noise model; a wrong clock still moves the whole picture without widening it. ' +
+        `With three unknowns that level is ${p95.toFixed(2)} above the best fit (5.99 for a position alone), ` +
+        'so the region is wider than the fix’s ellipse.',
     );
   } else {
     parts.push(

@@ -412,6 +412,7 @@ function runPanel(env: LearnEnv, sim: SimState): { el: HTMLElement; fig: Figure 
   const why = explain(null, run, facts, fmt);
   const stale = JSON.stringify(run.scenario) !== JSON.stringify(sim.scenario);
   const fig = figure(run.result, run.truth, env.figureEnv(run.scenario.name), {
+    misfit: { input: { session: run.session, mode: EPHEMERIS_MODE, options: run.options } },
     view: env.state.get().chartView,
     onView: (v) => env.state.patch({ chartView: v }),
     title: run.scenario.name,

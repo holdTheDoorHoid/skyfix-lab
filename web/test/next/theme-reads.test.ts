@@ -20,12 +20,17 @@ function files(dir: string): string[] {
   });
 }
 
+/** The source without its comments (a comment may say "nothing here reads settings.theme"). */
+function code(text: string): string {
+  return text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
+}
+
 describe('theme reads', () => {
   it('no view reads settings.theme; they read the theme on the document', () => {
     const offenders = files(ROOT)
       .map((path) => relative(ROOT, path).split('\\').join('/'))
       .filter((rel) => !ALLOWED.has(rel) && !DEV.test(rel))
-      .filter((rel) => /settings\??\.theme\b|\.settings\.theme\b/.test(readFileSync(join(ROOT, rel), 'utf8')));
+      .filter((rel) => /settings\??\.theme\b|\.settings\.theme\b/.test(code(readFileSync(join(ROOT, rel), 'utf8'))));
     expect(offenders).toEqual([]);
   });
 });

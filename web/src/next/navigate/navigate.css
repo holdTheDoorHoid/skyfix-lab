@@ -1368,6 +1368,23 @@
   stroke-width: 1.6;
 }
 
+/* The fit map (misfit/): the heat under everything, its level lines on top. */
+.sfn-plot__heat {
+  pointer-events: none;
+}
+
+.sfn-plot__misfit-halo {
+  fill: none;
+  stroke: var(--line-halo);
+  stroke-linejoin: round;
+}
+
+.sfn-plot__misfit-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linejoin: round;
+}
+
 .sfn-plot__fix {
   fill: var(--accent);
   stroke: var(--phase-night-ink);

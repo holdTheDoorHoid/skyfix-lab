@@ -110,9 +110,10 @@ export function fixMethod(host: HTMLElement, nc: NavCtx): Mounted {
         return;
       }
       f.setStatus('busy');
+      const options = solveOptionsFor(w);
       let result: FixResult;
       try {
-        result = await nc.api.solve(session, solveOptionsFor(w), w.mode);
+        result = await nc.api.solve(session, options, w.mode);
       } catch (error) {
         if (!isCurrent()) return;
         f.setStatus({ error: errorText(error) });
@@ -134,6 +135,8 @@ export function fixMethod(host: HTMLElement, nc: NavCtx): Mounted {
       f.details.replaceChildren(...fixDetails(nc, result));
       if (result.kind === 'failed') f.chart.showNothing('The solve failed: there is no position to draw.');
       else f.chart.showPlot(pictures.plot, pictures.overlay);
+      // The fit map maps exactly this solve (misfit/README: the same session, mode and options).
+      f.chart.setMisfitInput(result.kind === 'failed' ? null : { session, mode: w.mode, options });
       publish(nc, result.kind === 'failed' ? null : pictures.overlay);
     }),
   );
