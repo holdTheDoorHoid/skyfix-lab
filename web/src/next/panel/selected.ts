@@ -367,6 +367,8 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
 
     setText(altValue, formatAngle(b.alt_apparent_deg, f, 'coarse'));
     setText(azValue, formatAzimuth(b.az_deg, f, 'coarse'));
+    // With seconds the readouts step down a size (components.css) instead of wrapping.
+    for (const v of [altValue, azValue]) setAttr(v.parentElement!, 'data-long', f === 'dms' ? '' : null);
     setText(azLabel, `Direction · ${compassPoint(b.az_deg)}`);
     setAttr(azValue, 'aria-label', `${formatAzimuth(b.az_deg, f, 'coarse')}, ${compassWords(b.az_deg)}`);
 

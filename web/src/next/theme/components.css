@@ -504,6 +504,13 @@ button.sf-chip:hover {
   line-height: 1.1;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Degrees, minutes AND seconds ("−39° 32′ 40″") do not fit the large type in a panel
+   column; they step down a size rather than break across two lines. */
+.sf-readout__value[data-long] {
+  font-size: var(--text-xl);
 }
 
 .sf-readout__unit {
