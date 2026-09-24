@@ -335,6 +335,73 @@ fn tangent_and_disjoint_two_sight_circles_never_produce_a_point() {
     }
 }
 
+/// A repeated record adds weight, not geometry (CONVENTIONS section 8). Two circles that
+/// miss or merely touch must therefore still be underdetermined when a third record
+/// duplicates one of them: the count of *circles* decides, not the count of rows.
+#[test]
+fn a_duplicate_record_cannot_turn_two_degenerate_circles_into_a_fix() {
+    let sight = |id: &str, gha_deg: f64, alt_deg: f64| skyfix_core::types::Sight {
+        id: id.to_string(),
+        body: "Test".to_string(),
+        gha_rad: gha_deg.to_radians(),
+        dec_rad: 0.0,
+        ho_rad: alt_deg.to_radians(),
+        sigma_rad: ARCMIN,
+        gha_rate_rad_per_s: sidereal_rate_rad_per_s(),
+    };
+    // GPs on the equator 90 degrees apart, so z1 + z2 vs 90 sets the circle separation.
+    let pair = |gap_nm: f64| {
+        let z = (90.0 - gap_nm / 60.0) / 2.0;
+        [sight("a", 0.0, 90.0 - z), sight("b", 270.0, 90.0 - z)]
+    };
+
+    for gap_nm in [0.0, 0.01, 0.1, 1.0, 1800.0] {
+        let two = pair(gap_nm);
+        let mut three = two.to_vec();
+        let mut dup = two[0].clone();
+        dup.id = "a-dup".to_string();
+        three.push(dup);
+
+        let with_two = solve(&two, &SolveOptions::default());
+        let with_three = solve(&three, &SolveOptions::default());
+        match (&with_two, &with_three) {
+            (
+                FixResult::Underdetermined { reason: r2, .. },
+                FixResult::Underdetermined { reason: r3, .. },
+            ) => assert_eq!(
+                r2, r3,
+                "gap {gap_nm} NM: the duplicate changed the explanation"
+            ),
+            (a, b) => panic!(
+                "gap {gap_nm} NM: expected underdetermined both ways, got {a:#?} then {b:#?}"
+            ),
+        }
+    }
+
+    // The control: circles that genuinely cross stay ambiguous, duplicate or not, and a
+    // duplicate must not promote either intersection.
+    let z = (90.0 + 1.0 / 60.0) / 2.0;
+    let crossing = [sight("a", 0.0, 90.0 - z), sight("b", 270.0, 90.0 - z)];
+    let mut crossing_dup = crossing.to_vec();
+    let mut dup = crossing[0].clone();
+    dup.id = "a-dup".to_string();
+    crossing_dup.push(dup);
+    for (label, result) in [
+        ("two records", solve(&crossing, &SolveOptions::default())),
+        (
+            "three records",
+            solve(&crossing_dup, &SolveOptions::default()),
+        ),
+    ] {
+        match result {
+            FixResult::Ambiguous { candidates, .. } => {
+                assert_eq!(candidates.len(), 2, "{label}: both intersections are real")
+            }
+            other => panic!("{label}: expected ambiguous, got {other:#?}"),
+        }
+    }
+}
+
 #[test]
 fn clustered_azimuths_stay_solvable_but_advertise_the_geometry() {
     let truth = philadelphia();
