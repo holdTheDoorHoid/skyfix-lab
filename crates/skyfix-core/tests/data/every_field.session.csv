@@ -1,0 +1,18 @@
+# schema=skyfix.session/1
+# meta.name=Philadelphia, mixed horizons
+# meta.notes=Every field populated; used to pin the CSV round-trip, not a real sight list.
+# meta.kind=real
+# observer.height_of_eye_m=2.5
+# observer.pressure_hpa=1013.25
+# observer.temperature_c=7.5
+# observer.assumed_position=39.9526,-75.1652
+# observer.assumed_position_role=prior,20
+# instrument.name=Astra IIIB, serial 4471
+# instrument.index_correction_arcmin=-2
+# instrument.horizon=sea
+# clock.uncertainty_s=0.5
+# clock.correction_s=-1.25
+id,body,utc,altitude_deg,altitude_kind,sigma_arcmin,limb,horizon,gha_deg,dec_deg,semidiameter_arcmin,horizontal_parallax_arcmin,notes
+obs-1,Vega,2026-10-01T01:30:00Z,61.2345,sextant_hs,1,center,,123.4567,38.789,0,0,"steady image, sharp horizon"
+obs-2,Sun,2026-10-01T15:04:05.250Z,79.46666666666667,sextant_hs,2,lower,artificial_reflected,45,-3,16,0.15,"double angle, oil pan"
+obs-3,HIP 11767,2026-10-01T01:35:00Z,41,observed_ho,1.5,center,electronic_vertical,,,,,

@@ -1,0 +1,68 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Philadelphia, mixed horizons",
+    "notes": "Every field populated; used to pin the CSV round-trip, not a real sight list.",
+    "kind": "real"
+  },
+  "observer": {
+    "height_of_eye_m": 2.5,
+    "pressure_hpa": 1013.25,
+    "temperature_c": 7.5,
+    "assumed_position": { "lat_deg": 39.9526, "lon_deg": -75.1652 },
+    "assumed_position_role": { "role": "prior", "sigma_nm": 20.0 }
+  },
+  "instrument": {
+    "name": "Astra IIIB, serial 4471",
+    "index_correction_arcmin": -2.0,
+    "horizon": "sea"
+  },
+  "clock": { "uncertainty_s": 0.5, "correction_s": -1.25 },
+  "observations": [
+    {
+      "id": "obs-1",
+      "body": "Vega",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 61.2345,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 123.4567,
+        "dec_deg": 38.789,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": "steady image, sharp horizon"
+    },
+    {
+      "id": "obs-2",
+      "body": "Sun",
+      "utc": "2026-10-01T15:04:05.250Z",
+      "altitude_deg": 79.46666666666667,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 2.0,
+      "limb": "lower",
+      "horizon": "artificial_reflected",
+      "geocentric": {
+        "gha_deg": 45.0,
+        "dec_deg": -3.0,
+        "semidiameter_arcmin": 16.0,
+        "horizontal_parallax_arcmin": 0.15
+      },
+      "notes": "double angle, oil pan"
+    },
+    {
+      "id": "obs-3",
+      "body": "HIP 11767",
+      "utc": "2026-10-01T01:35:00Z",
+      "altitude_deg": 41.0,
+      "altitude_kind": "observed_ho",
+      "sigma_arcmin": 1.5,
+      "limb": "center",
+      "horizon": "electronic_vertical",
+      "notes": ""
+    }
+  ]
+}

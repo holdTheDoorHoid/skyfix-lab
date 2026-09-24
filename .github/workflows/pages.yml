@@ -1,0 +1,56 @@
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mdBook
+        run: |
+          mkdir -p ~/.local/bin
+          curl -fsSL https://github.com/rust-lang/mdBook/releases/download/v0.4.52/mdbook-v0.4.52-x86_64-unknown-linux-gnu.tar.gz | tar -xz -C ~/.local/bin
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Build docs
+        run: |
+          mdbook build docs
+          mkdir -p site/docs
+          cp -r docs/book/. site/docs/
+      - name: Placeholder workbench page (replaced once the web build is integrated)
+        run: |
+          cat > site/index.html <<'HTML'
+          <!doctype html><meta charset="utf-8"><title>SkyFix Lab</title>
+          <meta name="viewport" content="width=device-width,initial-scale=1">
+          <style>body{font-family:system-ui,sans-serif;max-width:40rem;margin:4rem auto;padding:0 1rem;line-height:1.5}
+          .banner{background:#fff3cd;border:1px solid #d9b400;padding:.75rem 1rem;border-radius:.5rem}</style>
+          <p class="banner"><strong>Simulation and analysis workbench. Not a navigation instrument.</strong></p>
+          <h1>SkyFix Lab</h1>
+          <p>The browser workbench is being built. The <a href="docs/">documentation</a> is available now, and the source is on
+          <a href="https://github.com/holdTheDoorHoid/skyfix-lab">GitHub</a>.</p>
+          HTML
+          touch site/.nojekyll
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

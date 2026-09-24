@@ -1,0 +1,16 @@
+[book]
+title = "SkyFix Lab"
+description = "Offline celestial-navigation workbench: conventions, architecture, accuracy and limitations."
+authors = ["holdTheDoorHoid and SkyFix Lab contributors"]
+language = "en"
+src = "."
+
+[build]
+build-dir = "book"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/holdTheDoorHoid/skyfix-lab"
+site-url = "/skyfix-lab/docs/"

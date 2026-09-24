@@ -9,3 +9,4 @@ tools/reference/*.bsp
 tools/reference/__pycache__
 *.pyc
 .DS_Store
+docs/book

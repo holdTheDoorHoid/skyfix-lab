@@ -12,7 +12,8 @@ section it implements.
   corrections, residuals and uncertainties are reported in **arcminutes** and named
   `*_arcmin`. Radians never appear in JSON or on screen.
 - Normalisation ranges:
-  - latitude, declination, altitude: `[-90, +90]`
+  - latitude, declination, altitude: `[-90, +90]`; exception: a `sextant_hs` reading taken
+    with `horizon = artificial_reflected` is the double angle and may reach `180`
   - longitude: `(-180, +180]`
   - GHA, LHA, SHA, azimuth `Zn`: `[0, 360)`
 - Angular distance to length on the reference sphere: **1 arcminute of great-circle
