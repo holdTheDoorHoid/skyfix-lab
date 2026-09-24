@@ -58,12 +58,11 @@ pub const CSV_COLUMNS: [&str; 13] = [
 /// are not checked here: a caller that has a provider should follow this with
 /// [`validate`] and the provider's body list.
 pub fn parse_session(json: &str) -> Result<(Session, Vec<Warning>), SkyfixError> {
-    let value: serde_json::Value = serde_json::from_str(json).map_err(|e| {
-        SkyfixError::InvalidField {
+    let value: serde_json::Value =
+        serde_json::from_str(json).map_err(|e| SkyfixError::InvalidField {
             field: "session".to_string(),
             message: format!("not valid JSON: {e}"),
-        }
-    })?;
+        })?;
     // Check the schema before the strict deserialisation, so a document from another
     // version reports its schema rather than a field-by-field serde complaint.
     let schema = value.get("schema").and_then(|v| v.as_str()).unwrap_or("");
@@ -194,8 +193,9 @@ fn validate_inner(
     }
 
     let mut seen_ids: Vec<&str> = Vec::with_capacity(session.observations.len());
-    // (body, utc, altitude bits) -> ids, in first-seen order so warnings are deterministic.
-    let mut groups: Vec<((String, &str, u64), Vec<String>)> = Vec::new();
+    // Sights that agree in body, instant and altitude, in first-seen order so the
+    // warnings come out in a deterministic sequence.
+    let mut groups: Vec<SightGroup<'_>> = Vec::new();
 
     for (i, obs) in session.observations.iter().enumerate() {
         let at = |f: &str| format!("observations[{i}].{f}");
@@ -206,7 +206,7 @@ fn validate_inner(
                 message: "must not be empty".to_string(),
             });
         }
-        if seen_ids.iter().any(|s| *s == obs.id.as_str()) {
+        if seen_ids.contains(&obs.id.as_str()) {
             return Err(SkyfixError::DuplicateId(obs.id.clone()));
         }
         seen_ids.push(obs.id.as_str());
@@ -218,8 +218,8 @@ fn validate_inner(
         let horizon = obs.horizon.unwrap_or(session.instrument.horizon);
         // A reflected artificial-horizon sextant reading is the DOUBLE angle
         // (section 5), so it may legitimately run to 180 deg before halving.
-        let double_angle =
-            horizon == HorizonMode::ArtificialReflected && obs.altitude_kind == AltitudeKind::SextantHs;
+        let double_angle = horizon == HorizonMode::ArtificialReflected
+            && obs.altitude_kind == AltitudeKind::SextantHs;
         let max_alt = if double_angle { 180.0 } else { 90.0 };
         range(&at("altitude_deg"), obs.altitude_deg, -90.0, max_alt)?;
 
@@ -272,9 +272,7 @@ fn validate_inner(
 
         // Limb only means something for the Sun: warn, never reject (section 10).
         if obs.limb != Limb::Center && !body_is_sun {
-            warnings.push(Warning::LimbIgnoredForStar {
-                id: obs.id.clone(),
-            });
+            warnings.push(Warning::LimbIgnoredForStar { id: obs.id.clone() });
         }
 
         // Correction parameters that the declared altitude_kind will have to ignore.
@@ -300,24 +298,37 @@ fn validate_inner(
             });
         }
 
-        let key = (
-            obs.body.trim().to_lowercase(),
-            obs.utc.as_str(),
-            obs.altitude_deg.to_bits(),
-        );
-        match groups.iter_mut().find(|(k, _)| *k == key) {
-            Some((_, ids)) => ids.push(obs.id.clone()),
-            None => groups.push((key, vec![obs.id.clone()])),
+        let body_folded = obs.body.trim().to_lowercase();
+        let altitude_bits = obs.altitude_deg.to_bits();
+        match groups.iter_mut().find(|g| {
+            g.body_folded == body_folded && g.utc == obs.utc && g.altitude_bits == altitude_bits
+        }) {
+            Some(g) => g.ids.push(obs.id.clone()),
+            None => groups.push(SightGroup {
+                body_folded,
+                utc: &obs.utc,
+                altitude_bits,
+                ids: vec![obs.id.clone()],
+            }),
         }
     }
 
-    for (_, ids) in groups {
-        if ids.len() > 1 {
-            warnings.push(Warning::DuplicateObservation { ids });
+    for group in groups {
+        if group.ids.len() > 1 {
+            warnings.push(Warning::DuplicateObservation { ids: group.ids });
         }
     }
 
     Ok(warnings)
+}
+
+/// Observations that agree in body, instant and altitude: the same sight written down
+/// twice, which is a warning rather than an error (it is legal, just rarely intended).
+struct SightGroup<'a> {
+    body_folded: String,
+    utc: &'a str,
+    altitude_bits: u64,
+    ids: Vec<String>,
 }
 
 /// A body is known when the provider lists it (case-insensitively) or when it is a
@@ -380,10 +391,19 @@ pub fn to_csv(session: &Session) -> String {
     head("schema", session.schema.clone());
     head("meta.name", session.meta.name.clone());
     head("meta.notes", session.meta.notes.clone());
-    head("meta.kind", session_kind_name(session.meta.kind).to_string());
-    head("observer.height_of_eye_m", num(session.observer.height_of_eye_m));
+    head(
+        "meta.kind",
+        session_kind_name(session.meta.kind).to_string(),
+    );
+    head(
+        "observer.height_of_eye_m",
+        num(session.observer.height_of_eye_m),
+    );
     head("observer.pressure_hpa", num(session.observer.pressure_hpa));
-    head("observer.temperature_c", num(session.observer.temperature_c));
+    head(
+        "observer.temperature_c",
+        num(session.observer.temperature_c),
+    );
     if let Some(ap) = session.observer.assumed_position {
         head(
             "observer.assumed_position",
@@ -431,7 +451,10 @@ pub fn to_csv(session: &Session) -> String {
             corrections::kind_name(obs.altitude_kind).to_string(),
             num(obs.sigma_arcmin),
             corrections::limb_name(obs.limb).to_string(),
-            obs.horizon.map(corrections::horizon_name).unwrap_or("").to_string(),
+            obs.horizon
+                .map(corrections::horizon_name)
+                .unwrap_or("")
+                .to_string(),
             gha,
             dec,
             sd,
@@ -460,29 +483,31 @@ pub fn from_csv(csv: &str) -> Result<Session, SkyfixError> {
     // only data rows may contain quoted newlines.
     let mut body_start = 0usize;
     for line in csv.split_inclusive('\n') {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') {
-            body_start += line.len();
-            if let Some(entry) = trimmed.strip_prefix('#') {
-                let entry = entry.trim();
-                if entry.is_empty() {
-                    continue;
-                }
-                let (key, value) = entry.split_once('=').ok_or_else(|| {
-                    SkyfixError::InvalidField {
-                        field: format!("# {entry}"),
-                        message: "session header lines must read '# key=value'".to_string(),
-                    }
-                })?;
-                let key = key.trim();
-                let value = unescape_header_value(value);
-                apply_header(&mut session, key, &value)?;
-                if key == "schema" {
-                    saw_schema = true;
-                }
-            }
-        } else {
+        // Strip the line terminator only: a header VALUE may legitimately end in a
+        // space, and trimming the whole line would silently eat it.
+        let raw = line.trim_end_matches('\n').trim_end_matches('\r');
+        if !(raw.trim().is_empty() || raw.trim_start().starts_with('#')) {
             break;
+        }
+        body_start += line.len();
+        if let Some(entry) = raw.trim_start().strip_prefix('#') {
+            // One optional space after the '#' is punctuation, not part of the key.
+            let entry = entry.strip_prefix(' ').unwrap_or(entry);
+            if entry.trim().is_empty() {
+                continue;
+            }
+            let (key, value) = entry
+                .split_once('=')
+                .ok_or_else(|| SkyfixError::InvalidField {
+                    field: format!("# {}", entry.trim()),
+                    message: "session header lines must read '# key=value'".to_string(),
+                })?;
+            let key = key.trim();
+            let value = unescape_header_value(value);
+            apply_header(&mut session, key, &value)?;
+            if key == "schema" {
+                saw_schema = true;
+            }
         }
     }
     if !saw_schema {
@@ -689,7 +714,8 @@ fn apply_header(session: &mut Session, key: &str, value: &str) -> Result<(), Sky
     let field = format!("# {key}");
     let number_here = |v: &str| number(v.trim(), &field);
     match key {
-        "schema" => session.schema = value.to_string(),
+        // An identifier, not free text: stray whitespace around it is not meaningful.
+        "schema" => session.schema = value.trim().to_string(),
         "meta.name" => session.meta.name = value.to_string(),
         "meta.notes" => session.meta.notes = value.to_string(),
         "meta.kind" => {
@@ -708,10 +734,12 @@ fn apply_header(session: &mut Session, key: &str, value: &str) -> Result<(), Sky
         "observer.pressure_hpa" => session.observer.pressure_hpa = number_here(value)?,
         "observer.temperature_c" => session.observer.temperature_c = number_here(value)?,
         "observer.assumed_position" => {
-            let (lat, lon) = value.split_once(',').ok_or_else(|| SkyfixError::InvalidField {
-                field: field.clone(),
-                message: format!("expected 'lat,lon' in degrees (got {value:?})"),
-            })?;
+            let (lat, lon) = value
+                .split_once(',')
+                .ok_or_else(|| SkyfixError::InvalidField {
+                    field: field.clone(),
+                    message: format!("expected 'lat,lon' in degrees (got {value:?})"),
+                })?;
             session.observer.assumed_position = Some(LatLon {
                 lat_deg: number(lat.trim(), &field)?,
                 lon_deg: number(lon.trim(), &field)?,
@@ -870,7 +898,9 @@ fn parse_records(text: &str) -> Result<Vec<Vec<String>>, SkyfixError> {
         records.push(record);
     }
     // A `#` line after the data has started is still a comment, not a row.
-    records.retain(|r| !(r.len() == 1 && (r[0].trim().is_empty() || r[0].trim_start().starts_with('#'))));
+    records.retain(|r| {
+        !(r.len() == 1 && (r[0].trim().is_empty() || r[0].trim_start().starts_with('#')))
+    });
     Ok(records)
 }
 

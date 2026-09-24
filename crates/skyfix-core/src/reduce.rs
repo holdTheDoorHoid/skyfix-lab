@@ -119,11 +119,8 @@ pub fn reduce_observation(
         Some(ap) => {
             check_assumed_position(&ap)?;
             let observer = Point::from_deg(ap.lat_deg, ap.lon_deg);
-            let (hc_rad, zn_rad) = geometry::altitude_azimuth(
-                observer,
-                gha_deg.to_radians(),
-                dec_deg.to_radians(),
-            );
+            let (hc_rad, zn_rad) =
+                geometry::altitude_azimuth(observer, gha_deg.to_radians(), dec_deg.to_radians());
             let hc = hc_rad.to_degrees();
             // 1 arcminute of altitude = 1 nautical mile of intercept (section 1);
             // positive means "Ho more, toward" (section 3).

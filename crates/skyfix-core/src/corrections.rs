@@ -78,7 +78,10 @@ pub fn refraction_arcmin(apparent_altitude_deg: f64, pressure_hpa: f64, temperat
 
 /// Parallax in altitude, arcminutes: `PA = HP cos(Ha)` (CONVENTIONS section 5 step 5).
 /// `Ha` in degrees. Stars have `HP = 0` and therefore `PA = 0`.
-pub fn parallax_in_altitude_arcmin(horizontal_parallax_arcmin: f64, apparent_altitude_deg: f64) -> f64 {
+pub fn parallax_in_altitude_arcmin(
+    horizontal_parallax_arcmin: f64,
+    apparent_altitude_deg: f64,
+) -> f64 {
     horizontal_parallax_arcmin * apparent_altitude_deg.to_radians().cos()
 }
 
@@ -90,7 +93,10 @@ pub fn parallax_in_altitude_arcmin(horizontal_parallax_arcmin: f64, apparent_alt
 /// Triggers: a nonzero index correction, a positive height of eye under a sea horizon,
 /// an artificial horizon (the halving), a non-centre limb on the Sun, and a nonzero
 /// solar horizontal parallax.
-pub fn ignored_correction_kinds(kind: AltitudeKind, inputs: &CorrectionInputs<'_>) -> Vec<CorrectionKind> {
+pub fn ignored_correction_kinds(
+    kind: AltitudeKind,
+    inputs: &CorrectionInputs<'_>,
+) -> Vec<CorrectionKind> {
     let mut ignored = Vec::new();
     if matches!(kind, AltitudeKind::SextantHs) {
         return ignored;
@@ -109,7 +115,9 @@ pub fn ignored_correction_kinds(kind: AltitudeKind, inputs: &CorrectionInputs<'_
         if inputs.is_sun && inputs.limb != Limb::Center {
             ignored.push(CorrectionKind::Semidiameter);
         }
-        let hp = inputs.direction.map_or(0.0, |d| d.horizontal_parallax_arcmin);
+        let hp = inputs
+            .direction
+            .map_or(0.0, |d| d.horizontal_parallax_arcmin);
         if inputs.is_sun && hp != 0.0 {
             ignored.push(CorrectionKind::Parallax);
         }
@@ -140,7 +148,10 @@ pub fn correct(
     // `sextant_hs` still needs steps 1-2; `sextant_hs` and `apparent_ha` still need 3-5.
     let needs_horizon_steps = matches!(kind, AltitudeKind::SextantHs);
     let needs_ho_steps = matches!(kind, AltitudeKind::SextantHs | AltitudeKind::ApparentHa);
-    let already = format!("already in the reading (altitude_kind = {})", kind_name(kind));
+    let already = format!(
+        "already in the reading (altitude_kind = {})",
+        kind_name(kind)
+    );
 
     if inputs.height_of_eye_m < 0.0 {
         warnings.push(Warning::Other {
@@ -327,9 +338,7 @@ pub fn correct(
             "not applicable: semidiameter is applied for the Sun only".to_string(),
         ));
         if inputs.limb != Limb::Center {
-            warnings.push(Warning::LimbIgnoredForStar {
-                id: id.to_string(),
-            });
+            warnings.push(Warning::LimbIgnoredForStar { id: id.to_string() });
         }
     } else if inputs.limb == Limb::Center {
         steps.push(make_step(
@@ -340,7 +349,11 @@ pub fn correct(
             "not applicable: centre limb observed, no semidiameter".to_string(),
         ));
     } else {
-        let sign = if inputs.limb == Limb::Lower { 1.0 } else { -1.0 };
+        let sign = if inputs.limb == Limb::Lower {
+            1.0
+        } else {
+            -1.0
+        };
         let after = h + sign * sd / 60.0;
         let note = if sd == 0.0 {
             // SD 0 means "unknown", not "zero": say so instead of implying a centre altitude.
@@ -374,7 +387,9 @@ pub fn correct(
     }
 
     // --- 5. parallax in altitude (Sun only), added --------------------------
-    let hp = inputs.direction.map_or(0.0, |d| d.horizontal_parallax_arcmin);
+    let hp = inputs
+        .direction
+        .map_or(0.0, |d| d.horizontal_parallax_arcmin);
     if !needs_ho_steps {
         steps.push(make_step(CorrectionKind::Parallax, h, h, false, already));
     } else if !inputs.is_sun {
@@ -475,7 +490,10 @@ fn check_inputs(
     if !inputs.pressure_hpa.is_finite() || inputs.pressure_hpa <= 0.0 {
         return Err(SkyfixError::InvalidField {
             field: format!("observation {id}: pressure_hpa"),
-            message: format!("must be a finite positive pressure (got {})", inputs.pressure_hpa),
+            message: format!(
+                "must be a finite positive pressure (got {})",
+                inputs.pressure_hpa
+            ),
         });
     }
     if !inputs.temperature_c.is_finite() || 273.0 + inputs.temperature_c <= 0.0 {
