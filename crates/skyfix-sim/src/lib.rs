@@ -8,3 +8,7 @@
 //! xoshiro256** stream, Box-Muller normals). No `rand` dependency: the `getrandom`
 //! backend it pulls in does not build for `wasm32-unknown-unknown` without extra cfg
 //! flags, and a hand-written generator guarantees bit-identical native/WASM streams.
+
+pub mod optics;
+pub mod rng;
+pub mod scenario;
