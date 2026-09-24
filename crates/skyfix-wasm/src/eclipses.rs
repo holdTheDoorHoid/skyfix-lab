@@ -7,65 +7,15 @@
 //! they are (JSON-compatible: `None` is `null`). The model, its validation and its
 //! conventions live in that module.
 
-use serde::Deserialize;
 use skyfix_almanac::eclipses::Eclipses;
-use skyfix_ephemeris::topocentric::Site;
 use wasm_bindgen::prelude::*;
 
 use crate::{err, to_js};
 
-/// `observer_json` as EXPLORER_API.md "Common rules" defines it: `lat_deg` and
-/// `lon_deg` required, `height_m` (above the WGS84 ellipsoid), `pressure_hpa` and
-/// `temperature_c` optional.
-#[derive(Debug, Deserialize)]
-struct ObserverIn {
-    lat_deg: f64,
-    lon_deg: f64,
-    #[serde(default)]
-    height_m: Option<f64>,
-    #[serde(default)]
-    pressure_hpa: Option<f64>,
-    #[serde(default)]
-    temperature_c: Option<f64>,
-}
-
-/// Parse and range-check an observer. Pure Rust so it can be tested natively.
-pub fn parse_observer(json: &str) -> Result<Site, String> {
-    let o: ObserverIn = serde_json::from_str(json).map_err(|e| format!("observer: {e}"))?;
-    let d = Site::default();
-    let site = Site {
-        lat_deg: o.lat_deg,
-        lon_deg: o.lon_deg,
-        height_m: o.height_m.unwrap_or(d.height_m),
-        pressure_hpa: o.pressure_hpa.unwrap_or(d.pressure_hpa),
-        temperature_c: o.temperature_c.unwrap_or(d.temperature_c),
-    };
-    let finite = [
-        site.lat_deg,
-        site.lon_deg,
-        site.height_m,
-        site.pressure_hpa,
-        site.temperature_c,
-    ]
-    .iter()
-    .all(|v| v.is_finite());
-    if !finite {
-        return Err("observer: every number must be finite".to_string());
-    }
-    if !(-90.0..=90.0).contains(&site.lat_deg) {
-        return Err(format!(
-            "observer: lat_deg {} is outside -90..90",
-            site.lat_deg
-        ));
-    }
-    if !(-180.0..=180.0).contains(&site.lon_deg) {
-        return Err(format!(
-            "observer: lon_deg {} is outside -180..180",
-            site.lon_deg
-        ));
-    }
-    Ok(site)
-}
+/// `observer_json` as EXPLORER_API.md "Common rules" defines it, read by the one parser
+/// every explorer export shares (longitude normalised to `(-180, 180]`, every field
+/// range-checked).
+pub use crate::explorer::native::parse_observer;
 
 /// Every solar and lunar eclipse with greatest eclipse in `[jd_start, jd_end]` (UTC
 /// Julian dates), clipped to the coverage: `EclipseList`.
@@ -110,7 +60,7 @@ mod tests {
         for bad in [
             r#"{"lon_deg": 10}"#,
             r#"{"lat_deg": 91, "lon_deg": 0}"#,
-            r#"{"lat_deg": 0, "lon_deg": -180.5}"#,
+            r#"{"lat_deg": 0, "lon_deg": 0, "height_m": 1e6}"#,
             "not json",
         ] {
             assert!(parse_observer(bad).is_err(), "{bad}");
