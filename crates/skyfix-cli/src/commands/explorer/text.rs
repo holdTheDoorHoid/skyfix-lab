@@ -109,6 +109,30 @@ pub fn clock(jd_utc: f64, offset_minutes: i32) -> String {
     s.get(11..19).unwrap_or(&s).to_string()
 }
 
+/// The date and time of day `YYYY-MM-DD HH:MM:SS` at `offset_minutes` from UTC, to the
+/// nearest second: a local time for a list that runs over several days.
+pub fn local_datetime(jd_utc: f64, offset_minutes: i32) -> String {
+    let s = format_utc(round_to_second(jd_utc) + f64::from(offset_minutes) / 1440.0);
+    match (s.get(..10), s.get(11..19)) {
+        (Some(date), Some(time)) => format!("{date} {time}"),
+        _ => s,
+    }
+}
+
+/// A duration in seconds as `58 s`, `3 min 51 s` or `2 h 39 min 22 s`, to the nearest
+/// second: for eclipse phases, where seconds matter.
+pub fn duration_s(seconds: f64) -> String {
+    if !seconds.is_finite() {
+        return seconds.to_string();
+    }
+    let s = seconds.round().max(0.0) as i64;
+    match (s / 3600, (s % 3600) / 60, s % 60) {
+        (0, 0, sec) => format!("{sec} s"),
+        (0, m, sec) => format!("{m} min {sec:02} s"),
+        (h, m, sec) => format!("{h} h {m:02} min {sec:02} s"),
+    }
+}
+
 /// A duration in hours as `12 h 05 min`, to the nearest minute.
 pub fn hours_minutes(hours: f64) -> String {
     let total = (hours * 60.0).round() as i64;
@@ -198,6 +222,14 @@ mod tests {
         assert_eq!(hours_minutes(12.0806), "12 h 05 min");
         assert_eq!(signed_min_s(582.2), "+9 min 42 s");
         assert_eq!(signed_min_s(-35.4), "-35 s");
+        assert_eq!(local_datetime(jd, 0), "2026-10-01 01:30:00");
+        // Four hours west of Greenwich it is still the evening before.
+        assert_eq!(local_datetime(jd, -240), "2026-09-30 21:30:00");
+        assert_eq!(local_datetime(jd, 720), "2026-10-01 13:30:00");
+        assert_eq!(duration_s(58.4), "58 s");
+        assert_eq!(duration_s(231.2), "3 min 51 s");
+        assert_eq!(duration_s(9562.5), "2 h 39 min 23 s");
+        assert_eq!(duration_s(3600.0), "1 h 00 min 00 s");
     }
 
     #[test]
