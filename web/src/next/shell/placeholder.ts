@@ -32,7 +32,7 @@ export function placeholder(host: HTMLElement, meta: ViewMeta, options: { error?
             'p',
             { class: 'sf-placeholder__meanwhile' },
             `${meta.meanwhile} `,
-            h('a', { href: '../' }, 'Open the current workbench'),
+            h('a', { href: 'classic/' }, 'Open the original workbench'),
             '.',
           )
         : null,

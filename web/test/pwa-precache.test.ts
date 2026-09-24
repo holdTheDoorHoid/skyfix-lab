@@ -9,17 +9,20 @@ import { listedFiles, pageAddress, precacheList, revisionOf, type PrecacheInput 
 
 const enc = new TextEncoder();
 
-/** A built site: two app pages, a lazy view, the WebAssembly module, a font through CSS,
- * a map worker, development-only chunks, a developer page, and data files. */
+/** A built site, laid out as since the switch-over: the explorer at the root, the original
+ * workbench at classic/, the /next/ redirect page; a lazy view, the WebAssembly module, a
+ * font through CSS, a map worker, development-only chunks, a developer page, data files. */
 function site(overrides: Record<string, string> = {}): Map<string, Uint8Array> {
   const text: Record<string, string> = {
-    'index.html': '<script type="module" src="./assets/main-AAAA1111.js"></script><link rel="stylesheet" href="./assets/main-BBBB2222.css">',
-    'next/index.html':
-      '<link rel="manifest" href="../manifest.webmanifest"><script type="module" src="../assets/next-CCCC3333.js"></script><link rel="modulepreload" href="../assets/dom-DDDD4444.js">',
+    'classic/index.html':
+      '<script type="module" src="../assets/classic-AAAA1111.js"></script><link rel="stylesheet" href="../assets/classic-BBBB2222.css">',
+    'index.html':
+      '<link rel="manifest" href="./manifest.webmanifest"><script type="module" src="./assets/explorer-CCCC3333.js"></script><link rel="modulepreload" href="./assets/dom-DDDD4444.js">',
+    'next/index.html': '<script>location.replace("../" + location.search + location.hash)</script>',
     'next/dev-map.html': '<script type="module" src="../assets/devMap-EEEE5555.js"></script>',
-    'assets/main-AAAA1111.js': 'import"./dom-DDDD4444.js";const w=()=>import("./skyfix_wasm-FFFF6666.js");',
-    'assets/main-BBBB2222.css': 'body{margin:0}',
-    'assets/next-CCCC3333.js':
+    'assets/classic-AAAA1111.js': 'import"./dom-DDDD4444.js";const w=()=>import("./skyfix_wasm-FFFF6666.js");',
+    'assets/classic-BBBB2222.css': 'body{margin:0}',
+    'assets/explorer-CCCC3333.js':
       'import"./dom-DDDD4444.js";const s=()=>import("./shell-GGGG7777.js"),m=()=>import("./mock-HHHH8888.js"),w=()=>import("./skyfix_wasm-FFFF6666.js");',
     'assets/dom-DDDD4444.js': 'export const h=1;',
     'assets/shell-GGGG7777.js': 'const v=()=>import("./map-IIII9999.js");const f=new URL("inter-latin-JJJJ0000.woff2",import.meta.url);',
@@ -50,7 +53,7 @@ function site(overrides: Record<string, string> = {}): Map<string, Uint8Array> {
 function input(files = site(), more: Partial<PrecacheInput> = {}): PrecacheInput {
   return {
     files,
-    pages: ['next/index.html', 'index.html'],
+    pages: ['index.html', 'classic/index.html'],
     extra: [...listedFiles('data/basemap/manifest.json', '{"files":[{"path":"land-110m.geojson"},{"path":"lakes-50m.geojson"}]}'), 'data/gazetteer.json', 'manifest.webmanifest', 'icons/icon-192.png'],
     exclude: new Set(['assets/mock-HHHH8888.js']),
     ...more,
@@ -62,18 +65,19 @@ const urls = (inp: PrecacheInput): string[] => precacheList(inp).entries.map((e)
 describe('precacheList', () => {
   it('follows the pages to everything they can load, lazy views included', () => {
     expect(urls(input())).toEqual([
+      'assets/classic-AAAA1111.js',
+      'assets/classic-BBBB2222.css',
       'assets/dom-DDDD4444.js',
+      'assets/explorer-CCCC3333.js',
       'assets/inter-latin-JJJJ0000.woff2',
       'assets/jetbrains-mono-LLLL2222.woff2',
-      'assets/main-AAAA1111.js',
-      'assets/main-BBBB2222.css',
       'assets/map-IIII9999.js',
       'assets/maplibre-gl-worker-MMMM3333.js',
-      'assets/next-CCCC3333.js',
       'assets/shell-GGGG7777.js',
       'assets/shell-KKKK1111.css',
       'assets/skyfix_wasm-FFFF6666.js',
       'assets/skyfix_wasm_bg-NNNN4444.wasm',
+      'classic/index.html',
       'data/basemap/lakes-50m.geojson',
       'data/basemap/land-110m.geojson',
       'data/basemap/manifest.json',
@@ -81,8 +85,9 @@ describe('precacheList', () => {
       'icons/icon-192.png',
       'index.html',
       'manifest.webmanifest',
-      'next/index.html',
     ]);
+    // The /next/ redirect page is neither an app page nor reached from one.
+    expect(urls(input())).not.toContain('next/index.html');
   });
 
   it('neither stores nor follows excluded files, and never includes developer pages', () => {
@@ -104,9 +109,9 @@ describe('precacheList', () => {
     ]);
   });
 
-  it('reports site files outside assets/ that nobody precaches (a new data file, a developer page)', () => {
+  it('reports site files outside assets/ that nobody precaches (a new data file, a developer page, a redirect)', () => {
     const files = site({ 'data/stars.json': '[]' });
-    expect(precacheList(input(files)).unlisted).toEqual(['data/stars.json', 'next/dev-map.html']);
+    expect(precacheList(input(files)).unlisted).toEqual(['data/stars.json', 'next/dev-map.html', 'next/index.html']);
   });
 
   it('follows an excluded file’s dependencies when an app file also needs them', () => {
@@ -140,11 +145,11 @@ describe('precacheList', () => {
     const files = site({ 'assets/dom-DDDD4444.js': 'const a="index.html",b="dev-map.html";' });
     const list = urls(input(files));
     expect(list).not.toContain('next/dev-map.html');
-    expect(list.filter((u) => u.endsWith('index.html'))).toEqual(['index.html', 'next/index.html']);
+    expect(list.filter((u) => u.endsWith('index.html'))).toEqual(['classic/index.html', 'index.html']);
   });
 
   it('fails loudly when a page or a listed file is missing from the build', () => {
-    expect(() => precacheList(input(site(), { pages: ['next/index.html', 'about.html'] }))).toThrow(/page about\.html/);
+    expect(() => precacheList(input(site(), { pages: ['index.html', 'about.html'] }))).toThrow(/page about\.html/);
     expect(() => precacheList(input(site(), { extra: ['data/stars.bin'] }))).toThrow(/data\/stars\.bin/);
   });
 
@@ -172,7 +177,7 @@ describe('listedFiles', () => {
 describe('pageAddress', () => {
   it('turns an index page into its directory address', () => {
     expect(pageAddress('index.html')).toBe('./');
-    expect(pageAddress('next/index.html')).toBe('next/');
+    expect(pageAddress('classic/index.html')).toBe('classic/');
     expect(pageAddress('print.html')).toBe('print.html');
   });
 });

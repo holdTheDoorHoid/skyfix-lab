@@ -1,5 +1,6 @@
 /**
- * Explorer entry point (`/next/`). OWNER: shell agents (docs/EXPLORER_PLAN.md section 4).
+ * Explorer entry point: the site's home page (`/next/` until the switch-over on 2026-09-24,
+ * which now forwards here). OWNER: shell agents (docs/EXPLORER_PLAN.md section 4).
  *
  * Boot order: choose the engine (engine/index.ts policy) -> notices -> store (stored
  * preferences; a share link in the address is applied and removed, now or when pasted) -> frame
@@ -33,8 +34,8 @@ function fatal(root: HTMLElement, message: string): void {
   text.textContent = message;
   const back = document.createElement('p');
   const link = document.createElement('a');
-  link.href = '../';
-  link.textContent = 'The current workbench is one level up.';
+  link.href = 'classic/';
+  link.textContent = 'The original workbench is still at classic/.';
   back.append(link);
   const box = document.createElement('div');
   box.setAttribute('role', 'alert');

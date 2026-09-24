@@ -17,7 +17,7 @@ Run from the repository root, or from `web/` without the `--prefix`.
 | What | Command |
 |---|---|
 | Install | `npm install --prefix web` |
-| Dev server (http://localhost:5173) | `npm run dev --prefix web` |
+| Dev server (http://localhost:5173: the explorer at `/`, the original workbench at `/classic/`) | `npm run dev --prefix web` |
 | Type check (must pass) | `npm run typecheck --prefix web` |
 | Unit tests | `npm test --prefix web` |
 | Rebuild the WebAssembly package | `npm run wasm --prefix web` |
@@ -25,6 +25,7 @@ Run from the repository root, or from `web/` without the `--prefix`.
 | Preview the production build | `npm run preview --prefix web` |
 | Build the Pages site into `site/`, as the workflow does | `web/scripts/pages-site.sh` |
 | Check the site offline in headless Chrome | `node web/scripts/offline-check.mjs` |
+| Build the site as it was at an older commit (for the upgrade check) | `web/scripts/site-at.sh <ref> <dir>` |
 | Check every view in every theme, on a desktop and a phone, in headless Chrome | `node web/scripts/ui-check.mjs` |
 | Redraw the app icons after changing their SVG | `node web/scripts/render-icons.mjs` |
 
@@ -130,18 +131,31 @@ simulator, and a coverage experiment with a Wilson interval. Three demo scenario
 own stand in for the ten real ones. None of it is a result, and the interface says so
 the whole time it is running.
 
+## Pages
+
+Since the switch-over on 2026-09-24 (`docs/EXPLORER_PLAN.md`, section 1):
+
+| Address | Source | What it is |
+|---|---|---|
+| `/` | `index.html` → `src/next/main.ts` | the explorer, the site's home page |
+| `/classic/` | `classic/index.html` → `src/main.ts` | the original workbench, kept for reference for a transition period, with a notice pointing to the home page |
+| `/next/` | `next/index.html` | forwards to `/`, keeping the query and the fragment (share links carry the place in it); the explorer's address while it was built |
+| `/next/dev-*.html`, `/next/mockup.html` | the same folder | developer pages, served by `npm run dev` only |
+| `/docs/` | `docs/` (mdBook) | the documentation, added by the Pages workflow |
+
 ## Offline and installable
 
 Once someone has opened the site, it works with no connection, and it can be installed
-as an app ("SkyFix Lab", short name "SkyFix"). OWNER: release agent.
+as an app ("SkyFix Lab", short name "SkyFix", opening at the home page). OWNER: release
+agent.
 
 **How.** At the end of `vite build`, `plugins/pwa.ts` starts from the two app pages
-(`index.html`, the workbench, and `next/index.html`, the explorer), follows every file
-they can load (scripts, lazy views, stylesheets, fonts, the map's worker, the WebAssembly
-module) and adds the files listed in `vite.config.ts`: the basemap files its
+(`index.html`, the explorer, and `classic/index.html`, the original workbench), follows
+every file they can load (scripts, lazy views, stylesheets, fonts, the map's worker, the
+WebAssembly module) and adds the files listed in `vite.config.ts`: the basemap files its
 `manifest.json` lists, the gazetteer, the web app manifest and the icons. It compiles
 `src/sw/sw.ts` into `dist/sw.js` with that list and a hash of it inlined, and prints the
-size (today 72 files, 11.3 MB, 3.9 MB gzipped). The worker stores those files in a
+size (today 91 files, 11.8 MB, 4.1 MB gzipped). The worker stores those files in a
 cache named by the hash and answers them from it. No service-worker library is used.
 
 | File | Does |
@@ -150,7 +164,7 @@ cache named by the hash and answers them from it. No service-worker library is u
 | `src/sw/sw.ts`, `src/sw/policy.ts` | the service worker and its decisions (type-checked against the WebWorker library) |
 | `src/pwa/register.ts` | registration and update detection, for both pages |
 | `src/next/pwa/` | the explorer's Offline chip and update prompt (design-system primitives) |
-| `src/pwa/workbench-prompt.ts` | the workbench's update prompt, in its own style |
+| `src/pwa/workbench-prompt.ts` | the original workbench's update prompt, in its own style |
 | `public/manifest.webmanifest`, `public/icons/` | the web app manifest and icons (drawn from the logo mark) |
 
 **Rules it keeps.**
@@ -163,12 +177,16 @@ cache named by the hash and answers them from it. No service-worker library is u
   been closed. Only the changed files are downloaded.
 - Addresses are stored without their query; the explorer keeps a shared place in the
   fragment, which never reaches the worker.
+- Pages that moved (`REDIRECT_PAGES` in `vite.config.ts`: `/next/`) are forwarded by the
+  worker itself, offline too, with their query; the browser keeps the fragment across the
+  redirect, so an old share link opens the home page at the shared place. The page at the
+  old address does the same for a visitor who has no worker yet. Neither is precached.
 - Everything else on the site (the docs) is fetched from the network first and kept for
   offline use once visited. An address never visited shows a small offline page.
 - Developer pages (`next/dev-*.html`, `next/mockup.html`) are served by `npm run dev`
   only; production builds leave them out, and the build fails if one slips in.
   `SKYFIX_DEV_PAGES=1 npm run build` includes them in a local build (never precached).
-  `?engine=mock` and `?harness` on `/next/` need a connection: their chunks are not
+  `?engine=mock` and `?harness` on the explorer need a connection: their chunks are not
   precached either.
 
 **Adding a data file** the app loads from `public/`: add its path to `extra` in
@@ -177,11 +195,29 @@ that is neither precached nor a build asset.
 
 **Checking it.** `web/scripts/pages-site.sh` builds `site/` exactly as the Pages workflow
 does; `node web/scripts/offline-check.mjs` serves it under `/skyfix-lab/` and drives
-headless Chrome through a first visit, an offline reload with the server stopped (every
-file must come from the worker), the lazy views, the docs, an update on both pages and a
-check that no cache holds another origin's files. Screenshots go to
-`docs/design/local/pwa-*.png`. `SITE=web/dist PREFIX=/` checks the layout `vite preview`
-serves.
+headless Chrome through a first visit (through an old share link at `/next/`), an offline
+reload with the server stopped (every file must come from the worker), every view,
+`/classic/`, old addresses, the docs, an update on both pages and a check that no cache
+holds another origin's files. Screenshots go to `docs/design/local/pwa-*.png`.
+`SITE=web/dist PREFIX=/` checks the layout `vite preview` serves.
+
+**Upgrades.** `web/scripts/site-at.sh <ref> <dir>` builds the site as it was at any
+commit; with `OLD_SITE=<dir>`, the check installs that version, deploys the new one and
+comes back three ways (Reload in the old explorer, Reload in the old workbench, closing
+and reopening the app), each of which must land on the explorer at the home page with the
+old copy deleted and no unchanged file downloaded again. For the switch-over the old
+version is `1688cd8`, the last commit with the explorer at `/next/`.
+
+**Installed copies.** An app installed before the switch-over keeps its id
+(`skyfix-lab/`), so it is the same app. Until the browser refreshes its copy of the
+manifest it still starts at `/next/`, which forwards to the home page, and may show the
+home page with a thin address bar, as a page outside its old scope (`/next/`). Chrome
+refreshes an installed app's manifest from any page that links a manifest with the same
+id (Chromium's `ManifestUpdateManager::OnManifestSeenOnPrimaryPage`), at most once a day
+or per browser start; web.dev puts it at "within a day or two" of the app being launched
+(<https://web.dev/articles/manifest-updates>), and `start_url` may change only because the
+manifest has an `id`. Headless Chrome here cannot install an app (no `PWA` protocol
+domain), so this last step is documented, not tested.
 
 **If a broken version is ever deployed**, deploying a fixed one is enough: browsers
 look for a new `sw.js` on every visit and offer it. To switch offline support off
@@ -205,7 +241,12 @@ self.addEventListener('activate', (event) => {
 ## Layout
 
 ```
+index.html        the explorer's page (/); classic/index.html the original workbench's
+                  (/classic/); next/index.html forwards /next/ to / (see "Pages")
 src/
+  next/           the explorer: docs/EXPLORER_PLAN.md section 4 lists its modules
+  main.ts         the original workbench's entry; the files below are its own
+  sw/, pwa/       the service worker and its registration (see "Offline and installable")
   types.ts        mirror of crates/skyfix-core/src/types.rs, plus warningSentence()
   format.ts       degrees as decimal AND deg + arcmin; metres, NM, arcminutes
   geometry.ts     the part of skyfix_core::geometry the drawing needs

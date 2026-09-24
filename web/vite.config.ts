@@ -27,12 +27,22 @@ function requireWasmPackage(): Plugin {
 }
 
 /**
- * The pages the site ships: the current workbench at /, the new explorer at /next/
- * (docs/EXPLORER_PLAN.md). Both work offline (plugins/pwa.ts).
+ * The pages the site ships (docs/EXPLORER_PLAN.md; switched over on 2026-09-24): the
+ * explorer at the site's home page, and the original workbench at /classic/, kept for
+ * reference for a transition period. Both work offline (plugins/pwa.ts).
  */
 const APP_PAGES = {
-  main: resolve(import.meta.dirname, 'index.html'),
-  next: resolve(import.meta.dirname, 'next/index.html'),
+  explorer: resolve(import.meta.dirname, 'index.html'),
+  classic: resolve(import.meta.dirname, 'classic/index.html'),
+};
+
+/**
+ * Addresses that moved. /next/ was the explorer's address while it was built; its page
+ * (next/index.html) now only forwards to the home page, keeping the fragment that share
+ * links carry, and the service worker answers the same redirect offline.
+ */
+const REDIRECT_PAGES = {
+  next: { file: 'next/index.html', from: 'next/', to: './' },
 };
 
 /**
@@ -49,7 +59,9 @@ function devPages(): Record<string, string> {
   for (const file of readdirSync(dir)) {
     if (!file.endsWith('.html') || file === 'index.html') continue;
     const name = file.replace(/\.html$/, '').replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
-    if (name in APP_PAGES) throw new Error(`next/${file}: a developer page may not share its input name with an app page`);
+    if (name in APP_PAGES || name in REDIRECT_PAGES) {
+      throw new Error(`next/${file}: a developer page may not share its input name with a page the site ships`);
+    }
     pages[name] = resolve(dir, file);
   }
   return pages;
@@ -66,11 +78,13 @@ export default defineConfig(({ command }) => {
       requireWasmPackage(),
       skyfixPwa({
         pages: [
-          { file: 'next/index.html', label: 'SkyFix Lab explorer' },
-          { file: 'index.html', label: 'SkyFix Lab workbench' },
+          { file: 'index.html', label: 'SkyFix Lab explorer' },
+          { file: 'classic/index.html', label: 'The original SkyFix Lab workbench' },
         ],
-        // Chunks that only developers load: `?engine=mock` and `?harness` on /next/.
-        devModules: ['src/next/engine/mock.ts', 'src/next/harness/harness.ts'],
+        redirects: Object.values(REDIRECT_PAGES),
+        // Chunks that only developers load: `?engine=mock` (the mock engine and its
+        // navigation tools) and `?harness` on the explorer.
+        devModules: ['src/next/engine/mock.ts', 'src/next/engine/mock-nav.ts', 'src/next/harness/harness.ts'],
         manifests: ['data/basemap/manifest.json'],
         extra: [
           'data/gazetteer.json',
@@ -92,7 +106,11 @@ export default defineConfig(({ command }) => {
       emptyOutDir: true,
       assetsInlineLimit: 0,
       rollupOptions: {
-        input: { ...APP_PAGES, ...(withDevPages ? devPages() : {}) },
+        input: {
+          ...APP_PAGES,
+          ...Object.fromEntries(Object.entries(REDIRECT_PAGES).map(([name, r]) => [name, resolve(import.meta.dirname, r.file)])),
+          ...(withDevPages ? devPages() : {}),
+        },
       },
     },
     // MapLibre's web worker is an ES module that imports a shared chunk; bundle workers as

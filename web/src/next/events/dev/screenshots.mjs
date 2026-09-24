@@ -34,7 +34,7 @@ const PHONE = { width: 390, height: 844, scale: 2 };
 /** A share link (state.ts `encodeShare`) opening the Events view. */
 function at(place, lat, lon, tz, utc, body = 'Sun') {
   const p = new URLSearchParams({ v: '1', lat: String(lat), lon: String(lon), place, tz, t: utc, body, view: 'events' });
-  return `/next/#${p}`;
+  return `/#${p}`;
 }
 const DALLAS = (utc) => at('Dallas', 32.7767, -96.797, 'America/Chicago', utc);
 const PHILLY = (utc) => at('Philadelphia City Hall', 39.9526, -75.1652, 'America/New_York', utc);

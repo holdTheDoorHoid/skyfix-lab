@@ -37,7 +37,7 @@ declare const __SKYFIX_SW_BUILD__: SwBuild;
 const BUILD: SwBuild = __SKYFIX_SW_BUILD__;
 const ROOT = new URL('./', self.location.href).href;
 const NAMES = cacheNames(ROOT, BUILD.version);
-const INDEX = precacheIndex(ROOT, BUILD.entries);
+const INDEX = precacheIndex(ROOT, BUILD.entries, BUILD.redirects ?? []);
 const DOWNLOADS_AT_ONCE = 6;
 
 // ---------------------------------------------------------------------------------

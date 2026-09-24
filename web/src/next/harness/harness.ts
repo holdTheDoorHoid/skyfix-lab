@@ -1,7 +1,8 @@
 /**
- * DEVELOPER HARNESS for `/next/` — a plain page that exercises the engine, the store and
- * the clock until the real shell (EXPLORER_PLAN work package E2) replaces it. Keep it
- * small and self-contained: nothing outside `harness/` may import from here.
+ * DEVELOPER HARNESS for the explorer (`?harness`) — a plain page that exercises the
+ * engine, the store and the clock until the real shell (EXPLORER_PLAN work package E2)
+ * replaces it. Keep it small and self-contained: nothing outside `harness/` may import
+ * from here.
  */
 
 import './harness.css';

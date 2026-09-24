@@ -1,99 +1,39 @@
 <!doctype html>
+<!--
+  /next/ was the explorer's address while it was being built; since the switch-over
+  (2026-09-24) the explorer is the site's home page. This page only forwards there,
+  keeping the query and, above all, the fragment: share links carry the place and time in
+  it (#v=1&lat=…). Built as it is, never precached as an app page; the service worker
+  answers the same redirect itself, offline too (vite.config.ts `redirects`).
+  OWNER: release agent. The developer pages beside it (dev-*.html, mockup.html) are
+  served by `vite` in development only.
+-->
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" content="#131a21" />
-    <meta
-      name="description"
-      content="SkyFix Lab explorer: where the Sun, Moon, planets and stars are from any place at any time, and celestial navigation with honest uncertainty. Not a navigation instrument."
-    />
-    <title>SkyFix Lab</title>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='.5' y='.5' width='23' height='23' rx='6.5' fill='%2326303b'/%3E%3Cpath d='M6.2 17.2a5.8 5.8 0 0 1 11.6 0Z' fill='%23f2b63c'/%3E%3Cpath d='M3.8 17.4h16.4' stroke='%23f1f4f7' stroke-width='1.6' stroke-linecap='round'/%3E%3Cpath d='M16.6 4.2l.72 1.98 1.98.72-1.98.72-.72 1.98-.72-1.98-1.98-.72 1.98-.72Z' fill='%23f1f4f7'/%3E%3C/svg%3E"
-    />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="robots" content="noindex" />
+    <title>SkyFix Lab has moved</title>
+    <script>
+      location.replace('../' + location.search + location.hash);
+    </script>
+    <meta http-equiv="refresh" content="0; url=../" />
     <style>
-      /* Shown until the page's code has loaded; the shell replaces it. System fonts only. */
-      html,
       body {
         margin: 0;
-        height: 100%;
+        padding: 12vh 20px 0;
         background: #131a21;
         color: #f1f4f7;
-        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-      }
-      .boot {
-        position: fixed;
-        inset: 0;
-        display: grid;
-        place-content: center;
-        justify-items: center;
-        gap: 14px;
-        padding: 24px;
+        font: 16px/1.5 system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
         text-align: center;
       }
-      .boot__name {
-        font-size: 20px;
-        font-weight: 700;
-        letter-spacing: 0.01em;
-      }
-      .boot__line {
-        margin: 0;
-        color: #b6c2cd;
-        font-size: 14px;
-      }
-      .boot__honesty {
-        margin: 12px 0 0;
-        color: #f1f4f7;
-        font-size: 13px;
-        font-weight: 600;
-      }
-      .boot__bar {
-        width: 160px;
-        height: 3px;
-        overflow: hidden;
-        border-radius: 2px;
-        background: #26303b;
-      }
-      .boot__bar::after {
-        content: '';
-        display: block;
-        width: 40%;
-        height: 100%;
-        border-radius: 2px;
-        background: #f2b63c;
-        animation: boot 1.2s ease-in-out infinite;
-      }
-      @keyframes boot {
-        from {
-          transform: translateX(-100%);
-        }
-        to {
-          transform: translateX(250%);
-        }
-      }
-      @media (prefers-reduced-motion: reduce) {
-        .boot__bar::after {
-          animation: none;
-          width: 100%;
-        }
+      a {
+        color: #f5c35c;
       }
     </style>
   </head>
   <body>
-    <div id="app">
-      <div class="boot" role="status">
-        <div class="boot__name">SkyFix Lab</div>
-        <div class="boot__bar" aria-hidden="true"></div>
-        <p class="boot__line">Loading the numerical core. Everything runs in this page; nothing is sent anywhere.</p>
-        <p class="boot__honesty">Simulation and analysis workbench. Not a navigation instrument.</p>
-      </div>
-      <noscript>SkyFix Lab needs JavaScript. Everything runs in this page; nothing is sent anywhere.</noscript>
-    </div>
-    <script type="module" src="../src/next/main.ts"></script>
+    <p>The SkyFix Lab explorer has moved to <a href="../">the site's home page</a>.</p>
   </body>
 </html>

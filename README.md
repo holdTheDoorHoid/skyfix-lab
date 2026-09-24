@@ -12,9 +12,9 @@ with reference data is not field accuracy — see [`docs/ACCURACY.md`](docs/ACCU
 **Live site:** <https://holdthedoorhoid.github.io/skyfix-lab/> · **Documentation:**
 <https://holdthedoorhoid.github.io/skyfix-lab/docs/>
 
-> The new map-first **explorer** lives at
-> **<https://holdthedoorhoid.github.io/skyfix-lab/next/>** until it is feature-complete,
-> when it will replace the page above. New user? Start with
+> The map-first **explorer** is the site's home page (since 2026-09-24; it was at `/next/`,
+> which now forwards there). The original workbench is kept for reference at
+> <https://holdthedoorhoid.github.io/skyfix-lab/classic/>. New user? Start with
 > [`docs/EXPLORER_GUIDE.md`](docs/EXPLORER_GUIDE.md).
 
 ## What it does
@@ -51,7 +51,8 @@ $ npm run build --prefix web     # emits web/dist
 ```
 
 `npm run dev --prefix web` starts a local server at <http://localhost:5173> (the explorer
-at `/next/`); `npm test --prefix web` runs the TypeScript unit tests. No CDN fonts,
+at `/`, the original workbench at `/classic/`); `npm test --prefix web` runs the
+TypeScript unit tests. No CDN fonts,
 scripts or map tiles: every asset is bundled, so the built site needs no network once
 loaded (the one exception is an optional online street-map layer, off by default).
 

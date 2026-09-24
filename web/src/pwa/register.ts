@@ -1,6 +1,6 @@
 /**
  * Registering the service worker and noticing new versions. OWNER: release agent.
- * Shared by both pages (the workbench at `/`, the explorer at `/next/`); each page draws
+ * Shared by both pages (the explorer at `/`, the original workbench at `/classic/`); each page draws
  * its own prompt through the hooks. The worker is src/sw/sw.ts.
  *
  * The rules:

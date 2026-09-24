@@ -29,8 +29,11 @@ see that data drawn.
 - Themes: **light** (SunCalc-like), **dark**, and **red night-vision** (preserves dark
   adaptation on deck).
 - Works on a phone (the side panel becomes a bottom sheet) and offline once visited.
-- The new UI is built at **`/next/`** on the Pages site. The current site stays at `/`
-  until the new one is feature-complete and verified; then they swap.
+- The new UI was built at **`/next/`** on the Pages site while the old one stayed at `/`,
+  until it was feature-complete and verified; they were **switched over on 2026-09-24**.
+  The explorer is the home page; the original workbench is kept for reference at
+  **`/classic/`** for a transition period; `/next/` forwards to the home page, keeping a
+  share link's fragment.
 - SunCalc is an inspiration for layout and interaction only. No assets, names, text or
   styling are copied from it. Celestial Navigator (MIT) is a feature reference; no code
   is copied from it either.
@@ -110,8 +113,8 @@ Shared chrome, SunCalc-style:
 
 ### Browser
 
-A second Vite entry, `web/next/index.html` → `web/src/next/`, reusing `web/src/api`,
-`types.ts`, `format.ts` and `geometry.ts` where they fit.
+A Vite entry, `web/index.html` → `web/src/next/` (it was `web/next/index.html` until the
+switch-over), reusing `web/src/api`, `types.ts`, `format.ts` and `geometry.ts` where they fit.
 
 | Module | Owner |
 |---|---|

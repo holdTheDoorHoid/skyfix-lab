@@ -3,8 +3,8 @@
  *
  * The files in web/public/data/ are copied by Vite to `<site>/data/`: the basemap layers under
  * `data/basemap/` and the gazetteer at `data/gazetteer.json`. The explorer page is served
- * from `<site>/next/` while it is being built and from `<site>/` after the switch-over
- * (EXPLORER_PLAN section 1), and the site itself lives under `/skyfix-lab/` on GitHub Pages
+ * from `<site>/` (from `<site>/next/` until the switch-over on 2026-09-24; the developer
+ * pages still live in `next/`), and the site itself lives under `/skyfix-lab/` on GitHub Pages
  * but at `/` in `vite dev`. So no absolute path can be right everywhere; every URL here is
  * resolved relative to the page:
  *

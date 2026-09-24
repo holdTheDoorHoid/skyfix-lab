@@ -6,7 +6,7 @@
  * The app shell is found by following references, not by a list someone has to keep up
  * to date:
  *
- *   start from the app's pages (index.html, next/index.html);
+ *   start from the app's pages (index.html, classic/index.html);
  *   in every text file reached (HTML, JavaScript, CSS, JSON, SVG), look for the name of
  *   every hashed file in `assets/`; each name that appears is a file the page can load:
  *     HTML -> entry scripts, preloads, stylesheets
@@ -141,7 +141,7 @@ export function listedFiles(manifestPath: string, manifestText: string): string[
   return out;
 }
 
-/** The address of a page: `next/index.html` -> `next/`, `index.html` -> `./`. */
+/** The address of a page: `classic/index.html` -> `classic/`, `index.html` -> `./`. */
 export function pageAddress(page: string): string {
   const p = normalise(page);
   if (p === 'index.html') return './';

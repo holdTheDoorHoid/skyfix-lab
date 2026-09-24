@@ -2,11 +2,14 @@
 
 The explorer is the map-first way to use SkyFix Lab: pick a place, pick a moment, and see
 where the Sun, the Moon, the planets and the navigational stars are from there — how high,
-in which direction, and when each one rises and sets. It lives at
-<https://holdthedoorhoid.github.io/skyfix-lab/next/>, alongside the original workbench at
+in which direction, and when each one rises and sets. It is the site's home page,
 <https://holdthedoorhoid.github.io/skyfix-lab/>. Nothing the original workbench could do is
 gone: the [Navigate](#navigate) view below now does everything it did (sights,
-corrections, the fix, the planner) and more.
+corrections, the fix, the planner) and more, and [Learn](#celestial-navigation-in-five-minutes)
+has its simulator and demonstrations. The original workbench itself is kept for reference,
+for a while, at <https://holdthedoorhoid.github.io/skyfix-lab/classic/>. Links to the
+explorer's old address, `/next/`, share links included, still work: they open the home
+page with the same place and time.
 
 **Simulation and analysis workbench. Not a navigation instrument.** Every position and
 time on the page comes from the same offline calculation engine as the command line
@@ -272,10 +275,15 @@ but the next time you open it too, connection or none. The one exception is the 
 street-map layer under Layers, which is off by default and only ever asked for while it is
 switched on; it does not work offline.
 
-Lose your connection while using the page and an **Offline** chip appears in the top bar
-to say so — a reassurance, not a warning, since nothing else changes. When a new version
-of the site is published, a card offers to reload into it; your work is never lost or
-reloaded without your say so.
+Lose your connection while using the page and an **Offline** chip appears at the bottom
+of the view to say so — a reassurance, not a warning, since nothing else changes. When a
+new version of the site is published, a card there offers to reload into it; your work is
+never lost or reloaded without your say so.
+
+You can also **install** SkyFix Lab as an app — "Install" in the address bar of Chrome or
+Edge, "Add to Home Screen" on a phone. It opens in its own window at the explorer, and
+works offline in the same way. A copy installed before the switch-over (when the explorer
+was at `/next/`) is the same app and opens the home page.
 
 ## Celestial navigation in five minutes
 
@@ -284,7 +292,7 @@ steps from "a star is straight overhead somewhere" to a plotted position with it
 uncertainty, each one linked straight to a real demonstration with real numbers so you can
 see the idea actually working rather than just read about it.
 
-<https://holdthedoorhoid.github.io/skyfix-lab/next/#learn>
+<https://holdthedoorhoid.github.io/skyfix-lab/#learn>
 
 ![The Learn primer: "How celestial navigation works", five numbered steps, the first three shown — the ground point, the circle of position, and two circles crossing in two places — each with a diagram and a link to a live demonstration.](design/learn-primer.png)
 

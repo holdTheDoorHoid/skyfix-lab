@@ -40,7 +40,7 @@ function help(ctx: Ctx, onTour: () => void): HTMLElement {
         : 'MOCK ENGINE: every number is illustrative.',
     ),
     h('p', { class: 'sf-help__text' }, h('strong', {}, HONESTY)),
-    h('p', { class: 'sf-help__text' }, h('a', { href: '../' }, 'The current workbench'), ' (sights, corrections, the fix and the simulator) is one level up.'),
+    h('p', { class: 'sf-help__text' }, h('a', { href: 'classic/' }, 'The original workbench'), ' is kept for reference for a while; Navigate and Learn now do everything it did.'),
   );
 }
 
