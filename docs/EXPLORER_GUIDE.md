@@ -16,6 +16,11 @@ agreement with reference data is not field accuracy — see
 
 ![The explorer's Map view: a compass centred on the observer, the time ribbon across the top, and the side panel showing the place, the Sun's height and direction, and today's sunrise and sunset.](design/app-light.png)
 
+On your first visit a short tour — four cards beside the parts they explain: the place,
+the time bar, the views, and what the numbers are — points the way. It never blocks the
+page; skip it, or close it, and it stays closed on that device. **Show the tour** in the
+**?** Help menu, or on the About view, brings it back.
+
 ## Setting a place
 
 The explorer always has one place selected. Four ways to change it, all in the search box
@@ -79,6 +84,18 @@ Drag the handle, or use any of these:
 | `N` | now: follow the clock |
 | `Esc` | close a menu |
 
+## The selected body
+
+The panel's **Selected** card gives the chosen body's height above the horizon and its
+direction in large type, and its rise, highest point and set for the pass it is on. For
+the Sun it adds the twilight times, the length of the day, and the length of the shadow of
+an object of any height you type. **When is it at…?**, for any body, lists the times on the
+day shown when it passes a height you type — 30°, say, or −6° for the Sun at the end of
+civil twilight — and pressing one moves the clock there. **Navigator's details** add the
+GHA, the declination, and Hc and Zn as sight-reduction tables give them: seen from the
+Earth's centre, with no refraction or parallax, so for the Moon they differ from its height
+above your horizon by up to a degree.
+
 ## The views
 
 The tabs along the top of the side panel (or, on a phone, along the top of the bottom
@@ -90,13 +107,19 @@ are shared across all of them.
 The home view: a full offline world map (public-domain Natural Earth data — see
 [Third-party sources](THIRD_PARTY.md)) with an optional online street-map layer you can
 switch on in Layers. At your place, a compass dial shows the horizon, where the selected
-body rises, sets and is right now, and its path for the day; the solstice band shows the
-Sun's extreme paths at midsummer and midwinter. Day, night and the three twilights are
+body rises, sets and is right now, and its path across the sky on its current pass —
+from its rise through its highest point to its set, the same pass the panel's Selected
+card shows (so the Moon's "Moonset 05:37 Fri" is the same on both; a time on another day
+carries its weekday). The solstice band shows the Sun's extreme paths at midsummer and
+midwinter. Day, night and the three twilights are
 shaded across the whole map, along with the ground point of each body — the spot on Earth
 directly beneath it — and, for the selected body, the circle you would get by measuring
 its height with a sextant right now. **Chart** and **Globe** (top right) switch between a
 flat map and a spinning globe of the same data; a ruler tool measures a distance and
-bearing between two points.
+bearing between two points. What other views draw on the map — Navigate's fix, an eclipse
+from Events, a Learn demonstration — is listed at the bottom of **Layers**, each with a
+**Remove** button; while such a drawing is on the map, the compass dial turns see-through
+so the fix under it stays readable.
 
 ![The Globe projection at night, showing the Moon's ground point, its rise and set, and the twilight shading over North America.](design/map-view-globe-dark.png)
 
@@ -151,6 +174,12 @@ methods, each explained in plain words as you open it:
 | **Average a run** | several quick sights of one body turned into one good one |
 | **Lunar distance** | Greenwich time — and so longitude — from the angle between the Moon and another body, with no chronometer |
 | **Plan sights** | tonight's evening and morning twilight windows, which bodies to shoot and in what order, predicted readings included |
+
+The Fix's chart has a **Fit map** switch: it shades every nearby position by how well it
+fits your sights — darker is worse — with the 95 % and 3-sigma lines drawn on it and a
+caption saying what the shading can and cannot show (a biased sextant or a wrong clock
+moves the whole picture without widening it). It is off to start; with it on, **Show on
+the map** takes those lines to the map too.
 
 The fix (and the circles of position behind it) draws directly on the Map view. Sessions
 save automatically **in this browser only** — nothing is kept until you enter a sight, and
@@ -264,4 +293,8 @@ sight geometry, one bad sight, a clock that is wrong, an instrument with a hidde
 and the two ways a fix can be ambiguous — narrated against the same numbers as
 [Demos](DEMOS.md). **Simulator** lets you build your own scenario and run it many times to
 see whether the reported uncertainty actually covers the true error, which is the honest
-question behind every number this project produces.
+question behind every number this project produces. A simulated run can be downloaded as a
+session file, or opened straight in **Navigate** with **Open in Navigate**: the sights come
+across exactly as the solver received them, marked SIMULATED, and the answer key stays in
+Learn. Every demonstration's chart has the same **Fit map** switch as Navigate's; it starts
+on for "Stars bunched together" and "Two sights", where the shape of the fit says the most.
