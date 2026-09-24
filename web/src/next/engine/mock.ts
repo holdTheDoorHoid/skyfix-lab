@@ -13,6 +13,7 @@
  */
 
 import { isoUtc, jdFromIso, jdFromMs, utcMs } from '../time.js';
+import { mockAlmanacDay } from './mock/almanac.js';
 import * as A from './mock/astro.js';
 import { crossings, grid, sample } from './mock/roots.js';
 import {
@@ -22,6 +23,8 @@ import {
   type MockStarfield,
 } from './mock/stars.js';
 import type {
+  AlmanacDay,
+  AlmanacEngine,
   AltitudeCrossing,
   BodyError,
   BodyEvents,
@@ -190,7 +193,7 @@ function inCoverage(jd: number): boolean {
   return jd >= COVERAGE_START && jd <= COVERAGE_END;
 }
 
-export class MockEngine implements ExplorerEngine {
+export class MockEngine implements ExplorerEngine, AlmanacEngine {
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
 
@@ -493,6 +496,14 @@ export class MockEngine implements ExplorerEngine {
   /** The mock's frame of date is precession only: the same matrix `starfieldApparent` uses. */
   starfieldFrameMatrix(jdUtc: number): Float64Array {
     return Float64Array.from(A.precessionMatrix(A.centuriesTT(finite(jdUtc, 'jd_utc'))));
+  }
+
+  // -------------------------------------------------------------------------
+  // Almanac pages (illustrative; see mock/almanac.ts)
+  // -------------------------------------------------------------------------
+
+  almanacDay(date: string): AlmanacDay {
+    return mockAlmanacDay(this, date);
   }
 
   // -------------------------------------------------------------------------

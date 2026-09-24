@@ -619,7 +619,73 @@ index error, refraction) is unknown too (`planner::best_spread_subset`).
 
 ## Wave 2 — almanac pages (`almanac.rs`)
 
-Specified by the almanac agent.
+Specified by the almanac agent. Definitions: CONVENTIONS 13.9 (and 13.3 for rise, set,
+twilight and meridian passage); Rust: `skyfix_almanac::pages`; TypeScript: the
+`AlmanacEngine` interface and the `Almanac*` types at the end of
+`web/src/next/engine/types.ts`, implemented by the WASM engine and the mock. The
+existing interfaces are unchanged; the memoised engine (`component.ts`) forwards
+`almanacDay` when the engine has it, keeping four dates.
+
+### `almanac_day(date) -> AlmanacDay`
+
+`date` is a **UT calendar date** `"YYYY-MM-DD"`, not an instant — the one export that takes
+a date rather than a `jd_utc`, because a daily page is a date. Accepted from 1990-01-01 to
+2060-12-31 (the ephemeris coverage); throws for anything else, or a malformed date. About
+35-40 ms native and 45-55 ms in WebAssembly (the first call of a session about 90 ms: it
+also parses the embedded series).
+
+Every tabulated quantity comes twice: the raw value, with its unit in the field name, and
+under `printed` the text the page prints, rounded as the printed Nautical Almanac rounds
+(CONVENTIONS 13.9). Views show `printed` and never round raw values themselves. Printed
+formats: GHA/SHA `"183 12.4"`; Dec `"N 12 34.5"` / `"S 0 42.3"`; v, d, HP, SD `"14.1"`
+(`d` without sign, `v` with `-` when negative); magnitude `"-4.0"` / `"+1.3"`; times
+`"06 42"`, `"24 05"` (the next date), `"-00 02"` (before 00h); Aries' passage
+`"23 44.7"`; equation of time `"07 48"` (the sign is the raw value's).
+
+```ts
+AlmanacDay {
+  date: "2026-09-24", weekday: "Thursday",
+  jd_utc,          // 00h UT of the date
+  noon_jd_utc,     // 12h UT: the instant of every once-a-day value
+  hours: [{        // 24 rows, 00h..23h
+    hour, jd_utc, utc,
+    aries:   { gha_deg, printed: { gha } },
+    sun:     { body, gha_deg, dec_deg, printed: { gha, dec } },
+    moon:    { gha_deg, dec_deg, v_arcmin, d_arcmin, hp_arcmin,     // v, d: this hour to the next
+               printed: { gha, v, dec, d, hp } } | null,
+    planets: [{ body, gha_deg, dec_deg, printed: { gha, dec } }]    // order of `planets`
+  }],
+  aries:  { mer_pass: TableTime },                                  // printed to 0.1 min
+  sun:    { sd_arcmin, d_arcmin, eot_00h_s, eot_12h_s, mer_pass: TableTime,
+            printed: { sd, d, eot_00h, eot_12h } },
+  moon:   { sd_arcmin, mer_pass_upper: TableTime, mer_pass_lower: TableTime,
+            age_days: number | null, illuminated_fraction: number | null,
+            phase: PhaseEvent | null,                               // a principal phase on the date
+            printed: { sd, age, illuminated } } | null,
+  planets: [{ body, magnitude, v_arcmin, d_arcmin, sha_deg, mer_pass: TableTime,
+              printed: { magnitude, v, d, sha } }],                 // Venus, Mars, Jupiter, Saturn
+  stars:   [{ body, sha_deg, dec_deg, magnitude, printed: { sha, dec } }],  // 57 + Polaris
+  rise_set: {
+    moon_dates: ["2026-09-24", "2026-09-25"],
+    rows: [{ lat_deg, label: "N 72",                                // 72 N .. 60 S, 31 rows
+             nautical_dawn, civil_dawn, sunrise, sunset, civil_dusk, nautical_dusk: TableTime,
+             moonrise: TableTime[2], moonset: TableTime[2] }]
+  },
+  notes: string[],        // what the page prints under its tables
+  errors: BodyError[]     // bodies or phenomena not computed, with the reason
+}
+
+TableTime {
+  kind: "time" | "above" | "below" | "all_night" | "later" | "unavailable",
+  jd_utc: number | null, utc: string | null,
+  hours: number | null,   // after 00h UT of the column's date; may be < 0 or >= 24
+  printed: string         // "06 42", "24 05", "-00 02", "□", "■", "////", "--", "n/a"
+}
+```
+
+`age_days` is `null` (printed `"--"`) before the first new moon of the coverage (January
+1990). On the last date of the coverage the next date's moonrise and moonset are `n/a`,
+and the last hour's `v` and `d` span 23 h 59 min 59 s; `errors` says so.
 
 ## Wave 2 — eclipses (`eclipses.rs`)
 

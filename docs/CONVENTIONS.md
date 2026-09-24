@@ -420,6 +420,41 @@ beside it: an IANA zone (formatted with the browser's `Intl`), guessed from the
 gazetteer and overridable; the nautical zone time for positions at sea
 (`ZD = round(lon_east / -15)`, so zone time + ZD = UTC; 75 W is ZD +5); or UTC itself.
 
+### 13.9 Daily almanac pages
+
+`skyfix_almanac::pages` gives, for one UT calendar date, what the Nautical Almanac's two
+facing daily pages give (wire format: EXPLORER_API.md "Wave 2 — almanac pages").
+
+- **Argument.** UT is UTC with DUT1 = 0 (section 6); the printed almanac's is UT1.
+- **Hourly values**, 00h to 23h: exact evaluations. GHA Aries is the Sun's `GHA + RA`.
+- **v** (arcmin) = mean hourly increase of GHA minus the adopted rate: 15° for the planets
+  (mean over 00h to 24h), 14° 19.0' for the Moon (from each hour to the next). **d** =
+  hourly change of declination over the same intervals; raw values signed (north
+  positive), printed without sign as the printed almanac prints them.
+- **Once-a-day values** are for 12h UT: the stars' SHA and Dec, the planets' SHA and
+  magnitude, the Sun's and the Moon's SD, the Moon's age and illuminated percentage.
+- **Equation of time** at 00h and 12h = apparent minus mean solar time at Greenwich,
+  `(GHA_Sun - 15° (UT - 12 h)) / 15°/h`; negative when the Sun crosses the meridian after
+  12h (shaded on the page).
+- **Meridian passage**: the UT of `GHA = 0` (the Moon's lower: `GHA = 180°`) on the date,
+  from section 13.3 at 0° N 0° E; Aries' is the root of `GHA Aries = 0`. None on the date:
+  the next, printed `24 hh mm`.
+- **Moon's age**: time since the preceding new moon (13.5) at 12h, printed in whole days
+  elapsed; **illuminated** `100 k`, `k` as in 13.5.
+- **Rise, set and twilight table**: section 13.3 exactly, at the 31 standard latitudes
+  72 N to 60 S on the Greenwich meridian, sea level, standard horizon; LMT = UT. The
+  morning columns hold the Sun's rising through −12°, −6°, −50′ between the lower passage
+  before the date's noon and that noon; the evening columns its setting between noon and
+  the next lower passage (so `24 hh mm` after midnight, `-00 mm` before it). Without a
+  crossing that half-day: `□` the Sun above the horizon all day (every column), `■` below
+  that altitude, `////` it sets but twilight lasts all night. Moonrise and moonset for the
+  date and the next: the first on the date; else `□`/`■` if the Moon is above/below all
+  that date; else the next on the following date as `24 hh mm`; else `--`. `n/a`: the
+  phenomenon needs instants outside the ephemeris coverage.
+- **Rounding** (printed values only; raw values are carried beside them): angles, v, d,
+  HP and SD to 0.1′, magnitudes to 0.1, times to the nearest minute (Aries' meridian
+  passage to 0.1 minute), the equation of time to the second.
+
 ## 14. Navigation methods: noon sight, Polaris, averaging, running fix
 
 `docs/NAVIGATION_METHODS.md` is normative for these methods (`skyfix_core::methods`,

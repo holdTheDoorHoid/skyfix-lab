@@ -51,6 +51,8 @@ export default defineConfig({
         devSky: resolve(import.meta.dirname, 'next/dev-sky.html'),
         // The Map view on its own, for its developer (map agent).
         devMap: resolve(import.meta.dirname, 'next/dev-map.html'),
+        // The Almanac view's developer harness (almanac agent).
+        devAlmanac: resolve(import.meta.dirname, 'next/dev-almanac.html'),
       },
     },
   },

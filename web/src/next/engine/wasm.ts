@@ -11,6 +11,8 @@
  */
 
 import type {
+  AlmanacDay,
+  AlmanacEngine,
   AltitudeCrossing,
   BodyInfo,
   BodySelection,
@@ -79,6 +81,8 @@ export interface ExplorerWasmExports {
   constellation_at(raDeg: number, decDeg: number, jdUtc: number): unknown;
   constellation_boundaries?(): unknown;
   starfield_frame_matrix?(jdUtc: number): unknown;
+  /** Wave 2, almanac pages (EXPLORER_API "Wave 2 — almanac pages"); absent in older builds. */
+  almanac_day?(date: string): unknown;
   version?(): string;
 }
 
@@ -122,7 +126,7 @@ export function optionsJson(options: EventOptions | undefined): string {
   return JSON.stringify({ horizon: o.horizon, height_of_eye_m: o.height_of_eye_m });
 }
 
-export class WasmEngine implements ExplorerEngine {
+export class WasmEngine implements ExplorerEngine, AlmanacEngine {
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -263,6 +267,20 @@ export class WasmEngine implements ExplorerEngine {
     const fn = this.x.starfield_frame_matrix;
     if (typeof fn !== 'function') throw new Error('starfield_frame_matrix: not exported by this build');
     return this.call('starfield_frame_matrix', () => fn.call(this.x, jdUtc));
+  }
+
+  /**
+   * The daily almanac pages for one UT date `YYYY-MM-DD` (`almanac_day`). Throws when this
+   * build of the core predates the export, saying so.
+   */
+  almanacDay(date: string): AlmanacDay {
+    const fn = this.x.almanac_day;
+    if (typeof fn !== 'function') {
+      throw new Error(
+        'almanac_day: this build of the numerical core has no almanac pages. Rebuild it with: npm run wasm --prefix web',
+      );
+    }
+    return this.call('almanac_day', () => fn.call(this.x, date));
   }
 }
 

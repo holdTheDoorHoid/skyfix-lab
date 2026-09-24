@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use skyfix_core::types::{LatLon, PositionPrior};
 
+use crate::commands::almanac::AlmanacFormat;
 use crate::commands::plan::ObjectiveArg;
 use crate::commands::solve;
 use crate::provider::EphemerisChoice;
@@ -166,6 +167,18 @@ pub enum Command {
         taken: Option<PathBuf>,
         #[arg(long)]
         json: bool,
+    },
+
+    /// Print the daily pages of a nautical almanac for one UT date: GHA and Dec every hour,
+    /// the stars, twilight, sunrise, sunset, moonrise and moonset.
+    Almanac {
+        /// The UT date, YYYY-MM-DD, from 1990-01-01 to 2060-12-31.
+        #[arg(long, value_name = "YYYY-MM-DD")]
+        date: String,
+        /// `text`: the two pages laid out in columns; `json`: the AlmanacDay document with
+        /// raw and printed values.
+        #[arg(long, value_enum, default_value_t = AlmanacFormat::Text, value_name = "FORMAT")]
+        format: AlmanacFormat,
     },
 }
 
