@@ -181,8 +181,11 @@ you can click.
 Clicking any event moves the explorer's time to it. The eclipse list agrees with NASA's
 eclipse canon for every eclipse of 1990–2060 (see [Accuracy and limitations](ACCURACY.md),
 "Eclipses" and "Planet events"). From a terminal, `skyfix events`, `skyfix phases` and
-`skyfix seasons` give the day's events, the Moon's phases and the seasons (see
-[Command line](CLI.md)); eclipses and planet events are not yet on the command line.
+`skyfix seasons` give the day's events, the Moon's phases and the seasons;
+`skyfix eclipses` lists the eclipses and what your place sees of each, `skyfix eclipse`
+gives one eclipse's contacts from your place and its path (as GeoJSON for any map tool),
+and `skyfix planet-events` the planets' oppositions, conjunctions, elongations and
+closest approaches (see [Command line](CLI.md)).
 
 ![The Events view: the total solar eclipse of 8 April 2024 as seen from Dallas, with its timeline and contact times.](design/events-eclipse-light.png)
 

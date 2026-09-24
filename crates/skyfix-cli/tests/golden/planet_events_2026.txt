@@ -49,5 +49,6 @@ as seen from the Earth's centre; whether and when a transit can be seen from a p
 not computed. An outer planet's closest approach comes within days of its opposition,
 and Mercury's and Venus's within days of their inferior conjunctions: separate events
 with separate instants. Times are UTC to the nearest second (--format json carries the
-milliseconds), within a minute of JPL DE440s for 1990-2060 (docs/ACCURACY.md section
+milliseconds); against JPL DE440s they are within 3 s for the conjunctions of Mercury
+and Venus, and 68 s at worst, for the slowest outer planet (docs/ACCURACY.md section
 13).

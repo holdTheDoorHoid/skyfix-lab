@@ -610,13 +610,16 @@ in a direction you already have.
 
 The explorer redesign gave the engine a model of the whole sky, almanac events, four
 navigation methods and Moon and planet sights, and the browser reaches them through WASM
-(`docs/EXPLORER_API.md`). These commands reach the same functions, offline, one call each:
+(`docs/EXPLORER_API.md`). These commands reach the same functions, offline:
 
 | command | the question | the engine function |
 |---|---|---|
 | `sky` | where is everything right now? | `skyfix_almanac::sky::sky_state` |
 | `events` | when does it rise, set and transit, and when is twilight? | `skyfix_almanac::events::day_events` |
 | `phases`, `seasons` | when are the Moon's phases, the equinoxes and the solstices? | `skyfix_almanac::events::{moon_phases, seasons}` |
+| `eclipses` | which eclipses fall in these years, and which can I see? | `skyfix_almanac::eclipses::Eclipses::{find, local}` |
+| `eclipse` | what does this eclipse look like from here, and where is its path? | `skyfix_almanac::eclipses::Eclipses::{by_id, local, path}` |
+| `planet-events` | when are the planets at opposition, conjunction, greatest elongation or closest? | `skyfix_almanac::planet_events::planet_events` |
 | `noon` | what is my latitude from a noon run (and, weakly, my longitude)? | `skyfix_core::methods::noon::noon_sight` |
 | `polaris` | what is my latitude from Polaris? | `skyfix_core::methods::polaris::polaris_latitude` |
 | `average` | what one sight does a run of rough ones make? | `skyfix_core::methods::averaging::average_sights` |
@@ -634,7 +637,9 @@ Rules every one of them keeps:
   RFC 3339 UTC with `Z`, to the second. A value that rounds to zero never carries a sign.
   JSON is the engine's own result exactly as serde emits it, milliseconds included: the
   wire shapes of `docs/EXPLORER_API.md`. A test calls each engine function directly and
-  compares its result with the command's JSON, number by number.
+  compares its result with the command's JSON, number by number. `skyfix almanac` takes
+  the same `--format text|json` (one type in the code, `crate::cli::OutputFormat`), and
+  `skyfix eclipse --path` alone adds `--format geojson`, since only a path is a map.
 - **`--lat` and `--lon`** are decimal degrees, longitude east-positive, and a leading
   minus sign needs no `=`: `--lat -33.87 --lon 151.21`.
 - **`--bodies`** takes `all`, `solar_system` (or `solar-system`), `navigational`, or a
@@ -677,6 +682,14 @@ A named zone is refused with a sentence saying what to type instead — the offs
 applies on your date, such as `-04:00` for US Eastern daylight time. It is never guessed
 at: a wrong guess about daylight saving would put every event an hour out, with nothing
 on the screen to say so.
+
+`events`, `phases` and `seasons` take `--zone`. `events` has an observer, whose longitude
+sets the nautical zone. `phases` and `seasons` have none — the Moon's phases and the
+seasons are the same instants everywhere on Earth — so there the nautical zone takes its
+longitude from `--lon DEG`, which is refused with any other zone, where it would do
+nothing. In all three a date is a date in the zone, from local midnight to local
+midnight, and the text shows local time beside UTC; `--format json` keeps the engine's
+UTC.
 
 ### `skyfix sky --lat --lon --utc [--bodies] [--height] [--pressure] [--temperature]`
 
@@ -789,11 +802,18 @@ for alongside: `{"date": "2026-09-24", "zone": "UTC-04:00", "utc_offset_minutes"
 "jd_start": ..., "jd_end": ..., "phases": [...], "bodies": [...], "errors": [...]}`.
 A body that could not be computed is in `errors`, named on stderr, and the exit code is 2.
 
-### `skyfix phases --from --to` and `skyfix seasons --year`
+### `skyfix phases --from --to [--zone [--lon]]` and `skyfix seasons --year [--zone [--lon]]`
 
 The instants at which the Moon's apparent geocentric ecliptic longitude minus the Sun's
 is 0, 90, 180 and 270 degrees, and at which the Sun's own is (CONVENTIONS 13.5), in UTC.
 `--format json` is the engine's list, `[{"kind", "jd_utc", "utc"}]`.
+
+| flag | meaning |
+|---|---|
+| `--from WHEN --to WHEN` | `phases`: the window, a date or an instant at each end. Required |
+| `--year YEAR` | `seasons`: the calendar year. Required |
+| `--zone ZONE` | see "Time zones" above. Default `utc`, which prints exactly what it always did |
+| `--lon DEG` | the longitude of `--zone nautical`, and nothing else |
 
 ```console
 $ skyfix phases --from 2026-09-01 --to 2026-09-30
@@ -813,6 +833,241 @@ SEASONS 2026
 ```
 
 A year or a window outside the providers' coverage (1990 to 2060) exits 1.
+
+With `--zone`, a date given to `--from` or `--to` is a date in that zone, and every
+instant is shown in it beside UTC. Off Sydney, in nautical zone -10, the December
+solstice falls on the 22nd:
+
+```console
+$ skyfix seasons --year 2026 --zone nautical --lon 151.21
+SEASONS 2026, shown in nautical ZD -10 (UTC+10:00)
+  local                UTC                   season
+  2026-03-21 00:45:56  2026-03-20T14:45:56Z  March equinox
+  2026-06-21 18:24:29  2026-06-21T08:24:29Z  June solstice
+  2026-09-23 10:05:12  2026-09-23T00:05:12Z  September equinox
+  2026-12-22 06:50:13  2026-12-21T20:50:13Z  December solstice
+...
+$ skyfix phases --from 2026-09-01 --to 2026-09-30 --zone -04:00
+MOON PHASES  2026-09-01T04:00:00Z to 2026-10-01T04:00:00Z, shown in UTC-04:00
+  local                UTC                   phase
+  2026-09-04 03:51:14  2026-09-04T07:51:14Z  last quarter
+  2026-09-10 23:27:00  2026-09-11T03:27:00Z  new moon
+...
+```
+
+September in US Eastern daylight time runs from 04:00Z on the 1st to 04:00Z on 1 October,
+and the new moon of 03:27Z on the 11th is still the evening of the 10th there. The
+instants are the engine's whatever the zone, and so is `--format json`: the zone moves
+where a date begins and ends, and adds the local column; it never changes an instant.
+
+### `skyfix eclipses --from --to [--kind solar|lunar|all] [--lat --lon [--height]]`
+
+Every solar and lunar eclipse whose greatest eclipse falls in the window
+(`Eclipses::find`), from an engine that finds every eclipse of NASA's *Five Millennium
+Canon* for 1990-2060, none extra, with the same type and saros, and greatest eclipse
+within 1.4 s (solar) and 11 s (lunar) (docs/ACCURACY.md section 12). Each eclipse is
+named by its id, the UTC date of greatest eclipse and its kind — `2024-04-08-solar` —
+which `skyfix eclipse` takes. With an observer, each row is followed by what that place
+sees (`Eclipses::local`): whether the eclipse is seen there, and its local maximum.
+
+| flag | meaning |
+|---|---|
+| `--from WHEN --to WHEN` | the window, as for `phases`: a date or an instant at each end, UTC. Required |
+| `--kind solar\|lunar\|all` | which eclipses. Default `all` |
+| `--lat DEG --lon DEG` | an observer. Optional, but both or neither |
+| `--height M` | the observer's height above the WGS84 ellipsoid, with `--lat --lon`. Default 0 |
+
+```console
+$ skyfix eclipses --from 2024-01-01 --to 2025-12-31 --lat 32.78 --lon -96.80
+ECLIPSES  2024-01-01T00:00:00Z to 2026-01-01T00:00:00Z, solar and lunar
+Observer  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84 ellipsoid
+
+  id                type       greatest eclipse          mag  pen.mag    gamma  saros
+  2024-03-25-lunar  penumbral  2024-03-25T07:12:52Z  -0.1325   0.9556  +1.0609    113
+      here: all of it seen, with the Moon up throughout; greatest eclipse
+      2024-03-25T07:12:52Z, Moon alt +54 20.0, Az 196 38.3
+  2024-04-08-solar  total      2024-04-08T18:17:20Z   1.0566        -  +0.3431    139
+      here: total for 3 min 51 s, with the Sun up throughout; maximum
+      2024-04-08T18:42:39Z, magnitude 1.015 (100% of the Sun's area covered), Sun alt
+      +64 36.8, Az 188 00.5
+...
+  2025-03-29-solar  partial    2025-03-29T10:47:27Z   0.9376        -  +1.0405    149
+      here: not seen: the Sun is below the horizon throughout; maximum
+      2025-03-29T10:14:13Z, magnitude 0.618 (53% of the Sun's area covered), Sun alt
+      -26 09.1, Az 66 31.5
+...
+```
+
+`mag` is a solar eclipse's magnitude — for a total, annular or hybrid one the Moon's
+apparent diameter over the Sun's at greatest eclipse, for a partial one the fraction of
+the Sun's diameter covered — or a lunar eclipse's umbral magnitude, negative when the
+Moon misses the Earth's dark shadow, as in the penumbral eclipse of March 2024; `pen.mag`
+is a lunar eclipse's penumbral magnitude. `gamma` is how far the shadow's axis passes
+from the Earth's centre, or the Moon's centre from the shadow's axis, in Earth radii,
+positive north. A solar eclipse's local maximum is its greatest magnitude at that place,
+which is not the instant of greatest eclipse: the one of March 2025 was greatest at
+10:47Z over northern Quebec, and would have been greatest from Dallas at 10:14Z, with the
+Sun 26 degrees below the horizon there.
+
+`--format json` is the engine's `EclipseList` — the window actually searched, `truncated`,
+the coverage, the eclipses and the conventions behind them — with its `eclipses` kept to
+`--kind`, `kinds` naming the kinds kept, and, with an observer, `local`: the
+`EclipseLocal` of each listed eclipse, in the same order (`docs/EXPLORER_API.md`, "Wave 2
+— eclipses"). A window that reaches past the coverage (1990-01-01 to 2060-12-31) is
+clipped, and the report and stderr say so; one wholly outside it exits 1.
+
+### `skyfix eclipse <id> [--lat --lon [--height]] [--path] [--format text|json|geojson]`
+
+One eclipse (`Eclipses::by_id`): greatest eclipse and where it happens, the magnitude,
+gamma, saros, the path's width and the central duration there, and the contacts of the
+shadow with the Earth. With an observer, the local circumstances (`Eclipses::local`):
+what kind of eclipse the place sees and whether the Sun or the Moon is up for it, the
+duration of totality or annularity, the maximum with its magnitude and obscuration, and
+every contact with its UTC and the body's altitude and azimuth. A solar eclipse always
+carries an eye-safety line, fitted to what the place sees.
+
+| flag | meaning |
+|---|---|
+| `ID` | as `skyfix eclipses` lists it: `YYYY-MM-DD-solar` or `YYYY-MM-DD-lunar`, the UTC date of greatest eclipse. Required |
+| `--lat DEG --lon DEG [--height M]` | an observer, as for `eclipses` |
+| `--path` | print the lines on the map instead (`Eclipses::path`); not with an observer, since the path is the same for everyone |
+| `--format text\|json\|geojson` | `text` (default); `json`; `geojson` only with `--path`, whose default is `json` |
+
+```console
+$ skyfix eclipse 2024-04-08-solar --lat 32.78 --lon -96.80
+TOTAL SOLAR ECLIPSE  2024-04-08-solar
+Greatest   2024-04-08T18:17:20Z at 25 17.33' N, 104 08.78' W (25.288760, -104.146323),
+           the Sun at altitude +69 47.6, azimuth 149 23.3 there
+Magnitude  1.0566: the Moon's apparent diameter over the Sun's at greatest eclipse
+...
+Path       197.5 km wide at greatest eclipse, where totality lasts 4 min 28 s
+...
+SEEN FROM  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84 ellipsoid
+Here       total: inside the path of totality, with the Sun up from first contact to
+           last
+Totality   2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, 3 min 51 s
+Maximum    2024-04-08T18:42:39Z: magnitude 1.015, 100% of the Sun's area covered, Sun
+           alt +64 36.8, Az 188 00.5
+Eclipse    2024-04-08T17:23:19Z to 2024-04-08T20:02:41Z, 2 h 39 min 22 s from first
+           contact to last
+
+  UTC                   event                           Sun alt        Az     P     V
+  2024-04-08T17:23:19Z  c1   partial eclipse begins    +60 34.2  145 18.9   226   255
+  2024-04-08T18:40:43Z  c2   totality begins           +64 39.9  186 54.1    19    13
+  2024-04-08T18:42:39Z  max  greatest eclipse          +64 36.8  188 00.5     -     -
+  2024-04-08T18:44:34Z  c3   totality ends             +64 33.3  189 06.5   256   248
+  2024-04-08T20:02:41Z  c4   partial eclipse ends      +56 44.3  226 01.8    49    12
+
+Eye safety: never look at the Sun, even when it is mostly covered, without certified
+eclipse glasses (ISO 12312-2) or a pinhole projector. Only during totality itself, here
+from 2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, is it safe to look with the naked
+eye; the glasses go back on as the first bright point reappears.
+...
+```
+
+Dallas is inside the path, with 3 min 51 s of totality. USNO's Solar Eclipse Computer
+gives 3 min 52.5 s for Dallas at 32.7767 N, 96.797 W and 150 m (with USNO's own Delta-T
+of 72.8 s against the 69.184 s here), and every contact of that case agrees with USNO's
+within 2 s once the Delta-T is the same (docs/ACCURACY.md section 12). `alt` and `Az`
+are the Sun's centre, geometric, from the WGS84 site (CONVENTIONS 13.2); a contact with
+the Sun below its rise and set altitude, -50', is marked `Sun down`, and a sunrise or
+sunset during the eclipse is a row of its own with the fraction of the Sun covered then.
+`P` and `V` say where on the Sun's disc the limbs touch, from its north point and from
+its top. A lunar eclipse lists its contacts p1 to p4 with the Moon's altitude at each,
+since those instants are the same everywhere and only the Moon's height differs; the
+eye-safety line is for solar eclipses only. For a future eclipse the true Delta-T will
+differ from the 69.184 s assumed, and each second of difference moves a local contact by
+up to about a second.
+
+`--format json` is `{"eclipse": Eclipse, "local": EclipseLocal}`, each exactly as the
+engine returns it; `local` is there only with an observer. `--path` prints the engine's
+`EclipsePath`: for a solar eclipse the central line, the northern and southern limits of
+totality or annularity and of the partial eclipse, and the loops that close them at
+sunrise and sunset, each a list of segments of `[lon, lat]` pairs with the UTC Julian
+date of every vertex; for a lunar eclipse the point under the Moon at each contact. It
+has no text form. `--format geojson` writes the same lines as an RFC 7946
+FeatureCollection that a map tool (QGIS, geojson.io, a web map) opens as it is, with the
+engine's coordinates unrounded:
+
+```console
+$ skyfix eclipse 2024-04-08-solar --path --format geojson
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+...
+      "properties": {
+        "eclipse": "2024-04-08-solar",
+        "eclipse_type": "total",
+        "feature": "greatest_eclipse",
+...
+        "type": "MultiLineString",
+...
+        "feature": "central_line",
+...
+```
+
+Every feature's `properties.feature` is the engine's name for it (`greatest_eclipse`,
+`central_line`, `umbra_north`, `umbra_south`, `umbra_horizon`, `penumbra_north`,
+`penumbra_south`, `penumbra_horizon`, or `sublunar_point` with its `contact`), with a
+one-line `description`, the vertex times in `jd_utc` and the `delta_t_s` the ground
+positions assume. Empty lines — a partial eclipse has no central line — are left out. An
+id that is malformed or names no eclipse exits 1, and so do `--format geojson` without
+`--path`, `--format text` with it, and an observer with it.
+
+### `skyfix planet-events --from --to [--body NAME,...]`
+
+Every opposition, conjunction with the Sun, greatest elongation of Mercury and Venus and
+closest approach of Mercury to Neptune in the window (`planet_events`): geocentric, so
+the same instants for every observer. All 2266 of 1990-2060 agree one for one with
+Skyfield and JPL DE440s, of the same kind, within 3 s for the conjunctions of Mercury and
+Venus and 68 s at worst, for a closest approach of Neptune, whose configurations change
+slowest (docs/ACCURACY.md section 13).
+
+| flag | meaning |
+|---|---|
+| `--from WHEN --to WHEN` | the window, a date or an instant at each end, UTC. Required |
+| `--body NAME,...` | the planets, Mercury to Neptune, in any case; `all` (default) is the seven. `--bodies` is accepted too |
+
+```console
+$ skyfix planet-events --from 2026-01-01 --to 2026-12-31
+PLANET EVENTS  2026-01-01T00:00:00Z to 2027-01-01T00:00:00Z
+Planets        Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune
+               geocentric: the same instants for every observer
+
+  UTC                   planet   event                      elong.    mag  dist au  transit
+  2026-01-06T16:36:01Z  Venus    superior conjunction       0 42.6  -3.91   1.7109        -
+  2026-01-09T08:05:48Z  Jupiter  closest approach         178 47.3  -2.68   4.2317        -
+  2026-01-09T11:41:13Z  Mars     conjunction                0 56.5   1.08   2.4034        -
+  2026-01-10T08:42:15Z  Jupiter  opposition               179 44.3  -2.68   4.2319        -
+...
+  2026-08-15T06:31:36Z  Venus    greatest elongation east  45 53.5  -4.43   0.6860        -
+...
+  2026-10-24T03:44:08Z  Venus    inferior conjunction       6 30.8  -4.19   0.2729       no
+...
+32 events in the window.
+...
+$ skyfix planet-events --from 2032-11-01 --to 2032-11-30 --body Mercury
+...
+  2032-11-13T09:08:20Z  Mercury  inferior conjunction       0 09.6   6.93   0.6764      yes
+...
+3 events in the window, with a transit across the Sun's disc: Mercury on 2032-11-13.
+...
+```
+
+`elong.` is the angle between the planet and the Sun from the Earth's centre: at a
+conjunction, how far the planet passes from the Sun's centre (Venus 6.5 degrees in
+October 2026, lost in the glare); at a greatest elongation east the planet is an evening
+star, west a morning one. `transit` is the engine's flag, meaningful on an inferior
+conjunction only: the planet crosses the Sun's disc as seen from the Earth's centre, as
+Mercury does on 2032-11-13. Whether and when a transit can be seen from a given place is
+not computed. A closest approach is its own event, within days of the opposition or the
+inferior conjunction it goes with. `--format json` is the engine's `PlanetEventList` with
+its `events` kept to `--body` and `bodies` naming the planets kept; a window that reaches
+past the coverage is clipped and says so, and one wholly outside it exits 1.
 
 ### `skyfix noon <session>`
 
@@ -1164,6 +1419,6 @@ are typed from Bowditch's sections 1910 and 1912 via
 `fixtures/reference/bowditch_worked_examples.json`, and `lunar_19.input.json` is the
 `lunar_distance` example of `docs/EXPLORER_API.md`. `tests/explorer_fixtures.rs` rebuilds
 them from those sources (`SKYFIX_WRITE_FIXTURES=1 cargo test -p skyfix-cli --test
-explorer_fixtures`), and `tests/explorer_golden.rs` holds seven of the text reports above
-to the byte against `tests/golden/` (`SKYFIX_WRITE_GOLDEN=1` to regenerate after a
-deliberate change, then read the diff).
+explorer_fixtures`), and `tests/explorer_golden.rs` holds twelve text reports, most of them
+the examples above, to the byte against `tests/golden/` (`SKYFIX_WRITE_GOLDEN=1` to
+regenerate after a deliberate change, then read the diff).
