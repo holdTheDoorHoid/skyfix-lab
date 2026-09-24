@@ -317,7 +317,7 @@ fn edge_point(
         let change = (nx - xi).abs() + (ny - eta).abs();
         xi = nx;
         eta = ny;
-        if change < 1e-13 {
+        if change < 1e-11 {
             break;
         }
     }
@@ -355,17 +355,33 @@ fn limit_residual(
 ///
 /// The unknown is the observer's height `zeta`: for each trial height `edge_point`
 /// gives the edge point, the Earth's surface gives that point's actual height, and
-/// the two must agree. That residual falls with `zeta` at a slope close to -1, so it
-/// is bracketed (first near the estimate from `zeta = 0`, else on the whole of
-/// `[0, 1]`) and solved by Brent. A plain fixed-point iteration on all three
-/// coordinates diverges near the horizon, where the surface height changes infinitely
-/// fast across the Earth's limb, and would cut the limits short. Near the horizon the
-/// residual can also have two roots; this returns the upper one (see `fold_extension`).
+/// the two must agree. Away from the horizon that residual falls with `zeta` at a slope
+/// close to -1, so the estimate from `zeta = 0` is bracketed tightly and solved by
+/// Brent. Near the horizon it can rise, then fall: the edge point moves with the trial
+/// height (for the penumbra by some 70 km per 0.04 of it), so it can start off the disc
+/// and come onto it. There the residual is scanned down from `zeta = 1` and the
+/// *upper* root taken, which continues the limit from higher in the sky; the lower
+/// root belongs to the branch `fold_extension` follows to the horizon. (A plain
+/// fixed-point iteration on all three coordinates diverges near the horizon, where the
+/// surface height changes infinitely fast across the Earth's limb.)
 pub(crate) fn limit_point(
     el: &SolarElements,
     t: f64,
     cone: Cone,
     north: bool,
+) -> Option<(Vec3, f64)> {
+    limit_point_near(el, t, cone, north, None)
+}
+
+/// `limit_point` warm-started from the height `hint` found at a nearby instant: when
+/// the residual changes sign within 0.015 of it (non-negative below, non-positive
+/// above), the root there is the upper one and no scan is needed.
+fn limit_point_near(
+    el: &SolarElements,
+    t: f64,
+    cone: Cone,
+    north: bool,
+    hint: Option<f64>,
 ) -> Option<(Vec3, f64)> {
     let e = el.at(t);
     let r = el.rates(t);
@@ -385,25 +401,54 @@ pub(crate) fn limit_point(
             }
         }
     };
-    // Where is the residual positive? At zeta = 0 in general; just above it when the
-    // limit is folding back near the horizon.
-    let mut lo = None;
-    for z in [0.0, 0.002, 0.005, 0.01, 0.02, 0.04] {
-        let g = residual(z);
-        if g >= 0.0 {
-            lo = Some((z, g));
-            break;
+    let top = 1.0 + 1e-9;
+    if let Some(h) = hint {
+        let (a, b) = ((h - 0.015).max(0.0), (h + 0.015).min(top));
+        if residual(a) >= 0.0
+            && residual(b) <= 0.0
+            && let Some(zeta) = root(&mut residual, a, b, 1e-11)
+            && let Some((xi, eta)) = edge_point(&e, &r, cone, north, zeta, (e.x, e.y))
+        {
+            return Some(match f.surface_point(xi, eta) {
+                Some((p, z, _)) => (p, z),
+                None => limb_point(&f, xi, eta),
+            });
         }
     }
-    let (z0, g0) = lo?;
-    let guess = (z0 + g0).min(1.0);
-    let (a, b) = ((guess - 0.02).max(z0), (guess + 0.02).min(1.0 + 1e-9));
-    let (ga, gb) = (residual(a), residual(b));
-    let zeta = if ga >= 0.0 && gb <= 0.0 {
-        root(&mut residual, a, b, 1e-11)?
-    } else {
-        root(&mut residual, z0, 1.0 + 1e-9, 1e-11)?
-    };
+    let g0 = residual(0.0);
+    // Far off the disc no height can help: the edge point moves by at most about
+    // 0.5 Earth radii over the whole range of heights (`L * dQ/dzeta`, with `L` at most
+    // 0.56 and `dQ/dzeta` the Earth's rotation over the shadow's relative speed).
+    if g0.is_nan() || g0 <= -0.6 {
+        return None;
+    }
+    let mut zeta = None;
+    if g0 >= 0.0 {
+        let guess = g0.min(1.0);
+        let (a, b) = ((guess - 0.02).max(0.0), (guess + 0.02).min(top));
+        if residual(a) >= 0.0 && residual(b) <= 0.0 {
+            zeta = root(&mut residual, a, b, 1e-11);
+        }
+    }
+    if zeta.is_none() {
+        // Down from the top to the first height where the residual is not negative. A
+        // band narrower than the spacing only occurs right at a fold, where
+        // `fold_extension` takes over.
+        const LEVELS: [f64; 26] = [
+            1.0, 0.9, 0.8, 0.7, 0.6, 0.5, 0.42, 0.35, 0.29, 0.24, 0.2, 0.165, 0.135, 0.11, 0.09,
+            0.073, 0.059, 0.047, 0.037, 0.029, 0.022, 0.016, 0.011, 0.007, 0.0035, 0.0,
+        ];
+        let mut above = top;
+        for &z in &LEVELS[1..] {
+            let g = residual(z);
+            if g >= 0.0 {
+                zeta = root(&mut residual, z, above, 1e-11);
+                break;
+            }
+            above = z;
+        }
+    }
+    let zeta = zeta?;
     let (xi, eta) = edge_point(&e, &r, cone, north, zeta, start)?;
     match f.surface_point(xi, eta) {
         Some((p, z, _)) => Some((p, z)),
@@ -413,30 +458,47 @@ pub(crate) fn limit_point(
 
 /// Close the gap between a limit's last solvable instant and the horizon.
 ///
-/// Near the horizon the time of the grazing maximum can fold back: the limit's point,
-/// followed in time, stops at a height `zeta_f > 0` (the Sun a fraction of a degree up)
-/// and a second branch runs from there to the horizon while the time retreats by
-/// milliseconds. That branch is parametrised by height instead: for heights from
-/// `zeta_f` down to 0, the instant within a second of the fold where the residual
-/// changes sign. Returned from the fold toward the horizon.
+/// Near the horizon the time of the grazing maximum folds back: followed in time, the
+/// limit's point stops at a height `zeta_f > 0` (the Sun a fraction of a degree up for
+/// the umbra, several degrees for the penumbra) and a second branch runs from there to
+/// the horizon while the time retreats (70 ms for the southern umbral limit of
+/// 2024-04-08, tens of seconds for a penumbral limit). That branch is parametrised by
+/// height instead: for heights from `zeta_f` down to 0, the instant nearest the fold,
+/// on the side where the run exists (`into_run` is +1 after the fold, -1 before it),
+/// where the residual turns positive. Returned from the fold toward the horizon.
 fn fold_extension(
     el: &SolarElements,
     cone: Cone,
     north: bool,
     fold: &Vertex,
     zeta_f: f64,
+    into_run: f64,
 ) -> Vec<Vertex> {
     let mut out = Vec::new();
     if zeta_f < 1e-6 {
         return out;
     }
-    let span = 1.0 / 3600.0;
-    let (a, b) = ((fold.t - span).max(el.t_lo), (fold.t + span).min(el.t_hi));
-    let steps = 24;
+    let steps = 32;
     for k in 1..=steps {
         let zeta = zeta_f * (1.0 - f64::from(k) / f64::from(steps));
         let g = |t: f64| limit_residual(el, t, cone, north, zeta).0;
-        let Some(t) = root(g, a, b, 1e-12) else {
+        // Step away from the fold, doubling, until the residual turns non-negative.
+        let (mut prev, mut dt) = (fold.t, 0.5 / 3600.0);
+        let mut bracket = None;
+        while dt < 0.5 {
+            let t = fold.t + into_run * dt;
+            if t < el.t_lo || t > el.t_hi {
+                break;
+            }
+            if g(t) >= 0.0 {
+                bracket = Some((prev, t));
+                break;
+            }
+            prev = t;
+            dt *= 2.0;
+        }
+        let Some((a, b)) = bracket else { continue };
+        let Some(t) = root(g, a.min(b), a.max(b), 1e-9) else {
             continue;
         };
         let e = el.at(t);
@@ -485,10 +547,23 @@ pub(crate) fn limit_line(el: &SolarElements, g: &SolarGlobal, cone: Cone, north:
         return Polyline::default();
     };
     let pad = 2.0 * STEP_H;
-    let runs = trace(
-        |t| limit_point(el, t, cone, north).map(|(p, _)| surface_latlon(p)),
+    // The trace visits neighbouring instants in turn: start each from the last height.
+    // The penumbral limits are smooth and long: sampled every four minutes before the
+    // refinement, not two.
+    let hint = std::cell::Cell::new(None);
+    let step = match cone {
+        Cone::Penumbra => 2.0 * STEP_H,
+        Cone::Umbra => STEP_H,
+    };
+    let runs = trace_step(
+        |t| {
+            let found = limit_point_near(el, t, cone, north, hint.get());
+            hint.set(found.map(|(_, z)| z));
+            found.map(|(p, _)| surface_latlon(p))
+        },
         (a - pad).max(el.t_lo),
         (b + pad).min(el.t_hi),
+        step,
     );
     // Carry each end that stops short of the horizon on to it.
     let zeta_at = |v: &Vertex| limit_point(el, v.t, cone, north).map_or(0.0, |(_, z)| z);
@@ -496,9 +571,9 @@ pub(crate) fn limit_line(el: &SolarElements, g: &SolarGlobal, cone: Cone, north:
         .into_iter()
         .map(|run| {
             let (first, last) = (run[0], run[run.len() - 1]);
-            let mut head = fold_extension(el, cone, north, &first, zeta_at(&first));
+            let mut head = fold_extension(el, cone, north, &first, zeta_at(&first), 1.0);
             head.reverse();
-            let tail = fold_extension(el, cone, north, &last, zeta_at(&last));
+            let tail = fold_extension(el, cone, north, &last, zeta_at(&last), -1.0);
             head.into_iter().chain(run).chain(tail).collect()
         })
         .collect();
@@ -614,16 +689,17 @@ pub(crate) fn horizon_curves(el: &SolarElements, g: &SolarGlobal, cone: Cone) ->
         let v = point_of(t, if left { hi } else { lo });
         Some((v.lat, v.lon))
     };
-    // The penumbra straddles the limb for tens of minutes at a time; the umbra only
-    // for a minute or two just after it first touches the Earth and just before it
-    // leaves, so those two windows are sampled every five seconds.
+    // The penumbra straddles the limb for tens of minutes at a time (sampled every four
+    // minutes before refinement); the umbra only for a minute or two just after it
+    // first touches the Earth and just before it leaves, so those two windows are
+    // sampled every ten seconds.
     let windows: Vec<(f64, f64, f64)> = match cone {
         Cone::Penumbra => {
             let pad = 2.0 * STEP_H;
-            vec![((a - pad).max(el.t_lo), (b + pad).min(el.t_hi), STEP_H)]
+            vec![((a - pad).max(el.t_lo), (b + pad).min(el.t_hi), 2.0 * STEP_H)]
         }
         Cone::Umbra => {
-            let (w, step) = (20.0 / 60.0, 5.0 / 3600.0);
+            let (w, step) = (10.0 / 60.0, 10.0 / 3600.0);
             if b - a > 2.0 * w {
                 vec![
                     ((a - step).max(el.t_lo), a + w, step),

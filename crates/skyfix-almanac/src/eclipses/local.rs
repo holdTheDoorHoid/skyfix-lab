@@ -23,7 +23,7 @@ use skyfix_ephemeris::moon::MoonProvider;
 use skyfix_ephemeris::sun::SunProvider;
 use skyfix_ephemeris::topocentric::{Horizontal, Site, WGS84_A_KM, horizontal};
 
-use super::bessel::{Elements, Frame, SolarElements, Vec3, observer_rates};
+use super::bessel::{Frame, SolarElements, Vec3};
 use super::cheb::{root, scan_minimum};
 use super::lunar::{LunarElements, LunarGlobal};
 use super::solar::T_TOL_H;
@@ -125,8 +125,6 @@ pub fn obscuration(rs: f64, rm: f64, dist: f64) -> f64 {
 /// The observer against the shadow at one instant.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct ObserverState {
-    pub e: Elements,
-    pub q: Vec3,
     /// Axis minus observer on the fundamental plane.
     pub u: f64,
     pub v: f64,
@@ -160,22 +158,12 @@ pub(crate) fn observer_state(el: &SolarElements, p: Vec3, t: f64) -> ObserverSta
     let q = Frame::new(e.d, e.mu).project(p);
     let (u, v) = (e.x - q[0], e.y - q[1]);
     ObserverState {
-        e,
-        q,
         u,
         v,
         delta: u.hypot(v),
         l1: e.l1 - q[2] * e.tan_f1,
         l2: e.l2 - q[2] * e.tan_f2,
     }
-}
-
-/// `d/dt (u^2 + v^2) / 2` for the observer.
-fn approach_rate(el: &SolarElements, p: Vec3, t: f64) -> f64 {
-    let s = observer_state(el, p, t);
-    let r = el.rates(t);
-    let qd = observer_rates(s.q, &s.e, &r);
-    s.u * (r.x - qd[0]) + s.v * (r.y - qd[1])
 }
 
 /// Earth-fixed position of a site in Earth equatorial radii.
@@ -331,22 +319,24 @@ pub(crate) struct SolarContacts {
     pub c4: Option<f64>,
 }
 
+/// Contacts and maximum for an observer at Earth-fixed `p`.
+///
+/// Maximum eclipse is the greatest magnitude, `(L1 - D) / (L1 + L2)`: the least angular
+/// separation of the limbs as the observer sees them. The least distance `D` from the
+/// shadow axis on the fundamental plane, which classical treatments also use, is the
+/// same instant when the Sun is high but not when it is low: there the observer's
+/// height above the plane, and with it the apparent size of the whole configuration,
+/// changes quickly (7 s apart at Honolulu with the Sun 5 degrees up in 2017).
 pub(crate) fn solar_contacts(el: &SolarElements, p: Vec3) -> SolarContacts {
     let (lo, hi) = (el.t_lo, el.t_hi);
     let steps = ((hi - lo) * 6.0).ceil().max(12.0) as usize;
-    let d2 = |t: f64| {
-        let s = observer_state(el, p, t);
-        s.u * s.u + s.v * s.v
-    };
-    let (t0, _) = scan_minimum(d2, lo, hi, steps, T_TOL_H);
-    let h = (hi - lo) / steps as f64;
-    let t_max = root(
-        |t| approach_rate(el, p, t),
-        (t0 - h).max(lo),
-        (t0 + h).min(hi),
+    let (t_max, _) = scan_minimum(
+        |t| -observer_state(el, p, t).magnitude(),
+        lo,
+        hi,
+        steps,
         T_TOL_H,
-    )
-    .unwrap_or(t0);
+    );
     let max = observer_state(el, p, t_max);
     let mut c = SolarContacts {
         t_max,

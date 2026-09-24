@@ -362,6 +362,98 @@ mod tests {
         assert!(worst_l < 1e-10, "l1, l2 interpolation error {worst_l:e}");
     }
 
+    /// NASA's polynomial Besselian elements (`fixtures/reference/eclipses_nasa_paths.json`,
+    /// six eclipses, 2017-2026) against ours at the same Dynamical Time, across each
+    /// table's six-hour validity window. NASA's `mu` is the ephemeris hour angle, ahead
+    /// of the Greenwich hour angle by `1.00273781 * 15 deg/h * Delta-T`; ours is
+    /// computed with the page's Delta-T (through DUT1) and converted.
+    #[test]
+    fn elements_match_nasas_polynomials() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../fixtures/reference/eclipses_nasa_paths.json");
+        let v: serde_json::Value =
+            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        let deg_per_s = 1.002_737_811_911_354_5 * 360.0 / 86_400.0;
+        let poly = |c: &serde_json::Value, t: f64| {
+            c.as_array()
+                .unwrap()
+                .iter()
+                .enumerate()
+                .map(|(n, a)| a.as_f64().unwrap() * t.powi(n as i32))
+                .sum::<f64>()
+        };
+        let mut worst = [0.0f64; 5];
+        let mut n = 0;
+        for e in v["eclipses"].as_array().unwrap() {
+            let mut worst_xy = 0.0f64;
+            let b = &e["besselian"];
+            let dt = b["delta_t_s"].as_f64().unwrap();
+            let (sun, moon) = (
+                SunProvider::with_dut1_s(69.184 - dt),
+                MoonProvider::with_dut1_s(69.184 - dt),
+            );
+            // Most pages use our k1 = 0.272488; the 2017 page used 0.272508. The radius
+            // enters l1 and l2 as `k sec f`, so compare at the page's own values.
+            let (k1, k2) = (b["k1"].as_f64().unwrap(), b["k2"].as_f64().unwrap());
+            let c = &b["coefficients"];
+            for step in -6..=6 {
+                let t = 0.5 * f64::from(step);
+                let jd_tt = b["jd_tdt_t0"].as_f64().unwrap() + t / 24.0;
+                // Every table here is after 2017-01-01: TT - UTC = 69.184 s.
+                let jd_utc = jd_tt - 69.184 / 86_400.0;
+                let ours = elements_from(
+                    &sun.position(jd_utc).unwrap(),
+                    &moon.position(jd_utc).unwrap(),
+                );
+                let mu_eph = ours.mu.to_degrees() + deg_per_s * dt;
+                let dmu = (mu_eph - poly(&c["mu"], t) + 540.0).rem_euclid(360.0) - 180.0;
+                let errs = [
+                    (ours.x - poly(&c["x"], t))
+                        .abs()
+                        .max((ours.y - poly(&c["y"], t)).abs()),
+                    (ours.d.to_degrees() - poly(&c["d"], t)).abs(),
+                    dmu.abs(),
+                    (ours.l1 + (k1 - K_PENUMBRA) * ours.tan_f1.hypot(1.0) - poly(&c["l1"], t))
+                        .abs()
+                        .max(
+                            (ours.l2 - (k2 - K_UMBRA) * ours.tan_f2.hypot(1.0) - poly(&c["l2"], t))
+                                .abs(),
+                        ),
+                    (ours.tan_f1 - b["tan_f1"].as_f64().unwrap())
+                        .abs()
+                        .max((ours.tan_f2 - b["tan_f2"].as_f64().unwrap()).abs()),
+                ];
+                worst_xy = worst_xy.max(errs[0]);
+                for (w, e) in worst.iter_mut().zip(errs) {
+                    *w = w.max(e);
+                }
+                n += 1;
+            }
+            println!("{}: x, y within {worst_xy:.2e} Earth radii", e["id"]);
+        }
+        println!(
+            "{n} instants: x, y {:.2e} Earth radii; d {:.2e} deg; mu {:.2e} deg; l1, l2 {:.2e}; tan f {:.1e}",
+            worst[0], worst[1], worst[2], worst[3], worst[4]
+        );
+        // Measured: x, y 9.7e-5 Earth radii (620 m; the shadow covers that in 0.7 s),
+        // d 2.5e-5 deg, mu 4.2e-5 deg, l1 and l2 1.5e-6, tan f 2.1e-7. NASA's lunar
+        // theory is ELP-2000/85 where ours is ELP 2000-82B, and its tables are cubic
+        // least-squares fits printed to six decimals.
+        assert!(worst[0] < 1.2e-4, "x, y {}", worst[0]);
+        assert!(
+            worst[1] < 5e-5 && worst[2] < 1e-4,
+            "d {} mu {}",
+            worst[1],
+            worst[2]
+        );
+        assert!(
+            worst[3] < 5e-6 && worst[4] < 5e-7,
+            "l {} tan f {}",
+            worst[3],
+            worst[4]
+        );
+    }
+
     #[test]
     fn frame_is_orthonormal_and_surface_points_lie_on_the_ellipsoid() {
         let f = Frame::new(0.3, 1.2);
