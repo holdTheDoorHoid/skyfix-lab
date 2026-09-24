@@ -140,6 +140,8 @@ pub mod native {
         /// the group offered for sights.
         pub validated: bool,
         pub notes: String,
+        /// Canonical names of the bodies this group covers.
+        pub bodies: Vec<String>,
     }
 
     /// `explorer_coverage` result.
@@ -163,6 +165,7 @@ pub mod native {
             accuracy_arcmin: a.is_finite().then_some(a),
             validated: a.is_finite() && a <= VALIDATED_ACCURACY_ARCMIN,
             notes: c.notes,
+            bodies: c.bodies,
         }
     }
 
@@ -484,6 +487,17 @@ mod tests {
         let sun = &c.groups[0];
         assert!(sun.validated && sun.accuracy_arcmin == Some(0.01));
         assert!(c.groups[3].validated);
+        // Each group names its bodies; together they are exactly explorer_bodies().
+        assert_eq!(sun.bodies, vec!["Sun"]);
+        assert_eq!(c.groups[1].bodies, vec!["Moon"]);
+        assert_eq!(c.groups[2].bodies.len(), 7);
+        assert_eq!(c.groups[3].bodies.len(), 58);
+        let mut all: Vec<String> = c.groups.iter().flat_map(|g| g.bodies.clone()).collect();
+        let mut listed: Vec<String> = explorer_bodies().into_iter().map(|b| b.body).collect();
+        all.sort();
+        listed.sort();
+        assert_eq!(all, listed);
+        assert!(v["groups"][3]["bodies"].is_array());
         // The stubs: no accuracy (null on the wire, not Infinity), not validated.
         let moon = &v["groups"][1];
         if moon["provider"]
