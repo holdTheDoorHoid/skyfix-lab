@@ -341,7 +341,7 @@ pub fn single_sight() -> Scenario {
     s.description = "\
 One sight of one star. Measuring how high a star stands tells you that you are somewhere \
 on a circle drawn on the Earth, centred under that star: it does not tell you where on \
-that circle. The circle here is about 2 700 nautical miles across. \
+that circle. The circle here has a radius of about 2 700 nautical miles. \
 Look at: the result is reported as UNDERDETERMINED, with the circle returned and no \
 position. That is the correct answer, and it is the point of the demo. A tool that \
 offers a latitude and longitude here, perhaps by quietly using the assumed position to \

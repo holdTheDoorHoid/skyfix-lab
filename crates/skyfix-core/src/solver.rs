@@ -92,6 +92,16 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
 
     let n_params = if options.estimate_shared_bias { 3 } else { 2 };
 
+    if usable.is_empty() {
+        // No circle either: promising one that is not there would be its own small lie.
+        return underdetermined(
+            circles,
+            "no usable sights: there is nothing to solve, and not even a circle of position \
+             to report"
+                .to_string(),
+            warnings,
+        );
+    }
     if usable.len() < 2 {
         return underdetermined(
             circles,
