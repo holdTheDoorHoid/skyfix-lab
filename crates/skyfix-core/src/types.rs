@@ -626,3 +626,210 @@ mod tests {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// Moon and planet sights: predicted sextant readings, lunar distances and the
+// twilight sight plan (navigation-Moon agent, wave 2; docs/NAVIGATION_SKY.md).
+// Wire formats: docs/EXPLORER_API.md, "Wave 2 — Moon and planet sights".
+// ---------------------------------------------------------------------------
+
+/// A navigator's position and what the correction chain needs to know about the eye
+/// and the air (CONVENTIONS section 5). Longitude east-positive.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct SightObserver {
+    pub lat_deg: f64,
+    pub lon_deg: f64,
+    #[serde(default)]
+    pub height_of_eye_m: f64,
+    #[serde(default = "default_pressure_hpa")]
+    pub pressure_hpa: f64,
+    #[serde(default = "default_temperature_c")]
+    pub temperature_c: f64,
+}
+
+/// What a sextant would read for one body from one place at one instant: the
+/// correction chain run in reverse from the computed altitude (CONVENTIONS sections 3
+/// and 5). Reducing `hs_deg` with the same observer and instrument gives back `hc_deg`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PredictedSight {
+    pub body: String,
+    pub jd_utc: f64,
+    pub utc: String,
+    pub limb: Limb,
+    pub horizon: HorizonMode,
+    /// `"supplied"` or the provider that gave the direction.
+    pub direction_source: String,
+    pub gha_deg: f64,
+    pub dec_deg: f64,
+    pub semidiameter_arcmin: f64,
+    pub horizontal_parallax_arcmin: f64,
+    /// Computed altitude and true azimuth at the observer (section 3).
+    pub hc_deg: f64,
+    pub zn_deg: f64,
+    /// The sextant reading: the double angle with a reflected artificial horizon.
+    pub hs_deg: f64,
+    /// Apparent altitude after index correction and dip (or halving).
+    pub ha_deg: f64,
+    /// The forward chain from `hs_deg`: every correction, landing on `hc_deg`.
+    pub corrections: CorrectionBreakdown,
+    pub warnings: Vec<Warning>,
+}
+
+/// Which edge of a disc a lunar distance was measured to.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LunarLimb {
+    /// The edge nearest the other body (the usual choice: the Moon's bright limb when
+    /// it faces the body, the Sun's near limb).
+    #[default]
+    Near,
+    /// The edge farthest from the other body.
+    Far,
+    /// The centre: a star, or a planet's centre of light.
+    Center,
+}
+
+/// An altitude observed at the moment of a lunar distance.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct LunarAltitudeObservation {
+    pub altitude_deg: f64,
+    /// `sextant_hs` (default) or `apparent_ha`.
+    #[serde(default)]
+    pub altitude_kind: AltitudeKind,
+    /// Lower, upper or centre (default centre).
+    #[serde(default)]
+    pub limb: Limb,
+    /// 1-sigma of the altitude, arcminutes (default 1').
+    #[serde(default = "default_sigma_arcmin")]
+    pub sigma_arcmin: f64,
+}
+
+/// A lunar distance to clear (CONVENTIONS section 5 and docs/NAVIGATION_SKY.md).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LunarDistanceInput {
+    /// Dead-reckoning position, height of eye, pressure and temperature.
+    pub observer: SightObserver,
+    /// Index correction (applied to the distance and to any altitude) and the horizon
+    /// the altitudes were taken to.
+    #[serde(default)]
+    pub instrument: Instrument,
+    /// The Sun, a navigational star or planet. Not the Moon.
+    pub body: String,
+    /// The watch's UTC for the moment of the distance (RFC 3339 `Z`); the search is
+    /// centred on it.
+    pub utc_estimate: String,
+    /// The sextant reading of the distance, degrees (the index correction is added).
+    pub distance_deg: f64,
+    /// Which limb of the Moon (default `near`).
+    #[serde(default)]
+    pub moon_limb: LunarLimb,
+    /// Which limb of the body: default `near` for the Sun, `center` otherwise.
+    #[serde(default)]
+    pub body_limb: Option<LunarLimb>,
+    /// Observed altitudes. When absent, they are computed from the DR position at every
+    /// trial instant.
+    #[serde(default)]
+    pub moon_altitude: Option<LunarAltitudeObservation>,
+    #[serde(default)]
+    pub body_altitude: Option<LunarAltitudeObservation>,
+    /// 1-sigma of the distance measurement, arcminutes (default 0.2').
+    #[serde(default = "default_lunar_sigma_arcmin")]
+    pub sigma_arcmin: f64,
+    /// Half-width of the search window around `utc_estimate`, hours (default 12).
+    #[serde(default = "default_lunar_search_hours")]
+    pub search_hours: f64,
+    /// 1-sigma of the DR position, nautical miles (default 0: reported, not added).
+    #[serde(default)]
+    pub dr_uncertainty_nm: f64,
+}
+
+fn default_lunar_sigma_arcmin() -> f64 {
+    0.2
+}
+fn default_lunar_search_hours() -> f64 {
+    12.0
+}
+
+/// One step of clearing the distance, in the order it is applied.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LunarClearingStep {
+    /// `index_correction`, `moon_semidiameter`, `body_semidiameter`, `refraction`,
+    /// `parallax`.
+    pub kind: String,
+    pub before_deg: f64,
+    pub after_deg: f64,
+    pub delta_arcmin: f64,
+    pub note: String,
+}
+
+/// The altitudes the clearing used, at the instant found.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LunarAltitudes {
+    /// `"observed"` or `"computed"` (from the DR position), per body.
+    pub moon_source: String,
+    pub body_source: String,
+    /// Apparent (refracted) altitude of each centre, degrees.
+    pub moon_apparent_deg: f64,
+    pub body_apparent_deg: f64,
+    /// Airless topocentric altitude of each centre, degrees.
+    pub moon_true_deg: f64,
+    pub body_true_deg: f64,
+    /// Azimuths from the DR position, degrees.
+    pub moon_azimuth_deg: f64,
+    pub body_azimuth_deg: f64,
+    /// Altitudes computed from the DR position at the instant found, for comparison
+    /// with observed ones (apparent, degrees).
+    pub moon_computed_apparent_deg: f64,
+    pub body_computed_apparent_deg: f64,
+}
+
+/// One term of the time's error budget.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LunarErrorTerm {
+    pub name: String,
+    /// 1-sigma, arcminutes of distance.
+    pub distance_arcmin: f64,
+    /// The same in seconds of time.
+    pub time_s: f64,
+}
+
+/// Another instant in the window at which the distance takes the same value.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LunarAlternative {
+    pub jd_utc: f64,
+    pub utc: String,
+}
+
+/// The UTC a lunar distance gives, with its honest uncertainty.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LunarDistanceResult {
+    pub body: String,
+    /// The instant at which the cleared distance equals the geocentric distance.
+    pub jd_utc: f64,
+    pub utc: String,
+    /// Found UTC minus the watch's estimate, seconds: the correction to add to the watch.
+    pub utc_minus_estimate_s: f64,
+    /// 1-sigma of the UTC, seconds.
+    pub sigma_s: f64,
+    /// Longitude uncertainty that time uncertainty implies, arcminutes of longitude
+    /// (15' per minute of time) and nautical miles at the DR latitude.
+    pub longitude_sigma_arcmin: f64,
+    pub longitude_sigma_nm: f64,
+    /// The measured distance with the index correction and the semidiameters applied:
+    /// apparent distance between the centres, degrees.
+    pub apparent_distance_deg: f64,
+    /// The cleared (geocentric) distance, degrees.
+    pub cleared_distance_deg: f64,
+    /// How fast the geocentric distance changes there, arcminutes per minute of time.
+    pub distance_rate_arcmin_per_min: f64,
+    pub clearing: Vec<LunarClearingStep>,
+    pub altitudes: LunarAltitudes,
+    /// 1-sigma terms combined in quadrature into `sigma_s`.
+    pub error_budget: Vec<LunarErrorTerm>,
+    /// How much the cleared distance moves per 10 NM of DR error north and east,
+    /// arcminutes (the DR enters through the altitudes and azimuths).
+    pub dr_sensitivity_arcmin_per_10nm: [f64; 2],
+    pub alternatives: Vec<LunarAlternative>,
+    pub warnings: Vec<Warning>,
+    pub notes: Vec<String>,
+}
