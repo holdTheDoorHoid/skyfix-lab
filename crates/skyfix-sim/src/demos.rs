@@ -1,7 +1,8 @@
 //! The packaged demo scenarios.
 //!
 //! The brief asks for six demonstrations. Two of them are a pair of scenarios that only
-//! differ in one respect, so there are nine scenario functions:
+//! differ in one respect, and demo 1 has two extra variants, so there are ten scenario
+//! functions:
 //!
 //! | # | demonstration | scenarios |
 //! |---|---|---|
@@ -11,6 +12,10 @@
 //! | 4 | a shared clock offset moving the recovered position | [`clock_offset`] |
 //! | 5 | a shared altitude bias that averaging cannot remove | [`shared_bias`] |
 //! | 6 | one sight, and the two-sight ambiguity | [`single_sight`], [`two_sight_ambiguous`] |
+//!
+//! [`philadelphia_stars_sextant`] is demo 1 again with raw sextant readings instead of
+//! corrected altitudes, so the packaged set exercises the correction chain end to end.
+//! [`all`] returns the eight that need no astronomy provider, in demo order.
 //!
 //! Every scenario here has a fixed seed, so a demo always produces the same numbers.
 //!

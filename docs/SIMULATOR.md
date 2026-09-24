@@ -333,8 +333,10 @@ not the textbook values for azimuths of exactly 45, 95 and 145 degrees):
 | predicted radial 1-sigma | 230.95 m |
 | error / predicted sigma | **30.4** |
 
-Expected coverage: near zero. Expected residual RMS: around 0.65 arcmin, which is close
-enough to the 0.3 arcmin noise that nothing in the output looks wrong.
+Expected coverage: near zero. Expected residual RMS: the bias alone leaves 0.689 arcmin
+(worst residual 0.788 arcmin); with the 0.3 arcmin noise on top, about 0.75 arcmin. That
+is close enough to the noise that nothing in the output looks wrong, which is the whole
+point: the fix is 7 km out and the diagnostics are clean.
 
 The three azimuths are deliberately lopsided. Three azimuths exactly 120 degrees apart
 would absorb a shared bias entirely into the residuals and leave the position untouched;
@@ -404,7 +406,8 @@ What this crate's tests *do* establish, on their own:
 
 ## 8. The packaged demos
 
-Six demonstrations, as nine scenarios. Each carries a `description` written for someone
+Six demonstrations, as ten scenario functions (eight of which need no astronomy
+provider). Each carries a `description` written for someone
 who does not read Rust, saying what it shows and what to look at.
 
 | # | scenario | shows |
