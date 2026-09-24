@@ -415,7 +415,7 @@ fn lunar_here(l: &LunarLocal) -> String {
         Visibility::BelowHorizon => {
             format!("not seen: the Moon is below the horizon throughout; {at_max}")
         }
-        Visibility::None => "no eclipse here".to_string(),
+        Visibility::None => "no eclipse".to_string(),
     }
 }
 
