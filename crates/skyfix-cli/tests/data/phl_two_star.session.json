@@ -1,0 +1,62 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Philadelphia two-star, ambiguous",
+    "notes": "Two circles of position cross in two places and nothing here chooses between them. No assumed position on purpose: a prior would hide the ambiguity rather than resolve it.",
+    "kind": "simulated"
+  },
+  "observer": {
+    "height_of_eye_m": 0.0,
+    "pressure_hpa": 1010.0,
+    "temperature_c": 10.0,
+    "assumed_position": null,
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "",
+    "index_correction_arcmin": 0.0,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "obs-1",
+      "body": "Schedar",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 51.978992567696,
+      "altitude_kind": "observed_ho",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 21.787119435401,
+        "dec_deg": 56.68605620173,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    },
+    {
+      "id": "obs-2",
+      "body": "Markab",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 54.498881522784,
+      "altitude_kind": "observed_ho",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 45.776047037725,
+        "dec_deg": 15.352700536446,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    }
+  ]
+}

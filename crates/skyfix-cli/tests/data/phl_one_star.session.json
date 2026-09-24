@@ -1,0 +1,45 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Philadelphia one-star, underdetermined",
+    "notes": "One altitude is a circle of position, not a point.",
+    "kind": "simulated"
+  },
+  "observer": {
+    "height_of_eye_m": 0.0,
+    "pressure_hpa": 1010.0,
+    "temperature_c": 10.0,
+    "assumed_position": null,
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "",
+    "index_correction_arcmin": 0.0,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "obs-1",
+      "body": "Vega",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 61.072469044209,
+      "altitude_kind": "observed_ho",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 112.844023232568,
+        "dec_deg": 38.812938149832,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    }
+  ]
+}

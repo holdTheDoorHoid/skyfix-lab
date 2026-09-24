@@ -1,34 +1,102 @@
 //! `skyfix` command-line interface. OWNER: cli agent.
-use clap::{Parser, Subcommand};
+//!
+//! Results go to stdout, diagnostics to stderr, and the exit code says what happened:
+//!
+//! | code | meaning |
+//! |---|---|
+//! | 0 | everything asked for was done |
+//! | 1 | usage, unreadable file, parse or validation error |
+//! | 2 | one or more sights rejected; the rest were still printed |
+//! | 3 | the solve failed, or `--require-unique` and the result was not unique |
+//! | 4 | the subcommand is not wired up in this build |
+//!
+//! Clap's own usage errors exit 2 by default, which would collide with "some sights
+//! were rejected", so the parse is done by hand here and mapped onto code 1.
 
-#[derive(Parser)]
-#[command(
-    name = "skyfix",
-    version,
-    about = "Offline celestial-navigation workbench"
-)]
-struct Cli {
-    #[command(subcommand)]
-    command: Command,
+mod cli;
+mod commands;
+mod exit;
+mod input;
+mod provider;
+mod report;
+
+use std::process::ExitCode;
+
+use clap::Parser;
+use clap::error::ErrorKind;
+
+use cli::{Cli, Command};
+use commands::reduce::Output;
+
+fn main() -> ExitCode {
+    let parsed = match Cli::try_parse() {
+        Ok(c) => c,
+        Err(e) => {
+            // `--help` and `--version` arrive here as "errors"; they are successes, and
+            // clap prints them to stdout. Everything else is a usage error: code 1.
+            let code = match e.kind() {
+                ErrorKind::DisplayHelp
+                | ErrorKind::DisplayVersion
+                | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand => exit::OK,
+                _ => exit::USAGE,
+            };
+            let _ = e.print();
+            return ExitCode::from(code);
+        }
+    };
+
+    match dispatch(parsed) {
+        Ok(code) => ExitCode::from(code),
+        Err(e) => {
+            eprintln!("error: {e:#}");
+            ExitCode::from(exit::USAGE)
+        }
+    }
 }
 
-#[derive(Subcommand)]
-enum Command {
-    /// Reduce a session: corrections, Hc, Zn and intercepts at the assumed position.
-    Reduce,
-    /// Solve a position fix from a session.
-    Solve,
-    /// Generate a simulated session (truth written separately).
-    Simulate,
-    /// Validate a session or fixture file.
-    Validate,
-    /// Rank bodies for an upcoming observation.
-    Plan,
-}
+fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
+    match parsed.command {
+        Command::Validate { file, json } => commands::validate::run(&file, json),
 
-fn main() -> anyhow::Result<()> {
-    let cli = Cli::parse();
-    match cli.command {
-        _ => anyhow::bail!("not implemented yet (skyfix-core {})", skyfix_core::VERSION),
+        Command::Reduce {
+            file,
+            ephemeris,
+            json,
+            csv,
+        } => {
+            let output = if json {
+                Output::Json
+            } else if csv {
+                Output::Csv
+            } else {
+                Output::Text
+            };
+            commands::reduce::run(&file, ephemeris, output)
+        }
+
+        Command::Solve {
+            file,
+            options,
+            json,
+            require_unique,
+        } => commands::solve::run(&file, &options.to_flags(json, require_unique)),
+
+        Command::Catalog { json } => commands::catalog::run_catalog(json),
+        Command::Coverage { json } => commands::catalog::run_coverage(json),
+        Command::Convert { input, output } => commands::convert::run(&input, &output),
+
+        Command::Simulate { .. } => {
+            commands::stubs::not_wired("simulate", "the skyfix-sim crate is not merged yet")
+        }
+        Command::Experiment { .. } => {
+            commands::stubs::not_wired("experiment", "the skyfix-sim crate is not merged yet")
+        }
+        Command::Demos { .. } => {
+            commands::stubs::not_wired("demos", "the skyfix-sim crate is not merged yet")
+        }
+        Command::Plan { .. } => commands::stubs::not_wired(
+            "plan",
+            "it needs the Sun provider and the planner, neither merged yet",
+        ),
     }
 }
