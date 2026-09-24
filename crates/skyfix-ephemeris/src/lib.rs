@@ -13,6 +13,7 @@ pub mod frames;
 pub mod sidereal;
 pub mod stars;
 pub mod sun;
+pub mod visibility;
 
 use skyfix_core::types::GeocentricDirection;
 
