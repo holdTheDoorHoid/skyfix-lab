@@ -31,4 +31,4 @@ jobs:
       - name: Offline smoke test (no network, no data downloads)
         run: |
           cargo build -p skyfix-cli --release
-          unshare -rn ./target/release/skyfix --help
+          sudo unshare -n ./target/release/skyfix --help
