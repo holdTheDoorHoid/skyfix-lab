@@ -545,6 +545,10 @@ mod tests {
         let exact_h = altitude(track.advance(p, reference, T0), -gp.lon, gp.lat);
         let naive_h = altitude(p, -naive.lon, naive.lat);
         let naive_err_m = rad_to_m((naive_h - exact_h).abs());
+        println!(
+            "reusing the run's north/east components at the GP: {naive_err_m:.0} m of \
+             altitude-equivalent error on a 30 NM run at 40 N"
+        );
         assert!(
             naive_err_m > 10_000.0,
             "the component shortcut should be tens of km wrong, was {naive_err_m} m"
