@@ -172,6 +172,7 @@ export interface EventOptions {
 export interface AltitudeCrossing {
   jd_utc: number;
   utc: string;
+  /** Geometric, like every `alt_deg`: the requested *apparent* altitude minus refraction. */
   alt_deg: number;
   az_deg: number;
   rising: boolean;

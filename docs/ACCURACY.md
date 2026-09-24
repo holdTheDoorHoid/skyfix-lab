@@ -839,3 +839,111 @@ tools/reference/.venv/bin/python -m tools.starfield.gen_fixtures  # Skyfield fix
 cargo test -p skyfix-starfield -- --nocapture
 cargo test --release -p skyfix-starfield --test timing -- --nocapture
 ```
+
+## 9. Events: rise, set, twilight, transits, seasons and Moon phases
+
+Owner: events agent (`crates/skyfix-almanac/src/{events,sky}.rs`). Definitions are
+CONVENTIONS 13.3 to 13.5; the targets are CONVENTIONS 13.7. Every number below is printed
+by the tests named with it (run them with `-- --nocapture`), against real providers for
+the Sun, Moon, planets and stars.
+
+### How events are found
+
+A body's apparent geocentric state is evaluated exactly at nodes 3 h apart (the Moon),
+4 h (planets) or 8 h (the Sun and stars) and interpolated between them with a 4-point
+Lagrange cubic; the topocentric step (Earth rotation, WGS84 parallax, refraction) is
+exact at every evaluation. The altitude is bracketed on a 10-minute grid, every
+altitude extremum is located and added to the brackets (so a body grazing its
+threshold for a minute is caught on both sides), and each crossing is refined with
+Brent's method to 1 ms.
+
+| check (test) | measured |
+|---|---|
+| interpolation vs exact, real Moon / Mercury / other planets / Sun and stars (`track_interpolation`) | 0.0054″ / 0.0011″ / ≤ 0.0007″ / < 0.00001″ |
+| event instants vs a dense (20 s) exact scan with linear interpolation, Sun / synthetic Moon (`events_logic`) | 0.021 s / 0.001 s |
+| event `alt_deg`/`az_deg` vs an exact `sky_state` at the same instant (`events_logic`) | 0.0012″ |
+| Sun grazing its rise/set altitude by 0.0003° (below it for 2.4 minutes) | both crossings found, within 0.01 s of a 1-s exact scan |
+
+### Against Skyfield + JPL DE440s, the same `h0` (target 10 s)
+
+`fixtures/reference/events_*.json`, from `tools/reference/gen_events.py`: Skyfield's
+topocentric unrefracted altitude of the body's centre, UT1 = UTC, `find_discrete` on a
+one-minute grid (IAU 2000B nutation for the searches; against 2000A it moves no event by
+more than 0.0023 s). Test: `events_reference`.
+
+| bodies | windows | events | worst | where |
+|---|---|---|---|---|
+| Sun: rise, set, transit, lower transit, civil/nautical/astronomical dawn and dusk; 34 sites × 21 dates, 1990–2060, 14 sites at 60–70° N and S | 714 | 6242 | **0.215 s** | set at Kiruna (67.9° N), 2017-01-01, a Sun that barely rises |
+| 10 stars × 12 sites × 6 dates | 720 | 2174 | **0.108 s** | Polaris setting at Quito, where it skims the horizon |
+| Moon, 20 sites × 21 dates | 420 | 1548 | **0.420 s** | set at Rothera (67.6° S) |
+| Mercury to Neptune, 10 sites × 6 dates | 420 | 1679 | **0.256 s** | Neptune rising at Casey (66.3° S) |
+
+In every window the sky-phase sequence, the day length (within 20 s), and the
+`always_above`/`always_below` classification (midnight sun, polar night, circumpolar
+stars) agree with the reference; no grazing pair was missing on either side. Transits
+agree to 0.011 s (Sun), 0.043 s (Moon) and 0.15 s (planets): each provider's GHA error
+divided by the hour-angle rate. Rise and set errors are those GHA and declination
+errors, plus Skyfield's diurnal aberration (≤ 0.32″, which CONVENTIONS 13.2 leaves out),
+divided by the altitude rate, which is small where the path meets the horizon at a
+shallow angle — hence the high-latitude worst cases.
+
+### Against USNO (target 1 min, USNO rounds to the minute)
+
+`fixtures/reference/events_usno.json` (`rstt/oneday`, UTC days, 14 site-days including
+polar night and midnight sun). Test: `usno_reference`.
+
+| quantity | events | worst |
+|---|---|---|
+| Sun: civil dawn, rise, upper transit, set, civil dusk | 59 | 29.4 s |
+| Moon: rise, upper transit, set | 38 | 29.1 s |
+
+Both are inside the ±30 s of USNO's own rounding. USNO lists an upper transit only while
+the body is up; ours below the horizon (polar night) are left out of the comparison.
+
+### Equinoxes, solstices and Moon phases (target 1 min)
+
+Apparent geocentric ecliptic longitudes of date, from the providers' RA/Dec and the true
+obliquity. Tests: `seasons_moon_phases`, `usno_reference`.
+
+| quantity | events | vs Skyfield/DE440s | vs USNO |
+|---|---|---|---|
+| equinoxes and solstices 1990–2060 | 284 | **4.0 s** | ≤ 29.4 s for 1990, 2000, 2026 (12 events) |
+| Moon phases 1990–2060 | 3513 | **1.1 s** | ≤ 41 s for 1990, 2000, 2026 (149 events) |
+
+DE421 and DE440s agree on these instants to 0.003 s and 0.012 s. **A finding about
+USNO:** for future years its seasons and phases drift from ours by a growing offset —
+the band centre is about +20 s in 2045 and +30 s in 2060, with the individual
+differences spread over one minute around it, as rounding predicts. USNO states future
+instants in predicted UT (TT minus a predicted ΔT), while this project counts UTC with no
+leap seconds after 2017 (TT − UTC = 69.184 s, CONVENTIONS 6); the instant is fixed in TT,
+so the two clocks disagree by the difference of the ΔT assumptions. Skyfield with the
+project's convention agrees with us to seconds, and rise and set (fixed by the Earth's
+rotation) show no such drift. The test asserts the 1-minute bound through 2026 and, for
+later years, that the differences sit in a one-minute band around a constant offset,
+which it prints.
+
+### What these numbers are not
+
+They compare definitions and arithmetic. Real rise and set times depend on refraction at
+the horizon, which varies by several arcminutes with the weather (a minute or more of
+time), on the height of the observer and the terrain, and on DUT1 (up to 0.9 s of Earth
+rotation, which moves every event by up to about 0.9 s). The 34′ standard refraction is a
+convention, not a prediction.
+
+### Speed (EXPLORER_PLAN 3.7)
+
+Native release (`cargo test --release -p skyfix-almanac --test perf -- --ignored
+--nocapture`) and WASM under Node 24 (`wasm-pack --release`, real providers):
+
+| call | native | WASM |
+|---|---|---|
+| `sky_state`, all 67 bodies (WASM: with constellations) | 0.52 ms | 1.03 ms (budget 2 ms) |
+| `day_events_batch`, Sun, 365 days | 74 ms | 94 ms |
+| `day_events`, one day, all 67 bodies | 7.2 ms | 9.2 ms |
+| `sample_bodies`, 64 navigational bodies, one day at 5 min | 8.2 ms | 12.2 ms |
+| `seasons`, one year | 3.8 ms | 4.5 ms |
+| `sidereal` | — | 0.004 ms |
+
+The star provider builds its precession-nutation matrix and Earth state once per instant
+(`StarFrame`, bit-for-bit identical to the unbatched chain), which is what keeps 58 stars
+at about 0.18 ms.
