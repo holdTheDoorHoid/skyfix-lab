@@ -163,8 +163,8 @@ same comparison gives 0.0235′ in GHA and 0.0179′ in Hc — still inside
 tolerance, and entirely explained by DUT1.
 
 USNO also returned the Moon and Saturn. The Moon is now differenced in section 7
-(USNO's Moon runs 10.36 s late, worth 0.11′ of GHA); Saturn waits for the planet
-provider.
+(in 2026 USNO's Moon runs 10.36 s late, worth 0.11′ of GHA; the lag varies with
+the epoch, see the almanac section); the planets are differenced in their own section.
 
 ### Spherical model vs full topocentric computation
 
@@ -994,3 +994,121 @@ in error the time moves 5 s to 2 minutes, as the reported sensitivity predicts.
 (about 30 s) and `-m tools.reference.gen_usno_sights` (needs network), then
 `cargo test -p skyfix-ephemeris --test moon_planet_sights --test usno_venus_phase
 --test lunar_distance_reference --test sight_plan -- --nocapture`.
+
+## 11. Almanac pages
+
+Owner: almanac agent (`crates/skyfix-almanac/src/pages.rs`, definitions CONVENTIONS 13.9).
+A daily page is built from the providers and the event finder already measured above
+(sections 2, 7, 9 and "Planets"), so these checks are about the page itself: that every
+tabulated quantity, computed and rounded the way the page does, is within the page's own
+precision of an independent computation. Target (EXPLORER_PLAN work package J): 0.1′ for
+every angle, v, d, HP and SD; 0.1 for magnitudes; 1 minute for every time (0.1 minute
+for Aries' meridian passage); 1 s for the equation of time.
+
+### Against Skyfield + JPL DE440s
+
+`fixtures/reference/almanac_days.json` (`tools/reference/gen_almanac.py`): 17 dates from
+1990-03-15 to 2060-12-28 — both solstices (midnight sun, polar night, twilight all
+night), an equinox, a leap day, the 2016-12-31 leap second, new- and full-moon eclipse
+days, Venus at superior conjunction (negative v) — with UT1 = UTC and every definition of
+CONVENTIONS 13.9 coded again in Python from its text; the rise/set cells come from
+Skyfield's own searches (`gen_events.py`) and the same cell rules. Test:
+`crates/skyfix-almanac/tests/almanac_reference.rs`.
+
+| quantity | values | worst |
+|---|---|---|
+| GHA Aries | 408 | 0.0000′ |
+| Sun GHA / Dec | 408 | 0.0029′ / 0.0015′ |
+| Moon GHA / Dec / HP | 408 | 0.0092′ / 0.0057′ / 0.0056′ |
+| Moon v / d | 408 | 0.0001′ / 0.0001′ |
+| Venus, Mars, Jupiter, Saturn GHA / Dec | 1621 | 0.0056′ / 0.0022′ |
+| Venus behind the Sun (2016-06-06), against the undeflected place | 11 | 0.031′ / 0.026′ |
+| planets v / d / SHA / magnitude | 68 | 0.0045′ / 0.0001′ / 0.0056′ / 0.0001 |
+| Sun SD / d; Moon SD | 17 | 0.0000′ / 0.0001′; 0.0015′ |
+| stars SHA / Dec (Polaris the worst SHA) | 986 | 0.0197′ / 0.0009′ |
+| equation of time, 00h and 12h | 34 | 0.012 s |
+| meridian passages: Aries, Sun, Moon upper and lower, planets | 136 | 0.0004 s, 0.011 s, 0.037 s, 0.022 s |
+| twilight, sunrise, sunset (31 latitudes) | 2957 | 0.16 s |
+| moonrise, moonset (31 latitudes, two dates) | 2050 | 1.8 s (N 68, 2038-01-19) |
+| Moon's age; principal phase instants; illuminated | 17; 6; 17 | 1.0 s; 0.55 s; 0.006 % |
+
+Every cell has the same kind on both sides — 5007 times, 102 `□`, 52 `■`, 107 `////`,
+2 `--` — with no grazing case to excuse. Printed angles: each is checked to be its raw
+value correctly rounded, and 7283 of 7344 (99.2 %) are character for character the
+reference's rounded value; the rest differ by one unit in the last digit where a rounding
+boundary falls between two raw values a few thousandths of an arcminute apart.
+
+Two things the fixture had to get right, recorded here because they are easy to get
+wrong. Skyfield's `ts.utc(2016, 12, 31, 24)` lands inside that day's leap second, while
+the project's `jd_utc` (86 400 s per UTC calendar day) puts 24h at 2017-01-01 00:00:00;
+the first fixture differed from the page by 0.12′ in the Moon's v at 23h for exactly that
+reason, and the generator now builds the 25th hour as the next date's 00h. And Venus
+behind the Sun: Skyfield applies the light-deflection formula without bound there (0.48′
+on 2016-06-06), the provider caps it at the solar limb (section 2, "Planets hidden behind
+the Sun"), so those hours are judged against the undeflected place, within the cap.
+
+### Against USNO
+
+`fixtures/reference/almanac_usno.json` (`gen_almanac.py --usno-only`, network): the
+Celestial Navigation Data API at four whole hours of pages (2000-02-29 06h, 2016-12-31
+18h, 2026-09-24 00h and 12h), each queried at the ground point of the Sun, the Moon and
+the four planets so that every one is above the horizon; and one-day rise, set, transit
+and civil twilight at the Greenwich meridian for six latitude-dates. Test:
+`crates/skyfix-almanac/tests/almanac_usno.rs`.
+
+| quantity | values | worst |
+|---|---|---|
+| twilight, sunrise, sunset, moonrise, moonset, meridian passages | 48 | 0.47 min (USNO rounds to the minute) |
+| GHA Aries | 24 | 0.0000′ |
+| Sun GHA / Dec | 20 | 0.006′ / 0.002′ |
+| Mars, Jupiter, Saturn GHA / Dec | 47 | 0.005′ / 0.002′ |
+| stars GHA (GHA Aries + the page's SHA at 12h) / Dec | 655 | 0.008′ / 0.003′ |
+| Moon GHA / Dec as USNO gives it | 12 | 0.081′ / 0.040′ |
+
+Three findings:
+
+- **USNO's Moon lag is not constant.** Section 7 found USNO's Moon 10.36 s late at one
+  instant in 2026. Fitting the lag at each of these instants (Skyfield + DE440s, sidereal
+  time held fixed) gives **−2.4 s (2000-02-29), +4.9 s (2016-12-31), +10.3 s
+  (2026-09-24)**, with residuals of 0.0000′ to 0.0001′ after the fit: USNO evaluates the
+  Moon on a time scale that drifts from UTC + ΔAT + 32.184 s by several seconds a decade.
+  Allowing a fixed 10.36 s would put the 2000 page 0.11′ from USNO; taken as USNO gives
+  it, every Moon value here is within 0.085′. Anyone comparing a Moon with USNO should fit
+  the lag per epoch rather than assume one.
+- **Venus.** USNO gives Venus's centre of light, the page (like the printed almanac's
+  tables and JPL's apparent place) the centre of the disc — up to 0.23′ of GHA and 0.12′
+  of Dec in September 2026, when Venus was a 20 % crescent 0.3 AU away, always toward the
+  Sun (section 10 measures USNO's phase correction). The page and Skyfield agree about
+  USNO's Venus to 0.005′.
+- **Polaris moves fast in SHA.** Near the pole annual aberration and nutation change its
+  SHA by up to **0.79′ a day** (1990-2060); the page's 12h value is up to 0.40′ off at 00h
+  or 24h (0.19′ against USNO at 2026-09-24 00h). The other 57 stars stay within 0.012′ of
+  their 12h row all day. The printed almanac tabulates Polaris separately for this
+  reason; the page lists it after the 57 stars and says so in its notes.
+
+### Where the page differs from the printed Nautical Almanac
+
+One date per page (the printed almanac has three) and moonrise/moonset for two dates
+(it has four); UTC with DUT1 = 0 as the argument instead of UT1 (up to 0.23′ of GHA and
+1 s of time); once-a-day values at 12h UT of the date instead of the middle of three
+days; rise and set for an observer on the WGS84 ellipsoid (CONVENTIONS 13.2; seconds of
+time at most); the `n/a`, `--` and `-00 mm` notations; the project's star spellings
+(`Zubenelgenubi`) and Polaris among the stars. The printed almanac's own conventions for
+the edge cases (a phenomenon on the following date, twilight all night) were followed as
+far as they are documented; where they are not, CONVENTIONS 13.9 states the rule used.
+
+### Speed
+
+`almanac_day` is about 30 `day_events` calls (one per latitude over 3.5 days) plus 150
+hourly evaluations. A per-page memo of the provider (`pages::Memo`) computes each track
+node once for all latitudes, bit-for-bit the same as without it. About 35-40 ms per page
+native (release, x86-64) and 45-55 ms in WebAssembly under Node 24 (`wasm-release`
+profile); the first call of a session takes about 90 ms because it also parses the
+embedded series. Measured on a shared machine under load (load average 11).
+
+### Reproduce
+
+`tools/reference/.venv/bin/python -m tools.reference.gen_almanac` (about 6 minutes) and
+`... gen_almanac --usno-only` (network, about a minute), then
+`cargo test -p skyfix-almanac --release --test almanac_reference --test almanac_usno
+-- --nocapture`, which prints every figure above.

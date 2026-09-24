@@ -4,6 +4,7 @@
 //! the dispatch in `main` is the single place a code reaches the operating system and
 //! the codes stay testable.
 
+pub mod almanac;
 pub mod catalog;
 pub mod convert;
 pub mod experiment;

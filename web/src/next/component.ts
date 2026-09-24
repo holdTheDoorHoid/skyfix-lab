@@ -19,11 +19,13 @@
  * `destroy`.
  */
 
-import type {
-  BodySelection,
-  EventOptions,
-  ExplorerEngine,
-  Observer,
+import {
+  isAlmanacEngine,
+  type AlmanacEngine,
+  type BodySelection,
+  type EventOptions,
+  type ExplorerEngine,
+  type Observer,
 } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
@@ -288,7 +290,13 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     return value;
   }
 
-  const memo: ExplorerEngine = {
+  const memo: ExplorerEngine & Partial<AlmanacEngine> = {
+    // Optional: present on the wrapper exactly when the engine makes almanac pages (the
+    // Almanac view checks with `isAlmanacEngine`). A page is tens of milliseconds, so a
+    // few dates are kept.
+    ...(isAlmanacEngine(engine)
+      ? { almanacDay: (date: string) => cached('almanacDay', date, 4, () => engine.almanacDay(date)) }
+      : {}),
     kind: engine.kind,
     description: engine.description,
     // Navigation tools pass through unmemoised: they run on demand, never per frame.
@@ -340,6 +348,10 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     constellationAt: (ra, dec, jd) => engine.constellationAt(ra, dec, jd),
     constellationBoundaries: () =>
       cached('constellationBoundaries', '', 1, () => engine.constellationBoundaries()),
+    // Optional in the contract: present on the wrapper exactly when the engine has it.
+    starfieldFrameMatrix: engine.starfieldFrameMatrix
+      ? (jd) => cached('starfieldFrameMatrix', String(jd), 2, () => engine.starfieldFrameMatrix!(jd))
+      : undefined,
   };
   return memo;
 }
