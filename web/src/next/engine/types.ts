@@ -46,6 +46,12 @@ export interface CoverageGroup {
   accuracy_arcmin: number | null;
   validated: boolean;
   notes: string;
+  /**
+   * Canonical names of the bodies this group covers. Optional; when absent the UI maps
+   * a body to the group whose name matches its kind (Sun, Moon, Planets, Stars). See
+   * `engine/bodies.ts`, `coverageGroupFor`.
+   */
+  bodies?: string[];
 }
 
 export interface ExplorerCoverage {
