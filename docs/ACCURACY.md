@@ -500,8 +500,8 @@ the DUT1 = 0 assumption of CONVENTIONS section 6, which is worth up to 0.23′ o
 
 `fixtures/reference/moon_geocentric.json`: 1757 instants over 1990-2060 — 1200 random,
 100 perigees, 100 apogees, 353 declination extremes (every northern and southern extreme
-beyond 28.3°, i.e. the major standstills of 2006 and 2024-25, plus 100 of each spread
-over the window) and 4 fixed instants. DE421 and DE440s agree on the Moon to 0.0061″ in
+beyond 28.3°, i.e. the major standstills around 2006, 2024-25 and 2043, plus 100 of
+each spread over the window) and 4 fixed instants. DE421 and DE440s agree on the Moon to 0.0061″ in
 direction and 0.9 m in distance over the 1515 instants both cover, so the reference is
 not a limiting factor. GHA is compared with the DUT1 = 0 column.
 

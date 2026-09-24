@@ -6,14 +6,14 @@ The independent reference for `skyfix_ephemeris::moon` and
 (CONVENTIONS section 11).
 
 moon_geocentric.json -- apparent geocentric Moon of date (CONVENTIONS section 7) at
-about 1600 epochs over 1990-2060:
+about 1750 epochs over 1990-2060:
 
   * 1200 random instants, uniform in UTC, whole seconds, seeded;
   * 100 perigees and 100 apogees (distance minima and maxima found with DE440s,
     evenly spread over the window, rounded to the second);
   * 100 northern and 100 southern declination extremes, evenly spread, plus every
-    extreme beyond 28.3 degrees (the major lunar standstills of 2006 and 2024-2025,
-    and the approach to 2043);
+    extreme beyond 28.3 degrees (the major lunar standstills around 2006, 2024-2025
+    and 2043);
   * a few fixed instants (the window's edges, J2000, the USNO cross-check instant).
 
 Per instant: GHA twice (`gha_deg` on Skyfield's UT1 and `gha_deg_dut1_zero` with UT1
