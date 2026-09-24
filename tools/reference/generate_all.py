@@ -16,7 +16,7 @@ import sys
 import time
 
 from . import common as c
-from . import gen_events, gen_geocentric, gen_moon, gen_nav_methods, gen_planets
+from . import gen_almanac, gen_events, gen_geocentric, gen_moon, gen_nav_methods, gen_planets
 from . import gen_sessions, gen_stars, gen_sun_sextant
 from . import gen_topocentric, gen_usno
 
@@ -32,6 +32,8 @@ STEPS = [
     ("usno_celnav cross-check", gen_usno.main, True),
     ("events: rise/set/twilight, seasons, Moon phases", gen_events.main_offline, False),
     ("events USNO cross-check", gen_events.main_usno_only, True),
+    ("almanac_days: daily almanac pages", gen_almanac.main_offline, False),
+    ("almanac_usno: USNO spot checks of the pages", gen_almanac.main_usno_only, True),
 ]
 
 
