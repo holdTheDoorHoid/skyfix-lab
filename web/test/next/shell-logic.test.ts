@@ -20,7 +20,7 @@ import {
   relative,
 } from '../../src/next/shell/format.js';
 import { needsZoneGuess, sameZone, zoneChoiceFromGuess } from '../../src/next/shell/place.js';
-import { componentOf, createRegistry } from '../../src/next/shell/registry.js';
+import { componentOf, createRegistry, registry } from '../../src/next/shell/registry.js';
 import { hashForView, startRouter, viewFromHash } from '../../src/next/shell/router.js';
 import { brightening, clipPhases, hoursIn, nextRun, passageAround, segmentAt, skyFacts, sunDay } from '../../src/next/shell/sky.js';
 import { effectiveTheme } from '../../src/next/shell/themes.js';
@@ -202,6 +202,14 @@ describe('themes, the view fragment and the registry', () => {
     expect(componentOf(await reg.view('about')!())).toBe(mapView);
     expect(reg.slot('star-sights')).not.toBeNull();
     expect(createRegistry({}, {}).slot('star-sights')).toBeNull();
+    // An entry by folder wins over a view.ts (Charts is charts/index.ts).
+    const chartsEntry = async () => ({ default: mapView });
+    expect(createRegistry({}, {}, { charts: chartsEntry }).view('charts')).toBe(chartsEntry);
+  });
+
+  it('mounts the merged Charts view from charts/index.ts', async () => {
+    const loader = registry.view('charts');
+    expect(loader).not.toBeNull();
   });
 });
 

@@ -16,9 +16,9 @@ import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
 import { createNotices } from '../../notices.js';
 import { bindTimeKeys, goNow, setTime, startPlayback } from '../../playback.js';
-import { createExplorerStore, type AngleFormat, type ExplorerState, type Theme } from '../../state.js';
+import { createExplorerStore, type AngleFormat, type ExplorerState } from '../../state.js';
 import { formatWithUtc, jdFromWallClock, resolveZone, type ZoneChoice } from '../../time.js';
-import { applyTheme as applyThemeToDocument, installTooltips } from '../../theme/index.js';
+import { applyTheme as applyThemeToDocument, installTooltips, type ThemeName } from '../../theme/index.js';
 import { chartsView } from '../index.js';
 import { computeDay } from '../day-data.js';
 import { dayBodies } from '../day-chart.js';
@@ -48,7 +48,7 @@ const PLACES: Place[] = [
 ];
 
 const TABS: ChartTab[] = ['day', 'year', 'moon', 'planets'];
-const THEMES: Theme[] = ['light', 'dark', 'night'];
+const THEMES: ThemeName[] = ['light', 'dark', 'night'];
 
 function params(): URLSearchParams {
   return new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -68,14 +68,14 @@ function jdFrom(p: URLSearchParams, place: Place): number | null {
   );
 }
 
-function applyTheme(theme: Theme): void {
+function applyTheme(theme: ThemeName): void {
   applyThemeToDocument(theme);
 }
 
 async function boot(root: HTMLElement): Promise<void> {
   const p = params();
   const place = placeFrom(p);
-  const theme = (THEMES as string[]).includes(p.get('theme') ?? '') ? (p.get('theme') as Theme) : 'light';
+  const theme = (THEMES as string[]).includes(p.get('theme') ?? '') ? (p.get('theme') as ThemeName) : 'light';
   const tab = (TABS as string[]).includes(p.get('tab') ?? '') ? (p.get('tab') as ChartTab) : 'day';
   const mode: ChartMode = p.get('mode') === 'table' ? 'table' : 'chart';
   const zoneParam = p.get('zone');
@@ -117,8 +117,8 @@ async function boot(root: HTMLElement): Promise<void> {
   const themeSelect = h('select', { 'aria-label': 'Theme' });
   for (const t of THEMES) themeSelect.append(h('option', { value: t, selected: t === theme }, t));
   themeSelect.addEventListener('change', () => {
-    applyTheme(themeSelect.value as Theme);
-    store.patch({ settings: { theme: themeSelect.value as Theme } });
+    applyTheme(themeSelect.value as ThemeName);
+    store.patch({ settings: { theme: themeSelect.value as ThemeName } });
   });
   const zoneSelect = h('select', { 'aria-label': 'Time zone' });
   for (const [v, label] of [

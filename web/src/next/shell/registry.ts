@@ -6,6 +6,8 @@
  *
  *   src/next/<folder>/view.ts        export default (host, ctx) => ({ destroy })
  *
+ * A view with another entry file gets one line in `VIEW_ENTRIES` (Charts: `charts/index.ts`).
+ *
  * `VIEW_FOLDERS` says which folder serves which view id (`map` and `globe` are both the
  * map agent's). A folder that is not there yet shows a friendly "coming soon" page
  * (`placeholder.ts`). The component takes over the stage element it is given: it fills
@@ -57,14 +59,24 @@ export interface Registry {
   slot(name: SlotName): ModuleLoader | null;
 }
 
+/**
+ * Views whose entry is not `<folder>/view.ts`: one line each, by folder. Such a folder
+ * must exist (the import is checked at build time), so add its line when it is merged.
+ */
+export const VIEW_ENTRIES: Record<string, ModuleLoader> = {
+  charts: () => import('../charts/index.js').then((m) => ({ default: m.charts })),
+};
+
 /** A registry over explicit module maps (the keys are paths as `import.meta.glob` gives them). */
 export function createRegistry(
   views: Record<string, ModuleLoader>,
   slots: Record<string, ModuleLoader>,
+  entries: Record<string, ModuleLoader> = {},
 ): Registry {
   return {
     view(id) {
-      return views[`../${VIEW_FOLDERS[id]}/view.ts`] ?? null;
+      const folder = VIEW_FOLDERS[id];
+      return entries[folder] ?? views[`../${folder}/view.ts`] ?? null;
     },
     slot(name) {
       const key = Object.keys(slots)
@@ -84,4 +96,5 @@ export function componentOf(mod: ViewModule): Component | null {
 export const registry: Registry = createRegistry(
   import.meta.glob<ViewModule>('../*/view.ts'),
   import.meta.glob<ViewModule>('../*/slots/*.ts'),
+  VIEW_ENTRIES,
 );
