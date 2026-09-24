@@ -90,7 +90,7 @@
 //!
 //! A page is about 30 `day_events` calls (one per latitude, over 3.5 days). They all
 //! evaluate the providers at the same node instants, so a per-call memo of
-//! `apparent_state` ([`Memo`]) computes each node once and the tracks are identical to
+//! `apparent_state` (`Memo`) computes each node once and the tracks are identical to
 //! uncached ones; only the topocentric scans are repeated per latitude.
 
 use std::cell::RefCell;
