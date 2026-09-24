@@ -500,6 +500,20 @@ bias narrows the reported covariance without correcting the position. The
 0.4225 measured here and the 42 % figure `docs/BACKLOG.md` quotes for the same
 test are the same number, rounded.
 
+### Navigation methods: noon sight, Polaris, averaging, running fix
+
+`docs/NAVIGATION_METHODS.md` section 6 holds these numbers in full. From raw sextant
+readings of `fixtures/reference/nav_methods.json` (Skyfield truth, noise-free): noon
+latitude and longitude within 0.0013′ and meridian passage within 0.001 s over five
+runs (one near the zenith, one from a vessel making 15 knots); Polaris latitude within
+0.0001′ at ten latitudes from 1° to 89.8° N; averaged altitudes within 0.0001′ of the
+truth; a 36 NM running fix within 0.4 m (36 m on a true rhumb line, the great-circle-leg
+model of `docs/MOTION.md`). Bowditch's worked examples reproduce to 0.07′ (Polaris,
+§1912), 0.02′ (the Almanac's Polaris illustration) and 0.18′ (LAN, §1910, every tenth of
+it accounted for). The stated sigmas cover 94-96 % in seeded Monte Carlo, except Polaris
+within 1.5° of the pole with a DR good only to 30 NM (19° of longitude): 89.8 %,
+documented as a limit and flagged by `polaris_near_pole`.
+
 ## 4. Error budget
 
 Every term below that this project models is either applied in the correction
@@ -603,6 +617,11 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
 - **The packaged-demo coverage numbers in `docs/DEMOS.md`:** `skyfix
   experiment --demo <name> --repetitions 50` for any of the ten scenario
   names `skyfix demos` lists.
+- **Navigation methods (section 3):** `cargo test -p skyfix-core --test
+  nav_methods_reference --test nav_methods_worked_examples --test
+  nav_methods_coverage -- --nocapture`, and `cargo test -p skyfix-wasm nav --
+  --nocapture` for the running fix; `tools/reference/.venv/bin/python -m
+  tools.reference.gen_nav_methods` regenerates their fixture.
 - **Everything at once:** `cargo test --workspace`.
 
 ## 7. Moon
@@ -718,3 +737,105 @@ data is 125 kB of the release WASM module's 1.55 MB.
   tools.reference.build_moon_series --fetch` rebuilds the embedded series from the CDS.
 - `cargo test -p skyfix-ephemeris --test moon_reference --test topocentric_reference
   -- --nocapture` prints every number above.
+
+## 8. Star field (display only)
+
+Owner: star-field agent (`crates/skyfix-starfield/`). Everything here describes what the
+explorer's Sky view draws. The star field is display-only (CONVENTIONS 13.6): none of
+these numbers is an accuracy claim for a sight, and no navigation crate can reach the
+data. Measured by `crates/skyfix-starfield/tests/` against the fixtures that
+`tools/starfield/gen_fixtures.py` generates with Skyfield; provenance and licences are
+in `docs/THIRD_PARTY.md`, "Star field and constellations".
+
+### Apparent places versus Skyfield
+
+| check | cases | result | target |
+|---|---|---|---|
+| `apparent_radec_all` vs Skyfield 1.55 + DE440s, 1990–2060 (`starfield_apparent.json`) | 420 stars × 9 epochs = 3 780 | worst **0.307″ (0.0051′)**, RMS 0.016″ | 0.1′ (CONVENTIONS 13.7) |
+| same chain as `skyfix_ephemeris::frames::apparent_radec_of_date` (what `sky_state` uses) | 9 095 stars × 5 dates, 1800–2200 | worst 1.6 × 10⁻⁹″ | floating point |
+| the reference itself: DE421 against DE440s | the epochs DE421 covers | 0.004″ | — |
+
+The 420 stars are the 58 navigational stars, the 25 largest proper motions, the 12
+nearest each pole, 10 straddling 0h, the 3 nearest the Sun (at least 1° away) at each
+epoch, and a seeded random sample. The worst case per epoch is at most 0.04″ from 1990
+to 2026 and grows to 0.31″ at the end of 2060, and that growth is one term: Skyfield is
+given each star's catalogued
+radial velocity, and the Rust chain, like `skyfix-ephemeris`, has no radial-velocity
+(perspective acceleration) term. The worst star is 61 Cygni B (HR 8086). The regression
+guard in the test is 0.5″, far inside the 6″ target, so a broken deflection or parallax
+step would fail it.
+
+What this comparison does not measure is the catalogue. Both sides start from the same
+Bright Star Catalogue values: FK5 J2000 positions to 0.1 s of RA and 1″ of Dec (so up
+to about 1″ from modern positions), proper motions to 1 mas/yr. Against the Hipparcos
+places `skyfix-ephemeris` uses, the 58 navigational stars agree to 0.9″ or better at
+J2000, except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
+differently along its 80-year orbit about B). At display scale none of this is visible.
+
+### Navigational stars
+
+All 58 are found by position (within 1′) and V magnitude (within 1.0), never by name:
+largest separation 6.40″ (Rigil Kentaurus; the next is 0.90″), largest magnitude
+difference 0.56 (Acrux, where Hipparcos gives the combined light of α¹ and α² Crucis and
+the catalogue lists α¹ alone). The name list's 58 Almanac names land on the same
+entries.
+
+### Constellation lookup
+
+| check | result |
+|---|---|
+| our B1875 polygons against Skyfield's map (Roman 1987), the centre of every cell of its grid | **47 200 of 47 200 agree**; the two use the identical set of boundary RA and Dec values |
+| `constellation_at` vs Skyfield, 25 000 pseudo-random apparent-of-date directions at pseudo-random instants 1990–2060 | **25 000 of 25 000 agree** |
+| the same 25 000 against `load_constellation_map()` exactly as shipped | 25 000 of 25 000 agree |
+| every combination of a boundary RA and a boundary Dec (46 964 points, all on boundary lines) | each in exactly one constellation |
+| a half-degree grid over the whole sky (259 200 points) | each in exactly one constellation |
+
+Two frame details, both measured rather than assumed. Skyfield's shipped
+`load_constellation_map()` rotates into the *true* equinox of B1875 (its `Time.M`
+includes the 1875 nutation, 10.1″), while the IAU boundaries are defined in the *mean*
+equinox, which is what `constellation_at` uses; the two can disagree only within about
+10″ of a boundary, and none of the 25 000 samples fell there. And `constellation_at` is a
+rotation: annual aberration (up to 20.5″) is not removed, so a body within 20″ of a
+boundary may be named after its neighbour.
+
+### Speed and size
+
+| | native, release | WebAssembly (Node 24, V8) | budget |
+|---|---|---|---|
+| apparent places of all 9 095 stars | 1.2–1.5 ms (fastest of 100 calls; a heavily loaded machine) | 1.0–1.1 ms fastest, 1.1–1.2 ms median | 5 ms (EXPLORER_PLAN §3.7) |
+| `constellation_at`, same instant as the previous call | 1.4 µs | 1.3 µs | — |
+| `constellation_at`, new instant (the nutation series runs once) | 9 µs | 5 µs | — |
+| `starfield_catalog()`, once per session | — | 8 ms | — |
+
+The embedded data is 259 KB (stars 227 KB, boundaries 18 KB, figures 10 KB, names
+4 KB). The star field adds 305 KB to the release WebAssembly module (1 129 446 bytes
+against 824 836 for the commit before it, both built with `wasm-pack --release`), which
+stays under the 2 MB budget.
+
+### Known limitations
+
+- **No radial velocity**, as above: at most 0.31″ by 2060 among the stars checked.
+- **Catalogue precision and age**: positions to about 1″, magnitudes from one epoch.
+  Variable stars are drawn at the catalogue's magnitude (Betelgeuse 0.50, Mira 3.04);
+  η Carinae appears at the catalogue's V 6.21 although it has since brightened to
+  about fourth magnitude.
+- **Close doubles are separate entries** where the catalogue lists components
+  separately (α¹ and α² Centauri, α¹ and α² Crucis, Castor A and B, and others), so the
+  dome draws two stars a few arcseconds apart.
+- **310 stars have no B−V** (NaN on the wire); the Sky view must choose a neutral colour.
+- **Completeness**: the catalogue reaches about V 6.5, with some fainter entries.
+- **Range**: the functions answer for 1800–2200 and are validated for 1990–2060. Outside
+  the validated window the models (IAU 2006 precession, IAU 2000B nutation, linear proper
+  motion) are still good to about an arcsecond for most stars.
+- **Label positions** are a heuristic (the figure's centre, moved at least 1.5° inside
+  the boundary where the centre is outside or too close, as for Eridanus and Serpens).
+
+### Reproducing these numbers
+
+```
+python3 -m tools.starfield.fetch                                  # network: raw inputs
+tools/reference/.venv/bin/python -m tools.starfield.build         # embedded data and its checks
+tools/reference/.venv/bin/python -m tools.starfield.gen_fixtures  # Skyfield fixtures
+cargo test -p skyfix-starfield -- --nocapture
+cargo test --release -p skyfix-starfield --test timing -- --nocapture
+```

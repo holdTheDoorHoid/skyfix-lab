@@ -710,3 +710,364 @@ dependency of the real engine, and no third-party code was copied.
   by this project. The zodiac look-up uses approximate ecliptic longitudes (0.1 deg)
   where the IAU boundaries cross the ecliptic, from general reference knowledge;
   illustrative only.
+
+## Navigation methods — worked examples and the Polaris table formula
+
+Owner: navigation agent (`crates/skyfix-core/src/methods/`,
+`fixtures/reference/bowditch_worked_examples.json`, `tools/reference/gen_nav_methods.py`).
+
+### The American Practical Navigator (Bowditch), NGA Pub. No. 9
+
+- **What is used:** the numbers of three worked examples, as test data only — volume 1
+  (2019 edition), chapter 19 "Sight Reduction", section 1910 (latitude at local apparent
+  noon, with its strip form, figure 1910), section 1912 (latitude by Polaris, with figure
+  1912b) and figure 1912c (the Nautical Almanac 2016 Polaris-table page it reproduces,
+  whose "ILLUSTRATION" block is the Almanac's own worked example). No text or figure is
+  reproduced; the values are typed, with the book's rounding, into
+  `fixtures/reference/bowditch_worked_examples.json` and cited in
+  `docs/NAVIGATION_METHODS.md` section 6.2.
+- **URL:** <https://msi.nga.mil/Publications/APN>; the chapter was read from the copy at
+  <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2019-%20Sight%20Reductions.pdf>.
+- **Retrieved:** 2026-09-24.
+- **Licence:** a work of the U.S. Government (National Geospatial-Intelligence Agency),
+  not subject to copyright in the United States (17 U.S.C. 105). No credit is required;
+  it is cited as a source.
+
+### The Nautical Almanac's Polaris-table formula
+
+- **What is used:** the published formula behind the Almanac's Polaris tables —
+  `Latitude − Ho = −p cos h + (1/2) p sin p sin² h tan(Latitude)` — and its split into
+  `a0` (constant 58.8′, mean SHA and declination of Polaris, latitude 50°), `a1`
+  (constant 0.6′, the latitude correction) and `a2` (constant 0.6′, the correction for
+  the date), with `Latitude = Ho − 1° + a0 + a1 + a2`. A formula and its constants are
+  facts; nothing is copied. Used only for the teaching terms `PolarisAlmanacTerms` in
+  `crates/skyfix-core/src/methods/polaris.rs`; the latitude itself is solved rigorously.
+- **Source:** the explanation of the Polaris tables in the Nautical Almanac (HM Nautical
+  Almanac Office and the U.S. Naval Observatory), as quoted in the NavList thread
+  "Latitude by Polaris" (<https://navlist.net/Latitude-Polaris-RonJones-mar-2016-g34952>),
+  retrieved 2026-09-24. Checked against the 2016 table page in Bowditch figure 1912c:
+  the formula with that year's mean position (computed from `skyfix-ephemeris`)
+  reproduces the printed a0, a1 and a2 of both worked examples to 0.03′.
+
+### Skyfield-generated truth for the methods
+
+`tools/reference/gen_nav_methods.py` uses exactly the development-time inputs recorded
+under "Reference data (development-time only)" above (Skyfield, JPL DE421, Hipparcos);
+it adds no new data source.
+
+## Basemap and gazetteer
+
+Owner: map-data agent (`tools/mapdata/**`, `web/public/data/**`, `web/src/next/geo/**`,
+`web/test/next/geo-*.test.ts`). Everything here is **display-only** (CONVENTIONS 13.6): the
+map, the place search, the "near ..." label and the time-zone guess never feed `reduce`,
+`solve`, the planner or any accuracy claim.
+
+**No OpenStreetMap, GeoNames or time-zone-boundary data** (the common
+timezone-boundary-builder polygons are ODbL) is used. Both sources below are public domain,
+so the offline map needs no credit on screen. The optional online street layer is the
+map agent's and carries its own OSM credit.
+
+### Sources
+
+| Source | Version | URL | Retrieved | Licence |
+|---|---|---|---|---|
+| Natural Earth vector data (GeoJSON, from the official repository) | 5.1.2 | <https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.2>, files from `https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/` | 2026-09-24 | Public domain. Terms: <https://www.naturalearthdata.com/about/terms-of-use/> (read 2026-09-24): all Natural Earth data are in the public domain, no permission is needed to use them, and crediting the authors is unnecessary. |
+| IANA time zone database (tzdata) | 2026d | <https://data.iana.org/time-zones/releases/tzdata2026d.tar.gz> | 2026-09-24 | Public domain (the archive's `LICENSE`: all tz code and data files used here are in the public domain) |
+
+Every input file, with its SHA-256 and size, is pinned in `tools/mapdata/sources.json`. The
+Natural Earth layers used: `ne_110m_land`, `ne_50m_land`, `ne_50m_lakes`,
+`ne_50m_rivers_lake_centerlines`, `ne_50m_admin_0_boundary_lines_land`,
+`ne_50m_admin_0_countries`, `ne_50m_admin_1_states_provinces`,
+`ne_50m_geography_marine_polys`, `ne_50m_geography_regions_points`,
+`ne_50m_geographic_lines`, `ne_50m_urban_areas`, `ne_50m_glaciated_areas`,
+`ne_50m_antarctic_ice_shelves_polys`, `ne_10m_populated_places`. From tzdata: `zone.tab`
+(each country's zones with the coordinates of each zone's principal location),
+`iso3166.tab`, and the `Link` lines (old and alternative zone names).
+
+### Reproducing
+
+Development time only, Node 20 or later, network for the first command:
+
+```sh
+node tools/mapdata/fetch.mjs   # download into tools/mapdata/cache/ (git-ignored), verify SHA-256
+node tools/mapdata/build.mjs   # rewrite web/public/data/basemap/* and web/public/data/gazetteer.json
+```
+
+The build is deterministic (two runs give byte-identical files). It checks the cleaned time
+zones against the running Node's ICU data; the manifest records the version used
+(Node 24.20.0, ICU 78.3, tz 2026c). No npm dependency was added.
+
+### What was built
+
+| File | Features | Vertices | Raw | Gzip | Precision (deg) | Simplified (deg) |
+|---|---|---|---|---|---|---|
+| `basemap/land-110m.geojson` | 127 | 5 384 | 88 KB | 28 KB | 0.01 | none |
+| `basemap/coastline-110m.geojson` | 128 | 5 120 | 85 KB | 27 KB | 0.01 | none |
+| `basemap/land-50m.geojson` | 1 419 | 55 242 | 1 022 KB | 310 KB | 0.001 | 0.005 |
+| `basemap/coastline-50m.geojson` | 1 420 | 54 876 | 1 017 KB | 309 KB | 0.001 | 0.005 |
+| `basemap/lakes-50m.geojson` | 411 | 11 196 | 237 KB | 68 KB | 0.001 | 0.01 |
+| `basemap/rivers-50m.geojson` | 358 | 19 810 | 364 KB | 121 KB | 0.001 | 0.01 |
+| `basemap/boundaries-50m.geojson` | 390 | 15 321 | 280 KB | 87 KB | 0.001 | 0.005 |
+| `basemap/countries-50m.geojson` | 241 | 68 372 | 1 004 KB | 307 KB | 0.01 | 0.01 |
+| `basemap/admin1-50m.geojson` | 249 | 46 557 | 702 KB | 194 KB | 0.01 | 0.01 |
+| `basemap/urban-50m.geojson` | 2 143 | 22 000 | 547 KB | 117 KB | 0.001 | 0.01 |
+| `basemap/glaciers-50m.geojson` | 376 | 11 539 | 223 KB | 66 KB | 0.001 | 0.01 |
+| `basemap/ice-shelves-50m.geojson` | 64 | 3 785 | 71 KB | 22 KB | 0.001 | 0.01 |
+| `basemap/marine-labels.geojson` | 118 | points | 17 KB | 2 KB | 0.01 | |
+| `basemap/physical-labels.geojson` | 162 | points | 24 KB | 3 KB | 0.001 | |
+| `basemap/geolines-50m.geojson` | 6 | 2 395 | 35 KB | 7 KB | 0.001 | none |
+| `gazetteer.json` | 7 342 places | | 670 KB | 262 KB | 0.0001 | |
+| **Total** | | | **6.54 MB** | **1.98 MB** (budget 3 MB) | | |
+
+`basemap/manifest.json` lists the same with SHA-256s, sources and each layer's properties;
+a test fails if a file and the manifest disagree or the budget is exceeded.
+
+### Processing of the basemap
+
+- **Precision and simplification.** Coordinates rounded (0.001 deg is 111 m); Douglas-Peucker
+  with longitude scaled by cos(latitude), so a tolerance of 0.005 deg is about 550 m, one
+  pixel at MapLibre zoom 7, where 1:50m data are already coarse. Consecutive duplicate
+  vertices removed; rings that collapse at this scale dropped (one country, the Vatican,
+  which lookups then treat as part of Italy).
+- **Shared borders stay shared.** In `countries-50m` and `admin1-50m` every vertex where
+  the set of polygons sharing it changes is kept, so each border is simplified identically
+  on both sides: no slivers, no gaps (checked by rendering state fills).
+- **Antimeridian.** Natural Earth splits polygons at +/-180; so does the output (RFC 7946
+  section 3.1.9). Seam vertices at 179.999219 or -179.999951 are snapped to exactly +/-180
+  and never simplified away, so the two halves of Fiji, Chukotka and the Ross Ice Shelf
+  meet exactly. Longitudes are clamped to [-180, 180] (glaciated areas reach -180.000015);
+  the 110m Antarctica's closing edge along the South Pole, one 360-degree segment, is
+  divided into 1.40625-degree steps. No segment of any file spans more than 180 degrees
+  (tested). The civil date line in `geolines-50m` (up to 180.003 in the source) is wrapped
+  and split at the seam.
+- **Coastlines are derived, not separate data.** `coastline-*` is the land rings minus
+  their artificial edges along the seam and the pole, so strokes align exactly with the
+  fill and show no vertical line at 180 degrees. Natural Earth's own coastline layer is not
+  used.
+- **Winding** is RFC 7946: exterior rings counter-clockwise, holes clockwise.
+- **Rivers** exclude Natural Earth's "Lake Centerline" features (lines drawn through lakes).
+- **Marine label points** are computed: the pole of inaccessibility (an independent
+  implementation of Agafonkin's 2016 quadtree search) of each sea's largest part, kept
+  within 78 degrees of the equator so polar oceans are labelled where Mercator can show them.
+  All-capital names ("SOUTHERN OCEAN") are title-cased.
+- **Properties** are cut down to what a style needs: `name`, `kind`, `rank` (Natural Earth
+  scalerank), `minzoom` (Natural Earth's, defined for 256-pixel tiles). Boundaries carry
+  `kind` = international, disputed, indefinite or line-of-control (Natural Earth's de facto
+  view; draw the last three dashed).
+- **Country and state polygons** exist for lookups (and optional fills), at 0.01 deg.
+  States only for the seven large multi-zone countries (United States, Canada, Russia,
+  Brazil, Australia, Indonesia, China); Natural Earth's 1:50m states layer also covers
+  India and South Africa, one zone each, which are left out.
+
+### Processing of the gazetteer
+
+- **Places:** all 7 342 of `ne_10m_populated_places`, largest first. Positions come from
+  the geometry, not the LATITUDE/LONGITUDE attributes, which are stale for about 300 places
+  (Karlskrona 18 km off, Lisburn 40 km, Juina 80 km). Whitespace collapsed ("St.  Petersburg").
+- **Other names for search:** Natural Earth's Wikidata names in English, German, Spanish,
+  French, Italian, Portuguese, Dutch, Polish, Swedish, Turkish, Indonesian, Vietnamese and
+  Hungarian (München, Wien, Den Haag, Lisboa); NAMEPAR (Bombay) except for Antarctic
+  stations, where it holds the operating country; NAMEALT with its encoding-damaged
+  fragments dropped ("Ciudad de M", "F-s"). MEGANAME and LS_NAME are not used (damaged).
+- **States:** Natural Earth's ADM1NAME, with 14 damaged names repaired where the original
+  is obvious (Guinaa -> Guyane, HuRnuco -> Huánuco, "Los R" -> Los Ríos, ...) and 34 left
+  blank (Vietnamese and Azerbaijani names with "?" for letters; 38 places), so a label
+  leaves the state out rather than show garbage.
+- **Countries:** named by the shortest of Natural Earth's NAME_EN, ADMIN, NAME_LONG and NAME
+  that is not abbreviated ("United States", "China", "Czechia"). ISO codes from ISO_A2_EH.
+- **Zone anchors:** every place with a zone plus the 418 principal locations of IANA
+  `zone.tab`, each assigned to its country (by ISO code, or by the polygon it lies in:
+  French Guiana, Réunion and Svalbard are inside France's and Norway's polygons).
+
+### Time zones: source, cleaning and measured quality
+
+Natural Earth's populated places carry an IANA `TIMEZONE` for 6 159 of 7 342 places. It is
+the only time-zone information used; nothing is inferred from boundary data. It needed
+cleaning, at build time, by three documented rules (`cleanZone` in `build.mjs`):
+
+- **A. Old names** not in `zone.tab` become the `zone.tab` name they link to
+  (Asia/Chongqing -> Asia/Shanghai, Europe/Zaporozhye -> Europe/Kyiv, Asia/Rangoon ->
+  Asia/Yangon, ...); and a place within 30 km of a `zone.tab` principal location of its own
+  country that shows the same clock takes the better name when it is the zone's namesake or
+  its zone belongs to another country (Anchorage was filed under America/Juneau, Andorra
+  under Europe/Madrid). 319 places renamed in all; no clock changes.
+- **B. Wrong country.** A zone that belongs to none of the place's countries (by `zone.tab`)
+  is kept only if it shows the same clock today as that country's nearest zone, or if its
+  own principal location is nearer than any of the country's (overseas territories, border
+  towns); otherwise it is replaced by the country's nearest zone. 21 fixes, including
+  capitals: Prague was in America/Chicago, Santiago and Colombo in America/Sao_Paulo,
+  Montevideo in America/Chicago, Lagos in Europe/Athens, Cardiff in Australia/Sydney.
+- **C. Newer zones.** A place within 30 km of a `zone.tab` principal location of its own
+  country takes that zone when the clocks differ today. 20 fixes where Natural Earth
+  predates a change: Saratov, Ulyanovsk, Astrakhan (2016), Barnaul, Punta Arenas (2017),
+  Khandyga, Bougainville, Chatham Islands (+12:45), Coyhaique (2025), Matamoros, Ojinaga and
+  Ciudad Juárez (Mexican border towns on US daylight saving).
+
+All 41 corrections are listed in `gazetteer.json` under `zone_corrections`, and flagged
+on the place. "Same clock today" means the same UTC offset on the 1st and 15th of every
+month of 2025-2026. For browsers whose Intl data predate a zone (America/Coyhaique), the
+gazetteer lists same-clock alternatives, and `timezone.ts` also knows renamed zones'
+old names.
+
+**The guess** (`guessZone` in `web/src/next/geo/timezone.ts`), implementing CONVENTIONS 13.8:
+on land or within 12 NM of it (the territorial sea; also absorbs the 1:50m coastline error),
+the zone of the nearest anchor in the same country (in the seven large countries, among
+zones used in the same state); Antarctica counts as sea; at sea, a place within 12 NM lends
+its zone (small islands); otherwise the nautical zone, ZD = round(lon / -15). Every answer
+carries a one-sentence reason, and the user can override it.
+
+**Measured quality** (`web/test/next/geo-zone-holdout.test.ts`, run in the test suite): for
+each of the 6 159 zoned places, guess at its position with that place left out, and
+compare with its (cleaned) zone.
+
+| | places | exact zone id | same clock today |
+|---|---|---|---|
+| **All** | 6 159 | **97.3 %** | **99.0 %** |
+| country has one zone | 2 713 | 99.5 % | 100 % |
+| state has one zone | 1 555 | 98.9 % | 99.2 % |
+| nearest place in country/state | 1 886 | 93.1 % | 97.7 % |
+| nautical (counted as misses) | 4 | | |
+| Before the polygons load (nearest place within 150 NM, measured once) | 6 159 | 88.4 % | 94.5 % |
+| For comparison: plain nearest place, uncleaned Natural Earth zones (a prototype, clock compared over 2024-2026) | 6 159 | 87.4 % | 94.1 % |
+
+The remaining misses sit on zone borders (United States 13, Russia 10, Indonesia 8,
+Canada 7, Mexico 4), and some are Natural Earth's errors rather than the guess's (Bali is
+filed under Asia/Jakarta but keeps Asia/Makassar time), so the true accuracy is somewhat
+higher than measured. A hold-out is harder than real use: a click on a city finds the city.
+
+**Known limits.** Zone assignments are only as current as Natural Earth's (about 2012-2018)
+plus the rule-C fixes; states are known only in the seven large countries, so a click near
+a zone border elsewhere (Mexico, Kazakhstan, DR Congo) takes the nearest town's zone; the
+guess never looks at the date (a position's zone is today's, while the browser's Intl data
+supply each zone's historical rules for the date shown).
+
+## Star field and constellations
+
+Owner: star-field agent (`crates/skyfix-starfield/`, `crates/skyfix-wasm/src/starfield.rs`,
+`tools/starfield/`, `fixtures/reference/starfield_*.json`). Display-only data
+(CONVENTIONS 13.6): none of it reaches `reduce`, `solve`, the planner's navigation
+candidates or an accuracy claim, and a test (`crates/skyfix-starfield/tests/crate_boundary.rs`)
+keeps it out of every navigation crate.
+
+**Nothing below needs on-screen credit.** The stars are a U.S. Government Work, the
+figures are this project's own, and the boundaries and star names are facts. The
+courtesy citations are kept here, in the documentation.
+
+### Stars: the Yale Bright Star Catalogue as served by NASA HEASARC
+
+- **What is used:** every stellar row of HEASARC's `bsc5p` table (the Bright Star
+  Catalogue, 5th revised edition, preliminary version; Hoffleit & Warren 1991): HR
+  number, the catalogue's own sexagesimal J2000 position (`cra`, `cdec`: RA to 0.1 s of
+  time, Dec to 1″), proper motions (`pmra` = μα·cos δ and `pmdec`, ″/yr), parallax,
+  V magnitude, B−V and the Bayer/Flamsteed name field (`alt_name`). Radial velocities
+  are read only by the validation fixture.
+- **Source:** NASA's High Energy Astrophysics Science Archive Research Center (HEASARC),
+  table description <https://heasarc.gsfc.nasa.gov/W3Browse/all/bsc5p.html>, fetched
+  through HEASARC's TAP service:
+  `https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=text/plain&MAXREC=20000&QUERY=…`
+  with ADQL `SELECT hr, name, alt_name, cra, cdec, ra, dec, vmag, vmag_uncert, vmag_code,
+  bv_color, bv_uncert, pmra, pmdec, parallax, par_code, radvel, var_id, multiple, m_cnt,
+  m_id, m_sep, m_mdiff, hd, spect_type, note FROM bsc5p ORDER BY hr`
+  (`tools/starfield/fetch.py` has the exact URL).
+- **Retrieved:** 2026-09-24T14:19:53Z. 9 110 rows, 2 086 467 bytes, SHA-256
+  `c411cb86ae371a89175b6d7d6246a657e604803398e63e6ce58e0025b2d6543a`. The raw download is
+  git-ignored (`tools/starfield/data/`); `python3 -m tools.starfield.fetch` repeats it.
+- **Licence evidence.** NASA's open-data listing on data.gov,
+  <https://catalog.data.gov/dataset/bright-star-catalog> ("Bright Star Catalog",
+  published by the High Energy Astrophysics Science Archive Research Center, National
+  Aeronautics and Space Administration), checked 2026-09-24. Its machine-readable
+  harvest record
+  (<https://catalog.data.gov/harvest_record/1e27ef96-47f7-4dfb-9271-2e4f04ffa57f/raw>,
+  2 597 bytes, SHA-256 `58aee48827b3608a55a0ddcb810631babf83b7b15d1a7504cfc1b81b36939c26`)
+  reads, verbatim: `"identifier": "ivo://nasa.heasarc/bsc5p"`,
+  `"accessLevel": "public"`, `"license": "https://www.usa.gov/government-works"`,
+  `"publisher": {"name": "High Energy Astrophysics Science Archive Research Center"}`,
+  `"modified": "2026-09-22"`. The licence URL now redirects to
+  <https://www.usa.gov/government-copyright>, USAGov's page on U.S. Government Works
+  (17 U.S.C. § 105).
+- **Caveats, recorded rather than hidden:**
+  - HEASARC's own provenance note says the table "was created by the HEASARC in 1995
+    based upon a file obtained from either the ADC or the CDS", with later HEASARC
+    corrections. The underlying numbers are astrometric and photometric measurements,
+    which are facts; the U.S. Government Work listing is NASA's statement about the
+    table it serves.
+  - USAGov notes that U.S. copyright law may not protect U.S. government works outside
+    the United States, and that not everything on a federal site is a government work.
+    For this table the data.gov listing is explicit, and the content is factual data.
+  - HEASARC asks research publications to acknowledge its services. That is a courtesy
+    request, not a licence condition; this section is where the project acknowledges
+    it: *This product uses the Bright Star Catalogue (Hoffleit, D. and Warren, Jr.,
+    W.H., 1991, 5th Revised Edition, Preliminary Version) as provided by NASA's High
+    Energy Astrophysics Science Archive Research Center (HEASARC).*
+- **Processing (`tools/starfield/build.py`):** positions converted exactly from the
+  sexagesimal strings to integers (0.1 s of time, 1″) and cross-checked against
+  HEASARC's decimal copies; proper motions and parallaxes to whole mas (the catalogue's
+  precision); negative published parallaxes stored as 0 (Skyfield treats them the same
+  way). Left out: the **14 non-stellar entries** that received HR numbers (novae,
+  clusters, and the historical supernovae S And and Tycho's and Kepler's stars; HR 92,
+  95, 182, 1057, 1841, 2472, 2496, 3515, 3671, 6309, 6515, 7189, 7539, 8296), which have
+  no catalogue position, magnitude or proper motion, and **HR 5958, T CrB**, a recurrent
+  nova catalogued at its 1866 outburst peak (V 2.0) that normally sits near V 10.
+  **9 095 stars** remain, written to `crates/skyfix-starfield/data/stars.bin` (227 391
+  bytes, 25-byte records, layout in `crates/skyfix-starfield/src/catalog.rs`, SHA-256
+  `2773f90c570317fb1fd4c98ccbf4f13c29c4bc379a34e151714602b0426663c3`).
+  `crates/skyfix-starfield/data/manifest.json` records every count, exclusion and check.
+
+### Star names — facts
+
+`tools/starfield/names.txt` lists 252 proper names by designation (for example
+`Alp CMa = Sirius`), written for this project from the names in common use, which for
+most stars are the ones the IAU Working Group on Star Names has catalogued. Names are
+facts; no list was copied. The 57 Nautical Almanac navigational stars and Polaris use
+the Almanac's spelling, the spelling used everywhere else in SkyFix Lab; the build checks
+each against `fixtures/reference/navigational_stars_hip.json` (within 1′ and 1 mag).
+
+### Constellation figures — this project's own work
+
+`tools/starfield/figures.txt` draws all 88 constellations as chains of stars, by
+designation, following the traditional modern Western stick figures. They were drawn
+for this project from the shape of each constellation and the catalogue positions of
+its stars; **no existing figure dataset (Stellarium, d3-celestial, the IAU / Sky &
+Telescope charts or any other) was copied or consulted.** They are covered by the
+project's own MIT OR Apache-2.0 licence. The build resolves every designation to an HR
+number (670 segments in `crates/skyfix-starfield/data/figures.txt`) and refuses a
+figure whose star is missing, lies more than 2° outside its constellation's boundary,
+or makes a segment longer than 25°. Only two figure stars lie outside their own
+constellation, both by tradition: Alpheratz (α And) closes the Square of Pegasus and
+Elnath (β Tau) closes the pentagon of Auriga.
+
+### Constellation boundaries — IAU definitions, Delporte (1930)
+
+- **What is used:** the corners of the 88 constellation boundaries in the mean equator
+  and equinox of B1875.0, as defined for the IAU by Delporte, E. (1930), *Délimitation
+  scientifique des constellations* (Cambridge University Press).
+- **Public-domain basis:** the boundaries are an official definition, published facts
+  (numbers fixing a line on the sky), and not protected expression. The 1930
+  publication itself entered the U.S. public domain on 2026-01-01 (95 years after
+  publication), and Delporte died in 1955, so it is also out of copyright wherever the
+  term is the author's life plus 70 years.
+- **Digital transcription used:** Davenhall, A.C. & Leggett, S.K. (1989), *A Catalogue
+  of Constellation Boundary Data*, the "original" B1875 vertex file `bound_18.dat`,
+  <https://cdsarc.cds.unistra.fr/ftp/cats/VI/49/bound_18.dat>, retrieved
+  2026-09-24T14:19:53Z, 40 690 bytes, 1 565 records, SHA-256
+  `3f563d0e3002a410afbc551791db6297cbfc3d291a20deb18f1fd7b4df60d7b8`. It is a mechanical
+  transcription of Delporte's lists; CDS asks users of its service to acknowledge it,
+  which this line does as a courtesy.
+- **Processing:** every corner snapped back to the grid Delporte used (whole seconds of
+  time, whole arcminutes; the file's 5-decimal rendering is off by at most 0.012 s and
+  0.024″, so the snap is exact), and Octans' three plotting points at the south pole
+  (added by the transcription, not boundary corners) removed. Result:
+  `crates/skyfix-starfield/data/boundaries.txt`, 89 polygons (Serpens in two), 1 562
+  corners, as integers.
+- **Independent check:** Skyfield's bundled constellation map (built from Roman, N.G.
+  1987, PASP 99, 695, a separate digitisation of Delporte) was compared cell by cell:
+  all **47 200 cells of its grid fall in the same constellation**, and its grid lines are
+  the same set of RA and Dec values. Skyfield is used for this at development time only.
+
+### Validation fixtures (development-time only)
+
+`fixtures/reference/starfield_apparent.json` and `starfield_constellations.json` are
+generated by `tools/starfield/gen_fixtures.py` with the reference environment already
+listed above (Skyfield 1.55, numpy, JPL DE440s with DE421 as a cross-check). The star
+values fed to Skyfield are parsed from the raw HEASARC download by that script's own
+code, independently of the build and of the Rust decoder.

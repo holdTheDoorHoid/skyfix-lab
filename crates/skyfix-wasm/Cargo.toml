@@ -17,6 +17,8 @@ skyfix-ephemeris = { path = "../skyfix-ephemeris" }
 skyfix-sim = { path = "../skyfix-sim" }
 skyfix-almanac = { path = "../skyfix-almanac" }
 skyfix-starfield = { path = "../skyfix-starfield" }
+# nav.rs exposes the running fix (docs/EXPLORER_API.md, "Wave 1 - navigation methods").
+skyfix-motion = { path = "../skyfix-motion" }
 wasm-bindgen = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }

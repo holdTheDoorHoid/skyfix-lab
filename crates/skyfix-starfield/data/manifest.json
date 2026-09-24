@@ -1,0 +1,237 @@
+{
+  "checks": {
+    "boundaries_vs_skyfield_grid": {
+      "cells_compared": 47200,
+      "cells_disagreeing": 0,
+      "grid_lines_identical": true
+    },
+    "boundary_vertex_grid": {
+      "not_exactly_one_region": 0,
+      "points": 46964
+    },
+    "figure_stars_outside_their_constellation": [
+      {
+        "deg_outside": 0.006,
+        "figure": "Aur",
+        "hr": 1791,
+        "lies_in": "Tau",
+        "star": "Bet Tau"
+      },
+      {
+        "deg_outside": 0.395,
+        "figure": "Peg",
+        "hr": 15,
+        "lies_in": "And",
+        "star": "Alp And"
+      }
+    ],
+    "labels_moved_off_the_figure_centre": [
+      "Car: nearest interior point 1.50 deg inside the boundary (figure centre is 1.36 deg inside)",
+      "Cir: nearest interior point 1.50 deg inside the boundary (figure centre is 1.35 deg inside)",
+      "Eri: nearest interior point 1.50 deg inside the boundary (figure centre is outside)",
+      "Hya: nearest interior point 1.50 deg inside the boundary (figure centre is 0.58 deg inside)",
+      "Sge: nearest interior point 1.31 deg inside the boundary (figure centre is 1.08 deg inside)",
+      "Ser: nearest interior point 1.50 deg inside the boundary (figure centre is outside)"
+    ],
+    "longest_segments_deg": [
+      {
+        "deg": 21.66,
+        "figure": "Hya",
+        "from": "Bet Hya",
+        "to": "Gam Hya"
+      },
+      {
+        "deg": 17.77,
+        "figure": "Hor",
+        "from": "Alp Hor",
+        "to": "Iot Hor"
+      },
+      {
+        "deg": 16.52,
+        "figure": "Peg",
+        "from": "Gam Peg",
+        "to": "Alp Peg"
+      },
+      {
+        "deg": 16.36,
+        "figure": "Leo",
+        "from": "Alp Leo",
+        "to": "The Leo"
+      },
+      {
+        "deg": 16.18,
+        "figure": "Tau",
+        "from": "Bet Tau",
+        "to": "Eps Tau"
+      },
+      {
+        "deg": 15.8,
+        "figure": "Oct",
+        "from": "Del Oct",
+        "to": "Nu Oct"
+      },
+      {
+        "deg": 15.58,
+        "figure": "UMa",
+        "from": "Chi UMa",
+        "to": "Nu UMa"
+      },
+      {
+        "deg": 15.31,
+        "figure": "Tau",
+        "from": "Alp Tau",
+        "to": "Zet Tau"
+      }
+    ],
+    "multiple_catalogue_matches_resolved_to_brightest": [
+      "Alp Com matches HR 4968, HR 4969; using HR 4968 (V 5.22), the brightest",
+      "Alp Gem matches HR 2890, HR 2891; using HR 2891 (V 1.98), the brightest",
+      "Alp Psc matches HR 595, HR 596; using HR 596 (V 4.33), the brightest",
+      "Bet Mon matches HR 2356, HR 2357, HR 2358; using HR 2356 (V 4.60), the brightest",
+      "Del Ori matches HR 1851, HR 1852; using HR 1852 (V 2.23), the brightest",
+      "Del Ser matches HR 5788, HR 5789; using HR 5788 (V 3.80), the brightest",
+      "Eps Boo matches HR 5505, HR 5506; using HR 5506 (V 2.70), the brightest",
+      "Eps1 Lyr matches HR 7051, HR 7052; using HR 7051 (V 5.06), the brightest",
+      "Gam And matches HR 603, HR 604; using HR 603 (V 2.26), the brightest",
+      "Gam Ari matches HR 545, HR 546; using HR 546 (V 4.75), the brightest",
+      "Gam CrA matches HR 7226, HR 7227; using HR 7226 (V 4.93), the brightest",
+      "Gam Cru matches HR 4763, HR 4764; using HR 4763 (V 1.63), the brightest",
+      "Gam Vir matches HR 4825, HR 4826; using HR 4825 (V 3.65), the brightest",
+      "Iot Cnc matches HR 3474, HR 3475; using HR 3475 (V 4.02), the brightest",
+      "Lam Ori matches HR 1879, HR 1880; using HR 1879 (V 3.54), the brightest",
+      "Nu Dra matches HR 6554, HR 6555; using HR 6555 (V 4.87), the brightest",
+      "Nu Sco matches HR 6026, HR 6027; using HR 6027 (V 4.01), the brightest",
+      "Psi Dra matches HR 6636, HR 6637, HR 6725; using HR 6636 (V 4.58), the brightest",
+      "Rho Her matches HR 6484, HR 6485; using HR 6485 (V 4.52), the brightest",
+      "Ups Car matches HR 3890, HR 3891; using HR 3890 (V 3.01), the brightest",
+      "Xi UMa matches HR 4374, HR 4375; using HR 4375 (V 4.41), the brightest",
+      "Zet Aqr matches HR 8558, HR 8559; using HR 8559 (V 4.42), the brightest",
+      "Zet Boo matches HR 5477, HR 5478; using HR 5478 (V 4.43), the brightest",
+      "Zet Ori matches HR 1948, HR 1949; using HR 1948 (V 2.05), the brightest",
+      "Zet UMa matches HR 5054, HR 5055; using HR 5054 (V 2.27), the brightest"
+    ],
+    "navigational_names": {
+      "count": 58,
+      "max_abs_mag_difference": 0.56,
+      "max_separation_arcsec_vs_hipparcos_j1991_25": 36.54
+    }
+  },
+  "counts": {
+    "boundary_corners": 1562,
+    "boundary_polygons": 89,
+    "bsc5p_rows": 9110,
+    "excluded": 1,
+    "figure_segments": 670,
+    "figures": 88,
+    "names": 252,
+    "skipped_non_stellar": 14,
+    "stars": 9095,
+    "with_designation": 3143,
+    "without_bv": 310
+  },
+  "excluded": [
+    {
+      "hr": 5958,
+      "name": "T CrB",
+      "reason": "T CrB, a recurrent nova. The catalogue's V 2.0 (code H, the original Harvard magnitude) is its 1866 outburst peak; between outbursts it sits near V 10, far below the naked-eye limit, so drawing it as a second-magnitude star would put a star in Corona Borealis that is not there."
+    }
+  ],
+  "generator": "tools/starfield/build.py",
+  "inputs": {
+    "bound_18.dat": {
+      "sha256": "3f563d0e3002a410afbc551791db6297cbfc3d291a20deb18f1fd7b4df60d7b8",
+      "size_bytes": 40690,
+      "url": "https://cdsarc.cds.unistra.fr/ftp/cats/VI/49/bound_18.dat"
+    },
+    "bsc5p.txt": {
+      "sha256": "c411cb86ae371a89175b6d7d6246a657e604803398e63e6ce58e0025b2d6543a",
+      "size_bytes": 2086467,
+      "url": "https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync?REQUEST=doQuery&LANG=ADQL&FORMAT=text%2Fplain&MAXREC=20000&QUERY=SELECT+hr%2C+name%2C+alt_name%2C+cra%2C+cdec%2C+ra%2C+dec%2C+vmag%2C+vmag_uncert%2C+vmag_code%2C+bv_color%2C+bv_uncert%2C+pmra%2C+pmdec%2C+parallax%2C+par_code%2C+radvel%2C+var_id%2C+multiple%2C+m_cnt%2C+m_id%2C+m_sep%2C+m_mdiff%2C+hd%2C+spect_type%2C+note+FROM+bsc5p+ORDER+BY+hr"
+    },
+    "bsc5p_query": "SELECT hr, name, alt_name, cra, cdec, ra, dec, vmag, vmag_uncert, vmag_code, bv_color, bv_uncert, pmra, pmdec, parallax, par_code, radvel, var_id, multiple, m_cnt, m_id, m_sep, m_mdiff, hd, spect_type, note FROM bsc5p ORDER BY hr",
+    "datagov_harvest_record.json": {
+      "sha256": "58aee48827b3608a55a0ddcb810631babf83b7b15d1a7504cfc1b81b36939c26",
+      "size_bytes": 2597,
+      "url": "https://catalog.data.gov/harvest_record/1e27ef96-47f7-4dfb-9271-2e4f04ffa57f/raw"
+    },
+    "figures.txt (authored)": {
+      "sha256": "266576c5d0eacb8b49789f260056d9b7c3ee3301f0eac62a4fc5295940b90c77"
+    },
+    "names.txt (authored)": {
+      "sha256": "8c8b739986ff44844f4cbe148821b3b48557181b9c1b955b7d3c2238804cb135"
+    },
+    "retrieved_utc": "2026-09-24T14:19:53Z"
+  },
+  "licence": {
+    "boundaries": "IAU definitions of Delporte (1930): published facts, public domain",
+    "figures": "this project's own drawing, MIT OR Apache-2.0",
+    "names": "facts",
+    "stars": "U.S. Government Work: data.gov lists ivo://nasa.heasarc/bsc5p with licence https://www.usa.gov/government-works (publisher: High Energy Astrophysics Science Archive Research Center, modified 2026-09-22)"
+  },
+  "skipped_non_stellar": [
+    {
+      "catalogue_name": "NOVA 1572",
+      "hr": 92
+    },
+    {
+      "catalogue_name": "47    Tuc",
+      "hr": 95
+    },
+    {
+      "catalogue_name": "M 31  And",
+      "hr": 182
+    },
+    {
+      "catalogue_name": "NOVA 1901",
+      "hr": 1057
+    },
+    {
+      "catalogue_name": "NOVA 1891",
+      "hr": 1841
+    },
+    {
+      "catalogue_name": "NOVA 1903",
+      "hr": 2472
+    },
+    {
+      "catalogue_name": "NGC 2281",
+      "hr": 2496
+    },
+    {
+      "catalogue_name": "M 67",
+      "hr": 3515
+    },
+    {
+      "catalogue_name": "NGC 2808",
+      "hr": 3671
+    },
+    {
+      "catalogue_name": "NOVA 1848",
+      "hr": 6309
+    },
+    {
+      "catalogue_name": "NOVA 1604",
+      "hr": 6515
+    },
+    {
+      "catalogue_name": "NOVA 1899",
+      "hr": 7189
+    },
+    {
+      "catalogue_name": "NOVA 1670",
+      "hr": 7539
+    },
+    {
+      "catalogue_name": "NOVA 1876",
+      "hr": 8296
+    }
+  ],
+  "stars_bin": {
+    "bytes": 227391,
+    "layout": "hr u16, ra u32 (0.1 s of time, J2000), dec i32 (arcsec, J2000), pm_ra i16 (mas/yr, mu_alpha cos delta), pm_dec i16 (mas/yr), parallax u16 (mas; negative published values stored as 0), vmag i16 (0.01 mag), bv i16 (0.01 mag, -32768 unknown), bayer u8 (0 none, 1-24 alpha-omega), superscript u8, flamsteed u16, constellation u8 (index into the 88, alphabetical by IAU abbreviation as in bsc.CONSTELLATIONS; 255 none); little-endian",
+    "magic": "SKYFIXSF",
+    "record_bytes": 25,
+    "sha256": "2773f90c570317fb1fd4c98ccbf4f13c29c4bc379a34e151714602b0426663c3",
+    "version": 1
+  }
+}

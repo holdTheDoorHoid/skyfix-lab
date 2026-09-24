@@ -282,6 +282,91 @@ pub fn warning_sentence(w: &Warning) -> String {
             format!("The solver did not converge within {iterations} iterations")
         }
         Warning::Other { message } => message.clone(),
+        Warning::FlatPeakLongitude {
+            body,
+            sigma_time_s,
+            sigma_lon_arcmin,
+            sigma_east_nm,
+        } => format!(
+            "The noon longitude rests on the time of the {body}'s flat-topped peak, which is \
+             uncertain by {sigma_time_s:.0} seconds: {sigma_lon_arcmin:.1} arcminutes of \
+             longitude, {sigma_east_nm:.1} NM east-west (1 sigma). The latitude is far \
+             better determined than this"
+        ),
+        Warning::MeridianNearZenith {
+            body,
+            meridian_altitude_deg,
+        } => format!(
+            "The {body} crossed the meridian at {meridian_altitude_deg:.2} degrees, close to \
+             the zenith: its bearing swings quickly there, the altitude is hard to measure, \
+             and whether it passed north or south of you decides the latitude"
+        ),
+        Warning::MeridianSideAmbiguous {
+            body,
+            latitude_deg,
+            other_latitude_deg,
+        } => format!(
+            "The DR does not clearly say which side of the zenith the {body} passed: the \
+             answer is {latitude_deg:.4} degrees, but if it passed on the other side the \
+             latitude would be {other_latitude_deg:.4} degrees"
+        ),
+        Warning::NotAtMeridianPassage {
+            id,
+            minutes_from_passage,
+        } => format!(
+            "Sight {id} was used as the meridian (highest) altitude, but it was taken \
+             {minutes_from_passage:+.1} minutes from the meridian passage the DR predicts"
+        ),
+        Warning::OneSidedRun {
+            body,
+            before,
+            after,
+        } => format!(
+            "Every {body} sight is on one side of meridian passage ({before} before, {after} \
+             after), so the time of the peak is extrapolated rather than bracketed"
+        ),
+        Warning::CurvatureInconsistent {
+            body,
+            predicted_arcmin_per_min2,
+            fitted_arcmin_per_min2,
+            z,
+        } => format!(
+            "The {body} sights curve over the peak at {fitted_arcmin_per_min2:.4} arcminutes \
+             per minute squared, but the geometry predicts {predicted_arcmin_per_min2:.4} \
+             (z = {z:.1}); check the times, the vessel's course and speed, and the body"
+        ),
+        Warning::SlopeInconsistent {
+            body,
+            predicted_arcmin_per_min,
+            fitted_arcmin_per_min,
+            z,
+        } => format!(
+            "The {body} sights change height at {fitted_arcmin_per_min:.3} arcminutes per \
+             minute, but the ephemeris predicts {predicted_arcmin_per_min:.3} at the DR \
+             (z = {z:.1}); check the times, the body, the DR, and the course and speed"
+        ),
+        Warning::RunOutlier {
+            id,
+            normalized_residual,
+            rejected,
+        } => format!(
+            "Sight {id} sits {normalized_residual:.1} standard deviations from the rest of \
+             its run{}",
+            if *rejected {
+                " and was left out of the average"
+            } else {
+                "; it was kept, but look at it"
+            }
+        ),
+        Warning::PolarisNearPole {
+            id,
+            latitude_deg,
+            azimuth_deg,
+        } => format!(
+            "Sight {id}: at latitude {latitude_deg:.2} degrees Polaris bears \
+             {azimuth_deg:.1} degrees, well away from north, so the latitude depends \
+             strongly on the longitude and the time"
+        ),
     };
     ensure_period(s)
 }
@@ -446,6 +531,52 @@ mod tests {
             Warning::Other {
                 message: "something else".into(),
             },
+            Warning::FlatPeakLongitude {
+                body: "Sun".into(),
+                sigma_time_s: 21.0,
+                sigma_lon_arcmin: 5.3,
+                sigma_east_nm: 4.1,
+            },
+            Warning::MeridianNearZenith {
+                body: "Sun".into(),
+                meridian_altitude_deg: 87.5,
+            },
+            Warning::MeridianSideAmbiguous {
+                body: "Sun".into(),
+                latitude_deg: 18.5,
+                other_latitude_deg: 21.5,
+            },
+            Warning::NotAtMeridianPassage {
+                id: "obs-1".into(),
+                minutes_from_passage: 24.0,
+            },
+            Warning::OneSidedRun {
+                body: "Sun".into(),
+                before: 5,
+                after: 0,
+            },
+            Warning::CurvatureInconsistent {
+                body: "Sun".into(),
+                predicted_arcmin_per_min2: 0.036,
+                fitted_arcmin_per_min2: 0.052,
+                z: 4.2,
+            },
+            Warning::SlopeInconsistent {
+                body: "Vega".into(),
+                predicted_arcmin_per_min: -10.1,
+                fitted_arcmin_per_min: -9.2,
+                z: 3.6,
+            },
+            Warning::RunOutlier {
+                id: "obs-3".into(),
+                normalized_residual: 5.4,
+                rejected: true,
+            },
+            Warning::PolarisNearPole {
+                id: "obs-1".into(),
+                latitude_deg: 88.9,
+                azimuth_deg: 342.0,
+            },
         ]
     }
 
@@ -454,7 +585,7 @@ mod tests {
         let all = every_warning_variant();
         // Bump this when `Warning` gains a variant; the exhaustive match in
         // `warning_sentence` will have stopped the build first.
-        assert_eq!(all.len(), 15, "add the new Warning variant to this test");
+        assert_eq!(all.len(), 24, "add the new Warning variant to this test");
         for w in &all {
             let s = warning_sentence(w);
             assert!(!s.is_empty(), "{w:?} produced an empty sentence");

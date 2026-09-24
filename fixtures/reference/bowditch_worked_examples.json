@@ -1,0 +1,96 @@
+{
+  "schema": "skyfix.reference/1",
+  "generator": {
+    "tool": "typed by hand from a published source (CONVENTIONS section 11)",
+    "source": "The American Practical Navigator (Bowditch), NGA Pub. No. 9, 2019 edition, Volume 1, Part 3, Chapter 19 'Sight Reduction': section 1910 'Latitude at Meridian Passage of the Sun (Local Apparent Noon)' with Figure 1910 (strip form); section 1912 'Latitude by Polaris' with Figure 1912b (strip form); Figure 1912c 'Excerpt from the Polaris Tables' (Nautical Almanac 2016, page 275), whose ILLUSTRATION block is the Almanac's own worked example.",
+    "url": "https://msi.nga.mil/Publications/APN",
+    "copy_consulted": "https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2019-%20Sight%20Reductions.pdf",
+    "retrieved": "2026-09-24",
+    "licence": "U.S. Government work (National Geospatial-Intelligence Agency), not subject to copyright in the United States (17 U.S.C. 105). Only the numbers of the worked examples are used.",
+    "rounding": "The book works to 0.1 arcmin with the Nautical Almanac's tabulated values: its combined Sun altitude correction is the Almanac's main-correction table entry, and its declination is the tabulated value plus the d correction. Expect the rigorous computation to differ by one or two tenths.",
+    "never_a_runtime_dependency": "Test data only. Never regenerated from Rust output."
+  },
+  "cases": [
+    {
+      "name": "bowditch-1910-lan",
+      "method": "noon sight, single altitude at local apparent noon",
+      "text": "At 1208 ZT, March 09, 2016, a vessel's DR position is L 39 49.0' N and l 044 33.0' W. The ship is on course 045 T at a speed of ten knots. The navigator observes LAN at 12-08-04 zone time. The sextant altitude at LAN is 45 54.0'. The index correction is +0.2' and the height of eye is 68 feet.",
+      "input": {
+        "utc": "2016-03-09T15:08:04Z",
+        "zone_time": "12-08-04",
+        "zone_description": 3,
+        "dr_lat_deg": 39.816666667,
+        "dr_lon_deg": -44.55,
+        "course_deg": 45.0,
+        "speed_kn": 10.0,
+        "hs_deg": 45.9,
+        "index_correction_arcmin": 0.2,
+        "height_of_eye_ft": 68.0,
+        "height_of_eye_m": 20.7264,
+        "limb": "lower",
+        "limb_note": "Not stated in the text; the strip form's altitude correction of +15.3' is the Almanac's October-March LOWER-limb main correction near 46 degrees (the upper-limb value would be about -16.9')."
+      },
+      "expected": {
+        "tabulated_declination": "S 4 10.0', d -1.0', d correction -0.1'",
+        "declination_deg": -4.165,
+        "dip_arcmin": -8.0,
+        "ha_deg": 45.77,
+        "altitude_correction_arcmin": 15.3,
+        "ho_deg": 46.025,
+        "zenith_distance_deg": 43.975,
+        "rule": "DR latitude and declination contrary: subtract the declination from the zenith distance",
+        "latitude_deg": 39.81,
+        "latitude_text": "N 39 48.6'"
+      }
+    },
+    {
+      "name": "bowditch-1912-polaris",
+      "method": "latitude by Polaris",
+      "text": "At 23-18-56 GMT, on March 22, 2016, at DR Lat. 40 46.0' N, l = 043 22.0' W, the observed altitude of Polaris (ho) is 40 52.1'. Find the vessel's latitude.",
+      "input": {
+        "utc": "2016-03-22T23:18:56Z",
+        "dr_lat_deg": 40.766666667,
+        "dr_lon_deg": -43.366666667,
+        "ho_deg": 40.868333333
+      },
+      "expected": {
+        "gha_aries_hour_text": "165 52.3'",
+        "increment_text": "4 44.8'",
+        "gha_aries_deg": 170.618333333,
+        "lha_aries_deg": 127.251666667,
+        "lha_aries_text": "127 15.1'",
+        "a0_arcmin": 54.9,
+        "a1_arcmin": 0.5,
+        "a2_arcmin": 0.9,
+        "sum_arcmin": 56.3,
+        "total_correction_arcmin": -3.7,
+        "latitude_deg": 40.806666667,
+        "latitude_text": "N 40 48.4'"
+      }
+    },
+    {
+      "name": "nautical-almanac-2016-polaris-illustration",
+      "method": "latitude by Polaris",
+      "text": "On 2016 April 21 at 23h 18m 56s UT in longitude W 37 14' the apparent altitude (corrected for refraction), Ho, of Polaris was 49 31.6'.",
+      "input": {
+        "utc": "2016-04-21T23:18:56Z",
+        "dr_lat_deg": 50.0,
+        "dr_lat_note": "The illustration enters a1 with 'Lat 50 approx.'",
+        "dr_lon_deg": -37.233333333,
+        "ho_deg": 49.526666667
+      },
+      "expected": {
+        "gha_aries_hour_text": "195 26.5'",
+        "increment_text": "4 44.8'",
+        "lha_aries_text": "162 57'",
+        "lha_aries_deg": 162.95,
+        "a0_arcmin": 78.9,
+        "a0_text": "1 18.9'",
+        "a1_arcmin": 0.6,
+        "a2_arcmin": 0.9,
+        "latitude_deg": 49.866666667,
+        "latitude_text": "49 52.0'"
+      }
+    }
+  ]
+}

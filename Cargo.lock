@@ -359,6 +359,7 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+ "skyfix-ephemeris",
  "thiserror",
 ]
 
@@ -409,8 +410,6 @@ dependencies = [
 name = "skyfix-starfield"
 version = "0.1.0"
 dependencies = [
- "approx",
- "serde",
  "serde_json",
  "skyfix-core",
  "skyfix-ephemeris",
@@ -429,6 +428,7 @@ dependencies = [
  "skyfix-almanac",
  "skyfix-core",
  "skyfix-ephemeris",
+ "skyfix-motion",
  "skyfix-sim",
  "skyfix-starfield",
  "wasm-bindgen",

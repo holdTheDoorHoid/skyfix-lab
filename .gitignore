@@ -11,5 +11,11 @@ tools/reference/__pycache__
 .DS_Store
 docs/book
 tools/reference/data/
-# the same path when it is a symlink to a shared copy (agent worktrees)
-tools/reference/data
+# Symlinks to the planner's shared reference environment (a trailing slash only
+# matches directories, so the symlinks need their own lines).
+/tools/reference/data
+/tools/reference/.venv
+# Star-field raw downloads (tools/starfield/fetch.py); re-fetchable, never committed.
+/tools/starfield/data/
+/tools/starfield/.venv
+__pycache__/
