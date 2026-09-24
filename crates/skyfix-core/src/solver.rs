@@ -93,27 +93,27 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
     let n_params = if options.estimate_shared_bias { 3 } else { 2 };
 
     if usable.len() < 2 {
-        return FixResult::Underdetermined {
+        return underdetermined(
             circles,
-            reason: format!(
+            format!(
                 "{} usable sight(s): one altitude constrains the observer to a circle of \
                  position, not to a point",
                 usable.len()
             ),
             warnings,
-        };
+        );
     }
     if usable.len() < n_params {
-        return FixResult::Underdetermined {
+        return underdetermined(
             circles,
-            reason: format!(
+            format!(
                 "{} usable sight(s) for {} unknowns (position and a shared altitude bias): \
                  the bias cannot be separated from position",
                 usable.len(),
                 n_params
             ),
             warnings,
-        };
+        );
     }
     // Exactly two sights: the analytic geometry decides, so a pair whose circles miss or
     // merely touch can never be polished into a confident-looking point fix.
@@ -121,11 +121,7 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
         && n_params == 2
         && let Some(reason) = two_sight_degeneracy(usable[0], usable[1])
     {
-        return FixResult::Underdetermined {
-            circles,
-            reason,
-            warnings,
-        };
+        return underdetermined(circles, reason, warnings);
     }
 
     let prior = match options.prior {
@@ -184,9 +180,9 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
     let (jw, az) = weighted_jacobian(&model, &eval);
     let cond = uncertainty::conditioning(&jw, &az);
     if cond.rank < n_params {
-        return FixResult::Underdetermined {
+        return underdetermined(
             circles,
-            reason: format!(
+            format!(
                 "the sight geometry determines only {} of {} unknowns (singular values {}): \
                  the observations fix a line, not a point",
                 cond.rank,
@@ -194,7 +190,7 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
                 format_singular_values(&cond)
             ),
             warnings,
-        };
+        );
     }
 
     let margin = if options.multistart.ambiguity_delta_chi2.is_finite() {
@@ -872,6 +868,23 @@ fn prior_report(
 // ---------------------------------------------------------------------------
 // Small helpers
 // ---------------------------------------------------------------------------
+
+/// An underdetermined result, which by section 9 also means no ellipse: the suppression
+/// is recorded as a warning so a consumer never has to infer it from the variant.
+fn underdetermined(
+    circles: Vec<CircleOfPosition>,
+    reason: String,
+    mut warnings: Vec<Warning>,
+) -> FixResult {
+    warnings.push(Warning::EllipseSuppressed {
+        reason: format!("no point fix: {reason}"),
+    });
+    FixResult::Underdetermined {
+        circles,
+        reason,
+        warnings,
+    }
+}
 
 fn partition_usable(sights: &[Sight]) -> (Vec<&Sight>, Vec<String>) {
     let mut usable = Vec::new();
