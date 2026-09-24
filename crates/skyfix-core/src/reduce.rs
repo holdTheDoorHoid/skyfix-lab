@@ -22,8 +22,19 @@ pub trait DirectionSource {
     fn name(&self) -> &str;
     /// Apparent geocentric GHA/Dec (degrees) at `jd_utc`, or an explanation.
     fn direction(&self, body: &str, jd_utc: f64) -> Result<GeocentricDirection, String>;
-    /// GHA rate for clock propagation, degrees per hour (sidereal for stars).
+    /// GHA rate for clock propagation, degrees per hour (sidereal for stars), when the
+    /// instant is not known.
     fn gha_rate_deg_per_hour(&self, body: &str) -> f64;
+    /// GHA rate for clock propagation at the sight's instant, degrees per hour
+    /// (CONVENTIONS 13.1): sidereal for stars, solar for the Sun, and for the Moon and
+    /// the planets the rate of the body's own GHA at `jd_utc`.
+    ///
+    /// The default is [`DirectionSource::gha_rate_deg_per_hour`], so a source that knows
+    /// no better keeps its old answer; [`to_sights`] asks this one.
+    fn gha_rate_deg_per_hour_at(&self, body: &str, jd_utc: f64) -> f64 {
+        let _ = jd_utc;
+        self.gha_rate_deg_per_hour(body)
+    }
 }
 
 /// A source that only honours directions supplied in the observation itself.
@@ -37,11 +48,20 @@ impl DirectionSource for SuppliedOnly {
         Err("no ephemeris provider configured; supply gha_deg/dec_deg in the observation".into())
     }
     fn gha_rate_deg_per_hour(&self, body: &str) -> f64 {
-        // `is_sun` trims: the same record must not be the Sun for the correction chain
-        // (semidiameter, parallax) and a star for the clock rate.
-        if is_sun(body) {
-            crate::units::SOLAR_RATE_DEG_PER_HOUR
-        } else {
+        nominal_gha_rate_deg_per_hour(body)
+    }
+}
+
+/// The GHA rate a source with no ephemeris uses, degrees per hour: solar for the Sun, the
+/// mean lunar rate for the Moon (the true one runs 14.1 to 14.9 deg/h, never the
+/// sidereal 15.04), sidereal for everything else (a planet's true rate is within 0.07
+/// deg/h of it). Names are trimmed and case-insensitive, like the correction chain's, so
+/// the same record is never the Sun for one and a star for the other.
+pub fn nominal_gha_rate_deg_per_hour(body: &str) -> f64 {
+    match corrections::sight_body(body) {
+        corrections::SightBody::Sun => crate::units::SOLAR_RATE_DEG_PER_HOUR,
+        corrections::SightBody::Moon => crate::units::MEAN_LUNAR_RATE_DEG_PER_HOUR,
+        corrections::SightBody::Planet | corrections::SightBody::Star => {
             crate::units::SIDEREAL_RATE_DEG_PER_HOUR
         }
     }
@@ -50,8 +70,8 @@ impl DirectionSource for SuppliedOnly {
 /// The name that marks a direction taken from the observation record itself.
 pub const SUPPLIED_DIRECTION_SOURCE: &str = "supplied";
 
-/// True when this body name is the Sun, the only body with semidiameter and parallax
-/// corrections in this release (CONVENTIONS section 5, steps 4-5).
+/// True when this body name is the Sun (trimmed, case-insensitive). The full body class
+/// that decides CONVENTIONS section 5 steps 4-5 is [`corrections::sight_body`].
 pub fn is_sun(body: &str) -> bool {
     body.trim().eq_ignore_ascii_case("sun")
 }
@@ -98,7 +118,7 @@ pub fn reduce_observation(
 
     // --- correction chain (section 5) ---------------------------------------
     let horizon = obs.horizon.unwrap_or(session.instrument.horizon);
-    let breakdown = corrections::correct(
+    let breakdown = corrections::correct_sight(
         obs.altitude_deg,
         obs.altitude_kind,
         obs.sigma_arcmin,
@@ -113,6 +133,7 @@ pub fn reduce_observation(
             temperature_c: session.observer.temperature_c,
             direction: Some(direction),
         },
+        corrections::sight_body(&obs.body),
     )?;
     warnings.extend(breakdown.warnings.iter().cloned());
 
@@ -167,7 +188,8 @@ pub fn reduce_session(
         .collect()
 }
 
-/// Convert reduced sights to solver input (radians).
+/// Convert reduced sights to solver input (radians). The GHA rate is the source's rate
+/// for that body at the sight's own instant (CONVENTIONS 13.1).
 pub fn to_sights(reduced: &[ReducedSight], source: &dyn DirectionSource) -> Vec<Sight> {
     reduced
         .iter()
@@ -178,7 +200,10 @@ pub fn to_sights(reduced: &[ReducedSight], source: &dyn DirectionSource) -> Vec<
             dec_rad: r.dec_deg.to_radians(),
             ho_rad: r.ho_deg.to_radians(),
             sigma_rad: units::arcmin_to_rad(r.sigma_arcmin),
-            gha_rate_rad_per_s: source.gha_rate_deg_per_hour(&r.body).to_radians() / 3600.0,
+            gha_rate_rad_per_s: source
+                .gha_rate_deg_per_hour_at(&r.body, r.jd_utc)
+                .to_radians()
+                / 3600.0,
         })
         .collect()
 }

@@ -272,13 +272,20 @@ fn validate_inner(
             return Err(SkyfixError::UnknownBody(obs.body.clone()));
         }
 
-        // Limb only means something for the Sun: warn, never reject (section 10).
-        if obs.limb != Limb::Center && !body_is_sun {
+        // Limb only means something for the Sun and the Moon: warn, never reject
+        // (section 10). A planet is a point, like a star.
+        let class = corrections::sight_body(&obs.body);
+        if obs.limb != Limb::Center
+            && !matches!(
+                class,
+                corrections::SightBody::Sun | corrections::SightBody::Moon
+            )
+        {
             warnings.push(Warning::LimbIgnoredForStar { id: obs.id.clone() });
         }
 
         // Correction parameters that the declared altitude_kind will have to ignore.
-        let ignored = corrections::ignored_correction_kinds(
+        let ignored = corrections::ignored_correction_kinds_for(
             obs.altitude_kind,
             &CorrectionInputs {
                 id: &obs.id,
@@ -291,6 +298,7 @@ fn validate_inner(
                 temperature_c: o.temperature_c,
                 direction: obs.geocentric,
             },
+            class,
         );
         if !ignored.is_empty() {
             warnings.push(Warning::AlreadyCorrected {
