@@ -301,3 +301,34 @@ Caveats recorded in the file itself:
   the horizon is far larger than either and is not represented in any fixture.
 * **Everything here is synthetic.** Not one number in `fixtures/` came from an
   instrument.
+
+## Ephemeris providers versus the Skyfield reference (measured at integration)
+
+Both offline providers were compared with `fixtures/reference/geocentric_sun_stars.json`
+(Skyfield 1.55, JPL DE421 with a DE440s cross-check, 58 epochs from 1995 to 2055 plus
+every hour of 2026-10-01). The fixture's tolerance is 0.05'. The project convention is
+DUT1 = 0, so the comparison column is `gha_deg_dut1_zero`; the USNO almanac service agrees
+with that column to 1e-8 degrees.
+
+| provider | cases | worst GHA | worst Dec | tolerance |
+|---|---|---|---|---|
+| stars (IAU 2006/2000B, Hipparcos) | 3364 | 0.0011' (0.07") separation | included in separation | 0.05' |
+| Sun (VSOP87D, 1020 terms) | 58 | 0.0026' (0.16") | 0.0012' (0.07") | 0.05' |
+
+With the fixture's own DUT1 applied through `StarProvider::with_dut1`, the star GHA agrees
+with the DUT1-inclusive column to 0.027' worst case; the difference from the DUT1 = 0
+comparison is the DUT1 handling itself, which the project reports as an external error
+term (up to 0.23' for |DUT1| < 0.9 s) rather than folding into the model accuracy.
+
+What these numbers are not: field accuracy. They say the Rust astronomy reproduces an
+independent implementation of the same IAU models to well under an arcsecond; sextant
+sights are a hundred to a thousand times noisier than that.
+
+## Diurnal aberration (deliberately not modelled)
+
+The spherical altitude model (CONVENTIONS section 3) omits diurnal aberration, at most
+0.32" for an equatorial observer. Solving the Skyfield-generated topocentric five-star
+session (`reference-philadelphia-5star`) lands 6.2 m from the truth, almost entirely
+east-west, which is that term. The geocentric variant of the same session recovers the
+truth to 0.000 m. Both sit inside the 10 m numerical regression target; the 6.2 m is
+recorded here so nobody mistakes it for a solver defect.
