@@ -30,10 +30,10 @@ use super::args::parse_lon;
 /// command whose results do not depend on where the observer is (`phases`, `seasons`).
 #[derive(clap::Args, Debug, Clone, Copy)]
 pub struct ZoneArgs {
-    /// The zone a date given as --from or --to is taken in, and local times are shown in
-    /// beside UTC: `utc` (default), a fixed offset such as -04:00, or `nautical` for the
-    /// zone time of --lon. Named zones (America/New_York) need a tz database this offline
-    /// tool does not carry; see docs/CLI.md.
+    /// The zone to show local times in, beside UTC; a date given to --from or --to is a
+    /// date in this zone too. `utc` (default), a fixed offset such as -04:00, or
+    /// `nautical` for the zone time of --lon. Named zones (America/New_York) need a tz
+    /// database this offline tool does not carry; see docs/CLI.md.
     #[arg(long, value_name = "ZONE", default_value = "utc", value_parser = parse_zone, allow_hyphen_values = true)]
     pub zone: Zone,
     /// East longitude, degrees (75.17 W is -75.17), for --zone nautical only: it sets the
