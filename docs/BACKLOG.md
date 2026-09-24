@@ -15,7 +15,7 @@ This file is the single list; the completion report links here.
 | Quality output (a-priori covariance, nominal 95 % ellipse, suppression rules) | completed | Monte Carlo: 95.1 % coverage under independent noise; 42 % under a shared bias |
 | Corrections: stars + Sun path, horizon modes, refraction validity | completed | Sun SD/HP from the ephemeris; Moon/planets deferred by design |
 | Offline astronomy: Sun + stars, fixture-pack fallback | completed | stars 0.0011', Sun 0.0026' vs Skyfield; pack says "limited-date operation" |
-| Interface: CLI + browser workbench, bundled assets | partial | CLI and WASM integration in progress at the time of writing; see the completion report |
+| Interface: CLI + browser workbench, bundled assets | completed | CLI: 10 subcommands (`validate reduce solve catalog coverage convert demos simulate experiment plan`), 98 tests (`cargo test -p skyfix-cli`); WASM adapter: 10 tests, every export backed by real code, no feature gates, no stubs (`cargo test -p skyfix-wasm`); browser: 98 vitest tests across 6 files (`npm test --prefix web`), production build 108 kB JS / 11 kB CSS / 822 kB WebAssembly with no CDN fonts, scripts or map tiles (`npm run build --prefix web`) |
 | Simulator: seeded, truth separate, six error scenarios | completed | ten scenarios; experiment summaries in CSV/JSON |
 | Observation planner | completed | geometry-driven greedy ranking with disclosures |
 
@@ -23,9 +23,9 @@ This file is the single list; the completion report links here.
 
 | item | status | notes |
 |---|---|---|
-| A. Stationary camera sextant (synthetic images) | in progress | attitude and position kept apart by type |
-| B. Polarization compass laboratory | in progress | 180-degree ambiguity returned, never guessed |
-| C. Motion and independent navigation checks | in progress | disagreement statements, never a diagnosis |
+| A. Stationary camera sextant (synthetic images) | partial | attitude and position kept apart by type; full render-to-fix chain proven end to end, 69 tests (`cargo test -p skyfix-camera`) — but only on synthetic images. The module's own gap: the 58-star closed-world catalogue identifies on an 80-degree lens but fails a plausible 40-degree one at the briefed pointing (CAMERA.md section 4), and "nothing in this crate has met a real lens, a real sensor or a real sky" (CAMERA.md section 9) |
+| B. Polarization compass laboratory | completed | 180-degree ambiguity always returned, never guessed; 76 tests (`cargo test -p skyfix-polar`). Scoped to heading estimation from a stated sky model, as designed — see "Polarization geolocation" below, which is the deliberately deferred remainder |
+| C. Motion and independent navigation checks | partial | disagreement statements, never a diagnosis; 58 tests (`cargo test -p skyfix-motion`). The module's own gap: a running fix's nominal 95 % ellipse is a documented lower bound, measured at 92.3 % coverage over 300 seeded repetitions, because the dead-reckoning error behind every sight in one fix shares the same speed and course bias and the solver is never told so (MOTION.md section 3) |
 
 ## Unstarted, with the reasoning
 

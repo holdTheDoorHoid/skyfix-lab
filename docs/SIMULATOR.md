@@ -409,7 +409,7 @@ What this crate's tests *do* establish, on their own:
   doubling, no semidiameter, no parallax.
 - The Earth is a sphere everywhere (CONVENTIONS section 1). There is no ellipsoid
   correction, in the simulator or anywhere else in the project.
-- `serde_json` in this workspace does not enable its `float_roundtrip` feature, so
+- `serde_json` in this workspace enables its `float_roundtrip` feature (root `Cargo.toml`), so JSON float round trips are exact; the note that it did not is obsolete.
   parsing a serialised `f64` can land one unit in the last place away from the original.
   One ULP of a GHA is about 1e-14 degrees, roughly a nanometre of position, so it changes
   nothing numerically. It does mean `assert_eq!` on a round-tripped struct is the wrong
