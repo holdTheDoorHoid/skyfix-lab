@@ -23,7 +23,7 @@ Two rules hold everywhere:
 | 0 | everything asked for was done |
 | 1 | usage error, unreadable file, parse failure, or a validation error |
 | 2 | one or more sights were rejected; whatever could be reduced was still printed |
-| 3 | the solve failed, or `--require-unique` was given and the result was not unique |
+| 3 | the solve failed, or `--require-unique` was given and the result was not a unique fix **with a reported 95 % ellipse** |
 | 4 | reserved: a subcommand that exists but is not wired up |
 
 Codes compose by taking the worst one a run earned, so a session with a rejected sight
@@ -37,6 +37,13 @@ Two of these are worth stating plainly:
   do cross in two places, and one sight really is a circle. Reporting that is the
   correct answer to the question asked. Pass `--require-unique` when your script needs a
   single position and should stop otherwise.
+- **`--require-unique` requires an ellipse as well as a unique fix.** CONVENTIONS
+  section 9 withholds the 95 % ellipse exactly when the geometry is rank-deficient,
+  effectively singular, or the iteration did not converge. A position from one of those
+  is a latitude and longitude with no stated uncertainty, which is not something a script
+  may act on, so the flag exits 3 and stderr names the suppression reason. Without the
+  flag such a result is still exit 0: the report says plainly what it does and does not
+  know, and reading it is the point.
 - **`skyfix` maps clap's own usage errors onto 1.** Clap exits 2 by default, which here
   means "some sights were rejected", so the parse is handled explicitly instead.
   `--help` and `--version` print to stdout and exit 0.
@@ -126,7 +133,7 @@ own line: `UNIQUE FIX`, `AMBIGUOUS: N CANDIDATES`, `UNDERDETERMINED` or `FAILED`
 | `--posterior-scaling` | additionally report the `chi2/dof`-scaled covariance, when there are 3 or more degrees of freedom |
 | `--no-multistart` | refine from the initializer only; do not search the globe |
 | `--grid-step DEGREES` | coarse multistart grid spacing |
-| `--require-unique` | exit 3 unless the result is a single unique fix |
+| `--require-unique` | exit 3 unless the result is a single unique fix that also carries a 95 % ellipse |
 
 **How the options are built.** The session contributes first, then the flags override it:
 

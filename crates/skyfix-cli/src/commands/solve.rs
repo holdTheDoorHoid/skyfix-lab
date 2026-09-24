@@ -84,20 +84,29 @@ pub fn run(path: &Path, flags: &Flags) -> Result<u8> {
     let mut code = if errors.is_empty() {
         exit::OK
     } else {
-        eprintln!(
-            "{} of {} sight(s) were rejected; the fix below uses the remaining {}.",
-            errors.len(),
-            loaded.session.observations.len(),
-            reduced.len()
-        );
+        // "the fix below" is a promise, so it is only made when there is one.
+        if reduced.is_empty() {
+            eprintln!(
+                "all {} sight(s) were rejected; there is nothing left to solve.",
+                errors.len()
+            );
+        } else {
+            eprintln!(
+                "{} of {} sight(s) were rejected; the fix below uses the remaining {}.",
+                errors.len(),
+                loaded.session.observations.len(),
+                reduced.len()
+            );
+        }
         exit::SIGHTS_REJECTED
     };
 
-    let unique = matches!(result, FixResult::Unique { .. });
     if matches!(result, FixResult::Failed { .. }) {
         code = exit::worse(code, exit::SOLVE_FAILED);
-    } else if flags.require_unique && !unique {
-        eprintln!("--require-unique was given and the result is not a unique fix.");
+    } else if flags.require_unique
+        && let Some(why) = not_a_usable_single_position(&result)
+    {
+        eprintln!("--require-unique was given and {why}");
         code = exit::worse(code, exit::SOLVE_FAILED);
     }
     Ok(code)
@@ -439,6 +448,32 @@ fn render_circles(circles: &[CircleOfPosition], out: &mut String) {
     }
 }
 
+/// Why `--require-unique` is not satisfied, or `None` when it is.
+///
+/// A unique fix whose ellipse was suppressed is not a single position a script may act
+/// on: the ellipse is withheld exactly when the geometry is rank-deficient, effectively
+/// singular, or the iteration did not converge (CONVENTIONS section 9), and in every one
+/// of those cases the position is a number without an uncertainty to go with it.
+/// `--require-unique` therefore demands both.
+fn not_a_usable_single_position(result: &FixResult) -> Option<String> {
+    match result {
+        FixResult::Unique { fix, .. } => {
+            if fix.ellipse95.is_some() {
+                return None;
+            }
+            let reason = fix
+                .ellipse_suppressed_reason
+                .clone()
+                .unwrap_or_else(|| "no reason was recorded".to_string());
+            Some(format!(
+                "the fix carries no 95 % ellipse, so it is a position with no stated \
+                 uncertainty: {reason}"
+            ))
+        }
+        _ => Some("the result is not a unique fix.".to_string()),
+    }
+}
+
 /// What would settle an ambiguity, in the terms a navigator can act on.
 const AMBIGUITY_REMEDY: &str = "Every candidate fits the sights about equally well, so promoting one of them would be \
      false precision. One more sight of a body 60 to 120 degrees away in azimuth from those \
@@ -452,7 +487,14 @@ const AMBIGUITY_REMEDY: &str = "Every candidate fits the sights about equally we
 /// and a line break through the middle of it would make the output harder to read and
 /// harder to search.
 fn underdetermined_sentences(circles: usize) -> (&'static str, &'static str) {
-    if circles <= 1 {
+    if circles == 0 {
+        // No "circle above": nothing was printed, so nothing may be referred to.
+        (
+            "Geometrically: there is nothing here to place you.",
+            "No sight survived reduction, so there is not even a circle of position to draw. \
+             The rejections are named above; fix those and solve again.",
+        )
+    } else if circles == 1 {
         (
             "Geometrically: one sight constrains you to a circle, not a point.",
             "Every position on the circle above fits the observation exactly as well as every \
@@ -506,7 +548,7 @@ pub fn provider_note(reduced: &[skyfix_core::types::ReducedSight]) -> Option<War
 #[cfg(test)]
 mod tests {
     use super::*;
-    use skyfix_core::types::{Clock, Instrument, Observer, SessionMeta};
+    use skyfix_core::types::{Clock, ErrorEllipse, Instrument, Observer, SessionMeta};
 
     fn session_with(role: AssumedPositionRole, ap: Option<LatLon>, clock_s: f64) -> Session {
         Session {
@@ -642,5 +684,107 @@ mod tests {
             "{text}"
         );
         assert!(text.contains("1800.0 NM"), "radius in NM missing: {text}");
+    }
+
+    /// With no circles there is no "circle above" to refer to, and the narrative must not
+    /// invent one. This is what a session whose every sight was rejected produces.
+    #[test]
+    fn an_underdetermined_result_with_no_circles_promises_none() {
+        let under = FixResult::Underdetermined {
+            circles: vec![],
+            reason: "no usable sights".into(),
+            warnings: vec![],
+        };
+        let flat = report::flatten(&render(&under, &SolveOptions::default()));
+        assert!(!flat.contains("circle above"), "{flat}");
+        assert!(
+            !flat.contains("one sight constrains you to a circle"),
+            "{flat}"
+        );
+        assert!(flat.contains("not even a circle of position"), "{flat}");
+    }
+
+    /// A `Fix` may legally carry `ellipse95: None` with `ellipse_suppressed_reason` set
+    /// (CONVENTIONS section 9), and the WASM adapter and UI can hand one over. A position
+    /// with no stated uncertainty is not a single position a script may act on, so
+    /// `--require-unique` refuses it and says which of its two conditions failed.
+    #[test]
+    fn require_unique_is_not_satisfied_by_a_fix_without_an_ellipse() {
+        let with_ellipse = unique_result(Some(ErrorEllipse {
+            semi_major_m: 100.0,
+            semi_minor_m: 90.0,
+            orientation_deg: 10.0,
+            confidence: 0.95,
+            model: skyfix_core::uncertainty::ELLIPSE_MODEL.to_string(),
+        }));
+        assert_eq!(not_a_usable_single_position(&with_ellipse), None);
+
+        let without = unique_result(None);
+        let why = not_a_usable_single_position(&without).expect("must refuse");
+        assert!(why.contains("no 95 % ellipse"), "{why}");
+        assert!(why.contains("effectively singular"), "{why}");
+
+        // The other kinds are refused as before.
+        for other in [
+            FixResult::Failed {
+                reason: "x".into(),
+                warnings: vec![],
+            },
+            FixResult::Underdetermined {
+                circles: vec![],
+                reason: "x".into(),
+                warnings: vec![],
+            },
+            FixResult::Ambiguous {
+                candidates: vec![],
+                circles: vec![],
+                warnings: vec![],
+            },
+        ] {
+            assert!(
+                not_a_usable_single_position(&other)
+                    .is_some_and(|w| w.contains("not a unique fix"))
+            );
+        }
+    }
+
+    /// A `unique` result carrying `ellipse`, for the predicate above.
+    fn unique_result(ellipse: Option<ErrorEllipse>) -> FixResult {
+        let suppressed = ellipse.is_none().then(|| {
+            "condition number 1.430e8 is at or beyond 1e6: the geometry is effectively \
+             singular"
+                .to_string()
+        });
+        FixResult::Unique {
+            fix: skyfix_core::types::Fix {
+                position: AP,
+                shared_bias_arcmin: None,
+                covariance_ne_m2: [[1.0, 0.0], [0.0, 1.0]],
+                sigma_north_m: 1.0,
+                sigma_east_m: 1.0,
+                clock_sigma_east_m: 0.0,
+                ellipse95: ellipse,
+                ellipse_suppressed_reason: suppressed,
+                posterior_scaled: None,
+                residuals: vec![],
+                chi2: 0.0,
+                dof: 1,
+                conditioning: skyfix_core::types::Conditioning {
+                    singular_values: vec![1.0, 1.0],
+                    condition_number: 1.0,
+                    rank: 2,
+                    geometric_dilution_m_per_arcmin: 1852.0,
+                    max_azimuth_gap_deg: 90.0,
+                    columns: "position (north, east)".to_string(),
+                },
+                iterations: 3,
+                converged: true,
+                prior: None,
+                robust: None,
+            },
+            alternatives: vec![],
+            circles: vec![],
+            warnings: vec![],
+        }
     }
 }

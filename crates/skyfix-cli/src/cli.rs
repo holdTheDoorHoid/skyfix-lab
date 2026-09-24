@@ -24,8 +24,8 @@ use crate::provider::EphemerisChoice;
     long_about = "Reduce celestial observations, solve a position fix, and say how much \
                   the answer is worth. Results go to stdout, diagnostics to stderr. Exit \
                   codes: 0 ok, 1 usage or validation error, 2 one or more sights \
-                  rejected, 3 solve failed or not unique under --require-unique, 4 the \
-                  subcommand is not wired up in this build."
+                  rejected, 3 solve failed or, under --require-unique, no single fix with \
+                  a 95 % ellipse, 4 the subcommand is not wired up in this build."
 )]
 pub struct Cli {
     #[command(subcommand)]
@@ -240,7 +240,17 @@ pub fn parse_latlon(s: &str) -> Result<LatLon, String> {
     let lon_deg = number(parts[1], "longitude")?;
     check_range("latitude", lat_deg, -90.0, 90.0)?;
     check_range("longitude", lon_deg, -180.0, 180.0)?;
-    Ok(LatLon { lat_deg, lon_deg })
+    Ok(LatLon {
+        lat_deg,
+        // CONVENTIONS section 1 normalises longitude to (-180, 180]. That range differs
+        // from the one checked above at exactly one value, so -180 is rewritten as +180 --
+        // the same meridian, one spelling -- and every other value is passed through
+        // untouched. `norm_180` would do it by way of `rem_euclid`, which perturbs an
+        // ordinary longitude in its last bits; here the output is exact. Normalising at
+        // the input rather than at each print site keeps the text report and `--json`
+        // saying the same thing.
+        lon_deg: if lon_deg == -180.0 { 180.0 } else { lon_deg },
+    })
 }
 
 /// `lat,lon,sigma_nm`: a prior's centre and its 1-sigma radius in nautical miles.
@@ -296,6 +306,31 @@ mod tests {
         assert_eq!(p.lat_deg, 39.9526);
         assert_eq!(p.lon_deg, -75.1652);
         assert_eq!(parse_latlon(" 40 , 75 ").unwrap().lon_deg, 75.0);
+    }
+
+    /// CONVENTIONS section 1: longitude is `(-180, 180]`, so the antimeridian has one
+    /// spelling. `plan --position 0,-180` used to print `-180.000000`, which is outside
+    /// the documented range, and `--json` carried the same value.
+    #[test]
+    fn the_antimeridian_is_normalised_to_plus_one_eighty() {
+        assert_eq!(parse_latlon("0,-180").unwrap().lon_deg, 180.0);
+        assert_eq!(parse_latlon("0,180").unwrap().lon_deg, 180.0);
+        // Nothing else moves, not even in the last bits: these must stay exact.
+        for lon in [
+            "-179.9999",
+            "-75.1652",
+            "-0.0001",
+            "0",
+            "75.1652",
+            "179.9999",
+        ] {
+            let got = parse_latlon(&format!("10,{lon}")).unwrap().lon_deg;
+            assert_eq!(
+                got,
+                lon.parse::<f64>().unwrap(),
+                "longitude {lon} was perturbed"
+            );
+        }
     }
 
     #[test]
