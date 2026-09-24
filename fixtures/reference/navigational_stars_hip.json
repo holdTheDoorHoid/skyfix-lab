@@ -1,0 +1,597 @@
+{
+ "schema": "skyfix.reference/1",
+ "generator": {
+  "source": "Hipparcos main catalogue (ESA 1997), VizieR catalogue I/239/hip_main, columns HIP RAICRS DEICRS pmRA pmDE Plx Vmag",
+  "query": "https://tapvizier.cds.unistra.fr/TAPVizieR/tap/sync ADQL: SELECT HIP,RAICRS,DEICRS,pmRA,pmDE,Plx,Vmag FROM \"I/239/hip_main\" WHERE HIP IN (<58 HIP numbers>)",
+  "retrieved": "2026-09-23",
+  "license": "CDS/VizieR data, freely usable with acknowledgement of the CDS and of ESA 1997, ESA SP-1200 (the Hipparcos and Tycho Catalogues).",
+  "epoch": "J2000.0",
+  "frame": "ICRS",
+  "note": "Catalogue positions are given at epoch J1991.25; they were propagated to epoch J2000.0 with the tabulated proper motions (unit-vector method, no radial velocity). Proper motions and parallaxes are the catalogue values, unchanged.",
+  "provisional": true,
+  "provisional_reason": "Typed by the ephemeris agent from a direct VizieR query pending the authoritative Skyfield-generated file. Same schema; drop-in replacement.",
+  "star_count": 58
+ },
+ "stars": [
+  {
+   "name": "Acamar",
+   "hip": 13847,
+   "ra_deg": 44.56531119,
+   "dec_deg": -40.30467242,
+   "pm_ra_cosdec_mas_yr": -53.53,
+   "pm_dec_mas_yr": 25.71,
+   "parallax_mas": 20.22,
+   "mag": 2.88
+  },
+  {
+   "name": "Achernar",
+   "hip": 7588,
+   "ra_deg": 24.42852736,
+   "dec_deg": -57.23675749,
+   "pm_ra_cosdec_mas_yr": 88.02,
+   "pm_dec_mas_yr": -40.08,
+   "parallax_mas": 22.68,
+   "mag": 0.45
+  },
+  {
+   "name": "Acrux",
+   "hip": 60718,
+   "ra_deg": 186.64956584,
+   "dec_deg": -63.09909166,
+   "pm_ra_cosdec_mas_yr": -35.37,
+   "pm_dec_mas_yr": -14.73,
+   "parallax_mas": 10.17,
+   "mag": 0.77
+  },
+  {
+   "name": "Adhara",
+   "hip": 33579,
+   "ra_deg": 104.65645182,
+   "dec_deg": -28.97208374,
+   "pm_ra_cosdec_mas_yr": 2.63,
+   "pm_dec_mas_yr": 2.29,
+   "parallax_mas": 7.57,
+   "mag": 1.5
+  },
+  {
+   "name": "Aldebaran",
+   "hip": 21421,
+   "ra_deg": 68.9801611,
+   "dec_deg": 16.50930139,
+   "pm_ra_cosdec_mas_yr": 62.78,
+   "pm_dec_mas_yr": -189.36,
+   "parallax_mas": 50.09,
+   "mag": 0.87
+  },
+  {
+   "name": "Alioth",
+   "hip": 62956,
+   "ra_deg": 193.50728928,
+   "dec_deg": 55.95982116,
+   "pm_ra_cosdec_mas_yr": 111.74,
+   "pm_dec_mas_yr": -8.99,
+   "parallax_mas": 40.3,
+   "mag": 1.76
+  },
+  {
+   "name": "Alkaid",
+   "hip": 67301,
+   "ra_deg": 206.88515682,
+   "dec_deg": 49.31326506,
+   "pm_ra_cosdec_mas_yr": -121.23,
+   "pm_dec_mas_yr": -15.56,
+   "parallax_mas": 32.39,
+   "mag": 1.85
+  },
+  {
+   "name": "Al Na'ir",
+   "hip": 109268,
+   "ra_deg": 332.0582728,
+   "dec_deg": -46.96097543,
+   "pm_ra_cosdec_mas_yr": 127.6,
+   "pm_dec_mas_yr": -147.91,
+   "parallax_mas": 32.16,
+   "mag": 1.73
+  },
+  {
+   "name": "Alnilam",
+   "hip": 26311,
+   "ra_deg": 84.05338934,
+   "dec_deg": -1.20191983,
+   "pm_ra_cosdec_mas_yr": 1.49,
+   "pm_dec_mas_yr": -1.06,
+   "parallax_mas": 2.43,
+   "mag": 1.69
+  },
+  {
+   "name": "Alphard",
+   "hip": 46390,
+   "ra_deg": 141.89684698,
+   "dec_deg": -8.65860253,
+   "pm_ra_cosdec_mas_yr": -14.49,
+   "pm_dec_mas_yr": 33.25,
+   "parallax_mas": 18.4,
+   "mag": 1.99
+  },
+  {
+   "name": "Alphecca",
+   "hip": 76267,
+   "ra_deg": 233.67195048,
+   "dec_deg": 26.71469302,
+   "pm_ra_cosdec_mas_yr": 120.38,
+   "pm_dec_mas_yr": -89.44,
+   "parallax_mas": 43.65,
+   "mag": 2.22
+  },
+  {
+   "name": "Alpheratz",
+   "hip": 677,
+   "ra_deg": 2.09691071,
+   "dec_deg": 29.09043199,
+   "pm_ra_cosdec_mas_yr": 135.68,
+   "pm_dec_mas_yr": -162.95,
+   "parallax_mas": 33.6,
+   "mag": 2.07
+  },
+  {
+   "name": "Altair",
+   "hip": 97649,
+   "ra_deg": 297.69582916,
+   "dec_deg": 8.86832198,
+   "pm_ra_cosdec_mas_yr": 536.82,
+   "pm_dec_mas_yr": 385.54,
+   "parallax_mas": 194.44,
+   "mag": 0.76
+  },
+  {
+   "name": "Ankaa",
+   "hip": 2081,
+   "ra_deg": 6.57104571,
+   "dec_deg": -42.30598151,
+   "pm_ra_cosdec_mas_yr": 232.76,
+   "pm_dec_mas_yr": -353.64,
+   "parallax_mas": 42.14,
+   "mag": 2.4
+  },
+  {
+   "name": "Antares",
+   "hip": 80763,
+   "ra_deg": 247.35192046,
+   "dec_deg": -26.43200249,
+   "pm_ra_cosdec_mas_yr": -10.16,
+   "pm_dec_mas_yr": -23.21,
+   "parallax_mas": 5.4,
+   "mag": 1.06
+  },
+  {
+   "name": "Arcturus",
+   "hip": 69673,
+   "ra_deg": 213.9153001,
+   "dec_deg": 19.1824103,
+   "pm_ra_cosdec_mas_yr": -1093.45,
+   "pm_dec_mas_yr": -1999.4,
+   "parallax_mas": 88.85,
+   "mag": -0.05
+  },
+  {
+   "name": "Atria",
+   "hip": 82273,
+   "ra_deg": 252.16622864,
+   "dec_deg": -69.02771504,
+   "pm_ra_cosdec_mas_yr": 17.85,
+   "pm_dec_mas_yr": -32.92,
+   "parallax_mas": 7.85,
+   "mag": 1.91
+  },
+  {
+   "name": "Avior",
+   "hip": 41037,
+   "ra_deg": 125.6284816,
+   "dec_deg": -59.50948307,
+   "pm_ra_cosdec_mas_yr": -25.34,
+   "pm_dec_mas_yr": 22.72,
+   "parallax_mas": 5.16,
+   "mag": 1.86
+  },
+  {
+   "name": "Bellatrix",
+   "hip": 25336,
+   "ra_deg": 81.28276276,
+   "dec_deg": 6.34970223,
+   "pm_ra_cosdec_mas_yr": -8.75,
+   "pm_dec_mas_yr": -13.28,
+   "parallax_mas": 13.42,
+   "mag": 1.64
+  },
+  {
+   "name": "Betelgeuse",
+   "hip": 27989,
+   "ra_deg": 88.7929386,
+   "dec_deg": 7.40706274,
+   "pm_ra_cosdec_mas_yr": 27.33,
+   "pm_dec_mas_yr": 10.86,
+   "parallax_mas": 7.63,
+   "mag": 0.45
+  },
+  {
+   "name": "Canopus",
+   "hip": 30438,
+   "ra_deg": 95.9879578,
+   "dec_deg": -52.69566046,
+   "pm_ra_cosdec_mas_yr": 19.99,
+   "pm_dec_mas_yr": 23.67,
+   "parallax_mas": 10.43,
+   "mag": -0.62
+  },
+  {
+   "name": "Capella",
+   "hip": 24608,
+   "ra_deg": 79.1723294,
+   "dec_deg": 45.99799111,
+   "pm_ra_cosdec_mas_yr": 75.52,
+   "pm_dec_mas_yr": -427.13,
+   "parallax_mas": 77.29,
+   "mag": 0.08
+  },
+  {
+   "name": "Deneb",
+   "hip": 102098,
+   "ra_deg": 310.35797809,
+   "dec_deg": 45.280338,
+   "pm_ra_cosdec_mas_yr": 1.56,
+   "pm_dec_mas_yr": 1.55,
+   "parallax_mas": 1.01,
+   "mag": 1.25
+  },
+  {
+   "name": "Denebola",
+   "hip": 57632,
+   "ra_deg": 177.26490656,
+   "dec_deg": 14.57206032,
+   "pm_ra_cosdec_mas_yr": -499.02,
+   "pm_dec_mas_yr": -113.78,
+   "parallax_mas": 90.16,
+   "mag": 2.14
+  },
+  {
+   "name": "Diphda",
+   "hip": 3419,
+   "ra_deg": 10.8973794,
+   "dec_deg": -17.9866046,
+   "pm_ra_cosdec_mas_yr": 232.79,
+   "pm_dec_mas_yr": 32.71,
+   "parallax_mas": 34.04,
+   "mag": 2.04
+  },
+  {
+   "name": "Dubhe",
+   "hip": 54061,
+   "ra_deg": 165.93195289,
+   "dec_deg": 61.7510332,
+   "pm_ra_cosdec_mas_yr": -136.46,
+   "pm_dec_mas_yr": -35.25,
+   "parallax_mas": 26.38,
+   "mag": 1.81
+  },
+  {
+   "name": "Elnath",
+   "hip": 25428,
+   "ra_deg": 81.57297249,
+   "dec_deg": 28.60745001,
+   "pm_ra_cosdec_mas_yr": 23.28,
+   "pm_dec_mas_yr": -174.22,
+   "parallax_mas": 24.89,
+   "mag": 1.65
+  },
+  {
+   "name": "Eltanin",
+   "hip": 87833,
+   "ra_deg": 269.15154113,
+   "dec_deg": 51.48889499,
+   "pm_ra_cosdec_mas_yr": -8.52,
+   "pm_dec_mas_yr": -23.05,
+   "parallax_mas": 22.1,
+   "mag": 2.24
+  },
+  {
+   "name": "Enif",
+   "hip": 107315,
+   "ra_deg": 326.04649214,
+   "dec_deg": 9.87501126,
+   "pm_ra_cosdec_mas_yr": 30.02,
+   "pm_dec_mas_yr": 1.38,
+   "parallax_mas": 4.85,
+   "mag": 2.38
+  },
+  {
+   "name": "Fomalhaut",
+   "hip": 113368,
+   "ra_deg": 344.41269372,
+   "dec_deg": -29.62223615,
+   "pm_ra_cosdec_mas_yr": 329.22,
+   "pm_dec_mas_yr": -164.22,
+   "parallax_mas": 130.08,
+   "mag": 1.17
+  },
+  {
+   "name": "Gacrux",
+   "hip": 61084,
+   "ra_deg": 187.79149709,
+   "dec_deg": -57.11321169,
+   "pm_ra_cosdec_mas_yr": 27.94,
+   "pm_dec_mas_yr": -264.33,
+   "parallax_mas": 37.09,
+   "mag": 1.59
+  },
+  {
+   "name": "Gienah",
+   "hip": 59803,
+   "ra_deg": 183.95154259,
+   "dec_deg": -17.54192947,
+   "pm_ra_cosdec_mas_yr": -159.58,
+   "pm_dec_mas_yr": 22.31,
+   "parallax_mas": 19.78,
+   "mag": 2.58
+  },
+  {
+   "name": "Hadar",
+   "hip": 68702,
+   "ra_deg": 210.95585201,
+   "dec_deg": -60.37303931,
+   "pm_ra_cosdec_mas_yr": -33.96,
+   "pm_dec_mas_yr": -25.06,
+   "parallax_mas": 6.21,
+   "mag": 0.61
+  },
+  {
+   "name": "Hamal",
+   "hip": 9884,
+   "ra_deg": 31.79336293,
+   "dec_deg": 23.46242313,
+   "pm_ra_cosdec_mas_yr": 190.73,
+   "pm_dec_mas_yr": -145.77,
+   "parallax_mas": 49.48,
+   "mag": 2.01
+  },
+  {
+   "name": "Kaus Australis",
+   "hip": 90185,
+   "ra_deg": 276.04299301,
+   "dec_deg": -34.38461611,
+   "pm_ra_cosdec_mas_yr": -39.61,
+   "pm_dec_mas_yr": -124.05,
+   "parallax_mas": 22.55,
+   "mag": 1.79
+  },
+  {
+   "name": "Kochab",
+   "hip": 72607,
+   "ra_deg": 222.67636006,
+   "dec_deg": 74.15550491,
+   "pm_ra_cosdec_mas_yr": -32.29,
+   "pm_dec_mas_yr": 11.91,
+   "parallax_mas": 25.79,
+   "mag": 2.07
+  },
+  {
+   "name": "Markab",
+   "hip": 113963,
+   "ra_deg": 346.19022409,
+   "dec_deg": 15.20526442,
+   "pm_ra_cosdec_mas_yr": 61.1,
+   "pm_dec_mas_yr": -42.56,
+   "parallax_mas": 23.36,
+   "mag": 2.49
+  },
+  {
+   "name": "Menkar",
+   "hip": 14135,
+   "ra_deg": 45.56988401,
+   "dec_deg": 4.08973396,
+   "pm_ra_cosdec_mas_yr": -11.81,
+   "pm_dec_mas_yr": -78.76,
+   "parallax_mas": 14.82,
+   "mag": 2.54
+  },
+  {
+   "name": "Menkent",
+   "hip": 68933,
+   "ra_deg": 211.67061857,
+   "dec_deg": -36.36995445,
+   "pm_ra_cosdec_mas_yr": -519.29,
+   "pm_dec_mas_yr": -517.87,
+   "parallax_mas": 53.52,
+   "mag": 2.06
+  },
+  {
+   "name": "Miaplacidus",
+   "hip": 45238,
+   "ra_deg": 138.29989786,
+   "dec_deg": -69.71720773,
+   "pm_ra_cosdec_mas_yr": -157.66,
+   "pm_dec_mas_yr": 108.91,
+   "parallax_mas": 29.34,
+   "mag": 1.67
+  },
+  {
+   "name": "Mirfak",
+   "hip": 15863,
+   "ra_deg": 51.08070979,
+   "dec_deg": 49.86117959,
+   "pm_ra_cosdec_mas_yr": 24.11,
+   "pm_dec_mas_yr": -26.01,
+   "parallax_mas": 5.51,
+   "mag": 1.79
+  },
+  {
+   "name": "Nunki",
+   "hip": 92855,
+   "ra_deg": 283.81635716,
+   "dec_deg": -26.29672225,
+   "pm_ra_cosdec_mas_yr": 13.87,
+   "pm_dec_mas_yr": -52.65,
+   "parallax_mas": 14.54,
+   "mag": 2.05
+  },
+  {
+   "name": "Peacock",
+   "hip": 100751,
+   "ra_deg": 306.41190763,
+   "dec_deg": -56.7350901,
+   "pm_ra_cosdec_mas_yr": 7.71,
+   "pm_dec_mas_yr": -86.15,
+   "parallax_mas": 17.8,
+   "mag": 1.94
+  },
+  {
+   "name": "Pollux",
+   "hip": 37826,
+   "ra_deg": 116.32895983,
+   "dec_deg": 28.02619862,
+   "pm_ra_cosdec_mas_yr": -625.69,
+   "pm_dec_mas_yr": -45.95,
+   "parallax_mas": 96.74,
+   "mag": 1.16
+  },
+  {
+   "name": "Procyon",
+   "hip": 37279,
+   "ra_deg": 114.82549301,
+   "dec_deg": 5.22499306,
+   "pm_ra_cosdec_mas_yr": -716.57,
+   "pm_dec_mas_yr": -1034.58,
+   "parallax_mas": 285.93,
+   "mag": 0.4
+  },
+  {
+   "name": "Rasalhague",
+   "hip": 86032,
+   "ra_deg": 263.73362733,
+   "dec_deg": 12.56003477,
+   "pm_ra_cosdec_mas_yr": 110.08,
+   "pm_dec_mas_yr": -222.61,
+   "parallax_mas": 69.84,
+   "mag": 2.08
+  },
+  {
+   "name": "Regulus",
+   "hip": 49669,
+   "ra_deg": 152.0929611,
+   "dec_deg": 11.96720706,
+   "pm_ra_cosdec_mas_yr": -249.4,
+   "pm_dec_mas_yr": 4.91,
+   "parallax_mas": 42.09,
+   "mag": 1.36
+  },
+  {
+   "name": "Rigel",
+   "hip": 24436,
+   "ra_deg": 78.63446812,
+   "dec_deg": -8.20164055,
+   "pm_ra_cosdec_mas_yr": 1.87,
+   "pm_dec_mas_yr": -0.56,
+   "parallax_mas": 4.22,
+   "mag": 0.18
+  },
+  {
+   "name": "Rigil Kentaurus",
+   "hip": 71683,
+   "ra_deg": 219.90206584,
+   "dec_deg": -60.83397468,
+   "pm_ra_cosdec_mas_yr": -3678.19,
+   "pm_dec_mas_yr": 481.84,
+   "parallax_mas": 742.12,
+   "mag": -0.01
+  },
+  {
+   "name": "Sabik",
+   "hip": 84012,
+   "ra_deg": 257.59453052,
+   "dec_deg": -15.72491023,
+   "pm_ra_cosdec_mas_yr": 41.16,
+   "pm_dec_mas_yr": 97.65,
+   "parallax_mas": 38.77,
+   "mag": 2.43
+  },
+  {
+   "name": "Schedar",
+   "hip": 3179,
+   "ra_deg": 10.12683548,
+   "dec_deg": 56.53733109,
+   "pm_ra_cosdec_mas_yr": 50.36,
+   "pm_dec_mas_yr": -32.17,
+   "parallax_mas": 14.27,
+   "mag": 2.24
+  },
+  {
+   "name": "Shaula",
+   "hip": 85927,
+   "ra_deg": 263.40216661,
+   "dec_deg": -37.10382115,
+   "pm_ra_cosdec_mas_yr": -8.9,
+   "pm_dec_mas_yr": -29.95,
+   "parallax_mas": 4.64,
+   "mag": 1.62
+  },
+  {
+   "name": "Sirius",
+   "hip": 32349,
+   "ra_deg": 101.28715539,
+   "dec_deg": -16.71611582,
+   "pm_ra_cosdec_mas_yr": -546.01,
+   "pm_dec_mas_yr": -1223.08,
+   "parallax_mas": 379.21,
+   "mag": -1.44
+  },
+  {
+   "name": "Spica",
+   "hip": 65474,
+   "ra_deg": 201.29824701,
+   "dec_deg": -11.16132203,
+   "pm_ra_cosdec_mas_yr": -42.5,
+   "pm_dec_mas_yr": -31.73,
+   "parallax_mas": 12.44,
+   "mag": 0.98
+  },
+  {
+   "name": "Suhail",
+   "hip": 44816,
+   "ra_deg": 136.99899358,
+   "dec_deg": -43.43258935,
+   "pm_ra_cosdec_mas_yr": -23.21,
+   "pm_dec_mas_yr": 14.28,
+   "parallax_mas": 5.69,
+   "mag": 2.23
+  },
+  {
+   "name": "Vega",
+   "hip": 91262,
+   "ra_deg": 279.23473511,
+   "dec_deg": 38.7836918,
+   "pm_ra_cosdec_mas_yr": 201.02,
+   "pm_dec_mas_yr": 287.46,
+   "parallax_mas": 128.93,
+   "mag": 0.03
+  },
+  {
+   "name": "Zubenelgenubi",
+   "hip": 72622,
+   "ra_deg": 222.71963807,
+   "dec_deg": -16.04177818,
+   "pm_ra_cosdec_mas_yr": -105.69,
+   "pm_dec_mas_yr": -69.0,
+   "parallax_mas": 42.25,
+   "mag": 2.75
+  },
+  {
+   "name": "Polaris",
+   "hip": 11767,
+   "ra_deg": 37.95451535,
+   "dec_deg": 89.26410951,
+   "pm_ra_cosdec_mas_yr": 44.22,
+   "pm_dec_mas_yr": -11.74,
+   "parallax_mas": 7.56,
+   "mag": 1.97
+  }
+ ]
+}

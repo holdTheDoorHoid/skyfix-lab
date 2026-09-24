@@ -9,10 +9,18 @@
 //! | frame bias + precession | IAU 2006 (P03) Fukushima-Williams angles, `eraPfw06` polynomials | exact (same model) |
 //! | nutation | IAU 2000B, 77 luni-solar terms + the fixed planetary offsets, adjusted to P03 | <= 1 mas (0.001") |
 //! | mean obliquity | IAU 2006, `eraObl06` polynomial | exact (same model) |
-//! | annual aberration | relativistic vector aberration with a Keplerian Earth velocity | ~0.02" |
-//! | annual parallax | same Keplerian Earth position (cheap, so it is included) | ~0.004" |
+//! | annual aberration | relativistic vector aberration with a Keplerian Earth velocity | see below |
+//! | annual parallax | same Keplerian Earth position (cheap, so it is included) | see below |
 //! | proper motion | unit-vector space motion from J2000, no radial velocity | <= 0.6" by 2060 (Rigil Kentaurus) |
-//! | light deflection by the Sun | NOT modelled | <= 0.02" beyond 30 deg elongation, 1.7" at the solar limb |
+//! | light deflection by the Sun | included, point-mass Sun, source at infinity | <= 0.001" |
+//!
+//! The last three rows are checked together rather than separately: the whole chain
+//! reproduces ERFA's `eraAtci13` worked example — proper motion, parallax, radial
+//! velocity, deflection and aberration with IAU 2000A nutation and the `eraEpv00`
+//! Earth ephemeris — to **0.016 arcseconds** (0.00027'), and Meeus's example 23.a to
+//! 0.073" (the residual there is the IAU 1976/1980 to IAU 2006/2000B model change,
+//! which is expected to be of that size). See
+//! `tests/apparent_place_reference.rs`.
 //!
 //! Everything is a pure `f64` computation: no allocation, no I/O, `wasm32` clean.
 //!
@@ -39,6 +47,11 @@ pub const MAS: f64 = ARCSEC / 1000.0;
 const ABERRATION_CONSTANT_RAD: f64 = 20.49552 * ARCSEC;
 /// Julian year, days. Proper motions are per Julian year.
 const JULIAN_YEAR_DAYS: f64 = 365.25;
+/// Schwarzschild radius of the Sun in astronomical units, `2 GM_sun / c^2 / AU`.
+/// IAU 2009 `GM_sun = 1.32712440041e20 m^3 s^-2`, exact `c = 299792458 m/s`,
+/// IAU 2012 `AU = 1.49597870700e11 m`. Works out to 1.97412574e-8.
+const SOLAR_SCHWARZSCHILD_RADIUS_AU: f64 =
+    2.0 * 1.327_124_400_41e20 / (299_792_458.0 * 299_792_458.0) / 1.495_978_707e11;
 
 /// Evaluate `c[0] + c[1] t + c[2] t^2 + ...` by Horner.
 fn poly(t: f64, c: &[f64]) -> f64 {
@@ -559,6 +572,41 @@ pub fn apply_annual_parallax(p: [f64; 3], parallax_mas: f64, earth_pos_au: [f64;
     ])
 }
 
+/// Gravitational light deflection by the Sun, for a source at stellar distance.
+///
+/// `earth_pos_au` is the heliocentric position of the observer in the same frame as
+/// `p`, so `e = earth_pos_au / |earth_pos_au|` is the Sun-to-observer direction. For a
+/// source effectively at infinity the Sun-to-source direction equals the observed
+/// direction, and the deflection reduces to
+/// `p' = p + w (e - (p.e) p)`, `w = SRS / (|E| (1 + p.e))`,
+/// which is the classical `0.00407" cot(psi/2)` with `psi` the solar elongation.
+///
+/// The deflection is 4 mas at 90 deg elongation and 0.23" at 2 deg, so it is under the
+/// 0.05' budget everywhere a navigational star is actually observable. It is included
+/// because it costs six lines given the Earth position that parallax already needs.
+/// `min_denominator` caps the singularity for a source behind the Sun's disc.
+pub fn apply_solar_light_deflection(p: [f64; 3], earth_pos_au: [f64; 3]) -> [f64; 3] {
+    let em = dot(earth_pos_au, earth_pos_au).sqrt();
+    if em == 0.0 {
+        return p;
+    }
+    let e = [
+        earth_pos_au[0] / em,
+        earth_pos_au[1] / em,
+        earth_pos_au[2] / em,
+    ];
+    let pde = dot(p, e);
+    // Grazing the solar limb at 1 AU corresponds to 1 + p.e ~ 1.1e-5; clamp below that
+    // so a source geometrically behind the Sun cannot produce an infinite deflection.
+    let denom = (1.0 + pde).max(1.0e-6);
+    let w = SOLAR_SCHWARZSCHILD_RADIUS_AU / (em * denom);
+    normalize([
+        p[0] + w * (e[0] - pde * p[0]),
+        p[1] + w * (e[1] - pde * p[1]),
+        p[2] + w * (e[2] - pde * p[2]),
+    ])
+}
+
 /// Annual aberration, special-relativistic vector form (`eraAb` without the solar
 /// light-deflection retardation term). `vel_c` must be in the same frame as `p` and in
 /// units of `c`. Pole-safe: there is no `1/cos(dec)` anywhere.
@@ -578,13 +626,9 @@ pub fn apply_annual_aberration(p: [f64; 3], vel_c: [f64; 3]) -> [f64; 3] {
 /// star given at epoch **J2000.0**.
 ///
 /// Chain: proper motion from J2000 -> frame bias + IAU 2006 precession + IAU 2000B
-/// nutation -> annual parallax -> annual aberration. The result is referred to the
-/// true equator and equinox of date, which is the Nautical Almanac frame
-/// (CONVENTIONS section 7).
-///
-/// Light deflection by the Sun is not modelled: it is under 0.02" beyond 30 deg solar
-/// elongation, far below the 0.05' (3") budget, and a navigational star is never
-/// observed close to the Sun.
+/// nutation -> annual parallax -> solar light deflection -> annual aberration. The
+/// result is referred to the true equator and equinox of date, which is the Nautical
+/// Almanac frame (CONVENTIONS section 7).
 pub fn apparent_radec_of_date(
     icrs_ra_deg: f64,
     icrs_dec_deg: f64,
@@ -604,6 +648,7 @@ pub fn apparent_radec_of_date(
     let p = apply(&m, p);
     let earth = earth_state_of_date(jd_tt);
     let p = apply_annual_parallax(p, parallax_mas, earth.pos_au);
+    let p = apply_solar_light_deflection(p, earth.pos_au);
     let p = apply_annual_aberration(p, earth.vel_c);
     radec_from_vector(p)
 }
