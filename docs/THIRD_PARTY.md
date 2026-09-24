@@ -21,8 +21,12 @@ Owner: ephemeris agent (`crates/skyfix-ephemeris/src/{sidereal,frames,catalog,st
   (`src/obl06.c`), the Fukushima-Williams bias-and-precession angles (`src/pfw06.c`),
   the Earth rotation angle (`src/era00.c`) and Greenwich mean sidereal time
   (`src/gmst06.c`); the P03 adjustment factors applied to a 2000-series nutation
-  (`src/nut06a.c`); and the published validation values in `src/t_erfa_c.c`, which are
-  used as expected values in `crates/skyfix-ephemeris/tests/sidereal_reference.rs`.
+  (`src/nut06a.c`); the gravitational light-deflection formulation for a source at
+  infinity (`src/ld.c`, `src/ldsun.c`) and the relativistic aberration formulation
+  (`src/ab.c`); and the published validation values in `src/t_erfa_c.c`, used as
+  expected values in `crates/skyfix-ephemeris/tests/sidereal_reference.rs` (`t_era00`,
+  `t_gmst06`, `t_gst06a`, `t_nut00b`, `t_obl06`, `t_pfw06`, `t_eect00`) and in
+  `tests/apparent_place_reference.rs` (`t_atci13`, a whole-chain apparent place).
 - **URL:** <https://github.com/liberfa/erfa> (files fetched from
   `https://raw.githubusercontent.com/liberfa/erfa/master/src/`)
 - **Retrieved:** 2026-09-23

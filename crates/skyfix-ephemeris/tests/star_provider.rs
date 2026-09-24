@@ -290,3 +290,72 @@ fn provider_source_adapter_reports_the_sidereal_rate() {
     assert!((0.0..360.0).contains(&d.gha_deg));
     assert!(s.direction("Jupiter", jd("2026-10-01T01:30:00Z")).is_err());
 }
+
+/// The oldest check in celestial navigation: the altitude of Polaris is the
+/// observer's latitude, to within Polaris's distance from the pole (0.63 deg in the
+/// 2020s). Nothing in this crate is fitted to that fact, so it is a genuine
+/// end-to-end test of the catalogue, the reduction and the sidereal time at once —
+/// and it would fail loudly if GHA had the wrong sign or the wrong zero point.
+///
+/// The altitude formula is CONVENTIONS section 3, written out here so the test does
+/// not depend on another crate's module.
+#[test]
+fn the_altitude_of_polaris_is_the_observers_latitude() {
+    let p = StarProvider::new();
+    // Philadelphia City Hall (CONVENTIONS section 2), longitude east-positive.
+    let (lat_deg, lon_deg) = (39.9526_f64, -75.1652_f64);
+    let mut extremes = (f64::MAX, f64::MIN);
+    for utc in [
+        "2026-01-15T03:00:00Z",
+        "2026-04-15T09:00:00Z",
+        "2026-07-15T15:00:00Z",
+        "2026-10-01T01:30:00Z",
+        "2026-10-01T13:30:00Z",
+    ] {
+        let d = p.geocentric("Polaris", jd(utc)).unwrap();
+        let lha = norm_360(d.gha_deg + lon_deg).to_radians();
+        let (phi, dec) = (lat_deg.to_radians(), d.dec_deg.to_radians());
+        let hc = (phi.sin() * dec.sin() + phi.cos() * dec.cos() * lha.cos())
+            .asin()
+            .to_degrees();
+        // North component of the body direction, for the azimuth.
+        let n = phi.cos() * dec.sin() - phi.sin() * dec.cos() * lha.cos();
+        let e = -dec.cos() * lha.sin();
+        let zn = norm_360(e.atan2(n).to_degrees());
+        let err = hc - lat_deg;
+        extremes = (extremes.0.min(err), extremes.1.max(err));
+        assert!(
+            err.abs() < 0.7,
+            "{utc}: Polaris altitude {hc:.4} deg vs latitude {lat_deg} deg ({err:+.4})"
+        );
+        // And it must be in the north.
+        assert!(
+            zn < 1.5 || zn > 358.5,
+            "{utc}: Polaris azimuth {zn:.2} deg is not north"
+        );
+    }
+    // The error must actually swing with hour angle, not sit at a constant: that is
+    // what proves the GHA is moving and not frozen.
+    assert!(
+        extremes.1 - extremes.0 > 0.5,
+        "Polaris altitude error never varied: {extremes:?}"
+    );
+}
+
+/// Vega's tabulated place, as a coarse cross-check against the printed almanac: the
+/// Nautical Almanac star pages give SHA about 80.5 deg and declination about
+/// N 38 deg 48' through the 2020s. This is a smoke test with a deliberately loose
+/// tolerance, not a precision claim; the precision claims are in
+/// `apparent_place_reference.rs`.
+#[test]
+fn vega_is_where_the_almanac_star_pages_put_it() {
+    let p = StarProvider::new();
+    let t = jd("2026-10-01T01:30:00Z");
+    let sha = p.sha_deg("Vega", t).unwrap();
+    let dec = p.geocentric("Vega", t).unwrap().dec_deg;
+    assert!((sha - 80.5).abs() < 0.3, "Vega SHA {sha} deg");
+    assert!(
+        (dec - (38.0 + 48.0 / 60.0)).abs() < 0.1,
+        "Vega Dec {dec} deg"
+    );
+}

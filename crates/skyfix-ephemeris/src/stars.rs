@@ -64,8 +64,8 @@ fn coverage_start_jd() -> f64 {
 }
 
 fn coverage_end_jd() -> f64 {
-    // End of 2060-12-31.
-    civil_to_jd(2061, 1, 1)
+    // 2060-12-31T23:59:59Z, exactly what COVERAGE_END_UTC advertises.
+    civil_to_jd(2060, 12, 31) + 86_399.0 / 86_400.0
 }
 
 /// Apparent geocentric directions for the 57 Nautical Almanac navigational stars plus
