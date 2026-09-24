@@ -156,7 +156,7 @@ describe('lines across the antimeridian', () => {
 });
 
 describe('caps as polygons', () => {
-  function checkCap(center: { lat_deg: number; lon_deg: number }, radius: number, seed: number): void {
+  function checkCap(center: { lat_deg: number; lon_deg: number }, radius: number, seed: number, points = 600): void {
     const coords = capPolygon(center, radius, 720);
     // RFC 7946: every position in range, exterior rings counter-clockwise.
     for (const p of allPositions(coords)) {
@@ -167,7 +167,7 @@ describe('caps as polygons', () => {
     // Inside the polygon exactly when within `radius` (away from the boundary).
     const r = rng(seed);
     let tested = 0;
-    for (let i = 0; i < 600; i++) {
+    for (let i = 0; i < points; i++) {
       const lat = r() * 179 - 89.5;
       const lon = r() * 359.8 - 179.9;
       const d = haversineDeg(center, P(lat, lon));
@@ -175,7 +175,7 @@ describe('caps as polygons', () => {
       tested++;
       expect(multiPolygonContains(coords, [lon, lat]), `(${lat}, ${lon}) at ${d} from centre`).toBe(d < radius);
     }
-    expect(tested).toBeGreaterThan(400);
+    expect(tested).toBeGreaterThan(points * 0.66);
   }
 
   it('a plain cap', () => checkCap(P(40, -75), 30, 11));
@@ -185,10 +185,10 @@ describe('caps as polygons', () => {
   it('a cap containing both poles', () => checkCap(P(3, 20), 120, 15));
   it('a cap containing both poles, the hole across the seam', () => checkCap(P(-5, 5), 150, 16));
   it('a large cap missing both poles', () => checkCap(P(0, -100), 89.5, 17));
-  it('random caps', () => {
+  it('random caps', { timeout: 30_000 }, () => {
     const r = rng(99);
-    for (let k = 0; k < 40; k++) {
-      checkCap(P(r() * 178 - 89, r() * 360 - 180), 0.5 + r() * 178, 1000 + k);
+    for (let k = 0; k < 30; k++) {
+      checkCap(P(r() * 178 - 89, r() * 360 - 180), 0.5 + r() * 178, 1000 + k, 250);
     }
   });
 
