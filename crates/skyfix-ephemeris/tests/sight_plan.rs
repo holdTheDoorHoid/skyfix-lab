@@ -315,3 +315,37 @@ fn no_twilight_in_polar_summer_and_an_all_night_twilight_is_said_so() {
         .is_err()
     );
 }
+
+/// Verifier regression: a Sun that dips just below -12 degrees for a few minutes around
+/// its lowest point crosses -12 twice between two 10-minute samples. The sign scan saw
+/// neither crossing, so the evening window ran on to the Sun's lowest point under the
+/// note "the Sun does not reach -12 degrees tonight" while the explorer's events gave
+/// nautical dusk and dawn. At 54.565 N on 2026-06-21 the Sun bottoms out near -12.002.
+#[test]
+fn a_sun_that_just_reaches_minus_twelve_ends_the_evening_at_the_crossing() {
+    use skyfix_ephemeris::body::BodyEphemeris;
+    use skyfix_ephemeris::topocentric::{Site, horizontal};
+    let sky = Sky::new();
+    let (lat, lon) = (54.565, 0.0);
+    let start = parse_utc("2026-06-21T12:00:00Z").unwrap();
+    let windows = nautical_twilights(&sky, lat, lon, start, start + 1.0);
+    let sun_alt = |jd: f64| {
+        horizontal(
+            &sky.apparent_state("Sun", jd).unwrap(),
+            &Site::new(lat, lon),
+        )
+        .alt_deg
+    };
+    let kinds: Vec<&str> = windows.iter().map(|w| w.kind).collect();
+    assert_eq!(kinds, ["evening", "morning"]);
+    let (evening, morning) = (&windows[0], &windows[1]);
+    assert!(evening.note.is_none(), "{:?}", evening.note);
+    assert!(morning.note.is_none(), "{:?}", morning.note);
+    // The two -12 crossings, a few minutes apart, bound the dark gap between the windows.
+    let gap_min = (morning.jd_start - evening.jd_end) * 1440.0;
+    assert!((1.0..10.0).contains(&gap_min), "{gap_min} min");
+    for t in [evening.jd_end, morning.jd_start] {
+        assert!((sun_alt(t) + 12.0).abs() < 1e-3, "{}", sun_alt(t));
+    }
+    assert!(sun_alt(0.5 * (evening.jd_end + morning.jd_start)) < -12.0);
+}
