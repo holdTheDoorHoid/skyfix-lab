@@ -1,6 +1,6 @@
 # Explorer engine — wire contract
 
-**Status:** normative. The Rust side is `crates/skyfix-wasm/src/{explorer,starfield,nav,navsky,almanac,eclipses,planet_events}.rs`;
+**Status:** normative. The Rust side is `crates/skyfix-wasm/src/{explorer,starfield,nav,navsky,almanac,eclipses,planet_events,misfit}.rs`;
 the TypeScript mirror is `web/src/next/engine/types.ts`. Change both together, in one
 commit, and say so in your report. Numeric definitions are CONVENTIONS section 13.
 
