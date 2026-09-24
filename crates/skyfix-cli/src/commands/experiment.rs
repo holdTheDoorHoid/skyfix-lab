@@ -26,6 +26,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
+use skyfix_core::units::SIDEREAL_RATE_DEG_PER_HOUR;
 use skyfix_sim::experiment::{Aggregate, Experiment, ExperimentSummary, to_csv, to_json};
 use skyfix_sim::generate;
 
@@ -201,6 +202,39 @@ pub fn render(summary: &ExperimentSummary, experiment: &Experiment) -> String {
     out
 }
 
+/// For a clock scenario: the shift in longitude, and why a due-west shift still shows a
+/// small north component in the signed mean above.
+///
+/// `mean_error_north_m` and `mean_error_east_m` are a tangent-plane decomposition taken
+/// along the great circle from the truth to the fix. A displacement due west along a
+/// *parallel* is not a great circle, so its initial bearing is a fraction of a degree
+/// poleward of 270 and the north component is small but not zero. Nothing about the
+/// latitude has moved, and docs/SIMULATOR.md section 2 says so; without this sentence the
+/// reader has only the table, which looks like a latitude error.
+fn clock_shift_sentence(experiment: &Experiment) -> String {
+    let dt = experiment.scenario.clock_offset_s;
+    if dt == 0.0 || experiment.scenario.shared_altitude_bias_arcmin != 0.0 {
+        return String::new();
+    }
+    let shift_deg =
+        skyfix_sim::experiment::clock_longitude_shift_deg(SIDEREAL_RATE_DEG_PER_HOUR, dt);
+    format!(
+        " In longitude that is {shift_deg:+.6} degrees, and the latitude has not moved: the \
+         small north component above is the great-circle decomposition of a shift along a \
+         parallel, not a change of latitude."
+    )
+}
+
+/// Error-to-sigma ratios that count as agreement between the ellipse and the errors.
+///
+/// docs/SIMULATOR.md section 6: under a correct model `E[|e|^2] = sigma_north^2 +
+/// sigma_east^2`, so the ratio should be about 1. The band is two-sided and generous:
+/// the sampling error of an RMS over `n` runs is roughly `1 / (2 sqrt(n))`, which is
+/// 0.11 at 20 repetitions, so 0.6 to 1.6 admits honest scatter at every repetition count
+/// the CLI defaults to while still catching an ellipse that is half or double the size
+/// the errors call for.
+const RATIO_BAND: std::ops::RangeInclusive<f64> = 0.6..=1.6;
+
 /// One plain paragraph saying what the numbers mean for this scenario.
 fn verdict(a: &Aggregate, experiment: &Experiment) -> String {
     let correlated = experiment.scenario.shared_altitude_bias_arcmin != 0.0
@@ -221,21 +255,38 @@ fn verdict(a: &Aggregate, experiment: &Experiment) -> String {
              to fail this test, and a coverage near 0.95 here would mean the runner was not \
              measuring anything. The error is about {} times the predicted sigma, and the \
              signed mean error above shows the direction it pushes. More sights would \
-             shrink the ellipse and not the error.",
-            ratio.map(|r| format!("{r:.0}")).unwrap_or("-".into())
+             shrink the ellipse and not the error.{}",
+            ratio.map(|r| format!("{r:.0}")).unwrap_or("-".into()),
+            clock_shift_sentence(experiment)
         );
     }
     match (a.coverage_fraction, ratio) {
-        (Some(p), Some(r)) if (0.85..=1.0).contains(&p) && r < 1.6 => format!(
+        (Some(p), Some(r)) if (0.85..=1.0).contains(&p) && RATIO_BAND.contains(&r) => format!(
             "Coverage {p:.2} and an error-to-sigma ratio of {r:.2} are what an honest \
              independent-noise model looks like: the ellipse is about the right size, and \
              the errors scatter the way it predicts."
         ),
-        (Some(p), Some(r)) => format!(
-            "Coverage {p:.2} with an error-to-sigma ratio of {r:.2}: the reported \
-             uncertainty and the errors actually seen do not agree, so read the scenario's \
-             description above for what is moving the fix before trusting the ellipse."
-        ),
+        (Some(p), Some(r)) => {
+            // The band is two-sided on purpose. An ellipse ten times too big also fails to
+            // describe the error, and reporting it as healthy would be exactly the flattery
+            // this runner exists to prevent (docs/SIMULATOR.md section 6: the ratio should
+            // be about 1).
+            let direction = if r < *RATIO_BAND.start() {
+                " The predicted uncertainty is too large relative to the observed error: the \
+                 ellipse covers the truth, but it claims less than the sights can support."
+            } else if r > *RATIO_BAND.end() {
+                " The predicted uncertainty is too small relative to the observed error: the \
+                 ellipse is narrower than the errors actually seen."
+            } else {
+                ""
+            };
+            format!(
+                "Coverage {p:.2} with an error-to-sigma ratio of {r:.2}: the reported \
+                 uncertainty and the errors actually seen do not agree, so read the scenario's \
+                 description above for what is moving the fix before trusting the \
+                 ellipse.{direction}"
+            )
+        }
         _ => "Not enough scored repetitions to say whether the uncertainty describes the \
               error."
             .to_string(),
@@ -253,5 +304,82 @@ fn opt_m(v: Option<f64>) -> String {
     match v {
         Some(x) => report::metres_and_nm(x),
         None => "-".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use skyfix_sim::demos;
+
+    fn scored(coverage: f64, ratio: f64) -> Aggregate {
+        Aggregate {
+            repetitions: 50,
+            evaluated: 50,
+            coverage_fraction: Some(coverage),
+            error_to_sigma_ratio: Some(ratio),
+            ..Default::default()
+        }
+    }
+
+    /// docs/SIMULATOR.md section 6: the ratio should be about 1. An ellipse ten times too
+    /// big fails to describe the error just as an ellipse half the size does, so the band
+    /// is two-sided and the sentence says which way it is wrong.
+    #[test]
+    fn the_verdict_band_on_the_error_to_sigma_ratio_is_two_sided() {
+        let clean = Experiment::new(demos::philadelphia_stars(), 50);
+
+        for r in [0.6, 0.93, 1.0, 1.05, 1.6] {
+            let v = verdict(&scored(0.96, r), &clean);
+            assert!(
+                v.contains("are what an honest"),
+                "ratio {r} should read as healthy: {v}"
+            );
+        }
+
+        // Too large an ellipse: high coverage, tiny ratio. This is the case a one-sided
+        // `r < 1.6` band endorsed.
+        let v = verdict(&scored(1.0, 0.10), &clean);
+        assert!(!v.contains("are what an honest"), "{v}");
+        assert!(
+            v.contains("predicted uncertainty is too large relative to the observed error"),
+            "{v}"
+        );
+
+        // Too small an ellipse.
+        let v = verdict(&scored(0.40, 7.57), &clean);
+        assert!(!v.contains("are what an honest"), "{v}");
+        assert!(
+            v.contains("predicted uncertainty is too small relative to the observed error"),
+            "{v}"
+        );
+
+        // Coverage out of band with a healthy ratio: still a disagreement, but the ratio
+        // is not the thing to blame, so neither direction is asserted.
+        let v = verdict(&scored(0.50, 1.0), &clean);
+        assert!(!v.contains("are what an honest"), "{v}");
+        assert!(!v.contains("predicted uncertainty is too"), "{v}");
+    }
+
+    /// The signed mean error of a pure clock offset shows a small north component because
+    /// the components are a great-circle decomposition of a shift along a parallel.
+    /// docs/SIMULATOR.md section 2 says latitude is untouched; the report must agree.
+    #[test]
+    fn a_clock_scenario_explains_its_small_north_component() {
+        let clock = Experiment::new(demos::clock_offset(), 50);
+        let v = verdict(&scored(0.0, 12.87), &clock);
+        assert!(v.contains("-0.250684 degrees"), "{v}");
+        assert!(v.contains("the latitude has not moved"), "{v}");
+        assert!(v.contains("great-circle decomposition"), "{v}");
+
+        // A shared bias is not a clock offset, and must not claim a longitude shift.
+        let bias = Experiment::new(demos::shared_bias(), 50);
+        let v = verdict(&scored(0.0, 30.45), &bias);
+        assert!(!v.contains("degrees of longitude"), "{v}");
+        assert!(!v.contains("the latitude has not moved"), "{v}");
+
+        // An uncorrelated scenario says nothing about longitude at all.
+        let clean = Experiment::new(demos::philadelphia_stars(), 50);
+        assert!(!verdict(&scored(0.96, 1.02), &clean).contains("latitude has not moved"));
     }
 }
