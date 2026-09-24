@@ -407,3 +407,63 @@ fn moon_evaluation_timing() {
          apparent_state (adds the Sun and illumination) {state:?}  [{sink:.1}]"
     );
 }
+
+// ---------------------------------------------------------------------------
+// USNO's Celestial Navigation Data API, the other independent source
+// ---------------------------------------------------------------------------
+
+const USNO_FIXTURE: &str = "fixtures/reference/usno_celnav_2026-10-01T0130Z.json";
+
+/// USNO's celnav Moon equals Skyfield's DE440s apparent Moon evaluated with its time
+/// argument this many seconds later (GAST unchanged), to 0.003" on the sky. Found at
+/// development time by a one-parameter search against Skyfield, never against this
+/// crate. Stars and GHA Aries cannot show such an offset (10 s moves them by
+/// microarcseconds), which is why they agree with USNO to 0.006".
+const USNO_MOON_TIME_ARGUMENT_OFFSET_S: f64 = 10.36;
+
+#[test]
+fn moon_agrees_with_usno_once_its_time_argument_is_allowed_for() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(USNO_FIXTURE);
+    let text = std::fs::read_to_string(&path).expect("the USNO fixture is committed");
+    let doc: serde_json::Value = serde_json::from_str(&text).unwrap();
+    let moon = doc["usno_response"]["properties"]["data"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|o| o["object"] == "Moon")
+        .expect("USNO returned the Moon");
+    let usno_gha = moon["almanac_data"]["gha"].as_f64().unwrap();
+    let usno_dec = moon["almanac_data"]["dec"].as_f64().unwrap();
+
+    let jd = parse_utc("2026-10-01T01:30:00Z").unwrap();
+    let p = MoonProvider::new();
+    let at = p.position(jd).unwrap();
+    // As is: USNO's time argument costs it 6.7" of GHA.
+    let d_gha = norm_180(at.gha_deg - usno_gha) * 60.0;
+    let d_dec = (at.dec_deg - usno_dec) * 60.0;
+    // With USNO's time argument: the Moon's place 10.36 s later, the same GAST.
+    let later = p
+        .position(jd + USNO_MOON_TIME_ARGUMENT_OFFSET_S / 86_400.0)
+        .unwrap();
+    let gha_later = (at.gast_deg - later.ra_deg).rem_euclid(360.0);
+    let d_gha_later = norm_180(gha_later - usno_gha) * 60.0;
+    let d_dec_later = (later.dec_deg - usno_dec) * 60.0;
+    println!(
+        "USNO celnav Moon 2026-10-01T01:30Z: ours minus USNO GHA {d_gha:+.4}' Dec {d_dec:+.4}'; \
+         with USNO's time argument (+{USNO_MOON_TIME_ARGUMENT_OFFSET_S} s) GHA \
+         {d_gha_later:+.4}' Dec {d_dec_later:+.4}'"
+    );
+    // The documented discrepancy, bounded so a change in either side is noticed.
+    assert!(
+        (0.08..0.14).contains(&d_gha) && d_dec.abs() < 0.03,
+        "{d_gha} {d_dec}"
+    );
+    // Allowing for it, USNO and this provider agree inside the declared accuracy.
+    let declared = p.coverage().accuracy_arcmin;
+    assert!(
+        d_gha_later.abs() <= declared && d_dec_later.abs() <= declared,
+        "{d_gha_later}' {d_dec_later}' vs {declared}'"
+    );
+}

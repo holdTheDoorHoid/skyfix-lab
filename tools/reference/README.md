@@ -23,8 +23,8 @@ The Makefile is a convenience wrapper. The generator itself is:
 tools/reference/.venv/bin/python -m tools.reference.generate_all [--offline]
 ```
 
-run from the repository root. A full run takes about 16 seconds once the input
-data is present.
+run from the repository root. A full run takes about 75 seconds once the input
+data is present (`gen_moon.py` is most of it).
 
 Set `SOURCE_DATE_EPOCH` to a fixed Unix time for byte-for-byte reproducible
 output:
@@ -63,6 +63,8 @@ are never committed; see `docs/THIRD_PARTY.md`, "Reference data
 | `gen_sessions.py` | `fixtures/sessions/reference-philadelphia-*.json` and their `truth`/`expected` files | the "first numerical slice": 5-, 2- and 1-sight sessions |
 | `gen_sun_sextant.py` | `fixtures/sessions/reference-sun-sextant.json` and its `truth`/`expected` files | the CONVENTIONS section 5 chain run backwards from a known Ho to raw `sextant_hs` |
 | `gen_usno.py` | `fixtures/reference/usno_celnav_2026-10-01T0130Z.json` | a verbatim US Naval Observatory API response, differenced against ours. **Needs network** |
+| `gen_moon.py` | `fixtures/reference/moon_geocentric.json`, `fixtures/reference/moon_topocentric.json` | the apparent geocentric Moon at 1757 instants over 1990–2060 from **DE440s** (DE421 cross-check), and topocentric alt/az at 12 sites with **UT1 = UTC by construction** (a constant-ΔT timescale per leap-second era), for the Moon, the Sun and four stars |
+| `build_moon_series.py` | `crates/skyfix-ephemeris/data/elp82b_moon_terms.json` | **not a fixture**: the truncated ELP 2000-82B series the Moon provider embeds, built from CDS VI/79 (`--fetch` downloads the 36 files; SHA-256 pinned). Asserts the notice's Table H check values and measures the truncation error. Not run by `generate_all.py` |
 | `common.py` | — | shared helpers: the deterministic JSON writer, the CONVENTIONS sections 3 and 5 formulas coded from the text of `CONVENTIONS.md`, star identity verification, loaders |
 
 `generate_all.py` runs them in that order and reports which steps failed
