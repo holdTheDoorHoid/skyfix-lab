@@ -23,8 +23,8 @@ The Makefile is a convenience wrapper. The generator itself is:
 tools/reference/.venv/bin/python -m tools.reference.generate_all [--offline]
 ```
 
-run from the repository root. A full run takes about 16 seconds once the input
-data is present.
+run from the repository root. A full run takes about two and a half minutes once
+the input data is present, most of it the planet fixtures.
 
 Set `SOURCE_DATE_EPOCH` to a fixed Unix time for byte-for-byte reproducible
 output:
@@ -62,11 +62,26 @@ are never committed; see `docs/THIRD_PARTY.md`, "Reference data
 | `gen_topocentric.py` | `fixtures/reference/topocentric_altaz.json` | topocentric alt/az at 5 observers × 6 epochs, with and without refraction, against the CONVENTIONS section 3 spherical formula |
 | `gen_sessions.py` | `fixtures/sessions/reference-philadelphia-*.json` and their `truth`/`expected` files | the "first numerical slice": 5-, 2- and 1-sight sessions |
 | `gen_sun_sextant.py` | `fixtures/sessions/reference-sun-sextant.json` and its `truth`/`expected` files | the CONVENTIONS section 5 chain run backwards from a known Ho to raw `sextant_hs` |
+| `gen_planets.py` | `fixtures/reference/planets_<planet>.json` | apparent geocentric Mercury to Neptune from DE440s (DE421 cross-check), 322-338 epochs each over 1990-2060 including conjunctions, oppositions, greatest elongations, stations and Saturn's ring-plane crossings; distance, phase, elongation, bright-limb angle and two magnitude columns |
 | `gen_usno.py` | `fixtures/reference/usno_celnav_2026-10-01T0130Z.json` | a verbatim US Naval Observatory API response, differenced against ours. **Needs network** |
 | `common.py` | — | shared helpers: the deterministic JSON writer, the CONVENTIONS sections 3 and 5 formulas coded from the text of `CONVENTIONS.md`, star identity verification, loaders |
 
 `generate_all.py` runs them in that order and reports which steps failed
 without stopping at the first one.
+
+One more script produces **embedded data**, not a fixture, and is not part of
+`generate_all.py`:
+
+| script | output | what it is |
+|---|---|---|
+| `gen_vsop87a.py` | `crates/skyfix-ephemeris/data/vsop87a_planets.json` | the VSOP87A series of the Earth and the seven planets, truncated for 1990-2060 by measured error, with checkpoints and a daily comparison against DE440s |
+
+It reads the CDS VI/81 files from `tools/reference/data/vsop87/` (git-ignored;
+`make -C tools/reference vsop87` fetches them, and the script refuses files whose
+SHA-256 differs from the recorded ones). `make -C tools/reference planet-series`
+runs it; it takes about 9 minutes. The truncation is judged against the full
+series, and DE440s is used only for the recorded comparison, so the series stay a
+product of VSOP87 alone.
 
 ## What is re-implemented in Python, and why
 
