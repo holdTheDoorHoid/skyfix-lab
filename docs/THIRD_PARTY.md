@@ -1119,3 +1119,24 @@ Owner: shell-design agent (`web/src/next/theme/`, `web/src/next/mockup/`,
     boundary lines `d42479fd79552cca4eec7f85fcdca717a790d29ff06be7676f1af0568c6d3f7c`.
 - **The mockup's numbers:** produced once by this project's MOCK engine (section above)
   for Philadelphia City Hall on 2026-09-24 and typed in; illustrative, never results.
+
+## Explorer map view
+
+Owner: map agent (`web/src/next/map/`). Added 2026-09-24. No new package and no bundled
+data: the map draws the basemap and gazetteer recorded above (Natural Earth, public domain)
+with `maplibre-gl` (listed above).
+
+- **Map labels:** drawn by MapLibre itself on a canvas (TinySDF) from the same
+  `@fontsource-variable/inter` files the interface ships (SIL OFL 1.1, listed above),
+  registered under the map's own family names (`web/src/next/map/fonts.ts`). No glyph
+  (PBF) files are generated or committed, and no glyph server is used.
+- **Optional street layer (runtime, online, never bundled):** the OpenStreetMap standard
+  tile layer, `https://tile.openstreetmap.org/{z}/{x}/{y}.png`, operated by the
+  OpenStreetMap Foundation. Data © OpenStreetMap contributors, ODbL 1.0; the tile images
+  are shown with the credit "© OpenStreetMap contributors" linked to
+  <https://www.openstreetmap.org/copyright>, visible on the map exactly while the layer
+  is on. Use follows the OSMF Tile Usage Policy (<https://operations.osmfoundation.org/policies/tiles/>,
+  read 2026-09-24): off by default and requested only for what is on screen while the
+  person has it switched on; maximum zoom 19; no prefetching or bulk download; tiles are
+  cached only by the browser's normal HTTP cache (the release agent's service worker must
+  not store them).

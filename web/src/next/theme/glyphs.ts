@@ -25,7 +25,7 @@ export type GlyphName =
   | 'neptune'
   | 'star';
 
-interface GlyphShape {
+export interface GlyphShape {
   /** Filled shapes. */
   fill?: string[];
   /** Stroked shapes (1.9 units). */
@@ -75,6 +75,14 @@ const GLYPHS: Record<GlyphName, GlyphShape> = {
     ],
   },
 };
+
+/**
+ * A glyph's shapes on the 24-unit grid (SVG path data), for views that draw on a canvas
+ * with `Path2D` (the sky view). Addition by the sky agent; read-only.
+ */
+export function glyphShape(name: GlyphName): Readonly<GlyphShape> {
+  return GLYPHS[name];
+}
 
 const PLANETS: Record<string, GlyphName> = {
   mercury: 'mercury',

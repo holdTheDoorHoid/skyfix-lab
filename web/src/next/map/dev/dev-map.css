@@ -1,0 +1,106 @@
+/* The map's developer page: a strip of controls over a full-screen map (design system tokens). */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--chrome-bg-0);
+  color: var(--chrome-ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dm-banner {
+  margin: 0;
+  padding: 4px 12px;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  background: var(--chrome-bg-0);
+  border-bottom: 1px solid var(--chrome-line);
+}
+
+.dm-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 12px;
+  background: var(--chrome-bg);
+  border-bottom: 1px solid var(--chrome-line);
+}
+
+.dm-bare .dm-bar {
+  display: none;
+}
+
+.dm-bar input[type='range'] {
+  width: 220px;
+  accent-color: var(--accent);
+}
+
+.dm-bar button,
+.dm-bar select {
+  height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--chrome-line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--chrome-raised);
+  color: var(--chrome-ink);
+  font: inherit;
+}
+
+.dm-clock,
+.dm-place {
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.dm-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.dm-notices {
+  position: fixed;
+  left: 8px;
+  bottom: 70px;
+  z-index: 60;
+  max-width: min(520px, 60vw);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-2xs);
+}
+
+.dm-notice {
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--chrome-bg);
+  color: var(--chrome-ink);
+  opacity: 0.94;
+}
+
+.dm-bench {
+  position: fixed;
+  right: 8px;
+  bottom: 80px;
+  z-index: 60;
+  margin: 0;
+  padding: 8px;
+  background: var(--chrome-bg);
+  color: var(--chrome-ink);
+  font-size: var(--text-2xs);
+}
