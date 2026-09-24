@@ -32,10 +32,6 @@ export type ChartComponent = (host: HTMLElement, ctx: Ctx, ui: Store<ChartUi>) =
 // ---------------------------------------------------------------------------------------
 // SVG
 
-export function svgEl(tag: string, attrs: Record<string, string | number | undefined> = {}): SVGElement {
-  return s(tag, attrs);
-}
-
 export function svgText(
   x: number,
   y: number,
@@ -97,13 +93,6 @@ export interface Box {
 
 export function overlaps(a: Box, b: Box, pad = 2): boolean {
   return a.x < b.x + b.w + pad && b.x < a.x + a.w + pad && a.y < b.y + b.h + pad && b.y < a.y + a.h + pad;
-}
-
-/** Keep a box inside `[minX, maxX]` by shifting it. */
-export function clampBox(box: Box, minX: number, maxX: number): number {
-  if (box.x < minX) return minX - box.x;
-  if (box.x + box.w > maxX) return maxX - (box.x + box.w);
-  return 0;
 }
 
 // ---------------------------------------------------------------------------------------

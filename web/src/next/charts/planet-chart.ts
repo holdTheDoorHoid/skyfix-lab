@@ -188,7 +188,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     if (job?.done && !sky) {
       // Everything is computed already (a memo hit): only the Moon strip is missing.
       setTimeout(() => {
-        if (!job || sky) return;
+        if (!alive || !job || sky) return;
         sky = yearSkyMemo(ctx, job.data.input.zone, job.data.input.year);
         drawStrip();
         updateStatus();
@@ -217,7 +217,9 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       }
     }, 0);
   }
+  let alive = true;
   d.add(() => {
+    alive = false;
     if (timer !== null) clearTimeout(timer);
     timer = null;
   });

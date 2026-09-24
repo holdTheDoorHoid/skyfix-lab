@@ -47,9 +47,6 @@ export function ticks(min: number, max: number, step: number): number[] {
   return out;
 }
 
-/** Hour steps that read well on a clock axis. */
-export const HOUR_STEPS = [1, 2, 3, 4, 6, 12] as const;
-
 /** Round to 0.01 px: keeps path strings short without visible error. */
 export function px(value: number): number {
   return Math.round(value * 100) / 100;

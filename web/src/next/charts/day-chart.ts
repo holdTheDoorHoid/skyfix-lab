@@ -975,15 +975,3 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
 
   return { destroy: () => d.dispose() };
 };
-
-/** For tests and the dev page: the day data the chart would draw. */
-export function dayDataFor(ctx: Ctx, state: ExplorerState): DayData {
-  const zone = displayZone(state);
-  return dayMemo(ctx, {
-    observer: engineObserver(state),
-    zone,
-    day: localDayAt(state.time.jd_utc, zone),
-    bodies: dayBodies(ctx, state.selection.body),
-    options: eventOptions(state),
-  });
-}

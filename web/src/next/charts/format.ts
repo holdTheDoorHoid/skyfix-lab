@@ -6,7 +6,7 @@
 
 import { splitDegMin } from '../../format.js';
 import type { AngleFormat } from '../state.js';
-import { formatHours, formatTime, formatWithUtc, msFromJd, UTC_ZONE, zoneOffsetMs, zoneShortName, type Zone } from '../time.js';
+import { formatHours, formatTime, msFromJd, UTC_ZONE, zoneOffsetMs, zoneShortName, type Zone } from '../time.js';
 import type { LocalDate, LocalDay, LocalNight } from './windows.js';
 
 export const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -68,11 +68,6 @@ export function clockZoned(jd: number, zone: Zone): string {
 export function clockWithUtc(jd: number, zone: Zone): string {
   if (zone.kind === 'fixed' && zone.offsetMs === 0) return clockUtc(jd);
   return `${clockZoned(jd, zone)} · ${clockUtc(jd)}`;
-}
-
-/** `2026-09-24 06:52 EDT · 10:52 UTC` (time.ts `formatWithUtc`). */
-export function dateTimeWithUtc(jd: number, zone: Zone): string {
-  return formatWithUtc(jd, zone);
 }
 
 /** `12 h 06 min` */
