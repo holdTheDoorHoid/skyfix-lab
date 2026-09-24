@@ -42,12 +42,18 @@
 //! requires. The Skyfield reference fixture, once it lands, is what can tighten or
 //! refute this number (`tests/reference_fixtures.rs`).
 
+use std::cell::Cell;
+
 use skyfix_core::time::{civil_to_jd, jd_tt, jd_ut1};
 use skyfix_core::types::GeocentricDirection;
 use skyfix_core::units::norm_360;
 
 use crate::catalog::{self, StarEntry};
-use crate::frames::apparent_radec_of_date;
+use crate::frames::{
+    EarthState, apply_annual_aberration, apply_annual_parallax, apply_solar_light_deflection,
+    bias_precession_nutation_matrix, earth_state_of_date, proper_motion_from_j2000,
+    radec_from_vector,
+};
 use crate::sidereal::{gast_deg, gha_aries_deg};
 use crate::{AstroProvider, Coverage, EphemerisError};
 
@@ -131,14 +137,7 @@ impl StarProvider {
     ) -> Result<(f64, f64), EphemerisError> {
         self.check_coverage(jd_utc)?;
         let s = self.resolve(body)?;
-        Ok(apparent_radec_of_date(
-            s.ra_j2000_deg,
-            s.dec_j2000_deg,
-            s.pm_ra_cosdec_mas_per_year,
-            s.pm_dec_mas_per_year,
-            s.parallax_mas,
-            jd_tt(jd_utc),
-        ))
+        Ok(StarFrame::cached(jd_tt(jd_utc)).apparent_radec_deg(s))
     }
 
     /// Sidereal hour angle of date, degrees in `[0, 360)`.
@@ -160,6 +159,111 @@ impl StarProvider {
     pub fn magnitude(&self, body: &str) -> Result<f64, EphemerisError> {
         Ok(self.resolve(body)?.magnitude)
     }
+}
+
+// ---------------------------------------------------------------------------
+// Shared frame quantities: computed once per instant, reused for every star
+// ---------------------------------------------------------------------------
+
+/// The frame quantities every star shares at one instant: the bias-precession-nutation
+/// matrix and the Earth's heliocentric position and velocity, both in the true equator
+/// and equinox of date.
+///
+/// Building them is most of the cost of an apparent place (two IAU 2000B nutation
+/// series and the Fukushima-Williams angles); applying them to one star is a handful of
+/// multiplications. [`StarFrame::apparent_radec_deg`] applies exactly the chain of
+/// [`crate::frames::apparent_radec_of_date`], in the same order and with the same
+/// arithmetic, so its result is **bit-for-bit identical** to that function's
+/// (`tests/star_frame_batch.rs` asserts it for every star at many instants).
+///
+/// [`StarProvider`] keeps the frame of the most recent instant it was asked about (one
+/// per thread), so a caller that evaluates the whole catalogue at one instant — the
+/// explorer's `sky_state`, the observation planner — builds the frame once instead of
+/// 58 times without doing anything special. A caller that wants the saving explicitly,
+/// or across interleaved instants, can hold a `StarFrame` itself.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct StarFrame {
+    /// The Terrestrial Time these quantities belong to, as a Julian date.
+    pub jd_tt: f64,
+    /// ICRS -> true equator and equinox of date
+    /// ([`crate::frames::bias_precession_nutation_matrix`]).
+    pub bpn: [[f64; 3]; 3],
+    /// Earth's position and velocity of date ([`crate::frames::earth_state_of_date`]).
+    pub earth: EarthState,
+}
+
+thread_local! {
+    /// The frame of the last instant any `StarProvider` on this thread was asked about.
+    static LAST_FRAME: Cell<Option<StarFrame>> = const { Cell::new(None) };
+    /// `(jd_ut1 bits, jd_tt bits, GAST degrees)` of the last `geocentric` call.
+    static LAST_GAST: Cell<Option<(u64, u64, f64)>> = const { Cell::new(None) };
+}
+
+impl StarFrame {
+    /// Build the frame for `jd_tt` (Terrestrial Time, Julian date).
+    pub fn at(jd_tt: f64) -> Self {
+        StarFrame {
+            jd_tt,
+            bpn: bias_precession_nutation_matrix(jd_tt),
+            earth: earth_state_of_date(jd_tt),
+        }
+    }
+
+    /// The frame for `jd_tt`, reusing this thread's most recent one when it is for the
+    /// same instant (compared bit for bit, so there is no tolerance to reason about).
+    pub fn cached(jd_tt: f64) -> Self {
+        LAST_FRAME.with(|cell| {
+            // No let-chains: the workspace's MSRV (1.85) predates them.
+            if let Some(f) = cell.get() {
+                if f.jd_tt.to_bits() == jd_tt.to_bits() {
+                    return f;
+                }
+            }
+            let f = StarFrame::at(jd_tt);
+            cell.set(Some(f));
+            f
+        })
+    }
+
+    /// Apparent right ascension `[0, 360)` and declination of date, degrees, of a
+    /// catalogue star at this frame's instant. Identical to
+    /// [`crate::frames::apparent_radec_of_date`] for the same star and `jd_tt`.
+    pub fn apparent_radec_deg(&self, s: &StarEntry) -> (f64, f64) {
+        // The same chain, in the same order, as `frames::apparent_radec_of_date`.
+        let p = proper_motion_from_j2000(
+            s.ra_j2000_deg,
+            s.dec_j2000_deg,
+            s.pm_ra_cosdec_mas_per_year,
+            s.pm_dec_mas_per_year,
+            self.jd_tt,
+        );
+        let m = &self.bpn;
+        let p = [
+            m[0][0] * p[0] + m[0][1] * p[1] + m[0][2] * p[2],
+            m[1][0] * p[0] + m[1][1] * p[1] + m[1][2] * p[2],
+            m[2][0] * p[0] + m[2][1] * p[1] + m[2][2] * p[2],
+        ];
+        let p = apply_annual_parallax(p, s.parallax_mas, self.earth.pos_au);
+        let p = apply_solar_light_deflection(p, self.earth.pos_au);
+        let p = apply_annual_aberration(p, self.earth.vel_c);
+        radec_from_vector(p)
+    }
+}
+
+/// [`gast_deg`] for `(jd_ut1, jd_tt)`, reusing this thread's previous answer when both
+/// arguments are bit-for-bit the same.
+fn cached_gast_deg(jd_ut1_val: f64, jd_tt_val: f64) -> f64 {
+    let key = (jd_ut1_val.to_bits(), jd_tt_val.to_bits());
+    LAST_GAST.with(|cell| {
+        if let Some((a, b, g)) = cell.get() {
+            if (a, b) == key {
+                return g;
+            }
+        }
+        let g = gast_deg(jd_ut1_val, jd_tt_val);
+        cell.set(Some((key.0, key.1, g)));
+        g
+    })
 }
 
 impl AstroProvider for StarProvider {
@@ -242,7 +346,7 @@ impl AstroProvider for StarProvider {
 
     fn geocentric(&self, body: &str, jd_utc: f64) -> Result<GeocentricDirection, EphemerisError> {
         let (ra, dec) = self.apparent_radec_deg(body, jd_utc)?;
-        let gast = gast_deg(jd_ut1(jd_utc, self.dut1_s), jd_tt(jd_utc));
+        let gast = cached_gast_deg(jd_ut1(jd_utc, self.dut1_s), jd_tt(jd_utc));
         Ok(GeocentricDirection {
             gha_deg: norm_360(gast - ra),
             dec_deg: dec,
