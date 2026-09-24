@@ -10,9 +10,8 @@ rust-version.workspace = true
 [dependencies]
 skyfix-core = { path = "../skyfix-core" }
 skyfix-ephemeris = { path = "../skyfix-ephemeris" }
-serde = { workspace = true }
-serde_json = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-approx = { workspace = true }
+# The reference fixtures and the build manifest are JSON; only the tests read them.
+serde_json = { workspace = true }

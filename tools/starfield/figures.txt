@@ -1,0 +1,288 @@
+# Constellation figures for the SkyFix Lab star field. Display only.
+#
+# This project's own drawing, covered by the project's MIT OR Apache-2.0 licence. The
+# figures follow the traditional modern Western stick figures, drawn for this project
+# from the shape of each constellation and the catalogue positions of its stars. No
+# existing figure dataset (Stellarium, d3-celestial, the IAU / Sky & Telescope charts or
+# any other) was copied or consulted.
+#
+# Format: "<IAU abbreviation>: star - star - star ...", one chain per line; a
+# constellation may have several chains. A star is a designation as in names.txt (Bayer
+# letter with optional superscript, or Flamsteed number, plus constellation) or
+# "HR <n>" for stars the catalogue gives no Bayer or Flamsteed designation (the Latin-
+# letter stars of Carina, Puppis and Vela, for example). tools/starfield/build.py turns
+# every chain into star pairs by HR number and checks that each star exists, lies in or
+# beside its constellation, and that no segment is absurdly long.
+
+And: Alp And - Del And - Bet And - Gam And
+And: Bet And - Mu And - Nu And
+And: Del And - Pi And - The And - Iot And - Kap And - Lam And
+
+Ant: Eps Ant - Alp Ant - Iot Ant
+
+Aps: Alp Aps - Del1 Aps - Bet Aps - Gam Aps - Del1 Aps
+
+Aqr: Eps Aqr - Bet Aqr - Alp Aqr - Gam Aqr - Zet Aqr - Eta Aqr
+Aqr: Zet Aqr - Pi Aqr
+Aqr: Alp Aqr - The Aqr - Lam Aqr - Tau2 Aqr - Del Aqr
+Aqr: Lam Aqr - Phi Aqr - Psi1 Aqr - Ome2 Aqr - 98 Aqr - 88 Aqr
+Aqr: Bet Aqr - Iot Aqr
+
+Aql: Gam Aql - Alp Aql - Bet Aql
+Aql: Alp Aql - Del Aql
+Aql: Eps Aql - Zet Aql - Del Aql - Lam Aql
+Aql: Del Aql - Eta Aql - The Aql
+
+Ara: The Ara - Alp Ara - Eps1 Ara - Zet Ara - Eta Ara - Del Ara - Gam Ara - Bet Ara - Alp Ara
+
+Ari: Gam Ari - Bet Ari - Alp Ari - 41 Ari
+
+Aur: Alp Aur - Bet Aur - The Aur - Bet Tau - Iot Aur - Alp Aur
+Aur: Alp Aur - Eps Aur - Zet Aur - Eta Aur
+Aur: Alp Aur - Del Aur - Bet Aur
+
+Boo: Alp Boo - Eps Boo - Del Boo - Bet Boo - Gam Boo - Rho Boo - Alp Boo
+Boo: Alp Boo - Eta Boo - Tau Boo
+Boo: Alp Boo - Zet Boo
+Boo: Gam Boo - Lam Boo - The Boo
+
+Cae: Del Cae - Alp Cae - Bet Cae - Gam1 Cae
+
+Cam: 7 Cam - Bet Cam - Alp Cam - Gam Cam
+Cam: Bet Cam - HR 1035
+Cam: Alp Cam - HR 1155
+
+Cnc: Bet Cnc - Del Cnc - Gam Cnc - Iot Cnc
+Cnc: Del Cnc - Alp Cnc
+
+CVn: Alp2 CVn - Bet CVn
+
+CMa: Bet CMa - Alp CMa - Omi2 CMa - Del CMa - Eta CMa
+CMa: Del CMa - Eps CMa - Zet CMa
+CMa: Alp CMa - Iot CMa - The CMa
+CMa: Iot CMa - Gam CMa
+
+CMi: Bet CMi - Alp CMi
+
+Cap: Alp2 Cap - Bet Cap - Psi Cap - Ome Cap - 24 Cap - Zet Cap - Del Cap - Gam Cap - Iot Cap - The Cap - Bet Cap
+
+Car: Alp Car - Chi Car - Eps Car - Iot Car - HR 4050 - HR 4140 - The Car - Ome Car - Bet Car - Ups Car
+
+Cas: Eps Cas - Del Cas - Gam Cas - Alp Cas - Bet Cas
+
+Cen: Alp1 Cen - Bet Cen - Eps Cen - Zet Cen - Ups1 Cen - Mu Cen - Nu Cen - Iot Cen
+Cen: Nu Cen - The Cen
+Cen: Zet Cen - Eta Cen - Kap Cen
+Cen: Eps Cen - Gam Cen - Sig Cen - Del Cen - Rho Cen - Pi Cen - Lam Cen
+
+Cep: Alp Cep - Bet Cep - Gam Cep - Iot Cep - Zet Cep - Alp Cep
+Cep: Bet Cep - Iot Cep
+Cep: Zet Cep - Del Cep
+Cep: Alp Cep - Eta Cep
+
+Cet: Alp Cet - Lam Cet - Mu Cet - Xi2 Cet - Gam Cet - Alp Cet
+Cet: Gam Cet - Del Cet - Omi Cet - Zet Cet - Tau Cet - Bet Cet - Iot Cet
+Cet: Zet Cet - The Cet - Eta Cet - Bet Cet
+
+Cha: Alp Cha - Gam Cha - Eps Cha - Bet Cha - Del2 Cha - Gam Cha
+Cha: Alp Cha - The Cha
+
+Cir: Bet Cir - Alp Cir - Gam Cir
+
+Col: Eps Col - Alp Col - Bet Col - Gam Col - Kap Col - Del Col
+Col: Bet Col - Eta Col
+
+Com: Alp Com - Bet Com - Gam Com
+
+CrA: Eps CrA - Gam CrA - Alp CrA - Bet CrA - Del CrA - Zet CrA - The CrA
+
+CrB: The CrB - Bet CrB - Alp CrB - Gam CrB - Del CrB - Eps CrB - Iot CrB
+
+Crv: Gam Crv - Del Crv - Bet Crv - Eps Crv - Gam Crv
+Crv: Eps Crv - Alp Crv
+
+Crt: Bet Crt - Alp Crt - Del Crt - Gam Crt - Bet Crt
+Crt: Del Crt - Eps Crt - The Crt
+Crt: Gam Crt - Zet Crt - Eta Crt
+
+Cru: Alp1 Cru - Gam Cru
+Cru: Bet Cru - Del Cru
+
+Cyg: Alp Cyg - Gam Cyg - Eta Cyg - Bet1 Cyg
+Cyg: Kap Cyg - Iot2 Cyg - Del Cyg - Gam Cyg - Eps Cyg - Zet Cyg
+
+Del: Eps Del - Bet Del - Alp Del - Gam2 Del - Del Del - Bet Del
+
+Dor: Gam Dor - Alp Dor - Zet Dor - Bet Dor - Del Dor
+
+Dra: Bet Dra - Gam Dra - Xi Dra - Nu Dra - Bet Dra
+Dra: Xi Dra - Del Dra - Eps Dra - Chi Dra - Psi Dra - Zet Dra - Eta Dra - The Dra - Iot Dra - Alp Dra - Kap Dra - Lam Dra
+
+Equ: Gam Equ - Del Equ - Bet Equ - Alp Equ - Gam Equ
+
+Eri: Bet Eri - Ome Eri - Mu Eri - Nu Eri - Omi1 Eri - Gam Eri - Pi Eri - Del Eri - Eps Eri - Eta Eri - Tau1 Eri - Tau2 Eri - Tau3 Eri - Tau4 Eri - Tau5 Eri - Tau6 Eri - Tau8 Eri - Tau9 Eri - Ups1 Eri - Ups2 Eri - 43 Eri - Ups4 Eri - HR 1195 - The1 Eri - Iot Eri - Kap Eri - Phi Eri - Chi Eri - Alp Eri
+
+For: Alp For - Bet For - Nu For
+
+Gem: Alp Gem - Tau Gem - Eps Gem - Mu Gem - Eta Gem
+Gem: Tau Gem - The Gem
+Gem: Tau Gem - Iot Gem - Ups Gem
+Gem: Bet Gem - Ups Gem - Del Gem - Zet Gem - Gam Gem
+Gem: Del Gem - Lam Gem - Xi Gem
+
+Gru: Gam Gru - Lam Gru - Mu1 Gru - Del1 Gru - Bet Gru - Eps Gru - Zet Gru
+Gru: Alp Gru - Bet Gru - Iot Gru - The Gru
+
+Her: Eps Her - Zet Her - Eta Her - Pi Her - Eps Her
+Her: Zet Her - Bet Her - Gam Her
+Her: Eps Her - Del Her - Alp1 Her
+Her: Del Her - Lam Her - Mu Her
+Her: Eta Her - Sig Her - Tau Her
+Her: Pi Her - Rho Her - The Her - Iot Her
+
+Hor: Alp Hor - Iot Hor - Eta Hor - Zet Hor - Mu Hor - Bet Hor
+
+Hya: Del Hya - Sig Hya - Eta Hya - Rho Hya - Eps Hya - Del Hya
+Hya: Eps Hya - Zet Hya - The Hya - Iot Hya - Alp Hya - Ups1 Hya - Lam Hya - Mu Hya - Nu Hya - Chi1 Hya - Xi Hya - Bet Hya - Gam Hya - Pi Hya - 58 Hya
+
+Hyi: Bet Hyi - Gam Hyi - Eps Hyi - Del Hyi - Alp Hyi
+
+Ind: Alp Ind - The Ind - Del Ind
+Ind: Alp Ind - Eta Ind - Bet Ind
+
+Lac: Bet Lac - Alp Lac - 4 Lac - 5 Lac - 2 Lac - 6 Lac - 1 Lac
+
+Leo: Alp Leo - Eta Leo - Gam1 Leo - Zet Leo - Mu Leo - Eps Leo
+Leo: Alp Leo - The Leo - Bet Leo - Del Leo - Gam1 Leo
+Leo: The Leo - Iot Leo - Sig Leo
+
+LMi: 10 LMi - 21 LMi - Bet LMi - 46 LMi
+
+Lep: Alp Lep - Bet Lep - Eps Lep - Mu Lep - Alp Lep
+Lep: Mu Lep - Kap Lep
+Lep: Alp Lep - Zet Lep - Eta Lep
+Lep: Bet Lep - Gam Lep - Del Lep
+
+Lib: Alp2 Lib - Bet Lib - Gam Lib - Alp2 Lib
+Lib: Alp2 Lib - Sig Lib
+Lib: Gam Lib - Ups Lib - Tau Lib
+
+Lup: Zet Lup - Alp Lup - Bet Lup - Del Lup - Phi1 Lup
+Lup: Del Lup - Gam Lup - Eta Lup
+Lup: Bet Lup - Eps Lup - Gam Lup
+
+Lyn: Alp Lyn - 38 Lyn - HR 3579 - 31 Lyn - 21 Lyn - 15 Lyn - 2 Lyn
+
+Lyr: Alp Lyr - Zet1 Lyr - Bet Lyr - Gam Lyr - Del2 Lyr - Zet1 Lyr
+Lyr: Alp Lyr - Eps1 Lyr
+
+Men: Alp Men - Gam Men - Eta Men - Bet Men
+
+Mic: Iot Mic - Alp Mic - Gam Mic - Eps Mic - The1 Mic
+
+Mon: Gam Mon - Bet Mon - Del Mon - Alp Mon
+Mon: Del Mon - Zet Mon
+Mon: Del Mon - 18 Mon - 13 Mon - 15 Mon
+Mon: 13 Mon - Eps Mon
+
+Mus: Lam Mus - Eps Mus - Alp Mus - Bet Mus - Del Mus - Gam Mus - Alp Mus
+
+Nor: Eta Nor - Gam2 Nor - Eps Nor - Del Nor - Eta Nor
+
+Oct: Nu Oct - Bet Oct - Del Oct - Nu Oct
+
+Oph: Alp Oph - Kap Oph - Lam Oph - Del Oph - Eps Oph - Zet Oph - Eta Oph - Nu Oph - Gam Oph - Bet Oph - Alp Oph
+Oph: Eta Oph - Xi Oph - The Oph
+
+Ori: Alp Ori - Gam Ori
+Ori: Alp Ori - Zet Ori - Kap Ori
+Ori: Gam Ori - Del Ori - Bet Ori
+Ori: Del Ori - Eps Ori - Zet Ori
+Ori: Alp Ori - Lam Ori - Gam Ori
+Ori: Alp Ori - Mu Ori - Xi Ori - Nu Ori - Chi1 Ori
+Ori: Gam Ori - Pi3 Ori
+Ori: Pi1 Ori - Pi2 Ori - Pi3 Ori - Pi4 Ori - Pi5 Ori - Pi6 Ori
+
+Pav: Alp Pav - Bet Pav - Gam Pav
+Pav: Bet Pav - Del Pav - Kap Pav - Pi Pav - Eta Pav
+Pav: Del Pav - Eps Pav
+
+Peg: Alp Peg - Bet Peg - Alp And - Gam Peg - Alp Peg
+Peg: Alp Peg - Zet Peg - The Peg - Eps Peg
+Peg: Bet Peg - Eta Peg - Pi2 Peg
+Peg: Bet Peg - Mu Peg - Lam Peg - Iot Peg - Kap Peg
+
+Per: Eta Per - Tau Per - Gam Per - Alp Per - Del Per - Nu Per - Eps Per - Xi Per - Zet Per - Omi Per
+Per: Alp Per - Iot Per - Kap Per - Bet Per - Rho Per
+Per: Del Per - 48 Per - Mu Per
+Per: Iot Per - The Per - Phi Per
+
+Phe: Eps Phe - Alp Phe - Bet Phe - Gam Phe - Del Phe - Zet Phe - Bet Phe
+
+Pic: Bet Pic - Gam Pic - Alp Pic
+
+Psc: Gam Psc - Kap Psc - Lam Psc - Iot Psc - The Psc - 7 Psc - Gam Psc
+Psc: Iot Psc - Ome Psc - Del Psc - Eps Psc - Mu Psc - Nu Psc - Alp Psc
+Psc: Alp Psc - Omi Psc - Eta Psc - Chi Psc - Phi Psc - Ups Psc - Tau Psc
+
+PsA: Alp PsA - Eps PsA - Eta PsA - The PsA - Iot PsA - Mu PsA - Bet PsA - Gam PsA - Del PsA - Alp PsA
+
+Pup: Rho Pup - Xi Pup - HR 3017 - Zet Pup - Sig Pup - Tau Pup - Nu Pup - Pi Pup - HR 3017
+
+Pyx: Bet Pyx - Alp Pyx - Gam Pyx
+
+Ret: Alp Ret - Bet Ret - Del Ret - Eps Ret - Alp Ret
+
+Sge: Gam Sge - Del Sge - Alp Sge
+Sge: Del Sge - Bet Sge
+
+Sgr: Gam2 Sgr - Del Sgr - Eps Sgr - Gam2 Sgr
+Sgr: Del Sgr - Lam Sgr - Phi Sgr - Del Sgr
+Sgr: Phi Sgr - Sig Sgr - Tau Sgr - Zet Sgr - Phi Sgr
+Sgr: Zet Sgr - Eps Sgr - Eta Sgr
+Sgr: Lam Sgr - Mu Sgr
+Sgr: Sig Sgr - Omi Sgr - Pi Sgr
+
+Sco: Bet1 Sco - Del Sco - Pi Sco - Rho Sco
+Sco: Del Sco - Sig Sco - Alp Sco - Tau Sco - Eps Sco - Mu1 Sco - Zet2 Sco - Eta Sco - The Sco - Iot1 Sco - Kap Sco - Lam Sco - Ups Sco
+
+Scl: Alp Scl - Del Scl - Gam Scl - Bet Scl
+
+Sct: Bet Sct - Alp Sct - Gam Sct - Del Sct - Bet Sct
+
+Ser: Gam Ser - Bet Ser - Kap Ser - Gam Ser
+Ser: Bet Ser - Del Ser - Alp Ser - Eps Ser - Mu Ser
+Ser: Nu Ser - Xi Ser - Omi Ser - Zet Ser - Eta Ser - The1 Ser
+
+Sex: Eps Sex - Gam Sex - Alp Sex - Bet Sex - Del Sex
+
+Tau: Bet Tau - Eps Tau - Del1 Tau - Gam Tau - The2 Tau - Alp Tau - Zet Tau
+Tau: Gam Tau - Lam Tau - Xi Tau - Omi Tau
+
+Tel: Eps Tel - Alp Tel - Zet Tel
+
+Tri: Alp Tri - Bet Tri - Gam Tri - Alp Tri
+
+TrA: Alp TrA - Bet TrA - Gam TrA - Alp TrA
+
+Tuc: Alp Tuc - Gam Tuc - Bet1 Tuc - Zet Tuc - Eps Tuc - Del Tuc - Alp Tuc
+
+UMa: Eta UMa - Zet UMa - Eps UMa - Del UMa - Alp UMa - Bet UMa - Gam UMa - Del UMa
+UMa: Alp UMa - 23 UMa - Omi UMa
+UMa: 23 UMa - Ups UMa - The UMa - Kap UMa - Iot UMa
+UMa: Gam UMa - Chi UMa - Psi UMa - Mu UMa - Lam UMa
+UMa: Chi UMa - Nu UMa - Xi UMa
+
+UMi: Alp UMi - Del UMi - Eps UMi - Zet UMi - Bet UMi - Gam UMi - Eta UMi - Zet UMi
+
+Vel: Gam2 Vel - Del Vel - Kap Vel - Phi Vel - Mu Vel - HR 4023 - Lam Vel - Gam2 Vel
+Vel: Lam Vel - Psi Vel
+
+Vir: Eps Vir - Del Vir - Gam Vir - Eta Vir - Bet Vir - Nu Vir
+Vir: Gam Vir - The Vir - Alp Vir - Zet Vir - Del Vir
+Vir: Zet Vir - Tau Vir - 109 Vir
+Vir: Alp Vir - Kap Vir - Iot Vir - Mu Vir
+
+Vol: Alp Vol - Bet Vol - Eps Vol - Del Vol - Gam2 Vol - Zet Vol - Eps Vol
+
+Vul: Alp Vul - 13 Vul - 15 Vul - 23 Vul

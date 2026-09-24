@@ -194,6 +194,7 @@ export interface ConstellationFigure {
   name: string;
   /** Pairs of star indices into the star-field arrays. */
   lines: [number, number][];
+  /** Label position: an ICRS (J2000) direction inside the boundary, degrees. */
   label_ra_deg: number;
   label_dec_deg: number;
 }
@@ -269,6 +270,13 @@ export interface ExplorerEngine {
   starfieldApparent(jdUtc: number): Float64Array;
   constellationAt(raDeg: number, decDeg: number, jdUtc: number): string;
   constellationBoundaries(): ConstellationBoundary[];
+  /**
+   * ICRS (J2000) → true equator and equinox of date, row-major 3×3 (length 9):
+   * `v_date[i] = Σ_j m[3i + j] · v_icrs[j]`. Carries the J2000 boundaries and label
+   * positions into the frame of `starfieldApparent`. Addition by the star-field agent
+   * (EXPLORER_API "starfield_frame_matrix"); optional so existing engines still compile.
+   */
+  starfieldFrameMatrix?(jdUtc: number): Float64Array;
 }
 
 /** UTC-based Julian Date from a JS timestamp (EXPLORER_API "Common rules"). */
