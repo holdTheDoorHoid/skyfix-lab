@@ -163,11 +163,18 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
   });
   const sights = h('p', { class: 'sf-selected__sights' });
   const detailsGrid = h('div', { class: 'sf-details__grid' });
+  // Two families of altitude (CONVENTIONS 13.2): say which is which, so nobody compares them.
+  const detailsNote = h(
+    'p',
+    { class: 'sf-details__note' },
+    'Hc and Zn are what sight-reduction tables give: seen from the Earth’s centre, with no refraction and no parallax. The height above the horizon at the top is what you would see from here; for the Moon the two differ by up to a degree.',
+  );
   const details = h(
     'details',
     { class: 'sf-details', 'data-term': '' },
     h('summary', {}, 'Navigator’s details', icon('chevron-down')),
     detailsGrid,
+    detailsNote,
   );
   const when = whenTool(ctx);
   sec.body.append(status, readouts, cardRow, extras, magRow, sights, when.el, details);

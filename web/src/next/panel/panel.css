@@ -344,6 +344,13 @@
   padding-bottom: 4px;
 }
 
+.sf-details__note {
+  margin: 2px 0 8px;
+  color: var(--chrome-ink-3);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
 /* --- In the sky now ---------------------------------------------------------------------- */
 
 .sf-bodylist {
