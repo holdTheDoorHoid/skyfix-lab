@@ -10,7 +10,7 @@
 
 import { formatLatitude, formatLatLon, formatLongitude, type CoordStyle } from '../geo/coords.js';
 import type { AngleFormat } from '../state.js';
-import { formatWithUtc, wallClock, zoneShortName, UTC_ZONE, type Zone } from '../time.js';
+import { formatWithUtc, roundToSecond, wallClock, zoneShortName, UTC_ZONE, type Zone } from '../time.js';
 
 export const DEG = '°';
 export const PRIME = '′';
@@ -169,19 +169,20 @@ export function fmtInstant(jd: number, zone: Zone): string {
   return formatWithUtc(jd, zone, { seconds: true });
 }
 
-/** `01:30:05 UTC`. */
+/** `01:30:05 UTC`, to the nearest second (time.ts `roundToSecond`). */
 export function fmtUtcClock(jd: number): string {
-  const w = wallClock(jd, UTC_ZONE);
+  const w = wallClock(roundToSecond(jd), UTC_ZONE);
   const p = (n: number) => String(n).padStart(2, '0');
   return `${p(w.hour)}:${p(w.minute)}:${p(w.second)} UTC`;
 }
 
-/** `21:30:05 EDT` (the clock in a zone, with the zone's short name). */
+/** `21:30:05 EDT` (the clock in a zone, to the nearest second, with the zone's short name). */
 export function fmtZoneClock(jd: number, zone: Zone): string {
-  const w = wallClock(jd, zone);
+  const t = roundToSecond(jd);
+  const w = wallClock(t, zone);
   const p = (n: number) => String(n).padStart(2, '0');
   // Non-breaking spaces: "ZD −9" and its clock stay on one line.
-  return `${p(w.hour)}:${p(w.minute)}:${p(w.second)}\u00a0${zoneShortName(jd, zone).replace(/ /g, '\u00a0')}`;
+  return `${p(w.hour)}:${p(w.minute)}:${p(w.second)}\u00a0${zoneShortName(t, zone).replace(/ /g, '\u00a0')}`;
 }
 
 /** RFC 3339 as typed back into a time field: `2026-10-01 01:30:05` (UTC). */

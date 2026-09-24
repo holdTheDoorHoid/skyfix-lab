@@ -132,8 +132,9 @@
   margin: 0 auto;
 }
 
-/* Two facing pages where both fit at a readable size (from 10.8 px at 1800 px wide). */
-@media (min-width: 1800px) {
+/* Two facing pages where both fit at a readable size (from 10.8 px at 1800 px wide).
+   Screen only, like the narrow layout below: in print the media width is the paper's. */
+@media screen and (min-width: 1800px) {
   .almanac {
     --alm-table-size: clamp(10.8px, 0.6vw, 11.6px);
   }
@@ -477,7 +478,9 @@
   border: 0;
 }
 
-@media (max-width: 720px) {
+/* Phones. Screen only: A4's printable width (190 mm, 718 px) is under 720 px, and this
+   layout stacks each page's tables, so printing on A4 took four sheets instead of two. */
+@media screen and (max-width: 720px) {
   .almanac {
     padding: var(--space-2, 8px);
   }

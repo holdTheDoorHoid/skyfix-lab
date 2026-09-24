@@ -35,7 +35,6 @@ import { compassPoint, formatAngle, formatBearing, formatMagnitude } from './for
 import { skyHighlights } from './highlight.js';
 import {
   documentReadVar,
-  documentTheme,
   readPalette,
   skyColours,
   type SkyPalette,
@@ -54,7 +53,7 @@ import {
 import { bodyKey, bodyToken, SkyRenderer, starKey, type Frame, type PathData } from './render.js';
 import { SkyScene } from './scene.js';
 import { button, iconButton, phaseChip, popover, segmented, setPressed, switchRow } from '../theme/primitives.js';
-import { onThemeChange, systemTheme } from '../theme/theme.js';
+import { currentTheme, onThemeChange } from '../theme/theme.js';
 import { starAlpha, starDesignation, starRadius, starTitle } from './stars.js';
 
 // ---------------------------------------------------------------------------
@@ -104,7 +103,8 @@ export interface SkyMounted extends Mounted {
 const EASE_MAX_DAYS = 0.25;
 const EASE_MS = 260;
 
-const LAYER_ITEMS: readonly { key: keyof Layers; label: string; note?: string; group: 'sky' | 'lines' }[] = [
+/** The Sky's Layers menu (the shell has none: every layer flag is offered by the map or here). */
+export const SKY_LAYER_OPTIONS: readonly { key: keyof Layers; label: string; note?: string; group: 'sky' | 'lines' }[] = [
   { key: 'constellations', label: 'Constellation figures', group: 'sky' },
   { key: 'constellationNames', label: 'Constellation names', group: 'sky' },
   { key: 'constellationBoundaries', label: 'Constellation boundaries', note: 'IAU, as agreed in 1930', group: 'sky' },
@@ -210,9 +210,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     'div',
     { class: 'sf-layers' },
     el('div', { class: 'sf-popover__title' }, 'In the sky'),
-    ...LAYER_ITEMS.filter((i) => i.group === 'sky').map(switchFor),
+    ...SKY_LAYER_OPTIONS.filter((i) => i.group === 'sky').map(switchFor),
     el('div', { class: 'sf-popover__title' }, 'Lines'),
-    ...LAYER_ITEMS.filter((i) => i.group === 'lines').map(switchFor),
+    ...SKY_LAYER_OPTIONS.filter((i) => i.group === 'lines').map(switchFor),
   );
   const layersPopover = popover(layersButton, layersContent, { label: 'Sky layers', placement: 'bottom-end', onStage: true });
   cleanups.push(() => layersPopover.destroy());
@@ -344,9 +344,10 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     return true;
   }
 
-  function currentPalette(state: ExplorerState): SkyPalette {
-    // The theme on screen (<html data-theme>); the setting may be 'system' (follow the device).
-    const theme = documentTheme(state.settings.theme === 'system' ? systemTheme() : state.settings.theme);
+  function currentPalette(): SkyPalette {
+    // The theme on screen (<html data-theme>, applied by the shell), never the setting: the
+    // setting may be 'system', and the device's preference can change under it.
+    const theme: SkyTheme = currentTheme();
     if (!palette || paletteTheme !== theme) {
       palette = readPalette(theme, documentReadVar);
       paletteTheme = theme;
@@ -448,7 +449,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     } else {
       displayJd = state.time.jd_utc;
     }
-    const pal = currentPalette(state);
+    const pal = currentPalette();
     const observer = engineObserver(state);
 
     try {

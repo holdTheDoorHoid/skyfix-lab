@@ -78,6 +78,11 @@ export interface Story {
   lookAt: string;
   /** What to try next: a sentence and the actions that do it. */
   next: { text: string; actions: readonly TryAction[] };
+  /**
+   * Show the fit map (the residual heat map) with the chart from the start, where it teaches
+   * the most: the two basins of an ambiguous fix, the long valley of poor geometry.
+   */
+  fitMap?: boolean;
 }
 
 export const STORIES: readonly Story[] = [
@@ -155,6 +160,7 @@ export const STORIES: readonly Story[] = [
       'Nearly parallel lines make a long, thin ellipse, and the solver says plainly that the geometry is poor.',
     lookAt:
       'The ellipse is not just bigger, it is a different shape: long across the direction the stars were in.',
+    fitMap: true,
     next: {
       text:
         'Put it beside the spread-out run, then repeat it fifty times: the big ellipse still holds the truth about 95 times in 100. It is honest, just less certain.',
@@ -233,6 +239,7 @@ export const STORIES: readonly Story[] = [
       'Two stars 90° apart in bearing give two circles that cross twice, thousands of kilometres apart. ' +
       'Both crossings fit the sights exactly, so both are reported and neither is preferred.',
     lookAt: 'Two candidates drawn the same way. One is the truth; nothing in the two sights says which.',
+    fitMap: true,
     next: {
       text: 'Add a third star in another direction: its circle passes through only one of the crossings.',
       actions: [{ kind: 'variant', variant: 'third-star', label: 'Add a third star' }],

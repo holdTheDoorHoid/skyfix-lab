@@ -156,7 +156,8 @@ export function renderPlan(
         h('span', { class: 'sfn-tonight__zn sfn-num', title: 'True bearing' }, fmtBearing(b.zn_deg)),
       ),
     );
-    const use = btn('Use these bodies', () => options.onUse(w), { variant: options.compact ? 'outline' : 'primary', icon: 'plus', tip: 'Add them to the sights to take, in Navigate' });
+    // Two windows each have this button: the name says which (a screen reader lists them apart).
+    const use = btn('Use these bodies', () => options.onUse(w), { variant: options.compact ? 'outline' : 'primary', icon: 'plus', tip: 'Add them to the sights to take, in Navigate', ariaLabel: `Use these bodies: ${title}` });
     const block = h(
       'section',
       { class: 'sfn-tonight__window' },
@@ -202,6 +203,11 @@ export function renderPlan(
   );
 }
 
+/** How long the time must be still before tonight's plan is made again, ms. */
+const SETTLE_MS = 300;
+/** While the time keeps moving, a new plan at least this often, ms. */
+const MAX_WAIT_MS = 5000;
+
 export function tonightSights(options: TonightOptions = {}): Component {
   const compact = options.compact ?? true;
   const from = options.from ?? 'place';
@@ -221,6 +227,7 @@ export function tonightSights(options: TonightOptions = {}): Component {
     }
     let lastKey = '';
     let lastRun = 0;
+    let firstPending = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
     const compute = (): void => {
       timer = null;
@@ -249,9 +256,14 @@ export function tonightSights(options: TonightOptions = {}): Component {
       const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), ctx.store.get().settings.angleFormat, ctx.store.get().settings.timeDisplay, ctx.store.get().observer.zone]);
       if (key === lastKey) return;
       lastKey = key;
-      if (timer !== null) return;
-      // At most two plans a second while the time bar plays.
-      const wait = Math.max(0, 500 - (Date.now() - lastRun));
+      // A plan takes tens of milliseconds of the page's time. While the time keeps moving
+      // (the time bar dragged, or playing) it waits for the time to settle, so it never makes
+      // the frames of a drag late: once the time has been still for SETTLE_MS, and at least
+      // every MAX_WAIT_MS while it keeps moving. The first plan is made at once.
+      const now = Date.now();
+      if (timer === null) firstPending = now;
+      else clearTimeout(timer);
+      const wait = lastRun === 0 || now - firstPending >= MAX_WAIT_MS ? 0 : SETTLE_MS;
       timer = setTimeout(compute, wait);
     };
     d.add(ctx.store.subscribe(request));

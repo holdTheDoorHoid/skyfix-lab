@@ -29,6 +29,7 @@ import { startPlaceService } from './place.js';
 import { startRouter } from './router.js';
 import { stage } from './stage.js';
 import { startThemeController } from './themes.js';
+import { createTour, tourDismissed } from './tour.js';
 
 export const shell: Component = (host, ctx) => {
   const { store } = ctx;
@@ -65,6 +66,15 @@ export const shell: Component = (host, ctx) => {
   sheet = bottomSheet(app, side.el, side.grab, stageEl);
   d.add(sheet.destroy);
   d.add(installTooltips(document.body));
+
+  // The first-run tour: once, beside the page, never over it (tour.ts). After the first
+  // frame, so the parts it points at have their places.
+  const tour = createTour(ctx);
+  d.add(tour.destroy);
+  if (!tourDismissed()) {
+    const id = requestAnimationFrame(() => requestAnimationFrame(() => tour.open()));
+    d.add(() => cancelAnimationFrame(id));
+  }
 
   toggle.addEventListener('click', () => {
     const closing = app.dataset.panel !== 'closed';

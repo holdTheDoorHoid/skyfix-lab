@@ -1,9 +1,9 @@
 /**
  * The compass dial drawn at the observer (the look approved in docs/design/map-light.png):
- * horizon ring with compass points, faint altitude rings, the selected body's path for the
- * day with hourly dots, its rise and set directions with local times, where it is now, the
- * band the Sun's paths sweep between the solstices, and the place's name under it. OWNER:
- * map agent.
+ * horizon ring with compass points, faint altitude rings, the selected body's path across
+ * the sky on its current pass (rise to set, the pass the panel shows) with hourly dots, its
+ * rise and set directions with local times, where it is now, the band the Sun's paths sweep
+ * between the solstices, and the place's name under it. OWNER: map agent.
  *
  * Screen space: a fixed size whatever the map zoom, centred exactly on the observer by
  * `place()` and turned so its north follows the local meridian on the globe. Geometry from
@@ -39,16 +39,16 @@ export interface DialEvent {
   kind: 'rise' | 'set' | 'transit';
   alt: number;
   az: number;
-  /** Words and time shown beside the ring end, e.g. "Sunrise 06:52". */
+  /** Words and time shown beside the ring end, e.g. "Sunrise 06:52" or "Moonset 05:37 Fri". */
   label: string;
-  /** The time alone, for the compact dial (phones): "06:52". */
+  /** The time alone, for the compact dial (phones): "06:52", "05:37 Fri". */
   time: string;
 }
 
 export interface DialDay {
   body: string;
   kind: BodyKind;
-  /** Parts of today's path above the horizon (apparent altitude). */
+  /** Parts of the pass's path above the horizon (apparent altitude); map/pass.ts. */
   path: AltAz[][];
   /** Points on the path on each whole hour (above the horizon). */
   hours: AltAz[];

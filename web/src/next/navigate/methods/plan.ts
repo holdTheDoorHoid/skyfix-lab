@@ -174,7 +174,9 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
                   'li',
                   {},
                   h('strong', {}, b.body),
-                  ` — altitude ${fmtAngle(b.altitude_deg, format)}, bearing ${fmtBearing(b.azimuth_deg)}${b.magnitude === null ? '' : `, magnitude ${b.magnitude.toFixed(1)}`}`,
+                  // The planner's altitude is the tables' Hc (from the Earth's centre, no refraction,
+                  // no parallax), not the height above the horizon the other views show.
+                  ` — computed altitude Hc ${fmtAngle(b.altitude_deg, format)}, bearing Zn ${fmtBearing(b.azimuth_deg)}${b.magnitude === null ? '' : `, magnitude ${b.magnitude.toFixed(1)}`}`,
                   h('div', { class: 'sfn-muted' }, `score ${b.score.toFixed(3)} ${b.score_units}`),
                   h('div', {}, b.rationale),
                 ),
@@ -184,7 +186,7 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
         plan.bodies.length ? h('div', { class: 'sfn-export' }, btn('Use these bodies', () => useRanked(plan), { icon: 'plus', variant: 'outline' })) : null,
         h('section', { class: 'sfn-sub' }, h('h3', {}, 'Predicted uncertainty, sight by sight'), para('What the uncertainty becomes as each planned sight is added: predictions from the geometry and the assumed sight uncertainty, not measurements.', 'sfn-note'), h('div', { class: 'sfn-table-scroll' }, metrics)),
         plan.excluded.length
-          ? h('section', { class: 'sfn-sub' }, h('h3', {}, `Considered and left out (${plan.excluded.length})`), h('ul', { class: 'sfn-list' }, ...plan.excluded.map((e) => h('li', {}, h('strong', {}, e.body), ` — altitude ${fmtAngle(e.altitude_deg, format)}, bearing ${fmtBearing(e.azimuth_deg)}: ${e.reason}`))))
+          ? h('section', { class: 'sfn-sub' }, h('h3', {}, `Considered and left out (${plan.excluded.length})`), h('ul', { class: 'sfn-list' }, ...plan.excluded.map((e) => h('li', {}, h('strong', {}, e.body), ` — Hc ${fmtAngle(e.altitude_deg, format)}, Zn ${fmtBearing(e.azimuth_deg)}: ${e.reason}`))))
           : null,
         h('section', { class: 'sfn-sub' }, h('h3', {}, 'What this plan discloses'), h('ul', { class: 'sfn-list' }, ...plan.notes.map((n) => h('li', {}, n)))),
       ));

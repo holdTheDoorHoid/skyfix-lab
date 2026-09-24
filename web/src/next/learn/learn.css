@@ -738,6 +738,23 @@
   stroke-dasharray: none;
 }
 
+/* The fit map (misfit/): the heat under the lines, its level lines over them. */
+.sfl-ch-heat {
+  pointer-events: none;
+}
+
+.sfl-ch-misfit-halo {
+  fill: none;
+  stroke: var(--line-halo);
+  stroke-linejoin: round;
+}
+
+.sfl-ch-misfit-line {
+  fill: none;
+  stroke: var(--accent);
+  stroke-linejoin: round;
+}
+
 .sfl-ch-ellipse {
   fill: color-mix(in srgb, var(--stage-accent-ink) 16%, transparent);
   stroke: var(--stage-accent-ink);

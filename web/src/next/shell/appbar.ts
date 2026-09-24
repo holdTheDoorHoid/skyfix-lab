@@ -11,15 +11,17 @@ import { icon } from '../theme/icons.js';
 import { badge, button, iconButton, logoMark, popover, segmented } from '../theme/primitives.js';
 import { settingsPanel } from './settings.js';
 import { sharePanel } from './share.js';
+import { openTour } from './tour.js';
 
 export const HONESTY = 'Simulation and analysis workbench. Not a navigation instrument.';
 
-function help(ctx: Ctx): HTMLElement {
+function help(ctx: Ctx, onTour: () => void): HTMLElement {
   const key = (...keys: string[]): HTMLElement => h('span', { class: 'sf-help__keys' }, ...keys.map((k) => h('span', { class: 'sf-kbd' }, k)));
   const row = (keys: HTMLElement, text: string): HTMLElement => h('div', { class: 'sf-help__row' }, keys, h('span', {}, text));
   return h(
     'div',
     { class: 'sf-help' },
+    button({ label: 'Show the tour', icon: 'info', variant: 'secondary', size: 'sm', class: 'sf-help__tour', onClick: onTour }),
     h('div', { class: 'sf-popover__title' }, 'Keys for time'),
     row(key('←', '→'), '10 minutes back or on'),
     row(key('Shift', '←', '→'), 'an hour'),
@@ -75,7 +77,14 @@ export function appbar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const sharePop = popover(shareButton, share.el, { label: 'Share this view', placement: 'bottom-end', onOpen: share.refresh });
   const settings = settingsPanel(ctx);
   const settingsPop = popover(settingsButton, settings.el, { label: 'Settings', placement: 'bottom-end' });
-  const helpPop = popover(helpButton, help(ctx), { label: 'Help and keys', placement: 'bottom-end' });
+  const helpPop = popover(
+    helpButton,
+    help(ctx, () => {
+      helpPop.close({ returnFocus: true });
+      openTour(ctx);
+    }),
+    { label: 'Help and keys', placement: 'bottom-end' },
+  );
   d.add(() => sharePop.destroy());
   d.add(() => settingsPop.destroy());
   d.add(() => helpPop.destroy());

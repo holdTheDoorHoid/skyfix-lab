@@ -10,6 +10,7 @@
 
 import { h, s } from '../../dom.js';
 import type { LatLon } from '../../types.js';
+import { LEVEL_LINE, misfitHeatDataUrl, misfitLinePaths, type FitMapPicture, type HeatProjection } from '../misfit/index.js';
 import { globeCenter, sheetFrame, type ChartModel, type ChartView } from './chart-model.js';
 import { arcmin, candidateLetter, type Fmt } from './facts.js';
 import { circleArcNear, distanceM, ellipseRing, fullCircle, nearestOnCircle } from './geo.js';
@@ -27,6 +28,36 @@ export interface ChartOptions {
   uid: string;
   /** Emphasise one sight's line (a residual far outside the rest). */
   emphasis?: { id: string; text: string } | null;
+  /** The fit map (residual heat map) to draw under the lines, its level lines on top. */
+  misfit?: FitMapPicture | null;
+}
+
+/** The fit map's heat as an SVG image over `rect` (clipped by `clip`), through `projection`. */
+function heatImage(picture: FitMapPicture, projection: HeatProjection, rect: { x: number; y: number; width: number; height: number }, clip: string): SVGElement {
+  return s('image', {
+    class: 'sfl-ch-heat',
+    href: misfitHeatDataUrl(picture.grid, projection, rect),
+    x: r2(rect.x),
+    y: r2(rect.y),
+    width: r2(rect.width),
+    height: r2(rect.height),
+    preserveAspectRatio: 'none',
+    'clip-path': `url(#${clip})`,
+  });
+}
+
+/** The fit map's level lines: the 95 % line solid, the 3-sigma line dashed (LEVEL_LINE). */
+function heatLines(picture: FitMapPicture, projection: HeatProjection, clip: string): SVGElement {
+  const g = s('g', { class: 'sfl-ch-misfit', 'clip-path': `url(#${clip})` });
+  for (const p of misfitLinePaths(picture.contours, projection)) {
+    if (!p.d) continue;
+    const style = LEVEL_LINE[p.level];
+    g.append(
+      s('path', { class: 'sfl-ch-misfit-halo', d: p.d, 'stroke-width': style.width + 2 }),
+      s('path', { class: 'sfl-ch-misfit-line', d: p.d, 'stroke-width': style.width, 'stroke-dasharray': style.dash.length ? style.dash.join(' ') : 'none' }),
+    );
+  }
+  return g;
 }
 
 export interface RenderedChart {
@@ -236,6 +267,9 @@ function renderSheet(model: ChartModel, opts: ChartOptions): RenderedChart {
   const clipId = `${opts.uid}-clip`;
   svg.append(s('defs', {}, s('clipPath', { id: clipId }, s('rect', { x: rect.x, y: rect.y, width: rect.w, height: rect.h }))));
   svg.append(s('rect', { class: 'sfl-ch-paper', x: rect.x, y: rect.y, width: rect.w, height: rect.h, rx: 4 }));
+  // The fit map: every pixel coloured by how well that position fits (misfit/README §2).
+  const sheetHeat: HeatProjection = { project: (p) => proj.project(p), unproject: (x, y) => proj.unproject(x, y) };
+  if (opts.misfit) svg.append(heatImage(opts.misfit, sheetHeat, { x: rect.x, y: rect.y, width: rect.w, height: rect.h }, clipId));
 
   // Graticule, in whole arcminutes as on a plotting sheet.
   const corners = [proj.unproject(rect.x, rect.y), proj.unproject(rect.x + rect.w, rect.y), proj.unproject(rect.x, rect.y + rect.h), proj.unproject(rect.x + rect.w, rect.y + rect.h)];
@@ -330,7 +364,9 @@ function renderSheet(model: ChartModel, opts: ChartOptions): RenderedChart {
   }
   if (truthXY) marks.append(truthMark(truthXY[0], truthXY[1]));
   if (fixXY) marks.append(fixMark(fixXY[0], fixXY[1]));
-  svg.append(marks, top);
+  svg.append(marks);
+  if (opts.misfit) svg.append(heatLines(opts.misfit, sheetHeat, clipId));
+  svg.append(top);
 
   if (fixXY) labeler.place(fixXY[0], fixXY[1], 'Fix', 'sfl-ch-pill--fix', ['ne', 'nw', 'se', 'sw', 'e', 'w']);
   if (truthXY) labeler.place(truthXY[0], truthXY[1], 'Truth · answer key', 'sfl-ch-pill--truth', ['se', 'sw', 'ne', 'nw', 's', 'n']);
@@ -406,6 +442,14 @@ function renderGlobe(model: ChartModel, opts: ChartOptions): RenderedChart {
   const o = new Ortho(globeCenter(model), r, cx, cy);
   const svg = s('svg', { class: 'sfl-chart sfl-chart--globe', width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img' }) as SVGSVGElement;
   svg.append(s('circle', { class: 'sfl-ch-sea', cx: r2(cx), cy: r2(cy), r: r2(r) }));
+  // The fit map on the globe: projected cells (no unproject), the far side left out.
+  const globeClip = `${opts.uid}-disc`;
+  const globeHeat: HeatProjection = {
+    project: (p) => {
+      const g = o.project(p);
+      return g.z > 0 ? [g.x, g.y] : null;
+    },
+  };
 
   if (opts.land) {
     let d = '';
@@ -417,6 +461,12 @@ function renderGlobe(model: ChartModel, opts: ChartOptions): RenderedChart {
       if (pts) d += pathData([pts], true);
     }
     if (d) svg.append(s('path', { class: 'sfl-ch-land', d, 'fill-rule': 'evenodd' }));
+  }
+
+  // Over the land, under the graticule and the circles.
+  if (opts.misfit) {
+    svg.append(s('defs', {}, s('clipPath', { id: globeClip }, s('circle', { cx: r2(cx), cy: r2(cy), r: r2(r) }))));
+    svg.append(heatImage(opts.misfit, globeHeat, { x: cx - r, y: cy - r, width: 2 * r, height: 2 * r }, globeClip));
   }
 
   // Graticule every 30 degrees.
@@ -486,7 +536,9 @@ function renderGlobe(model: ChartModel, opts: ChartOptions): RenderedChart {
       pointLabels.push(() => labeler.place(g.x, g.y, 'Fix', 'sfl-ch-pill--fix', ['ne', 'nw', 'e', 'w']));
     }
   }
-  svg.append(marks, top);
+  svg.append(marks);
+  if (opts.misfit) svg.append(heatLines(opts.misfit, globeHeat, globeClip));
+  svg.append(top);
   for (const place of pointLabels) place();
   for (const l of gpLabels) labeler.place(l.x, l.y, l.text, `sfl-ch-pill--gp sfl-c${l.color}`, ['e', 'w', 'n', 's', 'ne', 'nw', 'se', 'sw']);
   // Circle labels stay on the globe's disc, next to their line.

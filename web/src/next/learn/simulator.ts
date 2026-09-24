@@ -25,7 +25,8 @@ import { experimentResult } from './experiment-view.js';
 import { factsOf } from './facts.js';
 import { checkField, fieldGroup, numberField, selectField, textField, type Choice } from './form.js';
 import { answerKey, correctionTable, figure, kindChip, mockBadge, numbersList, residualChart, simulatedBadge, tiles, warningsList, type Figure } from './result.js';
-import { experimentFor, simulateAndSolve, truthGuardRadiusNm } from './run.js';
+import { EPHEMERIS_MODE, experimentFor, simulateAndSolve, truthGuardRadiusNm } from './run.js';
+import { handOffToNavigate } from '../navigate/handoff.js';
 import { STORIES, type SimulatorPreset } from './stories.js';
 import { distanceM } from './geo.js';
 
@@ -411,6 +412,7 @@ function runPanel(env: LearnEnv, sim: SimState): { el: HTMLElement; fig: Figure 
   const why = explain(null, run, facts, fmt);
   const stale = JSON.stringify(run.scenario) !== JSON.stringify(sim.scenario);
   const fig = figure(run.result, run.truth, env.figureEnv(run.scenario.name), {
+    misfit: { input: { session: run.session, mode: EPHEMERIS_MODE, options: run.options } },
     view: env.state.get().chartView,
     onView: (v) => env.state.patch({ chartView: v }),
     title: run.scenario.name,
@@ -430,6 +432,24 @@ function runPanel(env: LearnEnv, sim: SimState): { el: HTMLElement; fig: Figure 
       setTimeout(() => URL.revokeObjectURL(a.href), 1000);
     },
   });
+  // Hand the session to the Navigate view: only what the solver received, labelled
+  // SIMULATED there; the answer key (run.truth) stays here (navigate/handoff.ts).
+  const openInNavigate = button({
+    label: 'Open in Navigate',
+    icon: 'sextant',
+    size: 'sm',
+    variant: 'secondary',
+    tip: 'Work these simulated sights in the Navigate view: every correction, the fix and the other methods. The answer key stays here.',
+    onClick: () => {
+      handOffToNavigate(env.ctx.store, {
+        session: run.session,
+        from: `the Learn simulator’s “${run.scenario.name || 'session'}”`,
+        mode: EPHEMERIS_MODE,
+        solve: { robust: run.options.robust !== null, estimate_shared_bias: run.options.estimate_shared_bias },
+      });
+      env.ctx.store.patch({ view: 'navigate' });
+    },
+  });
   const el = h(
     'section',
     { class: 'sfl-panel-box', 'data-kind': run.result.kind },
@@ -443,7 +463,7 @@ function runPanel(env: LearnEnv, sim: SimState): { el: HTMLElement; fig: Figure 
     run.reduced && run.reduced.length ? correctionTable(run.reduced) : null,
     answerKey(run.truth, fmt),
     h('details', { class: 'sfl-more' }, h('summary', {}, 'All the numbers'), numbersList(run.result, facts, fmt)),
-    h('div', { class: 'sfl-actions' }, download),
+    h('div', { class: 'sfl-actions' }, openInNavigate, download),
   );
   return { el, fig };
 }

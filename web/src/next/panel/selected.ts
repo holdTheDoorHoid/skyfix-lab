@@ -9,7 +9,7 @@ import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import { coverageGroupFor, offeredForSights } from '../engine/bodies.js';
 import type { BodyInfo, BodyState, PhaseEvent, SkyEvent } from '../engine/types.js';
-import { aroundToday, bodyError, bodyIn, covered, dayOf, setAttr, setText, skyNow, skySelected, sunToday } from '../shell/derived.js';
+import { bodyError, bodyIn, covered, dayOf, passNow, setAttr, setText, skyNow, skySelected, sunToday } from '../shell/derived.js';
 import {
   bearing3,
   compassPoint,
@@ -23,16 +23,27 @@ import {
   formatLength,
   formatMagnitude,
   formatZn,
+  lengthToMetres,
+  metresToUnits,
   otherDay,
 } from '../shell/format.js';
-import { passageAround, sunDay, type Passage } from '../shell/sky.js';
-import { displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
+import { sunDay } from '../shell/sky.js';
+import { displayZone, engineObserver, placeZone, shallowEqual, type ExplorerState } from '../state.js';
 import { bodyGlyph, moonPhaseName, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { kv, popover, section, swatch } from '../theme/primitives.js';
 import { UTC_ZONE, formatHours, wallClock, zoneShortName, type Zone } from '../time.js';
+import { shadowOf } from './sun-tools.js';
+import { whenTool } from './when.js';
 
 const WORDS: Record<string, [string, string]> = { Sun: ['Sunrise', 'Sunset'], Moon: ['Moonrise', 'Moonset'] };
+
+/** The object whose shadow the Sun's card gives, metres, per explorer page (not stored). */
+const objectHeights = new WeakMap<object, number>();
+
+function objectHeightM(ctx: Pick<Ctx, 'store'>): number {
+  return objectHeights.get(ctx.store) ?? 1;
+}
 
 function words(body: string): [string, string] {
   return WORDS[body] ?? ['Rises', 'Sets'];
@@ -85,13 +96,6 @@ function otherDayOf(jd: number, zone: Zone, other: Zone): string {
   const a = wallClock(jd + 30 / 86_400, other);
   const b = wallClock(jd + 30 / 86_400, zone);
   return a.day === b.day && a.month === b.month ? '' : (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][a.weekday] ?? '');
-}
-
-/** Up or down now, by the body's own rise and set events (consistent with the cards). */
-function isUp(events: readonly SkyEvent[], jd: number, fallback: boolean): boolean {
-  let last: SkyEvent | null = null;
-  for (const e of events) if ((e.kind === 'rise' || e.kind === 'set') && e.jd_utc <= jd) last = e;
-  return last ? last.kind === 'rise' : fallback;
 }
 
 function moonStory(phases: readonly PhaseEvent[], jd: number): { waxing: boolean; age: number | null; next: PhaseEvent | null } {
@@ -159,16 +163,26 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
   });
   const sights = h('p', { class: 'sf-selected__sights' });
   const detailsGrid = h('div', { class: 'sf-details__grid' });
+  // Two families of altitude (CONVENTIONS 13.2): say which is which, so nobody compares them.
+  const detailsNote = h(
+    'p',
+    { class: 'sf-details__note' },
+    'Hc and Zn are what sight-reduction tables give: seen from the Earth’s centre, with no refraction and no parallax. The height above the horizon at the top is what you would see from here; for the Moon the two differ by up to a degree.',
+  );
   const details = h(
     'details',
     { class: 'sf-details', 'data-term': '' },
     h('summary', {}, 'Navigator’s details', icon('chevron-down')),
     detailsGrid,
+    detailsNote,
   );
-  sec.body.append(status, readouts, cardRow, extras, magRow, sights, details);
+  const when = whenTool(ctx);
+  sec.body.append(status, readouts, cardRow, extras, magRow, sights, when.el, details);
 
   // --- extras per kind, rebuilt when the body or the day changes ----------------------
   let extrasKey = '';
+  /** The body state last drawn, for redrawing the extras when the object height is typed. */
+  let lastBody: BodyState | null = null;
   let updateExtras: (b: BodyState, s: ExplorerState) => void = () => undefined;
 
   const buildSunExtras = (s: ExplorerState): void => {
@@ -183,8 +197,33 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
         h('td', { class: 'sf-num-r' }, pair?.[0] ? eventTime(pair[0].jd_utc, zone) : '—'),
         h('td', { class: 'sf-num-r' }, pair?.[1] ? eventTime(pair[1].jd_utc, zone) : '—'),
       );
+    // SunCalc's shadow: of an upright object of the height typed here (1 m to start).
+    const units = s.settings.units;
+    const objectInput = h('input', {
+      class: 'sf-input sf-num sf-shadow__input',
+      type: 'text',
+      inputmode: 'decimal',
+      autocomplete: 'off',
+      spellcheck: 'false',
+      'aria-label': `Height of the object, ${units === 'imperial' ? 'feet' : 'metres'}`,
+      value: String(Number(metresToUnits(objectHeightM(ctx), units).toFixed(2))),
+    });
     const shadowValue = h('span', {});
-    const shadowRow = kv('shadow', 'Shadow of a 1 m pole', shadowValue);
+    const shadowRow = h(
+      'div',
+      { class: 'sf-kv sf-shadow' },
+      icon('shadow'),
+      h('span', { class: 'sf-kv__k sf-shadow__k' }, 'Shadow of a', objectInput, `${units === 'imperial' ? 'ft' : 'm'} object`),
+      h('span', { class: 'sf-kv__v' }, shadowValue),
+    );
+    objectInput.addEventListener('input', () => {
+      const m = lengthToMetres(Number(objectInput.value.replace(',', '.')), units);
+      const ok = Number.isFinite(m) && m > 0 && m <= 10_000;
+      objectInput.toggleAttribute('aria-invalid', !ok);
+      if (!ok) return;
+      objectHeights.set(store, m);
+      if (lastBody) updateExtras(lastBody, store.get());
+    });
     const length = today?.sun?.day_length_h;
     extras.replaceChildren(
       h(
@@ -201,12 +240,16 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       shadowRow,
     );
     updateExtras = (b, st) => {
-      if (b.alt_apparent_deg > 0.5) {
-        const m = 1 / Math.tan((b.alt_apparent_deg * Math.PI) / 180);
-        setText(shadowValue, formatLength(m, st.settings.units, 2));
-        setAttr(shadowRow, 'data-tip', `Pointing ${bearing3(b.az_deg + 180)} (${compassPoint(b.az_deg + 180)}), away from the Sun`);
+      const shadow = shadowOf(objectHeightM(ctx), b.alt_apparent_deg);
+      if (shadow.kind === 'length') {
+        setText(shadowValue, formatLength(shadow.m, st.settings.units, 2));
+        setAttr(shadowRow, 'data-tip', `On level ground, pointing ${bearing3(b.az_deg + 180)} (${compassPoint(b.az_deg + 180)}), away from the Sun`);
+      } else if (shadow.kind === 'long') {
+        setText(shadowValue, 'Very long');
+        setAttr(shadowRow, 'data-tip', 'The Sun is on the horizon: the shadow is more than a hundred times the object’s height');
       } else {
-        setText(shadowValue, b.alt_apparent_deg > 0 ? 'very long' : 'none: the Sun is down');
+        setText(shadowValue, 'No shadow');
+        setAttr(shadowRow, 'data-tip', 'The Sun is below the horizon');
       }
     };
   };
@@ -271,6 +314,27 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     };
   };
 
+  /**
+   * The height the Highest card gives: as it looks, refraction included, like the readout
+   * above it (an event's `alt_deg` is geometric, CONVENTIONS 13.3), so at the moment of
+   * transit the two agree. Asked of the engine at the transit instant, once per pass.
+   */
+  let transitMemo: { key: string; value: number } | null = null;
+  const transitHeight = (e: SkyEvent): number => {
+    const s = store.get();
+    const body = s.selection.body ?? 'Sun';
+    const key = `${body}|${e.jd_utc}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.observer.height_m}`;
+    if (transitMemo?.key === key) return transitMemo.value;
+    let value = e.alt_deg;
+    try {
+      value = bodyIn(engine.skyState(engineObserver(s), e.jd_utc, [body]), body)?.alt_apparent_deg ?? e.alt_deg;
+    } catch {
+      value = e.alt_deg;
+    }
+    transitMemo = { key, value };
+    return value;
+  };
+
   // --- render -----------------------------------------------------------------------------
   const render = (): void => {
     const s = store.get();
@@ -293,8 +357,6 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     const sky = skySelected(ctx, s);
     const b = bodyIn(sky, name);
     const missing = bodyError(sky, name);
-    const around = aroundToday(ctx, s, name);
-    const events = around?.bodies.find((x) => x.body === name)?.events ?? [];
 
     if (!b) {
       status.hidden = false;
@@ -308,8 +370,10 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       magRow.hidden = true;
       details.hidden = true;
       sights.hidden = true;
+      when.el.hidden = true;
       return;
     }
+    when.el.hidden = false;
     readouts.hidden = false;
     cardRow.hidden = false;
     extras.hidden = false;
@@ -317,22 +381,19 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     details.hidden = false;
     sights.hidden = false;
 
-    const up = isUp(events, jd, b.above_horizon);
+    // The pass around now: the same one the map's compass dial draws (shell/derived.ts).
+    const { passage, up } = passNow(ctx, s, name, b.above_horizon);
     status.hidden = up;
     if (!up) setText(status, 'Below the horizon now.');
 
     setText(altValue, formatAngle(b.alt_apparent_deg, f, 'coarse'));
     setText(azValue, formatAzimuth(b.az_deg, f, 'coarse'));
+    // With seconds the readouts step down a size (components.css) instead of wrapping.
+    for (const v of [altValue, azValue]) setAttr(v.parentElement!, 'data-long', f === 'dms' ? '' : null);
     setText(azLabel, `Direction · ${compassPoint(b.az_deg)}`);
     setAttr(azValue, 'aria-label', `${formatAzimuth(b.az_deg, f, 'coarse')}, ${compassWords(b.az_deg)}`);
 
     // Cards: the passage around now
-    const flags = around?.bodies.find((x) => x.body === name);
-    const passage: Passage = flags?.always_above
-      ? passageAround(events, jd, true)
-      : flags?.always_below
-        ? passageAround(events, jd, false)
-        : passageAround(events, jd, up);
     const [riseWord, setWord] = words(name);
     const alwaysUp = passage.kind === 'always-up';
     const alwaysDown = passage.kind === 'always-down';
@@ -354,7 +415,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       jd,
       zone,
       placeZ,
-      passage.transit ? `${formatAngle(passage.transit.alt_deg, f, 'coarse')} ${compassPoint(passage.transit.az_deg)}` : '',
+      passage.transit ? `${formatAngle(transitHeight(passage.transit), f, 'coarse')} ${compassPoint(passage.transit.az_deg)}` : '',
       name === 'Sun' ? 'Highest in the sky, on the meridian: local noon, the moment for a noon sight' : `Highest in the sky, on the meridian (the ${name}’s transit)`,
       '—',
     );
@@ -372,14 +433,16 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
 
     // Extras
     const [a] = dayOf(s);
-    const key = `${name}|${b.kind}|${a}|${s.settings.timeDisplay}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.settings.horizon}|${s.settings.height_of_eye_m}`;
+    const key = `${name}|${b.kind}|${a}|${s.settings.timeDisplay}|${s.settings.units}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.settings.horizon}|${s.settings.height_of_eye_m}`;
     if (key !== extrasKey) {
       extrasKey = key;
       if (b.kind === 'sun') buildSunExtras(s);
       else if (b.kind === 'moon') buildMoonExtras(s);
       else buildOtherExtras(b);
     }
+    lastBody = b;
     updateExtras(b, s);
+    when.update(s, name);
 
     setText(magValue, formatMagnitude(b.magnitude));
 

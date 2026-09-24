@@ -484,20 +484,33 @@ export interface TimeFormat {
 }
 
 /**
- * `08:05` (rounded to the nearest minute) or `08:05:09` (the clock's reading) on the wall
- * clock of `zone`.
+ * `08:05` or `08:05:09` on the wall clock of `zone`, rounded to the nearest minute or
+ * second (`roundTo`).
  */
 export function formatTime(jd: number, zone: Zone, options: TimeFormat = {}): string {
-  return clockText(wallClock(options.seconds ? jd : roundToMinute(jd), zone), options);
+  return clockText(wallClock(roundTo(jd, options), zone), options);
 }
 
 /**
  * `jd` moved to the nearest whole minute. Times shown without seconds are rounded this
- * way, as the printed almanac rounds them (06:49:31 shows as 06:50, 06:49:29 as 06:49);
- * times shown with seconds are the clock's own reading.
+ * way, as the printed almanac rounds them (06:49:31 shows as 06:50, 06:49:29 as 06:49).
  */
 export function roundToMinute(jd: number): number {
   return jdFromUnixMs(Math.round(msFromJd(jd) / MS_PER_MINUTE) * MS_PER_MINUTE);
+}
+
+/**
+ * `jd` moved to the nearest whole second: the same rule for times shown with seconds
+ * (an eclipse contact at 18:40:42.98 shows as 18:40:43, as the command-line tool prints it;
+ * 23:59:59.6 is the next day's 00:00:00).
+ */
+export function roundToSecond(jd: number): number {
+  return jdFromUnixMs(Math.round(msFromJd(jd) / MS_PER_SECOND) * MS_PER_SECOND);
+}
+
+/** The instant a time is shown at: to the nearest second with seconds, else the nearest minute. */
+function roundTo(jd: number, options: TimeFormat): number {
+  return options.seconds ? roundToSecond(jd) : roundToMinute(jd);
 }
 
 function clockText(w: WallClock, options: TimeFormat): string {
@@ -515,9 +528,9 @@ function dateText(w: WallClock): string {
   return `${y}-${pad(w.month)}-${pad(w.day)}`;
 }
 
-/** `2026-09-24 08:05`, rounded to the nearest minute (the date too: 23:59:40 is the next day's 00:00). */
+/** `2026-09-24 08:05`, rounded to the nearest minute or second (the date too: 23:59:40 is the next day's 00:00). */
 export function formatDateTime(jd: number, zone: Zone, options: TimeFormat = {}): string {
-  const w = wallClock(options.seconds ? jd : roundToMinute(jd), zone);
+  const w = wallClock(roundTo(jd, options), zone);
   return `${dateText(w)} ${clockText(w, options)}`;
 }
 
@@ -527,7 +540,7 @@ export function formatDateTime(jd: number, zone: Zone, options: TimeFormat = {})
  * `2026-09-24 20:05 EDT · 2026-09-25 00:05 UTC`. In UTC itself: `2026-09-24 12:05 UTC`.
  */
 export function formatWithUtc(jd: number, zone: Zone, options: TimeFormat = {}): string {
-  const t = options.seconds ? jd : roundToMinute(jd);
+  const t = roundTo(jd, options);
   const utc = wallClock(t, UTC_ZONE);
   const utcText = `${clockText(utc, options)} UTC`;
   if (zone.kind === 'fixed' && zone.offsetMs === 0) return `${dateText(utc)} ${utcText}`;

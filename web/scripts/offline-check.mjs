@@ -264,6 +264,8 @@ async function main() {
   /** This site's responses since `from`, and whether each came from the worker. */
   const sameOrigin = (from) => responses.slice(from).filter((r) => r.url.startsWith(BASE));
   const failedSince = (from) => failures.slice(from).map((f) => requestUrls.get(f.id) ?? '?').filter((u) => u.startsWith(BASE));
+  // A fresh profile is a first visit: keep the first-run tour (shell/tour.ts) out of the shots.
+  await send('Page.addScriptToEvaluateOnNewDocument', { source: `try { localStorage.setItem('skyfix.explorer.tour.v1', 'done'); } catch {}` });
   // The "saved for offline use" note fades after a few seconds: record that it appeared.
   await send('Page.addScriptToEvaluateOnNewDocument', {
     source: `new MutationObserver(() => {

@@ -10,18 +10,18 @@
 import { describeLocation, type Gazetteer } from '../geo/gazetteer.js';
 import type { RegionIndex } from '../geo/regions.js';
 import { guessZone, resolveIntlZone, type ZoneGuess } from '../geo/timezone.js';
+import { zonePinned } from '../state.js';
 import type { ZoneChoice } from '../time.js';
 
 /**
- * True when the zone is the person's own choice and must survive moving the observer:
- * UTC as the place's zone, or an IANA zone marked `guessed: false`. A zone that came with a
- * place (the default place, a share link, a place search: `guessed` absent), a guessed one
- * (`guessed: true`) and the nautical zone (which follows the longitude anyway) are guessed
- * again for the new position.
+ * True when the zone is the person's own choice and must survive moving the observer: UTC
+ * as the place's zone, or any zone marked `guessed: false` — an IANA zone or the nautical
+ * zone picked by hand in the panel. A zone that came with a place (the default place, a
+ * share link, a place search: `guessed` absent) or a guessed one (`guessed: true`) is
+ * guessed again for the new position. The store's rule (state.ts), so the map, the panel and
+ * the place service can never disagree about it.
  */
-export function zonePinned(zone: ZoneChoice): boolean {
-  return zone.kind === 'utc' || (zone.kind === 'iana' && zone.guessed === false);
-}
+export { zonePinned };
 
 /** The store's zone for a guess; a zone this browser cannot display falls back to the nautical zone. */
 export function zoneChoiceFromGuess(guess: ZoneGuess): ZoneChoice {

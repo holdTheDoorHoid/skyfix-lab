@@ -26,6 +26,7 @@ import {
 } from '../../projection.js';
 import type { ErrorEllipse, LatLon } from '../../types.js';
 import type { BodyKind } from '../engine/types.js';
+import { LEVEL_LINE, misfitHeatDataUrl, misfitLinePaths, type FitMapPicture, type HeatProjection } from '../misfit/index.js';
 import type { AngleFormat } from '../state.js';
 import { glyphFor } from '../theme/glyphs.js';
 import { fmtLatitude, fmtLongitude } from './format.js';
@@ -129,19 +130,45 @@ function label(x: number, y: number, text: string, cls: string, anchor: 'start' 
   return t;
 }
 
-/** Render the plot into an SVG `width` × `height` pixels. */
-export function renderPositionPlot(
-  spec: PlotSpec,
-  view: PlotView,
-  size: { width: number; height: number },
-  format: AngleFormat = 'dm',
-): SVGSVGElement {
+/** The drawing's size, its plotting area and its projection for `view`. */
+function plotFrame(spec: PlotSpec, view: PlotView, size: { width: number; height: number }): { width: number; height: number; rect: Rect; projection: Projection } {
   const width = Math.max(260, Math.round(size.width));
   const height = Math.max(220, Math.round(size.height));
   const left = width < 420 ? 62 : 76;
   const rect: Rect = { x: left, y: 10, width: width - left - 10, height: height - 36 };
   const base = fitProjection(plotAnchors(spec), rect, { padding: 40, minSpanDeg: 0.15 });
   const projection = new Projection(base.lat0 + view.offsetLat, base.lon0 + view.offsetLon, base.scale * view.zoom, rect);
+  return { width, height, rect, projection };
+}
+
+/**
+ * What the plot shows before any zoom or pan, a little enlarged: the frame for the fit
+ * map's grid, so its heat fills the chart (misfit_grid `bounds`; the longitudes may run
+ * past 180 across the antimeridian, as the grid allows).
+ */
+export function plotDefaultBounds(spec: PlotSpec, size: { width: number; height: number }, margin = 0.15): { south_deg: number; north_deg: number; west_deg: number; east_deg: number } {
+  const b = plotFrame(spec, { zoom: 1, offsetLat: 0, offsetLon: 0 }, size).projection.bounds();
+  const dLat = (b.latMax - b.latMin) * margin;
+  const dLon = (b.lonMax - b.lonMin) * margin;
+  let west = norm180(b.lonMin - dLon);
+  let east = west + (b.lonMax - b.lonMin) + 2 * dLon;
+  if (east - west >= 360) {
+    west = -180;
+    east = 180;
+  }
+  return { south_deg: Math.max(-90, b.latMin - dLat), north_deg: Math.min(90, b.latMax + dLat), west_deg: west, east_deg: east };
+}
+
+/** Render the plot into an SVG `width` × `height` pixels. */
+export function renderPositionPlot(
+  spec: PlotSpec,
+  view: PlotView,
+  size: { width: number; height: number },
+  format: AngleFormat = 'dm',
+  /** The residual heat map to draw under the circles, with its level lines on top. */
+  misfit: FitMapPicture | null = null,
+): SVGSVGElement {
+  const { width, height, rect, projection } = plotFrame(spec, view, size);
 
   const svg = s('svg', {
     viewBox: `0 0 ${width} ${height}`,
@@ -159,6 +186,24 @@ export function renderPositionPlot(
   clip.appendChild(s('rect', { ...rect }));
   svg.appendChild(clip);
   svg.appendChild(s('rect', { ...rect, class: 'sfn-plot__frame' }));
+
+  // The fit map (misfit/README.md): the heat first, under the grid and the circles, per
+  // pixel through this projection; its level lines go on top of everything (below).
+  const heatProjection: HeatProjection = { project: (p) => projection.projectPoint(p), unproject: (x, y) => projection.unproject(x, y) };
+  if (misfit) {
+    svg.appendChild(
+      s('image', {
+        href: misfitHeatDataUrl(misfit.grid, heatProjection, rect),
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        preserveAspectRatio: 'none',
+        class: 'sfn-plot__heat',
+        'clip-path': `url(#${clipId})`,
+      }),
+    );
+  }
 
   // Graticule, labelled like a chart's border: whole degrees as 39° N, 075° W; finer steps
   // in degrees and minutes. Steps widen until the labels fit.
@@ -295,6 +340,19 @@ export function renderPositionPlot(
     marks.appendChild(s('circle', { cx: f2(x), cy: f2(y), r: 7, class: 'sfn-plot__fix' }));
     marks.appendChild(s('path', { d: `M${f2(x - 13)} ${f2(y)}H${f2(x + 13)}M${f2(x)} ${f2(y - 13)}V${f2(y + 13)}`, class: 'sfn-plot__fix-cross' }));
     marks.appendChild(side(x, y, spec.fixLabel, 'sfn-plot__label sfn-plot__label--strong', -11));
+  }
+
+  if (misfit) {
+    const lines = s('g', { class: 'sfn-plot__misfit' });
+    for (const p of misfitLinePaths(misfit.contours, heatProjection)) {
+      if (!p.d) continue;
+      const style = LEVEL_LINE[p.level];
+      lines.appendChild(s('path', { d: p.d, class: 'sfn-plot__misfit-halo', 'stroke-width': style.width + 2 }));
+      lines.appendChild(
+        s('path', { d: p.d, class: `sfn-plot__misfit-line sfn-plot__misfit-line--${p.level}`, 'stroke-width': style.width, 'stroke-dasharray': style.dash.length ? style.dash.join(' ') : 'none' }),
+      );
+    }
+    layer.appendChild(lines);
   }
 
   // Scale bar in nautical miles (1′ of latitude = 1 NM), when it fits.

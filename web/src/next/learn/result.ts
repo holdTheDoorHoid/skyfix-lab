@@ -11,6 +11,8 @@
 import { h, s } from '../../dom.js';
 import { CORRECTION_LABEL, warningLabel, warningSentence, WARNING_SEVERITY, type FixResult, type Truth, type Warning } from '../../types.js';
 import type { ReduceEntry } from '../../api/adapter.js';
+import type { ExplorerEngine } from '../engine/types.js';
+import { fitMap, type MisfitInput } from '../misfit/index.js';
 import { badge, button, icon } from '../theme/index.js';
 import { chartModel, type ChartModel, type ChartView } from './chart-model.js';
 import { chartLegend, emphasisFor, renderChart, type LandRings } from './chart.js';
@@ -135,6 +137,8 @@ export interface FigureEnv {
   land: () => Promise<LandRings>;
   /** Present when the explorer's map can take overlays. */
   showOnMap?: (model: ChartModel) => void;
+  /** The engine whose misfit exports draw the fit map (absent: no "Fit map" switch). */
+  engine?: Pick<ExplorerEngine, 'misfit'>;
 }
 
 export interface Figure {
@@ -204,7 +208,14 @@ export function figure(
   result: FixResult,
   truth: Truth | null,
   env: FigureEnv,
-  options: { view?: ChartView | null; onView?: (v: ChartView) => void; lookAt?: string; title: string },
+  options: {
+    view?: ChartView | null;
+    onView?: (v: ChartView) => void;
+    lookAt?: string;
+    title: string;
+    /** Offer the fit map for this solve (exactly what the solver was given); `on` to start with it shown. */
+    misfit?: { input: MisfitInput; on?: boolean; onToggle?: (on: boolean) => void };
+  },
 ): Figure {
   const model = chartModel(result, truth?.position ?? null);
   const uid = `sfl-fig-${++figureSeq}`;
@@ -230,9 +241,21 @@ export function figure(
     resolveReady = resolve;
   });
 
+  // The fit map (misfit/): computed only while it is on, once per run.
+  const fit = options.misfit && env.engine && result.kind !== 'failed'
+    ? fitMap(env.engine, {
+        on: options.misfit.on ?? false,
+        onChange: () => {
+          options.misfit?.onToggle?.(fit?.isOn() ?? false);
+          draw();
+        },
+      })
+    : null;
+  if (fit) el.insertBefore(fit.caption, legendSlot);
+
   const draw = (): void => {
     if (width <= 0) return;
-    const drawn = renderChart(model, { width, view, fmt: env.fmt(), land, uid, emphasis });
+    const drawn = renderChart(model, { width, view, fmt: env.fmt(), land, uid, emphasis, misfit: fit?.picture() ?? null });
     plot.replaceChildren(drawn.svg);
     const notes = [drawn.note, view === 'globe' && landState === 'failed' ? 'The coastlines could not be loaded, so the globe is drawn without them.' : null].filter(Boolean);
     note.textContent = notes.join(' ');
@@ -292,6 +315,11 @@ export function figure(
   } else {
     buttons.push(h('span', { class: 'sfl-figure__view' }, model.kind === 'underdetermined' ? 'Whole Earth: the circle is thousands of kilometres across' : 'Whole Earth: the crossings are far apart'));
   }
+  if (fit) {
+    buttons.push(fit.button);
+    // Now that `draw` exists: with the map on to start, this computes it (once, ~44 ms).
+    if (options.misfit) fit.setInput(options.misfit.input);
+  }
   if (env.showOnMap) {
     buttons.push(
       button({
@@ -315,6 +343,7 @@ export function figure(
     ready,
     destroy: () => {
       stop();
+      fit?.destroy();
       el.remove();
     },
   };

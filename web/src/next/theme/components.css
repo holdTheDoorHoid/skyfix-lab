@@ -287,7 +287,8 @@ button.sf-chip:hover {
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.35);
+  /* An edge in the text's own colour (a neutral grey was white light in the night theme). */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
   flex: none;
 }
 
@@ -503,6 +504,13 @@ button.sf-chip:hover {
   line-height: 1.1;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Degrees, minutes AND seconds ("−39° 32′ 40″") do not fit the large type in a panel
+   column; they step down a size rather than break across two lines. */
+.sf-readout__value[data-long] {
+  font-size: var(--text-xl);
 }
 
 .sf-readout__unit {
@@ -611,11 +619,62 @@ button.sf-chip:hover {
   font-size: var(--text-xs);
 }
 
+/* --- The fit map's words under a chart (misfit/toggle.ts) -------------------------- */
+
+.sf-fitmap {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.sf-fitmap[hidden] {
+  display: none;
+}
+
+.sf-fitmap__key {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sf-fitmap__key[hidden] {
+  display: none;
+}
+
+.sf-fitmap__ramp {
+  flex: 0 1 220px;
+  height: 8px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px var(--ui-line);
+}
+
+.sf-fitmap__caption {
+  margin: 0;
+}
+
+.sf-fitmap__notes {
+  margin: 0;
+  padding-left: 1.1em;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sf-fitmap__notes:empty {
+  display: none;
+}
+
 /* --- Popovers ---------------------------------------------------------------------- */
 
 .sf-popover {
   position: fixed;
   z-index: var(--z-popover);
+  /* When it is taller than the room it gets (theme/primitives.ts popover), it scrolls. */
+  overscroll-behavior: contain;
   min-width: 200px;
   max-width: min(360px, calc(100vw - 16px));
   padding: 6px;

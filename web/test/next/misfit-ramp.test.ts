@@ -147,6 +147,10 @@ describe('the caption', () => {
     expect(bias).toMatch(/bias that suits it best/);
     expect(bias).toMatch(/a wrong clock still moves the whole picture/);
     expect(bias).not.toMatch(/a biased sextant, a wrong clock/);
+    // The levels for three unknowns (position and bias) are named with their number.
+    expect(bias).toMatch(/three unknowns that level is 7\.81 above the best fit \(5\.99 for a position alone\)/);
+    const levels = [{ name: 'p95', delta_chi2: 7.8147 }];
+    expect(misfitCaption({ ...plain, bias_profiled: true, levels } as never)).toMatch(/is 7\.81 above/);
     expect(misfitCaption({ ...plain, weighted: true } as never)).toMatch(/approximate\.$/);
     expect(misfitCaption({ ...plain, min: { inside_grid: false } } as never)).toMatch(/outside this view\.$/);
   });

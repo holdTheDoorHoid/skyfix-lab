@@ -15,7 +15,7 @@ export type LayerKey = keyof Layers;
 /** Map layers offered in the layer list, plain words first (EXPLORER_PLAN section 1). */
 export const MAP_LAYER_OPTIONS: readonly { key: LayerKey; label: string; note?: string }[] = [
   { key: 'compass', label: 'Compass at your place', note: 'Where the selected body rises, sets and is now' },
-  { key: 'paths', label: "Today's path", note: 'For the Sun, also the band between its solstice paths' },
+  { key: 'paths', label: 'Path across the sky', note: 'Rise to set, the pass shown in the panel; for the Sun, also the band between its solstice paths' },
   { key: 'terminator', label: 'Day and night' },
   { key: 'twilight', label: 'Twilight shading', note: 'Civil, nautical and astronomical' },
   { key: 'groundPoints', label: 'Where each body is overhead', note: 'Ground points (GP)' },
@@ -25,6 +25,43 @@ export const MAP_LAYER_OPTIONS: readonly { key: LayerKey; label: string; note?: 
   { key: 'scaleBar', label: 'Scale bar' },
   { key: 'streets', label: 'Street map (online)', note: 'OpenStreetMap tiles from the internet' },
 ];
+
+/**
+ * Who drew an overlay on the map, by its id's prefix (map/README.md: each view owns the ids
+ * it publishes). Listed in the Layers menu so the person can clear another view's drawing
+ * from the map itself; the view draws it again the next time it shows a result.
+ */
+export const OVERLAY_OWNERS: readonly { prefix: string; label: string; note: string }[] = [
+  { prefix: 'navigate-', label: 'Navigate’s result', note: 'Circles of position and the fix' },
+  { prefix: 'events-', label: 'The eclipse from Events', note: 'Its path or where it is seen' },
+  { prefix: 'learn-', label: 'Learn’s last run', note: 'The fix and the answer key' },
+];
+
+export interface DrawnGroup {
+  /** The id prefix every overlay of the group starts with ('' for the rest). */
+  prefix: string;
+  label: string;
+  note: string;
+  count: number;
+}
+
+/** Group overlay ids by the view that drew them, in the order of `OVERLAY_OWNERS`, then the rest. */
+export function drawnGroups(ids: readonly string[]): DrawnGroup[] {
+  const out: DrawnGroup[] = [];
+  const known = (id: string) => OVERLAY_OWNERS.some((o) => id.startsWith(o.prefix));
+  for (const o of OVERLAY_OWNERS) {
+    const count = ids.filter((id) => id.startsWith(o.prefix)).length;
+    if (count) out.push({ ...o, count });
+  }
+  const rest = ids.filter((id) => !known(id)).length;
+  if (rest) out.push({ prefix: '', label: 'Other drawings', note: 'Added by another part of the page', count: rest });
+  return out;
+}
+
+/** The ids of a group, as `drawnGroups` formed it. */
+export function idsOfGroup(ids: readonly string[], prefix: string): string[] {
+  return prefix ? ids.filter((id) => id.startsWith(prefix)) : ids.filter((id) => !OVERLAY_OWNERS.some((o) => id.startsWith(o.prefix)));
+}
 
 const PHASE_NOTES = {
   day: 'The Sun is up.',
@@ -42,12 +79,16 @@ export interface ControlHandlers {
   toggleMeasure(): void;
   setProjection(projection: 'map' | 'globe'): void;
   setLayer(key: LayerKey, on: boolean): void;
+  /** Take a group of other views' overlays off the map (`drawnGroups`). */
+  removeDrawn(prefix: string): void;
 }
 
 export interface ControlState {
   layers: Layers;
   measuring: boolean;
   projection: 'map' | 'globe';
+  /** Other views' drawings on the map, by owner. */
+  drawn: readonly DrawnGroup[];
 }
 
 export interface MapControls {
@@ -117,6 +158,28 @@ export function createControls(handlers: ControlHandlers, container: HTMLElement
     switches.set(opt.key, sw);
     list.appendChild(sw);
   }
+  // Other views' drawings, each with a way to take it off the map.
+  const drawnBox = h('div', { class: 'sfm-layers__drawn', hidden: true });
+  list.appendChild(drawnBox);
+  let drawnKey = '';
+  const renderDrawn = (drawn: readonly DrawnGroup[]): void => {
+    const key = drawn.map((g) => `${g.prefix}:${g.count}`).join('|');
+    if (key === drawnKey) return;
+    drawnKey = key;
+    drawnBox.hidden = drawn.length === 0;
+    drawnBox.replaceChildren(
+      h('p', { class: 'sfm-layers__title' }, 'Drawn by other views'),
+      ...drawn.map((g) =>
+        h(
+          'div',
+          { class: 'sfm-drawn' },
+          h('span', { class: 'sf-switch__text' }, g.label, h('span', { class: 'sf-switch__note' }, g.note)),
+          button({ label: 'Remove', variant: 'ghost', size: 'sm', ariaLabel: `Remove ${g.label} from the map`, onClick: () => handlers.removeDrawn(g.prefix) }),
+        ),
+      ),
+    );
+    if (pop.isOpen()) pop.place();
+  };
   const pop: Popover = popover(layersBtn, list, { label: 'Map layers', placement: 'bottom-end', onStage: true, container });
   const topRight = h('div', { class: 'sf-overlay sf-overlay--tr sf-on-stage sfm-controls' }, projection.el, layersBtn);
 
@@ -150,8 +213,9 @@ export function createControls(handlers: ControlHandlers, container: HTMLElement
 
   return {
     elements: [topRight, right, bottomLeft],
-    update({ layers, measuring, projection: p }) {
+    update({ layers, measuring, projection: p, drawn }) {
       for (const [key, sw] of switches) sw.setAttribute('aria-checked', String(Boolean(layers[key])));
+      renderDrawn(drawn);
       setPressed(measure, measuring);
       if (projection.value() !== p) projection.set(p);
       legendEl.hidden = !(layers.twilight || layers.terminator);

@@ -133,6 +133,30 @@ export function passageAround(events: readonly SkyEvent[], jd: number, up: boole
   return { kind: rise ? 'down' : 'always-down', rise, set, transit: inside[0] ?? nearest(transits, jd) };
 }
 
+/** Up or down at `jd` by the body's own rise and set events (the last one before `jd`); `fallback` without any. */
+export function isUp(events: readonly SkyEvent[], jd: number, fallback: boolean): boolean {
+  let last: SkyEvent | null = null;
+  for (const e of events) if ((e.kind === 'rise' || e.kind === 'set') && e.jd_utc <= jd) last = e;
+  return last ? last.kind === 'rise' : fallback;
+}
+
+/**
+ * The passage around `jd` from a body's events and its all-day flags: the one meaning of
+ * "rise, highest and set" that the panel's cards and the map's compass dial both show
+ * (MoonCalc's: the pass the body is on, or the next one while it is down). `up` decides
+ * between the two when the events leave it open.
+ */
+export function passageNow(
+  events: readonly SkyEvent[],
+  flags: { always_above: boolean; always_below: boolean } | null | undefined,
+  jd: number,
+  up: boolean,
+): Passage {
+  if (flags?.always_above) return passageAround(events, jd, true);
+  if (flags?.always_below) return passageAround(events, jd, false);
+  return passageAround(events, jd, up);
+}
+
 export interface SunDay {
   rise: SkyEvent | null;
   transit: SkyEvent | null;

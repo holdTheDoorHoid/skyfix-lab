@@ -116,6 +116,7 @@ export function learnView(options: LearnOptions = {}): Component {
       figureEnv: (title) => ({
         fmt: env.fmt,
         land: () => loadLand(),
+        engine: ctx.engine,
         ...(options.mapActions === false ? {} : { showOnMap: (model) => showOnMap(ctx, model, title) }),
       }),
       engineLabel: () => (settled?.api.kind === 'mock' ? 'mock adapter' : 'WebAssembly core'),

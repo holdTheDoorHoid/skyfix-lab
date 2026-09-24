@@ -58,3 +58,4 @@ export {
   type RampAnchors,
   type Rgb,
 } from './ramp.js';
+export { fitMap, type FitMap, type FitMapOptions, type FitMapPicture, type MisfitInput } from './toggle.js';

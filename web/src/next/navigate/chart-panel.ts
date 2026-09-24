@@ -7,10 +7,11 @@
 
 import { h } from '../../dom.js';
 import { disposer } from '../component.js';
+import { fitMap, publishMisfit, type FitMap, type MisfitInput, type MisfitOverlay } from '../misfit/index.js';
 import { angleFormat, type NavCtx } from './context.js';
 import { renderCurve, type CurveSpec } from './curve.js';
 import { fitOverlays, type OverlayData } from './overlays.js';
-import { defaultPlotView, renderPositionPlot, type PlotSpec, type PlotView } from './plot.js';
+import { defaultPlotView, plotDefaultBounds, renderPositionPlot, type PlotSpec, type PlotView } from './plot.js';
 import { btn, card, para } from './ui.js';
 
 export interface ChartPanel {
@@ -18,8 +19,27 @@ export interface ChartPanel {
   showPlot(spec: PlotSpec, overlay?: OverlayData | null): void;
   showCurve(spec: CurveSpec): void;
   showNothing(text: string): void;
+  /**
+   * Offer the "Fit map" (the residual heat map, misfit/) for this solve: exactly the
+   * session, mode and options the plot's fix was solved with. The first call adds the
+   * switch; null says there is nothing to map.
+   */
+  setMisfitInput(input: MisfitInput | null): void;
   destroy(): void;
 }
+
+/** Whether the person turned the fit map on, per page (off to start; kept across methods). */
+const fitMapOn = new WeakMap<object, boolean>();
+
+/**
+ * The heat raster on the map (`publishMisfit` with `heat: true`). Checked on a live map
+ * (2026-09-24, light, dark and night): it draws, under the lines and at the right place, but
+ * zoomed out it is a hard-edged rectangle (the grid's frame) pasted on the map, zoomed in it
+ * hides the basemap and the twilight shading, and in the night theme its red wash leaves the
+ * red lines hard to tell apart. The level lines with the faint 95 % fill say the same thing
+ * there more clearly, so it stays off.
+ */
+const HEAT_ON_MAP = false;
 
 export function chartPanel(nc: NavCtx, title = 'On the chart'): ChartPanel {
   const d = disposer();
@@ -30,15 +50,28 @@ export function chartPanel(nc: NavCtx, title = 'On the chart'): ChartPanel {
 
   const zoomIn = btn('', () => zoom(1.6), { icon: 'plus', variant: 'ghost', ariaLabel: 'Zoom in' });
   const zoomOut = btn('', () => zoom(1 / 1.6), { icon: 'minus', variant: 'ghost', ariaLabel: 'Zoom out' });
-  const fit = btn('Fit', () => {
+  const fitButton = btn('Fit', () => {
     view = defaultPlotView();
     draw();
   }, { variant: 'ghost', tip: 'Frame the result again' });
+  let fit: FitMap | null = null;
+  let misfitOnMap: MisfitOverlay | null = null;
   const onMap = btn('Show on the map', () => {
+    // With the fit map on, its level lines go to the map too (as Navigate's own drawing:
+    // the next result Navigate publishes replaces them).
+    misfitOnMap?.remove();
+    misfitOnMap = null;
+    const picture = fit?.picture();
+    if (picture) misfitOnMap = publishMisfit(nc.ctx, picture.grid, { heat: HEAT_ON_MAP, prefix: 'navigate-misfit' });
     if (overlay) fitOverlays(nc.overlays, overlay);
+    // With the fit map on, frame its 3-sigma region (a fix's region is a few miles across,
+    // too small to see at the zoom that frames the whole result).
+    if (picture && nc.overlays?.hasOverlay('navigate-misfit-line-three_sigma')) {
+      nc.overlays.fitOverlay('navigate-misfit-line-three_sigma', { padding: 80, maxZoom: 12 });
+    }
     nc.ctx.store.patch({ view: 'map' });
   }, { variant: 'outline', icon: 'map', tip: 'The circles, the fix and its ellipse are also drawn on the explorer’s map' });
-  const tools = h('div', { class: 'sfn-chart__tools' }, zoomIn, zoomOut, fit, onMap);
+  const tools = h('div', { class: 'sfn-chart__tools' }, zoomIn, zoomOut, fitButton, onMap);
   const c = card(title, { class: 'sfn-chart', aside: tools, iconName: 'charts' });
   const stage = h('div', {
     class: 'sfn-chart__stage',
@@ -57,7 +90,7 @@ export function chartPanel(nc: NavCtx, title = 'On the chart'): ChartPanel {
   function draw(): void {
     const format = angleFormat(nc);
     if (plot) {
-      stage.replaceChildren(renderPositionPlot(plot, view, size(), format));
+      stage.replaceChildren(renderPositionPlot(plot, view, size(), format, fit?.picture() ?? null));
       legend.textContent =
         'Grid: latitude and longitude. East-west distances are drawn shortened by cos(latitude) so circles look round near the middle. Each circle of position is dash-dotted and named; the shaded shape is the nominal 95 % ellipse.';
     } else if (curve) {
@@ -65,8 +98,13 @@ export function chartPanel(nc: NavCtx, title = 'On the chart'): ChartPanel {
       legend.textContent = 'Each dot is a sight’s observed altitude Ho with its ±1 sigma bar; the line is the engine’s model of the run.';
     }
     const isPlot = plot !== null;
-    zoomIn.hidden = zoomOut.hidden = fit.hidden = !isPlot;
+    zoomIn.hidden = zoomOut.hidden = fitButton.hidden = !isPlot;
     onMap.hidden = !(isPlot && overlay && nc.overlays);
+    if (fit) {
+      fit.button.hidden = !isPlot;
+      if (!isPlot) fit.caption.hidden = true;
+      else fit.caption.hidden = !fit.isOn();
+    }
   }
 
   function zoom(factor: number): void {
@@ -74,6 +112,10 @@ export function chartPanel(nc: NavCtx, title = 'On the chart'): ChartPanel {
     draw();
   }
 
+  // Pointer moves come faster than frames; with the fit map on a redraw colours every pixel
+  // of the heat (tens of milliseconds), so a drag redraws at most once a frame.
+  let panFrame = 0;
+  d.add(() => cancelAnimationFrame(panFrame));
   function pan(dxPx: number, dyPx: number): void {
     const svg = stage.querySelector<SVGSVGElement>('svg.sfn-plot');
     if (!svg || !plot) return;
@@ -82,7 +124,12 @@ export function chartPanel(nc: NavCtx, title = 'On the chart'): ChartPanel {
     // The drawing is in its own pixels; the element may be scaled by CSS.
     const k = svg.viewBox.baseVal.width / Math.max(svg.getBoundingClientRect().width, 1);
     view = { ...view, offsetLat: view.offsetLat + (dyPx * k) / scale, offsetLon: view.offsetLon - (dxPx * k) / scaleLon };
-    draw();
+    if (!panFrame) {
+      panFrame = requestAnimationFrame(() => {
+        panFrame = 0;
+        draw();
+      });
+    }
   }
 
   let dragging: { x: number; y: number } | null = null;
@@ -173,7 +220,26 @@ export function chartPanel(nc: NavCtx, title = 'On the chart'): ChartPanel {
       overlay = null;
       stage.replaceChildren(para(text, 'sfn-note sfn-muted sfn-chart__empty'));
       legend.textContent = '';
-      zoomIn.hidden = zoomOut.hidden = fit.hidden = onMap.hidden = true;
+      zoomIn.hidden = zoomOut.hidden = fitButton.hidden = onMap.hidden = true;
+      if (fit) fit.button.hidden = fit.caption.hidden = true;
+    },
+    setMisfitInput(input) {
+      if (!fit) {
+        fit = fitMap(nc.ctx.engine, {
+          on: fitMapOn.get(nc.working) ?? false,
+          onChange: () => {
+            if (fit) fitMapOn.set(nc.working, fit.isOn());
+            draw();
+          },
+        });
+        if (!fit) return; // an engine without the misfit exports
+        tools.insertBefore(fit.button, onMap);
+        c.body.append(fit.caption);
+        d.add(() => fit?.destroy());
+      }
+      // The grid frames what the chart shows at "Fit", so its heat fills the chart.
+      fit.setInput(input && plot ? { ...input, bounds: plotDefaultBounds(plot, size()) } : input);
+      draw();
     },
     destroy() {
       d.dispose();

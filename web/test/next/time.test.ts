@@ -28,8 +28,11 @@ import {
   zoneLabel,
   zoneOffsetMs,
   roundToMinute,
+  roundToSecond,
   type Zone,
 } from '../../src/next/time.js';
+import { fmtUtcClock, fmtZoneClock } from '../../src/next/navigate/format.js';
+import { clockSeconds } from '../../src/next/shell/format.js';
 
 const NY: Zone = { kind: 'iana', zone: 'America/New_York' };
 const LONDON: Zone = { kind: 'iana', zone: 'Europe/London' };
@@ -282,5 +285,29 @@ describe('times without seconds are rounded to the nearest minute (the almanac�
     expect(formatDateTime(jd('2026-09-25T03:59:40Z'), NY)).toBe('2026-09-25 00:00');
     expect(formatDateTime(jd('2026-09-25T03:59:40Z'), NY, { seconds: true })).toBe('2026-09-24 23:59:40');
     expect(isoUtc(roundToMinute(jd('2026-09-24T10:49:30.000Z')))).toBe('2026-09-24T10:50:00.000Z');
+  });
+});
+
+describe('times with seconds are rounded to the nearest second, by the same rule', () => {
+  it('rounds a fraction of a second instead of cutting it off', () => {
+    // The 2024-04-08 eclipse from Dallas: the engine's second contact at 18:40:42.98 UTC is
+    // 18:40:43 (the command-line tool prints the same), never 18:40:42.
+    const c2 = jd('2024-04-08T18:40:42.980Z');
+    expect(formatTime(c2, UTC_ZONE, { seconds: true })).toBe('18:40:43');
+    expect(clockSeconds(c2, UTC_ZONE)).toBe('18:40:43');
+    expect(formatTime(jd('2024-04-08T18:40:42.490Z'), UTC_ZONE, { seconds: true })).toBe('18:40:42');
+    expect(formatWithUtc(c2, NY, { seconds: true })).toBe('2024-04-08 14:40:43 EDT · 18:40:43 UTC');
+    expect(isoUtc(roundToSecond(jd('2026-09-24T10:49:30.500Z')))).toBe('2026-09-24T10:49:31.000Z');
+  });
+
+  it('carries into the minute, the hour and the date', () => {
+    expect(formatDateTime(jd('2026-09-25T03:59:59.600Z'), NY, { seconds: true })).toBe('2026-09-25 00:00:00');
+    expect(formatTime(jd('2026-09-24T10:49:59.500Z'), NY, { seconds: true })).toBe('06:50:00');
+  });
+
+  it('is what Navigate’s clocks show too', () => {
+    const c2 = jd('2024-04-08T18:40:42.980Z');
+    expect(fmtUtcClock(c2)).toBe('18:40:43 UTC');
+    expect(fmtZoneClock(c2, NY)).toBe('14:40:43\u00a0EDT');
   });
 });
