@@ -225,6 +225,7 @@ fn check_direction(id: &str, d: &GeocentricDirection) -> Result<(f64, f64), Skyf
             value: d.dec_deg,
             min: -90.0,
             max: 90.0,
+            max_exclusive: false,
         });
     }
     Ok((units::norm_360(d.gha_deg), d.dec_deg))
@@ -242,6 +243,7 @@ fn check_assumed_position(ap: &crate::types::LatLon) -> Result<(), SkyfixError> 
             value: ap.lat_deg,
             min: -90.0,
             max: 90.0,
+            max_exclusive: false,
         });
     }
     if !(-180.0..=180.0).contains(&ap.lon_deg) {
@@ -250,6 +252,7 @@ fn check_assumed_position(ap: &crate::types::LatLon) -> Result<(), SkyfixError> 
             value: ap.lon_deg,
             min: -180.0,
             max: 180.0,
+            max_exclusive: false,
         });
     }
     Ok(())

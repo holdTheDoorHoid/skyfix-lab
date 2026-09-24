@@ -23,7 +23,7 @@ use skyfix_core::solver;
 use skyfix_core::types::{FixResult, GeocentricDirection, LatLon, SolveOptions, Truth};
 use skyfix_core::units::{
     CHI2_95_2DOF, EARTH_RADIUS_M, NM_M, SIDEREAL_RATE_DEG_PER_HOUR, SOLAR_RATE_DEG_PER_HOUR,
-    rad_to_m,
+    rad_to_m, rad_to_nm,
 };
 use skyfix_ephemeris::AstroProvider;
 
@@ -52,32 +52,69 @@ impl Experiment {
         }
     }
 
-    /// Refuse experiments whose solver options have been handed the answer.
+    /// Refuse experiments whose solver options have been handed the answer, or anything
+    /// close enough to it to make the same measurement meaningless
+    /// ([`truth_guard_radius_nm`]).
     pub fn check(&self) -> Result<(), String> {
         self.scenario.check()?;
         if self.repetitions == 0 {
             return Err("repetitions must be at least 1".to_string());
         }
-        let truth = self.scenario.truth;
-        let same = |p: LatLon| {
-            (p.lat_deg - truth.lat_deg).abs() < 1e-12 && (p.lon_deg - truth.lon_deg).abs() < 1e-12
+        let truth = Point::from_deg(self.scenario.truth.lat_deg, self.scenario.truth.lon_deg);
+        // Exact equality is not the test. A prior centred a metre from the answer is as
+        // rigged as one centred on it, and it passes unnoticed because every number the
+        // run prints looks healthy. Refuse anything inside `truth_guard_radius_nm`.
+        let distance_nm = |p: LatLon| {
+            if !p.lat_deg.is_finite() || !p.lon_deg.is_finite() {
+                return f64::INFINITY;
+            }
+            rad_to_nm(geometry::angular_distance(
+                truth,
+                Point::from_deg(p.lat_deg, p.lon_deg),
+            ))
         };
-        if self.solve_options.initializer.is_some_and(same) {
-            return Err(
-                "solve_options.initializer is the truth position: an experiment that starts \
-                 the solver at the answer measures nothing. Use the session's assumed \
-                 position, or no initializer at all."
-                    .to_string(),
-            );
+        if let Some(init) = self.solve_options.initializer {
+            let d = distance_nm(init);
+            let limit = truth_guard_radius_nm(None);
+            if d <= limit {
+                return Err(format!(
+                    "solve_options.initializer is {d:.3} NM from the truth position, inside the \
+                     {limit:.3} NM guard: an experiment that starts the solver at the answer \
+                     measures nothing. Use the session's assumed position, or no initializer \
+                     at all."
+                ));
+            }
         }
-        if self.solve_options.prior.is_some_and(|p| same(p.center)) {
-            return Err(
-                "solve_options.prior is centred on the truth position: the reported \
-                 uncertainty would then be a statement about the prior, not about the sights."
-                    .to_string(),
-            );
+        if let Some(prior) = self.solve_options.prior {
+            let d = distance_nm(prior.center);
+            let limit = truth_guard_radius_nm(Some(prior.sigma_nm));
+            if d <= limit {
+                return Err(format!(
+                    "solve_options.prior is centred {d:.3} NM from the truth position, inside the \
+                     {limit:.3} NM guard (3 x sigma_nm {:.3}, or 1 NM, whichever is larger): the \
+                     reported uncertainty would then be a statement about the prior, not about \
+                     the sights.",
+                    prior.sigma_nm
+                ));
+            }
         }
         Ok(())
+    }
+}
+
+/// Smallest distance from the truth a solver option may sit at, nautical miles.
+///
+/// For a prior, `3 * sigma_nm`: a prior whose centre is inside its own three-sigma
+/// radius of the answer pins the fix to the truth, and the run then reports a coverage
+/// that describes the prior rather than the sights. For an initializer (`None`), and as a
+/// floor for any prior, one nautical mile — far enough that a rounded-off truth position
+/// cannot slip through, and far inside the 25 to 30 NM dead-reckoning offsets the
+/// packaged scenarios use (docs/SIMULATOR.md section 1).
+pub fn truth_guard_radius_nm(prior_sigma_nm: Option<f64>) -> f64 {
+    const FLOOR_NM: f64 = 1.0;
+    match prior_sigma_nm {
+        Some(s) if s.is_finite() && s > 0.0 => (3.0 * s).max(FLOOR_NM),
+        _ => FLOOR_NM,
     }
 }
 
@@ -676,6 +713,7 @@ mod tests {
     use crate::demos;
     use crate::scenario::{BodySource, Ordering, Schedule, body_at};
     use skyfix_core::types::{PositionPrior, TRUTH_SCHEMA};
+    use skyfix_core::units::{m_to_rad, nm_to_rad, rad_to_deg};
 
     const PHL: LatLon = LatLon {
         lat_deg: 39.9526,
@@ -976,12 +1014,85 @@ mod tests {
         assert_eq!(back, truth);
     }
 
+    /// A guard that only catches an exact match catches nothing: a prior centred a metre
+    /// from the answer pins the fix just as hard, and the run then reports a coverage of
+    /// 1.00 that describes the prior rather than the sights. The refusal is a radius.
+    #[test]
+    fn the_truth_guard_is_a_radius_not_an_exact_match() {
+        // One metre north of the truth, which is 1e-5 degrees and 0.00054 NM.
+        let a_metre_off = |t: LatLon| LatLon {
+            lat_deg: t.lat_deg + rad_to_deg(m_to_rad(1.0)),
+            lon_deg: t.lon_deg,
+        };
+
+        let mut e = Experiment::new(demos::philadelphia_stars(), 3);
+        e.solve_options.initializer = Some(a_metre_off(e.scenario.truth));
+        let err = e.check().unwrap_err();
+        assert!(
+            err.contains("initializer is 0.001 NM from the truth"),
+            "{err}"
+        );
+        assert!(err.contains("1.000 NM guard"), "{err}");
+
+        let mut e = Experiment::new(demos::philadelphia_stars(), 3);
+        e.solve_options.prior = Some(PositionPrior {
+            center: a_metre_off(e.scenario.truth),
+            sigma_nm: 0.05,
+        });
+        let err = e.check().unwrap_err();
+        assert!(
+            err.contains("prior is centred 0.001 NM from the truth"),
+            "{err}"
+        );
+        // And the runner reports the refusal instead of producing numbers.
+        let s = run(&e, None);
+        assert!(s.runs.is_empty());
+        assert!(s.notes[0].contains("experiment refused"), "{:?}", s.notes);
+
+        // The prior radius scales with its own sigma: 3 sigma, floored at 1 NM.
+        assert_eq!(truth_guard_radius_nm(None), 1.0);
+        assert_eq!(truth_guard_radius_nm(Some(0.05)), 1.0, "floored at 1 NM");
+        assert_eq!(truth_guard_radius_nm(Some(10.0)), 30.0, "3 x sigma_nm");
+        assert_eq!(truth_guard_radius_nm(Some(f64::NAN)), 1.0);
+        assert_eq!(truth_guard_radius_nm(Some(-1.0)), 1.0);
+
+        // A prior of sigma 10 NM centred 25 NM away is inside 3 sigma and refused; the
+        // same centre with a sigma of 1 NM is a genuine, informative prior and allowed.
+        let truth = Experiment::new(demos::philadelphia_stars(), 3)
+            .scenario
+            .truth;
+        let twenty_five_nm_north = LatLon {
+            lat_deg: truth.lat_deg + rad_to_deg(nm_to_rad(25.0)),
+            lon_deg: truth.lon_deg,
+        };
+        let with_sigma = |sigma_nm: f64| {
+            let mut e = Experiment::new(demos::philadelphia_stars(), 3);
+            e.solve_options.prior = Some(PositionPrior {
+                center: twenty_five_nm_north,
+                sigma_nm,
+            });
+            e.check()
+        };
+        assert!(with_sigma(10.0).is_err(), "25 NM is inside 3 x 10 NM");
+        with_sigma(1.0).expect("25 NM is well outside 3 x 1 NM");
+
+        // And the packaged scenarios' own dead-reckoning offsets stay legal.
+        let mut e = Experiment::new(demos::philadelphia_stars(), 3);
+        let (sample, _) = generate::simulate(&e.scenario, None).unwrap();
+        e.solve_options.initializer = sample.observer.assumed_position;
+        e.check()
+            .expect("the demo's own DR position must remain a legal initializer");
+    }
+
     #[test]
     fn experiment_refuses_to_start_the_solver_at_the_answer() {
         let mut e = Experiment::new(demos::philadelphia_stars(), 3);
         e.solve_options.initializer = Some(e.scenario.truth);
         let err = e.check().unwrap_err();
-        assert!(err.contains("initializer is the truth"), "{err}");
+        assert!(
+            err.contains("initializer is 0.000 NM from the truth"),
+            "{err}"
+        );
         // And the runner reports it rather than producing numbers.
         let s = run(&e, None);
         assert!(s.runs.is_empty());
@@ -995,7 +1106,7 @@ mod tests {
         assert!(
             e.check()
                 .unwrap_err()
-                .contains("prior is centred on the truth")
+                .contains("prior is centred 0.000 NM from the truth")
         );
 
         // An offset initializer is fine: that is what a DR position is.

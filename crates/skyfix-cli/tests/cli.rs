@@ -383,6 +383,120 @@ fn a_one_star_session_is_underdetermined_and_returns_its_circle() {
     .expect_code(3);
 }
 
+/// `--require-unique` demands a unique fix *and* a reported ellipse: a position with no
+/// stated uncertainty is not a single position a script may act on. The predicate itself
+/// is unit-tested in `commands::solve`; this pins the two ends a script actually sees.
+#[test]
+fn require_unique_accepts_a_healthy_fix_and_rejects_an_ambiguous_one() {
+    skyfix([
+        "solve",
+        &fixture("phl_four_star.session.json"),
+        "--require-unique",
+    ])
+    .expect_code(0);
+
+    skyfix([
+        "solve",
+        &fixture("phl_two_star.session.json"),
+        "--require-unique",
+    ])
+    .expect_code(3)
+    .expect_stderr("not a unique fix");
+}
+
+/// When every sight is rejected there is no circle printed, so the narrative must not
+/// point at one.
+#[test]
+fn a_session_with_no_usable_sight_promises_no_circle() {
+    let below = serde_json::json!({
+        "schema": "skyfix.session/1",
+        "meta": {"name": "all rejected", "notes": "", "kind": "simulated"},
+        "observer": {"height_of_eye_m": 0.0, "pressure_hpa": 1010.0, "temperature_c": 10.0,
+                     "assumed_position": null, "assumed_position_role": {"role": "initializer"}},
+        "instrument": {"name": "", "index_correction_arcmin": 0.0, "horizon": "sea"},
+        "clock": {"uncertainty_s": 0.0, "correction_s": 0.0},
+        "observations": [{
+            "id": "obs-1", "body": "sim-A", "utc": support::EPOCH_UTC,
+            "altitude_deg": -0.5, "altitude_kind": "sextant_hs", "sigma_arcmin": 1.0,
+            "limb": "center", "horizon": null,
+            "geocentric": {"gha_deg": 10.0, "dec_deg": 10.0,
+                           "semidiameter_arcmin": 0.0, "horizontal_parallax_arcmin": 0.0},
+            "notes": ""
+        }]
+    });
+    let path = support::tmp_dir().join("all_rejected.json");
+    std::fs::write(&path, serde_json::to_string_pretty(&below).unwrap()).unwrap();
+
+    let run = skyfix(["solve", path.to_str().unwrap()]).expect_code(2);
+    let flat = run.stdout.replace('\n', " ");
+    assert!(run.stdout.contains("\nUNDERDETERMINED\n"), "{}", run.stdout);
+    assert!(
+        !flat.contains("the circle above") && !flat.contains("on the circle above"),
+        "the report points at a circle it never printed:\n{}",
+        run.stdout
+    );
+    assert!(
+        !flat.contains("one altitude constrains"),
+        "zero sights is not one sight:\n{}",
+        run.stdout
+    );
+    assert!(
+        flat.contains("not even a circle of position"),
+        "the reason should say there is no circle:\n{}",
+        run.stdout
+    );
+    // Nor a fix: "the fix below" is a promise, and there is none below.
+    assert!(
+        !run.stderr.contains("the fix below"),
+        "stderr promises a fix that was not printed:\n{}",
+        run.stderr
+    );
+    assert!(
+        run.stderr.contains("nothing left to solve"),
+        "{}",
+        run.stderr
+    );
+}
+
+/// GHA is `[0, 360)` (CONVENTIONS section 1): 360 is another spelling of 0, not an angle
+/// off the end of a scale, and the message must not say `[0, 360]`.
+#[test]
+fn the_gha_range_message_is_half_open() {
+    let s = serde_json::json!({
+        "schema": "skyfix.session/1",
+        "meta": {"name": "gha 360", "notes": "", "kind": "simulated"},
+        "observer": {"height_of_eye_m": 0.0, "pressure_hpa": 1010.0, "temperature_c": 10.0,
+                     "assumed_position": null, "assumed_position_role": {"role": "initializer"}},
+        "instrument": {"name": "", "index_correction_arcmin": 0.0, "horizon": "sea"},
+        "clock": {"uncertainty_s": 0.0, "correction_s": 0.0},
+        "observations": [{
+            "id": "obs-1", "body": "Vega", "utc": support::EPOCH_UTC,
+            "altitude_deg": 45.0, "altitude_kind": "observed_ho", "sigma_arcmin": 1.0,
+            "limb": "center", "horizon": null,
+            "geocentric": {"gha_deg": 360.0, "dec_deg": 10.0,
+                           "semidiameter_arcmin": 0.0, "horizontal_parallax_arcmin": 0.0},
+            "notes": ""
+        }]
+    });
+    let path = support::tmp_dir().join("gha_360.json");
+    std::fs::write(&path, serde_json::to_string_pretty(&s).unwrap()).unwrap();
+
+    let run = skyfix(["validate", path.to_str().unwrap()]).expect_code(1);
+    let text = format!("{}{}", run.stdout, run.stderr).replace('\n', " ");
+    assert!(text.contains("[0, 360)"), "{text}");
+    assert!(!text.contains("[0, 360]"), "{text}");
+
+    // A closed range still reads closed: latitude is [-90, 90] and 90 is legal.
+    let mut closed = s.clone();
+    closed["observations"][0]["geocentric"]["gha_deg"] = serde_json::json!(10.0);
+    closed["observations"][0]["geocentric"]["dec_deg"] = serde_json::json!(95.0);
+    let path = support::tmp_dir().join("dec_95.json");
+    std::fs::write(&path, serde_json::to_string_pretty(&closed).unwrap()).unwrap();
+    let run = skyfix(["validate", path.to_str().unwrap()]).expect_code(1);
+    let text = format!("{}{}", run.stdout, run.stderr).replace('\n', " ");
+    assert!(text.contains("[-90, 90]"), "{text}");
+}
+
 #[test]
 fn solve_json_is_the_fix_result_exactly_as_serde_emits_it() {
     let run = skyfix(["solve", &fixture("phl_four_star.session.json"), "--json"]).expect_code(0);
@@ -545,7 +659,8 @@ fn ephemeris_supplied_refuses_a_session_that_has_no_directions() {
     skyfix(["solve", path.to_str().unwrap(), "--ephemeris", "supplied"])
         .expect_code(2)
         .expect_stderr("supply gha_deg/dec_deg")
-        .expect_stderr("4 of 4 sight(s) were rejected")
+        .expect_stderr("all 4 sight(s) were rejected")
+        .expect_stderr("nothing left to solve")
         .expect_stdout("UNDERDETERMINED");
     skyfix([
         "solve",

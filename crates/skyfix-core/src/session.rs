@@ -249,6 +249,8 @@ fn validate_inner(
                     value: d.gha_deg,
                     min: 0.0,
                     max: 360.0,
+                    // GHA wraps: 360 is 0, not an out-of-scale angle.
+                    max_exclusive: true,
                 });
             }
             range(&at("geocentric.dec_deg"), d.dec_deg, -90.0, 90.0)?;
@@ -367,6 +369,7 @@ fn range(field: &str, value: f64, min: f64, max: f64) -> Result<(), SkyfixError>
             value,
             min,
             max,
+            max_exclusive: false,
         })
     } else {
         Ok(())
