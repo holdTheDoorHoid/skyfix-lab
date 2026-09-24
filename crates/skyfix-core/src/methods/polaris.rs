@@ -11,11 +11,17 @@
 //! ```
 //!
 //! is solved for `phi` exactly ([`super::latitudes_for_altitude`]). Its sigma adds, in
-//! quadrature, the altitude's sigma `sigma_Ho / |cos Zn|`, the DR longitude's
-//! `|tan Zn| sigma_E` (`d(phi)/dE = -tan Zn`, CONVENTIONS 3), and the clock's
-//! `|cos(phi) tan Zn| w sigma_t`. For Polaris `Zn` is within a degree or two of north
-//! at ordinary latitudes, which is why the longitude hardly matters; near the pole it
-//! does, and [`Warning::PolarisNearPole`] says so.
+//! quadrature, the altitude's sigma `sigma_Ho / |cos Zn|`, the DR longitude's term, and
+//! the clock's `|cos(phi) tan Zn| w sigma_t`. The DR-longitude term is `|tan Zn| sigma_E`
+//! to first order (`d(phi)/dE = -tan Zn`, CONVENTIONS 3); it is evaluated by 3-point
+//! Gauss-Hermite quadrature (the latitude solved again on meridians `sqrt(3) sigma_E`
+//! either side, and the root-mean-square change taken), which is the same number when
+//! the dependence is linear and follows it where it is not. For Polaris `Zn` is within a
+//! degree or two of north at ordinary latitudes, which is why the longitude hardly
+//! matters. Near the pole it does: a DR good to 30 NM at 88.5 N is 19 degrees of
+//! longitude, the latitude's error is then bounded and lopsided rather than Gaussian,
+//! and the stated sigma covers about 92 % where it should cover 95 % (measured,
+//! docs/NAVIGATION_METHODS.md 3.3). [`Warning::PolarisNearPole`] says so.
 //!
 //! For teaching, each sight also carries the Nautical Almanac's Polaris-table terms,
 //! unrounded ([`PolarisAlmanacTerms`]): `Latitude = Ho - 1 deg + a0 + a1 + a2` with
@@ -44,7 +50,7 @@ use crate::types::{
     GeocentricDirection, LatitudeEstimate, PolarisAlmanacTerms, PolarisOptions, PolarisResult,
     PolarisSight, ReducedSight, Session, Warning,
 };
-use crate::units::{norm_180, norm_360};
+use crate::units::{nm_to_rad, norm_180, norm_360};
 
 /// Observer latitude above which [`Warning::PolarisNearPole`] is raised, degrees.
 pub const NEAR_POLE_LATITUDE_DEG: f64 = 88.0;
@@ -135,9 +141,11 @@ pub fn polaris_latitude(
     let track = BodyTrack::new("Polaris", &sights, source);
 
     let mut solved: Vec<PolarisSight> = Vec::with_capacity(sights.len());
-    // Latitude moved to the reference instant, independent sigma, and the two
-    // correlated sensitivities (per NM east, per second of clock).
-    let mut at_ref: Vec<(f64, f64, f64, f64)> = Vec::with_capacity(sights.len());
+    // Per sight: latitude moved to the reference instant, independent sigma, the two
+    // correlated sensitivities (per NM east, per second of clock), and the latitudes
+    // with the DR moved +/- sqrt(3) sigma east (the Gauss-Hermite nodes).
+    let mut at_ref: Vec<AtReference> = Vec::with_capacity(sights.len());
+    let node_nm = dr.sigma_nm.map(|sig| 3f64.sqrt() * sig);
     for s in &sights {
         let dr_then = dr_move(dr_point, options.vessel, (s.jd_utc - t_ref) * 24.0);
         let lon = dr_then.lon;
@@ -185,7 +193,34 @@ pub fn polaris_latitude(
         let lat_deg = phi.to_degrees();
         let sigma_alt = s.sigma_arcmin / cos_zn.abs();
         let per_nm = -tan_zn;
-        let sigma_lon = dr.sigma_nm.map(|sig| per_nm.abs() * sig);
+        // The DR-longitude term by 3-point Gauss-Hermite quadrature over the stated DR
+        // uncertainty: the latitude is solved again on meridians sqrt(3) sigma east and
+        // west. Where the dependence is linear this is exactly |tan Zn| sigma; near the
+        // pole, where it is not, it stays honest (docs/NAVIGATION_METHODS.md 3.2).
+        let nodes = node_nm.and_then(|a| {
+            let dlon = nm_to_rad(a) / dr_then.lat.cos().abs().max(1e-9);
+            let solve_on = |l: f64| {
+                latitudes_for_altitude(
+                    s.ho_deg.to_radians(),
+                    s.gha_deg.to_radians(),
+                    s.dec_deg.to_radians(),
+                    l,
+                )
+                .into_iter()
+                .min_by(|a, b| (a - phi).abs().total_cmp(&(b - phi).abs()))
+            };
+            Some([
+                solve_on(lon + dlon)?.to_degrees(),
+                solve_on(lon - dlon)?.to_degrees(),
+            ])
+        });
+        let sigma_lon = match (dr.sigma_nm, nodes) {
+            (Some(_), Some([plus, minus])) => {
+                Some(60.0 * gauss_hermite_sigma(lat_deg, plus, minus))
+            }
+            (Some(sig), None) => Some(per_nm.abs() * sig),
+            (None, _) => None,
+        };
         let gha_rate_arcmin_per_s = track.gha_rate_deg_per_day(s.jd_utc) * 60.0 / SECONDS_PER_DAY;
         let per_s = phi.cos() * tan_zn * gha_rate_arcmin_per_s;
         let sigma_clock = per_s.abs() * clock;
@@ -218,7 +253,14 @@ pub fn polaris_latitude(
             almanac_terms(t, s, lon.to_degrees(), table_lat, lat_deg).ok()
         });
         let moved = dr_move(p, options.vessel, (t_ref - s.jd_utc) * 24.0);
-        at_ref.push((moved.lat_deg(), sigma_alt, per_nm, per_s));
+        let shift = moved.lat_deg() - lat_deg;
+        at_ref.push(AtReference {
+            lat_deg: moved.lat_deg(),
+            sigma_alt,
+            per_nm,
+            per_s,
+            nodes: nodes.map(|[p, m]| [p + shift, m + shift]),
+        });
         solved.push(PolarisSight {
             id: s.id.clone(),
             utc: format_utc(s.jd_utc),
@@ -251,22 +293,35 @@ pub fn polaris_latitude(
 
     // Combine: independent altitude errors average down, the DR-longitude and clock
     // errors are shared by every sight and do not.
-    let wsum: f64 = at_ref.iter().map(|(_, s, _, _)| 1.0 / (s * s)).sum();
-    let mean = at_ref
-        .iter()
-        .map(|(lat, s, _, _)| lat / (s * s))
-        .sum::<f64>()
-        / wsum;
-    let mean_nm = at_ref.iter().map(|(_, s, n, _)| n / (s * s)).sum::<f64>() / wsum;
-    let mean_s = at_ref.iter().map(|(_, s, _, c)| c / (s * s)).sum::<f64>() / wsum;
+    let weight = |a: &AtReference| 1.0 / (a.sigma_alt * a.sigma_alt);
+    let wsum: f64 = at_ref.iter().map(weight).sum();
+    let wmean = |value: &dyn Fn(&AtReference) -> f64| {
+        at_ref.iter().map(|a| weight(a) * value(a)).sum::<f64>() / wsum
+    };
+    let mean = wmean(&|a| a.lat_deg);
+    let mean_nm = wmean(&|a| a.per_nm);
+    let mean_s = wmean(&|a| a.per_s);
+    let sigma_lon = match dr.sigma_nm {
+        Some(sig) => {
+            if at_ref.iter().all(|a| a.nodes.is_some()) {
+                let plus = wmean(&|a| a.nodes.map_or(0.0, |n| n[0]));
+                let minus = wmean(&|a| a.nodes.map_or(0.0, |n| n[1]));
+                60.0 * gauss_hermite_sigma(mean, plus, minus)
+            } else {
+                mean_nm.abs() * sig
+            }
+        }
+        None => 0.0,
+    };
     let sigma = (1.0 / wsum)
         .sqrt()
-        .hypot(mean_nm.abs() * dr.sigma_nm.unwrap_or(0.0))
+        .hypot(sigma_lon)
         .hypot(mean_s.abs() * clock);
     let n = solved.len();
     let chi2 = if n > 1 {
         let mut chi2 = 0.0;
-        for (k, (lat, s, _, _)) in at_ref.iter().enumerate() {
+        for (k, a) in at_ref.iter().enumerate() {
+            let (lat, s) = (a.lat_deg, a.sigma_alt);
             let r = (lat - mean) * 60.0;
             chi2 += (r / s) * (r / s);
             let w = 1.0 / (s * s);
@@ -307,6 +362,24 @@ pub fn polaris_latitude(
         sights,
         warnings,
     })
+}
+
+/// One solved sight, carried to the reference instant for the combination.
+struct AtReference {
+    lat_deg: f64,
+    sigma_alt: f64,
+    per_nm: f64,
+    per_s: f64,
+    /// Latitudes with the DR moved +/- sqrt(3) sigma east, when the DR sigma is stated.
+    nodes: Option<[f64; 2]>,
+}
+
+/// Root-mean-square of `f(x) - f(0)` for `x ~ N(0, sigma^2)`, by 3-point Gauss-Hermite
+/// quadrature from `f(0)`, `f(+sqrt(3) sigma)` and `f(-sqrt(3) sigma)` (weights 2/3, 1/6,
+/// 1/6): the error of reporting `f(0)` when the input is off by `x`, spread and bias
+/// together. Exact when `f` is quadratic; `|f'| sigma` when it is linear.
+pub fn gauss_hermite_sigma(f0: f64, f_plus: f64, f_minus: f64) -> f64 {
+    (((f_plus - f0).powi(2) + (f_minus - f0).powi(2)) / 6.0).sqrt()
 }
 
 /// The Nautical Almanac Polaris-table terms for one sight, unrounded.
@@ -530,7 +603,11 @@ mod tests {
         let ps = &r.polaris[0];
         let zn = ps.azimuth_deg.to_radians();
         assert!((ps.longitude_sensitivity_arcmin_per_nm + zn.tan()).abs() < 1e-12);
-        assert!((ps.sigma_from_longitude_arcmin.unwrap() - zn.tan().abs() * 30.0).abs() < 1e-9);
+        // At 45 N the dependence on longitude is nearly linear, so the quadrature term is
+        // the first-order |tan Zn| sigma to well under 1 %.
+        let linear = zn.tan().abs() * 30.0;
+        let term = ps.sigma_from_longitude_arcmin.unwrap();
+        assert!((term - linear).abs() < 0.01 * linear, "{term} vs {linear}");
         // Numerically: moving the DR 30 NM east moves the latitude by sensitivity * 30.
         let shifted = PolarisOptions {
             dr: Some(DrPosition {

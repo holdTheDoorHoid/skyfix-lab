@@ -17,3 +17,7 @@ chrono = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }
+# Integration tests of the navigation methods (tests/nav_methods_*.rs) run them against
+# the real ephemeris. A dev-dependency cycle (skyfix-ephemeris depends on this crate) is
+# fine for integration tests, which link the same skyfix-core the ephemeris does.
+skyfix-ephemeris = { path = "../skyfix-ephemeris" }

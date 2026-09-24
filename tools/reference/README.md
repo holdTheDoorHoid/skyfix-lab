@@ -62,6 +62,7 @@ are never committed; see `docs/THIRD_PARTY.md`, "Reference data
 | `gen_topocentric.py` | `fixtures/reference/topocentric_altaz.json` | topocentric alt/az at 5 observers × 6 epochs, with and without refraction, against the CONVENTIONS section 3 spherical formula |
 | `gen_sessions.py` | `fixtures/sessions/reference-philadelphia-*.json` and their `truth`/`expected` files | the "first numerical slice": 5-, 2- and 1-sight sessions |
 | `gen_sun_sextant.py` | `fixtures/sessions/reference-sun-sextant.json` and its `truth`/`expected` files | the CONVENTIONS section 5 chain run backwards from a known Ho to raw `sextant_hs` |
+| `gen_nav_methods.py` | `fixtures/reference/nav_methods.json` | noise-free sights with known truth for the navigation methods: noon runs (meridian passage by Newton on the geocentric LHA), Polaris at 1-89.8 N, averaging runs, running-fix tracks (docs/NAVIGATION_METHODS.md) |
 | `gen_usno.py` | `fixtures/reference/usno_celnav_2026-10-01T0130Z.json` | a verbatim US Naval Observatory API response, differenced against ours. **Needs network** |
 | `common.py` | — | shared helpers: the deterministic JSON writer, the CONVENTIONS sections 3 and 5 formulas coded from the text of `CONVENTIONS.md`, star identity verification, loaders |
 

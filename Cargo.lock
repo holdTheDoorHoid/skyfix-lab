@@ -359,6 +359,7 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+ "skyfix-ephemeris",
  "thiserror",
 ]
 
