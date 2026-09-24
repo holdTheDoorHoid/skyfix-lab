@@ -28,6 +28,8 @@ import type {
   SkyState,
   StarfieldCatalog,
 } from './types.js';
+import type { MisfitEngine } from './types.js';
+import { createWasmMisfit } from './wasm-misfit.js';
 
 /** Exports the explorer cannot run without. */
 export const REQUIRED_EXPORTS = [
@@ -136,6 +138,9 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine {
   private catalogCache: StarfieldCatalog | null = null;
   private boundariesCache: ConstellationBoundary[] | null = null;
 
+  /** The residual heat map (wasm-misfit.ts); absent when the package predates its exports. */
+  readonly misfit?: MisfitEngine;
+
   /** Use `inspectWasmModule` or `loadWasmEngine`; this assumes every required export exists. */
   constructor(private readonly x: ExplorerWasmExports) {
     let version: string | null = null;
@@ -148,6 +153,8 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine {
     this.description =
       `The SkyFix Lab numerical core${version ? ` ${version}` : ''}, compiled to WebAssembly. ` +
       'It runs entirely in this browser, with no network.';
+    const misfit = createWasmMisfit(x);
+    if (misfit) this.misfit = misfit;
   }
 
   private call<T>(name: string, fn: () => unknown): T {
