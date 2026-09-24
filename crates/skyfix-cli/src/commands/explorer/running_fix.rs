@@ -208,9 +208,9 @@ pub fn render(r: &RunningFixOutput, request: &RunningFixRequest, options: &Solve
     if !r.inflations.is_empty() {
         out.push_str("\nWhat the dead reckoning adds to each sight's sigma\n");
         out.push_str(&format!(
-            "  {}{:>8}{:>9}{:>10}{:>9}{:>9}{:>9}\n",
+            "  {}{:>9}{:>9}{:>10}{:>10}{:>10}{:>10}\n",
             report::pad("id", 10),
-            "hours",
+            "h to ref",
             "run NM",
             "Zn",
             "sight '",
@@ -219,9 +219,9 @@ pub fn render(r: &RunningFixOutput, request: &RunningFixRequest, options: &Solve
         ));
         for i in &r.inflations {
             out.push_str(&format!(
-                "  {}{:>+8.2}{:>9.1}{:>10}{:>9.2}{:>9.2}{:>9.2}\n",
+                "  {}{:>9}{:>9.1}{:>10}{:>10.2}{:>10.2}{:>10.2}\n",
                 report::pad(&i.id, 10),
-                i.hours_to_reference,
+                text::signed_fixed(i.hours_to_reference, 2),
                 i.run_nm,
                 text::dm360(i.zn_deg),
                 i.sigma_sight_arcmin,

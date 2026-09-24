@@ -141,3 +141,79 @@ fn text_reports_match_their_golden_files() {
         failures.join("\n")
     );
 }
+
+/// The worked examples in docs/CLI.md's explorer chapter are real output. Every
+/// `$ skyfix ...` line there is run, and every quoted line after it must appear in the
+/// command's stdout, in order. `...` on a line of its own marks lines left out; a line
+/// ending in ` ...` is quoted only up to there.
+#[test]
+fn the_documented_explorer_examples_are_real_output() {
+    let doc = std::fs::read_to_string(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../docs/CLI.md"),
+    )
+    .expect("docs/CLI.md");
+    let start = doc
+        .find("## The sky, almanac events and the navigation methods")
+        .expect("the explorer chapter");
+    let end = start
+        + doc[start..]
+            .find("## Other things worth running")
+            .expect("the next chapter");
+    let chapter = &doc[start..end];
+    let data = data_dir().to_string_lossy().into_owned();
+
+    let mut examples = 0;
+    let mut in_block = false;
+    let mut lines = chapter.lines();
+    // (command, expected lines) pairs, gathered block by block.
+    let mut cases: Vec<(String, Vec<String>)> = Vec::new();
+    while let Some(line) = lines.next() {
+        if line.starts_with("```console") {
+            in_block = true;
+            continue;
+        }
+        if in_block && line.starts_with("```") {
+            in_block = false;
+            continue;
+        }
+        if !in_block {
+            continue;
+        }
+        if let Some(cmd) = line.strip_prefix("$ ") {
+            let mut cmd = cmd.to_string();
+            while cmd.ends_with('\\') {
+                cmd.pop();
+                cmd.push_str(lines.next().expect("a continued command").trim());
+                cmd.push(' ');
+            }
+            cases.push((cmd, Vec::new()));
+        } else if let Some((_, expected)) = cases.last_mut() {
+            expected.push(line.to_string());
+        }
+    }
+    for (cmd, expected) in cases {
+        let args: Vec<String> = cmd
+            .split_whitespace()
+            .skip(1) // "skyfix"
+            .map(|a| a.replace("$D", &data))
+            .collect();
+        let run = skyfix(&args).expect_code(0);
+        let mut got = run.stdout.lines();
+        for want in expected {
+            if want.trim() == "..." {
+                continue;
+            }
+            let want = want.strip_suffix(" ...").unwrap_or(&want).trim_end();
+            assert!(
+                got.any(|g| g.starts_with(want)),
+                "docs/CLI.md: `{cmd}` no longer prints {want:?} (in this order)\n--- stdout ---\n{}",
+                run.stdout
+            );
+        }
+        examples += 1;
+    }
+    assert!(
+        examples >= 10,
+        "only {examples} examples were found and checked"
+    );
+}

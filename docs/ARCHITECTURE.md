@@ -112,13 +112,17 @@ visible in the API rather than papered over.
 ### The CLI, the WASM adapter and the browser
 
 - **`skyfix-cli`** is the whole engine behind a terminal: `validate`, `reduce`, `solve`,
-  `catalog`, `coverage`, `convert`, `demos`, `simulate`, `experiment` and `plan`, all
-  thin wrappers that parse arguments, call the core crates, and print. Its honesty rule
+  `catalog`, `coverage`, `convert`, `demos`, `simulate`, `experiment` and `plan`, and the
+  explorer engine's `sky`, `events`, `phases`, `seasons`, `noon`, `polaris`, `average`,
+  `running-fix`, `predict`, `lunar` and `plan-sights`, all thin wrappers that parse
+  arguments, call the engine crates, and print. Its honesty rule
   lives in the exit codes: an ambiguous or underdetermined result exits 0, because that
   is the correct answer to an under-constrained question and not a failure, while
   `--require-unique` exists for a script that genuinely needs one point (CLI.md,
   "Exit codes"). The CLI computes nothing itself; every number in its output comes from
-  `skyfix-core`, `skyfix-ephemeris` or `skyfix-sim`.
+  `skyfix-core`, `skyfix-ephemeris`, `skyfix-sim`, `skyfix-almanac` or `skyfix-motion`,
+  through the same functions the WASM exports call, so the command line and the browser
+  cannot disagree.
 - **`skyfix-wasm`** is a `wasm-bindgen` adapter, JSON in and JSON out, exposing
   `skyfix-core`, `skyfix-ephemeris` and `skyfix-sim` to the browser with no feature gates
   and no stubs. Its honesty rule: every export is backed by real code, so a call that
