@@ -22,7 +22,7 @@ import {
 import { needsZoneGuess, sameZone, zoneChoiceFromGuess } from '../../src/next/shell/place.js';
 import { componentOf, createRegistry, registry } from '../../src/next/shell/registry.js';
 import { hashForView, startRouter, viewFromHash } from '../../src/next/shell/router.js';
-import { brightening, clipPhases, hoursIn, nextRun, passageAround, segmentAt, skyFacts, sunDay } from '../../src/next/shell/sky.js';
+import { brightening, clipPhases, hoursIn, isUp, nextRun, passageAround, passageNow, segmentAt, skyFacts, sunDay } from '../../src/next/shell/sky.js';
 import { effectiveTheme } from '../../src/next/shell/themes.js';
 import { createExplorerStore, DEFAULT_OBSERVER, type ObserverState } from '../../src/next/state.js';
 import { jdFromIso } from '../../src/next/time.js';
@@ -158,6 +158,30 @@ describe('a body’s passage around now', () => {
     const down = passageAround([ev('transit', 12)], at(3), false);
     expect(down.kind).toBe('always-down');
     expect(down.transit!.jd_utc).toBe(at(12));
+  });
+
+  it('is up or down by its own rise and set events, falling back when there are none', () => {
+    // Before the first event only sky_state's own answer can say.
+    expect(isUp(moon, at(3), true)).toBe(true);
+    expect(isUp(moon, at(3), false)).toBe(false);
+    expect(isUp(moon, at(12), true)).toBe(false); // between the 04:30 set and the rise
+    expect(isUp(moon, at(19.6), false)).toBe(true);
+    expect(isUp([], at(3), true)).toBe(true);
+    expect(isUp([ev('transit', 12)], at(13), false)).toBe(false);
+  });
+
+  it('gives the panel and the dial one pass: after this morning’s set, tonight’s rise and tomorrow’s set', () => {
+    // At noon the Moon is down: its pass is the one rising at 17:55, not the local day's
+    // mix of this morning's set and this evening's rise.
+    const p = passageNow(moon, { always_above: false, always_below: false }, at(12), isUp(moon, at(12), false));
+    expect([p.kind, p.rise!.jd_utc, p.set!.jd_utc]).toEqual(['down', at(17.91), at(29.61)]);
+    // Before this morning's set it is still on last night's pass.
+    const early = passageNow(moon, null, at(2), isUp(moon, at(2), true)); // sky_state: up
+    expect(early.kind).toBe('up');
+    expect(early.set!.jd_utc).toBe(at(4.51));
+    // The all-day flags win over the fallback.
+    expect(passageNow([ev('transit', 12)], { always_above: true, always_below: false }, at(3), false).kind).toBe('always-up');
+    expect(passageNow([ev('transit', 12)], { always_above: false, always_below: true }, at(3), true).kind).toBe('always-down');
   });
 });
 

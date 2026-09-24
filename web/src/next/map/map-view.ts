@@ -28,8 +28,9 @@ import { basemapUrl } from '../geo/basemap.js';
 import { formatLatLon } from '../geo/coords.js';
 import { describeLocation, loadGazetteer, placesGeoJson, type Gazetteer } from '../geo/gazetteer.js';
 import { loadRegionIndex, type RegionIndex } from '../geo/regions.js';
+import { passNow, type PassNow } from '../shell/derived.js';
 import { currentDayWindow, displayZone, engineObserver, eventOptions, type ExplorerState, type Layers, type ObserverState } from '../state.js';
-import { dayWindow, formatTime, wallClock, type Zone } from '../time.js';
+import { dayWindow, wallClock, type Zone } from '../time.js';
 import { CompassDial, type DialDay, type DialEvent } from './compass.js';
 import { createControls, createCredit, type LayerKey, type MapControls } from './controls.js';
 import { registerMapFonts } from './fonts.js';
@@ -38,6 +39,7 @@ import { angularDistanceDeg, emptyCollection, graticuleFeatures, graticuleStep, 
 import { GroundPoints } from './groundpoints.js';
 import { measureFeatures, measure as measureBetween, measureText } from './measure.js';
 import { OverlayDrawer } from './overlay-layers.js';
+import { PATH_STEP_MIN, dialEvents, passNote, passWindow } from './pass.js';
 import { serviceImpl } from './overlays.js';
 import { describePlace, sameZone } from './place.js';
 import { COMPACT_WIDTH, aboveHorizonRuns, compassRadius, norm360, screenBearing, solsticeBand, type AltAz, type SkyRegion } from './skyproj.js';
@@ -53,8 +55,8 @@ export const FLAT_ZOOM = 2.7;
 export const GLOBE_ZOOM = 1.55;
 /** How long a touch must be held to set the observer, ms. */
 const LONG_PRESS_MS = 550;
-/** Samples per hour of `sample_bodies` at the 5-minute step. */
-const SAMPLES_PER_HOUR = 12;
+/** Samples per hour of `sample_bodies` at the path's step. */
+const SAMPLES_PER_HOUR = 60 / PATH_STEP_MIN;
 
 export interface MapViewOptions {
   /** The map's own controls (projection, layers, zoom, your place, measuring, legend). Default true. */
@@ -96,13 +98,6 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, attrs: R
   node.className = cls;
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
   return node;
-}
-
-/** The words for a body's rise and set: "Sunrise", "Moonset", "Venus rises". */
-function eventWords(body: string, kind: 'rise' | 'set' | 'transit'): string {
-  if (kind === 'transit') return 'Highest';
-  if (body === 'Sun' || body === 'Moon') return `${body}${kind}`;
-  return kind === 'rise' ? `${body} rises` : `${body} sets`;
 }
 
 function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted {
@@ -661,37 +656,32 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     return band;
   }
 
-  function buildDay(s: ExplorerState, body: string, info: BodyState | undefined): DialDay | null {
+  /**
+   * What the dial draws for the selected body: its pass around the time shown, from rising
+   * through its highest point to setting — the pass the panel's cards show (`passNow`,
+   * shell/derived.ts; map/pass.ts), so the dial and the panel never give two different
+   * moonsets. A body that stays up or down all through the days around gets the local day.
+   */
+  function buildDay(s: ExplorerState, body: string, info: BodyState | undefined, pass: PassNow): DialDay | null {
     const obs = engineObserver(s);
-    const [start, end] = dayWindowOf(s);
     const zone = displayZone(s);
     const kind = info?.kind ?? engine.bodies().find((b) => b.body === body)?.kind ?? 'star';
-    const data = attempt('map-day', `today’s path of ${body} could not be computed`, () => ({
-      sampled: engine.sampleBodies(obs, [body], start, end, 5),
-      events: engine.dayEvents(obs, start, end, [body], eventOptions(s)),
-    }));
-    if (!data) return null;
-    const track = data.sampled.bodies[0];
-    const bodyEvents = data.events.bodies[0];
-    const path = track && s.layers.paths ? aboveHorizonRuns({ alt: track.alt_apparent_deg, az: track.az_deg }) : [];
+    const p = pass.passage;
+    const [a, b] = passWindow(p, dayWindowOf(s), zone);
+    const track = s.layers.paths
+      ? attempt('map-day', `the path of ${body} across the sky could not be computed`, () => engine.sampleBodies(obs, [body], a, b, PATH_STEP_MIN).bodies[0])
+      : null;
+    const path = track ? aboveHorizonRuns({ alt: track.alt_apparent_deg, az: track.az_deg }) : [];
     const hours: AltAz[] = [];
-    if (track && s.layers.paths) {
-      // Whole hours of the display clock: the day window starts on one.
+    if (track) {
+      // Whole hours of the display clock: the window starts on one.
       for (let i = SAMPLES_PER_HOUR; i < track.alt_apparent_deg.length - 1; i += SAMPLES_PER_HOUR) {
         const alt = track.alt_apparent_deg[i]!;
         if (alt > 0.5) hours.push({ alt, az: track.az_deg[i]! });
       }
     }
-    const events: DialEvent[] = (bodyEvents?.events ?? [])
-      .filter((e) => e.kind === 'rise' || e.kind === 'set' || e.kind === 'transit')
-      .map((e) => {
-        const kind = e.kind as DialEvent['kind'];
-        const time = formatTime(e.jd_utc, zone);
-        return { kind, alt: e.alt_deg, az: e.az_deg, label: `${eventWords(body, kind)} ${time}`, time };
-      });
-    let note = '';
-    if (bodyEvents?.always_above) note = `${body} up all day`;
-    else if (bodyEvents?.always_below) note = `${body} down all day`;
+    const events = dialEvents(body, p, s.time.jd_utc, zone);
+    const note = passNote(body, p);
     const sun = kind === 'sun' && s.layers.paths ? solsticeData(s, zone) : null;
     summaryText = daySummary(body, events, note, s);
     return { body, kind, path, hours, events, note, band: sun?.region ?? null, solstices: sun?.runs ?? [] };
@@ -704,7 +694,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
         ? `highest ${e.time} at ${formatAngle(e.alt, s.settings.angleFormat)}`
         : `${e.label}, bearing ${formatBearing(e.az)}`,
     );
-    return parts.length ? `${body} today: ${parts.join('; ')}.` : '';
+    return parts.length ? `${body}, this pass: ${parts.join('; ')}.` : '';
   }
 
   function syncDial(s: ExplorerState, sky: SkyState | null): void {
@@ -720,13 +710,17 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     const info = body ? sky?.bodies.find((b) => b.body === body) : undefined;
     const [start, end] = dayWindowOf(s);
     const opts = eventOptions(s);
-    const key = body
-      ? `${observerKey(engineObserver(s))}|${start}|${end}|${body}|${opts.horizon}|${opts.height_of_eye_m}|${zoneKeyOf(displayZone(s))}|${L.paths}|${s.settings.angleFormat}`
-      : 'none';
+    // Cheap: the events are memoised per day; only picking the pass runs each frame.
+    const pass = body && info ? passNow(ctx, s, body, info.above_horizon) : null;
+    const p = pass?.passage;
+    const key =
+      body && pass
+        ? `${observerKey(engineObserver(s))}|${start}|${end}|${body}|${opts.horizon}|${opts.height_of_eye_m}|${zoneKeyOf(displayZone(s))}|${L.paths}|${s.settings.angleFormat}|${p?.kind}|${p?.rise?.jd_utc}|${p?.transit?.jd_utc}|${p?.set?.jd_utc}`
+        : 'none';
     if (key !== dayKey) {
       dayKey = key;
       summaryText = '';
-      dial.setDay(body ? buildDay(s, body, info) : null);
+      dial.setDay(body && pass ? buildDay(s, body, info, pass) : null);
       summary.textContent = summaryText;
     }
     dial.setNow(

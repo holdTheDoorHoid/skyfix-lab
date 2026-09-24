@@ -9,7 +9,7 @@ import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import { coverageGroupFor, offeredForSights } from '../engine/bodies.js';
 import type { BodyInfo, BodyState, PhaseEvent, SkyEvent } from '../engine/types.js';
-import { aroundToday, bodyError, bodyIn, covered, dayOf, setAttr, setText, skyNow, skySelected, sunToday } from '../shell/derived.js';
+import { bodyError, bodyIn, covered, dayOf, passNow, setAttr, setText, skyNow, skySelected, sunToday } from '../shell/derived.js';
 import {
   bearing3,
   compassPoint,
@@ -25,7 +25,7 @@ import {
   formatZn,
   otherDay,
 } from '../shell/format.js';
-import { passageAround, sunDay, type Passage } from '../shell/sky.js';
+import { sunDay } from '../shell/sky.js';
 import { displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
 import { bodyGlyph, moonPhaseName, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
@@ -85,13 +85,6 @@ function otherDayOf(jd: number, zone: Zone, other: Zone): string {
   const a = wallClock(jd + 30 / 86_400, other);
   const b = wallClock(jd + 30 / 86_400, zone);
   return a.day === b.day && a.month === b.month ? '' : (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][a.weekday] ?? '');
-}
-
-/** Up or down now, by the body's own rise and set events (consistent with the cards). */
-function isUp(events: readonly SkyEvent[], jd: number, fallback: boolean): boolean {
-  let last: SkyEvent | null = null;
-  for (const e of events) if ((e.kind === 'rise' || e.kind === 'set') && e.jd_utc <= jd) last = e;
-  return last ? last.kind === 'rise' : fallback;
 }
 
 function moonStory(phases: readonly PhaseEvent[], jd: number): { waxing: boolean; age: number | null; next: PhaseEvent | null } {
@@ -293,8 +286,6 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     const sky = skySelected(ctx, s);
     const b = bodyIn(sky, name);
     const missing = bodyError(sky, name);
-    const around = aroundToday(ctx, s, name);
-    const events = around?.bodies.find((x) => x.body === name)?.events ?? [];
 
     if (!b) {
       status.hidden = false;
@@ -317,7 +308,8 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     details.hidden = false;
     sights.hidden = false;
 
-    const up = isUp(events, jd, b.above_horizon);
+    // The pass around now: the same one the map's compass dial draws (shell/derived.ts).
+    const { passage, up } = passNow(ctx, s, name, b.above_horizon);
     status.hidden = up;
     if (!up) setText(status, 'Below the horizon now.');
 
@@ -327,12 +319,6 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     setAttr(azValue, 'aria-label', `${formatAzimuth(b.az_deg, f, 'coarse')}, ${compassWords(b.az_deg)}`);
 
     // Cards: the passage around now
-    const flags = around?.bodies.find((x) => x.body === name);
-    const passage: Passage = flags?.always_above
-      ? passageAround(events, jd, true)
-      : flags?.always_below
-        ? passageAround(events, jd, false)
-        : passageAround(events, jd, up);
     const [riseWord, setWord] = words(name);
     const alwaysUp = passage.kind === 'always-up';
     const alwaysDown = passage.kind === 'always-down';

@@ -15,7 +15,7 @@ export type LayerKey = keyof Layers;
 /** Map layers offered in the layer list, plain words first (EXPLORER_PLAN section 1). */
 export const MAP_LAYER_OPTIONS: readonly { key: LayerKey; label: string; note?: string }[] = [
   { key: 'compass', label: 'Compass at your place', note: 'Where the selected body rises, sets and is now' },
-  { key: 'paths', label: "Today's path", note: 'For the Sun, also the band between its solstice paths' },
+  { key: 'paths', label: 'Path across the sky', note: 'Rise to set, the pass shown in the panel; for the Sun, also the band between its solstice paths' },
   { key: 'terminator', label: 'Day and night' },
   { key: 'twilight', label: 'Twilight shading', note: 'Civil, nautical and astronomical' },
   { key: 'groundPoints', label: 'Where each body is overhead', note: 'Ground points (GP)' },

@@ -5,9 +5,10 @@
  */
 
 import type { Ctx } from '../component.js';
-import type { BodyEvents, BodyState, DayEvents, ExplorerEngine, PhaseSegment, SkyState } from '../engine/types.js';
+import type { BodyEvents, BodyState, DayEvents, ExplorerEngine, PhaseSegment, SkyEvent, SkyState } from '../engine/types.js';
 import { currentDayWindow, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { jdFromIso } from '../time.js';
+import { isUp, passageNow, type Passage } from './sky.js';
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -136,6 +137,32 @@ export function aroundToday(ctx: Ctx, s: ExplorerState, body: string): DayEvents
   return attempt(ctx, `engine-around-${body}`, `Computing rise and set for ${body}`, () =>
     ctx.engine.dayEvents(engineObserver(s), span[0], span[1], [body], eventOptions(s)),
   );
+}
+
+/** A body's pass around the time shown: what the panel's Selected cards and the map's dial draw. */
+export interface PassNow {
+  /** Rise, highest point and set of the pass the body is on (or the next, while it is down). */
+  passage: Passage;
+  /** Up at the time shown, by its own rise and set events. */
+  up: boolean;
+  /** Its events from the day before to the day after the one shown (`aroundToday`). */
+  events: readonly SkyEvent[];
+  /** False when the events could not be computed (outside the coverage, or an error). */
+  known: boolean;
+}
+
+/**
+ * The body's current pass, asked the same way by every part of the page so that none of
+ * them can disagree about when the Moon sets: from `aroundToday` (memoised per day) and
+ * `passageNow`. `aboveHorizon` (from `sky_state`) decides only when the events say nothing.
+ */
+export function passNow(ctx: Ctx, s: ExplorerState, body: string, aboveHorizon: boolean): PassNow {
+  const around = aroundToday(ctx, s, body);
+  const entry = around?.bodies.find((x) => x.body === body);
+  const events = entry?.events ?? [];
+  const jd = s.time.jd_utc;
+  const up = isUp(events, jd, aboveHorizon);
+  return { passage: passageNow(events, entry, jd, up), up, events, known: entry !== undefined };
 }
 
 /** Only write when the text changes (no needless layout work every frame). */

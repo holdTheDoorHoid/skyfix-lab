@@ -287,7 +287,10 @@ export interface Layers {
   altitudeRings: boolean;
   /** Map: SunCalc-style compass overlay at the observer. */
   compass: boolean;
-  /** Map and sky: today's path of the selected body. */
+  /**
+   * The selected body's path across the sky. Map: its current pass on the compass dial,
+   * rise to set (the pass the panel shows). Sky: its path through the local day.
+   */
   paths: boolean;
   /** Map: latitude/longitude grid. */
   graticule: boolean;
