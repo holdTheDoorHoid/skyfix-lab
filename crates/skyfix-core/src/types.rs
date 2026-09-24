@@ -454,6 +454,13 @@ pub struct Conditioning {
     pub geometric_dilution_m_per_arcmin: f64,
     /// Largest gap between consecutive sight azimuths, degrees (360 = all in one direction).
     pub max_azimuth_gap_deg: f64,
+    /// Which Jacobian columns the singular values and rank above describe:
+    /// `"position (north, east)"`, or `"position (north, east) and shared bias"` when a
+    /// shared altitude bias is estimated. A shared bias is nearly collinear with position
+    /// whenever the azimuth spread is poor, and this report includes that column so the
+    /// condition number shows it.
+    #[serde(default)]
+    pub columns: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
