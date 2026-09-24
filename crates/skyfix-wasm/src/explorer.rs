@@ -13,9 +13,11 @@
 //!   `sample_bodies`, whose arrays are real `Float64Array`s built with `js_sys`.
 //!
 //! The astronomy is always [`skyfix_ephemeris::body::Sky`] with DUT1 = 0 (CONVENTIONS
-//! section 6): the Sun, Moon, planets and the 58 stars behind one provider. The Moon and
-//! planet providers are stubs until their agents land; until then those bodies come back
-//! in `errors`, never as invented positions.
+//! section 6): the Sun, Moon, planets and the 58 stars behind one provider. A body the
+//! provider cannot answer for (outside its coverage) comes back in `errors`, never as an
+//! invented position. `BodyState.constellation` is the one value joined in from the
+//! display-only star field (`skyfix_starfield::constellation_at`), here and not in
+//! `skyfix-almanac` (CONVENTIONS 13.6).
 
 use js_sys::{Array, Float64Array, Object, Reflect};
 use wasm_bindgen::prelude::*;
@@ -217,7 +219,16 @@ pub mod native {
     ) -> Result<SkyState, String> {
         let site = parse_observer(observer_json)?;
         let bodies = parse_bodies(bodies_json)?;
-        sky::sky_state(&sky(), &site, jd_utc, &bodies).map_err(|e| e.to_string())
+        let mut s = sky::sky_state(&sky(), &site, jd_utc, &bodies).map_err(|e| e.to_string())?;
+        // The constellation comes from the display-only star field, joined here and
+        // only here: skyfix-almanac must not depend on it (CONVENTIONS 13.6). A
+        // direction the boundaries cannot place stays `null`.
+        for b in &mut s.bodies {
+            b.constellation = skyfix_starfield::constellation_at(b.ra_deg, b.dec_deg, jd_utc)
+                .ok()
+                .map(str::to_string);
+        }
+        Ok(s)
     }
 
     pub fn sample_bodies(
@@ -528,7 +539,7 @@ mod tests {
     }
 
     #[test]
-    fn sky_state_has_every_documented_field_and_lists_stubs_as_errors() {
+    fn sky_state_has_every_documented_field_and_the_constellations() {
         let jd = civil_to_jd(2026, 9, 24) + 0.5;
         let s = sky_state(PHILLY, jd, "\"all\"").unwrap();
         let v = json(&s);
@@ -574,9 +585,28 @@ mod tests {
             assert!(sun.get(k).is_some(), "BodyState missing {k}");
         }
         assert_eq!(sun["kind"], "sun");
-        assert!(sun["constellation"].is_null());
         assert!(sun["gp"]["lat_deg"].is_number() && sun["gp"]["lon_deg"].is_number());
-        // 1 Sun + 58 stars; the Moon and 7 planets are stubs in this build.
+        // Constellations come from the star field's IAU boundaries: the Sun is in
+        // Virgo in late September, and the stars are where their names say.
+        assert_eq!(sun["constellation"], "Vir");
+        let con = |name: &str| {
+            s.bodies
+                .iter()
+                .find(|b| b.body == name)
+                .and_then(|b| b.constellation.clone())
+        };
+        for (star, abbr) in [
+            ("Vega", "Lyr"),
+            ("Sirius", "CMa"),
+            ("Polaris", "UMi"),
+            ("Acrux", "Cru"),
+            ("Rigil Kentaurus", "Cen"),
+            ("Al Na'ir", "Gru"),
+        ] {
+            assert_eq!(con(star).as_deref(), Some(abbr), "{star}");
+        }
+        assert!(s.bodies.iter().all(|b| b.constellation.is_some()));
+        // Every body is either computed or listed with its reason.
         let n_ok = s.bodies.len();
         let n_err = s.errors.len();
         assert_eq!(n_ok + n_err, 67);

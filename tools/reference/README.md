@@ -23,8 +23,9 @@ The Makefile is a convenience wrapper. The generator itself is:
 tools/reference/.venv/bin/python -m tools.reference.generate_all [--offline]
 ```
 
-run from the repository root. A full run takes about three and a half minutes
-once the input data is present, most of it the planet and Moon fixtures.
+run from the repository root. A full run takes about eleven minutes once the input
+data is present: about seven for the event fixtures (`gen_events.py`, one-minute
+searches over 2 300 site-days), most of the rest the planet and Moon fixtures.
 
 Set `SOURCE_DATE_EPOCH` to a fixed Unix time for byte-for-byte reproducible
 output:

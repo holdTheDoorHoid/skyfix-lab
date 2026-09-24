@@ -99,7 +99,7 @@ computed at `jd_utc` (outside its coverage); the UI keeps time inside
 | `phase_angle_deg`, `illuminated_fraction`, `elongation_deg` | Moon and planets; `null` otherwise. Elongation is the Sun–body angle seen from Earth |
 | `bright_limb_angle_deg` | position angle of the midpoint of the bright limb, from celestial north through east (Moon and planets; `null` otherwise) |
 | `parallactic_angle_deg` | parallactic angle at the observer, so the UI can rotate the phase into the horizon frame (`bright_limb_angle_deg − parallactic_angle_deg` is measured from the zenith) |
-| `constellation` | IAU abbreviation (e.g. `"Leo"`), from `skyfix-starfield`; `null` until that crate lands |
+| `constellation` | IAU abbreviation (e.g. `"Leo"`) of the constellation containing the body's apparent direction, from `skyfix-starfield`'s display-only boundaries (joined in the WASM layer, CONVENTIONS §13.6); `null` only if the boundaries cannot place it |
 
 ### `sample_bodies(observer_json, bodies_json, jd_start, jd_end, step_minutes) -> Sampled`
 
