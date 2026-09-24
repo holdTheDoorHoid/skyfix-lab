@@ -11,3 +11,5 @@ tools/reference/__pycache__
 .DS_Store
 docs/book
 tools/reference/data/
+# the same path when it is a symlink to a shared copy (agent worktrees)
+tools/reference/data

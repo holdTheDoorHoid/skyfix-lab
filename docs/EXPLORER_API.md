@@ -21,9 +21,10 @@ commit, and say so in your report. Numeric definitions are CONVENTIONS section 1
   `"all"` (Sun, Moon, Mercury…Neptune, the 58 navigational stars), `"solar_system"`
   (Sun, Moon, Mercury…Neptune) or `"navigational"` (Sun, Moon, Venus, Mars, Jupiter,
   Saturn, the 58 stars). Names match case-insensitively after trimming; results always
-  use the canonical spelling. A single body name as a JSON string (`"Moon"`), and a
-  group name without the JSON quotes (`all`), are accepted too. Duplicates are dropped;
-  an unknown name throws.
+  use the canonical spelling. The argument is JSON text either way, so a group name
+  arrives quoted: `["Sun","Moon"]` or `"all"` (what `JSON.stringify` produces). A
+  bare group name (`all`) and a single body name (`"Moon"`) are accepted too.
+  Duplicates are dropped; an unknown name throws.
 - **Canonical names:** `Sun`, `Moon`, `Mercury`, `Venus`, `Mars`, `Jupiter`, `Saturn`,
   `Uranus`, `Neptune`, and the star names returned by the existing `catalog()`.
 - **Errors:** malformed input throws a string. A body that cannot be computed at that
@@ -49,11 +50,17 @@ magnitude for stars and `null` otherwise.
 ```json
 {"start_utc": "1990-01-01T00:00:00Z", "end_utc": "2060-12-31T23:59:59Z",
  "groups": [{"name": "Moon", "provider": "skyfix-moon (…)", "accuracy_arcmin": 0.05,
-             "validated": true, "notes": "…"}]}
+             "validated": true, "notes": "…", "bodies": ["Moon"]}]}
 ```
 
 `validated` is true only when the group's accuracy claim is backed by a fixture test.
 The UI offers a body for sights only when its group is validated.
+
+`bodies` (optional, recommended; added 2026-09-24 by the shell-core agent) lists the
+canonical names the group covers, so the UI can find a body's group without guessing
+(`Sky::coverage_groups()` already carries them in `Coverage::bodies`). When it is
+absent the UI falls back to matching the group name against the body's kind (a group
+named like "Sun", "Moon", "Planets" or "Stars").
 
 ### `sky_state(observer_json, jd_utc, bodies_json) -> SkyState`
 

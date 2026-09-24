@@ -1,0 +1,260 @@
+/*
+ * Developer harness styles. Deliberately plain: the real design system arrives with the
+ * shell (EXPLORER_PLAN work package E2) and replaces this file with the harness.
+ * System fonts only; three themes so the settings can be exercised.
+ */
+
+:root {
+  --hx-paper: #ffffff;
+  --hx-paper-soft: #f2f5f8;
+  --hx-ink: #14181d;
+  --hx-ink-soft: #4a545f;
+  --hx-rule: #c8d0d8;
+  --hx-accent: #0072b2;
+  --hx-caution: #f0e442;
+  --hx-error: #d55e00;
+  --hx-up: #e7f4ee;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --hx-paper: #161b22;
+  --hx-paper-soft: #0d1117;
+  --hx-ink: #e6edf3;
+  --hx-ink-soft: #9da7b3;
+  --hx-rule: #30363d;
+  --hx-accent: #56b4e9;
+  --hx-caution: #8a7d00;
+  --hx-error: #ff8c5a;
+  --hx-up: #13261d;
+  color-scheme: dark;
+}
+
+/* Red night vision: dim, red on black, nothing brighter than the red channel. */
+:root[data-theme='night'] {
+  --hx-paper: #0a0000;
+  --hx-paper-soft: #000000;
+  --hx-ink: #ff5a4a;
+  --hx-ink-soft: #b33c30;
+  --hx-rule: #4a1510;
+  --hx-accent: #ff5a4a;
+  --hx-caution: #5a1a10;
+  --hx-error: #ff5a4a;
+  --hx-up: #1a0503;
+  color-scheme: dark;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--hx-paper-soft);
+  color: var(--hx-ink);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.hx {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 12px 16px 64px;
+}
+
+.hx h1 {
+  font-size: 1.4rem;
+  margin: 12px 0 4px;
+}
+
+.hx h2 {
+  font-size: 1.1rem;
+  margin: 0 0 8px;
+}
+
+.hx h3 {
+  font-size: 1rem;
+  margin: 12px 0 4px;
+}
+
+.hx-banner {
+  margin: 0;
+  padding: 8px 12px;
+  border: 2px solid var(--hx-ink);
+  border-left-width: 8px;
+  background: var(--hx-paper);
+  font-weight: 600;
+}
+
+.hx-engine {
+  margin: 4px 0;
+  color: var(--hx-ink-soft);
+}
+
+.hx-engine-mock strong {
+  color: var(--hx-ink);
+  background: var(--hx-caution);
+  padding: 0 6px;
+  border: 1px solid var(--hx-ink);
+}
+
+.hx-notices {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+  display: grid;
+  gap: 6px;
+}
+
+.hx-notice {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--hx-paper);
+  border: 1px solid var(--hx-rule);
+  border-left: 6px solid var(--hx-accent);
+}
+
+.hx-caution {
+  border-left-color: var(--hx-caution);
+}
+
+.hx-error {
+  border-left-color: var(--hx-error);
+}
+
+.hx-section {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: var(--hx-paper);
+  border: 1px solid var(--hx-rule);
+}
+
+.hx-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px 16px;
+}
+
+.hx-field {
+  display: grid;
+  gap: 2px;
+  font-size: 0.9rem;
+  color: var(--hx-ink-soft);
+}
+
+.hx input,
+.hx select,
+.hx button {
+  font: inherit;
+  color: var(--hx-ink);
+  background: var(--hx-paper);
+  border: 1px solid var(--hx-rule);
+  padding: 4px 8px;
+  min-height: 32px;
+}
+
+.hx button {
+  cursor: pointer;
+}
+
+.hx button[aria-pressed='true'] {
+  border-color: var(--hx-accent);
+  box-shadow: inset 0 0 0 1px var(--hx-accent);
+}
+
+.hx :focus-visible {
+  outline: 3px solid var(--hx-accent);
+  outline-offset: 1px;
+}
+
+.hx-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.hx-clock {
+  display: block;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 1.05rem;
+  margin: 6px 0;
+}
+
+.hx-note {
+  color: var(--hx-ink-soft);
+  font-size: 0.9rem;
+  margin: 6px 0;
+}
+
+.hx-summary {
+  font-weight: 600;
+}
+
+.hx-scroll {
+  overflow-x: auto;
+}
+
+.hx-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.9rem;
+}
+
+.hx-table th,
+.hx-table td {
+  text-align: left;
+  padding: 3px 8px;
+  border-bottom: 1px solid var(--hx-rule);
+  white-space: nowrap;
+}
+
+.hx-num {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.hx-up {
+  background: var(--hx-up);
+}
+
+.hx-down {
+  color: var(--hx-ink-soft);
+}
+
+.hx-selected th {
+  box-shadow: inset 4px 0 0 var(--hx-accent);
+}
+
+.hx-pick {
+  min-height: 0;
+  padding: 0 6px;
+}
+
+.hx-kind {
+  color: var(--hx-ink-soft);
+  font-size: 0.8rem;
+}
+
+.hx-list {
+  margin: 4px 0;
+  padding-left: 20px;
+}
+
+.hx-share {
+  width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+.hx-check {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hx * {
+    transition: none !important;
+  }
+}
