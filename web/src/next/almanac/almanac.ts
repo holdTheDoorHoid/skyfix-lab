@@ -27,6 +27,7 @@ import {
   type AlmanacTime,
 } from '../engine/types.js';
 import { goNow, setTime } from '../playback.js';
+import { button } from '../theme/primitives.js';
 import {
   blocks,
   dayOfMonth,
@@ -563,18 +564,43 @@ export const almanacView: Component = (host, ctx) => {
 
   const dateInput = h('input', {
     type: 'date',
-    class: 'alm-date',
+    class: 'sf-input alm-date',
     id: 'alm-date',
     min: range.min,
     max: range.max,
     required: true,
   });
-  const button = (label: string, title: string): HTMLButtonElement =>
-    h('button', { type: 'button', class: 'alm-btn', title }, label);
-  const prev = button('◀ Day', 'Previous UT date (same time of day)');
-  const next = button('Day ▶', 'Next UT date (same time of day)');
-  const today = button('Today', 'Follow the clock: today’s UT date');
-  const print = button('Print…', 'Print both pages, black on white, one per sheet (A4 or US Letter)');
+  const move = (days: number): void => {
+    const jd = ctx.store.get().time.jd_utc;
+    setTime(ctx.store, jd + days);
+  };
+  const prev = button({
+    icon: 'chevron-left',
+    ariaLabel: 'Previous day',
+    tip: 'The previous UT date, same time of day',
+    size: 'sm',
+    onClick: () => move(-1),
+  });
+  const next = button({
+    icon: 'chevron-right',
+    ariaLabel: 'Next day',
+    tip: 'The next UT date, same time of day',
+    size: 'sm',
+    onClick: () => move(1),
+  });
+  const today = button({
+    label: 'Today',
+    tip: 'Follow the clock: today’s UT date',
+    size: 'sm',
+    onClick: () => goNow(ctx.store),
+  });
+  const print = button({
+    label: 'Print',
+    tip: 'Both pages, black on white, one per sheet (A4 or US Letter)',
+    size: 'sm',
+    variant: 'outline',
+    onClick: () => window.print(),
+  });
   const status = h('p', { class: 'alm-status', role: 'status', 'aria-live': 'polite' });
   const toolbar = h(
     'div',
@@ -587,7 +613,12 @@ export const almanacView: Component = (host, ctx) => {
     status,
   );
   const spread = h('div', { class: 'alm-spread' });
-  const root = h('section', { class: 'almanac', 'aria-label': 'Nautical almanac daily pages' }, toolbar, spread);
+  const root = h(
+    'section',
+    { class: 'almanac sf-on-stage', 'aria-label': 'Nautical almanac daily pages' },
+    toolbar,
+    spread,
+  );
   host.append(root);
 
   // Printing prints this view and nothing around it (almanac.css, `data-print-view`).
@@ -598,30 +629,12 @@ export const almanacView: Component = (host, ctx) => {
     root.remove();
   });
 
-  const move = (days: number): void => {
-    const jd = ctx.store.get().time.jd_utc;
-    setTime(ctx.store, jd + days);
-  };
   const onDate = (): void => {
     const jd = moveToUtDate(ctx.store.get().time.jd_utc, dateInput.value);
     if (jd !== null) setTime(ctx.store, jd);
   };
-  const onPrint = (): void => window.print();
-  const onPrev = (): void => move(-1);
-  const onNext = (): void => move(1);
-  const onToday = (): void => goNow(ctx.store);
   dateInput.addEventListener('change', onDate);
-  prev.addEventListener('click', onPrev);
-  next.addEventListener('click', onNext);
-  today.addEventListener('click', onToday);
-  print.addEventListener('click', onPrint);
-  d.add(() => {
-    dateInput.removeEventListener('change', onDate);
-    prev.removeEventListener('click', onPrev);
-    next.removeEventListener('click', onNext);
-    today.removeEventListener('click', onToday);
-    print.removeEventListener('click', onPrint);
-  });
+  d.add(() => dateInput.removeEventListener('change', onDate));
 
   let shown: string | null = null;
   let hourRows: HTMLTableRowElement[][] = [];
@@ -657,7 +670,6 @@ export const almanacView: Component = (host, ctx) => {
     const right: HTMLTableRowElement[] = [];
     spread.replaceChildren(leftPage(day, left, mock), rightPage(day, right, mock));
     hourRows = day.hours.map((r) => [left[r.hour], right[r.hour]].filter((x): x is HTMLTableRowElement => !!x));
-    status.textContent = `${pageHeading(day)} · UT`;
   };
 
   const highlight = (hour: number): void => {
@@ -665,6 +677,9 @@ export const almanacView: Component = (host, ctx) => {
     for (const tr of hourRows[lit] ?? []) tr.classList.remove('alm-now');
     for (const tr of hourRows[hour] ?? []) tr.classList.add('alm-now');
     lit = hour;
+    status.textContent = hourRows.length
+      ? `Highlighted: ${String(hour).padStart(2, '0')}h UT, the explorer’s time`
+      : '';
   };
 
   d.add(

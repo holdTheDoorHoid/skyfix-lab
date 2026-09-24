@@ -30,9 +30,14 @@
   --alm-shade: color-mix(in srgb, var(--alm-ink) 13%, transparent);
   --alm-radius: var(--radius-md, 8px);
   --alm-shadow: var(--shadow-1, 0 1px 2px rgba(12, 20, 30, 0.16), 0 1px 1px rgba(12, 20, 30, 0.08));
-  --alm-table-size: clamp(10.5px, 0.78vw, 12.5px);
+  /* One page is about 79 table-font pixels wide per pixel of font size. */
+  --alm-table-size: 11.2px;
 
   display: block;
+  box-sizing: border-box;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-4, 16px);
   color: var(--alm-ink);
   background: var(--alm-bg);
@@ -74,10 +79,10 @@
   text-transform: uppercase;
 }
 
-.alm-date,
-.alm-btn {
-  height: var(--control-h, 32px);
-  padding: 0 var(--space-3, 12px);
+.alm-date {
+  width: auto;
+  height: var(--control-h-sm, 28px);
+  padding: 0 var(--space-2, 8px);
   border: 1px solid var(--alm-line-strong);
   border-radius: var(--radius-sm, 6px);
   background: var(--alm-paper);
@@ -85,22 +90,10 @@
   font: inherit;
   font-size: var(--text-md, 13px);
   font-variant-numeric: tabular-nums;
-}
-
-.alm-date {
   color-scheme: inherit;
 }
 
-.alm-btn {
-  cursor: pointer;
-}
-
-.alm-btn:hover {
-  background: var(--alm-paper-2);
-}
-
-.alm-date:focus-visible,
-.alm-btn:focus-visible {
+.alm-date:focus-visible {
   outline: var(--focus-width, 2px) solid var(--alm-focus);
   outline-offset: 2px;
 }
@@ -133,18 +126,24 @@
 
 .alm-spread {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, max-content);
   gap: var(--space-5, 20px);
   justify-content: center;
   margin: 0 auto;
-  max-width: 1800px;
 }
 
-/* Two facing pages where both fit at a readable size. */
-@media (min-width: 1680px) {
+/* Two facing pages where both fit at a readable size (from 10.8 px at 1800 px wide). */
+@media (min-width: 1800px) {
+  .almanac {
+    --alm-table-size: clamp(10.8px, 0.6vw, 11.6px);
+  }
+
+  /* Equal columns in a fit-content grid: both pages as wide as the wider one. */
   .alm-spread {
-    grid-template-columns: repeat(2, minmax(0, max-content));
-    align-items: start;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: fit-content;
+    max-width: 100%;
+    align-items: stretch;
   }
 }
 
@@ -206,7 +205,7 @@
   grid-template-columns: max-content max-content;
   align-items: start;
   justify-content: space-between;
-  gap: var(--space-5, 20px);
+  gap: var(--space-5, 24px);
 }
 
 .alm-main,
@@ -215,6 +214,19 @@
   flex-direction: column;
   gap: var(--space-4, 16px);
   min-width: 0;
+}
+
+/* Tables keep their own width (a column flexbox would stretch them). */
+.alm-main > table,
+.alm-side > table {
+  align-self: flex-start;
+}
+
+/* Text never widens a column: it takes the width the tables give it. */
+.alm-explain,
+.alm-notes {
+  width: 0;
+  min-width: 100%;
 }
 
 .alm-foot {
@@ -429,7 +441,6 @@
 
 .alm-explain,
 .alm-notes {
-  max-width: 64ch;
   color: var(--alm-ink-2);
   font-size: var(--text-xs, 11px);
   line-height: 1.4;
@@ -442,6 +453,7 @@
 .alm-notes ul {
   margin: 0;
   padding-left: 1.1em;
+  list-style: disc outside;
 }
 
 .alm-notes li + li {
@@ -466,6 +478,25 @@
 }
 
 @media (max-width: 720px) {
+  .almanac {
+    padding: var(--space-2, 8px);
+  }
+
+  .alm-page {
+    padding: var(--space-3, 12px);
+  }
+
+  .alm-head {
+    grid-template-columns: 1fr auto;
+    gap: var(--space-1, 4px) var(--space-2, 8px);
+  }
+
+  .alm-head-date {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    white-space: normal;
+  }
+
   .alm-grid {
     grid-template-columns: max-content;
   }
@@ -515,6 +546,8 @@
   }
 
   .almanac {
+    height: auto !important;
+    overflow: visible !important;
     --alm-bg: #fff;
     --alm-paper: #fff;
     --alm-paper-2: #fff;
@@ -593,9 +626,22 @@
     gap: 3mm;
   }
 
+  /* Both pages fit US Letter's 259 mm of printable height, the shorter of the two. */
+  .alm-table {
+    line-height: 1.2;
+  }
+
   .alm-table th,
   .alm-table td {
     padding: 0 0.32em;
+  }
+
+  .alm-table tbody tr:first-child > * {
+    padding-top: 0.22em;
+  }
+
+  .alm-table tbody tr:last-child > * {
+    padding-bottom: 0.22em;
   }
 
   .alm-table thead tr:last-child th,
@@ -623,7 +669,6 @@
 
   .alm-explain,
   .alm-notes {
-    max-width: none;
     font-size: 6.4pt;
     line-height: 1.3;
   }

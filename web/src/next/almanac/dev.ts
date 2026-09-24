@@ -12,21 +12,21 @@
  * Nothing outside `almanac/` imports from here.
  */
 
-import '@fontsource-variable/inter';
+import '../theme/index.js';
 import './dev.css';
 import { createScheduler, memoEngine, type Ctx } from '../component.js';
 import { selectEngine } from '../engine/index.js';
 import { createNotices } from '../notices.js';
 import { createExplorerStore } from '../state.js';
+import { applyTheme, badge, button, installTooltips, setPressed, type ThemeName } from '../theme/index.js';
 import { almanacView } from './almanac.js';
 import { jdOfUtDate } from './layout.js';
 
-const THEMES = ['light', 'dark', 'night'] as const;
-type Theme = (typeof THEMES)[number];
+const THEMES: readonly ThemeName[] = ['light', 'dark', 'night'];
 
-function setTheme(theme: Theme, buttons: Map<Theme, HTMLButtonElement>): void {
-  document.documentElement.dataset.theme = theme;
-  for (const [t, b] of buttons) b.setAttribute('aria-pressed', String(t === theme));
+function setTheme(theme: ThemeName, buttons: Map<ThemeName, HTMLButtonElement>): void {
+  applyTheme(theme);
+  for (const [t, b] of buttons) setPressed(b, t === theme);
 }
 
 async function main(): Promise<void> {
@@ -39,17 +39,31 @@ async function main(): Promise<void> {
   const label = document.createElement('span');
   label.textContent = 'Almanac harness · Simulation and analysis workbench. Not a navigation instrument.';
   bar.append(label);
-  const buttons = new Map<Theme, HTMLButtonElement>();
+  const spacer = document.createElement('span');
+  spacer.className = 'dev-bar__spacer';
+  bar.append(spacer);
+  const buttons = new Map<ThemeName, HTMLButtonElement>();
   for (const t of THEMES) {
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.textContent = t[0]!.toUpperCase() + t.slice(1);
-    b.addEventListener('click', () => setTheme(t, buttons));
+    const b = button({
+      label: t[0]!.toUpperCase() + t.slice(1),
+      size: 'sm',
+      variant: 'ghost',
+      pressed: false,
+      onClick: () => setTheme(t, buttons),
+    });
     buttons.set(t, b);
     bar.append(b);
   }
+  // `?paper=a4` or `?paper=letter` fixes the printed sheet size, for checking both.
+  const paper = params.get('paper');
+  if (paper === 'a4' || paper === 'letter') {
+    const style = document.createElement('style');
+    style.textContent = `@page { size: ${paper === 'a4' ? 'A4' : 'letter'} portrait; }`;
+    document.head.append(style);
+  }
   const requested = params.get('theme');
-  setTheme(THEMES.includes(requested as Theme) ? (requested as Theme) : 'light', buttons);
+  setTheme(THEMES.includes(requested as ThemeName) ? (requested as ThemeName) : 'light', buttons);
+  bar.classList.add('sf-on-chrome');
 
   const noticeList = document.createElement('ul');
   noticeList.className = 'dev-notices';
@@ -68,9 +82,8 @@ async function main(): Promise<void> {
     );
   });
   selection.notices.forEach((n, i) => notices.push(n.level, n.text, { key: `engine-${i}`, persistent: true }));
-  const engineLabel = document.createElement('span');
-  engineLabel.textContent = `engine: ${selection.engine.kind}`;
-  bar.append(engineLabel);
+  bar.insertBefore(badge(selection.engine.kind === 'wasm' ? 'wasm' : 'mock'), spacer);
+  installTooltips();
 
   const store = createExplorerStore({ storage: null });
   const date = params.get('date');
