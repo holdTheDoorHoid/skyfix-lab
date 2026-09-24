@@ -557,11 +557,15 @@
     --alm-line: #8c8c8c;
     --alm-line-strong: #000;
     --alm-shade: #d9d9d9;
-    --alm-table-size: 7.1pt;
+    --alm-table-size: 7.6pt;
 
     padding: 0 !important;
     background: #fff !important;
     color: #000 !important;
+    /* A Times-style face, as the printed almanac uses: equal-width figures, compact, and
+       a far smaller embedded font in a PDF than the screen's variable font. */
+    --alm-font: 'Times New Roman', 'Liberation Serif', 'Nimbus Roman', 'TeX Gyre Termes', Times, serif;
+    font-family: var(--alm-font);
     font-size: 7.5pt;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
