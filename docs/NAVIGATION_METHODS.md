@@ -40,7 +40,8 @@ towards itself (CONVENTIONS 8). `sigma_nm` is the 1-sigma error in each of north
 east; when it is not stated nothing replaces it with a plausible guess, and every result
 that would have used it says what is missing.
 
-**A moving vessel.** `VesselMotion {course_deg, speed_kn}` is constant over the run and
+**A moving vessel.** `VesselMotion {course_deg, speed_kn}` (speed at most 1000 kn either
+way, which admits an aircraft's bubble sextant) is constant over the run and
 the track is the great circle through the method's reference position with that course
 there. Over the minutes of a noon or averaging run this is the dead-reckoning track to
 well under a metre; the running fix (§5) has its own leg model (`docs/MOTION.md`).

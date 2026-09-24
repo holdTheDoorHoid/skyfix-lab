@@ -291,7 +291,8 @@ wire. TypeScript: the `NavEngine` interface and the types after it in
   method's `dr` defaults to the session's `observer.assumed_position` (and its prior
   `sigma_nm` when `assumed_position_role` is `prior`). The DR is never a prior on the
   answer.
-- `VesselMotion` is `{"course_deg", "speed_kn"}`, constant over the run.
+- `VesselMotion` is `{"course_deg", "speed_kn"}`, constant over the run; a speed beyond
+  1000 kn either way throws.
 - Shared result pieces: `LatitudeEstimate {lat_deg, sigma_arcmin}`;
   `LongitudeEstimate {lon_deg, sigma_arcmin, sigma_nm, clock_sigma_arcmin}` (sigma in
   arcminutes *of longitude* and as nautical miles east–west, clock term included);
