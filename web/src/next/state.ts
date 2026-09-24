@@ -281,14 +281,18 @@ export interface Layers {
   twilight: boolean;
   /** Map: ground points (GPs) of the bodies. */
   groundPoints: boolean;
-  /** Map: circles of position of the bodies. */
+  /** Map: circles of position of the bodies (the selected body's circle of equal altitude). */
   circles: boolean;
+  /** Map: altitude rings every 10° round the selected body's ground point. */
+  altitudeRings: boolean;
   /** Map: SunCalc-style compass overlay at the observer. */
   compass: boolean;
   /** Map and sky: today's path of the selected body. */
   paths: boolean;
   /** Map: latitude/longitude grid. */
   graticule: boolean;
+  /** Map: scale bar. */
+  scaleBar: boolean;
   /** Map: optional online OpenStreetMap layer. Off by default (network; EXPLORER_PLAN 3.4). */
   streets: boolean;
   /** Sky: constellation figures. */
@@ -364,9 +368,11 @@ export const DEFAULT_LAYERS: Layers = {
   twilight: true,
   groundPoints: true,
   circles: false,
+  altitudeRings: false,
   compass: true,
   paths: true,
   graticule: false,
+  scaleBar: true,
   streets: false,
   constellations: true,
   constellationNames: true,

@@ -49,6 +49,8 @@ export default defineConfig({
         // The Sky view's developer page (sky agent): the view alone, for screenshots
         // and frame-time measurements.
         devSky: resolve(import.meta.dirname, 'next/dev-sky.html'),
+        // The Map view on its own, for its developer (map agent).
+        devMap: resolve(import.meta.dirname, 'next/dev-map.html'),
       },
     },
   },
