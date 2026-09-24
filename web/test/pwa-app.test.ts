@@ -88,11 +88,12 @@ describe('web app manifest', () => {
 describe('the explorer page', () => {
   const html = read('next/index.html');
 
-  it('links the manifest and icons by their public paths (Vite makes them relative)', () => {
+  it('links the manifest and the iOS icon by their public paths (Vite makes them relative)', () => {
     expect(html).toContain('<link rel="manifest" href="/manifest.webmanifest" />');
-    expect(html).toContain('<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />');
     expect(html).toContain('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />');
     for (const href of html.matchAll(/href="\/([^"]+)"/g)) expect(existsSync(resolve(PUBLIC, href[1]!)), href[1]).toBe(true);
+    // The workbench, which had no icon, uses the app icon.
+    expect(read('index.html')).toContain('<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />');
   });
 
   it('starts offline support from its entry module', () => {
