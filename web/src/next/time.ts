@@ -21,9 +21,10 @@ export const MS_PER_DAY = 86_400_000;
 
 /**
  * What the user chose for a place (stored with the observer, never persisted).
- * `guessed: true` means the zone was guessed from the place and follows it: the shell
- * guesses again whenever the place moves. Without it the person pinned the zone and it
- * stays (`zonePinned` in state.ts). UTC is always a pinned choice.
+ * `guessed: false` means the person chose the zone: it stays when the place moves
+ * (`zonePinned` in state.ts). `guessed: true`, or no flag (a zone that came with a place),
+ * means it follows the place: it is guessed again whenever the place moves. UTC is always
+ * the person's choice.
  */
 export type ZoneChoice =
   | { kind: 'iana'; zone: string; guessed?: boolean }

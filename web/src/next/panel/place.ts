@@ -111,7 +111,10 @@ export function placeSection(ctx: Ctx, place: PlaceService): { el: HTMLElement; 
       store.patch({ observer: { zone: zoneChoiceFromGuess(place.guess(o.lat_deg, o.lon_deg)) } });
     } else {
       const { kind } = o.zone;
-      store.patch({ observer: { zone: kind === 'iana' ? { kind, zone: o.zone.zone } : kind === 'nautical' ? { kind } : { kind: 'utc' } } });
+      // The person's own choice: it stays when the place moves (`guessed: false`).
+      store.patch({
+        observer: { zone: kind === 'iana' ? { kind, zone: o.zone.zone, guessed: false } : kind === 'nautical' ? { kind, guessed: false } : { kind: 'utc' } },
+      });
     }
   });
 
@@ -192,10 +195,10 @@ function placeEditor(ctx: Ctx, place: PlaceService, done: () => void): { el: HTM
       choice === 'follow'
         ? zoneChoiceFromGuess(place.guess(lat_deg, lon_deg))
         : choice === 'nautical'
-          ? { kind: 'nautical' }
+          ? { kind: 'nautical', guessed: false }
           : choice === 'utc'
             ? { kind: 'utc' }
-            : { kind: 'iana', zone: choice.slice(5) };
+            : { kind: 'iana', zone: choice.slice(5), guessed: false };
     const eyeM = lengthToMetres(Number(eye.value), s.settings.units);
     // The old name no longer applies to a new position unless the person typed one.
     const typed = label.value.trim();

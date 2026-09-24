@@ -594,12 +594,13 @@ function zoneParam(zone: ZoneChoice): string {
 }
 
 /**
- * True when the person chose this zone (it stays when the place changes); false when it
- * was guessed from the place (the shell guesses again whenever the place moves). UTC is
- * always a choice: no guess produces it.
+ * True when the person chose this zone (it stays when the place changes): UTC, or a zone
+ * marked `guessed: false`. Any other zone follows the place (the shell and the map guess
+ * again whenever the place moves): `guessed: true`, or no flag (a zone that came with a
+ * place). The same rule as the map's (map/place.ts).
  */
 export function zonePinned(zone: ZoneChoice): boolean {
-  return zone.kind === 'utc' || !zone.guessed;
+  return zone.kind === 'utc' || zone.guessed === false;
 }
 
 /**
@@ -662,7 +663,7 @@ export function decodeShare(hash: string): SharePatch | null {
     const h = parseNumber(params.get('h'));
     const tz = params.get('tz') ?? '';
     // Links made before `tzpin` existed carry no pin: their zone follows the place.
-    const guessed = params.get('tzpin') === '1' ? {} : { guessed: true };
+    const guessed = { guessed: params.get('tzpin') !== '1' };
     const zone: ZoneChoice =
       tz === 'utc'
         ? { kind: 'utc' }
