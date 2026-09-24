@@ -12,6 +12,7 @@
 //! - [`corrections`] section 5: the correction chain
 //! - [`reduce`]     sections 3-5: observation -> reduced sight
 //! - [`session`]    section 10: validation and CSV round-trip
+//! - [`sights`]     Moon and planet sight tools: predicted sextant readings, lunar distance
 //! - [`solver`]     section 8: weighted least squares, multistart, ambiguity
 //! - [`uncertainty`] section 9: covariance, ellipse, conditioning
 //! - [`linalg`]     small dense linear algebra used by the two modules above
@@ -26,6 +27,7 @@ pub mod methods;
 pub mod planner;
 pub mod reduce;
 pub mod session;
+pub mod sights;
 pub mod solver;
 pub mod time;
 pub mod types;

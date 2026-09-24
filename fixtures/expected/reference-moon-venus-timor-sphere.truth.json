@@ -1,0 +1,10 @@
+{
+  "clock_offset_s": 0.000000,
+  "notes": "Synthetic, zero noise, no clock offset, no shared bias.",
+  "position": {"lat_deg": -12.200000000, "lon_deg": 128.500000000},
+  "schema": "skyfix.truth/1",
+  "seed": 0,
+  "session_name": "reference-moon-venus-timor-sphere",
+  "shared_altitude_bias_arcmin": 0.0000,
+  "wrong_sight_ids": []
+}
