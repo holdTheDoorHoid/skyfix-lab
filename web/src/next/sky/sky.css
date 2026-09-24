@@ -1,198 +1,25 @@
 /*
- * Sky view chrome: toolbar, tooltip, layers menu. OWNER: sky agent.
+ * Sky view layout. OWNER: sky agent.
  *
- * Colours come from the design tokens (theme/tokens.css) with per-theme fallbacks here,
- * so the view keeps its look — and the night theme stays red on black — even on a page
- * without the design system. The canvas itself is coloured by src/next/sky/palette.ts.
+ * The controls are the design system's (theme/components.css: sf-seg, sf-btn, sf-float,
+ * sf-btn-group, sf-popover, sf-switch, sf-phase-chip) floating over the canvas as on the
+ * map; this file only places them and styles the hover card. Colours are tokens only
+ * (theme/tokens.css); the canvas itself is coloured by src/next/sky/palette.ts.
+ *
+ * The overlays have their own positions (not the map's sf-overlay--*), because on a
+ * phone the map hides its projection switch and zoom buttons, and the sky must keep its
+ * Dome / Panorama switch.
  */
 
 .sky {
-  --sky-surface: var(--stage-surface, #ffffff);
-  --sky-surface-2: var(--stage-surface-2, #f2f5f7);
-  --sky-bg: var(--stage-bg, #eef1f3);
-  --sky-line: var(--stage-line, #d4dbe1);
-  --sky-line-strong: var(--stage-line-strong, #7c8894);
-  --sky-ink: var(--stage-ink, #17202a);
-  --sky-ink-2: var(--stage-ink-2, #45525f);
-  --sky-accent: var(--accent, #f2b63c);
-  --sky-accent-soft: var(--accent-soft, rgba(242, 182, 60, 0.16));
-  --sky-on-accent: var(--on-accent, #1e1502);
-  --sky-focus: var(--stage-focus, #9a6500);
-  --sky-shadow: var(--shadow-2, 0 4px 14px rgba(12, 20, 30, 0.18), 0 1px 3px rgba(12, 20, 30, 0.12));
-
   position: relative;
-  display: flex;
-  flex-direction: column;
   width: 100%;
   height: 100%;
-  min-height: 280px;
-  background: var(--sky-bg);
-  color: var(--sky-ink);
-  font-family: var(--font-ui, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif);
-  font-size: 13px;
-}
-
-:root[data-theme='dark'] .sky {
-  --sky-surface: var(--stage-surface, #0f1b2f);
-  --sky-surface-2: var(--stage-surface-2, #16253d);
-  --sky-bg: var(--stage-bg, #08111f);
-  --sky-line: var(--stage-line, #22334e);
-  --sky-line-strong: var(--stage-line-strong, #5d7294);
-  --sky-ink: var(--stage-ink, #e9eff7);
-  --sky-ink-2: var(--stage-ink-2, #a9b9cd);
-  --sky-accent: var(--accent, #f5bd48);
-  --sky-accent-soft: var(--accent-soft, rgba(245, 189, 72, 0.15));
-  --sky-focus: var(--stage-focus, #ffd47e);
-  --sky-shadow: var(--shadow-2, 0 4px 16px rgba(0, 0, 0, 0.5));
-}
-
-/* Red night vision: no blue and no white light anywhere. */
-:root[data-theme='night'] .sky {
-  --sky-surface: var(--stage-surface, #080000);
-  --sky-surface-2: var(--stage-surface-2, #140200);
-  --sky-bg: var(--stage-bg, #000000);
-  --sky-line: var(--stage-line, #2a0500);
-  --sky-line-strong: var(--stage-line-strong, #c01800);
-  --sky-ink: var(--stage-ink, #ff2e00);
-  --sky-ink-2: var(--stage-ink-2, #f21a00);
-  --sky-accent: var(--accent, #ff3d00);
-  --sky-accent-soft: var(--accent-soft, rgba(255, 40, 0, 0.14));
-  --sky-on-accent: var(--on-accent, #000000);
-  --sky-focus: var(--stage-focus, #ff4400);
-  --sky-shadow: var(--shadow-2, 0 0 0 1px #3a0800);
-}
-
-.sky-toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: var(--sky-surface);
-  border-bottom: 1px solid var(--sky-line);
-}
-
-.sky-btn,
-.sky-seg button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 30px;
-  padding: 0 11px;
-  border: 1px solid var(--sky-line-strong);
-  border-radius: 6px;
-  background: var(--sky-surface);
-  color: var(--sky-ink);
-  font: inherit;
-  font-weight: 530;
-  cursor: pointer;
-  list-style: none;
-}
-
-.sky-btn::-webkit-details-marker {
-  display: none;
-}
-
-.sky-btn:hover,
-.sky-seg button:hover {
-  background: var(--sky-surface-2);
-}
-
-.sky-btn:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.sky-btn-compact {
-  min-width: 30px;
-  padding: 0 8px;
-}
-
-.sky-btn[aria-pressed='true'] {
-  background: var(--sky-accent-soft);
-  border-color: var(--sky-accent);
-}
-
-.sky-seg {
-  display: inline-flex;
-}
-
-.sky-seg button {
-  border-radius: 0;
-}
-
-.sky-seg button:first-child {
-  border-radius: 6px 0 0 6px;
-}
-
-.sky-seg button:last-child {
-  border-radius: 0 6px 6px 0;
-  margin-left: -1px;
-}
-
-.sky-seg button[aria-checked='true'] {
-  background: var(--sky-accent);
-  border-color: var(--sky-accent);
-  color: var(--sky-on-accent);
-  position: relative;
-}
-
-.sky-look {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.sky-look[hidden],
-.sky-btn[hidden] {
-  display: none;
-}
-
-.sky-fov {
-  min-width: 70px;
-  text-align: center;
-  color: var(--sky-ink-2);
-  font-family: var(--font-num, ui-monospace, monospace);
-  font-size: 12px;
-}
-
-.sky-layers {
-  position: relative;
-  margin-left: auto;
-}
-
-.sky-layers-list {
-  position: absolute;
-  right: 0;
-  top: calc(100% + 6px);
-  z-index: var(--z-popover, 50);
-  display: grid;
-  gap: 7px;
-  min-width: 250px;
-  padding: 10px 12px;
-  background: var(--sky-surface);
-  border: 1px solid var(--sky-line);
-  border-radius: 8px;
-  box-shadow: var(--sky-shadow);
-}
-
-.sky-check {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-}
-
-.sky-check input {
-  accent-color: var(--sky-accent);
-  margin: 0;
-}
-
-.sky-stage {
-  position: relative;
-  flex: 1 1 auto;
-  min-height: 0;
+  min-height: 240px;
   overflow: hidden;
+  background: var(--stage-bg);
+  color: var(--stage-ink);
+  font-family: var(--font-ui);
 }
 
 .sky-canvas {
@@ -206,31 +33,86 @@
 }
 
 .sky-canvas:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--sky-focus);
+  box-shadow: inset 0 0 0 var(--focus-width) var(--stage-focus);
 }
 
-.sky-btn:focus-visible,
-.sky-seg button:focus-visible {
-  outline: 2px solid var(--sky-focus);
-  outline-offset: 2px;
+.sky-ov {
+  position: absolute;
+  z-index: var(--z-stage-overlay);
+  display: flex;
+  gap: var(--space-2);
 }
 
+.sky-ov[hidden] {
+  display: none;
+}
+
+.sky-ov--tr {
+  top: var(--space-3);
+  right: var(--space-3);
+  align-items: flex-start;
+}
+
+.sky-ov--tr > .sf-btn[hidden] {
+  display: none;
+}
+
+.sky-ov--r {
+  top: 60px;
+  right: var(--space-3);
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.sky-ov--bl {
+  left: var(--space-3);
+  bottom: var(--space-3);
+  max-width: calc(100% - 2 * var(--space-3));
+}
+
+.sky-look > .sf-btn {
+  min-width: var(--control-h);
+  font-weight: var(--weight-semibold);
+}
+
+.sky-status {
+  display: flex;
+  align-items: center;
+  padding: 5px 10px 5px 5px;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-xs);
+  color: var(--ui-ink-2);
+}
+
+.sky-status__text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+}
+
+.sky-status__text > span:not(.sf-phase-chip) {
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+}
+
+/* The hover card: the stage surface, like the map's popovers. */
 .sky-tip {
   position: absolute;
   left: 0;
   top: 0;
-  z-index: var(--z-tooltip, 60);
+  z-index: var(--z-tooltip);
   display: flex;
   flex-direction: column;
   gap: 1px;
   max-width: 300px;
-  padding: 8px 10px;
-  border: 1px solid var(--sky-line);
-  border-radius: 8px;
-  background: var(--sky-surface);
-  color: var(--sky-ink);
-  box-shadow: var(--sky-shadow);
-  line-height: 1.4;
+  padding: 8px 11px 9px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--radius-md);
+  background: var(--ui-bg);
+  color: var(--ui-ink);
+  box-shadow: var(--shadow-2);
+  line-height: var(--leading-tight);
   pointer-events: none;
 }
 
@@ -239,18 +121,25 @@
 }
 
 .sky-tip-title {
-  font-size: 14px;
-  font-weight: 650;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
 }
 
 .sky-tip-sub {
-  color: var(--sky-ink-2);
-  font-size: 12px;
+  margin-bottom: 3px;
+  color: var(--ui-ink-2);
+  font-size: var(--text-xs);
 }
 
 .sky-tip-line {
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
+  line-height: var(--leading);
+}
+
+.sky-tip-line b {
+  font-family: var(--font-num);
+  font-weight: var(--weight-medium);
 }
 
 .sky-sr {
@@ -265,12 +154,18 @@
   border: 0;
 }
 
-@media (max-width: 520px) {
-  .sky-toolbar {
+@media (max-width: 720px) {
+  .sky-ov--tr {
+    top: var(--space-2);
+    right: var(--space-2);
     gap: 6px;
-    padding: 6px 8px;
   }
-  .sky-fov {
-    min-width: 0;
+  .sky-ov--r {
+    top: 52px;
+    right: var(--space-2);
+  }
+  .sky-ov--bl {
+    left: var(--space-2);
+    bottom: var(--space-2);
   }
 }

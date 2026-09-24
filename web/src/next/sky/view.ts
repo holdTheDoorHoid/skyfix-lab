@@ -53,6 +53,8 @@ import {
 } from './projection.js';
 import { bodyKey, bodyToken, SkyRenderer, starKey, type Frame, type PathData } from './render.js';
 import { SkyScene } from './scene.js';
+import { button, iconButton, phaseChip, popover, segmented, setPressed, switchRow } from '../theme/primitives.js';
+import { onThemeChange } from '../theme/theme.js';
 import { starAlpha, starDesignation, starRadius, starTitle } from './stars.js';
 
 // ---------------------------------------------------------------------------
@@ -102,16 +104,16 @@ export interface SkyMounted extends Mounted {
 const EASE_MAX_DAYS = 0.25;
 const EASE_MS = 260;
 
-const LAYER_ITEMS: readonly { key: keyof Layers; label: string }[] = [
-  { key: 'constellations', label: 'Constellation figures' },
-  { key: 'constellationNames', label: 'Constellation names' },
-  { key: 'constellationBoundaries', label: 'Constellation boundaries' },
-  { key: 'starNames', label: 'Star names' },
-  { key: 'paths', label: 'Path of the selected body today' },
-  { key: 'altAzGrid', label: 'Height and bearing grid' },
-  { key: 'meridian', label: 'Meridian' },
-  { key: 'equator', label: 'Celestial equator' },
-  { key: 'ecliptic', label: 'Ecliptic' },
+const LAYER_ITEMS: readonly { key: keyof Layers; label: string; note?: string; group: 'sky' | 'lines' }[] = [
+  { key: 'constellations', label: 'Constellation figures', group: 'sky' },
+  { key: 'constellationNames', label: 'Constellation names', group: 'sky' },
+  { key: 'constellationBoundaries', label: 'Constellation boundaries', note: 'IAU, as agreed in 1930', group: 'sky' },
+  { key: 'starNames', label: 'Star names', group: 'sky' },
+  { key: 'paths', label: 'Today’s path of the selected body', group: 'sky' },
+  { key: 'altAzGrid', label: 'Height and bearing grid', group: 'lines' },
+  { key: 'meridian', label: 'Meridian', note: 'north to south through the zenith', group: 'lines' },
+  { key: 'equator', label: 'Celestial equator', group: 'lines' },
+  { key: 'ecliptic', label: 'Ecliptic', note: 'the Sun’s yearly path', group: 'lines' },
 ];
 
 type Target = { key: string; kind: 'body'; name: string } | { key: string; kind: 'star'; index: number };
@@ -150,53 +152,104 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   const cleanups: (() => void)[] = [];
   let destroyed = false;
 
-  // --- DOM ---------------------------------------------------------------------------
+  // --- DOM: the canvas, with the controls floating over it as on the map --------------
   const root = el('div', { class: 'sky' });
-  const toolbar = el('div', { class: 'sky-toolbar', role: 'toolbar', 'aria-label': 'Sky view' });
-  const modeGroup = el('div', { class: 'sky-seg', role: 'radiogroup', 'aria-label': 'Projection' });
-  const modeButtons: Record<SkyMode, HTMLButtonElement> = {
-    dome: el('button', { type: 'button', role: 'radio', 'data-mode': 'dome', title: 'The whole sky, zenith in the middle' }, 'Dome'),
-    panorama: el('button', { type: 'button', role: 'radio', 'data-mode': 'panorama', title: 'Looking toward the horizon' }, 'Panorama'),
-  };
-  modeGroup.append(modeButtons.dome, modeButtons.panorama);
-  const southUp = el('button', { type: 'button', class: 'sky-btn', 'aria-pressed': 'false', title: 'Turn the chart so south is at the top' }, 'South up');
-  const look = el('div', { class: 'sky-look', role: 'group', 'aria-label': 'Look toward' });
-  const lookButtons = (['N', 'E', 'S', 'W'] as const).map((d, k) => {
-    const b = el('button', { type: 'button', class: 'sky-btn sky-btn-compact', title: `Look ${['north', 'east', 'south', 'west'][k]}` }, d);
-    b.addEventListener('click', () => {
-      view.aimed = true;
-      view.panorama.azimuth = k * 90;
-      requestDraw();
-    });
-    return b;
-  });
-  const zoomOut = el('button', { type: 'button', class: 'sky-btn sky-btn-compact', 'aria-label': 'Wider field', title: 'Wider field' }, '−');
-  const zoomIn = el('button', { type: 'button', class: 'sky-btn sky-btn-compact', 'aria-label': 'Narrower field', title: 'Narrower field' }, '+');
-  const fovText = el('output', { class: 'sky-fov', 'aria-live': 'off' });
-  look.append(...lookButtons, zoomOut, fovText, zoomIn);
-  const layersMenu = el('details', { class: 'sky-layers' });
-  const layersSummary = el('summary', { class: 'sky-btn' }, 'Layers');
-  const layersList = el('div', { class: 'sky-layers-list', role: 'group', 'aria-label': 'Sky layers' });
-  const layerBoxes = new Map<keyof Layers, HTMLInputElement>();
-  for (const item of LAYER_ITEMS) {
-    const box = el('input', { type: 'checkbox' });
-    box.addEventListener('change', () => store.patch({ layers: { [item.key]: box.checked } as Partial<Layers> }));
-    layerBoxes.set(item.key, box);
-    layersList.append(el('label', { class: 'sky-check' }, box, ` ${item.label}`));
-  }
-  layersMenu.append(layersSummary, layersList);
-  toolbar.append(modeGroup, southUp, look, layersMenu);
-
-  const stage = el('div', { class: 'sky-stage' });
   const canvas = el('canvas', { class: 'sky-canvas', tabindex: '0', role: 'img' });
-  const tooltip = el('div', { class: 'sky-tip', role: 'status', 'aria-live': 'off' });
+  const tooltip = el('div', { class: 'sky-tip sf-on-stage', role: 'status', 'aria-live': 'off' });
   tooltip.hidden = true;
   const live = el('p', { class: 'sky-sr', 'aria-live': 'polite' });
-  const hint = el('p', { class: 'sky-sr', id: `sky-hint-${Math.random().toString(36).slice(2, 8)}` },
-    'Up and down arrow keys move between the Sun, Moon, planets and navigational stars above the horizon; Enter selects; Escape clears.');
+  const hint = el(
+    'p',
+    { class: 'sky-sr', id: `sky-hint-${Math.random().toString(36).slice(2, 8)}` },
+    'Up and down arrow keys move between the Sun, Moon, planets and navigational stars above the horizon; ' +
+      'Enter selects; Escape clears. In the panorama, plus and minus zoom.',
+  );
   canvas.setAttribute('aria-describedby', hint.id);
-  stage.append(canvas, tooltip, live, hint);
-  root.append(toolbar, stage);
+
+  const modeControl = segmented<SkyMode>({
+    label: 'Sky view',
+    value: view.mode,
+    size: 'sm',
+    class: 'sf-float',
+    onChange: (mode) => setMode(mode),
+    options: [
+      { value: 'dome', label: 'Dome', icon: 'sky', tip: 'The whole sky, with the zenith in the middle' },
+      { value: 'panorama', label: 'Panorama', icon: 'compass', tip: 'Toward the horizon: drag to turn, scroll to zoom' },
+    ],
+  });
+  const southUp = button({
+    label: 'South up',
+    size: 'sm',
+    class: 'sf-float',
+    pressed: view.southUp,
+    tip: 'Turn the chart so south is at the top',
+    onClick: () => {
+      view.southUp = !view.southUp;
+      requestDraw();
+    },
+  });
+  const layersButton = button({
+    label: 'Layers',
+    icon: 'layers',
+    size: 'sm',
+    class: 'sf-float',
+    tip: 'Constellations, star names, grid and reference lines',
+  });
+  const layerSwitches = new Map<keyof Layers, HTMLButtonElement>();
+  const switchFor = (item: { key: keyof Layers; label: string; note?: string }): HTMLButtonElement => {
+    const sw = switchRow({
+      label: item.label,
+      checked: store.get().layers[item.key],
+      ...(item.note ? { note: item.note } : {}),
+      onChange: (on) => store.patch({ layers: { [item.key]: on } as Partial<Layers> }),
+    });
+    layerSwitches.set(item.key, sw);
+    return sw;
+  };
+  const layersContent = el(
+    'div',
+    { class: 'sf-layers' },
+    el('div', { class: 'sf-popover__title' }, 'In the sky'),
+    ...LAYER_ITEMS.filter((i) => i.group === 'sky').map(switchFor),
+    el('div', { class: 'sf-popover__title' }, 'Lines'),
+    ...LAYER_ITEMS.filter((i) => i.group === 'lines').map(switchFor),
+  );
+  const layersPopover = popover(layersButton, layersContent, { label: 'Sky layers', placement: 'bottom-end', onStage: true });
+  cleanups.push(() => layersPopover.destroy());
+
+  const zoomIn = iconButton('plus', 'Zoom in: a narrower field', { variant: 'secondary', tip: 'Zoom in', onClick: () => zoomBy(1 / 1.25) });
+  const zoomOut = iconButton('minus', 'Zoom out: a wider field', { variant: 'secondary', tip: 'Zoom out', onClick: () => zoomBy(1.25) });
+  const lookButtons = (['N', 'E', 'S', 'W'] as const).map((d, k) =>
+    button({
+      label: d,
+      size: 'sm',
+      tip: `Look ${['north', 'east', 'south', 'west'][k]}`,
+      ariaLabel: `Look ${['north', 'east', 'south', 'west'][k]}`,
+      onClick: () => {
+        view.aimed = true;
+        view.panorama.azimuth = k * 90;
+        requestDraw();
+      },
+    }),
+  );
+  const face = iconButton('target', 'Face the selected body', {
+    variant: 'secondary',
+    class: 'sf-float',
+    tip: 'Face the selected body',
+    onClick: () => faceSelected(),
+  });
+  const panoControls = el(
+    'div',
+    { class: 'sky-ov sky-ov--r sf-on-stage' },
+    el('div', { class: 'sf-btn-group' }, zoomIn, zoomOut),
+    el('div', { class: 'sf-btn-group sky-look', role: 'group', 'aria-label': 'Look toward' }, ...lookButtons),
+    face,
+  );
+  const statusText = el('span', { class: 'sky-status__text' });
+  const status = el('div', { class: 'sky-ov sky-ov--bl sf-on-stage' }, el('div', { class: 'sky-status sf-float' }, statusText));
+  const topRight = el('div', { class: 'sky-ov sky-ov--tr sf-on-stage' }, southUp, modeControl.el, layersButton);
+
+  root.append(canvas, tooltip, topRight, panoControls, status, live, hint);
   host.replaceChildren(root);
   cleanups.push(() => root.remove());
 
@@ -271,7 +324,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   }
 
   function resizeCanvas(): boolean {
-    const rect = stage.getBoundingClientRect();
+    const rect = root.getBoundingClientRect();
     const w = Math.max(1, Math.round(rect.width));
     const h = Math.max(1, Math.round(rect.height));
     const d = Math.max(1, Math.min(3, globalThis.devicePixelRatio || 1));
@@ -287,7 +340,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   function currentPalette(state: ExplorerState): SkyPalette {
     const theme = documentTheme(state.settings.theme);
     if (!palette || paletteTheme !== theme) {
-      palette = readPalette(theme, documentReadVar());
+      palette = readPalette(theme, documentReadVar);
       paletteTheme = theme;
       renderer.setPalette(palette);
     }
@@ -455,32 +508,54 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     if (ease) requestDraw();
   }
 
-  // --- toolbar and accessible text -----------------------------------------------------
+  // --- controls and accessible text ----------------------------------------------------
+  const PHASE_WORDS: Record<string, string> = {
+    day: 'Day',
+    civil: 'Civil twilight',
+    nautical: 'Nautical twilight',
+    astronomical: 'Astronomical twilight',
+    night: 'Night',
+  };
   let chromeKey = '';
+  let statusKey = '';
   function syncChrome(state: ExplorerState): void {
     const p = view.panorama;
-    const key = `${view.mode}|${view.southUp}|${Math.round(p.fov)}|${state.observer.label}|${state.observer.lat_deg}|${state.observer.lon_deg}|${Object.values(state.layers).join('')}`;
-    if (key === chromeKey) return;
-    chromeKey = key;
-    root.dataset.mode = view.mode;
-    for (const m of ['dome', 'panorama'] as const) {
-      modeButtons[m].setAttribute('aria-checked', String(view.mode === m));
-      modeButtons[m].tabIndex = view.mode === m ? 0 : -1;
+    const key = `${view.mode}|${view.southUp}|${Math.round(p.fov)}|${Math.round(p.azimuth)}|${state.observer.label}|${state.observer.lat_deg}|${state.observer.lon_deg}|${Object.values(state.layers).join('')}`;
+    if (key !== chromeKey) {
+      chromeKey = key;
+      root.dataset.mode = view.mode;
+      modeControl.set(view.mode);
+      setPressed(southUp, view.southUp);
+      southUp.hidden = view.mode !== 'dome';
+      panoControls.hidden = view.mode !== 'panorama';
+      zoomIn.disabled = p.fov <= PANORAMA_LIMITS.minFov + 0.5;
+      zoomOut.disabled = p.fov >= PANORAMA_LIMITS.maxFov - 0.5;
+      for (const [k, sw] of layerSwitches) sw.setAttribute('aria-checked', String(state.layers[k]));
+      const place =
+        state.observer.label ||
+        `${formatAngle(state.observer.lat_deg, 'decimal')}, ${formatAngle(state.observer.lon_deg, 'decimal')}`;
+      canvas.setAttribute(
+        'aria-label',
+        view.mode === 'dome'
+          ? `Chart of the whole sky from ${place}, zenith in the centre, ${view.southUp ? 'south' : 'north'} at the top.`
+          : `Panorama of the sky from ${place}, looking ${compassPoint(p.azimuth)}.`,
+      );
     }
-    southUp.setAttribute('aria-pressed', String(view.southUp));
-    southUp.hidden = view.mode !== 'dome';
-    look.hidden = view.mode !== 'panorama';
-    fovText.textContent = `${Math.round(p.fov)}° wide`;
-    zoomIn.disabled = p.fov <= PANORAMA_LIMITS.minFov + 0.5;
-    zoomOut.disabled = p.fov >= PANORAMA_LIMITS.maxFov - 0.5;
-    for (const [k, box] of layerBoxes) box.checked = state.layers[k];
-    const place = state.observer.label || `${formatAngle(state.observer.lat_deg, 'decimal')}, ${formatAngle(state.observer.lon_deg, 'decimal')}`;
-    canvas.setAttribute(
-      'aria-label',
-      view.mode === 'dome'
-        ? `Sky chart of the whole sky from ${place}, zenith in the centre, ${view.southUp ? 'south' : 'north'} at the top.`
-        : `Panorama of the sky from ${place}, looking ${compassPoint(p.azimuth)}.`,
-    );
+    // Status: the sky phase (its colour and its name) and, in the panorama, where it looks.
+    const phase = sky?.sky_phase ?? null;
+    const sun = sky ? sky.sun_altitude_deg : Number.NaN;
+    const sunText = Number.isFinite(sun)
+      ? `Sun ${formatAngle(Math.abs(sun), 'dm').replace(/\.\d′$/, '′')} ${sun >= 0 ? 'up' : 'below the horizon'}`
+      : '';
+    const lookText = view.mode === 'panorama' ? `Looking ${compassPoint(p.azimuth)} · ${Math.round(p.fov)}° wide` : '';
+    const nextStatus = `${phase}|${sunText}|${lookText}`;
+    if (nextStatus !== statusKey) {
+      statusKey = nextStatus;
+      statusText.replaceChildren(
+        ...(phase ? [phaseChip(phase, PHASE_WORDS[phase] ?? phase)] : []),
+        ...[sunText, lookText].filter(Boolean).map((t) => el('span', {}, t)),
+      );
+    }
   }
 
   // --- targets: hit-testing, focus order, descriptions --------------------------------
@@ -557,7 +632,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   interface Description {
     title: string;
     sub: string;
-    lines: string[];
+    /** [label, value]; value in the number font, or '' for a plain note. */
+    lines: [string, string][];
     speech: string;
   }
 
@@ -566,7 +642,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     const terms = state.settings.navigatorTerms;
     const heightWord = terms ? 'Height above horizon · altitude' : 'Height above horizon';
     const bearingWord = terms ? 'Bearing · azimuth' : 'Bearing';
-    const lines: string[] = [];
+    const lines: [string, string][] = [];
     let title = '';
     let sub = '';
     let alt = Number.NaN;
@@ -604,16 +680,19 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       return null;
     }
     const up = alt >= 0;
-    lines.push(`${heightWord}: ${formatAngle(alt, fmt)}${up ? '' : ' (below the horizon)'}`);
-    lines.push(`${bearingWord}: ${formatBearing(az, fmt)} (${compassPoint(az)})`);
+    lines.push([heightWord, `${formatAngle(alt, fmt)}${up ? '' : ' (below the horizon)'}`]);
+    lines.push([bearingWord, `${formatBearing(az, fmt)} ${compassPoint(az)}`]);
     if (mag !== null && Number.isFinite(mag)) {
-      lines.push(`Magnitude ${formatMagnitude(mag)}${b && b.kind !== 'star' ? '' : ' (catalogue)'}`);
+      lines.push([b && b.kind !== 'star' ? 'Magnitude' : 'Magnitude (catalogue)', formatMagnitude(mag)]);
     }
     if (b?.illuminated_fraction !== null && b?.illuminated_fraction !== undefined && b.kind !== 'star') {
-      lines.push(`${Math.round(b.illuminated_fraction * 100)} % lit`);
+      lines.push(['Lit', `${Math.round(b.illuminated_fraction * 100)} %`]);
     }
-    if (starIndex >= 0 && data && !data.isNav[starIndex]) lines.push('Catalogue star, display only (not used for sights)');
-    const speech = `${title}. ${lines.slice(0, 2).join('. ')}.`;
+    if (starIndex >= 0 && data && !data.isNav[starIndex]) lines.push(['Catalogue star, display only (not used for sights)', '']);
+    const speech = `${title}. ${lines
+      .slice(0, 2)
+      .map(([k, v]) => `${k} ${v}`)
+      .join('. ')}.`;
     return { title, sub, lines, speech };
   }
 
@@ -632,13 +711,13 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       tipText = '';
       return;
     }
-    const text = `${d.title}\n${d.sub}\n${d.lines.join('\n')}`;
+    const text = `${d.title}\n${d.sub}\n${d.lines.map((l) => l.join(':')).join('\n')}`;
     if (text !== tipText) {
       tipText = text;
       tooltip.replaceChildren(
         el('strong', { class: 'sky-tip-title' }, d.title),
         ...(d.sub ? [el('span', { class: 'sky-tip-sub' }, d.sub)] : []),
-        ...d.lines.map((line) => el('span', { class: 'sky-tip-line' }, line)),
+        ...d.lines.map(([k, v]) => el('span', { class: 'sky-tip-line' }, ...(v ? [`${k} `, el('b', {}, v)] : [k]))),
       );
     }
     tooltip.hidden = false;
@@ -853,23 +932,18 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     hoverKey = null;
     requestDraw();
   }
-  for (const m of ['dome', 'panorama'] as const) {
-    modeButtons[m].addEventListener('click', () => setMode(m));
-  }
-  modeGroup.addEventListener('keydown', (e) => {
-    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
-      const next: SkyMode = view.mode === 'dome' ? 'panorama' : 'dome';
-      setMode(next);
-      modeButtons[next].focus();
-      e.preventDefault();
-    }
-  });
-  southUp.addEventListener('click', () => {
-    view.southUp = !view.southUp;
+  /** Turn the panorama toward the selected body (and tilt up to it if needed). */
+  function faceSelected(): void {
+    const f = lastFrame;
+    const key = f ? selectedKey(store.get()) : null;
+    const at = f && key ? renderer.locate(f, key) : null;
+    if (!at) return;
+    view.aimed = true;
+    view.panorama.azimuth = (at.az * RAD + 360) % 360;
+    const alt = at.alt * RAD;
+    if (alt > pano.topAlt - 5 || alt < pano.bottomAlt + 2) view.panorama.bottomAlt = Math.max(-5, alt - 20);
     requestDraw();
-  });
-  zoomIn.addEventListener('click', () => zoomBy(1 / 1.25));
-  zoomOut.addEventListener('click', () => zoomBy(1.25));
+  }
 
   // --- store, theme, size --------------------------------------------------------------
   cleanups.push(
@@ -903,21 +977,18 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       requestDraw();
     }),
   );
-  if (typeof MutationObserver === 'function') {
-    // Re-read the tokens only when the theme really changes (writing the same value
-    // again still produces a mutation record).
-    const mo = new MutationObserver(() => {
-      if (documentTheme(store.get().settings.theme) !== paletteTheme) {
+  // The shell applies the theme to <html>; re-read the tokens when it really changes.
+  cleanups.push(
+    onThemeChange((theme) => {
+      if (theme !== paletteTheme) {
         palette = null;
         requestDraw();
       }
-    });
-    mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    cleanups.push(() => mo.disconnect());
-  }
+    }),
+  );
   if (typeof ResizeObserver === 'function') {
     const ro = new ResizeObserver(() => requestDraw());
-    ro.observe(stage);
+    ro.observe(root);
     cleanups.push(() => ro.disconnect());
   }
   const onWindowResize = (): void => requestDraw();

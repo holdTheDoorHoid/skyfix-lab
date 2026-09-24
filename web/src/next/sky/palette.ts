@@ -1,17 +1,16 @@
 /**
- * Every colour and font the Sky view draws with, read from the design tokens (CSS custom
- * properties on `<html>`, EXPLORER_PLAN §4: `theme/tokens.css`), and every colour it
- * derives from them. OWNER: sky agent.
+ * Every colour, dash and font the Sky view draws with, read from the design tokens
+ * (`theme/tokens.css`, through `theme/tokens.ts`), and every colour it derives from them.
+ * OWNER: sky agent. This is the ONE place the Sky view reads colour; the values live
+ * only in tokens.css.
  *
- * This is the ONE place the Sky view reads colour. Until the design system is merged
- * into this branch the tokens may be missing, so each read has a per-theme fallback
- * close to the design agent's values; once `theme/tokens.ts` is here, `readVar` can be
- * swapped for its `tokenValue` without touching the renderer.
- *
- * The red night-vision theme draws in reds only: every colour this module hands out
- * in that theme — tokens, star tints, glows, mixes — goes through `nightRed`, which
- * keeps the blue channel at 0 and the green channel small.
+ * The red night-vision theme draws in reds only: every colour this module hands out in
+ * that theme — tokens, star tints, glows, mixes — goes through `nightRed`, which keeps
+ * the blue channel at 0 and the green channel at most 12 % of the red (the rule
+ * `theme-contrast.test.ts` holds the tokens to).
  */
+
+import { parseColor, tokenValue } from '../theme/tokens.js';
 
 export type SkyTheme = 'light' | 'dark' | 'night';
 
@@ -39,120 +38,9 @@ export type BodyKey = (typeof BODY_KEYS)[number];
 export const PHASE_KEYS = ['day', 'civil', 'nautical', 'astronomical', 'night'] as const;
 export type PhaseKey = (typeof PHASE_KEYS)[number];
 
-type TokenTable = Record<string, string>;
-
-/**
- * Fallbacks per theme, used only when a token is not defined on the page. Values follow
- * the design agent's draft (`theme/tokens.css`) so the view looks the same before and
- * after the merge.
- */
-const FALLBACK: Record<SkyTheme, TokenTable> = {
-  light: {
-    '--body-sun': '#f5b400',
-    '--body-moon': '#a9bcd6',
-    '--body-mercury': '#a7a7a7',
-    '--body-venus': '#efdcb0',
-    '--body-mars': '#d9683f',
-    '--body-jupiter': '#d7a874',
-    '--body-saturn': '#cebd7e',
-    '--body-uranus': '#5cc2bf',
-    '--body-neptune': '#6e93ee',
-    '--body-star': '#ffffff',
-    '--phase-night': '#0c1430',
-    '--phase-astronomical': '#1c2b5c',
-    '--phase-nautical': '#34528f',
-    '--phase-civil': '#7ea2d8',
-    '--phase-day': '#b3d8f4',
-    '--phase-night-ink': '#c4d0ea',
-    '--phase-day-ink': '#0d2138',
-    '--accent': '#f2b63c',
-    '--focus': '#ffd47e',
-    '--event-set': '#ff6b5e',
-    '--stage-bg': '#eef1f3',
-    '--stage-ink': '#17202a',
-    '--stage-ink-2': '#45525f',
-    '--stage-line': '#d4dbe1',
-    '--stage-line-strong': '#7c8894',
-  },
-  dark: {
-    '--body-sun': '#f7b800',
-    '--body-moon': '#b9cae0',
-    '--body-mercury': '#ababab',
-    '--body-venus': '#f1dfb4',
-    '--body-mars': '#e0714a',
-    '--body-jupiter': '#dbae7c',
-    '--body-saturn': '#d3c386',
-    '--body-uranus': '#62c7c4',
-    '--body-neptune': '#7a9df2',
-    '--body-star': '#ffffff',
-    '--phase-night': '#0a1226',
-    '--phase-astronomical': '#172748',
-    '--phase-nautical': '#27416f',
-    '--phase-civil': '#3e6298',
-    '--phase-day': '#6594cb',
-    '--phase-night-ink': '#aebfdc',
-    '--phase-day-ink': '#06101f',
-    '--accent': '#f5bd48',
-    '--focus': '#ffd47e',
-    '--event-set': '#ff7063',
-    '--stage-bg': '#08111f',
-    '--stage-ink': '#e9eff7',
-    '--stage-ink-2': '#a9b9cd',
-    '--stage-line': '#22334e',
-    '--stage-line-strong': '#5d7294',
-  },
-  night: {
-    '--body-sun': '#ff4a00',
-    '--body-moon': '#f03600',
-    '--body-mercury': '#c02000',
-    '--body-venus': '#ff2400',
-    '--body-mars': '#d01800',
-    '--body-jupiter': '#e83000',
-    '--body-saturn': '#d82a00',
-    '--body-uranus': '#c82400',
-    '--body-neptune': '#c01c00',
-    '--body-star': '#ff3000',
-    '--phase-night': '#000000',
-    '--phase-astronomical': '#0e0100',
-    '--phase-nautical': '#1a0200',
-    '--phase-civil': '#2a0400',
-    '--phase-day': '#3d0600',
-    '--phase-night-ink': '#f21a00',
-    '--phase-day-ink': '#ff3300',
-    '--accent': '#ff3d00',
-    '--focus': '#ff4400',
-    '--event-set': '#bc1400',
-    '--stage-bg': '#000000',
-    '--stage-ink': '#ff2e00',
-    '--stage-ink-2': '#f21a00',
-    '--stage-line': '#2a0500',
-    '--stage-line-strong': '#c01800',
-  },
-};
-
-const FONT_FALLBACK = {
-  ui: "'Inter Variable', Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif",
-  num: "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, Menlo, Consolas, monospace",
-};
-
 // ---------------------------------------------------------------------------
 // Colour arithmetic
 // ---------------------------------------------------------------------------
-
-/** Parse `#rgb`, `#rrggbb`, `#rrggbbaa`, `rgb()` or `rgba()` (alpha dropped); null otherwise. */
-export function parseRgb(text: string): Rgb | null {
-  const s = text.trim();
-  const hex = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.exec(s);
-  if (hex) {
-    let h = hex[1]!;
-    if (h.length === 3) h = [...h].map((c) => c + c).join('');
-    const n = Number.parseInt(h.slice(0, 6), 16);
-    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-  }
-  const fn = /^rgba?\(\s*([\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)/.exec(s);
-  if (fn) return { r: Number(fn[1]), g: Number(fn[2]), b: Number(fn[3]) };
-  return null;
-}
 
 export function mix(a: Rgb, b: Rgb, t: number): Rgb {
   return { r: a.r + (b.r - a.r) * t, g: a.g + (b.g - a.g) * t, b: a.b + (b.b - a.b) * t };
@@ -172,15 +60,14 @@ export function luminance(c: Rgb): number {
 }
 
 /**
- * Night vision: the same perceived brightness in red only (green at most 16 % of red,
- * blue 0). Colours that are already red (the night tokens) keep their hue.
+ * Night vision: the same perceived brightness in red only (green 12 % of red, blue 0).
+ * Colours that already obey the rule (the night tokens) keep their hue.
  */
 export function nightRed(c: Rgb): Rgb {
+  if (c.b <= 0 && c.g <= c.r * 0.31 && c.g <= 80) return { r: c.r, g: c.g, b: 0 };
   const y = Math.min(1, Math.max(0, (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255));
-  const already = c.b === 0 && c.g <= c.r * 0.2;
-  if (already) return { r: c.r, g: c.g, b: 0 };
   const r = 255 * Math.min(1, y * 1.25);
-  return { r, g: r * 0.12, b: 0 };
+  return { r, g: Math.min(80, r * 0.12), b: 0 };
 }
 
 export function css(c: Rgb, alpha = 1): string {
@@ -228,12 +115,9 @@ export function blackbodyRgb(kelvin: number): Rgb {
   // xyY (Y = 1) -> XYZ -> linear sRGB (IEC 61966-2-1).
   const X = x / y;
   const Z = (1 - x - y) / y;
-  let r = 3.2406 * X - 1.5372 - 0.4986 * Z;
-  let g = -0.9689 * X + 1.8758 + 0.0415 * Z;
-  let b = 0.0557 * X - 0.204 + 1.057 * Z;
-  r = Math.max(0, r);
-  g = Math.max(0, g);
-  b = Math.max(0, b);
+  const r = Math.max(0, 3.2406 * X - 1.5372 - 0.4986 * Z);
+  const g = Math.max(0, -0.9689 * X + 1.8758 + 0.0415 * Z);
+  const b = Math.max(0, 0.0557 * X - 0.204 + 1.057 * Z);
   const m = Math.max(r, g, b) || 1;
   const enc = (v: number): number => {
     const c = v / m;
@@ -260,27 +144,40 @@ export interface SkyPalette {
   /** Text on a dark sky, and on a light (day) sky. */
   inkOnDark: Rgb;
   inkOnLight: Rgb;
+  /** The lit part of the drawn Moon (large areas). */
+  moonDisc: Rgb;
   accent: Rgb;
+  /** Focus ring on a dark sky, and on a light one. */
   focus: Rgb;
+  stageFocus: Rgb;
   /** Warm twilight glow near the Sun. */
   glow: Rgb;
+  /** The casing drawn under glyphs and body lines, with its opacity. */
+  halo: Rgb;
+  haloAlpha: number;
   stageBg: Rgb;
   stageInk: Rgb;
   stageInk2: Rgb;
+  stageInk3: Rgb;
   stageLine: Rgb;
   stageLineStrong: Rgb;
+  /** Canvas dash patterns (`setLineDash`), from the shared line styles. */
+  dashPath: number[];
+  dashBelow: number[];
   /** Applied to every derived colour: identity, or `nightRed` in the night theme. */
   filter(c: Rgb): Rgb;
 }
 
+/** Reads one custom property (default: the document's, through the design system). */
 export type ReadVar = (name: string) => string;
 
-/** Read a custom property from `<html>` (the design tokens live there). */
-export function documentReadVar(root: Element | null = globalThis.document?.documentElement ?? null): ReadVar {
-  if (!root || typeof getComputedStyle !== 'function') return () => '';
-  const style = getComputedStyle(root);
-  return (name) => style.getPropertyValue(name).trim();
-}
+export const documentReadVar: ReadVar = (name) => {
+  try {
+    return tokenValue(name);
+  } catch {
+    return '';
+  }
+};
 
 /** The theme on the document (`data-theme`), or `fallback`. */
 export function documentTheme(fallback: SkyTheme): SkyTheme {
@@ -288,32 +185,57 @@ export function documentTheme(fallback: SkyTheme): SkyTheme {
   return t === 'light' || t === 'dark' || t === 'night' ? t : fallback;
 }
 
-export function readPalette(theme: SkyTheme, readVar: ReadVar = () => ''): SkyPalette {
-  const fallback = FALLBACK[theme];
+const FONT_UI = "'Inter Variable', Inter, system-ui, sans-serif";
+const FONT_NUM = "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace";
+
+function dashes(text: string): number[] {
+  if (!text || text === 'none') return [];
+  return text
+    .split(/[\s,]+/)
+    .map(Number)
+    .filter((n) => Number.isFinite(n));
+}
+
+/**
+ * Read the palette for `theme`. A token missing from the page (a stylesheet not loaded)
+ * becomes a neutral grey — dim red in the night theme — rather than a guess at the
+ * design's value, so a missing design system shows up at a glance.
+ */
+export function readPalette(theme: SkyTheme, readVar: ReadVar = documentReadVar): SkyPalette {
   const filter = theme === 'night' ? nightRed : (c: Rgb): Rgb => c;
-  const color = (name: string): Rgb => {
-    const parsed = parseRgb(readVar(name)) ?? parseRgb(fallback[name] ?? '') ?? { r: 255, g: 0, b: 255 };
-    return filter(parsed);
+  const missing: Rgb = theme === 'night' ? { r: 120, g: 10, b: 0 } : { r: 128, g: 128, b: 128 };
+  const rgba = (name: string): [Rgb, number] => {
+    const parsed = parseColor(readVar(name));
+    if (!parsed) return [missing, 1];
+    return [filter({ r: parsed[0], g: parsed[1], b: parsed[2] }), parsed[3]];
   };
+  const color = (name: string): Rgb => rgba(name)[0];
   const body = Object.fromEntries(BODY_KEYS.map((k) => [k, color(`--body-${k}`)])) as Record<BodyKey, Rgb>;
   const phase = Object.fromEntries(PHASE_KEYS.map((k) => [k, color(`--phase-${k}`)])) as Record<PhaseKey, Rgb>;
-  const font = (name: string, fb: string): string => readVar(name) || fb;
+  const [halo, haloAlpha] = rgba('--line-halo');
   return {
     theme,
-    fontUi: font('--font-ui', FONT_FALLBACK.ui),
-    fontNum: font('--font-num', FONT_FALLBACK.num),
+    fontUi: readVar('--font-ui') || FONT_UI,
+    fontNum: readVar('--font-num') || FONT_NUM,
     body,
     phase,
     inkOnDark: color('--phase-night-ink'),
     inkOnLight: color('--phase-day-ink'),
+    moonDisc: color('--moon-disc'),
     accent: color('--accent'),
     focus: color('--focus'),
+    stageFocus: color('--stage-focus'),
     glow: filter(mix(body.sun, color('--event-set'), 0.45)),
+    halo,
+    haloAlpha,
     stageBg: color('--stage-bg'),
     stageInk: color('--stage-ink'),
     stageInk2: color('--stage-ink-2'),
+    stageInk3: color('--stage-ink-3'),
     stageLine: color('--stage-line'),
     stageLineStrong: color('--stage-line-strong'),
+    dashPath: dashes(readVar('--dash-path')),
+    dashBelow: dashes(readVar('--dash-below')),
     filter,
   };
 }

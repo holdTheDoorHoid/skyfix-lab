@@ -17,9 +17,11 @@
  *   bare=1                      hide the control strip (the honesty banner stays)
  */
 
-import '@fontsource-variable/inter';
-import '@fontsource-variable/jetbrains-mono';
+// The design system (fonts, tokens, components), as the shell loads it.
+import '../../theme/index.js';
 import './dev-sky.css';
+import { applyTheme } from '../../theme/theme.js';
+import { installTooltips } from '../../theme/primitives.js';
 import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
 import { createNotices } from '../../notices.js';
@@ -162,7 +164,7 @@ async function boot(root: HTMLElement): Promise<void> {
   notices.subscribe(renderNotices);
   const syncChrome = (): void => {
     const s = store.get();
-    if (document.documentElement.dataset.theme !== s.settings.theme) document.documentElement.dataset.theme = s.settings.theme;
+    applyTheme(s.settings.theme);
     themeSelect.value = s.settings.theme;
     play.textContent = s.time.playing ? 'Pause' : 'Play';
   };
@@ -174,6 +176,7 @@ async function boot(root: HTMLElement): Promise<void> {
   syncChrome();
   store.subscribe(syncChrome);
 
+  installTooltips(document.body);
   const handle: SkyMounted = mountSky(host, ctx);
   const mode = params.get('mode');
   if (mode === 'dome' || mode === 'panorama') handle.setMode(mode);

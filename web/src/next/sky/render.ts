@@ -17,6 +17,7 @@
 
 import type { BodyKind, BodyState, SkyState } from '../engine/types.js';
 import type { Layers } from '../state.js';
+import { glyphShape, type GlyphName } from '../theme/glyphs.js';
 import { brightLimbScreenAngle, DEG, RAD, refractionArcmin, type HorizonBuffers } from './astro.js';
 import { DomeProjector, PanoramaProjector, type Projector } from './projection.js';
 import {
@@ -127,6 +128,8 @@ export class SkyRenderer {
   /** Scratch for dividing long lines: 2 end vectors. */
   private readonly ends = new Float64Array(6);
   private readonly up = { x: 0, y: -1 };
+  /** Glyph shapes as Path2D, built once. */
+  private readonly glyphs = new Map<GlyphName, { fill: Path2D[]; stroke: Path2D[] }>();
   /** Indices of stars brighter than 1.5 (glows). */
   private bright = new Int32Array(0);
   private brightFor: object | null = null;
@@ -187,6 +190,7 @@ export class SkyRenderer {
       this.domeRim(f, dome);
     } else {
       this.ground(f, f.projector as PanoramaProjector);
+      if (f.layers.paths && f.path) this.pathBelow(f, f.path);
     }
     this.labels(f);
     this.rings(f);
@@ -586,19 +590,17 @@ export class SkyRenderer {
   // A body's path through the day
   // -------------------------------------------------------------------------
 
-  private pathLine(f: Frame, path: PathData): void {
+  /** Add the samples of a path above (or below) the horizon to the current path. */
+  private pathTrace(f: Frame, path: PathData, above: boolean): void {
     const ctx = this.ctx;
-    const colour = f.palette.body[path.bodyKey];
-    ctx.strokeStyle = css(colour, 0.85);
-    ctx.lineWidth = 1.6;
-    ctx.setLineDash([]);
-    ctx.beginPath();
     const p = f.projector;
     const jump = f.width * 0.5;
     let pen = false;
     let px = 0;
     for (let k = 0; k < path.alt.length; k += 1) {
-      if (path.alt[k]! < -1 * DEG || !p.project(path.alt[k]!, path.az[k]!)) {
+      const a = path.alt[k]!;
+      const keep = above ? a >= -1 * DEG : a <= 1 * DEG;
+      if (!keep || !p.project(a, path.az[k]!)) {
         pen = false;
         continue;
       }
@@ -608,14 +610,33 @@ export class SkyRenderer {
       pen = true;
       px = p.x;
     }
+  }
+
+  private pathLine(f: Frame, path: PathData): void {
+    const ctx = this.ctx;
+    const colour = f.palette.body[path.bodyKey];
+    // "Today's path": solid, over a casing (the shared line styles, tokens.css).
+    ctx.setLineDash(f.palette.dashPath);
+    ctx.beginPath();
+    this.pathTrace(f, path, true);
+    ctx.strokeStyle = css(f.palette.halo, f.palette.haloAlpha * 0.7);
+    ctx.lineWidth = 4.4;
     ctx.stroke();
+    ctx.strokeStyle = css(colour, 0.95);
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const p = f.projector;
     ctx.fillStyle = css(colour);
+    ctx.strokeStyle = css(f.palette.halo, f.palette.haloAlpha);
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
     for (const k of path.hourIndex) {
       if (path.alt[k]! < 0 || !p.project(path.alt[k]!, path.az[k]!)) continue;
-      ctx.moveTo(p.x + 2.2, p.y);
-      ctx.arc(p.x, p.y, 2.2, 0, TAU);
+      ctx.moveTo(p.x + 2.4, p.y);
+      ctx.arc(p.x, p.y, 2.4, 0, TAU);
     }
+    ctx.stroke();
     ctx.fill();
     ctx.font = `500 10px ${f.palette.fontNum}`;
     ctx.textAlign = 'center';
@@ -849,16 +870,17 @@ export class SkyRenderer {
   private moon(f: Frame, m: BodyMark): void {
     const ctx = this.ctx;
     const st = m.state;
-    const colour = f.palette.body.moon;
-    const dark = mix(colour, f.colours.zenith, 0.78);
+    const colour = f.palette.moonDisc;
+    // The unlit part is always darker than the lit part (the design's phase disc).
+    const dark = mix(colour, f.colours.zenith, 0.74);
     const r = m.r;
     // Earthshine side.
     ctx.fillStyle = css(dark, 0.92);
     ctx.beginPath();
     ctx.arc(m.x, m.y, r, 0, TAU);
     ctx.fill();
-    ctx.strokeStyle = css(colour, 0.35);
-    ctx.lineWidth = 0.8;
+    ctx.strokeStyle = css(colour, 0.45);
+    ctx.lineWidth = 1;
     ctx.stroke();
     const k = st?.illuminated_fraction;
     const limb = st?.bright_limb_angle_deg;
@@ -886,6 +908,63 @@ export class SkyRenderer {
     ctx.restore();
   }
 
+  /** The part of the path below the horizon, over the ground: thin and dashed. */
+  private pathBelow(f: Frame, path: PathData): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(0, (f.projector as PanoramaProjector).yHorizon, f.width, f.height);
+    ctx.clip();
+    ctx.setLineDash(f.palette.dashBelow.length ? f.palette.dashBelow : [3, 5]);
+    ctx.lineCap = 'butt';
+    ctx.strokeStyle = css(f.palette.body[path.bodyKey], 0.8);
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    this.pathTrace(f, path, false);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  /** A body glyph (theme/glyphs.ts shapes) centred at (x, y), over the shared casing. */
+  private glyph(f: Frame, name: GlyphName, x: number, y: number, size: number, colour: Rgb): void {
+    if (typeof Path2D !== 'function') return;
+    let g = this.glyphs.get(name);
+    if (!g) {
+      const shape = glyphShape(name);
+      const stroke = (shape.stroke ?? []).map((d) => new Path2D(d));
+      for (const [cx, cy, r] of shape.circles ?? []) {
+        const c = new Path2D();
+        c.arc(cx, cy, r, 0, TAU);
+        stroke.push(c);
+      }
+      g = { fill: (shape.fill ?? []).map((d) => new Path2D(d)), stroke };
+      this.glyphs.set(name, g);
+    }
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.translate(x - size / 2, y - size / 2);
+    ctx.scale(size / 24, size / 24);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const halo = css(f.palette.halo, f.palette.haloAlpha);
+    ctx.strokeStyle = halo;
+    ctx.fillStyle = halo;
+    ctx.lineWidth = 1.9 + 3.2;
+    for (const p of g.stroke) ctx.stroke(p);
+    ctx.lineWidth = 3.2;
+    for (const p of g.fill) {
+      ctx.stroke(p);
+      ctx.fill(p);
+    }
+    const c = css(colour);
+    ctx.strokeStyle = c;
+    ctx.fillStyle = c;
+    ctx.lineWidth = 1.9;
+    for (const p of g.stroke) ctx.stroke(p);
+    for (const p of g.fill) ctx.fill(p);
+    ctx.restore();
+  }
+
   // -------------------------------------------------------------------------
   // Labels
   // -------------------------------------------------------------------------
@@ -904,17 +983,23 @@ export class SkyRenderer {
     for (const key of f.highlightKeys) forced.add(key);
     if (f.focusKey) forced.add(f.focusKey);
 
-    // Sun, Moon, planets.
-    ctx.font = `600 12px ${f.palette.fontUi}`;
+    // Sun, Moon, planets: glyph and name (colour is never the only cue).
+    const bodyFont = `600 12px ${f.palette.fontUi}`;
     ctx.textAlign = 'left';
     for (const m of this.bodies) {
       if (!m.drawn) continue;
       const text = m.name;
-      const w = this.width(text, ctx.font);
+      const w = this.width(text, bodyFont);
+      const glyph = 14;
       const x = m.x + m.r + 4;
       const y = m.y + 4;
-      if (!this.place(x - 1, y - 11, w + 2, 14) && !forced.has(m.key)) continue;
-      this.haloText(text, x, y, css(m.kind === 'planet' ? f.palette.body[bodyToken(m.name)] : ink, 0.95), halo);
+      if (!this.place(x - 1, y - 12, glyph + 3 + w + 2, 16) && !forced.has(m.key)) continue;
+      const token = bodyToken(m.name);
+      const colour = m.kind === 'planet' ? f.palette.body[token] : m.kind === 'sun' ? f.palette.body.sun : f.palette.moonDisc;
+      this.glyph(f, token as GlyphName, x + glyph / 2, m.y, glyph, colour);
+      ctx.font = bodyFont;
+      ctx.textAlign = 'left';
+      this.haloText(text, x + glyph + 3, y, css(m.kind === 'planet' ? colour : ink, 0.95), halo);
     }
 
     // Star names.
@@ -1069,7 +1154,7 @@ export class SkyRenderer {
       ring(f.selectedKey, 5, css(accent), 2.2, []);
     }
     if (f.hoverKey && f.hoverKey !== f.selectedKey) ring(f.hoverKey, 5, css(f.colours.ink, 0.7), 1.2, []);
-    if (f.focusKey) ring(f.focusKey, 11, css(f.palette.focus), 2, [4, 3]);
+    if (f.focusKey) ring(f.focusKey, 11, css(f.colours.light ? f.palette.stageFocus : f.palette.focus), 2, [4, 3]);
     ctx.setLineDash([]);
   }
 
