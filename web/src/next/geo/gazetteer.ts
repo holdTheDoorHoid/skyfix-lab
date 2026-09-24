@@ -292,7 +292,11 @@ export function placeLabel(g: Gazetteer, place: Place, opts: { admin1?: boolean;
 // ---------------------------------------------------------------------------------------
 // Search
 
-type How = 'exact' | 'prefix' | 'word' | 'contains' | 'typo' | 'country';
+/**
+ * MatchKind a place matched: the whole name, the start of it, the start of a word in it, anywhere
+ * in it, with a typo, or by being in the country or state that was typed.
+ */
+export type MatchKind = 'exact' | 'prefix' | 'word' | 'contains' | 'typo' | 'country' | 'state';
 
 export interface PlaceMatch {
   readonly place: Place;
@@ -300,7 +304,7 @@ export interface PlaceMatch {
   readonly score: number;
   /** The name that matched (may be an alternative name, e.g. "München" for Munich). */
   readonly matchedName: string;
-  readonly how: How;
+  readonly how: MatchKind;
 }
 
 export interface SearchOptions {
@@ -405,9 +409,9 @@ function qualifierMatches(g: Gazetteer, idx: SearchIndex, place: Place, q: strin
   return false;
 }
 
-const TIER: Record<How, number> = { exact: 5, prefix: 4, country: 4, word: 3, contains: 2, typo: 1 };
+const TIER: Record<MatchKind, number> = { exact: 5, prefix: 4, country: 4, state: 4, word: 3, contains: 2, typo: 1 };
 
-function matchName(k: NameKey, q: string, qs: string): How | null {
+function matchName(k: NameKey, q: string, qs: string): MatchKind | null {
   if (k.key === q) return 'exact';
   if (k.key.startsWith(q) || (qs.length >= 3 && k.squashed.startsWith(qs))) return 'prefix';
   if (k.key.includes(` ${q}`)) return 'word';
@@ -430,7 +434,7 @@ function prominence(p: Place): number {
   return s;
 }
 
-function score(idx: SearchIndex, p: Place, how: How, primary: boolean, near: LatLonDeg | undefined): number {
+function score(idx: SearchIndex, p: Place, how: MatchKind, primary: boolean, near: LatLonDeg | undefined): number {
   let s = TIER[how] * 1000 + (idx.prominence[p.index] ?? 0);
   if (primary) s += 20;
   if (near) s += 150 * Math.exp(-greatCircleDistanceNm(near, p) / 300);
@@ -444,9 +448,9 @@ function runSearch(g: Gazetteer, nameQuery: string, qualifiers: string[], limit:
   const variants = [...new Set([q0, expandAbbreviations(q0)])].map((q) => ({ q, qs: squash(q) }));
   const passes = (p: Place) => qualifiers.length === 0 || qualifiers.every((q) => qualifierMatches(g, idx, p, q));
   const found: PlaceMatch[] = [];
-  const scan = (match: (k: NameKey, q: string, qs: string) => How | null) => {
+  const scan = (match: (k: NameKey, q: string, qs: string) => MatchKind | null) => {
     g.places.forEach((p, i) => {
-      let bestHow: How | null = null;
+      let bestHow: MatchKind | null = null;
       let bestKey: NameKey | null = null;
       let bestRank = 0;
       for (const k of idx.keys[i] ?? []) {
@@ -484,9 +488,10 @@ function countryFor(g: Gazetteer, folded: string): Country | null {
  * Places matching `query`, best first. Accents, case and punctuation are ignored; the
  * start of a name ranks above a word inside it, which ranks above any substring, which ranks
  * above a one- or two-letter typo; within a rank, bigger and capital cities come first.
- * After a comma, words narrow the search by country, state or state code: "Paris, TX",
+ * After a comma, words narrow the search by country, state or state code: "Springfield, MO",
  * "Portland, Maine", "Santiago, Chile". The comma may be left out when the name alone
- * matches nothing ("paris france"). A country's name alone lists its largest places.
+ * matches nothing ("paris france"). A country's or state's name alone lists its largest
+ * places ("France", "Texas").
  */
 export function searchPlaces(g: Gazetteer, query: string, opts: SearchOptions = {}): PlaceMatch[] {
   const limit = opts.limit ?? 10;
@@ -513,17 +518,42 @@ export function searchPlaces(g: Gazetteer, query: string, opts: SearchOptions = 
     }
   }
 
-  // "France", "USA": the country's largest places, capital first, unless a place has that
-  // very name ("Georgia" is a country; there is no place called Georgia).
+  // "France", "Texas": the country's or state's largest places first (capital first), then
+  // up to three name matches, unless a place has exactly that name. "Georgia" is both a
+  // country and a US state: each gets half the list.
   if (results[0]?.how !== 'exact' && qualifiers.length === 0) {
-    const country = countryFor(g, foldName(name));
-    if (country) {
-      const inCountry = g.places
-        .filter((p) => p.country === country.index)
-        .map((p) => ({ place: p, score: score(searchIndex(g), p, 'country', true, opts.near), matchedName: country.name, how: 'country' as const }))
+    const idx = searchIndex(g);
+    const q = foldName(name);
+    const top = (keep: (p: Place) => boolean, how: 'country' | 'state', label: (p: Place) => string) =>
+      g.places
+        .filter(keep)
+        .map((p) => ({ place: p, score: score(idx, p, how, true, opts.near), matchedName: label(p), how }))
         .sort((a, b) => b.score - a.score)
         .slice(0, limit);
-      if (inCountry.length) results = inCountry;
+    const country = countryFor(g, q);
+    const inCountry = country ? top((p) => p.country === country.index, 'country', () => country.name) : [];
+    const inState = top(
+      (p) => idx.admin1Keys[p.index] === q || (p.region >= 0 && idx.regionKeys[p.region] === q),
+      'state',
+      (p) => p.admin1 || name,
+    );
+    const half = Math.ceil(limit / 2);
+    const listing = inCountry.length && inState.length ? [...inCountry.slice(0, half), ...inState.slice(0, limit - half)] : [...inCountry, ...inState];
+    if (listing.length) {
+      // Keep up to three places for the name matches ("Franceville" for "France").
+      const reserve = Math.min(3, results.length, limit - 1);
+      const merged: PlaceMatch[] = [];
+      const seen = new Set<number>();
+      const push = (m: PlaceMatch) => {
+        if (merged.length < limit && !seen.has(m.place.index)) {
+          seen.add(m.place.index);
+          merged.push(m);
+        }
+      };
+      listing.slice(0, limit - reserve).forEach(push);
+      results.forEach(push);
+      listing.forEach(push);
+      results = merged;
     }
   }
   return results;

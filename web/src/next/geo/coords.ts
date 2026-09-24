@@ -47,7 +47,7 @@ const DOUBLE_PRIME = '″';
 type Kind = 'lat' | 'lon';
 
 type Token =
-  | { t: 'num'; v: number; frac: boolean; text: string }
+  | { t: 'num'; v: number; frac: boolean }
   | { t: 'unit'; u: 'd' | 'm' | 's' }
   | { t: 'hemi'; h: 'N' | 'S' | 'E' | 'W' }
   | { t: 'sign'; s: 1 | -1 }
@@ -128,7 +128,7 @@ function tokenize(raw: string): ParseResult<Token[]> {
     pos = re.lastIndex;
     const [, num, deg, min, sec, label, hemi, dWord, mWord, sWord, sign, sep] = m;
     if (num !== undefined) {
-      tokens.push({ t: 'num', v: Number(num), frac: num.includes('.'), text: num });
+      tokens.push({ t: 'num', v: Number(num), frac: num.includes('.') });
     } else if (deg) {
       tokens.push({ t: 'unit', u: 'd' });
       sawDegUnit = true;
@@ -274,7 +274,6 @@ function groupTokens(tokens: Token[]): ParseResult<Group[]> {
 interface Angle {
   value: number;
   kind: Kind | null;
-  text: string;
 }
 
 function evaluate(g: Group): ParseResult<Angle> {
@@ -303,8 +302,7 @@ function evaluate(g: Group): ParseResult<Angle> {
   if (kind && g.label && kind !== g.label) {
     return { ok: false, error: `"${g.label === 'lat' ? 'lat' : 'lon'}" does not go with ${g.hemi}.` };
   }
-  const text = `${g.sign === -1 ? '-' : ''}${g.parts.map((p) => p.v).join(' ')}${g.hemi ? ` ${g.hemi}` : ''}`;
-  return { ok: true, value: { value, kind: kind ?? g.label, text } };
+  return { ok: true, value: { value, kind: kind ?? g.label } };
 }
 
 const fmtDeg = (v: number) => `${Number(v.toFixed(6))}°`;

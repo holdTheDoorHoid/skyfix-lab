@@ -151,12 +151,25 @@ describe('search', () => {
     expect(searchPlaces(g, 'Paris, Texas')).toEqual([]);
   });
 
+  it('a state name lists its places', () => {
+    const texas = searchPlaces(g, 'Texas');
+    expect(texas[0]!.how).toBe('state');
+    expect(texas.every((m) => m.place.admin1 === 'Texas')).toBe(true);
+    expect(texas.map((m) => m.place.name)).toContain('Houston');
+    expect(texas.map((m) => m.place.name)).toContain('Austin');
+    expect(searchPlaces(g, 'bayern').map((m) => m.place.name)).toContain('Munich');
+  });
+
   it('a country name lists its places, capital first', () => {
     expect(first('France')).toMatch(/^Paris/);
     expect(first('usa')).toMatch(/^Washington, D\.C\./);
     const georgia = searchPlaces(g, 'Georgia');
     expect(georgia[0]!.how).toBe('country');
     expect(placeLabel(g, georgia[0]!.place)).toBe('Tbilisi, Georgia');
+    // Georgia is also a US state: the second half of the list.
+    expect(georgia.map((m) => m.place.name)).toContain('Atlanta');
+    // Name matches follow the listing.
+    expect(searchPlaces(g, 'France', { limit: 30 }).map((m) => m.place.name)).toContain('Franceville');
   });
 
   it('prefers places near a given point when names tie', () => {

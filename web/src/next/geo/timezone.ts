@@ -450,13 +450,21 @@ export function listTimeZones(preferred: readonly string[] = []): string[] {
   } catch {
     listed = [];
   }
-  const pool = listed.length ? [...preferred, ...listed] : [...preferred, ...FALLBACK_ZONES];
+  // The browser's own list is already canonical; only other names need Intl to say which
+  // zone they are (constructing a formatter costs about a millisecond).
+  const listedSet = new Set(listed);
   const byCanonical = new Map<string, string>();
-  for (const id of pool) {
-    if (id === 'UTC' || !isSupportedZone(id)) continue;
-    const canonical = new Intl.DateTimeFormat('en-US', { timeZone: id }).resolvedOptions().timeZone;
+  const add = (id: string) => {
+    if (id === 'UTC') return;
+    let canonical = id;
+    if (!listedSet.has(id)) {
+      if (!isSupportedZone(id)) return;
+      canonical = new Intl.DateTimeFormat('en-US', { timeZone: id }).resolvedOptions().timeZone;
+    }
     if (!byCanonical.has(canonical)) byCanonical.set(canonical, id);
-  }
+  };
+  for (const id of preferred) add(id);
+  for (const id of listed.length ? listed : FALLBACK_ZONES) add(id);
   return ['UTC', ...[...byCanonical.values()].sort()];
 }
 
@@ -500,9 +508,10 @@ export interface ZoneGuess {
   readonly anchor: ZoneAnchor | null;
   readonly anchorDistanceNm: number;
   /**
-   * The country whose 1:50m polygon the position is in or within 12 NM of; null at sea. A
-   * territory too small for those polygons reports the country around it (a click on
-   * Gibraltar reports Spain), so name places with `describeLocation`, not with this.
+   * The country whose 1:50m polygon the position is in or within 12 NM of; null at sea.
+   * Antarctica is reported, although it takes the nautical zone. A territory too small for
+   * the polygons reports the country around it (a click on Gibraltar reports Spain), so name
+   * places with `describeLocation`, not with this.
    */
   readonly country: Country | null;
 }
@@ -644,7 +653,7 @@ export function guessZone(lat: number, lon: number, g: Gazetteer, regions: Regio
       reason: `${near.anchor.zone}, the time zone of ${near.anchor.label}, ${round(near.distanceNm)} NM away.`,
       anchor: near.anchor,
       anchorDistanceNm: near.distanceNm,
-      country: regions ? null : (g.countries[near.anchor.country] ?? null),
+      country: regions ? country : (g.countries[near.anchor.country] ?? null),
     };
   }
   const zd = zoneDescription(lon);
@@ -654,6 +663,6 @@ export function guessZone(lat: number, lon: number, g: Gazetteer, regions: Regio
     reason: `At sea: nautical zone ZD ${formatZoneDescription(zd)} (${zoneLetter(zd)}), zone time = UTC ${zd > 0 ? MINUS : '+'} ${Math.abs(zd)} h.`,
     anchor: null,
     anchorDistanceNm: Number.NaN,
-    country: null,
+    country,
   };
 }

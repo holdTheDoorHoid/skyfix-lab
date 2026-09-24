@@ -60,9 +60,8 @@ export function greatCircleDistanceM(a: LatLonDeg, b: LatLonDeg): number {
 
 /**
  * Initial great-circle course from `a` to `b`, degrees [0, 360). NaN when the points coincide
- * or are antipodal (every direction is then a shortest route). From a pole the course is
- * measured against the meridian of `b`'s longitude convention: 180 from the North Pole, 0
- * from the South Pole.
+ * or are antipodal (every direction is then a shortest route). From a pole every route runs
+ * along a meridian: 180 from the North Pole, 0 from the South Pole.
  */
 export function initialCourseDeg(a: LatLonDeg, b: LatLonDeg): number {
   const sigma = centralAngle(a, b);
@@ -97,8 +96,8 @@ function fromVector(v: [number, number, number]): LatLonDeg {
 
 /**
  * The point a fraction `f` of the way from `a` to `b` along the great circle (0 = a, 1 = b).
- * For antipodal points the route is not unique; the one through the northern (or, from the
- * North Pole, eastern) side is chosen by nudging `b` by 1e-9 degrees.
+ * For antipodal points the route is not unique; one is chosen deterministically by nudging
+ * `b` by 1e-9 degrees.
  */
 export function intermediatePoint(a: LatLonDeg, b: LatLonDeg, f: number): LatLonDeg {
   let sigma = centralAngle(a, b);

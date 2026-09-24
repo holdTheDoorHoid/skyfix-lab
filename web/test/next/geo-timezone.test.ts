@@ -341,6 +341,7 @@ describe('guessing the zone for a position', () => {
 
   it('Antarctica has no civil time: nautical zone by longitude', () => {
     expect(guess(-80, 0).zone).toEqual({ kind: 'nautical', zd: 0 });
+    expect(guess(-80, 0).country?.name).toBe('Antarctica');
     expect(guess(-85, 100).zone).toEqual({ kind: 'nautical', zd: -7 });
     // ...except right at a station with a zone of its own.
     expect(guess(-77.85, 166.67).zone).toEqual(iana('Antarctica/McMurdo'));
