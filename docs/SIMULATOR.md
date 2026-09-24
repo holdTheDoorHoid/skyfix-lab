@@ -26,7 +26,14 @@ The separation is structural, not a matter of discipline:
 - The truth position is written in exactly one place in the crate, into `Truth::position`.
 - Nothing in the crate passes a truth value into `SolveOptions`. `Experiment::check()`
   refuses to run an experiment whose `initializer` or `prior` has been pointed at the
-  answer, and `run()` reports the refusal instead of producing numbers.
+  answer, and `run()` reports the refusal instead of producing numbers. The refusal is a
+  **radius, not an exact match**: `experiment::truth_guard_radius_nm` is `3 * sigma_nm`
+  for a prior and one nautical mile for an initializer, whichever is larger. A prior
+  centred a metre from the answer pins the fix just as hard as one centred on it, and
+  every number the run then prints looks healthy — coverage 1.00 with an error ten times
+  inside the predicted sigma — so an exact-equality guard would catch nothing worth
+  catching. One nautical mile is far inside the 25 to 30 NM dead-reckoning offsets the
+  packaged scenarios use, so a legitimate experiment is never refused.
 - A test serialises every packaged session to JSON and asserts that the strings
   `39.9526`, `75.1652` and the scenario's seed do not appear anywhere in it.
 - On disk the two live apart: `fixtures/sessions/<name>.json` and
@@ -290,6 +297,12 @@ Aggregated over repetitions:
 - `rms_error_m` and `rms_predicted_sigma_m`, where the predicted radial sigma of a run is
   `sqrt(sigma_north^2 + sigma_east^2)`, and their ratio `error_to_sigma_ratio`. Under a
   correct model `E[|e|^2] = sigma_north^2 + sigma_east^2`, so the ratio should be about 1.
+  The CLI calls a run healthy only when the ratio is inside **0.6 to 1.6**, a two-sided
+  band: an ellipse ten times too large fails to describe the error exactly as an ellipse
+  half the size does, and reporting the first as honest would be the flattery this runner
+  exists to prevent. Outside the band the verdict says which way it is wrong. The band is
+  generous on purpose — the sampling error of an RMS over `n` runs is roughly
+  `1 / (2 sqrt(n))`, which is 0.11 at 20 repetitions — so honest scatter never trips it.
 - `mean_error_north_m` and `mean_error_east_m`, **signed**. A shared bias or a clock
   offset shows up here as a non-zero mean, where `rms_error_m` alone cannot tell a
   systematic displacement from honest scatter.
