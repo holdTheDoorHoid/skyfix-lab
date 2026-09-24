@@ -14,11 +14,13 @@
 //! - [`session`]    section 10: validation and CSV round-trip
 //! - [`solver`]     section 8: weighted least squares, multistart, ambiguity
 //! - [`uncertainty`] section 9: covariance, ellipse, conditioning
+//! - [`linalg`]     small dense linear algebra used by the two modules above
 //! - [`planner`]    observation planner (optional deliverable)
 
 pub mod corrections;
 pub mod error;
 pub mod geometry;
+pub mod linalg;
 pub mod planner;
 pub mod reduce;
 pub mod session;
