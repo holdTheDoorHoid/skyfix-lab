@@ -153,6 +153,8 @@ export function createStore<S extends object>(initial: S, options: StoreOptions 
         pendingPrev = null;
         const current = state;
         for (const listener of [...listeners]) {
+          // A listener removed earlier in this round (a view destroyed by another) is skipped.
+          if (!listeners.has(listener)) continue;
           try {
             listener(current, prev);
           } catch (error) {

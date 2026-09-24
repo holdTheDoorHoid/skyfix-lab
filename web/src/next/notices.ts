@@ -44,6 +44,7 @@ export function createNotices(options: { max?: number } = {}): Notices {
   function commit(next: readonly Notice[]): void {
     items = next;
     for (const listener of [...listeners]) {
+      if (!listeners.has(listener)) continue;
       try {
         listener(items);
       } catch (error) {

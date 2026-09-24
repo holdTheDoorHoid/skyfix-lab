@@ -156,6 +156,16 @@ describe('store', () => {
     expect(errors).toHaveLength(1);
   });
 
+  it('does not call a listener removed earlier in the same round', () => {
+    const store = createStore(demo());
+    const second = vi.fn();
+    let offSecond = (): void => undefined;
+    store.subscribe(() => offSecond()); // the first listener destroys the second view
+    offSecond = store.subscribe(second);
+    store.patch({ n: 1 });
+    expect(second).not.toHaveBeenCalled();
+  });
+
   it('unsubscribes', () => {
     const store = createStore(demo());
     const listener = vi.fn();

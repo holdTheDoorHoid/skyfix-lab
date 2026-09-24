@@ -113,6 +113,8 @@ export function createScheduler(options: SchedulerOptions = {}): FrameScheduler 
 
   const tasks = new Set<() => void>();
   const hooks = new Set<(time: number) => void>();
+  /** The tasks of the frame being run; `cancel` removes from here too. */
+  let running: Set<() => void> | null = null;
   let frameId = 0;
   let destroyed = false;
 
@@ -130,10 +132,13 @@ export function createScheduler(options: SchedulerOptions = {}): FrameScheduler 
 
   function frame(time: number): void {
     frameId = 0;
-    for (const hook of [...hooks]) run(() => hook(time));
-    const batch = [...tasks];
+    for (const hook of [...hooks]) if (hooks.has(hook)) run(() => hook(time));
+    running = new Set(tasks);
     tasks.clear();
-    for (const task of batch) run(task);
+    // A task cancelled while the frame runs (its view destroyed by an earlier task) is
+    // skipped: deleting from a Set during iteration is well defined.
+    for (const task of running) run(task);
+    running = null;
     request();
   }
 
@@ -145,6 +150,7 @@ export function createScheduler(options: SchedulerOptions = {}): FrameScheduler 
     },
     cancel(task) {
       tasks.delete(task);
+      running?.delete(task);
     },
     onFrame(hook) {
       hooks.add(hook);

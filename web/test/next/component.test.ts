@@ -72,6 +72,15 @@ describe('frame scheduler', () => {
     expect(errors).toHaveLength(1);
   });
 
+  it('skips a task cancelled earlier in the same frame', () => {
+    const { frames, scheduler: s } = scheduler();
+    const later = vi.fn();
+    s.schedule(() => s.cancel(later)); // e.g. a view destroying another view
+    s.schedule(later);
+    frames.step();
+    expect(later).not.toHaveBeenCalled();
+  });
+
   it('flushes on demand and cancels', () => {
     const { frames, scheduler: s } = scheduler();
     const a = vi.fn();
