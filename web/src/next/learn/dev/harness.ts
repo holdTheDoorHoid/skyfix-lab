@@ -111,16 +111,18 @@ async function boot(root: HTMLElement): Promise<void> {
   const sim = p.get('sim');
   const view = p.get('view') === 'globe' || p.get('view') === 'sheet' ? (p.get('view') as ChartView) : null;
   const experiment = Number(p.get('experiment'));
-  learnView({
-    ...(tab ? { tab } : {}),
-    story: isStoryId(story) ? story : null,
-    variant,
-    view,
-    simulator:
-      tab === 'simulator' && isStoryId(sim)
-        ? { story: sim, run: p.get('run') === '1', ...(Number.isFinite(experiment) && experiment > 0 ? { experiment } : {}) }
-        : null,
-  })(stage, ctx);
+  const mountLearn = (first: boolean): { destroy(): void } =>
+    learnView({
+      ...(tab && first ? { tab } : {}),
+      story: first && isStoryId(story) ? story : null,
+      variant: first ? variant : null,
+      view,
+      simulator:
+        first && tab === 'simulator' && isStoryId(sim)
+          ? { story: sim, run: p.get('run') === '1', ...(Number.isFinite(experiment) && experiment > 0 ? { experiment } : {}) }
+          : null,
+    })(stage, ctx);
+  let learn = mountLearn(true);
 
   // Follow the store's view as the shell does: the Map view when Learn sends overlays to it.
   let map: { destroy(): void } | null = null;
@@ -165,7 +167,18 @@ async function boot(root: HTMLElement): Promise<void> {
     else setTimeout(ready, 100);
   };
   void document.fonts.ready.then(ready);
-  if (import.meta.env.DEV) (globalThis as { __learn?: unknown }).__learn = { ctx, store };
+  // Development: `__learn.remount()` closes and reopens the view, as leaving and coming
+  // back to Learn in the explorer does (its state is kept per page).
+  if (import.meta.env.DEV) {
+    (globalThis as { __learn?: unknown }).__learn = {
+      ctx,
+      store,
+      remount: () => {
+        learn.destroy();
+        learn = mountLearn(false);
+      },
+    };
+  }
 }
 
 const app = document.getElementById('app');

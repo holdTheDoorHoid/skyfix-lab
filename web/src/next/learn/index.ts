@@ -72,8 +72,13 @@ export function learnView(options: LearnOptions = {}): Component {
     const d = disposer();
     const uid = `sfl-${++uidSeq}`;
     const saved = pages.get(ctx.store);
+    // A run still in flight when the view was last closed finished into a store that is
+    // gone: start the story again, and let the Simulator's buttons work again.
+    const resume = saved?.story?.status === 'running' ? { id: saved.story.id, variant: saved.story.variant } : null;
     const state = createStore<LearnState>(
-      saved ?? { tab: options.tab ?? 'primer', story: null, chartView: options.view ?? null, sim: initialSim() },
+      saved
+        ? { ...saved, story: resume || !saved.story ? null : { ...saved.story, scroll: false }, sim: { ...saved.sim, runStatus: 'idle', expStatus: 'idle' } }
+        : { tab: options.tab ?? 'primer', story: null, chartView: options.view ?? null, sim: initialSim() },
     );
     if (saved && options.tab) state.patch({ tab: options.tab });
     d.add(state.subscribe((s) => pages.set(ctx.store, s)));
@@ -118,7 +123,7 @@ export function learnView(options: LearnOptions = {}): Component {
         const seq = ++runSeq;
         const scroll = Boolean(opts.scroll);
         state.batch(() => {
-          state.patch({ tab: 'stories' });
+          if (!opts.stay) state.patch({ tab: 'stories' });
           setStory({ id, variant, status: 'running', run: null, error: null, scroll });
         });
         try {
@@ -249,6 +254,7 @@ export function learnView(options: LearnOptions = {}): Component {
 
     if (options.story) void env.runStory(options.story, options.variant ?? null);
     else if (options.simulator) void env.openSimulator(options.simulator);
+    else if (resume) void env.runStory(resume.id, resume.variant, { stay: true });
 
     return { destroy: () => d.dispose() };
   };

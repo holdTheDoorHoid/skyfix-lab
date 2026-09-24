@@ -79,7 +79,8 @@ export interface LearnEnv {
   figureEnv(title: string): FigureEnv;
   /** "WebAssembly core" or "mock adapter", for the numbers' provenance. */
   engineLabel(): string;
-  runStory(id: StoryId, variant: VariantId | null, options?: { scroll?: boolean }): Promise<void>;
+  /** Run a story; it opens the Demonstrations tab unless `stay` is set. */
+  runStory(id: StoryId, variant: VariantId | null, options?: { scroll?: boolean; stay?: boolean }): Promise<void>;
   openSimulator(request: SimulatorRequest): Promise<void>;
   selectTab(tab: Tab): void;
   /** Mark the view as settled (for the developer page's screenshots). */
