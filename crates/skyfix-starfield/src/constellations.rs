@@ -184,6 +184,11 @@ pub(crate) struct Region {
     /// Parallel edges: (Dec arcminutes, west end seconds, span seconds).
     parallels: Vec<(i32, i32, i32)>,
     contains_ncp: bool,
+    /// Winds once around a pole (Ursa Minor, Octans).
+    winds: bool,
+    /// Southernmost and northernmost corner, arcminutes.
+    min_dec_m: f64,
+    max_dec_m: f64,
 }
 
 impl Region {
@@ -223,22 +228,42 @@ impl Region {
             return Err(StarfieldError::Data(format!("{abbr}: winding {winding} s")));
         }
         let mean_dec: f64 = corners.iter().map(|&(_, d)| f64::from(d)).sum::<f64>() / n as f64;
+        let min_dec_m = corners.iter().map(|&(_, d)| d).min().map_or(0.0, f64::from);
+        let max_dec_m = corners.iter().map(|&(_, d)| d).max().map_or(0.0, f64::from);
         Ok(Region {
             abbr_index,
             corners,
             parallels,
             contains_ncp: winding != 0 && mean_dec > 0.0,
+            winds: winding != 0,
+            min_dec_m,
+            max_dec_m,
         })
+    }
+
+    /// A cheap necessary condition for [`Region::contains`]. A polygon that does not
+    /// wind round a pole cannot contain a point north of its northernmost corner (the
+    /// ray crosses nothing) or south of its southernmost (the ray crosses its boundary
+    /// an even number of times), so only its own band of declination needs the full
+    /// test; the two polar polygons always get it.
+    fn may_contain(&self, dec_m: f64) -> bool {
+        self.winds || (self.min_dec_m <= dec_m && dec_m < self.max_dec_m)
     }
 
     /// Point in polygon; `ra_s` in seconds of time `[0, 86400)`, `dec_m` in arcminutes.
     fn contains(&self, ra_s: f64, dec_m: f64) -> bool {
         let mut crossings = 0u32;
         for &(d, west, span) in &self.parallels {
-            if f64::from(d) > dec_m
-                && (ra_s - f64::from(west)).rem_euclid(86_400.0) < f64::from(span)
-            {
-                crossings += 1;
+            if f64::from(d) > dec_m {
+                // Both RAs are in [0, 86400), so one conditional turn wraps the
+                // difference into [0, 86400) exactly (no fmod).
+                let mut x = ra_s - f64::from(west);
+                if x < 0.0 {
+                    x += 86_400.0;
+                }
+                if x < f64::from(span) {
+                    crossings += 1;
+                }
             }
         }
         (crossings % 2 == 1) != self.contains_ncp
@@ -397,9 +422,34 @@ pub fn apparent_to_b1875(
 ) -> Result<(f64, f64), StarfieldError> {
     check_direction(ra_deg, dec_deg)?;
     check_jd_utc(jd_utc)?;
+    Ok(radec(mul(&of_date_to_b1875(jd_utc), unit(ra_deg, dec_deg))))
+}
+
+/// `P_B1875 B (N P B)(t)^T`: apparent-of-date to mean B1875, cached for the last
+/// instant asked for. The nutation series behind the matrix of date is most of the
+/// cost of a lookup, and `sky_state` asks for many bodies at one instant.
+fn of_date_to_b1875(jd_utc: f64) -> Mat3 {
+    use std::cell::Cell;
+    thread_local! {
+        static LAST: Cell<Option<(u64, Mat3)>> = const { Cell::new(None) };
+    }
+    let key = jd_utc.to_bits();
+    if let Some((k, m)) = LAST.get() {
+        if k == key {
+            return m;
+        }
+    }
     let of_date = bias_precession_nutation_matrix(jd_tt(jd_utc));
-    let icrs = mul_t(&of_date, unit(ra_deg, dec_deg));
-    Ok(radec(mul(icrs_to_mean_b1875(), icrs)))
+    let b = icrs_to_mean_b1875();
+    let mut m = [[0.0; 3]; 3];
+    for (i, row) in m.iter_mut().enumerate() {
+        for (j, x) in row.iter_mut().enumerate() {
+            // (B1875 * of_date^T)[i][j] = sum_k b[i][k] * of_date[j][k]
+            *x = (0..3).map(|k| b[i][k] * of_date[j][k]).sum();
+        }
+    }
+    LAST.set(Some((key, m)));
+    m
 }
 
 /// An ICRS (J2000) direction in the mean equator and equinox of B1875.0, degrees.
@@ -415,18 +465,21 @@ pub fn constellation_at_b1875(ra_deg: f64, dec_deg: f64) -> Option<&'static str>
     let dec_m = dec_deg * 60.0;
     sf.regions
         .iter()
-        .find(|r| r.contains(ra_s, dec_m))
+        .find(|r| r.may_contain(dec_m) && r.contains(ra_s, dec_m))
         .map(|r| CONSTELLATIONS[r.abbr_index].0)
 }
 
-/// Every region claiming a B1875 point. Exactly one for any point of the sky; exposed
-/// so the tests can prove it.
+/// Every region claiming a B1875 point, by the full point-in-polygon test on all 89
+/// polygons. Exactly one for any point of the sky; exposed so the tests can prove it,
+/// and prove that [`constellation_at_b1875`]'s shortcut finds the same one.
 pub fn regions_containing_b1875(ra_deg: f64, dec_deg: f64) -> Vec<&'static str> {
     let Ok(sf) = starfield() else {
         return Vec::new();
     };
     let ra_s = (ra_deg * 240.0).rem_euclid(86_400.0);
     let dec_m = dec_deg * 60.0;
+    // The full test on every region, without the declination prefilter that
+    // `constellation_at_b1875` uses, so the tests can hold one against the other.
     sf.regions
         .iter()
         .filter(|r| r.contains(ra_s, dec_m))

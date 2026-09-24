@@ -38,3 +38,35 @@ fn all_apparent_places_within_the_budget() {
         assert!(fastest <= 5.0, "{fastest} ms");
     }
 }
+
+/// `sky_state` asks for the constellation of every body at one instant; the rotation
+/// for that instant is computed once and the lookups after it are cheap.
+#[test]
+fn constellation_lookups_are_cheap_at_one_instant() {
+    let jd = 2_461_308.0;
+    skyfix_starfield::constellation_at(0.0, 0.0, jd).unwrap();
+    let n = 10_000;
+    let t = Instant::now();
+    for k in 0..n {
+        let ra = f64::from(k) * 0.036;
+        let dec = f64::from(k % 179) - 89.0;
+        skyfix_starfield::constellation_at(ra, dec, jd).unwrap();
+    }
+    let same_us = t.elapsed().as_secs_f64() * 1e6 / f64::from(n);
+    let t = Instant::now();
+    for k in 0..1_000 {
+        skyfix_starfield::constellation_at(10.0, 10.0, jd + f64::from(k) / 1440.0).unwrap();
+    }
+    let new_us = t.elapsed().as_secs_f64() * 1e6 / 1_000.0;
+    println!(
+        "constellation_at: {same_us:.2} us per lookup at one instant, {new_us:.2} us at a new instant ({} build)",
+        if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
+    );
+    if !cfg!(debug_assertions) {
+        assert!(same_us < 20.0, "{same_us} us");
+    }
+}

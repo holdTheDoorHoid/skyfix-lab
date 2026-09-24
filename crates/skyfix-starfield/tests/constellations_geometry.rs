@@ -27,6 +27,7 @@ fn every_point_of_the_sky_is_in_exactly_one_constellation() {
         while ra < 360.0 {
             let r = regions_containing_b1875(ra, dec);
             assert_eq!(r.len(), 1, "({ra}, {dec}) is in {r:?}");
+            assert_eq!(constellation_at_b1875(ra, dec), Some(r[0]), "({ra}, {dec})");
             n += 1;
             ra += 0.5;
         }
@@ -54,8 +55,10 @@ fn points_exactly_on_boundary_lines_belong_to_one_constellation() {
     }
     for &a in &ras {
         for &d in &decs {
-            let r = regions_containing_b1875(f64::from(a) / 240.0, f64::from(d) / 60.0);
+            let (ra, dec) = (f64::from(a) / 240.0, f64::from(d) / 60.0);
+            let r = regions_containing_b1875(ra, dec);
             assert_eq!(r.len(), 1, "({a} s, {d}') is in {r:?}");
+            assert_eq!(constellation_at_b1875(ra, dec), Some(r[0]), "({a} s, {d}')");
         }
     }
     println!("{} boundary grid points checked", ras.len() * decs.len());
