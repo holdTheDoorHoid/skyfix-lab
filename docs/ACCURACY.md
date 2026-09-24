@@ -1318,7 +1318,9 @@ with Skyfield's own `almanac.oppositions_conjunctions`, `find_maxima` and `find_
 537 inferior and superior conjunctions of Mercury and Venus, 308 conjunctions and 308
 oppositions of Mars to Neptune, 536 greatest elongations, 577 closest approaches. **All
 12 transits are identified** (Mercury 1993, 1999, 2003, 2006, 2016, 2019, 2032, 2039,
-2049, 2052; Venus 2004, 2012), and no other inferior conjunction is called one.
+2049, 2052; Venus 2004, 2012), and no other inferior conjunction is called one; the same
+twelve, on the same dates, as NASA's transit catalogues (Espenak; test
+`the_transits_are_those_of_nasas_catalogues`).
 
 | quantity | target | median | worst | where |
 |---|---|---|---|---|

@@ -251,3 +251,45 @@ fn planet_events_2019_2026_against_de440s_and_nasa() {
 fn planet_events_1990_2060_against_de440s_and_nasa() {
     compare((1990, 1, 1), (2061, 1, 1));
 }
+
+/// Every transit of Mercury and Venus of 1990-2060, as NASA's transit catalogues list them
+/// (Espenak, "Seven Century Catalog of Mercury Transits: 1601 CE to 2300 CE" and "Six
+/// Millennium Catalog of Venus Transits", <https://eclipse.gsfc.nasa.gov/transit/catalog/
+/// MercuryCatalog.html> and `VenusCatalog.html`, retrieved 2026-09-24; a U.S. Government
+/// work): the date is the catalogue's (of the first contact, UT), and ours is the date of
+/// the inferior conjunction flagged as a transit, which is the same or the next day.
+#[test]
+fn the_transits_are_those_of_nasas_catalogues() {
+    let nasa = [
+        ("Mercury", 1993, 11, 6),
+        ("Mercury", 1999, 11, 15),
+        ("Venus", 2004, 6, 8),
+        ("Mercury", 2003, 5, 7),
+        ("Mercury", 2006, 11, 8),
+        ("Venus", 2012, 6, 6),
+        ("Mercury", 2016, 5, 9),
+        ("Mercury", 2019, 11, 11),
+        ("Mercury", 2032, 11, 13),
+        ("Mercury", 2039, 11, 7),
+        ("Mercury", 2049, 5, 7),
+        ("Mercury", 2052, 11, 9),
+    ];
+    let list = planet_events(
+        &PlanetProvider::new(),
+        civil_to_jd(1990, 1, 1),
+        civil_to_jd(2061, 1, 1),
+    )
+    .unwrap();
+    let ours: Vec<&PlanetEvent> = list.events.iter().filter(|e| e.transit).collect();
+    assert_eq!(ours.len(), nasa.len(), "{ours:#?}");
+    for (body, y, m, d) in nasa {
+        let day = civil_to_jd(y, m, d);
+        assert!(
+            ours.iter().any(|e| e.body == body
+                && e.kind == PlanetEventKind::InferiorConjunction
+                && e.jd_utc >= day
+                && e.jd_utc < day + 2.0),
+            "no transit of {body} on {y}-{m:02}-{d:02}"
+        );
+    }
+}
