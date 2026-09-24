@@ -6,8 +6,8 @@
 
 import { splitDegMin } from '../../format.js';
 import type { AngleFormat } from '../state.js';
-import { formatHours, formatTime, formatWithUtc, UTC_ZONE, zoneShortName, type Zone } from '../time.js';
-import type { LocalDate } from './windows.js';
+import { formatHours, formatTime, formatWithUtc, msFromJd, UTC_ZONE, zoneOffsetMs, zoneShortName, type Zone } from '../time.js';
+import type { LocalDate, LocalDay, LocalNight } from './windows.js';
 
 export const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
 export const MONTHS_LONG = [
@@ -130,4 +130,44 @@ export function signedOffsetChange(ms: number): string {
   const sign = minutes < 0 ? MINUS : '+';
   const abs = Math.abs(minutes);
   return abs % 60 === 0 ? `${sign}${abs / 60} h` : `${sign}${abs} min`;
+}
+
+// ---------------------------------------------------------------------------------------
+// Fast clocks for long lists (the year table has thousands of times). They give exactly what
+// `formatTime` gives (the wall clock of the instant rounded to the millisecond, shown to the
+// minute) without an Intl call per time: the zone offset is known for a day with no clock
+// change.
+
+function pad2(n: number): string {
+  return n < 10 ? `0${n}` : String(n);
+}
+
+/** The zone offset at `jd` on `day` (or in `night`): the known offset unless the clocks change then. */
+export function offsetOn(span: LocalDay | LocalNight, jd: number, zone: Zone): number {
+  if (span.offsetStartMs === span.offsetEndMs) return span.offsetStartMs;
+  return zoneOffsetMs(msFromJd(jd), zone);
+}
+
+/** `06:52` at a known zone offset. */
+export function clockAt(jd: number, offsetMs: number): string {
+  const d = new Date(msFromJd(jd) + offsetMs);
+  return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+}
+
+/** `10:52 UTC`, without Intl. */
+export function clockUtcFast(jd: number): string {
+  return `${clockAt(jd, 0)} UTC`;
+}
+
+const shortNames = new Map<string, string>();
+
+/** `EDT` for a zone at an offset, cached (one Intl call per zone and offset). */
+export function zoneNameAt(jd: number, zone: Zone, offsetMs: number): string {
+  const key = `${zone.kind === 'iana' ? zone.zone : zone.name}|${offsetMs}`;
+  let name = shortNames.get(key);
+  if (name === undefined) {
+    name = zoneShortName(jd, zone);
+    shortNames.set(key, name);
+  }
+  return name;
 }

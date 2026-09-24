@@ -12,8 +12,9 @@
  *     that window, with `always_above` / `always_below` when they do neither, give the
  *     exact dark hours each planet is up. Asking only about the dark hours is about a third
  *     of the work of whole days.
- *  3. That batch runs in chunks (`PlanetJob.step`), so the page stays responsive and the
- *     chart fills in as the engine answers.
+ *  3. That batch runs in chunks of about a month (`PlanetJob.step`): the primary planets
+ *     (Venus, Mars, Jupiter, Saturn) across the year first, then Mercury, Uranus and
+ *     Neptune, so the page stays responsive and the chart fills in as the engine answers.
  *
  * TypeScript here only intersects intervals the engine gave; it computes no astronomy.
  */
@@ -23,10 +24,10 @@ import type { Zone } from '../time.js';
 import type { YearData } from './year-data.js';
 import {
   hoursAfterNoon,
-  intersectIntervals,
   localDays,
-  localNights,
+  intersectIntervals,
   mergeIntervals,
+  nightsFromDays,
   type Interval,
   type LocalNight,
 } from './windows.js';
@@ -93,8 +94,10 @@ export interface PlanetJob {
   /** Run chunks for about `budgetMs`; true once every night is done. */
   step(budgetMs?: number): boolean;
   readonly done: boolean;
-  /** Fraction of the nights with darkness computed, 0-1. */
+  /** Fraction of the work done, 0-1. */
   readonly progress: number;
+  /** Every night with darkness has this planet's answer. */
+  has(planet: string): boolean;
 }
 
 function now(): number {
@@ -166,7 +169,8 @@ export function visibleHours(spans: readonly VisibleSpan[]): number {
 
 /**
  * Set up the year's nights from the Sun's year (`computeYear`) and return a job that fills
- * in the planets. `year` must be for the same observer, zone, year and options.
+ * in the planets: the primary planets for every night first, then the secondary ones.
+ * `year` must be for the same observer, zone, year and options.
  */
 export function planetYearJob(engine: ExplorerEngine, input: PlanetInput, year: YearData): PlanetJob {
   const t0 = now();
@@ -174,24 +178,24 @@ export function planetYearJob(engine: ExplorerEngine, input: PlanetInput, year: 
   const problems: string[] = [];
   const timing = { engineMs: 0, totalMs: 0 };
 
-  // Phases for the year plus the next New Year's Day, back to back.
-  const phases: PhaseSegment[] = year.days.flatMap((d) => [...d.phases]);
-  const lastDay = year.days[year.days.length - 1]!.day;
+  // The year's days and the next New Year's Day, whose morning ends the last night.
   const nextDay = localDays(zone, { year: input.year + 1, month: 1, day: 1 }, 1)[0]!;
+  const allDays = [...year.days.map((d) => d.day), nextDay];
+  let nextPhases: readonly PhaseSegment[] = [];
   const e0 = now();
   try {
-    const extra = engine.dayEvents(observer, nextDay.jd_start, nextDay.jd_end, ['Sun'], options);
-    phases.push(...extra.phases);
+    nextPhases = engine.dayEvents(observer, nextDay.jd_start, nextDay.jd_end, ['Sun'], options).phases;
   } catch (error) {
     problems.push(`The last night of the year is cut at midnight: ${error instanceof Error ? error.message : String(error)}`);
   }
   timing.engineMs += now() - e0;
-  if (lastDay.jd_end !== nextDay.jd_start) problems.push('internal: the year and the next day do not join');
 
-  const nightsList = localNights(zone, { year: input.year, month: 1, day: 1 }, year.days.length);
+  const phasesOf = (i: number): readonly PhaseSegment[] => (i < year.days.length ? year.days[i]!.phases : nextPhases);
+  const nightsList = nightsFromDays(allDays, zone);
   let lo = Infinity;
   let hi = -Infinity;
   const nights: PlanetNight[] = nightsList.map((night, index) => {
+    const phases = [...phasesOf(index), ...phasesOf(index + 1)];
     const dark = darkSpansIn(phases, night.jd_start, night.jd_end).map((s) => ({
       ...s,
       from: hoursAfterNoon(night, s.jd_start, zone),
@@ -207,22 +211,31 @@ export function planetYearJob(engine: ExplorerEngine, input: PlanetInput, year: 
   const hourRange: [number, number] | null = Number.isFinite(lo) ? [Math.floor(lo), Math.ceil(hi)] : null;
 
   const data: PlanetYear = { input, nights, hourRange, errors: [], problems, timing };
-  const todo = nights.filter((n) => !n.computed);
-  const total = todo.length;
+  const dark = nights.filter((n) => n.darkWindow !== null);
+  const primary = input.planets.filter((p) => (PRIMARY_PLANETS as readonly string[]).includes(p));
+  const secondary = input.planets.filter((p) => !primary.includes(p));
+  // Work items: (planets, nights) chunks, primary planets across the year first.
+  const queue: { planets: string[]; nights: PlanetNight[] }[] = [];
+  for (const group of [primary, secondary]) {
+    if (!group.length) continue;
+    for (let i = 0; i < dark.length; i += CHUNK_NIGHTS) queue.push({ planets: group, nights: dark.slice(i, i + CHUNK_NIGHTS) });
+  }
+  const total = queue.length;
   let cursor = 0;
+  const remaining = new Map<PlanetNight, number>(dark.map((n) => [n, (primary.length ? 1 : 0) + (secondary.length ? 1 : 0)]));
   timing.totalMs = now() - t0;
 
   function runChunk(): void {
-    const chunk = todo.slice(cursor, cursor + CHUNK_NIGHTS);
-    cursor += chunk.length;
-    const windows = chunk.map((n) => [n.darkWindow![0], n.darkWindow![1]] as [number, number]);
+    const item = queue[cursor]!;
+    cursor += 1;
+    const windows = item.nights.map((n) => [n.darkWindow![0], n.darkWindow![1]] as [number, number]);
     const c0 = now();
-    const results = engine.dayEventsBatch(observer, windows, [...input.planets], options);
+    const results = engine.dayEventsBatch(observer, windows, item.planets, options);
     timing.engineMs += now() - c0;
-    chunk.forEach((n, i) => {
+    item.nights.forEach((n, i) => {
       const res = results[i];
       const darkIntervals = mergeIntervals(n.dark.map((s) => [s.jd_start, s.jd_end] as Interval));
-      for (const planet of input.planets) {
+      for (const planet of item.planets) {
         const be = res?.bodies.find((b) => b.body === planet);
         if (!be) continue;
         const up = upIntervals(be, n.darkWindow![0], n.darkWindow![1]);
@@ -237,7 +250,9 @@ export function planetYearJob(engine: ExplorerEngine, input: PlanetInput, year: 
       for (const err of res?.errors ?? []) {
         if (!data.errors.some((x) => x.body === err.body)) data.errors.push(err);
       }
-      n.computed = true;
+      const left = (remaining.get(n) ?? 1) - 1;
+      remaining.set(n, left);
+      if (left <= 0) n.computed = true;
     });
   }
 
@@ -257,6 +272,9 @@ export function planetYearJob(engine: ExplorerEngine, input: PlanetInput, year: 
     },
     get progress() {
       return total === 0 ? 1 : cursor / total;
+    },
+    has(planet: string) {
+      return data.nights.every((n) => n.darkWindow === null || n.visible.has(planet));
     },
   };
   return job;

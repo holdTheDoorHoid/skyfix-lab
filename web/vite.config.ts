@@ -42,6 +42,8 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         next: resolve(import.meta.dirname, 'next/index.html'),
+        // The Charts view on its own, for its developer (charts agent).
+        devCharts: resolve(import.meta.dirname, 'next/dev-charts.html'),
       },
     },
   },

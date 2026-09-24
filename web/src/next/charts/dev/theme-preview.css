@@ -1,0 +1,382 @@
+/*
+ * DEV PREVIEW ONLY — a snapshot (2026-09-24) of the shell-design agent's theme/tokens.css,
+ * loaded by the charts dev page only while web/src/next/theme/tokens.css is absent from this
+ * branch, so the three themes can be checked before the design system is merged. Delete this
+ * file once the design system is on main; the dev page then loads the real tokens.
+ */
+
+/* ---------------------------------------------------------------------------------- */
+/* Shared: type, spacing, shape, motion, layout                                        */
+/* ---------------------------------------------------------------------------------- */
+
+:root {
+  --font-ui: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  --font-num: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, SFMono-Regular, 'SF Mono', Menlo,
+    Consolas, 'Liberation Mono', monospace;
+
+  /* Type scale (px). The panel runs at --text-md; readouts use --text-2xl/3xl. */
+  --text-2xs: 10.5px;
+  --text-xs: 11px;
+  --text-sm: 12px;
+  --text-md: 13px;
+  --text-base: 14px;
+  --text-lg: 16px;
+  --text-xl: 19px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --leading-tight: 1.2;
+  --leading: 1.45;
+  --weight-regular: 430;
+  --weight-medium: 530;
+  --weight-semibold: 620;
+  --weight-bold: 720;
+  --tracking-caps: 0.075em;
+
+  /* Spacing: a 4 px grid. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* Controls */
+  --control-h: 32px;
+  --control-h-sm: 28px;
+  --control-h-lg: 40px;
+  --icon-sm: 16px;
+  --icon: 18px;
+  --icon-lg: 22px;
+  --focus-width: 2px;
+
+  /* Frame */
+  --panel-width: 340px;
+  --appbar-h: 34px;
+  --timebar-h: 68px;
+  --sheet-peek: 46vh;
+
+  /* Motion. Everything is disabled under prefers-reduced-motion (base.css). */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 110ms;
+  --dur: 180ms;
+  --dur-slow: 300ms;
+
+  /* Layers */
+  --z-stage-overlay: 10;
+  --z-panel: 20;
+  --z-timebar: 30;
+  --z-sheet: 40;
+  --z-popover: 50;
+  --z-tooltip: 60;
+
+  /* Line styles shared by map lines, the compass, the sky view and charts.
+     Colour is never the only difference between two lines (EXPLORER_PLAN §3.6). */
+  --dash-now: none; /* a body's direction now: solid */
+  --dash-path: none; /* today's path: solid */
+  --dash-rise: 7 4; /* rise / dawn direction: dashed */
+  --dash-set: 0.5 5.5; /* set / dusk direction: dotted (round caps) */
+  --dash-below: 3 5; /* a path below the horizon: thinner, butt caps */
+  --dash-circle: 10 4 2 4; /* circle of position: dash-dot */
+  --line-w: 2px;
+  --line-w-strong: 3px;
+  --halo-w: 2px; /* casing each side of a line on the map */
+}
+
+/* ---------------------------------------------------------------------------------- */
+/* Light (default): light map, dark slate chrome, warm gold                            */
+/* ---------------------------------------------------------------------------------- */
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* Chrome: app strip, time bar, side panel */
+  --chrome-bg-0: #131a21;
+  --chrome-bg: #1c242d;
+  --chrome-raised: #26303b;
+  --chrome-raised-2: #303b48;
+  --chrome-line: #2e3945;
+  --chrome-line-strong: #6f7f90;
+  --chrome-ink: #f1f4f7;
+  --chrome-ink-2: #b6c2cd;
+  --chrome-ink-3: #909eac;
+  --accent: #f2b63c;
+  --accent-ink: #f5c35c;
+  --accent-soft: rgba(242, 182, 60, 0.16);
+  --on-accent: #1e1502;
+  --focus: #ffd47e;
+
+  /* Stage: map controls and content views */
+  --stage-bg: #eef1f3;
+  --stage-surface: #ffffff;
+  --stage-surface-2: #f2f5f7;
+  --stage-line: #d4dbe1;
+  --stage-line-strong: #7c8894;
+  --stage-ink: #17202a;
+  --stage-ink-2: #45525f;
+  --stage-ink-3: #5c6874;
+  --stage-accent-ink: #875900;
+  --stage-focus: #9a6500;
+  --scrim: rgba(10, 14, 20, 0.45);
+
+  --shadow-1: 0 1px 2px rgba(12, 20, 30, 0.16), 0 1px 1px rgba(12, 20, 30, 0.08);
+  --shadow-2: 0 4px 14px rgba(12, 20, 30, 0.18), 0 1px 3px rgba(12, 20, 30, 0.12);
+  --shadow-3: 0 12px 32px rgba(12, 20, 30, 0.26), 0 2px 6px rgba(12, 20, 30, 0.14);
+  --shadow-panel: 4px 0 18px rgba(8, 14, 22, 0.28);
+
+  /* Map */
+  --map-water: #c9dce6;
+  --map-land: #f6f3ec;
+  --map-coast: #9bb1bf;
+  --map-border: #c3c9cd;
+  --map-graticule: rgba(58, 84, 108, 0.2);
+  --map-shade: #0e1d3a;
+  --shade-civil: 0.13;
+  --shade-nautical: 0.25;
+  --shade-astronomical: 0.36;
+  --shade-night: 0.47;
+  --line-halo: rgba(22, 16, 4, 0.86);
+  --compass-fill: rgba(255, 255, 255, 0.7);
+  --compass-ring: #2b3846;
+  --compass-tick: #56636f;
+  --compass-label: #1a232d;
+  --compass-band: rgba(245, 180, 0, 0.17);
+  --observer: #17202a;
+  --observer-ring: #ffffff;
+
+  /* Sky phases (time-bar ribbon, map legend). Lightness rises from night to day, so
+     the order reads without hue; every segment also carries its name. */
+  --phase-night: #0c1430;
+  --phase-astronomical: #1c2b5c;
+  --phase-nautical: #34528f;
+  --phase-civil: #7ea2d8;
+  --phase-day: #b3d8f4;
+  --ribbon-edge: rgba(255, 255, 255, 0.16);
+  --phase-night-ink: #c4d0ea;
+  --phase-astronomical-ink: #d2dcf2;
+  --phase-nautical-ink: #eef3ff;
+  --phase-civil-ink: #0b1633;
+  --phase-day-ink: #0d2138;
+
+  /* Bodies: one token each, used everywhere (map lines, sky glyphs, charts, chips). */
+  --body-sun: #f5b400;
+  --body-moon: #a9bcd6;
+  --body-mercury: #a7a7a7;
+  --body-venus: #efdcb0;
+  --body-mars: #d9683f;
+  --body-jupiter: #d7a874;
+  --body-saturn: #cebd7e;
+  --body-uranus: #5cc2bf;
+  --body-neptune: #6e93ee;
+  --body-star: #ffffff;
+  /* The lit part of a drawn Moon phase (large areas; dimmer than the body colour at night). */
+  --moon-disc: #b4c5dc;
+
+  /* Events: rise and dawn, transit, set and dusk. */
+  --event-rise: #ff9f43;
+  --event-transit: #ffd878;
+  --event-set: #ff6b5e;
+
+  /* Status */
+  --caution: #f2d04b;
+  --on-caution: #1e1800;
+  --danger: #ff8173;
+  --ok: #62d096;
+  --info: #86bff4;
+}
+
+/* ---------------------------------------------------------------------------------- */
+/* Dark: navy                                                                          */
+/* ---------------------------------------------------------------------------------- */
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --chrome-bg-0: #060c17;
+  --chrome-bg: #0b1424;
+  --chrome-raised: #13213a;
+  --chrome-raised-2: #1b2c4a;
+  --chrome-line: #1c2b45;
+  --chrome-line-strong: #5d7294;
+  --chrome-ink: #e9eff7;
+  --chrome-ink-2: #a9b9cd;
+  --chrome-ink-3: #8698b0;
+  --accent: #f5bd48;
+  --accent-ink: #f7c866;
+  --accent-soft: rgba(245, 189, 72, 0.15);
+  --on-accent: #1e1502;
+  --focus: #ffd47e;
+
+  --stage-bg: #08111f;
+  --stage-surface: #0f1b2f;
+  --stage-surface-2: #16253d;
+  --stage-line: #22334e;
+  --stage-line-strong: #5d7294;
+  --stage-ink: #e9eff7;
+  --stage-ink-2: #a9b9cd;
+  --stage-ink-3: #8698b0;
+  --stage-accent-ink: #f7c866;
+  --stage-focus: #ffd47e;
+  --scrim: rgba(0, 4, 10, 0.6);
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.45);
+  --shadow-2: 0 4px 16px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 14px 36px rgba(0, 0, 0, 0.6), 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-panel: 4px 0 20px rgba(0, 0, 0, 0.45);
+
+  --map-water: #0a1628;
+  --map-land: #1a2a40;
+  --map-coast: #36527a;
+  --map-border: #2b3e5a;
+  --map-graticule: rgba(160, 190, 230, 0.13);
+  --map-shade: #000510;
+  --shade-civil: 0.16;
+  --shade-nautical: 0.3;
+  --shade-astronomical: 0.43;
+  --shade-night: 0.55;
+  --line-halo: rgba(0, 4, 12, 0.78);
+  --compass-fill: rgba(9, 18, 33, 0.66);
+  --compass-ring: #b4c5da;
+  --compass-tick: #8699b2;
+  --compass-label: #e9eff7;
+  --compass-band: rgba(245, 180, 0, 0.18);
+  --observer: #0b1424;
+  --observer-ring: #e9eff7;
+
+  --phase-night: #0a1226;
+  --phase-astronomical: #172748;
+  --phase-nautical: #27416f;
+  --phase-civil: #3e6298;
+  --phase-day: #6594cb;
+  --ribbon-edge: rgba(150, 180, 230, 0.28);
+  --phase-night-ink: #aebfdc;
+  --phase-astronomical-ink: #c3d1ea;
+  --phase-nautical-ink: #e3ebfa;
+  --phase-civil-ink: #ffffff;
+  --phase-day-ink: #06101f;
+
+  --body-sun: #f7b800;
+  --body-moon: #b9cae0;
+  --body-mercury: #ababab;
+  --body-venus: #f1dfb4;
+  --body-mars: #e0714a;
+  --body-jupiter: #dbae7c;
+  --body-saturn: #d3c386;
+  --body-uranus: #62c7c4;
+  --body-neptune: #7a9df2;
+  --body-star: #ffffff;
+  --moon-disc: #c4d3e6;
+
+  --event-rise: #ffa24d;
+  --event-transit: #ffdb82;
+  --event-set: #ff7063;
+
+  --caution: #f2d04b;
+  --on-caution: #1e1800;
+  --danger: #ff8173;
+  --ok: #62d096;
+  --info: #86bff4;
+}
+
+/* ---------------------------------------------------------------------------------- */
+/* Night: red on black. Blue channel 0 everywhere; green kept low.                     */
+/* ---------------------------------------------------------------------------------- */
+
+:root[data-theme='night'] {
+  color-scheme: dark;
+
+  --chrome-bg-0: #000000;
+  --chrome-bg: #050000;
+  --chrome-raised: #130200;
+  --chrome-raised-2: #1f0300;
+  --chrome-line: #2a0500;
+  --chrome-line-strong: #c01800;
+  --chrome-ink: #ff2e00;
+  --chrome-ink-2: #f21a00;
+  --chrome-ink-3: #ee1600;
+  --accent: #ff3d00;
+  --accent-ink: #ff4400;
+  --accent-soft: rgba(255, 40, 0, 0.14);
+  --on-accent: #000000;
+  --focus: #ff4400;
+
+  --stage-bg: #000000;
+  --stage-surface: #080000;
+  --stage-surface-2: #140200;
+  --stage-line: #2a0500;
+  --stage-line-strong: #c01800;
+  --stage-ink: #ff2e00;
+  --stage-ink-2: #f21a00;
+  --stage-ink-3: #ee1600;
+  --stage-accent-ink: #ff4400;
+  --stage-focus: #ff4400;
+  --scrim: rgba(0, 0, 0, 0.7);
+
+  --shadow-1: 0 0 0 1px #2a0500;
+  --shadow-2: 0 0 0 1px #3a0800, 0 6px 18px rgba(0, 0, 0, 0.8);
+  --shadow-3: 0 0 0 1px #3a0800, 0 14px 36px rgba(0, 0, 0, 0.9);
+  --shadow-panel: 1px 0 0 #2a0500;
+
+  --map-water: #000000;
+  --map-land: #1a0300;
+  --map-coast: #5c0e00;
+  --map-border: #300600;
+  --map-graticule: rgba(255, 40, 0, 0.16);
+  --map-shade: #000000;
+  --shade-civil: 0.22;
+  --shade-nautical: 0.38;
+  --shade-astronomical: 0.52;
+  --shade-night: 0.64;
+  --line-halo: rgba(0, 0, 0, 0.9);
+  --compass-fill: rgba(0, 0, 0, 0.68);
+  --compass-ring: #d42000;
+  --compass-tick: #a81400;
+  --compass-label: #ff2e00;
+  --compass-band: rgba(255, 50, 0, 0.18);
+  --observer: #000000;
+  --observer-ring: #ff2e00;
+
+  --phase-night: #000000;
+  --phase-astronomical: #0e0100;
+  --phase-nautical: #1a0200;
+  --phase-civil: #2a0400;
+  --phase-day: #3d0600;
+  --ribbon-edge: #3a0700;
+  --phase-night-ink: #f21a00;
+  --phase-astronomical-ink: #f21a00;
+  --phase-nautical-ink: #ff2e00;
+  --phase-civil-ink: #ff2e00;
+  --phase-day-ink: #ff3300;
+
+  --body-sun: #ff4a00;
+  --body-moon: #f03600;
+  --body-mercury: #c02000;
+  --body-venus: #ff2400;
+  --body-mars: #d01800;
+  --body-jupiter: #e83000;
+  --body-saturn: #d82a00;
+  --body-uranus: #c82400;
+  --body-neptune: #c01c00;
+  --body-star: #ff3000;
+  --moon-disc: #c41c00;
+
+  --event-rise: #ff4000;
+  --event-transit: #d82800;
+  --event-set: #bc1400;
+
+  --caution: #ff3000;
+  --on-caution: #000000;
+  --danger: #ff2e00;
+  --ok: #ff2e00;
+  --info: #ff2e00;
+}

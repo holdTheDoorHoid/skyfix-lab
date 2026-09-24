@@ -129,14 +129,35 @@ export function daysInMonth(year: number, month: number): number {
   return [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 30;
 }
 
+/** A small cache of window lists: they depend only on the zone and the calendar, and cost Intl calls. */
+const windowCache = new Map<string, readonly LocalDay[]>();
+const WINDOW_CACHE_SIZE = 24;
+
+function cachedDays(key: string, make: () => LocalDay[]): readonly LocalDay[] {
+  const hit = windowCache.get(key);
+  if (hit) {
+    windowCache.delete(key);
+    windowCache.set(key, hit);
+    return hit;
+  }
+  const value = Object.freeze(make());
+  windowCache.set(key, value);
+  while (windowCache.size > WINDOW_CACHE_SIZE) windowCache.delete(windowCache.keys().next().value as string);
+  return value;
+}
+
 /** Every local day of a calendar year (365 or 366 windows: within `day_events_batch`'s 400). */
-export function daysOfYear(zone: Zone, year: number): LocalDay[] {
-  return localDays(zone, { year, month: 1, day: 1 }, isLeapYear(year) ? 366 : 365);
+export function daysOfYear(zone: Zone, year: number): readonly LocalDay[] {
+  return cachedDays(`y|${zoneKey(zone)}|${year}`, () =>
+    localDays(zone, { year, month: 1, day: 1 }, isLeapYear(year) ? 366 : 365),
+  );
 }
 
 /** Every local day of a calendar month. */
-export function daysOfMonth(zone: Zone, year: number, month: number): LocalDay[] {
-  return localDays(zone, { year, month, day: 1 }, daysInMonth(year, month));
+export function daysOfMonth(zone: Zone, year: number, month: number): readonly LocalDay[] {
+  return cachedDays(`m|${zoneKey(zone)}|${year}|${month}`, () =>
+    localDays(zone, { year, month, day: 1 }, daysInMonth(year, month)),
+  );
 }
 
 /** Day of the year, 0 for 1 January. */
@@ -206,25 +227,34 @@ export interface LocalNight {
 
 /** Consecutive nights from the evening of `first`. */
 export function localNights(zone: Zone, first: LocalDate, count: number): LocalNight[] {
-  const noons: number[] = [];
-  const dates: LocalDate[] = [];
-  for (let i = 0; i <= count; i += 1) {
-    const date = addDays(first, i);
-    dates.push(date);
-    noons.push(msFromJd(jdFromWallClock({ year: date.year, month: date.month, day: date.day, hour: 12 }, zone)));
-  }
+  return nightsFromDays(localDays(zone, first, count + 1), zone);
+}
+
+/** Local noon of a day: twelve hours after midnight unless the clocks change that day. */
+function noonOf(day: LocalDay, zone: Zone): number {
+  if (!hasClockChange(day)) return day.jd_start + 0.5;
+  const d = day.date;
+  return jdFromWallClock({ year: d.year, month: d.month, day: d.day, hour: 12 }, zone);
+}
+
+/**
+ * The nights of consecutive local days: one fewer than the days (each night ends on the
+ * next day's noon). Days without a clock change need no zone lookups at all.
+ */
+export function nightsFromDays(days: readonly LocalDay[], zone: Zone): LocalNight[] {
   const out: LocalNight[] = [];
-  for (let i = 0; i < count; i += 1) {
-    const ms0 = noons[i]!;
-    const ms1 = noons[i + 1]!;
-    const date = dates[i]!;
+  for (let i = 0; i + 1 < days.length; i += 1) {
+    const day = days[i]!;
+    const next = days[i + 1]!;
+    const jd0 = noonOf(day, zone);
+    const jd1 = noonOf(next, zone);
     out.push({
-      date,
-      key: dateKey(date),
-      jd_start: jdFromUnixMs(ms0),
-      jd_end: jdFromUnixMs(ms1),
-      offsetStartMs: zoneOffsetMs(ms0, zone),
-      offsetEndMs: zoneOffsetMs(ms1 - 1, zone),
+      date: day.date,
+      key: day.key,
+      jd_start: jd0,
+      jd_end: jd1,
+      offsetStartMs: hasClockChange(day) ? zoneOffsetMs(msFromJd(jd0), zone) : day.offsetStartMs,
+      offsetEndMs: hasClockChange(next) ? zoneOffsetMs(msFromJd(jd1) - 1, zone) : next.offsetStartMs,
     });
   }
   return out;
