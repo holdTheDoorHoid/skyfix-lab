@@ -7,7 +7,7 @@ Gamma      +0.3484: the Moon's centre passes 0.3484 Earth radii north of the sha
            axis
 Saros      123 (lunation 311)
 Totality   1 h 05 min 24 s (u2 to u3, the Moon wholly in the umbra)
-Partial    3 h 38 min 16 s (u1 to u4, the Moon in the umbra)
+Partial    3 h 38 min 16 s (u1 to u4, the Moon partly or wholly in the umbra)
 Penumbral  6 h 02 min 40 s (p1 to p4, the whole eclipse)
 Delta-T    69.184 s (TT - UT1): the contacts are the same instants everywhere; where the
            Moon is overhead depends on it

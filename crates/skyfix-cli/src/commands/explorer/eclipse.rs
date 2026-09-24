@@ -217,12 +217,12 @@ pub fn render(e: &Eclipse, site: Option<&Site>, local: Option<&EclipseLocal>) ->
         }
     }
     out.push('\n');
-    if let Eclipse::Solar(_) = e {
-        let local_type = match local {
+    if let Eclipse::Solar(s) = e {
+        let solar_local = match local {
             Some(EclipseLocal::Solar(l)) => Some(l),
             _ => None,
         };
-        wrapped(&mut out, &eye_safety(local_type));
+        wrapped(&mut out, &eye_safety(s.eclipse_type, solar_local));
         out.push('\n');
     }
     wrapped(&mut out, &notes(e, local));
@@ -368,7 +368,7 @@ fn lunar_global(out: &mut String, l: &LunarEclipse, with_contacts: bool) {
         (
             "Partial",
             l.partial_duration_s,
-            "u1 to u4, the Moon in the umbra",
+            "u1 to u4, the Moon partly or wholly in the umbra",
         ),
         (
             "Penumbral",
@@ -585,8 +585,9 @@ fn lunar_local(out: &mut String, l: &LunarLocal) {
     event_table(out, "Moon", &l.events, false, false);
 }
 
-/// The eye-safety line of a solar eclipse, fitted to what the observer sees.
-fn eye_safety(local: Option<&SolarLocal>) -> String {
+/// The eye-safety line of a solar eclipse, fitted to what the observer sees, or with no
+/// observer to the eclipse's type: only totality is ever safe to look at unprotected.
+fn eye_safety(eclipse_type: SolarType, local: Option<&SolarLocal>) -> String {
     let base = "Eye safety: never look at the Sun, even when it is mostly covered, without \
                 certified eclipse glasses (ISO 12312-2) or a pinhole projector.";
     let totality = local.and_then(|l| {
@@ -597,22 +598,30 @@ fn eye_safety(local: Option<&SolarLocal>) -> String {
         let c3 = find(&l.events, LocalEventKind::C3)?;
         (c2.visible && c3.visible).then_some((c2.jd_utc, c3.jd_utc))
     });
-    match (local.map(|l| l.local_type), totality) {
-        (_, Some((c2, c3))) => format!(
+    let local_type = local.map(|l| l.local_type);
+    match (totality, local_type, eclipse_type) {
+        (Some((c2, c3)), _, _) => format!(
             "{base} Only during totality itself, here from {} to {}, is it safe to look with \
              the naked eye; the glasses go back on as the first bright point reappears.",
             text::utc(c2),
             text::utc(c3)
         ),
-        (Some(LocalType::Annular), _) => format!(
-            "{base} An annular eclipse is never safe to look at with the naked eye, not even \
-             at its greatest: the ring of Sun left uncovered is still blinding."
-        ),
-        (Some(LocalType::Partial | LocalType::Total), _) => format!(
+        (None, Some(LocalType::Annular), _)
+        | (None, None | Some(LocalType::None), SolarType::Annular) => {
+            format!(
+                "{base} An annular eclipse is never safe to look at with the naked eye, not \
+                 even at its greatest: the ring of Sun left uncovered is still blinding."
+            )
+        }
+        (None, Some(LocalType::Partial | LocalType::Total), _) => format!(
             "{base} There is no totality to see from this place, so there is no moment when it \
              is safe to look with the naked eye."
         ),
-        _ => format!(
+        (None, None | Some(LocalType::None), SolarType::Partial) => format!(
+            "{base} A partial eclipse is never safe to look at with the naked eye: some of the \
+             Sun is always left uncovered."
+        ),
+        (None, None | Some(LocalType::None), SolarType::Total | SolarType::Hybrid) => format!(
             "{base} Only during totality itself, inside the path of totality, is it safe to \
              look with the naked eye."
         ),
@@ -631,11 +640,11 @@ fn notes(e: &Eclipse, local: Option<&EclipseLocal>) -> String {
                  site (CONVENTIONS 13.2); an event is marked Sun down when the Sun's centre is \
                  below -50', its rise and set altitude. P and V say where on the Sun's disc the \
                  limbs touch: the angle from the disc's north point (P) or from its top, toward \
-                 the zenith (V), counted through east. A place's maximum is its greatest magnitude. Contacts agree \
-                 with USNO's within 2 s at USNO's Delta-T, and within 6 s as computed here with \
-                 DUT1 = 0 (docs/ACCURACY.md section 12); for a future eclipse the true Delta-T \
-                 will differ, and each second of difference moves a contact by up to about a \
-                 second."
+                 the zenith (V), counted through east. A place's maximum is its greatest \
+                 magnitude. Contacts agree with USNO's within 2 s at USNO's Delta-T, and within \
+                 6 s as computed here with DUT1 = 0 (docs/ACCURACY.md section 12); for a future \
+                 eclipse the true Delta-T will differ, and each second of difference moves a \
+                 contact by up to about a second."
             }
             Eclipse::Lunar(_) => {
                 " alt and Az are the Moon's centre, geometric, with no refraction, from the WGS84 \

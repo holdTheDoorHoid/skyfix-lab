@@ -392,7 +392,16 @@ fn every_solar_eclipse_carries_an_eye_safety_line_fitted_to_the_place() {
     run(&["eclipse", "2024-04-08-solar"])
         .expect_code(0)
         .expect_stdout_flat("Eye safety: never look at the Sun")
-        .expect_stdout_flat("ISO 12312-2");
+        .expect_stdout_flat("ISO 12312-2")
+        .expect_stdout_flat("Only during totality itself, inside the path of totality");
+    // With no observer the line follows the eclipse's type: an annular or a partial
+    // eclipse has no totality anywhere, so no moment is safe.
+    run(&["eclipse", "2024-10-02-solar"])
+        .expect_code(0)
+        .expect_stdout_flat("An annular eclipse is never safe to look at with the naked eye");
+    run(&["eclipse", "2025-03-29-solar"])
+        .expect_code(0)
+        .expect_stdout_flat("A partial eclipse is never safe to look at with the naked eye");
     // Easter Island, inside the annular path of 2024-10-02.
     run(&[
         "eclipse",
