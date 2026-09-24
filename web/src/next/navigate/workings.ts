@@ -25,7 +25,7 @@ export function workingsTable(breakdown: CorrectionBreakdown | SightCorrectionBr
     (breakdown.steps as CorrectionBreakdown['steps']).map((s) => [s.kind, s]),
   );
   const table = h('table', { class: 'sfn-workings' });
-  if (caption) table.appendChild(h('caption', { class: 'sfn-sr' }, caption));
+  if (caption) table.appendChild(h('caption', { class: 'sf-sr' }, caption));
   table.appendChild(
     h(
       'thead',

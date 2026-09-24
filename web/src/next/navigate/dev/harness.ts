@@ -7,7 +7,7 @@
  * fragment, so screenshots are reproducible:
  *
  *   #example=dusk-stars&method=fix&theme=night&place=philadelphia&date=2026-09-24T19:00
- *   &angles=dm&panel=0&autosave=0
+ *   &angles=dm&panel=0&autosave=0&open=obs-3&scroll=.sfn-chart&view=map
  *
  * `date` is a wall-clock time in the place's own zone (it sets the time bar, which the
  * planner uses). Nothing is kept: the working session is not saved unless `autosave=1`,
@@ -206,6 +206,9 @@ async function boot(root: HTMLElement): Promise<void> {
     const busy = stage.querySelector('.sfn-busy');
     const drawn = (results && results.childElementCount > 0) || (status && status.childElementCount > 0 && !busy);
     if (drawn && document.fonts.status === 'loaded') {
+      // `open=<sight id>`: expand that sight's workings (for screenshots).
+      const openId = p.get('open');
+      if (openId) (stage.querySelector(`[data-toggle="${CSS.escape(openId)}"]`) as HTMLButtonElement | null)?.click();
       // `scroll=<selector>`: bring a part of the view to the top (for screenshots).
       const target = p.get('scroll');
       if (target) setTimeout(() => stage.querySelector(target)?.scrollIntoView({ block: 'start' }), 150);
