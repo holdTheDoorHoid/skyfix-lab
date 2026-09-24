@@ -16,10 +16,7 @@ import sys
 import time
 
 from . import common as c
-from . import gen_almanac, gen_events, gen_geocentric, gen_moon, gen_moon_sights
-from . import gen_nav_methods, gen_planets
-from . import gen_sessions, gen_stars, gen_sun_sextant
-from . import gen_topocentric, gen_usno, gen_usno_sights
+from . import gen_almanac, gen_eclipses, gen_events, gen_geocentric, gen_moon, gen_moon_sights, gen_nav_methods, gen_planets, gen_sessions, gen_stars, gen_sun_sextant, gen_topocentric, gen_usno, gen_usno_sights
 
 STEPS = [
     ("navigational_stars_hip", gen_stars.main, False),
@@ -37,6 +34,12 @@ STEPS = [
     ("events USNO cross-check", gen_events.main_usno_only, True),
     ("almanac_days: daily almanac pages", gen_almanac.main_offline, False),
     ("almanac_usno: USNO spot checks of the pages", gen_almanac.main_usno_only, True),
+    ("eclipses_skyfield", lambda: gen_eclipses.main(["--offline"]), False),
+    (
+        "eclipses_nasa_canon + eclipses_nasa_paths + eclipses_usno_local",
+        lambda: gen_eclipses.main(["--network-only"]),
+        True,
+    ),
 ]
 
 

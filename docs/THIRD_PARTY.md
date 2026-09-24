@@ -1168,3 +1168,91 @@ produced by the US Naval Observatory, a US Government agency, and not subject to
 copyright in the United States (17 U.S.C. § 105); no machine-readable terms of use could
 be retrieved. Fetched with `curl`, a second apart; the file is left untouched if the
 service cannot be reached.
+
+## Eclipses
+
+Owner: eclipse agent (`crates/skyfix-almanac/src/eclipses.rs` and `eclipses/`,
+`crates/skyfix-wasm/src/eclipses.rs`, `tools/reference/gen_eclipses.py`,
+`fixtures/reference/eclipses_*.json`). Added 2026-09-24.
+
+**No third-party data is embedded in the runtime.** The engine computes every eclipse
+from the project's own Sun (VSOP87D) and Moon (ELP 2000-82B) providers, listed above.
+What follows is either a published method used as an algorithm, a published constant,
+or a development-time reference fixture that only the tests read.
+
+### Methods and constants
+
+Cited in the source; no licence attaches to a published method, formula or constant.
+
+- **Besselian elements, local circumstances, limits of the path:** *Explanatory
+  Supplement to the Astronomical Ephemeris and the American Ephemeris and Nautical
+  Almanac* (HMSO, 1961), chapter 9 (the fundamental plane, the shadow cones `f1`, `f2`,
+  `l1`, `l2`, the observer's coordinates and their rates, the limit condition
+  `u' sin Q + v' cos Q = L'`); *Explanatory Supplement to the Astronomical Almanac*
+  (Seidelmann ed., 1992), chapter 8; Chauvenet, *A Manual of Spherical and Practical
+  Astronomy* (1891); Meeus, *Elements of Solar Eclipses 1951-2200* (Willmann-Bell,
+  1989). The engine works the same geometry in the Earth-fixed frame instead of with
+  the classical `rho sin phi'` series, and solves the limits with a bracketed root in
+  the observer's height; no code was copied from anywhere.
+- **Candidate syzygies:** Meeus, *Astronomical Algorithms* (2nd ed., 1998), chapter 49
+  (mean new and full moons and their arguments) and chapter 54 (quick instant and gamma
+  of an eclipse). Used only to decide where to look; listed above for other uses.
+- **Radius of the Moon for eclipses:** `k1 = 0.272488` (penumbra) and `k2 = 0.272281`
+  (umbra) Earth equatorial radii, as printed on NASA's Besselian-element pages (for
+  example `SE2024Apr08Tbeselm.html`, retrieved 2026-09-24; the 2017 page prints
+  `k1 = 0.272508`). The Sun's radius is the one that subtends 959.63″ at 1 au, the
+  constant already listed under "Solar constants".
+- **Shadow enlargement for lunar eclipses, Danjon's rule:** Danjon A., "Les éclipses de
+  Lune par la pénombre en 1951", *L'Astronomie* **65**, 51-53 (1951), in the form NASA
+  states it (penumbra `1.01 Pm + Ss + Ps`, umbra `1.01 Pm − Ss + Ps`): "Enlargement of
+  Earth's Shadows", <https://eclipse.gsfc.nasa.gov/LEcat5/shadow.html>, retrieved
+  2026-09-24.
+- **Saros and lunation numbers:** van den Bergh G., *Periodicity and Variation of Solar
+  (and Lunar) Eclipses* (Tjeenk Willink, 1955) for the saros-inex numbering (series
+  advance by one per inex of 358 lunations); NASA's lunation numbering (lunation 0 = the
+  new moon of 2000 January 6; Brown's number minus 953). Anchors, from the NASA
+  catalogues below: the solar eclipse of 2024-04-08 (lunation 300, saros 139) and the
+  lunar eclipse of 2025-03-14 (lunation 311, saros 123).
+- **Obscuration:** the area of intersection of two discs (elementary geometry).
+
+### NASA eclipse catalogues, path tables and Besselian elements (reference fixtures)
+
+| Item | Value |
+|---|---|
+| Catalogue pages | `https://eclipse.gsfc.nasa.gov/SEcat5/SE1901-2000.html`, `…/SE2001-2100.html`, `https://eclipse.gsfc.nasa.gov/LEcat5/LE1901-2000.html`, `…/LE2001-2100.html` |
+| Path tables | `https://eclipse.gsfc.nasa.gov/SEpath/SEpath2001/SE{2017Aug21T,2021Dec04T,2023Apr20H,2023Oct14A,2024Apr08T,2026Aug12T}path.html` |
+| Besselian elements | `https://eclipse.gsfc.nasa.gov/SEbeselm/SEbeselm2001/SE{…}beselm.html` (the same six) |
+| Retrieved | 2026-09-24; the SHA-256 of every page is recorded in the fixtures' `generator.sources` |
+| Stored as | `fixtures/reference/eclipses_nasa_canon.json` (158 solar and 162 lunar rows for 1990-2060, parsed verbatim) and `fixtures/reference/eclipses_nasa_paths.json` (six path tables with their Delta-T and greatest-eclipse data, six sets of polynomial elements) |
+| Publications | Espenak F., Meeus J., *Five Millennium Canon of Solar Eclipses: −1999 to +3000*, NASA/TP-2006-214141 (2006); *Five Millennium Canon of Lunar Eclipses: −1999 to +3000*, NASA/TP-2009-214172 (2009); *Five Millennium Catalog of Lunar Eclipses*, NASA/TP-2009-214173 (2009) |
+
+Produced by NASA's Goddard Space Flight Center: works of the U.S. Government are not
+subject to copyright in the United States (17 U.S.C. § 105). The pages ask that
+reproduced data carry an acknowledgment, which the fixtures carry and this file repeats:
+**"Eclipse Predictions by Fred Espenak and Jean Meeus (NASA's GSFC)"** for the catalogues
+and **"Eclipse Predictions by Fred Espenak, NASA's GSFC"** for the path tables and
+elements. The pages state their own model: VSOP87 and ELP-2000/82 (the path pages since
+changed to ELP-2000/85), lunar secular acceleration −25.858″/cy², and a Delta-T observed
+to about 2006 and extrapolated after (74 s for 2024 in the catalogue; 68.4-71.4 s on the
+later path pages).
+
+### USNO Solar Eclipse Computer (reference fixture)
+
+| Item | Value |
+|---|---|
+| Endpoint | `https://aa.usno.navy.mil/api/eclipses/solar/date?date=YYYY-MM-DD&coords=LAT,LON&height=H` (local circumstances are served for 2017-2024) |
+| Documentation | `https://aa.usno.navy.mil/data/api` |
+| `apiversion` returned | `4.0.1` |
+| Retrieved | 2026-09-24 |
+| Stored as | `fixtures/reference/eclipses_usno_local.json`: 22 responses verbatim (2017-08-21, 2023-10-14 and 2024-04-08 at U.S. cities, Mazatlán, Honolulu, Dakar, Reykjavík and Sydney) |
+
+Same basis and the same caveat as the "US Naval Observatory API" entry above (a U.S.
+Government work; no machine-readable terms could be retrieved).
+
+### Skyfield + JPL DE440s (reference fixture)
+
+`fixtures/reference/eclipses_skyfield.json`, generated by `tools/reference/gen_eclipses.py`
+with the Skyfield version and the `de440s.bsp` kernel listed under "Reference data" above
+(checksums in the file's `generator` block): local contact instants at the 22 USNO sites,
+two lunar eclipses with the Moon's altitude at three sites each, and the latitudes where
+the limits of four eclipses cross thirteen meridians.

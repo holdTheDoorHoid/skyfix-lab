@@ -1,0 +1,1371 @@
+{
+  "generator": {
+    "description": "Skyfield + JPL DE440s: solar-eclipse contacts at 22 sites (roots of the topocentric apparent Sun-Moon separation minus the sum, or the difference, of the semidiameters), lunar-eclipse contacts with the Moon's altitude at 3 sites each, and the latitudes where the umbral and penumbral limits of four eclipses cross chosen meridians.",
+    "ephemeris": {
+      "file": "de440s.bsp",
+      "sha256": "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2",
+      "size_bytes": 32726016,
+      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp"
+    },
+    "generated_utc": "2026-09-24T00:00:00Z",
+    "geometry": {
+      "altitudes": "Skyfield altaz() without refraction: topocentric, geometric, centre.",
+      "earth_equatorial_radius_km": 6378.137,
+      "external_contacts": "separation = SD_sun + SD_moon(k1)",
+      "internal_contacts": "separation = |SD_moon(k2) - SD_sun|",
+      "lunar": "geocentric; theta = 180 deg - elongation of the Moon from the Sun; umbra 1.01 pi_M - s_S + pi_S, penumbra 1.01 pi_M + s_S + pi_S (Danjon), pi_M = asin(6378.14 km / d), s_S = 959.63\"/R, pi_S = 8.794\"/R, s_M = asin(k1 sin pi_M)",
+      "maximum": "greatest magnitude (SD_sun + SD_moon(k1) - separation) / (2 SD_sun + SD_moon(k1) - SD_moon(k2))",
+      "moon_radius_k1": 0.272488,
+      "moon_radius_k2": 0.272281,
+      "semidiameters": "asin(radius / topocentric distance)",
+      "sun_radius_km": 695989.245
+    },
+    "never_a_runtime_dependency": "Development-time reference. CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "residual_rate": "residual_rate_arcsec_per_s is d/dt of (separation - radii sum or difference) at the contact: a time error dt at a contact is a separation residual rate * dt.",
+    "timescale": "load.timescale(delta_t=69.184): UT1 = UTC exactly (TAI - UTC = 37 s for every instant here), the CONVENTIONS section 6 assumption; jd_utc is UTC-based.",
+    "tolerances": {
+      "contact_time_s": 5.0,
+      "limit_latitude_deg": 0.01
+    },
+    "tool": "tools/reference/gen_eclipses.py",
+    "versions": {
+      "jplephem": "2.24",
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "python": "3.12.3",
+      "skyfield": "1.55"
+    }
+  },
+  "limit_crossings": [
+    {
+      "cone": "umbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2457987.234247340,
+          "lat_deg": 42.995657,
+          "sun_alt_deg": 51.375
+        },
+        {
+          "inside": "south",
+          "jd_utc": 2457987.234291069,
+          "lat_deg": 43.981376,
+          "sun_alt_deg": 50.672
+        }
+      ],
+      "id": "2017-08-21-solar",
+      "lon_deg": -110.000
+    },
+    {
+      "cone": "umbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2457987.264030926,
+          "lat_deg": 37.363181,
+          "sun_alt_deg": 64.209
+        },
+        {
+          "inside": "south",
+          "jd_utc": 2457987.263116285,
+          "lat_deg": 38.518861,
+          "sun_alt_deg": 63.110
+        }
+      ],
+      "id": "2017-08-21-solar",
+      "lon_deg": -90.000
+    },
+    {
+      "cone": "penumbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2457987.275787928,
+          "lat_deg": 6.990773,
+          "sun_alt_deg": 84.920
+        }
+      ],
+      "id": "2017-08-21-solar",
+      "lon_deg": -100.000
+    },
+    {
+      "cone": "penumbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2457987.346013921,
+          "lat_deg": -19.882695,
+          "sun_alt_deg": 1.682
+        }
+      ],
+      "id": "2017-08-21-solar",
+      "lon_deg": -40.000
+    },
+    {
+      "cone": "umbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2460232.189068442,
+          "lat_deg": 36.177078,
+          "sun_alt_deg": 32.774
+        },
+        {
+          "inside": "south",
+          "jd_utc": 2460232.188261593,
+          "lat_deg": 38.465049,
+          "sun_alt_deg": 31.036
+        }
+      ],
+      "id": "2023-10-14-solar",
+      "lon_deg": -110.000
+    },
+    {
+      "cone": "umbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2460232.278247653,
+          "lat_deg": 1.789783,
+          "sun_alt_deg": 59.698
+        },
+        {
+          "inside": "south",
+          "jd_utc": 2460232.274476714,
+          "lat_deg": 4.152445,
+          "sun_alt_deg": 60.065
+        }
+      ],
+      "id": "2023-10-14-solar",
+      "lon_deg": -75.000
+    },
+    {
+      "cone": "penumbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2460232.276333152,
+          "lat_deg": -19.501271,
+          "sun_alt_deg": 78.386
+        }
+      ],
+      "id": "2023-10-14-solar",
+      "lon_deg": -100.000
+    },
+    {
+      "cone": "umbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2460409.270478663,
+          "lat_deg": 28.103535,
+          "sun_alt_deg": 69.291
+        },
+        {
+          "inside": "south",
+          "jd_utc": 2460409.273578615,
+          "lat_deg": 30.660677,
+          "sun_alt_deg": 66.864
+        }
+      ],
+      "id": "2024-04-08-solar",
+      "lon_deg": -100.000
+    },
+    {
+      "cone": "umbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2460409.304143897,
+          "lat_deg": 41.465470,
+          "sun_alt_deg": 47.453
+        },
+        {
+          "inside": "south",
+          "jd_utc": 2460409.304847043,
+          "lat_deg": 43.313882,
+          "sun_alt_deg": 46.012
+        }
+      ],
+      "id": "2024-04-08-solar",
+      "lon_deg": -80.000
+    },
+    {
+      "cone": "penumbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2460409.193021731,
+          "lat_deg": -29.796457,
+          "sun_alt_deg": 28.476
+        }
+      ],
+      "id": "2024-04-08-solar",
+      "lon_deg": -120.000
+    },
+    {
+      "cone": "penumbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2460409.312465285,
+          "lat_deg": 15.853026,
+          "sun_alt_deg": 38.469
+        }
+      ],
+      "id": "2024-04-08-solar",
+      "lon_deg": -60.000
+    },
+    {
+      "cone": "umbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2459552.827464277,
+          "lat_deg": -83.115082,
+          "sun_alt_deg": 15.801
+        },
+        {
+          "inside": "south",
+          "jd_utc": 2459552.826176202,
+          "lat_deg": -79.266641,
+          "sun_alt_deg": 12.142
+        }
+      ],
+      "id": "2021-12-04-solar",
+      "lon_deg": -100.000
+    },
+    {
+      "cone": "umbra",
+      "crossings": [
+        {
+          "inside": "north",
+          "jd_utc": 2459552.824999773,
+          "lat_deg": -83.214442,
+          "sun_alt_deg": 16.975
+        },
+        {
+          "inside": "south",
+          "jd_utc": 2459552.822461777,
+          "lat_deg": -79.462189,
+          "sun_alt_deg": 13.902
+        }
+      ],
+      "id": "2021-12-04-solar",
+      "lon_deg": -80.000
+    }
+  ],
+  "lunar": [
+    {
+      "contacts": [
+        {"jd_utc": 2459891.834935653, "kind": "p1"},
+        {"jd_utc": 2459891.881432205, "kind": "u1"},
+        {"jd_utc": 2459891.928271933, "kind": "u2"},
+        {"jd_utc": 2459891.957786658, "kind": "max"},
+        {"jd_utc": 2459891.987279801, "kind": "u3"},
+        {"jd_utc": 2459892.034109241, "kind": "u4"},
+        {"jd_utc": 2459892.080709297, "kind": "p4"}
+      ],
+      "gamma": 0.25701,
+      "greatest_jd_utc": 2459891.957786658,
+      "id": "2022-11-08-lunar",
+      "local": [
+        {
+          "events": [
+            {"kind": "p1", "moon_alt_deg": 39.3022, "moon_az_deg": 256.9004},
+            {"kind": "u1", "moon_alt_deg": 27.0214, "moon_az_deg": 268.6243},
+            {"kind": "u2", "moon_alt_deg": 14.6159, "moon_az_deg": 279.0147},
+            {"kind": "max", "moon_alt_deg": 6.9767, "moon_az_deg": 285.3996},
+            {"kind": "u3", "moon_alt_deg": -0.4010, "moon_az_deg": 291.9333},
+            {"kind": "u4", "moon_alt_deg": -11.3151, "moon_az_deg": 303.1167},
+            {"kind": "p4", "moon_alt_deg": -20.7104, "moon_az_deg": 315.8741}
+          ],
+          "site": {"height_m": 12.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "name": "philadelphia_pa"}
+        },
+        {
+          "events": [
+            {"kind": "p1", "moon_alt_deg": 59.1217, "moon_az_deg": 94.0717},
+            {"kind": "u1", "moon_alt_deg": 74.3120, "moon_az_deg": 105.5587},
+            {"kind": "u2", "moon_alt_deg": 85.2626, "moon_az_deg": 189.7131},
+            {"kind": "max", "moon_alt_deg": 78.4135, "moon_az_deg": 248.9073},
+            {"kind": "u3", "moon_alt_deg": 69.0238, "moon_az_deg": 261.6417},
+            {"kind": "u4", "moon_alt_deg": 53.6944, "moon_az_deg": 270.1192},
+            {"kind": "p4", "moon_alt_deg": 38.4595, "moon_az_deg": 275.5694}
+          ],
+          "site": {"height_m": 5.0, "lat_deg": 21.3069, "lon_deg": -157.8583, "name": "honolulu_hi"}
+        },
+        {
+          "events": [
+            {"kind": "p1", "moon_alt_deg": 5.1530, "moon_az_deg": 74.3334},
+            {"kind": "u1", "moon_alt_deg": 18.2239, "moon_az_deg": 83.0554},
+            {"kind": "u2", "moon_alt_deg": 31.6759, "moon_az_deg": 92.1364},
+            {"kind": "max", "moon_alt_deg": 40.1512, "moon_az_deg": 98.5790},
+            {"kind": "u3", "moon_alt_deg": 48.4801, "moon_az_deg": 106.2134},
+            {"kind": "u4", "moon_alt_deg": 60.8416, "moon_az_deg": 123.5306},
+            {"kind": "p4", "moon_alt_deg": 69.9312, "moon_az_deg": 155.2171}
+          ],
+          "site": {"height_m": 40.0, "lat_deg": 35.6762, "lon_deg": 139.6503, "name": "tokyo_jp"}
+        }
+      ],
+      "penumbral_magnitude": 2.41433,
+      "umbral_magnitude": 1.35887
+    },
+    {
+      "contacts": [
+        {"jd_utc": 2460748.664914851, "kind": "p1"},
+        {"jd_utc": 2460748.715024658, "kind": "u1"},
+        {"jd_utc": 2460748.768104471, "kind": "u2"},
+        {"jd_utc": 2460748.790822064, "kind": "max"},
+        {"jd_utc": 2460748.813521923, "kind": "u3"},
+        {"jd_utc": 2460748.866595601, "kind": "u4"},
+        {"jd_utc": 2460748.916768825, "kind": "p4"}
+      ],
+      "gamma": 0.34844,
+      "greatest_jd_utc": 2460748.790822064,
+      "id": "2025-03-14-lunar",
+      "local": [
+        {
+          "events": [
+            {"kind": "p1", "moon_alt_deg": 49.7625, "moon_az_deg": 152.7494},
+            {"kind": "u1", "moon_alt_deg": 52.6165, "moon_az_deg": 180.8910},
+            {"kind": "u2", "moon_alt_deg": 48.4149, "moon_az_deg": 209.9405},
+            {"kind": "max", "moon_alt_deg": 44.7365, "moon_az_deg": 220.3625},
+            {"kind": "u3", "moon_alt_deg": 40.2715, "moon_az_deg": 229.4311},
+            {"kind": "u4", "moon_alt_deg": 27.8371, "moon_az_deg": 246.4660},
+            {"kind": "p4", "moon_alt_deg": 14.7024, "moon_az_deg": 259.1962}
+          ],
+          "site": {"height_m": 12.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "name": "philadelphia_pa"}
+        },
+        {
+          "events": [
+            {"kind": "p1", "moon_alt_deg": 21.2185, "moon_az_deg": 246.0157},
+            {"kind": "u1", "moon_alt_deg": 10.4959, "moon_az_deg": 260.5606},
+            {"kind": "u2", "moon_alt_deg": -1.2950, "moon_az_deg": 275.0147},
+            {"kind": "max", "moon_alt_deg": -6.2951, "moon_az_deg": 281.2014},
+            {"kind": "u3", "moon_alt_deg": -11.1813, "moon_az_deg": 287.5182},
+            {"kind": "u4", "moon_alt_deg": -21.8201, "moon_az_deg": 303.3324},
+            {"kind": "p4", "moon_alt_deg": -30.1624, "moon_az_deg": 320.4187}
+          ],
+          "site": {"height_m": 20.0, "lat_deg": 51.5074, "lon_deg": -0.1278, "name": "london_uk"}
+        },
+        {
+          "events": [
+            {"kind": "p1", "moon_alt_deg": -49.6643, "moon_az_deg": 131.6662},
+            {"kind": "u1", "moon_alt_deg": -37.3592, "moon_az_deg": 114.6734},
+            {"kind": "u2", "moon_alt_deg": -22.6297, "moon_az_deg": 101.8122},
+            {"kind": "max", "moon_alt_deg": -16.0718, "moon_az_deg": 97.1224},
+            {"kind": "u3", "moon_alt_deg": -9.4437, "moon_az_deg": 92.6787},
+            {"kind": "u4", "moon_alt_deg": 6.1268, "moon_az_deg": 82.5195},
+            {"kind": "p4", "moon_alt_deg": 20.5770, "moon_az_deg": 72.0984}
+          ],
+          "site": {"height_m": 20.0, "lat_deg": -33.8688, "lon_deg": 151.2093, "name": "sydney_au"}
+        }
+      ],
+      "penumbral_magnitude": 2.25950,
+      "umbral_magnitude": 1.17842
+    }
+  ],
+  "schema": "skyfix.reference/1",
+  "solar_local": [
+    {
+      "contacts": [
+        {
+          "jd_utc": 2457987.170431564,
+          "kind": "c1",
+          "moon_position_angle_deg": 284.231,
+          "residual_rate_arcsec_per_s": -0.46141,
+          "sun_alt_deg": 27.7765,
+          "sun_az_deg": 101.3376,
+          "utc": "2017-08-21T16:05:25"
+        },
+        {
+          "jd_utc": 2457987.220371014,
+          "kind": "c2",
+          "moon_position_angle_deg": 267.620,
+          "residual_rate_arcsec_per_s": -0.39989,
+          "sun_alt_deg": 39.7739,
+          "sun_az_deg": 116.8999,
+          "utc": "2017-08-21T17:17:20"
+        },
+        {
+          "jd_utc": 2457987.221692273,
+          "kind": "c3",
+          "moon_position_angle_deg": 123.858,
+          "residual_rate_arcsec_per_s": 0.39820,
+          "sun_alt_deg": 40.0732,
+          "sun_az_deg": 117.3649,
+          "utc": "2017-08-21T17:19:14"
+        },
+        {
+          "jd_utc": 2457987.276263762,
+          "kind": "c4",
+          "moon_position_angle_deg": 107.475,
+          "residual_rate_arcsec_per_s": 0.38961,
+          "sun_alt_deg": 50.9247,
+          "sun_az_deg": 140.2262,
+          "utc": "2017-08-21T18:37:49"
+        }
+      ],
+      "eclipse": true,
+      "id": "2017-08-21-solar",
+      "max": {
+        "jd_utc": 2457987.221030766,
+        "moon_sd_k1_arcsec": 974.6518,
+        "moon_sd_k2_arcsec": 973.9114,
+        "separation_arcsec": 7.8332,
+        "sun_alt_deg": 39.9235,
+        "sun_az_deg": 117.1317,
+        "sun_sd_arcsec": 948.7005
+      },
+      "site": {"height_m": 60.0, "lat_deg": 44.9429, "lon_deg": -123.0351, "name": "salem_or"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2457987.182139375,
+          "kind": "c1",
+          "moon_position_angle_deg": 287.721,
+          "residual_rate_arcsec_per_s": -0.40932,
+          "sun_alt_deg": 42.6322,
+          "sun_az_deg": 118.1902,
+          "utc": "2017-08-21T16:22:17"
+        },
+        {
+          "jd_utc": 2457987.237946577,
+          "kind": "c2",
+          "moon_position_angle_deg": 283.395,
+          "residual_rate_arcsec_per_s": -0.37914,
+          "sun_alt_deg": 53.8730,
+          "sun_az_deg": 142.7077,
+          "utc": "2017-08-21T17:42:39"
+        },
+        {
+          "jd_utc": 2457987.239629299,
+          "kind": "c3",
+          "moon_position_angle_deg": 115.489,
+          "residual_rate_arcsec_per_s": 0.37824,
+          "sun_alt_deg": 54.1388,
+          "sun_az_deg": 143.6096,
+          "utc": "2017-08-21T17:45:04"
+        },
+        {
+          "jd_utc": 2457987.298197474,
+          "kind": "c4",
+          "moon_position_angle_deg": 111.013,
+          "residual_rate_arcsec_per_s": 0.37377,
+          "sun_alt_deg": 58.9829,
+          "sun_az_deg": 180.5431,
+          "utc": "2017-08-21T19:09:24"
+        }
+      ],
+      "eclipse": true,
+      "id": "2017-08-21-solar",
+      "max": {
+        "jd_utc": 2457987.238787272,
+        "moon_sd_k1_arcsec": 977.2876,
+        "moon_sd_k2_arcsec": 976.5451,
+        "separation_arcsec": 2.9211,
+        "sun_alt_deg": 54.0065,
+        "sun_az_deg": 143.1570,
+        "sun_sd_arcsec": 948.7106
+      },
+      "site": {"height_m": 1560.0, "lat_deg": 42.8666, "lon_deg": -106.3131, "name": "casper_wy"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2457987.203068336,
+          "kind": "c1",
+          "moon_position_angle_deg": 292.126,
+          "residual_rate_arcsec_per_s": -0.36383,
+          "sun_alt_deg": 60.0737,
+          "sun_az_deg": 145.3015,
+          "utc": "2017-08-21T16:52:25"
+        },
+        {
+          "jd_utc": 2457987.263950871,
+          "kind": "c2",
+          "moon_position_angle_deg": 283.050,
+          "residual_rate_arcsec_per_s": -0.35635,
+          "sun_alt_deg": 63.7428,
+          "sun_az_deg": 191.2318,
+          "utc": "2017-08-21T18:20:05"
+        },
+        {
+          "jd_utc": 2457987.265771762,
+          "kind": "c3",
+          "moon_position_angle_deg": 124.142,
+          "residual_rate_arcsec_per_s": 0.35711,
+          "sun_alt_deg": 63.6348,
+          "sun_az_deg": 192.6589,
+          "utc": "2017-08-21T18:22:43"
+        },
+        {
+          "jd_utc": 2457987.324622188,
+          "kind": "c4",
+          "moon_position_angle_deg": 114.341,
+          "residual_rate_arcsec_per_s": 0.38724,
+          "sun_alt_deg": 54.6787,
+          "sun_az_deg": 229.9805,
+          "utc": "2017-08-21T19:47:27"
+        }
+      ],
+      "eclipse": true,
+      "id": "2017-08-21-solar",
+      "max": {
+        "jd_utc": 2457987.264861989,
+        "moon_sd_k1_arcsec": 978.4933,
+        "moon_sd_k2_arcsec": 977.7500,
+        "separation_arcsec": 5.3062,
+        "sun_alt_deg": 63.6903,
+        "sun_az_deg": 191.9472,
+        "sun_sd_arcsec": 948.7191
+      },
+      "site": {"height_m": 120.0, "lat_deg": 37.7273, "lon_deg": -89.2168, "name": "carbondale_il"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2457987.207292880,
+          "kind": "c1",
+          "moon_position_angle_deg": 293.646,
+          "residual_rate_arcsec_per_s": -0.35756,
+          "sun_alt_deg": 63.0689,
+          "sun_az_deg": 151.1262,
+          "utc": "2017-08-21T16:58:30"
+        },
+        {
+          "jd_utc": 2457987.269049197,
+          "kind": "c2",
+          "moon_position_angle_deg": 338.614,
+          "residual_rate_arcsec_per_s": -0.25815,
+          "sun_alt_deg": 64.2834,
+          "sun_az_deg": 201.4293,
+          "utc": "2017-08-21T18:27:26"
+        },
+        {
+          "jd_utc": 2457987.270375160,
+          "kind": "c3",
+          "moon_position_angle_deg": 69.731,
+          "residual_rate_arcsec_per_s": 0.25871,
+          "sun_alt_deg": 64.1390,
+          "sun_az_deg": 202.4508,
+          "utc": "2017-08-21T18:29:20"
+        },
+        {
+          "jd_utc": 2457987.329185924,
+          "kind": "c4",
+          "moon_position_angle_deg": 113.986,
+          "residual_rate_arcsec_per_s": 0.39142,
+          "sun_alt_deg": 52.9918,
+          "sun_az_deg": 236.8102,
+          "utc": "2017-08-21T19:54:02"
+        }
+      ],
+      "eclipse": true,
+      "id": "2017-08-21-solar",
+      "max": {
+        "jd_utc": 2457987.269712576,
+        "moon_sd_k1_arcsec": 978.5131,
+        "moon_sd_k2_arcsec": 977.7697,
+        "separation_arcsec": 20.3430,
+        "sun_alt_deg": 64.2120,
+        "sun_az_deg": 201.9416,
+        "sun_sd_arcsec": 948.7202
+      },
+      "site": {"height_m": 170.0, "lat_deg": 36.1627, "lon_deg": -86.7816, "name": "nashville_tn"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2457987.217439638,
+          "kind": "c1",
+          "moon_position_angle_deg": 294.112,
+          "residual_rate_arcsec_per_s": -0.35097,
+          "sun_alt_deg": 67.6463,
+          "sun_az_deg": 170.9267,
+          "utc": "2017-08-21T17:13:07"
+        },
+        {
+          "jd_utc": 2457987.279054077,
+          "kind": "c2",
+          "moon_position_angle_deg": 278.971,
+          "residual_rate_arcsec_per_s": -0.35267,
+          "sun_alt_deg": 62.0723,
+          "sun_az_deg": 221.9881,
+          "utc": "2017-08-21T18:41:50"
+        },
+        {
+          "jd_utc": 2457987.280785683,
+          "kind": "c3",
+          "moon_position_angle_deg": 131.138,
+          "residual_rate_arcsec_per_s": 0.35428,
+          "sun_alt_deg": 61.7224,
+          "sun_az_deg": 223.0495,
+          "utc": "2017-08-21T18:44:20"
+        },
+        {
+          "jd_utc": 2457987.337726077,
+          "kind": "c4",
+          "moon_position_angle_deg": 115.186,
+          "residual_rate_arcsec_per_s": 0.40647,
+          "sun_alt_deg": 47.5709,
+          "sun_az_deg": 248.2108,
+          "utc": "2017-08-21T20:06:20"
+        }
+      ],
+      "eclipse": true,
+      "id": "2017-08-21-solar",
+      "max": {
+        "jd_utc": 2457987.279921148,
+        "moon_sd_k1_arcsec": 978.1032,
+        "moon_sd_k2_arcsec": 977.3602,
+        "separation_arcsec": 7.9322,
+        "sun_alt_deg": 61.8980,
+        "sun_az_deg": 222.5224,
+        "sun_sd_arcsec": 948.7214
+      },
+      "site": {"height_m": 90.0, "lat_deg": 34.0007, "lon_deg": -81.0348, "name": "columbia_sc"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2457987.223071007,
+          "kind": "c1",
+          "moon_position_angle_deg": 281.434,
+          "residual_rate_arcsec_per_s": -0.36068,
+          "sun_alt_deg": 61.6572,
+          "sun_az_deg": 189.0652,
+          "utc": "2017-08-21T17:21:13"
+        },
+        {
+          "jd_utc": 2457987.334237109,
+          "kind": "c4",
+          "moon_position_angle_deg": 125.964,
+          "residual_rate_arcsec_per_s": 0.41690,
+          "sun_alt_deg": 41.8883,
+          "sun_az_deg": 246.9324,
+          "utc": "2017-08-21T20:01:18"
+        }
+      ],
+      "eclipse": true,
+      "id": "2017-08-21-solar",
+      "max": {
+        "jd_utc": 2457987.280751854,
+        "moon_sd_k1_arcsec": 976.8864,
+        "moon_sd_k2_arcsec": 976.1443,
+        "separation_arcsec": 408.1406,
+        "sun_alt_deg": 54.1955,
+        "sun_az_deg": 225.3193,
+        "sun_sd_arcsec": 948.7187
+      },
+      "site": {"height_m": 12.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "name": "philadelphia_pa"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2457987.160246054,
+          "kind": "c1",
+          "moon_position_angle_deg": 317.160,
+          "residual_rate_arcsec_per_s": -0.45588,
+          "sun_alt_deg": -5.6232,
+          "sun_az_deg": 74.8855,
+          "utc": "2017-08-21T15:50:45"
+        },
+        {
+          "jd_utc": 2457987.225934490,
+          "kind": "c4",
+          "moon_position_angle_deg": 62.063,
+          "residual_rate_arcsec_per_s": 0.38182,
+          "sun_alt_deg": 15.9924,
+          "sun_az_deg": 83.2239,
+          "utc": "2017-08-21T17:25:21"
+        }
+      ],
+      "eclipse": true,
+      "id": "2017-08-21-solar",
+      "max": {
+        "jd_utc": 2457987.191630155,
+        "moon_sd_k1_arcsec": 965.6036,
+        "moon_sd_k2_arcsec": 964.8701,
+        "separation_arcsec": 1178.7780,
+        "sun_alt_deg": 4.6284,
+        "sun_az_deg": 79.0335,
+        "sun_sd_arcsec": 948.6723
+      },
+      "site": {"height_m": 5.0, "lat_deg": 21.3069, "lon_deg": -157.8583, "name": "honolulu_hi"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2457987.292626368,
+          "kind": "c1",
+          "moon_position_angle_deg": 280.706,
+          "residual_rate_arcsec_per_s": -0.54541,
+          "sun_alt_deg": 5.7167,
+          "sun_az_deg": 280.7857,
+          "utc": "2017-08-21T19:01:23"
+        },
+        {
+          "jd_utc": 2457987.365432632,
+          "kind": "c4",
+          "moon_position_angle_deg": 115.716,
+          "residual_rate_arcsec_per_s": 0.64100,
+          "sun_alt_deg": -18.8455,
+          "sun_az_deg": 288.2755,
+          "utc": "2017-08-21T20:46:13"
+        }
+      ],
+      "eclipse": true,
+      "id": "2017-08-21-solar",
+      "max": {
+        "jd_utc": 2457987.330522357,
+        "moon_sd_k1_arcsec": 960.8613,
+        "moon_sd_k2_arcsec": 960.1313,
+        "separation_arcsec": 279.5930,
+        "sun_alt_deg": -7.1699,
+        "sun_az_deg": 284.2915,
+        "sun_sd_arcsec": 948.6909
+      },
+      "site": {"height_m": 20.0, "lat_deg": 14.7167, "lon_deg": -17.4677, "name": "dakar_sn"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460232.128801439,
+          "kind": "c1",
+          "moon_position_angle_deg": 304.332,
+          "residual_rate_arcsec_per_s": -0.44418,
+          "sun_alt_deg": 6.0914,
+          "sun_az_deg": 107.6277,
+          "utc": "2023-10-14T15:05:28"
+        },
+        {
+          "jd_utc": 2460232.178443082,
+          "kind": "c2",
+          "moon_position_angle_deg": 275.469,
+          "residual_rate_arcsec_per_s": -0.34489,
+          "sun_alt_deg": 17.7588,
+          "sun_az_deg": 121.2454,
+          "utc": "2023-10-14T16:16:57"
+        },
+        {
+          "jd_utc": 2460232.181158079,
+          "kind": "c3",
+          "moon_position_angle_deg": 158.606,
+          "residual_rate_arcsec_per_s": 0.34420,
+          "sun_alt_deg": 18.3561,
+          "sun_az_deg": 122.0459,
+          "utc": "2023-10-14T16:20:52"
+        },
+        {
+          "jd_utc": 2460232.235971565,
+          "kind": "c4",
+          "moon_position_angle_deg": 129.570,
+          "residual_rate_arcsec_per_s": 0.36831,
+          "sun_alt_deg": 29.0492,
+          "sun_az_deg": 139.9487,
+          "utc": "2023-10-14T17:39:48"
+        }
+      ],
+      "eclipse": true,
+      "id": "2023-10-14-solar",
+      "max": {
+        "jd_utc": 2460232.179802938,
+        "moon_sd_k1_arcsec": 907.0960,
+        "moon_sd_k2_arcsec": 906.4069,
+        "separation_arcsec": 29.0788,
+        "sun_alt_deg": 18.0586,
+        "sun_az_deg": 121.6455,
+        "sun_sd_arcsec": 962.0220
+      },
+      "site": {"height_m": 130.0, "lat_deg": 44.0521, "lon_deg": -123.0868, "name": "eugene_or"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460232.134199090,
+          "kind": "c1",
+          "moon_position_angle_deg": 310.844,
+          "residual_rate_arcsec_per_s": -0.39392,
+          "sun_alt_deg": 22.6024,
+          "sun_az_deg": 118.7680,
+          "utc": "2023-10-14T15:13:15"
+        },
+        {
+          "jd_utc": 2460232.190660448,
+          "kind": "c2",
+          "moon_position_angle_deg": 318.722,
+          "residual_rate_arcsec_per_s": -0.35185,
+          "sun_alt_deg": 35.8107,
+          "sun_az_deg": 136.2466,
+          "utc": "2023-10-14T16:34:33"
+        },
+        {
+          "jd_utc": 2460232.194011720,
+          "kind": "c3",
+          "moon_position_angle_deg": 126.650,
+          "residual_rate_arcsec_per_s": 0.35100,
+          "sun_alt_deg": 36.4849,
+          "sun_az_deg": 137.4674,
+          "utc": "2023-10-14T16:39:23"
+        },
+        {
+          "jd_utc": 2460232.256568533,
+          "kind": "c4",
+          "moon_position_angle_deg": 133.916,
+          "residual_rate_arcsec_per_s": 0.32533,
+          "sun_alt_deg": 45.4863,
+          "sun_az_deg": 164.6833,
+          "utc": "2023-10-14T18:09:28"
+        }
+      ],
+      "eclipse": true,
+      "id": "2023-10-14-solar",
+      "max": {
+        "jd_utc": 2460232.192336632,
+        "moon_sd_k1_arcsec": 911.2729,
+        "moon_sd_k2_arcsec": 910.5806,
+        "separation_arcsec": 5.4549,
+        "sun_alt_deg": 36.1498,
+        "sun_az_deg": 136.8543,
+        "sun_sd_arcsec": 962.0370
+      },
+      "site": {"height_m": 1500.0, "lat_deg": 35.0844, "lon_deg": -106.6504, "name": "albuquerque_nm"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460232.141562098,
+          "kind": "c1",
+          "moon_position_angle_deg": 313.342,
+          "residual_rate_arcsec_per_s": -0.36521,
+          "sun_alt_deg": 33.3413,
+          "sun_az_deg": 124.5555,
+          "utc": "2023-10-14T15:23:51"
+        },
+        {
+          "jd_utc": 2460232.202866081,
+          "kind": "c2",
+          "moon_position_angle_deg": 286.633,
+          "residual_rate_arcsec_per_s": -0.28662,
+          "sun_alt_deg": 46.8165,
+          "sun_az_deg": 147.2521,
+          "utc": "2023-10-14T16:52:08"
+        },
+        {
+          "jd_utc": 2460232.205900780,
+          "kind": "c3",
+          "moon_position_angle_deg": 165.172,
+          "residual_rate_arcsec_per_s": 0.28605,
+          "sun_alt_deg": 47.3206,
+          "sun_az_deg": 148.6569,
+          "utc": "2023-10-14T16:56:30"
+        },
+        {
+          "jd_utc": 2460232.272941285,
+          "kind": "c4",
+          "moon_position_angle_deg": 137.144,
+          "residual_rate_arcsec_per_s": 0.30935,
+          "sun_alt_deg": 52.1911,
+          "sun_az_deg": 185.2790,
+          "utc": "2023-10-14T18:33:02"
+        }
+      ],
+      "eclipse": true,
+      "id": "2023-10-14-solar",
+      "max": {
+        "jd_utc": 2460232.204385019,
+        "moon_sd_k1_arcsec": 913.4380,
+        "moon_sd_k2_arcsec": 912.7441,
+        "separation_arcsec": 24.0827,
+        "sun_alt_deg": 47.0713,
+        "sun_az_deg": 147.9517,
+        "sun_sd_arcsec": 962.0461
+      },
+      "site": {"height_m": 200.0, "lat_deg": 29.4241, "lon_deg": -98.4936, "name": "san_antonio_tx"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460232.170515075,
+          "kind": "c1",
+          "moon_position_angle_deg": 275.173,
+          "residual_rate_arcsec_per_s": -0.26111,
+          "sun_alt_deg": 40.9009,
+          "sun_az_deg": 166.4805,
+          "utc": "2023-10-14T16:05:33"
+        },
+        {
+          "jd_utc": 2460232.276148153,
+          "kind": "c4",
+          "moon_position_angle_deg": 168.827,
+          "residual_rate_arcsec_per_s": 0.25746,
+          "sun_alt_deg": 35.3924,
+          "sun_az_deg": 214.4206,
+          "utc": "2023-10-14T18:37:39"
+        }
+      ],
+      "eclipse": true,
+      "id": "2023-10-14-solar",
+      "max": {
+        "jd_utc": 2460232.223131243,
+        "moon_sd_k1_arcsec": 912.4371,
+        "moon_sd_k2_arcsec": 911.7440,
+        "separation_arcsec": 1153.0985,
+        "sun_alt_deg": 41.1502,
+        "sun_az_deg": 191.4160,
+        "sun_sd_arcsec": 962.0482
+      },
+      "site": {"height_m": 12.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "name": "philadelphia_pa"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.202414154,
+          "kind": "c1",
+          "moon_position_angle_deg": 225.481,
+          "residual_rate_arcsec_per_s": -0.43655,
+          "sun_alt_deg": 53.8493,
+          "sun_az_deg": 110.1852,
+          "utc": "2024-04-08T16:51:29"
+        },
+        {
+          "jd_utc": 2460409.255221205,
+          "kind": "c2",
+          "moon_position_angle_deg": 209.953,
+          "residual_rate_arcsec_per_s": -0.39324,
+          "sun_alt_deg": 68.7624,
+          "sun_az_deg": 135.1299,
+          "utc": "2024-04-08T18:07:31"
+        },
+        {
+          "jd_utc": 2460409.258202106,
+          "kind": "c3",
+          "moon_position_angle_deg": 59.923,
+          "residual_rate_arcsec_per_s": 0.39165,
+          "sun_alt_deg": 69.4451,
+          "sun_az_deg": 137.4184,
+          "utc": "2024-04-08T18:11:49"
+        },
+        {
+          "jd_utc": 2460409.314031010,
+          "kind": "c4",
+          "moon_position_angle_deg": 45.363,
+          "residual_rate_arcsec_per_s": 0.39334,
+          "sun_alt_deg": 73.2537,
+          "sun_az_deg": 201.9415,
+          "utc": "2024-04-08T19:32:12"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.256709899,
+        "moon_sd_k1_arcsec": 1013.1589,
+        "moon_sd_k2_arcsec": 1012.3892,
+        "separation_arcsec": 14.0175,
+        "sun_alt_deg": 69.1069,
+        "sun_az_deg": 136.2555,
+        "sun_sd_arcsec": 958.2256
+      },
+      "site": {"height_m": 10.0, "lat_deg": 23.2494, "lon_deg": -106.4111, "name": "mazatlan_mx"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.224522014,
+          "kind": "c1",
+          "moon_position_angle_deg": 226.227,
+          "residual_rate_arcsec_per_s": -0.42193,
+          "sun_alt_deg": 60.5747,
+          "sun_az_deg": 145.3188,
+          "utc": "2024-04-08T17:23:19"
+        },
+        {
+          "jd_utc": 2460409.278278416,
+          "kind": "c2",
+          "moon_position_angle_deg": 199.475,
+          "residual_rate_arcsec_per_s": -0.36174,
+          "sun_alt_deg": 64.6688,
+          "sun_az_deg": 186.9093,
+          "utc": "2024-04-08T18:40:43"
+        },
+        {
+          "jd_utc": 2460409.280957312,
+          "kind": "c3",
+          "moon_position_angle_deg": 75.114,
+          "residual_rate_arcsec_per_s": 0.36174,
+          "sun_alt_deg": 64.5567,
+          "sun_az_deg": 189.1242,
+          "utc": "2024-04-08T18:44:35"
+        },
+        {
+          "jd_utc": 2460409.335201853,
+          "kind": "c4",
+          "moon_position_angle_deg": 49.210,
+          "residual_rate_arcsec_per_s": 0.41472,
+          "sun_alt_deg": 56.7374,
+          "sun_az_deg": 226.0403,
+          "utc": "2024-04-08T20:02:41"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.279617938,
+        "moon_sd_k1_arcsec": 1012.4880,
+        "moon_sd_k2_arcsec": 1011.7188,
+        "separation_arcsec": 24.9523,
+        "sun_alt_deg": 64.6166,
+        "sun_az_deg": 188.0190,
+        "sun_sd_arcsec": 958.2181
+      },
+      "site": {"height_m": 150.0, "lat_deg": 32.7767, "lon_deg": -96.7970, "name": "dallas_tx"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.243452371,
+          "kind": "c1",
+          "moon_position_angle_deg": 229.307,
+          "residual_rate_arcsec_per_s": -0.42361,
+          "sun_alt_deg": 57.8005,
+          "sun_az_deg": 182.0010,
+          "utc": "2024-04-08T17:50:34"
+        },
+        {
+          "jd_utc": 2460409.295883775,
+          "kind": "c2",
+          "moon_position_angle_deg": 212.901,
+          "residual_rate_arcsec_per_s": -0.40556,
+          "sun_alt_deg": 53.2037,
+          "sun_az_deg": 214.3864,
+          "utc": "2024-04-08T19:06:04"
+        },
+        {
+          "jd_utc": 2460409.298538829,
+          "kind": "c3",
+          "moon_position_angle_deg": 69.077,
+          "residual_rate_arcsec_per_s": 0.40682,
+          "sun_alt_deg": 52.7821,
+          "sun_az_deg": 215.7964,
+          "utc": "2024-04-08T19:09:54"
+        },
+        {
+          "jd_utc": 2460409.349456967,
+          "kind": "c4",
+          "moon_position_angle_deg": 53.119,
+          "residual_rate_arcsec_per_s": 0.44723,
+          "sun_alt_deg": 42.4431,
+          "sun_az_deg": 238.1820,
+          "utc": "2024-04-08T20:23:13"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.297212624,
+        "moon_sd_k1_arcsec": 1010.5139,
+        "moon_sd_k2_arcsec": 1009.7462,
+        "separation_arcsec": 15.9696,
+        "sun_alt_deg": 52.9946,
+        "sun_az_deg": 215.0954,
+        "sun_sd_arcsec": 958.2090
+      },
+      "site": {"height_m": 220.0, "lat_deg": 39.7684, "lon_deg": -86.1581, "name": "indianapolis_in"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.249566507,
+          "kind": "c1",
+          "moon_position_angle_deg": 231.230,
+          "residual_rate_arcsec_per_s": -0.42677,
+          "sun_alt_deg": 55.3976,
+          "sun_az_deg": 193.5983,
+          "utc": "2024-04-08T17:59:23"
+        },
+        {
+          "jd_utc": 2460409.301224851,
+          "kind": "c2",
+          "moon_position_angle_deg": 242.080,
+          "residual_rate_arcsec_per_s": -0.42891,
+          "sun_alt_deg": 48.8489,
+          "sun_az_deg": 221.9423,
+          "utc": "2024-04-08T19:13:46"
+        },
+        {
+          "jd_utc": 2460409.303874505,
+          "kind": "c3",
+          "moon_position_angle_deg": 42.670,
+          "residual_rate_arcsec_per_s": 0.43067,
+          "sun_alt_deg": 48.3665,
+          "sun_az_deg": 223.1724,
+          "utc": "2024-04-08T19:17:35"
+        },
+        {
+          "jd_utc": 2460409.353470819,
+          "kind": "c4",
+          "moon_position_angle_deg": 53.877,
+          "residual_rate_arcsec_per_s": 0.46035,
+          "sun_alt_deg": 37.6914,
+          "sun_az_deg": 242.6319,
+          "utc": "2024-04-08T20:29:00"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.302551532,
+        "moon_sd_k1_arcsec": 1009.6188,
+        "moon_sd_k2_arcsec": 1008.8518,
+        "separation_arcsec": 8.5735,
+        "sun_alt_deg": 48.6088,
+        "sun_az_deg": 222.5610,
+        "sun_sd_arcsec": 958.2055
+      },
+      "site": {"height_m": 200.0, "lat_deg": 41.4993, "lon_deg": -81.6944, "name": "cleveland_oh"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.253435807,
+          "kind": "c1",
+          "moon_position_angle_deg": 231.804,
+          "residual_rate_arcsec_per_s": -0.43074,
+          "sun_alt_deg": 53.1685,
+          "sun_az_deg": 200.0226,
+          "utc": "2024-04-08T18:04:57"
+        },
+        {
+          "jd_utc": 2460409.304407778,
+          "kind": "c2",
+          "moon_position_angle_deg": 230.750,
+          "residual_rate_arcsec_per_s": -0.44192,
+          "sun_alt_deg": 45.8153,
+          "sun_az_deg": 225.8571,
+          "utc": "2024-04-08T19:18:21"
+        },
+        {
+          "jd_utc": 2460409.307014843,
+          "kind": "c3",
+          "moon_position_angle_deg": 55.948,
+          "residual_rate_arcsec_per_s": 0.44395,
+          "sun_alt_deg": 45.3178,
+          "sun_az_deg": 226.9803,
+          "utc": "2024-04-08T19:22:06"
+        },
+        {
+          "jd_utc": 2460409.355670026,
+          "kind": "c4",
+          "moon_position_angle_deg": 55.139,
+          "residual_rate_arcsec_per_s": 0.46975,
+          "sun_alt_deg": 34.6815,
+          "sun_az_deg": 245.0087,
+          "utc": "2024-04-08T20:32:10"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.305713498,
+        "moon_sd_k1_arcsec": 1008.9543,
+        "moon_sd_k2_arcsec": 1008.1879,
+        "separation_arcsec": 2.2303,
+        "sun_alt_deg": 45.5673,
+        "sun_az_deg": 226.4219,
+        "sun_sd_arcsec": 958.2032
+      },
+      "site": {"height_m": 180.0, "lat_deg": 42.8864, "lon_deg": -78.8784, "name": "buffalo_ny"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.259898810,
+          "kind": "c1",
+          "moon_position_angle_deg": 233.999,
+          "residual_rate_arcsec_per_s": -0.43794,
+          "sun_alt_deg": 49.2360,
+          "sun_az_deg": 211.1866,
+          "utc": "2024-04-08T18:14:15"
+        },
+        {
+          "jd_utc": 2460409.309814682,
+          "kind": "c2",
+          "moon_position_angle_deg": 259.205,
+          "residual_rate_arcsec_per_s": -0.41508,
+          "sun_alt_deg": 40.5953,
+          "sun_az_deg": 233.3391,
+          "utc": "2024-04-08T19:26:08"
+        },
+        {
+          "jd_utc": 2460409.312069420,
+          "kind": "c3",
+          "moon_position_angle_deg": 30.729,
+          "residual_rate_arcsec_per_s": 0.41709,
+          "sun_alt_deg": 40.1287,
+          "sun_az_deg": 234.1996,
+          "utc": "2024-04-08T19:29:23"
+        },
+        {
+          "jd_utc": 2460409.359264816,
+          "kind": "c4",
+          "moon_position_angle_deg": 56.111,
+          "residual_rate_arcsec_per_s": 0.48646,
+          "sun_alt_deg": 29.4250,
+          "sun_az_deg": 250.1054,
+          "utc": "2024-04-08T20:37:20"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.310943700,
+        "moon_sd_k1_arcsec": 1007.7368,
+        "moon_sd_k2_arcsec": 1006.9713,
+        "separation_arcsec": 20.0515,
+        "sun_alt_deg": 40.3623,
+        "sun_az_deg": 233.7713,
+        "sun_sd_arcsec": 958.1991
+      },
+      "site": {"height_m": 60.0, "lat_deg": 44.4759, "lon_deg": -73.2121, "name": "burlington_vt"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.255703874,
+          "kind": "c1",
+          "moon_position_angle_deg": 239.017,
+          "residual_rate_arcsec_per_s": -0.42098,
+          "sun_alt_deg": 54.4334,
+          "sun_az_deg": 208.9114,
+          "utc": "2024-04-08T18:08:13"
+        },
+        {
+          "jd_utc": 2460409.357729837,
+          "kind": "c4",
+          "moon_position_angle_deg": 48.567,
+          "residual_rate_arcsec_per_s": 0.46808,
+          "sun_alt_deg": 32.6948,
+          "sun_az_deg": 250.6110,
+          "utc": "2024-04-08T20:35:08"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.308125473,
+        "moon_sd_k1_arcsec": 1008.7752,
+        "moon_sd_k2_arcsec": 1008.0089,
+        "separation_arcsec": 241.2248,
+        "sun_alt_deg": 44.8056,
+        "sun_az_deg": 233.9405,
+        "sun_sd_arcsec": 958.2022
+      },
+      "site": {"height_m": 12.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "name": "philadelphia_pa"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.189960766,
+          "kind": "c1",
+          "moon_position_angle_deg": 192.250,
+          "residual_rate_arcsec_per_s": -0.40965,
+          "sun_alt_deg": 2.8455,
+          "sun_az_deg": 82.9881,
+          "utc": "2024-04-08T16:33:33"
+        },
+        {
+          "jd_utc": 2460409.246529598,
+          "kind": "c4",
+          "moon_position_angle_deg": 102.157,
+          "residual_rate_arcsec_per_s": 0.36138,
+          "sun_alt_deg": 21.7831,
+          "sun_az_deg": 90.1885,
+          "utc": "2024-04-08T17:55:00"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.217354457,
+        "moon_sd_k1_arcsec": 1000.2944,
+        "moon_sd_k2_arcsec": 999.5345,
+        "separation_arcsec": 1411.3360,
+        "sun_alt_deg": 11.9982,
+        "sun_az_deg": 86.4598,
+        "sun_sd_arcsec": 958.2067
+      },
+      "site": {"height_m": 5.0, "lat_deg": 21.3069, "lon_deg": -157.8583, "name": "honolulu_hi"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.284305887,
+          "kind": "c1",
+          "moon_position_angle_deg": 216.433,
+          "residual_rate_arcsec_per_s": -0.50690,
+          "sun_alt_deg": 11.1877,
+          "sun_az_deg": 264.3132,
+          "utc": "2024-04-08T18:49:24"
+        },
+        {
+          "jd_utc": 2460409.353158297,
+          "kind": "c4",
+          "moon_position_angle_deg": 90.839,
+          "residual_rate_arcsec_per_s": 0.54368,
+          "sun_alt_deg": 0.5167,
+          "sun_az_deg": 286.5954,
+          "utc": "2024-04-08T20:28:33"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.319342779,
+        "moon_sd_k1_arcsec": 997.8834,
+        "moon_sd_k2_arcsec": 997.1254,
+        "separation_arcsec": 877.6139,
+        "sun_alt_deg": 5.7071,
+        "sun_az_deg": 275.6807,
+        "sun_sd_arcsec": 958.1744
+      },
+      "site": {"height_m": 20.0, "lat_deg": 64.1466, "lon_deg": -21.9426, "name": "reykjavik_is"}
+    },
+    {
+      "contacts": [
+        {
+          "jd_utc": 2460409.196468793,
+          "kind": "c1",
+          "moon_position_angle_deg": 309.683,
+          "residual_rate_arcsec_per_s": -0.33389,
+          "sun_alt_deg": -43.6000,
+          "sun_az_deg": 114.8420,
+          "utc": "2024-04-08T16:42:55"
+        },
+        {
+          "jd_utc": 2460409.224155267,
+          "kind": "c4",
+          "moon_position_angle_deg": 2.621,
+          "residual_rate_arcsec_per_s": 0.32430,
+          "sun_alt_deg": -35.8698,
+          "sun_az_deg": 106.8163,
+          "utc": "2024-04-08T17:22:47"
+        }
+      ],
+      "eclipse": true,
+      "id": "2024-04-08-solar",
+      "max": {
+        "jd_utc": 2460409.210211033,
+        "moon_sd_k1_arcsec": 985.4625,
+        "moon_sd_k2_arcsec": 984.7138,
+        "separation_arcsec": 1735.6089,
+        "sun_alt_deg": -39.8144,
+        "sun_az_deg": 110.6616,
+        "sun_sd_arcsec": 958.1740
+      },
+      "site": {"height_m": 20.0, "lat_deg": -33.8688, "lon_deg": 151.2093, "name": "sydney_au"}
+    }
+  ]
+}
