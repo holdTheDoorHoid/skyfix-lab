@@ -4,8 +4,10 @@ Owner: map agent. The explorer's home view (EXPLORER_PLAN §2): an offline world
 a click (a long press on touch) sets the observer, with a SunCalc-style compass dial
 centred exactly on the observer, day/night and twilight shading, ground points, circles of
 equal altitude, a graticule, a measuring tool, and overlays drawn by other views. The look
-is the approved design (`docs/design/map-light.png`); screenshots of this implementation are
-`docs/design/map-*.png` (`web/scripts/map-screenshots.mjs`).
+is the approved design mockup (`docs/design/map-light.png`); screenshots of this
+implementation are `docs/design/map-view-*.png`, and `web/scripts/map-screenshots.mjs` takes
+the full set (flat and globe, three themes, phones, the Moon, midnight Sun, antimeridian,
+measuring, overlays) into the git-ignored `docs/design/local/`.
 
 ## Mounting
 

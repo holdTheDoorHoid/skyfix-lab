@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /**
  * Screenshots of the explorer's map (web/next/dev-map.html) for review, written to
- * docs/design/map-<case>.png. Development tool only: Node built-ins and a local Chrome, no npm
- * dependency. OWNER: map agent.
+ * docs/design/local/map-<case>.png (git-ignored working copies; a few curated ones are
+ * copied by hand to docs/design/map-view-<case>.png). Development tool only: Node built-ins and a local Chrome,
+ * no npm dependency. OWNER: map agent.
  *
  *   npx vite --port 5191 --strictPort                  # in web/, in another terminal
  *   node scripts/map-screenshots.mjs                   # every case
  *   node scripts/map-screenshots.mjs light globe-dark  # some cases
- *   node scripts/map-screenshots.mjs --bench           # also time 600 frames of scrubbing
+ *   node scripts/map-screenshots.mjs --bench           # also time 240 frames of scrubbing
  *
  * Like design-screenshots.mjs this drives Chrome over the DevTools protocol, because
  * MapLibre draws in a worker and on animation frames, which `chrome --screenshot` does not
@@ -15,7 +16,7 @@
  * and place names loaded (`.sfm[data-detail="1"][data-places="1"]`), tiles loaded, no motion.
  *
  * Environment: BASE (default http://localhost:5191), CHROME (default google-chrome),
- * OUT (default ../../docs/design relative to this file), ENGINE (e.g. `mock`).
+ * OUT (default ../../docs/design/local relative to this file), ENGINE (e.g. `mock`).
  */
 
 import { spawn } from 'node:child_process';
@@ -27,7 +28,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BASE ?? 'http://localhost:5191';
 const CHROME = process.env.CHROME ?? 'google-chrome';
-const OUT = resolve(process.env.OUT ?? join(here, '../../docs/design'));
+const OUT = resolve(process.env.OUT ?? join(here, '../../docs/design/local'));
 const ENGINE = process.env.ENGINE ? `&engine=${process.env.ENGINE}` : '';
 
 const DESKTOP = { width: 1440, height: 900, scale: 1 };
@@ -63,6 +64,7 @@ const SHOTS = {
   overlays: ['theme=dark&zoom=1.6&overlay=demo', `${PHL}&${AFTERNOON}&body=Venus&view=map`, DESKTOP],
   'light-phone': ['theme=light', `${PHL}&${AFTERNOON}&body=Sun&view=map`, PHONE],
   'night-phone': ['theme=night', `${PHL}&t=2026-09-24T23:35:00Z&body=Moon&view=map`, PHONE],
+  'globe-night': ['theme=night', `${PHL}&t=2026-09-24T23:35:00Z&body=Moon&view=globe`, DESKTOP],
 };
 
 const READY = [
