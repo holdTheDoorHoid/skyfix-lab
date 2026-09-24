@@ -710,6 +710,111 @@
   display: inline-flex;
 }
 
+/* The Sun's shadow: "Shadow of a [1] m object", the height typed in place. */
+.sf-shadow__k {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  overflow: visible;
+}
+
+.sf-input.sf-shadow__input {
+  width: 5.5ch;
+  height: 26px;
+  padding: 0 6px;
+  text-align: right;
+}
+
+/* "When is it at…?": a height in, the times of the day out; a time pressed is shown. */
+.sf-when__body {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+.sf-when__ask {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sf-when__label {
+  flex: 1 1 auto;
+  color: var(--chrome-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sf-input.sf-when__input {
+  width: 8ch;
+  height: 30px;
+  padding: 0 8px;
+  text-align: right;
+}
+
+.sf-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.sf-when__unit {
+  color: var(--chrome-ink-2);
+}
+
+.sf-when__hint,
+.sf-when__status {
+  margin: 0;
+  color: var(--chrome-ink-3);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.sf-when__status {
+  color: var(--chrome-ink-2);
+}
+
+.sf-when__list {
+  display: grid;
+  gap: 1px;
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-when__time {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--chrome-ink);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sf-when__time:hover {
+  background: var(--chrome-raised);
+}
+
+.sf-when__time .sf-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--chrome-ink-3);
+}
+
+.sf-when__clock {
+  min-width: 5ch;
+  font-weight: var(--weight-semibold);
+}
+
+.sf-when__what {
+  color: var(--chrome-ink-2);
+}
+
 /* The body chooser's popover */
 .sf-chooser {
   display: grid;

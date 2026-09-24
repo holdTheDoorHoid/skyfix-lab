@@ -38,7 +38,7 @@ export function covered(ctx: Pick<Ctx, 'engine'>, jd: number): boolean {
 }
 
 /** A window cut to the engine's coverage, or null when nothing of it is covered. */
-function clampToCoverage(ctx: Pick<Ctx, 'engine'>, a: number, b: number): [number, number] | null {
+export function clampToCoverage(ctx: Pick<Ctx, 'engine'>, a: number, b: number): [number, number] | null {
   const span = coverageSpan(ctx);
   if (!span) return [a, b];
   const s = Math.max(a, span[0]);
