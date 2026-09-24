@@ -600,3 +600,183 @@ data is 125 kB of the release WASM module's 1.55 MB.
   tools.reference.build_moon_series --fetch` rebuilds the embedded series from the CDS.
 - `cargo test -p skyfix-ephemeris --test moon_reference --test topocentric_reference
   -- --nocapture` prints every number above.
+
+## 8. Eclipses
+
+Owner: eclipse agent. The engine is `skyfix_almanac::eclipses` (model and conventions in
+its module documentation; sources in `docs/THIRD_PARTY.md`, "Eclipses"; wire format in
+`docs/EXPLORER_API.md`, "Wave 2 — eclipses"). It uses the project's own Sun and Moon
+(sections 2 and 7) — the same two theories, VSOP87 and ELP 2000-82, that NASA's *Five
+Millennium Canon* was computed with — reduced to Besselian elements interpolated at 9
+Chebyshev nodes over 12 hours. The interpolation error is at the floor set by the
+resolution of an `f64` Julian date (6e-9 Earth radii, 4 cm; 3e-9 rad in the angles).
+
+**Conventions, stated because they move numbers.** Moon radius `k1 = 0.272488` Earth
+radii for external contacts and the penumbra, `k2 = 0.272281` for internal contacts and
+the umbra (NASA's values); the Sun's radius subtends 959.63″ at 1 au; lunar shadow by
+Danjon's rule (`1.01 × π☾ ∓ s☉ + π☉`), NASA's, not the Astronomical Almanac's 1/50;
+maximum eclipse at a place is the greatest magnitude. The lunar limb profile is not
+modelled (NASA: it moves limits by 1-3 km and totality by 1-3 s). Refraction is not
+applied to contacts or altitudes (CONVENTIONS 13.2 geometric values).
+
+**How Delta-T is handled.** The engine's TT − UT1 is 32.184 s + (TAI − UTC), DUT1 = 0:
+within 0.9 s of the truth for the past, frozen at 69.184 s for the future. NASA's canon
+uses its own Delta-T (74 s for 2024, about 113 s for 2060, extrapolated) and USNO its
+own (72.8 s for 2024). Global quantities — the instant of greatest eclipse, gamma,
+magnitudes, types — are geocentric and do not depend on Earth rotation, so they are
+compared in TT, where Delta-T cancels. Anything tied to the ground is compared after
+adopting the source's Delta-T through `Eclipses::with_dut1_s(32.184 + 37 − ΔT)`, or,
+for the canon's positions, by rotating our longitude by `15.04″ × (ΔT_NASA − ΔT_ours)`,
+exact for a pure clock difference. Every eclipse reports the `delta_t_s` its ground
+track assumed. For future eclipses the true Delta-T will differ from 69.184 s by an
+unknown amount: each second is 15″ of longitude (460 m at the equator) on the path and
+up to about a second on a local contact time.
+
+### Every eclipse of 1990-2060 against NASA's canon
+
+`tests/eclipse_canon.rs` against `fixtures/reference/eclipses_nasa_canon.json` (320
+rows parsed verbatim). **All 158 solar eclipses (47 total, 51 annular, 6 hybrid, 54
+partial) and all 162 lunar eclipses are found, none extra, with the same type, the same
+central or non-central class, and the same saros and lunation numbers** — including the
+borderline cases the conventions decide: 2014-04-29 (non-central annular, γ −1.0000),
+2043-04-09 (non-central total, γ 1.0031), the six hybrids, 2042-09-29 (penumbral by
+Danjon's rule, partial by the Almanac's) and 2016-08-18 and 2042-10-28 (no eclipse by
+Danjon's rule, faint penumbral by the Almanac's).
+
+| quantity | target | worst | where |
+|---|---|---|---|
+| solar greatest eclipse, TT vs TD | 2 min | **1.4 s** (median 0.4 s) | 2059-05-11 |
+| solar gamma | 0.001 | **7e-5** | 2013-11-03 |
+| solar magnitude | 0.01 | **9e-5** | 2047-01-26 |
+| lunar greatest eclipse, TT vs TD | 2 min | **11.3 s**; total 1.7 s, partial 5.4 s | 2002-06-24 (penumbral, γ −1.44) |
+| lunar gamma | 0.001 | **1.2e-4** | 2060-11-08 |
+| lunar umbral / penumbral magnitude | 0.01 | **3.1e-4 / 3.3e-4** | 2013-05-25 |
+| lunar durations, total / partial / penumbral | | 0.05 / 0.11 / 1.0 min | the last 2027-07-18, penumbral magnitude 0.0014 |
+| point of greatest eclipse (NASA rounds to 1°) | | 0.58° | 2052-03-30 |
+| Moon's zenith point at greatest eclipse (rounded to 1°) | | 0.66° | 2004-05-04 |
+| Sun's altitude at greatest eclipse (rounded to 1°) | | 0.50° | 2055-07-24 |
+| central duration (NASA rounds to 1 s) | | 0.67 s | 2045-02-16 |
+| path width, Sun ≥ 20° (NASA rounds to 1 km) | | 1.25 km per 300 km | 1997-03-09 |
+| path width, Sun below 20° | | 4.6 % | 2033-03-30 (γ 0.978, Sun 11°) |
+
+The lunar timing residual grows with the shallowness of the eclipse: the Moon's closest
+approach to the shadow axis is flat in time when it passes far from it. The widths of
+the most grazing paths differ by definition (NASA's width of a strongly curved path
+low in the sky is not the sum of the distances to the two limits used here).
+
+### Besselian elements against NASA's polynomials
+
+Unit test `eclipses::bessel::tests::elements_match_nasas_polynomials` against the
+polynomial elements of six eclipses 2017-2026 (78 instants over each table's six-hour
+window, NASA's `μ` converted from the ephemeris meridian): `x`, `y` within **9.7e-5
+Earth radii (620 m)**, 4.5e-5 to 9.7e-5 by eclipse; `d` 2.5e-5°; `μ` 4.2e-5°; `l1`,
+`l2` 1.5e-6; `tan f` 2.1e-7. NASA's lunar theory is ELP-2000/85, ours ELP 2000-82B;
+its tables are cubic fits printed to six decimals. The largest difference is for
+2021-12-04 (see paths below).
+
+### Paths against NASA's path tables and Skyfield
+
+`tests/eclipse_paths.rs`. NASA's tables (six eclipses, 1428 points on the central line
+and the umbral limits, every two minutes) are compared at NASA's Delta-T, point by
+point, as a map needs it: the distance of NASA's point from our curve, and the
+difference between our curve's time at the foot of that perpendicular and the table's.
+Comparing positions at equal times instead mixes the two: near sunrise and sunset the
+shadow crosses the ground at hundreds of km/s.
+
+| eclipse | off our lines (Sun ≥ 5°) | along them | ends of the path | greatest eclipse | width, duration |
+|---|---|---|---|---|---|
+| 2017-08-21 T | 0.32 km | 0.8 s | 0.8 km | −0.2 s, 0.08 km | +0.04 km, −0.04 s |
+| 2021-12-04 T (Antarctica) | 2.3 km | 2.2 s | 2.3 km | −0.4 s, 1.70 km | −0.59 km, 0.00 s |
+| 2023-04-20 H | 0.44 km | 1.4 s | 0.4 km | +0.6 s, 0.26 km | −0.04 km, −0.07 s |
+| 2023-10-14 A | 0.43 km | 0.8 s | 0.7 km | +0.3 s, 0.41 km | +0.08 km, −0.16 s |
+| 2024-04-08 T | 0.59 km | 0.8 s | 0.5 km | +0.3 s, 0.31 km | +0.00 km, −0.11 s |
+| 2026-08-12 T (over the pole) | 0.35 km | 0.4 s | 0.3 km | +0.3 s, 0.16 km | −0.44 km, −0.02 s |
+
+The 2021 Antarctic eclipse is the outlier because its path is low in the sky (the Sun at
+most 17° up): there a shift of the shadow axis on the fundamental plane is stretched by
+`1 / sin(altitude)` on the ground, and 2021-12-04 is also where our elements and NASA's
+differ most (620 m on the plane, 2.3 km on the ice). Skyfield decides between them: at
+100° W and 80° W our umbral limits are within 0.08-0.16 km of where Skyfield + DE440s
+puts them, so the 2.3 km are NASA's (its ELP-2000/85 against DE440s), not ours. The test
+holds that eclipse to 3 km against NASA and the others to 1 km.
+
+**The ends of the path.** Where the limits reach the horizon they do not simply stop:
+the time of the grazing maximum folds back (the southern limit of 2024-04-08 turns at the
+Sun 0.5° high and runs 50 km on to the horizon in 0.07 s), and the path of totality is
+closed by the small loops where totality is under way at sunrise or sunset
+(`umbra_horizon`). NASA's "Limits" rows are the extremes of those loops; ours reach
+them within 0.8 km (2.3 km for 2021). The penumbral limits fold more strongly: the
+southern penumbral limit of 2017-08-21 turns back with the Sun about 4° up, and its
+second branch reaches the horizon at an instant some 25 s earlier, 600 km further on.
+
+**Labels.** North and south are the sides left and right of the shadow's motion, as in
+NASA's tables; for a path running west (Antarctica, 2021) "north" is the geographic
+south. NASA's hybrid table labels by the sign of `L2` instead, so in the total part of
+2023-04-20 its "northern limit" is the geographic southern one; the test compares that
+eclipse's limits without labels.
+
+**Limits against Skyfield + DE440s.** `fixtures/reference/eclipses_skyfield.json`
+finds, independently of any Besselian formalism, where each limit crosses a meridian:
+the latitude at which the eclipse is exactly grazing at maximum, from the topocentric
+Sun-Moon separation alone, keeping only crossings with the Sun up. 21 crossings on 13
+meridians (2017-08-21, 2021-12-04, 2023-10-14, 2024-04-08): **umbral limits within 0.59
+km** (0.004-0.16 km for 2017 and 2021, up to 0.59 km for 2024, where the contact times
+also put our Moon 0.4 s from DE440s), **penumbral limits within 0.40 km** — including
+the southern penumbral limit of 2017 at 40° W with the Sun 1.7° up, on the branch that
+folds back to the horizon — and the times at the crossings within 1.1 s. Target 0.01°
+of latitude (1.1 km).
+
+### Local circumstances against USNO and Skyfield
+
+`tests/eclipse_local.rs`, 22 sites for 2017-08-21 (total), 2023-10-14 (annular) and
+2024-04-08 (total): U.S. cities in and out of the paths, Mazatlán, Honolulu (the Sun
+rises eclipsed in 2017), Dakar (it sets eclipsed), Reykjavík (it sets 26 minutes after
+the eclipse ends) and Sydney (not visible).
+
+**USNO's Solar Eclipse Computer**, at USNO's Delta-T: all contacts within **2.0 s**
+(target 1 min); maximum within 0.8 s at 19 sites, 4.7 and 5.4 s at Honolulu where the
+Sun is 5 to 12° up and the instant of maximum is flat (its magnitude changes by a
+millionth in five seconds; Skyfield with our definition agrees with us there to 0.4 s,
+so USNO's definition differs); sunrise and sunset within 2.1 s of USNO's minute; magnitude within
+0.0007, obscuration within 0.11 %; the Sun's altitude and azimuth within 0.05° and
+0.06°; the contact position angles within 0.05° at first and fourth contact and 1.0° at
+second and third (USNO gives an annular eclipse's second and third contact on the
+opposite side of the Sun's disc; ours is where the limbs meet); vertex angles within
+1.1°, the parallactic angle being taken with the geodetic vertical. **As shipped**
+(DUT1 = 0, our own Delta-T): contacts within 5.7 s, maxima within 9.3 s. Every visibility
+class agrees, and Sydney, which USNO reports as not visible, is `below_horizon` here: it
+is inside the penumbra's cone, on the night side.
+
+**Skyfield + DE440s** (UT1 = UTC, the same radii): the 72 contact instants agree within
+**0.44 s**, which at our instants is a separation residual of at most **0.16″** — at
+every contact the topocentric Sun-Moon separation from DE440s equals the sum or the
+difference of the semidiameters to 0.16″ (target 5 s). The Sun's altitude and azimuth at
+the contacts agree within 0.002°, the Moon's position angle at first and fourth contact
+within 0.004°, the magnitude at maximum within 5e-5, and the instant of maximum (the
+greatest magnitude on both sides) within 0.43 s.
+
+**Lunar eclipses against Skyfield + DE440s**: the contacts of 2022-11-08 and 2025-03-14
+within 0.66 s, gamma and magnitudes within 5e-4, and the Moon's altitude at each contact
+within 0.0023° at six sites; the visibility classes (visible at Honolulu, Tokyo and
+Philadelphia in 2025; setting during the eclipse at Philadelphia in 2022 and at London
+in 2025; rising at Sydney) follow.
+
+### Speed
+
+Release build, x86-64, on a shared 8-core machine (load average 5-6 while measured):
+all eclipses of 1990-2060 in **0.26-0.28 s** (best of three; `cargo test --release -p
+skyfix-almanac --test eclipse_canon -- --ignored --nocapture`); one eclipse by id in
+0.9 ms; `eclipse_path` in **7-24 ms** for each of the 22 solar eclipses of 2017-2026
+(best of five; `--test eclipse_paths -- --ignored`), against a budget of 50 ms; single
+runs under heavier load reached 50 ms. Most of the scan is the ephemeris: 9 Sun and Moon
+evaluations per eclipse at 66 µs each. The unoptimised test build scans 1990-2060 in
+1.6 s.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python -m tools.reference.gen_eclipses` regenerates all four
+  fixtures (NASA and USNO need the network; `--offline` rebuilds only the Skyfield file,
+  about four minutes).
+- `cargo test -p skyfix-almanac --test eclipse_canon --test eclipse_paths --test
+  eclipse_local -- --nocapture` and `cargo test -p skyfix-almanac --lib bessel --
+  --nocapture` print every number above.

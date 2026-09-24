@@ -280,3 +280,231 @@ export function jdFromUnixMs(ms: number): number {
 export function unixMsFromJd(jd: number): number {
   return (jd - 2_440_587.5) * 86_400_000;
 }
+
+// ---------------------------------------------------------------------------
+// Wave 2 — eclipses. Rust: crates/skyfix-wasm/src/eclipses.rs over
+// skyfix_almanac::eclipses. Wire format: docs/EXPLORER_API.md, "Wave 2 — eclipses".
+// ---------------------------------------------------------------------------
+
+export type SolarEclipseType = 'total' | 'annular' | 'hybrid' | 'partial';
+export type LunarEclipseType = 'total' | 'partial' | 'penumbral';
+
+/** A global contact: when the penumbra or umbra first/last touches the Earth (solar),
+ * or the Moon enters/leaves the penumbra or umbra (lunar). */
+export interface EclipseContact {
+  kind: 'p1' | 'u1' | 'u2' | 'u3' | 'u4' | 'p4';
+  jd_utc: number;
+  utc: string;
+}
+
+export interface SolarEclipseGreatest {
+  jd_utc: number;
+  utc: string;
+  jd_tt: number;
+  /** On the central line, or the point of the Earth's limb nearest the shadow axis. */
+  lat_deg: number;
+  lon_deg: number;
+  sun_alt_deg: number;
+  sun_az_deg: number;
+}
+
+export interface SolarEclipse {
+  kind: 'solar';
+  /** `"YYYY-MM-DD-solar"`: the UTC date of greatest eclipse. */
+  id: string;
+  type: SolarEclipseType;
+  /** The shadow axis meets the Earth. */
+  central: boolean;
+  greatest: SolarEclipseGreatest;
+  /** Central: Moon/Sun diameter ratio. Otherwise: fraction of the Sun's diameter covered. */
+  magnitude: number;
+  /** Axis distance from the Earth's centre at greatest eclipse, Earth radii, + north. */
+  gamma: number;
+  saros: number;
+  lunation: number;
+  /** `p1`, `u1`, `u4`, `p4` as they occur. */
+  contacts: EclipseContact[];
+  path_width_km: number | null;
+  central_duration_s: number | null;
+  /** TT − UT1 the ground track assumes. */
+  delta_t_s: number;
+}
+
+export interface LunarEclipseGreatest {
+  jd_utc: number;
+  utc: string;
+  jd_tt: number;
+  /** Where the Moon is overhead. */
+  lat_deg: number;
+  lon_deg: number;
+}
+
+export interface LunarEclipse {
+  kind: 'lunar';
+  /** `"YYYY-MM-DD-lunar"`. */
+  id: string;
+  type: LunarEclipseType;
+  greatest: LunarEclipseGreatest;
+  umbral_magnitude: number;
+  penumbral_magnitude: number;
+  gamma: number;
+  saros: number;
+  lunation: number;
+  /** `p1`, `u1`, `u2`, `u3`, `u4`, `p4` as they occur. */
+  contacts: EclipseContact[];
+  penumbral_duration_s: number | null;
+  partial_duration_s: number | null;
+  total_duration_s: number | null;
+  delta_t_s: number;
+}
+
+export type Eclipse = SolarEclipse | LunarEclipse;
+
+export interface EclipseConventions {
+  moon_radius_k_penumbra: number;
+  moon_radius_k_umbra: number;
+  lunar_shadow: string;
+  delta_t: string;
+  sources: string;
+}
+
+export interface EclipseList {
+  /** The window actually searched (clipped to the coverage). */
+  jd_start: number;
+  jd_end: number;
+  /** The request extended beyond the coverage. */
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  /** Sorted by greatest eclipse. */
+  eclipses: Eclipse[];
+  conventions: EclipseConventions;
+}
+
+export type EclipseVisibility = 'visible' | 'partly_below_horizon' | 'below_horizon' | 'none';
+export type LocalEclipseType = 'total' | 'annular' | 'partial' | 'none';
+export type EclipseLocalEventKind =
+  | 'c1'
+  | 'c2'
+  | 'max'
+  | 'c3'
+  | 'c4'
+  | 'p1'
+  | 'u1'
+  | 'u2'
+  | 'u3'
+  | 'u4'
+  | 'p4'
+  | 'sunrise'
+  | 'sunset'
+  | 'moonrise'
+  | 'moonset';
+
+export interface EclipseLocalEvent {
+  kind: EclipseLocalEventKind;
+  jd_utc: number;
+  utc: string;
+  /** The eclipsed body (Sun or Moon), topocentric geometric (CONVENTIONS §13.2). */
+  alt_deg: number;
+  az_deg: number;
+  /** Above its rise/set altitude (§13.3). */
+  visible: boolean;
+  /** Solar contacts: where the limbs touch on the Sun, from north / from the zenith. */
+  position_angle_deg: number | null;
+  vertex_angle_deg: number | null;
+  /** Solar maximum and the visible maximum. */
+  magnitude: number | null;
+  obscuration: number | null;
+}
+
+export interface EclipseObserverEcho {
+  lat_deg: number;
+  lon_deg: number;
+  height_m: number;
+}
+
+export interface SolarEclipseLocal {
+  kind: 'solar';
+  id: string;
+  observer: EclipseObserverEcho;
+  visibility: EclipseVisibility;
+  local_type: LocalEclipseType;
+  /** At the geometric maximum, Sun up or not (0 when `none`). */
+  magnitude: number;
+  obscuration: number;
+  duration_s: number | null;
+  central_duration_s: number | null;
+  /** `c1`, `c2`, `max`, `c3`, `c4`, `sunrise`, `sunset`, sorted by time. */
+  events: EclipseLocalEvent[];
+  /** The most the observer sees: the maximum, or the sunrise/sunset nearest it. */
+  visible_max: EclipseLocalEvent | null;
+  delta_t_s: number;
+}
+
+export interface LunarEclipseLocal {
+  kind: 'lunar';
+  id: string;
+  observer: EclipseObserverEcho;
+  visibility: EclipseVisibility;
+  /** `p1` … `p4`, `max`, `moonrise`, `moonset`, sorted by time. */
+  events: EclipseLocalEvent[];
+  delta_t_s: number;
+}
+
+export type EclipseLocal = SolarEclipseLocal | LunarEclipseLocal;
+
+/** GeoJSON-ready: `segments` is MultiLineString coordinates, split at ±180°. */
+export interface EclipsePolyline {
+  /** `[[lon_deg, lat_deg], …]` per segment. */
+  segments: [number, number][][];
+  /** UTC Julian date of each vertex, parallel to `segments`. */
+  jd_utc: number[][];
+}
+
+export interface SolarEclipsePath {
+  kind: 'solar';
+  id: string;
+  type: SolarEclipseType;
+  central: boolean;
+  greatest: SolarEclipseGreatest;
+  central_line: EclipsePolyline;
+  /** Limits of totality or annularity. */
+  umbra_north: EclipsePolyline;
+  umbra_south: EclipsePolyline;
+  /** Closed loops closing the path of totality at sunrise and sunset. */
+  umbra_horizon: EclipsePolyline;
+  /** Limits of the partial eclipse. */
+  penumbra_north: EclipsePolyline;
+  penumbra_south: EclipsePolyline;
+  /** Closed loops where the partial eclipse begins or ends at sunrise or sunset. */
+  penumbra_horizon: EclipsePolyline;
+  delta_t_s: number;
+}
+
+export interface SublunarPoint {
+  kind: EclipseLocalEventKind;
+  jd_utc: number;
+  utc: string;
+  lat_deg: number;
+  lon_deg: number;
+}
+
+export interface LunarEclipsePath {
+  kind: 'lunar';
+  id: string;
+  type: LunarEclipseType;
+  /** The point under the Moon at each contact and at greatest eclipse. */
+  sublunar: SublunarPoint[];
+  delta_t_s: number;
+}
+
+export type EclipsePath = SolarEclipsePath | LunarEclipsePath;
+
+/** Eclipse calls (wave 2). Separate from `ExplorerEngine` so wave 1 is untouched. */
+export interface EclipseEngine {
+  /** Every eclipse with greatest eclipse in the window. ~0.3 s for 1990–2060 natively. */
+  eclipses(jdStart: number, jdEnd: number): EclipseList;
+  eclipseLocal(id: string, observer: Observer): EclipseLocal;
+  /** Solar: paths for the map (≤ 50 ms). Lunar: sub-lunar points. */
+  eclipsePath(id: string): EclipsePath;
+}
