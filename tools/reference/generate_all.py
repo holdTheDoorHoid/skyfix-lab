@@ -17,7 +17,7 @@ import time
 
 from . import common as c
 from . import gen_geocentric, gen_moon, gen_planets, gen_sessions, gen_stars, gen_sun_sextant
-from . import gen_topocentric, gen_usno
+from . import gen_moon_sights, gen_topocentric, gen_usno, gen_usno_sights
 
 STEPS = [
     ("navigational_stars_hip", gen_stars.main, False),
@@ -27,7 +27,9 @@ STEPS = [
     ("reference-sun-sextant", gen_sun_sextant.main, False),
     ("moon_geocentric + moon_topocentric", gen_moon.main, False),
     ("planets_* (Mercury to Neptune, DE440s)", gen_planets.main, False),
+    ("moon and planet sights, sessions, lunar distances, twilight", gen_moon_sights.main, False),
     ("usno_celnav cross-check", gen_usno.main, True),
+    ("usno_celnav Venus phase and Moon corrections", gen_usno_sights.main, True),
 ]
 
 
