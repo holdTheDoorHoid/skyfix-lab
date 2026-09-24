@@ -16,9 +16,10 @@ import sys
 import time
 
 from . import common as c
-from . import gen_almanac, gen_events, gen_geocentric, gen_moon, gen_nav_methods, gen_planets
+from . import gen_almanac, gen_events, gen_geocentric, gen_moon, gen_moon_sights
+from . import gen_nav_methods, gen_planets
 from . import gen_sessions, gen_stars, gen_sun_sextant
-from . import gen_topocentric, gen_usno
+from . import gen_topocentric, gen_usno, gen_usno_sights
 
 STEPS = [
     ("navigational_stars_hip", gen_stars.main, False),
@@ -29,8 +30,10 @@ STEPS = [
     ("moon_geocentric + moon_topocentric", gen_moon.main, False),
     ("planets_* (Mercury to Neptune, DE440s)", gen_planets.main, False),
     ("nav_methods", gen_nav_methods.main, False),
-    ("usno_celnav cross-check", gen_usno.main, True),
+    ("moon and planet sights, sessions, lunar distances, twilight", gen_moon_sights.main, False),
     ("events: rise/set/twilight, seasons, Moon phases", gen_events.main_offline, False),
+    ("usno_celnav cross-check", gen_usno.main, True),
+    ("usno_celnav Venus phase and Moon corrections", gen_usno_sights.main, True),
     ("events USNO cross-check", gen_events.main_usno_only, True),
     ("almanac_days: daily almanac pages", gen_almanac.main_offline, False),
     ("almanac_usno: USNO spot checks of the pages", gen_almanac.main_usno_only, True),

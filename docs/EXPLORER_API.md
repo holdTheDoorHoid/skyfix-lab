@@ -1,6 +1,6 @@
 # Explorer engine — wire contract
 
-**Status:** normative. The Rust side is `crates/skyfix-wasm/src/{explorer,starfield,nav,almanac,eclipses}.rs`;
+**Status:** normative. The Rust side is `crates/skyfix-wasm/src/{explorer,starfield,nav,navsky,almanac,eclipses}.rs`;
 the TypeScript mirror is `web/src/next/engine/types.ts`. Change both together, in one
 commit, and say so in your report. Numeric definitions are CONVENTIONS section 13.
 
@@ -153,6 +153,9 @@ display time zone). `options_json`: `{"horizon": "standard" | "dip", "height_of_
 ### `day_events_batch(observer_json, windows_json, bodies_json, options_json) -> DayEvents[]`
 
 `windows_json` is `[[jd_start, jd_end], …]`, at most 400 windows (a year of days).
+A window the Sun cannot cover (outside the providers' coverage) does not fail the batch:
+its entry has empty `phases` and `bodies` and the reason in `errors`. Malformed input
+still throws.
 
 ### `find_altitude(observer_json, body, jd_start, jd_end, altitude_deg) -> TimeEvent[]`
 
@@ -482,9 +485,137 @@ instrument's, and its covariance is optimistic because the dead-reckoning error 
 by every sight. `applied` is `false` when no linearisation point could be found and the
 sights were solved as if stationary (a warning says so).
 
-## Wave 2 — Moon and planet sights, predicted sextant readings, lunar distance (`nav.rs`)
+## Wave 2 — Moon and planet sights (`navsky.rs`, navigation-Moon agent)
 
-Specified by the navigation-Moon agent.
+Predicted sextant readings, lunar distance and tonight's sights. TypeScript mirror:
+`NavSkyEngine` in `web/src/next/engine/types.ts`. Methods and validation:
+`docs/NAVIGATION_SKY.md`; numeric rules: CONVENTIONS sections 1, 5, 7 and 13.1.
+
+Common to all four:
+
+- Every direction comes from the same astronomy `reduce`/`solve` use with
+  `ephemeris_mode = "auto"`: the Sun, the Moon, Venus, Mars, Jupiter and Saturn (Venus at
+  its **centre of light**, CONVENTIONS section 7) and the stars. Mercury, Uranus and
+  Neptune throw "… is not offered for sights …".
+- **Sight observer** (`observer_json`, Rust `SightObserver`):
+  `{"lat_deg": 38.9, "lon_deg": -74.8, "height_of_eye_m": 3, "pressure_hpa": 1010, "temperature_c": 10}`.
+  Only `lat_deg`/`lon_deg` are required (defaults 0 m, 1010 hPa, 10 °C).
+  `height_of_eye_m` is the **height of eye** (dip), not the site's height; an explorer
+  `height_m` field is ignored.
+- **Instrument** (`instrument_json`, Rust `Instrument`):
+  `{"index_correction_arcmin": -1.2, "horizon": "sea" | "artificial_reflected" | "electronic_vertical", "name": ""}`.
+  Every field defaults (0, `"sea"`), and an empty string means all defaults.
+- Malformed input and a body that cannot be computed **throw** a string (these are
+  single-body calls, unlike `sky_state`).
+
+### `sight_bodies() -> SightBodyInfo[]`
+
+`[{"body": "Sun", "kind": "sun"}, {"body": "Moon", "kind": "moon"}, {"body": "Venus", "kind": "planet"}, …, {"body": "Acamar", "kind": "star"}, …]`
+— every body offered for sights: navigational and with a validated provider
+(`accuracy_arcmin ≤ 0.1`, CONVENTIONS 13.7), Sun, Moon, the four planets, then the stars
+in catalogue order.
+
+### `predict_sextant(observer_json, instrument_json, body, limb, jd_utc) -> PredictedSight`
+
+What the sextant will read: the correction chain run in reverse from the computed
+altitude. `limb` is `"lower" | "upper" | "center"` (a limb on a planet or star is
+ignored with a `limb_ignored_for_star` warning).
+
+| field | meaning |
+|---|---|
+| `body`, `jd_utc`, `utc`, `limb`, `horizon` | as asked (canonical name) |
+| `direction_source` | the provider that gave the direction |
+| `gha_deg`, `dec_deg`, `semidiameter_arcmin`, `horizontal_parallax_arcmin` | apparent geocentric (Venus: centre of light) |
+| `hc_deg`, `zn_deg` | computed altitude and true azimuth at the observer (CONVENTIONS §3) |
+| `hs_deg` | **the sextant reading** (the double angle with a reflected artificial horizon) |
+| `ha_deg` | apparent altitude after index correction and dip (or halving) |
+| `corrections` | a `CorrectionBreakdown` (the existing session type): the forward chain from `hs_deg`, six steps, `ho_deg` equal to `hc_deg` to 1e-9 deg |
+| `warnings` | `Warning[]` (low altitude, limb ignored, …) |
+
+Throws when the body is below the lowest altitude the horizon lets a sextant show
+("… is below the visible horizon here …").
+
+### `lunar_distance(input_json) -> LunarDistanceResult`
+
+`input_json` (Rust `LunarDistanceInput`):
+
+```json
+{
+  "observer": {"lat_deg": 23.1443, "lon_deg": -103.1079, "height_of_eye_m": 10},
+  "instrument": {"index_correction_arcmin": -1.5, "horizon": "sea"},
+  "body": "Venus",
+  "utc_estimate": "2029-10-17T01:05:43Z",
+  "distance_deg": 74.240349,
+  "moon_limb": "near",
+  "body_limb": null,
+  "moon_altitude": {"altitude_deg": 49.267192, "altitude_kind": "sextant_hs", "limb": "lower", "sigma_arcmin": 1.0},
+  "body_altitude": null,
+  "sigma_arcmin": 0.2,
+  "search_hours": 12,
+  "dr_uncertainty_nm": 0
+}
+```
+
+(Case `lunar-19` of `fixtures/reference/lunar_distances.json`: the answer is
+2029-10-17T01:15:25Z, 9 min 42 s after the watch's estimate.)
+
+`observer` is the DR position. `distance_deg` is the sextant reading of the distance
+(the index correction is added). `moon_limb` is `"near"` (default) or `"far"`;
+`body_limb` defaults to `"near"` for the Sun and `"center"` otherwise. Observed
+altitudes are optional, per body; without one the altitude is computed from the DR
+position at every trial instant (then the answer depends on the DR, as
+`dr_sensitivity_arcmin_per_10nm` reports). `sigma_arcmin` (default 0.2′) is the
+distance's measurement sigma; `search_hours` (default 12, at most 48) is the half-width
+of the search around `utc_estimate`; `dr_uncertainty_nm` (default 0) adds the DR's
+effect to the budget.
+
+| field | meaning |
+|---|---|
+| `body`, `jd_utc`, `utc` | the instant at which the cleared distance equals the geocentric one |
+| `utc_minus_estimate_s` | found UTC minus `utc_estimate`: the correction to add to the watch |
+| `sigma_s` | 1-sigma of the UTC, seconds (all of `error_budget` in quadrature over the rate) |
+| `longitude_sigma_arcmin`, `longitude_sigma_nm` | the longitude uncertainty that implies (15′ of longitude per minute of time; NM at the DR latitude) |
+| `apparent_distance_deg` | reading + IC + semidiameters: apparent distance between the centres |
+| `cleared_distance_deg` | the geocentric distance after refraction and parallax |
+| `distance_rate_arcmin_per_min` | how fast the geocentric distance changes (±0.3 to 0.6) |
+| `clearing` | `[{kind, before_deg, after_deg, delta_arcmin, note}]`, kinds `index_correction`, `moon_semidiameter`, `body_semidiameter`, `refraction`, `parallax` |
+| `altitudes` | `{moon_source, body_source ("observed" \| "computed"), moon_apparent_deg, body_apparent_deg, moon_true_deg, body_true_deg, moon_azimuth_deg, body_azimuth_deg, moon_computed_apparent_deg, body_computed_apparent_deg}` |
+| `error_budget` | `[{name, distance_arcmin, time_s}]`: measurement, ephemeris, refraction model, low altitude, observed altitudes, DR position |
+| `dr_sensitivity_arcmin_per_10nm` | `[north, east]`: how far the cleared distance moves per 10 NM of DR error |
+| `alternatives` | `[{jd_utc, utc}]` other instants in the window with the same distance (a warning says so) |
+| `warnings`, `notes` | `Warning[]` and plain sentences |
+
+Throws when no instant in the window gives the distance ("… never equals …"), and for
+the Moon as the body or the Moon's centre as its limb.
+
+### `plan_sights(observer_json, jd_start, jd_end, instrument_json) -> SightPlan`
+
+Tonight's sights: the next evening and the next morning nautical twilight in
+`[jd_start, jd_end]` (at most 7 days), and for each the 3 to 5 bodies to shoot.
+
+```ts
+{ observer, jd_start, utc_start, jd_end, utc_end,
+  windows: TwilightPlan[],          // time order; empty in polar day or night
+  notes: string[] }
+```
+
+`TwilightPlan`:
+
+| field | meaning |
+|---|---|
+| `kind` | `"evening"` (Sun from −6° down to −12°) or `"morning"` (−12° up to −6°), the Sun's centre, topocentric, geometric (CONVENTIONS 13.3) |
+| `jd_start`, `utc_start`, `jd_end`, `utc_end` | the window; when the Sun never reaches −12° it ends (evening) or begins (morning) at the Sun's lowest point, with a note |
+| `jd_predicted`, `utc_predicted` | the instant the predictions refer to: the window's start (or `jd_start` when the twilight had begun) |
+| `sun_altitude_deg` | the Sun's altitude then |
+| `limiting_magnitude` | 1.5 at −6°, 3.0 at −12°, linear between; relaxed to 3.0 when fewer than three bodies qualify |
+| `sights` | `RecommendedSight[]` in shooting order: `{body, kind ("moon" \| "planet" \| "star"), magnitude, step, limb (the Moon's lit limb; "center" otherwise), hc_deg, zn_deg, hs_deg, rationale, prediction: PredictedSight}` |
+| `also_eligible` | bright and high enough, not chosen |
+| `plan` | the planner's `Plan` for the chosen bodies (shooting order, predicted fix quality, disclosures) |
+| `notes` | plain sentences (brightness rule, exclusions, the choice) |
+
+The bodies are the subset (of those between 15° and 75° and bright enough) with the best
+spread round the horizon — the smallest fix error when a shared altitude error (dip,
+index error, refraction) is unknown too (`planner::best_spread_subset`).
 
 ## Wave 2 — almanac pages (`almanac.rs`)
 

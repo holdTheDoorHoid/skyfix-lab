@@ -529,6 +529,8 @@ categories a real error would have fallen into.
 | diurnal aberration | up to 0.32″ (0.0052′) for an equatorial observer, worst case measured; 0.21″ across the five `reference-philadelphia-5star` sights specifically | no — CONVENTIONS section 7 defines the frame as geocentric of date, with diurnal aberration explicitly excluded | this document, section 2, "Spherical model vs full topocentric computation", and section 3, "The session fixtures"; measured from `fixtures/reference/topocentric_altaz.json` |
 | ephemeris (Sun and stars vs the independent Skyfield/JPL/USNO reference) | declared 0.01′ (Sun) / 0.02′ (stars); worst measured 0.0026′ (Sun GHA) / 0.0011′ (star separation) | yes, to the tolerance shown — this is what section 2 measures in full | `skyfix coverage` (command run in this worktree); this document, section 2 |
 | sphere vs ellipsoid | Earth's flattening is about 0.3 %, "irrelevant at the tens-of-metres level" against this project's targets | no — the model is a sphere everywhere, no ellipsoid correction | `docs/CONVENTIONS.md` section 1 ("the model is a sphere; no ellipsoid correction is applied anywhere"); `docs/ARCHITECTURE.md`, "Why these choices" |
+| the Earth's shape in the Moon's parallax | up to 0.22′ (median 0.09′) per Moon sight; under 0.005′ for planets | no in sight reduction and predicted readings (the sphere of CONVENTIONS section 1); **yes** in the lunar-distance clearing (WGS84 observer) | section 8; `docs/CONVENTIONS.md` section 5 step 5 |
+| Venus's centre of light | up to 0.41′ between the disc's centre and its light; the model agrees with USNO to 0.003′ | yes — Venus's sight direction is its centre of light, as in the Nautical Almanac | section 8; `docs/CONVENTIONS.md` section 7 |
 
 Two of these rows are worth reading together: DUT1 and diurnal aberration are
 both frame choices this project states and then deliberately does not correct
@@ -539,14 +541,13 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
 
 ## 5. Known limitations and things deliberately not modelled
 
-* **The Moon and planets are covered for positions, not yet for sights.** The
-  brief deferred them "unless independently validated". Both are now validated
-  against JPL DE440s: the Moon to 0.015′ (section 7), Mercury to Saturn to
-  0.0064′ and Uranus and Neptune to 0.04′ (the planets section). Their *sights*
-  (Moon limb and augmentation, planet parallax, the Venus and Mars additional
-  corrections, the per-body GHA rate) are added to the correction chain in a
-  later step of the explorer redesign (`docs/EXPLORER_PLAN.md`); until then they
-  are shown in the explorer but not offered for sights.
+* **Moon and planet sights reduce on the spherical Earth.** The Moon, Venus, Mars,
+  Jupiter and Saturn are offered for sights (section 8, `docs/NAVIGATION_SKY.md`):
+  the Moon's augmented semidiameter and rigorous parallax, the planets' parallax,
+  Venus at its centre of light, and each body's own GHA rate for the clock term.
+  The one thing left out is the Earth's shape in the Moon's parallax: up to 0.22′
+  (median 0.09′) on the real Earth, a few tens of metres in the fixes of section 8.
+  Mercury, Uranus and Neptune are shown but never offered for sights.
 * **The core solver assumes a stationary observer.** `skyfix-core::solver`
   has no motion model. `skyfix-motion::running_fix` (see `docs/MOTION.md`)
   handles a moving observer by advancing each sight's geographic position to
@@ -947,3 +948,49 @@ Native release (`cargo test --release -p skyfix-almanac --test perf -- --ignored
 The star provider builds its precession-nutation matrix and Earth state once per instant
 (`StarFrame`, bit-for-bit identical to the unbatched chain), which is what keeps 58 stars
 at about 0.18 ms.
+
+## 10. Moon and planet sights
+
+Owner: navigation-Moon agent. Methods, decisions and the full tables are in
+`docs/NAVIGATION_SKY.md`; the rules in `docs/CONVENTIONS.md` sections 1, 5, 7 and 13.1.
+
+**Sights against Skyfield** (`fixtures/reference/moon_planet_sights.json`, 178 raw
+sextant readings on each of two Earths, built from Skyfield + DE440s topocentric
+positions with the CONVENTIONS refraction, dip and index error;
+`crates/skyfix-ephemeris/tests/moon_planet_sights.rs`):
+
+| check | Moon | planets | stars | Sun |
+|---|---|---|---|---|
+| Rust chain vs the chain transcribed in Python from the text | 1.1e-10′ (all bodies) | | | |
+| sphere Earth, supplied DE440s directions | 0.0059′ | 0.0048′ | 0.0038′ | 0.0039′ |
+| sphere Earth, the providers' own directions | 0.0063′ | 0.0053′ | 0.0041′ | 0.0035′ |
+| WGS84 Earth | **0.2202′** (median 0.088′) | 0.0048′ | 0.0023′ | 0.0045′ |
+
+The sphere residuals are the diurnal aberration Skyfield includes; the WGS84 Moon
+residual is the Earth's shape, which the sphere of CONVENTIONS section 1 leaves out.
+
+**End to end** (`fixtures/sessions/reference-moon-*.json`, ephemeris `auto`, raw sextant
+readings, solved with the unchanged solver): 2.7 m and 5.2 m from truth on the sphere,
+17.9 m and 34.9 m on the WGS84 Earth.
+
+**Against USNO** (`fixtures/reference/usno_celnav_venus_phase.json`,
+`tests/usno_venus_phase.rs`, USNO's 10.36 s lag allowed for): Venus's centre of light
+within 0.0031′ at twelve phase angles from 15° to 157° (the geometric centre misses by up
+to 0.41′; fitted coefficient 0.4403 against the 0.44 used); Mars within 0.0007′ (no phase
+correction, as in USNO); the WGS84 Moon parallax within 0.004′ of USNO's, and the
+sphere's up to 0.22′ from it; the Moon's semidiameter 0.006′ larger than USNO's (k).
+
+**Lunar distances** (`fixtures/reference/lunar_distances.json`, 22 cases to the Sun, ten
+stars and four planets, measured between refracted limbs found numerically on the WGS84
+Earth; `tests/lunar_distance_reference.rs`): from exact inputs the UTC comes back within
+**0.74 s** with altitudes computed from the DR and **0.63 s** with altitudes observed
+(target 5 s); the cleared distance within 0.007′. With altitudes computed from a DR 30 NM
+in error the time moves 5 s to 2 minutes, as the reported sensitivity predicts.
+
+**Twilight** for the sight planner (`fixtures/reference/nautical_twilight.json`,
+`tests/sight_plan.rs`): within 0.15 s of Skyfield at eight sites.
+
+**Reproduce:** `tools/reference/.venv/bin/python -m tools.reference.gen_moon_sights`
+(about 30 s) and `-m tools.reference.gen_usno_sights` (needs network), then
+`cargo test -p skyfix-ephemeris --test moon_planet_sights --test usno_venus_phase
+--test lunar_distance_reference --test sight_plan -- --nocapture`.

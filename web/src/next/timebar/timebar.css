@@ -1,0 +1,588 @@
+/*
+ * The time bar: date and clock, the 24-hour sky-phase ribbon with its draggable handle,
+ * and Now / Play / speed. OWNER: shell-design agent. Layout of the bar itself is in
+ * theme/layout.css (.sf-timebar).
+ */
+
+/* --- Date and clock (left block, as wide as the panel below it) ------------------- */
+
+.sf-tb-when {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  padding: 0 12px 0 10px;
+}
+
+.sf-tb-date {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.sf-tb-date .sf-btn--icon {
+  color: var(--chrome-ink-2);
+}
+
+.sf-tb-date__label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 8px;
+  border-radius: var(--radius-sm);
+  color: var(--chrome-ink);
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.sf-tb-date__label:hover {
+  background: var(--chrome-raised);
+}
+
+.sf-tb-date__label .sf-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--chrome-ink-3);
+}
+
+.sf-tb-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+  padding-left: 10px;
+  white-space: nowrap;
+}
+
+.sf-tb-clock__local {
+  color: var(--chrome-ink);
+  font-family: var(--font-num);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.sf-tb-clock__sec {
+  color: var(--chrome-ink-3);
+  font-weight: 500;
+}
+
+.sf-tb-clock__row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.sf-tb-clock__zone {
+  color: var(--chrome-ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.sf-tb-clock__utc {
+  color: var(--chrome-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+}
+
+/* --- Ribbon ------------------------------------------------------------------------ */
+
+.sf-ribbon {
+  --ribbon-bar-h: 24px;
+  position: relative;
+  height: 58px;
+  margin: 0 18px 0 6px;
+  user-select: none;
+  touch-action: none;
+}
+
+.sf-ribbon__bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 16px;
+  height: var(--ribbon-bar-h);
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--phase-night);
+  box-shadow: 0 0 0 1px var(--ribbon-edge);
+  cursor: pointer;
+}
+
+.sf-ribbon__seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.sf-ribbon__seg[data-phase='night'] {
+  background: var(--phase-night);
+  color: var(--phase-night-ink);
+}
+
+.sf-ribbon__seg[data-phase='astronomical'] {
+  background: var(--phase-astronomical);
+  color: var(--phase-astronomical-ink);
+}
+
+.sf-ribbon__seg[data-phase='nautical'] {
+  background: var(--phase-nautical);
+  color: var(--phase-nautical-ink);
+}
+
+.sf-ribbon__seg[data-phase='civil'] {
+  background: var(--phase-civil);
+  color: var(--phase-civil-ink);
+}
+
+.sf-ribbon__seg[data-phase='day'] {
+  background: var(--phase-day);
+  color: var(--phase-day-ink);
+}
+
+/* Words sit at the start of their band, clear of the marks; single letters centre. */
+.sf-ribbon__seg[data-fit='full'] {
+  justify-content: flex-start;
+  padding-left: 7px;
+}
+
+/* A seam between segments, so neighbours read as separate bands without colour. */
+.sf-ribbon__seg + .sf-ribbon__seg {
+  box-shadow: inset 1px 0 0 rgba(0, 0, 0, 0.22);
+}
+
+/* Hour ticks along the bottom edge of the bar. */
+.sf-ribbon__ticks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* A mid-tone that shows on the darkest and the lightest band alike. */
+.sf-ribbon__tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 4px;
+  background: var(--chrome-ink-3);
+  opacity: 0.7;
+}
+
+.sf-ribbon__tick[data-major] {
+  height: 7px;
+  opacity: 0.95;
+}
+
+/* Rise, transit and set of the selected body. */
+.sf-ribbon__mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  pointer-events: none;
+  background: var(--mark-color);
+  box-shadow:
+    -1px 0 0 var(--line-halo),
+    1px 0 0 var(--line-halo);
+}
+
+.sf-ribbon__mark[data-kind='rise'] {
+  --mark-color: var(--event-rise);
+}
+
+.sf-ribbon__mark[data-kind='transit'] {
+  --mark-color: var(--event-transit);
+}
+
+.sf-ribbon__mark[data-kind='set'] {
+  --mark-color: var(--event-set);
+}
+
+.sf-ribbon__labels {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 15px;
+  pointer-events: none;
+}
+
+.sf-ribbon__label {
+  position: absolute;
+  top: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  transform: translateX(-50%);
+  color: var(--chrome-ink-2);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  line-height: 14px;
+  white-space: nowrap;
+}
+
+.sf-ribbon__label[data-align='end'] {
+  transform: translateX(calc(-100% + 6px));
+}
+
+.sf-ribbon__label[data-align='start'] {
+  transform: translateX(-6px);
+}
+
+.sf-ribbon__label .sf-icon {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.2;
+}
+
+.sf-ribbon__label[data-kind='rise'] .sf-icon {
+  color: var(--event-rise);
+}
+
+.sf-ribbon__label[data-kind='transit'] .sf-icon {
+  color: var(--event-transit);
+}
+
+.sf-ribbon__label[data-kind='set'] .sf-icon {
+  color: var(--event-set);
+}
+
+.sf-ribbon__hours {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 43px;
+  height: 14px;
+  pointer-events: none;
+}
+
+.sf-ribbon__hour {
+  position: absolute;
+  transform: translateX(-50%);
+  color: var(--chrome-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  line-height: 14px;
+}
+
+.sf-ribbon__hour:first-child {
+  transform: none;
+}
+
+.sf-ribbon__hour:last-child {
+  transform: translateX(-100%);
+}
+
+/* The wall clock's "now", when it falls in the day shown. */
+.sf-ribbon__now {
+  position: absolute;
+  top: 12px;
+  width: 0;
+  height: 0;
+  margin-left: -4px;
+  border: 4px solid transparent;
+  border-top: 5px solid var(--chrome-ink-2);
+  pointer-events: none;
+}
+
+/* The handle: a line through the bar and a knob with the Sun or the Moon. */
+.sf-ribbon__handle {
+  position: absolute;
+  top: 10px;
+  height: 36px;
+  width: 30px;
+  margin-left: -15px;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+  will-change: transform;
+}
+
+.sf-ribbon__handle:active {
+  cursor: grabbing;
+}
+
+.sf-ribbon__handle::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--chrome-ink);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
+}
+
+.sf-ribbon__knob {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--chrome-bg-0);
+  box-shadow:
+    0 0 0 2px var(--knob-color, var(--body-sun)),
+    0 2px 8px rgba(0, 0, 0, 0.45);
+  color: var(--knob-color, var(--body-sun));
+}
+
+.sf-ribbon__knob .sf-glyph {
+  width: 18px;
+  height: 18px;
+}
+
+.sf-ribbon__handle[data-glyph='moon'] {
+  --knob-color: var(--body-moon);
+}
+
+.sf-ribbon__handle:focus-visible {
+  outline: none;
+}
+
+.sf-ribbon__handle:focus-visible .sf-ribbon__knob {
+  box-shadow:
+    0 0 0 2px var(--knob-color, var(--body-sun)),
+    0 0 0 5px var(--focus);
+}
+
+/* The time under the handle while it is dragged. */
+.sf-ribbon__bubble {
+  position: absolute;
+  top: -26px;
+  left: 50%;
+  padding: 2px 7px;
+  border-radius: var(--radius-sm);
+  background: var(--chrome-ink);
+  color: var(--chrome-bg-0);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease);
+  pointer-events: none;
+}
+
+.sf-ribbon[data-dragging] .sf-ribbon__bubble {
+  opacity: 1;
+}
+
+/* --- Transport: Now, Play, speed ------------------------------------------------------ */
+
+.sf-tb-transport {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px 0 4px;
+}
+
+.sf-tb-now {
+  gap: 7px;
+  padding: 0 12px 0 10px;
+}
+
+.sf-live-dot {
+  position: relative;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--chrome-ink-3);
+}
+
+.sf-tb-now[aria-pressed='true'] .sf-live-dot {
+  background: var(--accent);
+}
+
+.sf-tb-now[aria-pressed='true'] .sf-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--accent);
+  opacity: 0;
+  animation: sf-live 2.4s var(--ease) infinite;
+}
+
+@keyframes sf-live {
+  0% {
+    opacity: 0.8;
+    transform: scale(0.6);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+.sf-tb-play {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+}
+
+.sf-tb-play .sf-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.sf-tb-speed {
+  gap: 5px;
+  padding: 0 8px 0 10px;
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+}
+
+.sf-tb-speed .sf-icon:last-child {
+  width: 14px;
+  height: 14px;
+  color: var(--chrome-ink-3);
+}
+
+/* --- Calendar popover ------------------------------------------------------------------- */
+
+.sf-cal {
+  width: 280px;
+  padding: 4px;
+}
+
+.sf-cal__head {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 2px 6px;
+}
+
+.sf-cal__title {
+  flex: 1;
+  text-align: center;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.sf-cal__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.sf-cal__dow {
+  height: 22px;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  text-align: center;
+  line-height: 22px;
+}
+
+.sf-cal__day {
+  height: 34px;
+  border-radius: var(--radius-sm);
+  color: var(--ui-ink);
+  font-family: var(--font-num);
+  font-size: var(--text-md);
+}
+
+.sf-cal__day:hover {
+  background: var(--ui-raised);
+}
+
+.sf-cal__day[data-outside] {
+  color: var(--ui-ink-3);
+}
+
+.sf-cal__day[data-today] {
+  box-shadow: inset 0 0 0 1px var(--ui-line-strong);
+}
+
+.sf-cal__day[aria-selected='true'] {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+
+.sf-cal__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 8px 2px 2px;
+}
+
+/* ---------------------------------------------------------------------------------- */
+/* Phones                                                                               */
+/* ---------------------------------------------------------------------------------- */
+
+@media (max-width: 767px) {
+  .sf-tb-when {
+    grid-column: 1;
+    grid-row: 1;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 4px 0 4px;
+  }
+
+  .sf-tb-date__label .sf-icon,
+  .sf-tb-date__year,
+  .sf-tb-clock__sec {
+    display: none;
+  }
+
+  .sf-tb-date__label {
+    padding: 0 4px;
+  }
+
+  .sf-tb-clock {
+    padding-left: 2px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
+  .sf-tb-clock__local {
+    font-size: var(--text-lg);
+  }
+
+  .sf-tb-clock__row {
+    display: flex;
+    align-items: baseline;
+    gap: 5px;
+  }
+
+  .sf-tb-transport {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 6px 8px 0 0;
+    gap: 4px;
+  }
+
+  .sf-tb-speed {
+    display: none;
+  }
+
+  .sf-tb-play {
+    width: 34px;
+    height: 34px;
+  }
+
+  .sf-ribbon {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    margin: 2px 14px 4px;
+  }
+}

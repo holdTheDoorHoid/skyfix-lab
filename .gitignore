@@ -19,3 +19,6 @@ tools/reference/data/
 /tools/starfield/data/
 /tools/starfield/.venv
 __pycache__/
+
+# Working screenshots from agents; only curated images in docs/design/ are committed.
+docs/design/local/

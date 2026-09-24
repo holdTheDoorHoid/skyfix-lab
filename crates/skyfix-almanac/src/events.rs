@@ -734,9 +734,24 @@ pub fn day_events_batch(
             windows.len()
         )));
     }
+    // One window the Sun cannot cover (e.g. the last local day of 2060 west of
+    // Greenwich runs past the providers' coverage) must not sink the other 399. Such
+    // a window comes back with no phases and no bodies and the reason in `errors`;
+    // malformed input still fails the whole call (EXPLORER_API.md, day_events_batch).
     windows
         .iter()
-        .map(|&(a, b)| day_events(eph, site, a, b, bodies, options))
+        .map(
+            |&(a, b)| match day_events(eph, site, a, b, bodies, options) {
+                Err(AlmanacError::Unavailable { body, message }) => Ok(DayEvents {
+                    jd_start: a,
+                    jd_end: b,
+                    phases: Vec::new(),
+                    bodies: Vec::new(),
+                    errors: vec![BodyError { body, message }],
+                }),
+                other => other,
+            },
+        )
         .collect()
 }
 
