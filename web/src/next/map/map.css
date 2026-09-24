@@ -495,6 +495,22 @@
   padding: 6px;
 }
 
+.sfm-layers__drawn {
+  margin-top: 6px;
+  padding-top: 4px;
+  border-top: 1px solid var(--ui-line);
+}
+
+.sfm-drawn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 4px 4px 8px;
+  color: var(--ui-ink);
+  font-size: var(--text-md);
+}
+
 .sfm-layers__title {
   margin: 4px 8px 6px;
   color: var(--ui-ink-2);

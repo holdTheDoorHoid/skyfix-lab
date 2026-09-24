@@ -32,7 +32,7 @@ import { passNow, type PassNow } from '../shell/derived.js';
 import { currentDayWindow, displayZone, engineObserver, eventOptions, type ExplorerState, type Layers, type ObserverState } from '../state.js';
 import { dayWindow, wallClock, type Zone } from '../time.js';
 import { CompassDial, type DialDay, type DialEvent } from './compass.js';
-import { createControls, createCredit, type LayerKey, type MapControls } from './controls.js';
+import { createControls, createCredit, drawnGroups, idsOfGroup, type LayerKey, type MapControls } from './controls.js';
 import { registerMapFonts } from './fonts.js';
 import { formatAngle, formatBearing } from './format.js';
 import { angularDistanceDeg, emptyCollection, graticuleFeatures, graticuleStep, wrapLon } from './geometry.js';
@@ -190,6 +190,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   const renderTask = (): void => render();
   const requestRender = (): void => scheduler.schedule(renderTask);
   d.add(store.subscribe(requestRender));
+  // Other views' drawings are listed in the Layers menu (controls.ts drawnGroups).
+  d.add(service.subscribe(requestRender));
   d.add(() => scheduler.cancel(renderTask));
 
   const setData = (id: string, data: FeatureCollection | string): void => {
@@ -491,6 +493,10 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
         toggleMeasure: () => toggleMeasure(),
         setProjection: (view) => store.patch({ view }),
         setLayer: (key: LayerKey, on: boolean) => store.patch({ layers: { [key]: on } }),
+        removeDrawn: (prefix) => {
+          for (const id of idsOfGroup(service.overlays().map((e) => e.id), prefix)) service.removeOverlay(id);
+          live.textContent = 'Removed from the map.';
+        },
       },
       root,
     );
@@ -782,11 +788,12 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     const sky = attempt('map-sky', 'positions could not be computed', () => engine.skyState(engineObserver(s), s.time.jd_utc, 'all'));
     syncWorld(s, sky);
     syncDial(s, sky);
-    const controlsKey = `${measuring.active}|${currentView}`;
+    const drawn = drawnGroups(service.overlays().map((e) => e.id));
+    const controlsKey = `${measuring.active}|${currentView}|${drawn.map((g) => `${g.prefix}:${g.count}`).join(',')}`;
     if (controls && (s.layers !== controlsLayers || controlsKey !== controlsState)) {
       controlsLayers = s.layers;
       controlsState = controlsKey;
-      controls.update({ layers: s.layers, measuring: measuring.active, projection: currentView });
+      controls.update({ layers: s.layers, measuring: measuring.active, projection: currentView, drawn });
     }
     if (measuring.active && measuring.a && measuring.b) syncMeasure();
   }
