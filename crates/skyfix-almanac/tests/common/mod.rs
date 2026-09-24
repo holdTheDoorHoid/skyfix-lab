@@ -1,15 +1,17 @@
-//! Shared test support: a synthetic Moon, a brute-force event finder and fixture
-//! loading.
+//! Shared test support: a synthetic Moon, a refusing provider, a brute-force event
+//! finder and fixture loading.
 //!
-//! The real Moon and planet providers are stubs in this branch (their agents are
-//! writing them in parallel), so the Moon code paths — `h0 = -34' - SD`, topocentric
-//! parallax of a nearby body, a body whose day is longer than 24 hours, Moon phases —
-//! are exercised here with [`SyntheticSky`]: the real Sun and stars plus an analytic
-//! Moon built from the largest terms of the lunar theory (Meeus, *Astronomical
-//! Algorithms*, chapter 47, truncated to 14 longitude, 7 latitude and 5 distance
-//! terms). It is accurate to a few hundredths of a degree, which is irrelevant here:
-//! it has the right rates, the right parallax (~57') and the right semidiameter
-//! (~15.5'), so it proves the logic. Accuracy against DE440s is the Moon agent's job.
+//! The Moon code paths — `h0 = -34' - SD`, topocentric parallax of a nearby body, a
+//! body whose day is longer than 24 hours, Moon phases — were first proven with
+//! [`SyntheticSky`], written while the real Moon provider was still a stub: the real
+//! Sun and stars plus an analytic Moon built from the largest terms of the lunar theory
+//! (Meeus, *Astronomical Algorithms*, chapter 47, truncated to 14 longitude, 7 latitude
+//! and 5 distance terms). It is accurate to a few hundredths of a degree, which is
+//! irrelevant here: it has the right rates, the right parallax (~57') and the right
+//! semidiameter (~15.5'), so it proves the logic independently of the real provider.
+//! The real Moon's accuracy is checked against Skyfield in `events_reference.rs`.
+//! [`Refusing`] keeps the "provider cannot answer" paths tested now that every body is
+//! implemented.
 
 #![allow(dead_code)]
 

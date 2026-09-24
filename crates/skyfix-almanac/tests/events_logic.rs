@@ -6,8 +6,10 @@
 //! "Brute force" is `common::dense_exact`: the provider evaluated **exactly** every few
 //! seconds, crossings located by linear interpolation. It shares nothing with the
 //! finder except the provider and `topocentric::horizontal`: no track, no extremum
-//! insertion, no Brent. The Moon here is the synthetic one of `common` (the real Moon
-//! provider is a stub in this branch); the Sun and stars are the real providers.
+//! insertion, no Brent. The Moon here is the synthetic one of `common` (written while
+//! the real Moon provider was a stub, and kept because it is independent of it); the
+//! Sun and stars are the real providers. The real Moon and planets are checked against
+//! Skyfield in `events_reference.rs`.
 
 mod common;
 

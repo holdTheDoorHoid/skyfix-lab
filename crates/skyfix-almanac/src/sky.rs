@@ -5,9 +5,9 @@
 //!
 //! Everything here is generic over [`BodyEphemeris`], so it runs on the real
 //! [`skyfix_ephemeris::body::Sky`] and on synthetic providers in tests alike. A body a
-//! provider cannot answer for (outside coverage, or not implemented yet — the Moon and
-//! planet providers are stubs until their agents land) is reported in `errors` and
-//! left out of the result: nothing here ever invents a position.
+//! provider cannot answer for (outside its coverage, or a provider that is not
+//! implemented) is reported in `errors` and left out of the result: nothing here ever
+//! invents a position.
 //!
 //! Two altitude families appear side by side and are never mixed (CONVENTIONS 13.2):
 //!

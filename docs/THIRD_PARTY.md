@@ -671,9 +671,10 @@ if the service cannot be reached.
 
 The synthetic test Moon in `crates/skyfix-almanac/tests/common/mod.rs` uses the mean
 arguments and the largest periodic terms (14 in longitude, 7 in latitude, 5 in
-distance) of Meeus's lunar theory, as published numbers. It exists only to exercise
-the Moon code paths in tests while the real Moon provider is being written; it is never
-compiled into the library and makes no accuracy claim. No code was copied.
+distance) of Meeus's lunar theory, as published numbers. It exercises the Moon code
+paths in tests independently of the real Moon provider (it was written while that was a
+stub); it is never compiled into the library and makes no accuracy claim. No code was
+copied.
 
 ## Mock explorer engine (interface development only)
 
