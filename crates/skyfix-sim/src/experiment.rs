@@ -661,7 +661,8 @@ impl DirectionSource for DynProviderSource<'_> {
         self.0.geocentric(body, jd_utc).map_err(|e| e.to_string())
     }
     fn gha_rate_deg_per_hour(&self, body: &str) -> f64 {
-        if body.eq_ignore_ascii_case("sun") {
+        // `is_sun` trims, matching the correction chain's own test for the Sun.
+        if skyfix_core::reduce::is_sun(body) {
             SOLAR_RATE_DEG_PER_HOUR
         } else {
             SIDEREAL_RATE_DEG_PER_HOUR

@@ -37,7 +37,9 @@ impl DirectionSource for SuppliedOnly {
         Err("no ephemeris provider configured; supply gha_deg/dec_deg in the observation".into())
     }
     fn gha_rate_deg_per_hour(&self, body: &str) -> f64 {
-        if body.eq_ignore_ascii_case("sun") {
+        // `is_sun` trims: the same record must not be the Sun for the correction chain
+        // (semidiameter, parallax) and a star for the clock rate.
+        if is_sun(body) {
             crate::units::SOLAR_RATE_DEG_PER_HOUR
         } else {
             crate::units::SIDEREAL_RATE_DEG_PER_HOUR
