@@ -104,6 +104,11 @@ describe('precacheList', () => {
     ]);
   });
 
+  it('reports site files outside assets/ that nobody precaches (a new data file, a developer page)', () => {
+    const files = site({ 'data/stars.json': '[]' });
+    expect(precacheList(input(files)).unlisted).toEqual(['data/stars.json', 'next/dev-map.html']);
+  });
+
   it('follows an excluded file’s dependencies when an app file also needs them', () => {
     const files = site({ 'assets/dom-DDDD4444.js': 'import"./mockdata-OOOO5555.js";' });
     expect(urls(input(files))).toContain('assets/mockdata-OOOO5555.js');

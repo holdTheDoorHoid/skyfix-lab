@@ -169,7 +169,11 @@ export function skyfixPwa(options: PwaOptions): Plugin {
             list.unreached.map((f) => `${f} (${Math.round((files.get(f)?.byteLength ?? 0) / 1000)} kB)`).join(', '),
         );
       }
-      if (others.length > 0) log.info(`skyfix-pwa: other pages in this build, not precached: ${others.join(', ')}`);
+      if (list.unlisted.length > 0) {
+        // Normally empty. A data file the app loads must be listed in `extra`, or it will
+        // not work offline; developer pages (SKYFIX_DEV_PAGES=1) are expected here.
+        log.warn(`skyfix-pwa: in the site but not precached: ${list.unlisted.join(', ')}`);
+      }
     },
   };
 }

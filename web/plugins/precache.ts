@@ -59,6 +59,11 @@ export interface PrecacheList {
   readonly bytes: number;
   /** Files in the assets directory that no page reaches, or that were excluded. */
   readonly unreached: readonly string[];
+  /**
+   * Other files of the site that are not precached (public/ files nobody listed, pages
+   * that are not app pages). A new data file the app loads belongs in `extra`.
+   */
+  readonly unlisted: readonly string[];
 }
 
 const TEXT = /\.(?:html?|m?js|css|json|webmanifest|svg|txt)$/i;
@@ -116,7 +121,8 @@ export function precacheList(input: PrecacheInput): PrecacheList {
     .digest('hex')
     .slice(0, 16);
   const unreached = [...assets.values()].filter((path) => !reached.has(path)).sort();
-  return { entries, version, bytes: entries.reduce((sum, e) => sum + e.bytes, 0), unreached };
+  const unlisted = [...input.files.keys()].filter((path) => !path.startsWith(assetsDir) && !reached.has(path)).sort();
+  return { entries, version, bytes: entries.reduce((sum, e) => sum + e.bytes, 0), unreached, unlisted };
 }
 
 /**

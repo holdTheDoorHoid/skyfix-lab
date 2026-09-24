@@ -75,6 +75,7 @@ export default defineConfig(({ command }) => {
           'data/gazetteer.json',
           'manifest.webmanifest',
           'icons/icon.svg',
+          'icons/icon-maskable.svg',
           'icons/icon-192.png',
           'icons/icon-512.png',
           'icons/icon-maskable-512.png',

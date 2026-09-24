@@ -23,6 +23,9 @@ Run from the repository root, or from `web/` without the `--prefix`.
 | Rebuild the WebAssembly package | `npm run wasm --prefix web` |
 | Production build into `web/dist` | `npm run build --prefix web` |
 | Preview the production build | `npm run preview --prefix web` |
+| Build the Pages site into `site/`, as the workflow does | `web/scripts/pages-site.sh` |
+| Check the site offline in headless Chrome | `node web/scripts/offline-check.mjs` |
+| Redraw the app icons after changing their SVG | `node web/scripts/render-icons.mjs` |
 
 A full build from a clean checkout is two commands, in this order:
 
@@ -125,6 +128,78 @@ correction chain, a weighted Gauss-Newton fit with its a priori covariance, a se
 simulator, and a coverage experiment with a Wilson interval. Three demo scenarios of its
 own stand in for the ten real ones. None of it is a result, and the interface says so
 the whole time it is running.
+
+## Offline and installable
+
+Once someone has opened the site, it works with no connection, and it can be installed
+as an app ("SkyFix Lab", short name "SkyFix"). OWNER: release agent.
+
+**How.** At the end of `vite build`, `plugins/pwa.ts` starts from the two app pages
+(`index.html`, the workbench, and `next/index.html`, the explorer), follows every file
+they can load (scripts, lazy views, stylesheets, fonts, the map's worker, the WebAssembly
+module) and adds the files listed in `vite.config.ts`: the basemap files its
+`manifest.json` lists, the gazetteer, the web app manifest and the icons. It compiles
+`src/sw/sw.ts` into `dist/sw.js` with that list and a hash of it inlined, and prints the
+size (today 72 files, 11.3 MB, 3.9 MB gzipped). The worker stores those files in a
+cache named by the hash and answers them from it. No service-worker library is used.
+
+| File | Does |
+|---|---|
+| `plugins/pwa.ts`, `plugins/precache.ts` | the build step above; refuses developer pages in a production build |
+| `src/sw/sw.ts`, `src/sw/policy.ts` | the service worker and its decisions (type-checked against the WebWorker library) |
+| `src/pwa/register.ts` | registration and update detection, for both pages |
+| `src/next/pwa/` | the explorer's Offline chip and update prompt (design-system primitives) |
+| `src/pwa/workbench-prompt.ts` | the workbench's update prompt, in its own style |
+| `public/manifest.webmanifest`, `public/icons/` | the web app manifest and icons (drawn from the logo mark) |
+
+**Rules it keeps.**
+
+- Another origin is never touched: the optional OpenStreetMap street layer is never
+  stored by the worker (the OSMF tile usage policy forbids bulk caching); it only works
+  online, and only the browser's normal HTTP cache sees its tiles.
+- A new version never takes over by itself. The page shows "New version available" with
+  **Reload**; nothing reloads until that is pressed, or until every tab of the site has
+  been closed. Only the changed files are downloaded.
+- Addresses are stored without their query; the explorer keeps a shared place in the
+  fragment, which never reaches the worker.
+- Everything else on the site (the docs) is fetched from the network first and kept for
+  offline use once visited. An address never visited shows a small offline page.
+- Developer pages (`next/dev-*.html`, `next/mockup.html`) are served by `npm run dev`
+  only; production builds leave them out, and the build fails if one slips in.
+  `SKYFIX_DEV_PAGES=1 npm run build` includes them in a local build (never precached).
+  `?engine=mock` and `?harness` on `/next/` need a connection: their chunks are not
+  precached either.
+
+**Adding a data file** the app loads from `public/`: add its path to `extra` in
+`vite.config.ts`, or it will not work offline. The build warns about any file in the site
+that is neither precached nor a build asset.
+
+**Checking it.** `web/scripts/pages-site.sh` builds `site/` exactly as the Pages workflow
+does; `node web/scripts/offline-check.mjs` serves it under `/skyfix-lab/` and drives
+headless Chrome through a first visit, an offline reload with the server stopped (every
+file must come from the worker), the lazy views, the docs, an update on both pages and a
+check that no cache holds another origin's files. Screenshots go to
+`docs/design/local/pwa-*.png`. `SITE=web/dist PREFIX=/` checks the layout `vite preview`
+serves.
+
+**If a broken version is ever deployed**, deploying a fixed one is enough: browsers
+look for a new `sw.js` on every visit and offer it. To switch offline support off
+altogether, deploy this as `sw.js` (for example from `public/`, with the plugin removed
+from `vite.config.ts` and `startPwa()`/`startWorkbenchPwa()` taken out of the two
+`main.ts` files); each browser drops the stored copies on its next visit, and pages
+already open keep running until they are next loaded:
+
+```js
+self.addEventListener('install', () => self.skipWaiting());
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    (async () => {
+      for (const name of await caches.keys()) if (name.startsWith('skyfix-lab-')) await caches.delete(name);
+      await self.registration.unregister();
+    })(),
+  );
+});
+```
 
 ## Layout
 
