@@ -486,6 +486,107 @@ instrument's, and its covariance is optimistic because the dead-reckoning error 
 by every sight. `applied` is `false` when no linearisation point could be found and the
 sights were solved as if stationary (a warning says so).
 
+## Misfit grid (`misfit.rs`, misfit agent)
+
+The residual heat map: how badly every position in a latitude/longitude box fits the
+sights, so ambiguity basins and weak geometry show at a glance. Rust:
+`crates/skyfix-wasm/src/misfit.rs` over `skyfix_core::misfit` (CONVENTIONS sections 8-9);
+TypeScript: the `MisfitEngine` interface and the `Misfit*` types at the end of `types.ts`,
+reached as `engine.misfit`; drawing: `web/src/next/misfit/` (its README).
+
+- **Inputs** are exactly `solve`'s: the session, `ephemeris_mode` and a `SolveOptions`
+  document (`"{}"` for defaults), with the session's assumed position and clock
+  uncertainty filling the options the same way. Each call reduces and solves once and maps
+  that solve.
+- **What is mapped** at every node is the solver's own misfit,
+  `chi2 = sum w_i ((Ho_i - Hc_i - b) / sigma_i)^2`: the same sights, the same altitude
+  components (a node's value agrees with the solver's evaluation there to about 1e-16
+  rad). With `estimate_shared_bias` the bias `b` is profiled out at every node (the bias
+  that fits that point best). When the solver reweighted (robust weighting and a unique
+  fix), its **final** Huber weights `w_i` are held fixed, so the minimum is the robust fix;
+  otherwise `w_i = 1`. **A prior is never part of the map** (with a prior the fix is pulled
+  toward its centre; the fix without it is the map's best point). The clock uncertainty
+  and posterior scaling do not change residuals, so they do not change the map.
+- **The best point** `min` is the lowest of the grid's local minima and the solver's
+  answers, each polished with the solver's damped Gauss-Newton step; the `levels` are
+  measured up from it, even when the grid is too coarse to land a node in the basin or the
+  view does not contain it (`min.inside_grid` says which). `grid_min` is the lowest node.
+- **Levels**: chi-square quantiles at 68.27 % (1 sigma), 95 % and 99.73 % (3 sigma): 2.30,
+  5.99, 11.83 for two unknowns; with the bias estimated, 3.53, 7.81, 14.16 for three (the
+  joint region of position and bias seen on the map, wider than the solver's position-only
+  95 % ellipse). Nominal, under the independent-noise model.
+- **Grid**: nodes from edge to edge, `n_lat` and `n_lon` each 2 to 1024; `chi2` row-major,
+  **south row first**. Boxes may cross the antimeridian (`east_deg` below `west_deg`, or
+  above 180) and reach the poles (a pole row is one point, one value).
+- **Errors** throw a string: a malformed session, options or bounds document, an unknown
+  mode, node counts out of range, a session with no usable sight. A sight the reducer
+  rejects is left out and named in `notes`.
+- **Cost**: natively about 13 ms for 200 x 200 nodes and 10 sights (budget 30 ms); in
+  WebAssembly under node about 15 ms, plus the solve each call makes (29 ms for those 10
+  sights).
+
+### `misfit_grid(session_json, ephemeris_mode, options_json, bounds_json, n_lat, n_lon) -> MisfitGrid`
+
+`bounds_json` is `{"south_deg", "north_deg", "west_deg", "east_deg"}`, or `""` / `"null"`
+for the frame `misfit_default_bounds` gives. The Philadelphia demo at 200 x 200 (arrays
+shortened):
+
+```json
+{
+  "bounds": {"south_deg": 39.86147, "north_deg": 40.04479, "west_deg": -75.27546, "east_deg": -75.03631},
+  "crosses_antimeridian": false,
+  "n_lat": 200, "n_lon": 200, "lat_step_deg": 0.00092123, "lon_step_deg": 0.00120175,
+  "lat_deg": [39.86147, 39.86239, …], "lon_deg": [-75.27546, …],
+  "chi2": Float64Array(40000),
+  "min": {"lat_deg": 39.953130, "lon_deg": -75.155885, "chi2": 2.2305, "delta_chi2": 0,
+          "shared_bias_arcmin": null, "inside_grid": true, "well_determined": true, "converged": true},
+  "grid_min": {"i": 100, "j": 100, "lat_deg": 39.953591, "lon_deg": -75.155284, "chi2": 2.2365, "delta_chi2": 0.0059},
+  "basins": [MisfitPoint],
+  "unknowns": 2, "dof": 3,
+  "levels": [{"name": "one_sigma", "label": "68.3 % (1 sigma)", "confidence": 0.682689, "delta_chi2": 2.29575, "chi2": 4.52628},
+             {"name": "p95", "label": "95 %", "confidence": 0.95, "delta_chi2": 5.99146, "chi2": 8.22200},
+             {"name": "three_sigma", "label": "99.7 % (3 sigma)", "confidence": 0.997300, "delta_chi2": 11.82916, "chi2": 14.05969}],
+  "bias_profiled": false, "weighted": false,
+  "sights": [{"id": "obs-1", "body": "sim-Alpha", "sigma_arcmin": 0.8, "weight": 1}, …],
+  "notes": [],
+  "solve_kind": "unique"
+}
+```
+
+| field | meaning |
+|---|---|
+| `bounds` | the box used, normalised: `west_deg` in [-180, 180), `east_deg = west_deg + span` (so above 180 across the antimeridian) |
+| `lat_deg`, `lon_deg` | node positions; longitudes normalised to (-180, 180], so they jump by -360 across the antimeridian (`bounds.west_deg + j * lon_step_deg` does not) |
+| `chi2` | `Float64Array`, `chi2[i * n_lon + j]` at `(lat_deg[i], lon_deg[j])` |
+| `min` | the best point; `delta_chi2` of every point and node is measured from it |
+| `basins` | distinct polished minima (closer than the solver's `cluster_radius_nm` are one), best first, at most 8. `well_determined` is false along a valley, where the sights fix a line, not a point (one sight, degenerate geometry) |
+| `unknowns`, `dof` | 2 (3 with the bias); `dof` = usable sights − unknowns, zero or negative when nothing is redundant |
+| `sights[].weight` | multiplier on 1/sigma²: below 1 for a sight the robust fit downweighted |
+| `notes` | plain-language caveats for this map: the bias levels, fixed robust weights, a prior left out, the clock, a best point off the grid, a valley, several basins inside the 95 % level, no redundancy, a 95 % region smaller than a cell, rejected sights |
+| `solve_kind` | what `solve` returned for the same inputs |
+
+### `misfit_default_bounds(session_json, ephemeris_mode, options_json) -> MisfitDefaultBounds`
+
+The frame `misfit_grid` uses when given none:
+
+```json
+{"bounds": {…}, "centre": {"lat_deg": 39.953130, "lon_deg": -75.155885}, "centred_on": "fix",
+ "radius_nm": 5.50,
+ "reason": "centred on the fix, 5.50 NM each way: 1.6 times the largest of the 3-sigma extent of its covariance (1.79 NM), the cocked hat (3.44 NM) and 3 sigma of the noisiest sight (2.40 NM)",
+ "solve_kind": "unique"}
+```
+
+- `fix` (unique): 1.6 times the largest of the covariance's 3-sigma extent (without the
+  clock's east-west term, which the map does not show), the cocked hat (the farthest
+  pairwise crossing of the circles near the fix, counting only circles that cross at 10°
+  or more) and 3 sigma of the noisiest sight.
+- `candidates` (ambiguous): every candidate within the 95 % margin, with that sigma
+  allowance round each and 15 % of the span added on each side (the two-sight demo's frame
+  is 2641 NM tall, both basins in it).
+- `initializer` (no point fix): round the initializer, 1.5 times past the nearest point of
+  the farthest circle; `circle` with no initializer: the whole first circle.
+- A frame that reaches a pole takes every longitude.
+
 ## Wave 2 — Moon and planet sights (`navsky.rs`, navigation-Moon agent)
 
 Predicted sextant readings, lunar distance and tonight's sights. TypeScript mirror:
