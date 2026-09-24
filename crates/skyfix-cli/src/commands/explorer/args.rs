@@ -16,22 +16,14 @@ use skyfix_core::time::{civil_to_jd, parse_utc};
 use skyfix_core::types::{DrPosition, HorizonMode, Limb, VesselMotion};
 use skyfix_motion::request::RunningFixLeg;
 
+use crate::cli::OutputFormat;
+
 // ---------------------------------------------------------------------------
 // --format
 // ---------------------------------------------------------------------------
 
-/// `--format` values.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
-pub enum OutputFormat {
-    /// Plain text for a person: navigator-style angles, UTC with Z, sentences.
-    #[default]
-    Text,
-    /// The engine's own result, as serde emits it (the wire shapes of
-    /// docs/EXPLORER_API.md).
-    Json,
-}
-
-/// `--format text|json`, and `--json` as the older commands spell it.
+/// `--format text|json` (the one [`OutputFormat`] `almanac` shares), and `--json` as the
+/// older commands spell it.
 #[derive(clap::Args, Debug, Clone, Copy)]
 pub struct FormatArgs {
     /// `text` for a person to read, `json` for a program: the engine's own result, the
