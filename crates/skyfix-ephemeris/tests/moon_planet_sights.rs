@@ -419,3 +419,67 @@ fn the_provider_source_gives_the_moon_its_own_rate_and_the_stars_their_old_one()
         skyfix_core::units::MEAN_LUNAR_RATE_DEG_PER_HOUR
     );
 }
+
+#[test]
+fn a_source_without_an_ephemeris_gives_the_moon_its_mean_rate() {
+    let s = skyfix_core::reduce::SuppliedOnly;
+    assert_eq!(
+        s.gha_rate_deg_per_hour_at("Moon", 2.46e6),
+        skyfix_core::units::MEAN_LUNAR_RATE_DEG_PER_HOUR
+    );
+    assert_eq!(
+        s.gha_rate_deg_per_hour_at("Vega", 2.46e6),
+        skyfix_core::units::SIDEREAL_RATE_DEG_PER_HOUR
+    );
+    assert_eq!(
+        s.gha_rate_deg_per_hour_at("sun", 2.46e6),
+        skyfix_core::units::SOLAR_RATE_DEG_PER_HOUR
+    );
+}
+
+#[test]
+fn a_limb_is_expected_on_the_moon_and_ignored_on_a_planet() {
+    use skyfix_core::types::{CorrectionKind, Warning};
+    let text = std::fs::read_to_string(repo_path(
+        "fixtures/sessions/reference-moon-planets-atlantic.json",
+    ))
+    .unwrap();
+    let mut session: Session = serde_json::from_str(&text).unwrap();
+    for o in &mut session.observations {
+        if o.body == "Jupiter" {
+            o.limb = Limb::Lower;
+        }
+    }
+    let bodies = skyfix_ephemeris::sights::sight_bodies();
+    let warnings = skyfix_core::session::validate(&session, &bodies).unwrap();
+    let limb_warnings: Vec<&Warning> = warnings
+        .iter()
+        .filter(|w| matches!(w, Warning::LimbIgnoredForStar { .. }))
+        .collect();
+    // The Moon's lower limb is expected; Jupiter's is not.
+    assert_eq!(limb_warnings.len(), 1, "{warnings:?}");
+    assert!(matches!(limb_warnings[0], Warning::LimbIgnoredForStar { id } if id == "obs-5"));
+    // A Moon record already reduced ignores its limb and parallax, and says so.
+    let obs = session
+        .observations
+        .iter_mut()
+        .find(|o| o.body == "Moon")
+        .unwrap();
+    obs.altitude_kind = AltitudeKind::ObservedHo;
+    obs.geocentric = Some(GeocentricDirection {
+        gha_deg: 10.0,
+        dec_deg: 10.0,
+        semidiameter_arcmin: 16.0,
+        horizontal_parallax_arcmin: 59.0,
+    });
+    let warnings = skyfix_core::session::validate(&session, &bodies).unwrap();
+    assert!(
+        warnings.iter().any(|w| matches!(
+            w,
+            Warning::AlreadyCorrected { ignored, .. }
+                if ignored.contains(&CorrectionKind::Semidiameter)
+                    && ignored.contains(&CorrectionKind::Parallax)
+        )),
+        "{warnings:?}"
+    );
+}

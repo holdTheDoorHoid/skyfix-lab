@@ -247,6 +247,16 @@ impl<'a> Context<'a> {
             .moon_altitude
             .map(|a| apparent_of(&a, o, &input.instrument, "moon_altitude"))
             .transpose()?;
+        if let Some(a) = input.moon_altitude
+            && a.limb == Limb::Center
+        {
+            warnings.push(Warning::Other {
+                message: "lunar distance: the Moon's observed altitude was given for its \
+                          centre, which cannot be seen; if it was the lower or upper limb, \
+                          say so, or the altitude is 15' to 17' out"
+                    .to_string(),
+            });
+        }
         // A planet or a star is a point: its altitude is its centre's, whatever limb the
         // record names (the correction chain treats it the same way).
         let body_ha = input

@@ -227,15 +227,31 @@ fn sun_altitude_at(sky: &Sky, site: &TopoSite, jd: f64) -> Result<f64, Ephemeris
     Ok(horizontal(&st, site).alt_deg)
 }
 
-/// Instants in `[from, to]` at which the Sun crosses `level`, with `true` for rising.
-fn sun_crossings(sky: &Sky, site: &TopoSite, from: f64, to: f64, level: f64) -> Vec<(f64, bool)> {
+/// The Sun's altitude every [`TWILIGHT_STEP_MIN`] over `[from, to]` (`None` outside the
+/// provider's coverage).
+fn sun_samples(sky: &Sky, site: &TopoSite, from: f64, to: f64) -> Vec<(f64, Option<f64>)> {
     let step = TWILIGHT_STEP_MIN / 1440.0;
     let n = ((to - from) / step).ceil().max(1.0) as usize;
+    (0..=n)
+        .map(|k| {
+            let t = from + (to - from) * k as f64 / n as f64;
+            (t, sun_altitude_at(sky, site, t).ok())
+        })
+        .collect()
+}
+
+/// Instants at which the sampled Sun crosses `level`, refined to half a second, with
+/// `true` for rising.
+fn sun_crossings(
+    sky: &Sky,
+    site: &TopoSite,
+    samples: &[(f64, Option<f64>)],
+    level: f64,
+) -> Vec<(f64, bool)> {
     let mut out = Vec::new();
     let mut prev: Option<(f64, f64)> = None;
-    for k in 0..=n {
-        let t = from + (to - from) * k as f64 / n as f64;
-        let Ok(h) = sun_altitude_at(sky, site, t) else {
+    for &(t, h) in samples {
+        let Some(h) = h else {
             prev = None;
             continue;
         };
@@ -315,8 +331,9 @@ fn twilight_periods(
     jd_end: f64,
 ) -> Vec<(&'static str, f64, f64, Option<String>)> {
     let (from, to) = (jd_start - 1.0, jd_end + 1.0);
-    let civil = sun_crossings(sky, site, from, to, CIVIL_TWILIGHT_DEG);
-    let nautical = sun_crossings(sky, site, from, to, NAUTICAL_TWILIGHT_DEG);
+    let samples = sun_samples(sky, site, from, to);
+    let civil = sun_crossings(sky, site, &samples, CIVIL_TWILIGHT_DEG);
+    let nautical = sun_crossings(sky, site, &samples, NAUTICAL_TWILIGHT_DEG);
     let mut out = Vec::new();
     for (i, &(t, rising)) in civil.iter().enumerate() {
         if !rising {
