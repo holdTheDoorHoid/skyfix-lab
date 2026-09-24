@@ -1,0 +1,609 @@
+{
+  "comparison": {
+    "aries": {"our_gha_deg": 32.306675214, "our_gha_deg_dut1_zero": 32.306285045, "usno_gha_deg": 32.306285051, "usno_minus_ours_arcsec": -1.4046, "usno_minus_ours_dut1_zero_arcsec": 0.0000},
+    "bodies": [
+      {"body": "Al Na'ir", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0033, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0157, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": -46.831298910, "our_gha_deg": 59.819477335, "our_gha_deg_dut1_zero": 59.819087167, "our_hc_deg": 2.143565669, "our_hc_deg_dut1_zero": 2.143511478, "our_zn_deg": 169.561398340, "our_zn_deg_dut1_zero": 169.561136782, "usno_dec_deg": -46.831299000, "usno_gha_deg": 59.819087000, "usno_hc_deg": 2.143511000, "usno_object": "Alnair", "usno_zn_deg": 169.561137000},
+      {"body": "Alioth", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0088, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0102, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 55.815201141, "our_gha_deg": 198.511321478, "our_gha_deg_dut1_zero": 198.510931310, "our_hc_deg": 17.124468568, "our_hc_deg_dut1_zero": 17.124615464, "our_zn_deg": 330.584801055, "our_zn_deg_dut1_zero": 330.584630780, "usno_dec_deg": 55.815201000, "usno_gha_deg": 198.510931000, "usno_hc_deg": 17.124615000, "usno_object": "Alioth", "usno_zn_deg": 330.584631000},
+      {"body": "Alkaid", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0116, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0105, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 49.181298304, "our_gha_deg": 185.162332182, "our_gha_deg_dut1_zero": 185.161942013, "our_hc_deg": 18.337407275, "our_hc_deg_dut1_zero": 18.337600824, "our_zn_deg": 319.675311138, "our_zn_deg_dut1_zero": 319.675136168, "usno_dec_deg": 49.181298000, "usno_gha_deg": 185.161942000, "usno_hc_deg": 18.337601000, "usno_object": "Alkaid", "usno_zn_deg": 319.675136000},
+      {"body": "Alphecca", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0171, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0129, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 26.627373838, "our_gha_deg": 158.353155223, "our_gha_deg_dut1_zero": 158.352765055, "our_hc_deg": 21.659291586, "our_hc_deg_dut1_zero": 21.659577239, "our_zn_deg": 287.241947380, "our_zn_deg_dut1_zero": 287.241732039, "usno_dec_deg": 26.627374000, "usno_gha_deg": 158.352765000, "usno_hc_deg": 21.659577000, "usno_object": "Alphecca", "usno_zn_deg": 287.241732000},
+      {"body": "Alpheratz", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0179, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0158, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 29.241281183, "our_gha_deg": 29.855807897, "our_gha_deg_dut1_zero": 29.855417729, "our_hc_deg": 51.637645836, "our_hc_deg_dut1_zero": 51.637346891, "our_zn_deg": 91.809767803, "our_zn_deg_dut1_zero": 91.809505322, "usno_dec_deg": 29.241281000, "usno_gha_deg": 29.855418000, "usno_hc_deg": 51.637347000, "usno_object": "Alpheratz", "usno_zn_deg": 91.809505000},
+      {"body": "Altair", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0101, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0361, "d_zn_dut1_zero_arcmin": -0.0001, "our_dec_deg": 8.942168505, "our_gha_deg": 94.281291299, "our_gha_deg_dut1_zero": 94.280901131, "our_hc_deg": 54.618617083, "our_hc_deg_dut1_zero": 54.618784188, "our_zn_deg": 213.966723834, "our_zn_deg_dut1_zero": 213.966123993, "usno_dec_deg": 8.942169000, "usno_gha_deg": 94.280901000, "usno_hc_deg": 54.618785000, "usno_object": "ALTAIR", "usno_zn_deg": 213.966123000},
+      {"body": "Arcturus", "d_dec_arcmin": 0.0002, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0167, "d_hc_dut1_zero_arcmin": 0.0002, "d_zn_arcmin": -0.0146, "d_zn_dut1_zero_arcmin": 0.0001, "our_dec_deg": 19.044988137, "our_gha_deg": 178.088609763, "our_gha_deg_dut1_zero": 178.088219595, "our_hc_deg": 2.721562259, "our_hc_deg_dut1_zero": 2.721838131, "our_zn_deg": 292.726515166, "our_zn_deg_dut1_zero": 292.726270111, "usno_dec_deg": 19.044991000, "usno_gha_deg": 178.088219000, "usno_hc_deg": 2.721841000, "usno_object": "ARCTURUS", "usno_zn_deg": 292.726272000},
+      {"body": "Capella", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0106, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0125, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 46.022576112, "our_gha_deg": 312.634007548, "our_gha_deg_dut1_zero": 312.633617380, "our_hc_deg": 10.128607477, "our_hc_deg_dut1_zero": 10.128429608, "our_zn_deg": 36.490867591, "our_zn_deg_dut1_zero": 36.490659999, "usno_dec_deg": 46.022576000, "usno_gha_deg": 312.633617000, "usno_hc_deg": 10.128430000, "usno_object": "CAPELLA", "usno_zn_deg": 36.490660000},
+      {"body": "Deneb", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0114, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": 0.0939, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 45.380619523, "our_gha_deg": 81.716808558, "our_gha_deg_dut1_zero": 81.716418390, "our_hc_deg": 82.747546656, "our_hc_deg_dut1_zero": 82.747736526, "our_zn_deg": 320.592646712, "our_zn_deg_dut1_zero": 320.594212145, "usno_dec_deg": 45.380620000, "usno_gha_deg": 81.716418000, "usno_hc_deg": 82.747737000, "usno_object": "DENEB", "usno_zn_deg": 320.594212000},
+      {"body": "Diphda", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0142, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0177, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": -17.836725102, "our_gha_deg": 21.065747374, "our_gha_deg_dut1_zero": 21.065357206, "our_hc_deg": 13.367932816, "our_hc_deg_dut1_zero": 13.367695761, "our_zn_deg": 127.573222328, "our_zn_deg_dut1_zero": 127.572928439, "usno_dec_deg": -17.836725000, "usno_gha_deg": 21.065357000, "usno_hc_deg": 13.367696000, "usno_object": "Diphda", "usno_zn_deg": 127.572928000},
+      {"body": "Dubhe", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0043, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0106, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 61.605105849, "our_gha_deg": 225.971441373, "our_gha_deg_dut1_zero": 225.971051205, "our_hc_deg": 14.279993562, "our_hc_deg_dut1_zero": 14.280065150, "our_zn_deg": 346.151828766, "our_zn_deg_dut1_zero": 346.151652132, "usno_dec_deg": 61.605106000, "usno_gha_deg": 225.971051000, "usno_hc_deg": 14.280065000, "usno_object": "Dubhe", "usno_zn_deg": 346.151652000},
+      {"body": "Eltanin", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0146, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": 0.0001, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 51.489849449, "our_gha_deg": 123.000126666, "our_gha_deg_dut1_zero": 122.999736498, "our_hc_deg": 55.374936904, "our_hc_deg_dut1_zero": 55.375179841, "our_zn_deg": 305.684381295, "our_zn_deg_dut1_zero": 305.684383417, "usno_dec_deg": 51.489849000, "usno_gha_deg": 122.999736000, "usno_hc_deg": 55.375180000, "usno_object": "Eltanin", "usno_zn_deg": 305.684383000},
+      {"body": "Enif", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0055, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0434, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 10.001090304, "our_gha_deg": 65.926201331, "our_gha_deg_dut1_zero": 65.925811163, "our_hc_deg": 58.943026781, "our_hc_deg_dut1_zero": 58.942935111, "our_zn_deg": 162.152383748, "our_zn_deg_dut1_zero": 162.151660447, "usno_dec_deg": 10.001090000, "usno_gha_deg": 65.925811000, "usno_hc_deg": 58.942935000, "usno_object": "Enif", "usno_zn_deg": 162.151661000},
+      {"body": "Fomalhaut", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0075, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0197, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": -29.478775111, "our_gha_deg": 47.517117783, "our_gha_deg_dut1_zero": 47.516727614, "our_hc_deg": 15.969712520, "our_hc_deg_dut1_zero": 15.969586846, "our_zn_deg": 155.154048145, "our_zn_deg_dut1_zero": 155.153719928, "usno_dec_deg": -29.478775000, "usno_gha_deg": 47.516728000, "usno_hc_deg": 15.969587000, "usno_object": "FOMALHAUT", "usno_zn_deg": 155.153720000},
+      {"body": "Hamal", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0177, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0135, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 23.590866950, "our_gha_deg": 0.127973317, "our_gha_deg_dut1_zero": 0.127583149, "our_hc_deg": 26.000180087, "our_hc_deg_dut1_zero": 25.999885465, "our_zn_deg": 80.079605281, "our_zn_deg_dut1_zero": 80.079379865, "usno_dec_deg": 23.590867000, "usno_gha_deg": 0.127583000, "usno_hc_deg": 25.999885000, "usno_object": "Hamal", "usno_zn_deg": 80.079380000},
+      {"body": "Kaus Australis", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0097, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0168, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": -34.372549738, "our_gha_deg": 115.817516162, "our_gha_deg_dut1_zero": 115.817125994, "our_hc_deg": 6.747145408, "our_hc_deg_dut1_zero": 6.747307355, "our_zn_deg": 212.783128124, "our_zn_deg_dut1_zero": 212.782847827, "usno_dec_deg": -34.372550000, "usno_gha_deg": 115.817126000, "usno_hc_deg": 6.747307000, "usno_object": "Kaus Australis", "usno_zn_deg": 212.782848000},
+      {"body": "Kochab", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0061, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0024, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 74.047251328, "our_gha_deg": 169.652931809, "our_gha_deg_dut1_zero": 169.652541640, "our_hc_deg": 36.937103688, "our_hc_deg_dut1_zero": 36.937206219, "our_zn_deg": 339.952189388, "our_zn_deg_dut1_zero": 339.952150084, "usno_dec_deg": 74.047251000, "usno_gha_deg": 169.652542000, "usno_hc_deg": 36.937206000, "usno_object": "Kochab", "usno_zn_deg": 339.952150000},
+      {"body": "Markab", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0146, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0296, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 15.352699319, "our_gha_deg": 45.776436348, "our_gha_deg_dut1_zero": 45.776046179, "our_hc_deg": 54.499123789, "our_hc_deg_dut1_zero": 54.498880059, "our_zn_deg": 125.423246170, "our_zn_deg_dut1_zero": 125.422752593, "usno_dec_deg": 15.352699000, "usno_gha_deg": 45.776046000, "usno_hc_deg": 54.498880000, "usno_object": "Markab", "usno_zn_deg": 125.422753000},
+      {"body": "Menkar", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0179, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0150, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 4.197327723, "our_gha_deg": 346.380183278, "our_gha_deg_dut1_zero": 346.379793110, "our_hc_deg": 3.624144669, "our_hc_deg_dut1_zero": 3.623845847, "our_zn_deg": 87.557739583, "our_zn_deg_dut1_zero": 87.557489842, "usno_dec_deg": 4.197328000, "usno_gha_deg": 346.379793000, "usno_hc_deg": 3.623846000, "usno_object": "Menkar", "usno_zn_deg": 87.557490000},
+      {"body": "Mirfak", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0129, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0087, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 49.955151067, "our_gha_deg": 340.737586166, "our_gha_deg_dut1_zero": 340.737195998, "our_hc_deg": 26.969734619, "our_hc_deg_dut1_zero": 26.969519350, "our_zn_deg": 46.033149081, "our_zn_deg_dut1_zero": 46.033004194, "usno_dec_deg": 49.955151000, "usno_gha_deg": 340.737196000, "usno_hc_deg": 26.969519000, "usno_object": "Mirfak", "usno_zn_deg": 46.033004000},
+      {"body": "Nunki", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0091, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0197, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": -26.263315305, "our_gha_deg": 108.072873659, "our_gha_deg_dut1_zero": 108.072483490, "our_hc_deg": 17.036989923, "our_hc_deg_dut1_zero": 17.037142330, "our_zn_deg": 210.634873111, "our_zn_deg_dut1_zero": 210.634543701, "usno_dec_deg": -26.263315000, "usno_gha_deg": 108.072484000, "usno_hc_deg": 17.037142000, "usno_object": "Nunki", "usno_zn_deg": 210.634544000},
+      {"body": "Polaris", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0235, "d_gha_dut1_zero_arcmin": -0.0001, "d_hc_arcmin": -0.0003, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": 0.0000, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 89.373455301, "our_gha_deg": 345.229481639, "our_gha_deg_dut1_zero": 345.229091471, "our_hc_deg": 39.950433294, "our_hc_deg_dut1_zero": 39.950429028, "our_zn_deg": 0.817313952, "our_zn_deg_dut1_zero": 0.817313907, "usno_dec_deg": 89.373455000, "usno_gha_deg": 345.229090000, "usno_hc_deg": 39.950429000, "usno_object": "POLARIS", "usno_zn_deg": 0.817314000},
+      {"body": "Rasalhague", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0173, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0184, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 12.543446036, "our_gha_deg": 128.261953280, "our_gha_deg_dut1_zero": 128.261563112, "our_hc_deg": 36.070381583, "our_hc_deg_dut1_zero": 36.070670416, "our_zn_deg": 254.948560103, "our_zn_deg_dut1_zero": 254.948252977, "usno_dec_deg": 12.543446000, "usno_gha_deg": 128.261563000, "usno_hc_deg": 36.070670000, "usno_object": "Rasalhague", "usno_zn_deg": 254.948253000},
+      {"body": "Sabik", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0151, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0170, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": -15.757268183, "our_gha_deg": 134.327884579, "our_gha_deg_dut1_zero": 134.327494410, "our_hc_deg": 11.759081708, "our_hc_deg_dut1_zero": 11.759334165, "our_zn_deg": 237.572876495, "our_zn_deg_dut1_zero": 237.572592561, "usno_dec_deg": -15.757268000, "usno_gha_deg": 134.327494000, "usno_hc_deg": 11.759334000, "usno_object": "Sabik", "usno_zn_deg": 237.572593000},
+      {"body": "Schedar", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": -0.0128, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": 0.0010, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 56.686052680, "our_gha_deg": 21.787511270, "our_gha_deg_dut1_zero": 21.787121102, "our_hc_deg": 51.979207696, "our_hc_deg_dut1_zero": 51.978993650, "our_zn_deg": 45.696245823, "our_zn_deg_dut1_zero": 45.696262461, "usno_dec_deg": 56.686053000, "usno_gha_deg": 21.787121000, "usno_hc_deg": 51.978994000, "usno_object": "Schedar", "usno_zn_deg": 45.696262000},
+      {"body": "Vega", "d_dec_arcmin": 0.0000, "d_gha_arcmin": -0.0234, "d_gha_dut1_zero_arcmin": 0.0000, "d_hc_arcmin": 0.0177, "d_hc_dut1_zero_arcmin": 0.0000, "d_zn_arcmin": -0.0094, "d_zn_dut1_zero_arcmin": 0.0000, "our_dec_deg": 38.812937689, "our_gha_deg": 112.844408001, "our_gha_deg_dut1_zero": 112.844017833, "our_hc_deg": 61.072178507, "our_hc_deg_dut1_zero": 61.072473005, "our_zn_deg": 280.056382094, "our_zn_deg_dut1_zero": 280.056226046, "usno_dec_deg": 38.812938000, "usno_gha_deg": 112.844018000, "usno_hc_deg": 61.072473000, "usno_object": "VEGA", "usno_zn_deg": 280.056226000}
+    ]
+  },
+  "generator": {
+    "api_documentation": "https://aa.usno.navy.mil/data/api",
+    "api_url": "https://aa.usno.navy.mil/api/celnav?date=2026-10-01&time=01:30:00&coords=39.9526,-75.1652",
+    "api_version_returned": "4.0.1",
+    "bodies_compared": 26,
+    "bodies_not_compared": [
+      "Moon",
+      "Saturn"
+    ],
+    "description": "Raw USNO Celestial Navigation Data API response for 2026-10-01T01:30:00Z at 39.9526, -75.1652, with our values differenced against it.",
+    "frame": {
+      "ours": {
+        "computed_as": "earth.at(t).observe(body).apparent().radec(epoch='date'); GHA = normalise(t.gast * 15 - RA_deg) into [0, 360).",
+        "definition": "Apparent geocentric of date (CONVENTIONS section 7): true equator and equinox of date.",
+        "excludes": [
+          "polar motion",
+          "diurnal aberration (this is a geocentric frame; the observer is not moving in it)",
+          "topocentric parallax (CONVENTIONS section 5 applies it as an altitude correction)",
+          "atmospheric refraction"
+        ],
+        "gha_sign": "west-positive, [0, 360), as tabulated in the Nautical Almanac",
+        "includes": [
+          "precession and nutation to the true equator and equinox of date (Skyfield's IAU 2000A/2006 model)",
+          "annual aberration (Earth's barycentric velocity)",
+          "relativistic light deflection by the Sun",
+          "light-time (Sun and planets)",
+          "stellar proper motion and annual parallax from the Hipparcos catalogue (stars)"
+        ],
+        "sha": "SHA = 360 - RA_deg; GHA_star = GHA_Aries + SHA"
+      },
+      "usno": "USNO celnav publishes apparent GHA and declination of date on the Nautical Almanac convention, and Hc/Zn computed at the supplied position. The agreement documented in `notes` shows the two frame conventions coincide, with the single exception that USNO treats the supplied UTC as UT1."
+    },
+    "generated_utc": "2026-09-24T02:29:55Z",
+    "max_disagreement_arcmin": {"dec": 0.0002, "gha": 0.0235, "gha_dut1_zero": 0.0001, "hc": 0.0179, "hc_dut1_zero": 0.0002, "zn": 0.0939, "zn_dut1_zero": 0.0001},
+    "never_a_runtime_dependency": "Generated by tools/reference/ (Python + Skyfield). CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "query": {"lat_deg": 39.952600000, "lon_deg": -75.165200000, "utc": "2026-10-01T01:30:00Z"},
+    "refraction": "USNO's `altitude_corrections.refr` is its own refraction model and is NOT used anywhere in this project; it is stored as part of the verbatim response only.",
+    "retrieved_utc": "2026-09-24T02:29:55Z",
+    "source": "US Naval Observatory, Astronomical Applications Department",
+    "terms_of_use": "Data produced by the US Naval Observatory, a US Government agency. Works of the US Government are not subject to copyright protection in the United States (17 U.S.C. 105), which is the basis on which this response is stored in the repository. NOT VERIFIED: the documentation page at https://aa.usno.navy.mil/data/api is rendered client-side and no machine-readable terms-of-use or licence statement could be retrieved on the date above. Confirm with USNO before redistributing this file outside the project, and do not treat any of this data as authoritative for navigation.",
+    "timescale": {
+      "call": "skyfield.api.load.timescale(builtin=True)",
+      "delta_t_source": "Skyfield's bundled skyfield/data/iers.npz, a daily Delta-T table built from the IERS finals2000A.all series at the time the Skyfield wheel was released. Outside the table Skyfield extrapolates with its long-term Delta-T model (Morrison & Stephenson / Espenak & Meeus).",
+      "delta_t_table_utc_span": [
+        "1973-01-02T00:00:00Z",
+        "2027-01-23T00:00:00Z"
+      ],
+      "dut1_definition": "DUT1 = UT1 - UTC = 32.184 + Delta_AT - Delta_T, as Skyfield derives it",
+      "leap_second_table": "bundled in the same iers.npz; latest offset 37 s from 2017-01-01",
+      "polar_motion": "not applied (no polar-motion table installed)",
+      "warning_dut1": "CONVENTIONS section 6 assumes DUT1 = 0. Skyfield does not: every GHA in these fixtures uses Skyfield's UT1. The per-epoch dut1_s is recorded, and gha_deg_dut1_zero gives the same GHA recomputed with UT1 = UTC so a DUT1 = 0 implementation has a directly comparable number. 1 s of DUT1 = 15.0410686 arcsec of GHA. Beyond the Delta-T table's end the extrapolated Delta-T implies |DUT1| far above the 0.9 s that real leap seconds enforce (about -3.5 s at 2055), so gha_deg alone is not a physically meaningful prediction for far-future epochs; gha_deg_dut1_zero is."
+    },
+    "tolerance_arcmin": 0.0500,
+    "tolerance_justification": "The same 0.05 arcmin as the other reference files. This file is not a tolerance to be met by Rust code -- it is evidence that the Skyfield pipeline which generated the other reference files agrees with an independent authority to well inside that tolerance. Worst disagreement found, on USNO's own DUT1 = 0 time convention: 0.0001 arcmin in GHA, 0.0002 arcmin in declination, 0.0002 arcmin in Hc.",
+    "tool": "tools/reference/gen_usno.py",
+    "versions": {
+      "jplephem": "2.24",
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "python": "3.12.3",
+      "skyfield": "1.55"
+    }
+  },
+  "name": "usno_celnav_2026-10-01T0130Z",
+  "notes": [
+    "The USNO 'Celestial Navigation Data' API returns, for one instant and one position, the GHA and declination of every body a navigator could use, plus the computed altitude Hc and true azimuth Zn at that position, plus the altitude corrections. `usno_response` below is the response verbatim; `comparison` is ours differenced against it.",
+    "THE HEADLINE RESULT. USNO's GHA of Aries is 32.306285051 and our GHA of Aries recomputed with UT1 = UTC is 32.306285045 -- identical to the 1e-6 deg USNO publishes. Our GHA computed with Skyfield's actual UT1 differs by -1.4046 arcsec, which is exactly 15.0410686 * DUT1 = 15.0410686 * 0.0934 s. USNO's celnav therefore takes the supplied UTC as UT1, i.e. it assumes DUT1 = 0, which is the same assumption CONVENTIONS section 6 makes. `gha_deg_dut1_zero` in the other reference files is the column that matches USNO and the Nautical Almanac convention; `gha_deg` is the column that is physically more nearly right. Test against the former.",
+    "With that one constant offset understood, USNO and this project's Skyfield + DE421 + Hipparcos pipeline agree on 26 stars to: 0.0001 arcmin in GHA once DUT1 is removed, 0.0002 arcmin in declination, 0.0002 arcmin in the spherical-formula Hc computed from that same DUT1-zero GHA, and 0.0001 arcmin in Zn (excluding bodies within 2 deg of the zenith, where azimuth is ill-conditioned). Every one of those is inside the 0.05 arcmin tolerance the other reference files set, and this is an entirely independent code path, ephemeris and star catalogue.",
+    "`our_hc_deg` is CONVENTIONS section 3 evaluated on our own geocentric GHA/Dec at the query position, so the Hc agreement checks the spherical sight-reduction formula against USNO's, not just the ephemeris. Against `gha_deg` it differs by up to 0.0179 arcmin, the DUT1 offset projected into altitude, which is why it varies across the table rather than being constant. Against `gha_deg_dut1_zero`, the column that matches USNO's own time convention, Hc agrees to 0.0002 arcmin and Zn to 0.0001 arcmin. That is the real result: two independent implementations of apparent place and of spherical sight reduction landing within 0.01 arcsec of each other.",
+    "Objects USNO returned that this project does not carry: Moon, Saturn. The Moon and planets are deferred (docs/BRIEF.md: 'Defer Moon/planets unless independently validated'), so they are present in `usno_response` but not differenced. If a Moon or planet provider is ever added, this response already contains an independent check for it.",
+    "USNO spells a few first-magnitude stars in capitals and writes 'Alnair' for the Almanac's \"Al Na'ir\"; `usno_object` keeps their spelling and `body` gives the project's. The project's spelling is the contract (fixtures/reference/navigational_stars_hip.json)."
+  ],
+  "schema": "skyfix.reference/1",
+  "usno_response": {
+    "apiversion": "4.0.1",
+    "geometry": {
+      "coordinates": [
+        -75.165200,
+        39.952600
+      ],
+      "type": "Point"
+    },
+    "properties": {
+      "data": [
+        {
+          "almanac_data": {
+            "dec": 26.147924,
+            "gha": 330.496243,
+            "hc": 6.242371,
+            "zn": 60.877335
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.983563,
+            "refr": -0.160752,
+            "sd": 0.269832,
+            "sum": 1.092642
+          },
+          "object": "Moon"
+        },
+        {
+          "almanac_data": {
+            "dec": 2.080178,
+            "gha": 20.604351,
+            "hc": 27.872518,
+            "zn": 112.920611
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000255,
+            "refr": -0.031157,
+            "sd": 0.000000,
+            "sum": -0.030902
+          },
+          "object": "Saturn"
+        },
+        {
+          "almanac_data": {
+            "dec": 29.241281,
+            "gha": 29.855418,
+            "hc": 51.637347,
+            "zn": 91.809505
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.013115,
+            "sd": 0.000000,
+            "sum": -0.013115
+          },
+          "nav_star_number": 1,
+          "object": "Alpheratz"
+        },
+        {
+          "almanac_data": {
+            "dec": 56.686053,
+            "gha": 21.787121,
+            "hc": 51.978994,
+            "zn": 45.696262
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.012956,
+            "sd": 0.000000,
+            "sum": -0.012956
+          },
+          "nav_star_number": 3,
+          "object": "Schedar"
+        },
+        {
+          "almanac_data": {
+            "dec": -17.836725,
+            "gha": 21.065357,
+            "hc": 13.367696,
+            "zn": 127.572928
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.067578,
+            "sd": 0.000000,
+            "sum": -0.067578
+          },
+          "nav_star_number": 4,
+          "object": "Diphda"
+        },
+        {
+          "almanac_data": {
+            "dec": 23.590867,
+            "gha": 0.127583,
+            "hc": 25.999885,
+            "zn": 80.079380
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.033738,
+            "sd": 0.000000,
+            "sum": -0.033738
+          },
+          "nav_star_number": 6,
+          "object": "Hamal"
+        },
+        {
+          "almanac_data": {
+            "dec": 4.197328,
+            "gha": 346.379793,
+            "hc": 3.623846,
+            "zn": 87.557490
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.201956,
+            "sd": 0.000000,
+            "sum": -0.201956
+          },
+          "nav_star_number": 8,
+          "object": "Menkar"
+        },
+        {
+          "almanac_data": {
+            "dec": 49.955151,
+            "gha": 340.737196,
+            "hc": 26.969519,
+            "zn": 46.033004
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.032359,
+            "sd": 0.000000,
+            "sum": -0.032359
+          },
+          "nav_star_number": 9,
+          "object": "Mirfak"
+        },
+        {
+          "almanac_data": {
+            "dec": 46.022576,
+            "gha": 312.633617,
+            "hc": 10.128430,
+            "zn": 36.490660
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.088006,
+            "sd": 0.000000,
+            "sum": -0.088006
+          },
+          "nav_star_number": 12,
+          "object": "CAPELLA"
+        },
+        {
+          "almanac_data": {
+            "dec": 61.605106,
+            "gha": 225.971051,
+            "hc": 14.280065,
+            "zn": 346.151652
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.063335,
+            "sd": 0.000000,
+            "sum": -0.063335
+          },
+          "nav_star_number": 27,
+          "object": "Dubhe"
+        },
+        {
+          "almanac_data": {
+            "dec": 55.815201,
+            "gha": 198.510931,
+            "hc": 17.124615,
+            "zn": 330.584631
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.052772,
+            "sd": 0.000000,
+            "sum": -0.052772
+          },
+          "nav_star_number": 32,
+          "object": "Alioth"
+        },
+        {
+          "almanac_data": {
+            "dec": 49.181298,
+            "gha": 185.161942,
+            "hc": 18.337601,
+            "zn": 319.675136
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.049184,
+            "sd": 0.000000,
+            "sum": -0.049184
+          },
+          "nav_star_number": 34,
+          "object": "Alkaid"
+        },
+        {
+          "almanac_data": {
+            "dec": 19.044991,
+            "gha": 178.088219,
+            "hc": 2.721841,
+            "zn": 292.726272
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.240866,
+            "sd": 0.000000,
+            "sum": -0.240866
+          },
+          "nav_star_number": 37,
+          "object": "ARCTURUS"
+        },
+        {
+          "almanac_data": {
+            "dec": 74.047251,
+            "gha": 169.652542,
+            "hc": 36.937206,
+            "zn": 339.952150
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.021993,
+            "sd": 0.000000,
+            "sum": -0.021993
+          },
+          "nav_star_number": 40,
+          "object": "Kochab"
+        },
+        {
+          "almanac_data": {
+            "dec": 26.627374,
+            "gha": 158.352765,
+            "hc": 21.659577,
+            "zn": 287.241732
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.041263,
+            "sd": 0.000000,
+            "sum": -0.041263
+          },
+          "nav_star_number": 41,
+          "object": "Alphecca"
+        },
+        {
+          "almanac_data": {
+            "dec": -15.757268,
+            "gha": 134.327494,
+            "hc": 11.759334,
+            "zn": 237.572593
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.076477,
+            "sd": 0.000000,
+            "sum": -0.076477
+          },
+          "nav_star_number": 44,
+          "object": "Sabik"
+        },
+        {
+          "almanac_data": {
+            "dec": 12.543446,
+            "gha": 128.261563,
+            "hc": 36.070670,
+            "zn": 254.948253
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.022695,
+            "sd": 0.000000,
+            "sum": -0.022695
+          },
+          "nav_star_number": 46,
+          "object": "Rasalhague"
+        },
+        {
+          "almanac_data": {
+            "dec": 51.489849,
+            "gha": 122.999736,
+            "hc": 55.375180,
+            "zn": 305.684383
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.011443,
+            "sd": 0.000000,
+            "sum": -0.011443
+          },
+          "nav_star_number": 47,
+          "object": "Eltanin"
+        },
+        {
+          "almanac_data": {
+            "dec": -34.372550,
+            "gha": 115.817126,
+            "hc": 6.747307,
+            "zn": 212.782848
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.126137,
+            "sd": 0.000000,
+            "sum": -0.126137
+          },
+          "nav_star_number": 48,
+          "object": "Kaus Australis"
+        },
+        {
+          "almanac_data": {
+            "dec": 38.812938,
+            "gha": 112.844018,
+            "hc": 61.072473,
+            "zn": 280.056226
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.009159,
+            "sd": 0.000000,
+            "sum": -0.009159
+          },
+          "nav_star_number": 49,
+          "object": "VEGA"
+        },
+        {
+          "almanac_data": {
+            "dec": -26.263315,
+            "gha": 108.072484,
+            "hc": 17.037142,
+            "zn": 210.634544
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.053048,
+            "sd": 0.000000,
+            "sum": -0.053048
+          },
+          "nav_star_number": 50,
+          "object": "Nunki"
+        },
+        {
+          "almanac_data": {
+            "dec": 8.942169,
+            "gha": 94.280901,
+            "hc": 54.618785,
+            "zn": 213.966123
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.011769,
+            "sd": 0.000000,
+            "sum": -0.011769
+          },
+          "nav_star_number": 51,
+          "object": "ALTAIR"
+        },
+        {
+          "almanac_data": {
+            "dec": 45.380620,
+            "gha": 81.716418,
+            "hc": 82.747737,
+            "zn": 320.594212
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.002094,
+            "sd": 0.000000,
+            "sum": -0.002094
+          },
+          "nav_star_number": 53,
+          "object": "DENEB"
+        },
+        {
+          "almanac_data": {
+            "dec": 10.001090,
+            "gha": 65.925811,
+            "hc": 58.942935,
+            "zn": 162.151661
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.009980,
+            "sd": 0.000000,
+            "sum": -0.009980
+          },
+          "nav_star_number": 54,
+          "object": "Enif"
+        },
+        {
+          "almanac_data": {
+            "dec": -46.831299,
+            "gha": 59.819087,
+            "hc": 2.143511,
+            "zn": 169.561137
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.273168,
+            "sd": 0.000000,
+            "sum": -0.273168
+          },
+          "nav_star_number": 55,
+          "object": "Alnair"
+        },
+        {
+          "almanac_data": {
+            "dec": -29.478775,
+            "gha": 47.516728,
+            "hc": 15.969587,
+            "zn": 155.153720
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.056648,
+            "sd": 0.000000,
+            "sum": -0.056648
+          },
+          "nav_star_number": 56,
+          "object": "FOMALHAUT"
+        },
+        {
+          "almanac_data": {
+            "dec": 15.352699,
+            "gha": 45.776046,
+            "hc": 54.498880,
+            "zn": 125.422753
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.011821,
+            "sd": 0.000000,
+            "sum": -0.011821
+          },
+          "nav_star_number": 57,
+          "object": "Markab"
+        },
+        {
+          "almanac_data": {
+            "dec": 89.373455,
+            "gha": 345.229090,
+            "hc": 39.950429,
+            "zn": 0.817314
+          },
+          "altitude_corrections": {
+            "isCorrected": true,
+            "pa": 0.000000,
+            "refr": -0.019754,
+            "sd": 0.000000,
+            "sum": -0.019754
+          },
+          "nav_star_number": "",
+          "object": "POLARIS"
+        },
+        {
+          "almanac_data": {
+            "gha": 32.306285
+          },
+          "altitude_corrections": {},
+          "object": "ARIES"
+        }
+      ],
+      "day": 1,
+      "month": 10,
+      "moon_illum": 77,
+      "moon_phase": "Waning Gibbous",
+      "time": "01:30:00",
+      "tz": 0,
+      "year": 2026
+    },
+    "type": "Feature"
+  }
+}

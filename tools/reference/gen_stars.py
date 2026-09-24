@@ -114,6 +114,12 @@ def build():
                 ),
             },
             extra={
+                # Read by the Rust star-catalogue loader. `ra_deg`/`dec_deg`/
+                # `pm_*`/`parallax_mas` are the Hipparcos catalogue values as
+                # published, at the catalogue epoch, NOT propagated to J2000.0.
+                # A loader that defaults to J2000.0 in the absence of this field
+                # would be wrong by 32 arcsec for Rigil Kentaurus.
+                "epoch": "J1991.25",
                 "catalogue": c.file_facts(c.HIPPARCOS_FILE, c.HIPPARCOS_URL),
                 "catalogue_reference": (
                     "ESA (1997), The Hipparcos and Tycho Catalogues, ESA SP-1200; "
