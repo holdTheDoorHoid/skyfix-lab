@@ -20,7 +20,7 @@
 //! degree or two of north at ordinary latitudes, which is why the longitude hardly
 //! matters. Near the pole it does: a DR good to 30 NM at 88.5 N is 19 degrees of
 //! longitude, the latitude's error is then bounded and lopsided rather than Gaussian,
-//! and the stated sigma covers about 92 % where it should cover 95 % (measured,
+//! and the stated sigma covers about 90 % where it should cover 95 % (89.8 % measured,
 //! docs/NAVIGATION_METHODS.md 3.3). [`Warning::PolarisNearPole`] says so.
 //!
 //! For teaching, each sight also carries the Nautical Almanac's Polaris-table terms,
@@ -244,14 +244,9 @@ pub fn polaris_latitude(
                 ),
             });
         }
-        let almanac = table.and_then(|t| {
-            let table_lat = if dr.lat_deg.is_finite() {
-                dr_then.lat_deg()
-            } else {
-                lat_deg
-            };
-            almanac_terms(t, s, lon.to_degrees(), table_lat, lat_deg).ok()
-        });
+        // The navigator enters the printed a1 table with the DR latitude.
+        let almanac = table
+            .and_then(|t| almanac_terms(t, s, lon.to_degrees(), dr_then.lat_deg(), lat_deg).ok());
         let moved = dr_move(p, options.vessel, (t_ref - s.jd_utc) * 24.0);
         let shift = moved.lat_deg() - lat_deg;
         at_ref.push(AtReference {

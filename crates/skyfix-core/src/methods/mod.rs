@@ -36,6 +36,9 @@ use std::f64::consts::FRAC_PI_2;
 pub const MINUTES_PER_DAY: f64 = 1440.0;
 /// Seconds in one day of `jd_utc`.
 pub const SECONDS_PER_DAY: f64 = 86_400.0;
+/// Newton iterations on an instant stop below this step, days: a few ulps of a Julian
+/// date near 2.46e6 (one ulp is 4.7e-10 day), 0.17 ms.
+pub const JD_STEP_TOLERANCE: f64 = 2e-9;
 /// The outlier and consistency threshold used throughout: 3 standard deviations
 /// (about 1 false alarm in 370 when everything is as stated).
 pub const THREE_SIGMA: f64 = 3.0;
@@ -398,7 +401,9 @@ pub fn meridian_passage(
         }
         // A step of more than half a day would jump to another passage.
         t += step.clamp(-0.5, 0.5);
-        if step.abs() < 1e-10 {
+        // A Julian date near 2.46e6 resolves 4.7e-10 day (40 microseconds), so stop at
+        // a few of those: 2e-9 day is 0.17 ms, 0.0007' of LHA.
+        if step.abs() < JD_STEP_TOLERANCE {
             return Some(t);
         }
     }

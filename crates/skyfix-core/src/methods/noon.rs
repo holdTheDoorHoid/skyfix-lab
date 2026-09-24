@@ -41,8 +41,8 @@
 //! [`Warning::FlatPeakLongitude`] and a plain-language `longitude_caveat`.
 
 use super::{
-    BodyTrack, MINUTES_PER_DAY, SECONDS_PER_DAY, THREE_SIGMA, check_dr, check_vessel,
-    clock_sigma_s, dr_move, fmt_dm, fmt_lat, fmt_signed, hc_zn, inverse_2x2,
+    BodyTrack, JD_STEP_TOLERANCE, MINUTES_PER_DAY, SECONDS_PER_DAY, THREE_SIGMA, check_dr,
+    check_vessel, clock_sigma_s, dr_move, fmt_dm, fmt_lat, fmt_signed, hc_zn, inverse_2x2,
     latitudes_for_altitude, meridian_passage, nothing_usable, one_body, reduce_all, resolve_dr,
 };
 use crate::SkyfixError;
@@ -418,7 +418,7 @@ impl<'a> Run<'a> {
         // covariance) is the one at the instant LHA = 0.
         for _ in 0..6 {
             let t = self.passage(fit.p, fit.t_ref, fit.t_ref)?;
-            if (t - fit.t_ref).abs() < 1e-9 {
+            if (t - fit.t_ref).abs() < JD_STEP_TOLERANCE {
                 break;
             }
             let p_t = self.at(fit.p, fit.t_ref, t);
@@ -749,7 +749,7 @@ impl<'a> Run<'a> {
                 }
                 let step = slope / (2.0 * curv) / MINUTES_PER_DAY;
                 t += step;
-                if step.abs() < 1e-10 {
+                if step.abs() < JD_STEP_TOLERANCE {
                     break;
                 }
             }
