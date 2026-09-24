@@ -103,8 +103,8 @@ def arcsec(v):
 
 
 def secs(v):
-    """Seconds of time: 4 decimals."""
-    return Num(v, 4)
+    """Seconds of time: 6 decimals (so gha_deg_dut1_zero can be re-derived)."""
+    return Num(v, 6)
 
 
 def jd(v):
