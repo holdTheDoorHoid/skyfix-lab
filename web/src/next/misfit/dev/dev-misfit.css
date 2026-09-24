@@ -1,0 +1,206 @@
+/* The misfit grid's developer page (misfit agent): a card per packaged demo. Tokens only. */
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--stage-bg);
+  color: var(--stage-ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-sm);
+}
+
+.dmf-bar {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  background: var(--chrome-bg);
+  color: var(--chrome-ink);
+  border-bottom: 1px solid var(--chrome-line);
+}
+
+.dmf-bar h1 {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.dmf-bar .dmf-engine {
+  color: var(--chrome-ink-2);
+  font-size: var(--text-xs);
+  max-width: 60ch;
+}
+
+.dmf-bar .dmf-group {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  color: var(--chrome-ink-2);
+  font-size: var(--text-xs);
+}
+
+.dmf-bar button {
+  font: inherit;
+  font-size: var(--text-xs);
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--chrome-line-strong);
+  background: transparent;
+  color: var(--chrome-ink);
+  cursor: pointer;
+}
+
+.dmf-bar button[aria-pressed='true'] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--on-accent);
+}
+
+.dmf-mock {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  background: var(--caution);
+  color: var(--on-caution);
+  font-weight: var(--weight-semibold);
+}
+
+.dmf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.dmf-grid.dmf-single {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.dmf-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface);
+  border: 1px solid var(--stage-line);
+  box-shadow: var(--shadow-1);
+  min-width: 0;
+}
+
+.dmf-head {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.dmf-head h2 {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  font-family: var(--font-num);
+}
+
+.dmf-kind {
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--stage-line-strong);
+  color: var(--stage-ink-2);
+  white-space: nowrap;
+}
+
+.dmf-canvas {
+  width: 100%;
+  aspect-ratio: 6 / 5;
+  display: block;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--stage-line);
+}
+
+.dmf-single .dmf-canvas {
+  aspect-ratio: 16 / 10;
+}
+
+.dmf-legend {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--text-2xs);
+  color: var(--stage-ink-3);
+}
+
+.dmf-ramp {
+  position: relative;
+  height: 10px;
+  border-radius: 3px;
+  border: 1px solid var(--stage-line);
+}
+
+.dmf-tick {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--stage-ink);
+}
+
+.dmf-tick span {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  color: var(--stage-ink-2);
+}
+
+.dmf-tick--up span {
+  top: auto;
+  bottom: 14px;
+}
+
+.dmf-legend {
+  margin: 12px 0 14px;
+}
+
+.dmf-caption {
+  margin: 14px 0 0;
+  font-size: var(--text-xs);
+  line-height: var(--leading);
+  color: var(--stage-ink-2);
+}
+
+.dmf-stats {
+  margin: 0;
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  color: var(--stage-ink-3);
+}
+
+.dmf-notes {
+  margin: 0;
+  padding-left: 1.1em;
+  font-size: var(--text-2xs);
+  line-height: var(--leading);
+  color: var(--stage-ink-3);
+}
+
+.dmf-error {
+  color: var(--danger);
+  font-weight: var(--weight-semibold);
+}
