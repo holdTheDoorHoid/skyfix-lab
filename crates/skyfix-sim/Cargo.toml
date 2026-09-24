@@ -12,9 +12,6 @@ skyfix-core = { path = "../skyfix-core" }
 skyfix-ephemeris = { path = "../skyfix-ephemeris" }
 serde = { workspace = true }
 serde_json = { workspace = true }
-rand = { workspace = true }
-rand_chacha = { workspace = true }
-rand_distr = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }
