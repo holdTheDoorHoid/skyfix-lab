@@ -233,7 +233,7 @@ pub fn solve_attitude(
         });
     }
     let total_weight: f64 = w.iter().sum();
-    if !(total_weight > 0.0) {
+    if total_weight <= 0.0 || !total_weight.is_finite() {
         return Err(CameraError::Attitude(
             "every matched star has zero weight".to_string(),
         ));
@@ -311,7 +311,10 @@ pub fn solve_attitude(
         }
     }
     let mean = normalize(mean);
-    let spread = (b.iter().map(|v| angle_between(*v, mean).powi(2)).sum::<f64>()
+    let spread = (b
+        .iter()
+        .map(|v| angle_between(*v, mean).powi(2))
+        .sum::<f64>()
         / b.len() as f64)
         .sqrt();
 
@@ -435,8 +438,8 @@ mod tests {
     use crate::centroid::{CentroidOptions, detect};
     use crate::frames::{camera_from_enu, enu_from_earth_fixed};
     use crate::identify::{IdentifyOptions, identify};
-    use crate::rng::Rng;
     use crate::render::{RenderOptions, render};
+    use crate::rng::Rng;
 
     use approx::assert_relative_eq;
     use skyfix_core::geometry::Point;
@@ -529,8 +532,8 @@ mod tests {
     fn demo(opts: RenderOptions, vertical: Vertical) -> (Attitude, Rotation, usize) {
         let k = Intrinsics::from_horizontal_fov(1024, 768, 40f64.to_radians());
         let att = camera_from_enu(25f64.to_radians(), 100f64.to_radians(), 8f64.to_radians());
-        let (image, truth) = render(UTC, philadelphia(), &att, &k, &StarProvider::new(), &opts)
-            .expect("render");
+        let (image, truth) =
+            render(UTC, philadelphia(), &att, &k, &StarProvider::new(), &opts).expect("render");
         let centroids = detect(
             &image,
             &CentroidOptions {
@@ -574,11 +577,12 @@ mod tests {
         assert_eq!(n_stars, 6);
         assert_eq!(a.n_stars, 6);
         assert!(a.refraction_removed);
-        let err_arcmin = a
-            .rotation_camera_from_frame
-            .angle_to(&truth)
-            .to_degrees()
-            * 60.0;
+        let err_arcmin = a.rotation_camera_from_frame.angle_to(&truth).to_degrees() * 60.0;
+        println!(
+            "clean 6-star 40-degree field: attitude error {err_arcmin:.4}', residual \
+             rms {:.2}\", spread {:.1} deg",
+            a.rms_arcsec, a.angular_spread_deg
+        );
         assert!(
             err_arcmin < 0.5,
             "attitude error {err_arcmin:.4} arcmin exceeds the 0.5' requirement"
@@ -696,10 +700,7 @@ mod tests {
             c < 0.1,
             "a vertical good to 0.5' should remove almost all of it, left {c:.4}'"
         );
-        assert!(
-            c < 0.1 * u,
-            "correction barely helped: {u:.4}' -> {c:.4}'"
-        );
+        assert!(c < 0.1 * u, "correction barely helped: {u:.4}' -> {c:.4}'");
         // More stars would not help: the bias is systematic, so it shows up as a
         // small residual rms and a large attitude error at the same time.
         assert!(
@@ -884,7 +885,11 @@ mod tests {
         .unwrap();
         let truth_rot = truth.attitude_camera_from_earth_fixed;
         for a in [&uniform, &weighted] {
-            let e = a.rotation_camera_from_frame.angle_to(&truth_rot).to_degrees() * 60.0;
+            let e = a
+                .rotation_camera_from_frame
+                .angle_to(&truth_rot)
+                .to_degrees()
+                * 60.0;
             assert!(e < 0.5, "attitude error {e:.4}'");
         }
         assert!(

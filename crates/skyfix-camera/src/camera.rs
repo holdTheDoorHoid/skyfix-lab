@@ -173,7 +173,7 @@ impl Intrinsics {
         for _ in 0..64 {
             let r2 = x * x + y * y;
             let radial = 1.0 + self.k1 * r2 + self.k2 * r2 * r2;
-            if !(radial.abs() > 1e-12) {
+            if radial.abs() <= 1e-12 || !radial.is_finite() {
                 // A distortion this strong folds the image over; give up on refining
                 // and return the last sane iterate rather than an infinity.
                 break;
@@ -319,7 +319,10 @@ mod tests {
         assert_relative_eq!(k.nominal_ifov_rad(), 1.0 / k.fx, epsilon = 1e-15);
         // Off axis a pixel subtends LESS angle (the tangent plane stretches).
         let corner = k.angular_scale_at(0.0, 0.0);
-        assert!(corner < s, "off-axis pixel should subtend less: {corner} vs {s}");
+        assert!(
+            corner < s,
+            "off-axis pixel should subtend less: {corner} vs {s}"
+        );
         // Sanity in familiar units: 40 deg over 1024 px is about 2.44 arcmin/px.
         assert_relative_eq!(s.to_degrees() * 60.0, 2.444, max_relative = 0.01);
     }
@@ -327,8 +330,8 @@ mod tests {
     #[test]
     fn a_pathological_distortion_does_not_produce_nan() {
         // Folded-over lens: the radial polynomial has a zero inside the image.
-        let k = Intrinsics::from_horizontal_fov(64, 48, 90f64.to_radians())
-            .with_distortion(-4.0, 0.0);
+        let k =
+            Intrinsics::from_horizontal_fov(64, 48, 90f64.to_radians()).with_distortion(-4.0, 0.0);
         let d = k.unproject(0.0, 0.0);
         assert!(d.iter().all(|c| c.is_finite()), "unproject produced {d:?}");
         assert_relative_eq!(norm(d), 1.0, epsilon = 1e-12);

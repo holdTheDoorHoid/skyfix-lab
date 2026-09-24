@@ -50,6 +50,7 @@ use serde::{Deserialize, Serialize};
 use skyfix_ephemeris::AstroProvider;
 use skyfix_ephemeris::catalog;
 use skyfix_ephemeris::stars::StarProvider;
+use std::cmp::Reverse;
 
 /// One catalogue star, reduced to a direction at a specific instant.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -334,7 +335,7 @@ pub fn identify(
         }
     }
     // Descending votes; ties broken by index so the result is reproducible.
-    candidates.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)).then(a.2.cmp(&b.2)));
+    candidates.sort_by_key(|&(votes, centroid, star)| (Reverse(votes), centroid, star));
     let mut star_of = vec![usize::MAX; used.len()];
     let mut taken = vec![false; n_stars];
     let mut vote_of = vec![0usize; used.len()];
@@ -347,7 +348,9 @@ pub fn identify(
     }
 
     // --- verify: keep only a mutually consistent set -------------------------
-    let mut keep: Vec<usize> = (0..used.len()).filter(|&i| star_of[i] != usize::MAX).collect();
+    let mut keep: Vec<usize> = (0..used.len())
+        .filter(|&i| star_of[i] != usize::MAX)
+        .collect();
     let consistent = |i: usize, j: usize, star_of: &[usize]| -> bool {
         let want = catalogue.angle(star_of[i], star_of[j]);
         (measured[i * used.len() + j] - want).abs() <= tol
@@ -414,15 +417,13 @@ pub fn identify(
             votes: vote_of[i],
         });
     }
-    out.sort_by(|a, b| a.centroid_index.cmp(&b.centroid_index));
+    out.sort_by_key(|m| m.centroid_index);
     let matched: Vec<usize> = out.iter().map(|m| m.centroid_index).collect();
     let unmatched: Vec<usize> = (0..centroids.len())
         .filter(|i| !matched.contains(i))
         .collect();
     Identification {
-        status: IdentifyStatus::Identified {
-            n_stars: out.len(),
-        },
+        status: IdentifyStatus::Identified { n_stars: out.len() },
         matches: out,
         unmatched,
         ..base
@@ -495,7 +496,7 @@ mod tests {
         let a = cat.direction("Altair").unwrap();
         let sep = angle_between(v, a).to_degrees();
         assert!((sep - 34.2).abs() < 0.3, "Vega-Altair separation {sep} deg");
-        assert_eq!(cat.direction("Betelgeuse").is_some(), true);
+        assert!(cat.direction("Betelgeuse").is_some());
         assert_eq!(cat.direction("Not A Star"), None);
         assert!(CatalogueSnapshot::at(&StarProvider::new(), "not a time").is_err());
     }
@@ -583,7 +584,11 @@ mod tests {
                 .hot_pixels
                 .iter()
                 .any(|&(x, y)| (c.u - x as f64).abs() < 0.6 && (c.v - y as f64).abs() < 0.6);
-            assert!(hit, "unmatched centroid at ({}, {}) is not a defect", c.u, c.v);
+            assert!(
+                hit,
+                "unmatched centroid at ({}, {}) is not a defect",
+                c.u, c.v
+            );
         }
     }
 

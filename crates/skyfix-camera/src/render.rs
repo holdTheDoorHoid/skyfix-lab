@@ -35,7 +35,7 @@
 
 use crate::camera::Intrinsics;
 use crate::error::CameraError;
-use crate::frames::{Rotation, Vec3, enu_from_earth_fixed, enu_from_alt_az, alt_az_from_enu};
+use crate::frames::{Rotation, Vec3, alt_az_from_enu, enu_from_alt_az, enu_from_earth_fixed};
 use crate::rng::Rng;
 use serde::{Deserialize, Serialize};
 use skyfix_core::geometry::Point;
@@ -114,7 +114,11 @@ impl Image {
                 hi = v;
             }
         }
-        if self.data.is_empty() { (0.0, 0.0) } else { (lo, hi) }
+        if self.data.is_empty() {
+            (0.0, 0.0)
+        } else {
+            (lo, hi)
+        }
     }
 }
 
@@ -540,13 +544,13 @@ fn validate(intrinsics: &Intrinsics, options: &RenderOptions) -> Result<(), Came
     {
         return Err(CameraError::invalid("intrinsics.fx/fy", "must be positive"));
     }
-    if !(options.psf_sigma_px > 0.0) || !options.psf_sigma_px.is_finite() {
+    if options.psf_sigma_px <= 0.0 || !options.psf_sigma_px.is_finite() {
         return Err(CameraError::invalid(
             "render.psf_sigma_px",
             "must be a positive, finite number of pixels",
         ));
     }
-    if !(options.saturation_level > 0.0) {
+    if options.saturation_level <= 0.0 || !options.saturation_level.is_finite() {
         return Err(CameraError::invalid(
             "render.saturation_level",
             "must be positive",
@@ -622,11 +626,7 @@ mod tests {
             );
             // Its altitude measured from the true vertical is the apparent altitude.
             let alt = crate::frames::dot(s.dir_camera, truth.up_camera).asin();
-            assert_relative_eq!(
-                alt.to_degrees(),
-                s.apparent_altitude_deg,
-                epsilon = 1e-10
-            );
+            assert_relative_eq!(alt.to_degrees(), s.apparent_altitude_deg, epsilon = 1e-10);
         }
         // The truth attitude is the one we asked for, in both frames.
         assert!(truth.attitude_camera_from_enu.angle_to(&att) < 1e-14);
@@ -695,7 +695,8 @@ mod tests {
         let mean = image.data.iter().sum::<f64>() / image.data.len() as f64;
         assert!((mean - 200.0).abs() < 25.0, "background mean {mean}");
         // Determinism: the same seed reproduces the image bit for bit.
-        let (again, _) = render(UTC, philadelphia(), &att, &k, &StarProvider::new(), &opts).unwrap();
+        let (again, _) =
+            render(UTC, philadelphia(), &att, &k, &StarProvider::new(), &opts).unwrap();
         assert_eq!(image, again);
         let other = RenderOptions { seed: 78, ..opts };
         let (different, _) =
@@ -723,7 +724,9 @@ mod tests {
             render(UTC, philadelphia(), &att, &k, &StarProvider::new(), &opts).unwrap();
         let h = truth.horizon.expect("horizon truth");
         assert_relative_eq!(h.dip_arcmin, 1.76 * 3.0, epsilon = 1e-12);
-        let row = h.center_row.expect("horizon should cross the centre column");
+        let row = h
+            .center_row
+            .expect("horizon should cross the centre column");
         // Below the line is sea, above is sky, and the crossing row is where the
         // altitude equals -dip.
         let x = k.width / 2;
@@ -788,7 +791,17 @@ mod tests {
         };
         assert!(render(UTC, philadelphia(), &att, &k, &p, &bad_height).is_err());
         let zero = Intrinsics::from_horizontal_fov(0, 4, 1.0);
-        assert!(render(UTC, philadelphia(), &att, &zero, &p, &RenderOptions::default()).is_err());
+        assert!(
+            render(
+                UTC,
+                philadelphia(),
+                &att,
+                &zero,
+                &p,
+                &RenderOptions::default()
+            )
+            .is_err()
+        );
         // A timestamp the core rejects.
         assert!(
             render(

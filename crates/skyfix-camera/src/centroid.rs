@@ -23,22 +23,17 @@ use crate::render::Image;
 use serde::{Deserialize, Serialize};
 
 /// How the sky level and its scatter are estimated.
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum BackgroundMethod {
     /// Median of every sample; scatter from `1.4826 * MAD`. Immune to the stars, which
     /// occupy well under half the frame, and to a bimodal frame (sky over sea) in the
     /// sense that it lands on whichever part is larger. The default.
+    #[default]
     Median,
     /// Iterated sigma-clipped mean. Slightly tighter than the median on a clean frame
     /// and much worse on a bimodal one.
     SigmaClippedMean { clip_sigma: f64, iterations: usize },
-}
-
-impl Default for BackgroundMethod {
-    fn default() -> Self {
-        BackgroundMethod::Median
-    }
 }
 
 /// Sky level and its 1-sigma scatter, in counts.
@@ -145,7 +140,7 @@ pub fn estimate_background(image: &Image, method: BackgroundMethod) -> Backgroun
         } => {
             let (mut level, mut sigma) = mean_and_sigma(&image.data);
             for _ in 0..iterations.max(1) {
-                if !(sigma > 0.0) {
+                if sigma <= 0.0 || !sigma.is_finite() {
                     break;
                 }
                 let lo = level - clip_sigma * sigma;
@@ -286,7 +281,7 @@ fn centroid_of(
             sv += w * y as f64;
         }
     }
-    if !(weight > 0.0) {
+    if weight <= 0.0 || !weight.is_finite() {
         return None;
     }
     Some(Centroid {
@@ -607,7 +602,10 @@ mod tests {
                 .unwrap();
             worst = worst.max((best.u - s.u).hypot(best.v - s.v));
         }
-        assert!(worst < 0.05, "worst rendered-star centroid error {worst} px");
+        assert!(
+            worst < 0.05,
+            "worst rendered-star centroid error {worst} px"
+        );
         // Brightest first.
         for pair in found.windows(2) {
             assert!(pair[0].flux >= pair[1].flux);

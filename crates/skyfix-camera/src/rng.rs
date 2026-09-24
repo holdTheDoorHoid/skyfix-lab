@@ -110,7 +110,7 @@ impl Rng {
     /// the thousands of counts where the approximation is excellent.
     pub fn poisson(&mut self, lambda: f64) -> f64 {
         const POISSON_NORMAL_CUTOFF: f64 = 30.0;
-        if !(lambda > 0.0) {
+        if lambda <= 0.0 || !lambda.is_finite() {
             return 0.0;
         }
         if lambda >= POISSON_NORMAL_CUTOFF {

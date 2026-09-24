@@ -559,7 +559,11 @@ mod tests {
             let (a, z, roll) = pointing_of_camera_from_enu(&r);
             assert_relative_eq!(a, alt_deg * D, epsilon = 1e-11);
             assert_relative_eq!(z, az_deg * D, epsilon = 1e-11);
-            assert_relative_eq!(roll, skyfix_core::units::norm_pi(roll_deg * D), epsilon = 1e-11);
+            assert_relative_eq!(
+                roll,
+                skyfix_core::units::norm_pi(roll_deg * D),
+                epsilon = 1e-11
+            );
             // The boresight is the camera's +z.
             let bore = r.inverse().rotate([0.0, 0.0, 1.0]);
             let want = enu_from_alt_az(alt_deg * D, az_deg * D);
@@ -636,6 +640,9 @@ mod tests {
         assert_relative_eq!(dot([1.0, 2.0, 3.0], [4.0, 5.0, 6.0]), 32.0);
         assert_eq!(cross([1.0, 0.0, 0.0], [0.0, 1.0, 0.0]), [0.0, 0.0, 1.0]);
         assert_eq!(Rotation::default(), Rotation::IDENTITY);
-        assert_eq!(Rotation::from_quaternion([0.0, 0.0, 0.0, 0.0]), Rotation::IDENTITY);
+        assert_eq!(
+            Rotation::from_quaternion([0.0, 0.0, 0.0, 0.0]),
+            Rotation::IDENTITY
+        );
     }
 }
