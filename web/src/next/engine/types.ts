@@ -1145,6 +1145,7 @@ export type MisfitSolveKind = FixResult['kind'];
 /** `misfit_grid` (EXPLORER_API "Misfit grid"). */
 export interface MisfitGrid {
   bounds: MisfitBounds;
+  /** The columns run past 180 degrees (`bounds.east_deg > 180`). */
   crosses_antimeridian: boolean;
   n_lat: number;
   n_lon: number;

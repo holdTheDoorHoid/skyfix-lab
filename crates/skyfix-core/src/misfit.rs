@@ -285,6 +285,7 @@ pub struct MisfitSight {
 pub struct MisfitGrid {
     /// Normalised: `west_deg` in `[-180, 180)`, `east_deg = west_deg + span`.
     pub bounds: GridBounds,
+    /// The columns run past 180 degrees (`bounds.east_deg > 180`), so `lon_deg` jumps.
     pub crosses_antimeridian: bool,
     pub n_lat: usize,
     pub n_lon: usize,
@@ -561,7 +562,8 @@ pub fn grid(
         .collect();
 
     Ok(MisfitGrid {
-        crosses_antimeridian: span < 360.0 && b.east_deg > 180.0,
+        // The columns run past 180 degrees (the normalised west edge is below 180).
+        crosses_antimeridian: b.east_deg > 180.0,
         bounds: b,
         n_lat,
         n_lon,

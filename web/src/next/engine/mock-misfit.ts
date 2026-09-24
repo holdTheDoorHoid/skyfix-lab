@@ -346,7 +346,7 @@ function gridFor(p: Prepared, boundsIn: MisfitBounds | null, nLat: number, nLon:
   }));
   return {
     bounds,
-    crosses_antimeridian: span < 360 && bounds.east_deg > 180,
+    crosses_antimeridian: bounds.east_deg > 180,
     n_lat: nLat,
     n_lon: nLon,
     lat_step_deg: latStep,
