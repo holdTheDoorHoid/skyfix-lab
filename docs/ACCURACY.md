@@ -737,3 +737,213 @@ data is 125 kB of the release WASM module's 1.55 MB.
   tools.reference.build_moon_series --fetch` rebuilds the embedded series from the CDS.
 - `cargo test -p skyfix-ephemeris --test moon_reference --test topocentric_reference
   -- --nocapture` prints every number above.
+
+## 8. Star field (display only)
+
+Owner: star-field agent (`crates/skyfix-starfield/`). Everything here describes what the
+explorer's Sky view draws. The star field is display-only (CONVENTIONS 13.6): none of
+these numbers is an accuracy claim for a sight, and no navigation crate can reach the
+data. Measured by `crates/skyfix-starfield/tests/` against the fixtures that
+`tools/starfield/gen_fixtures.py` generates with Skyfield; provenance and licences are
+in `docs/THIRD_PARTY.md`, "Star field and constellations".
+
+### Apparent places versus Skyfield
+
+| check | cases | result | target |
+|---|---|---|---|
+| `apparent_radec_all` vs Skyfield 1.55 + DE440s, 1990–2060 (`starfield_apparent.json`) | 420 stars × 9 epochs = 3 780 | worst **0.307″ (0.0051′)**, RMS 0.016″ | 0.1′ (CONVENTIONS 13.7) |
+| same chain as `skyfix_ephemeris::frames::apparent_radec_of_date` (what `sky_state` uses) | 9 095 stars × 5 dates, 1800–2200 | worst 1.6 × 10⁻⁹″ | floating point |
+| the reference itself: DE421 against DE440s | the epochs DE421 covers | 0.004″ | — |
+
+The 420 stars are the 58 navigational stars, the 25 largest proper motions, the 12
+nearest each pole, 10 straddling 0h, the 3 nearest the Sun (at least 1° away) at each
+epoch, and a seeded random sample. The worst case per epoch is at most 0.04″ from 1990
+to 2026 and grows to 0.31″ at the end of 2060, and that growth is one term: Skyfield is
+given each star's catalogued
+radial velocity, and the Rust chain, like `skyfix-ephemeris`, has no radial-velocity
+(perspective acceleration) term. The worst star is 61 Cygni B (HR 8086). The regression
+guard in the test is 0.5″, far inside the 6″ target, so a broken deflection or parallax
+step would fail it.
+
+What this comparison does not measure is the catalogue. Both sides start from the same
+Bright Star Catalogue values: FK5 J2000 positions to 0.1 s of RA and 1″ of Dec (so up
+to about 1″ from modern positions), proper motions to 1 mas/yr. Against the Hipparcos
+places `skyfix-ephemeris` uses, the 58 navigational stars agree to 0.9″ or better at
+J2000, except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
+differently along its 80-year orbit about B). At display scale none of this is visible.
+
+### Navigational stars
+
+All 58 are found by position (within 1′) and V magnitude (within 1.0), never by name:
+largest separation 6.40″ (Rigil Kentaurus; the next is 0.90″), largest magnitude
+difference 0.56 (Acrux, where Hipparcos gives the combined light of α¹ and α² Crucis and
+the catalogue lists α¹ alone). The name list's 58 Almanac names land on the same
+entries.
+
+### Constellation lookup
+
+| check | result |
+|---|---|
+| our B1875 polygons against Skyfield's map (Roman 1987), the centre of every cell of its grid | **47 200 of 47 200 agree**; the two use the identical set of boundary RA and Dec values |
+| `constellation_at` vs Skyfield, 25 000 pseudo-random apparent-of-date directions at pseudo-random instants 1990–2060 | **25 000 of 25 000 agree** |
+| the same 25 000 against `load_constellation_map()` exactly as shipped | 25 000 of 25 000 agree |
+| every combination of a boundary RA and a boundary Dec (46 964 points, all on boundary lines) | each in exactly one constellation |
+| a half-degree grid over the whole sky (259 200 points) | each in exactly one constellation |
+
+Two frame details, both measured rather than assumed. Skyfield's shipped
+`load_constellation_map()` rotates into the *true* equinox of B1875 (its `Time.M`
+includes the 1875 nutation, 10.1″), while the IAU boundaries are defined in the *mean*
+equinox, which is what `constellation_at` uses; the two can disagree only within about
+10″ of a boundary, and none of the 25 000 samples fell there. And `constellation_at` is a
+rotation: annual aberration (up to 20.5″) is not removed, so a body within 20″ of a
+boundary may be named after its neighbour.
+
+### Speed and size
+
+| | native, release | WebAssembly (Node 24, V8) | budget |
+|---|---|---|---|
+| apparent places of all 9 095 stars | 1.2–1.5 ms (fastest of 100 calls; a heavily loaded machine) | 1.0–1.1 ms fastest, 1.1–1.2 ms median | 5 ms (EXPLORER_PLAN §3.7) |
+| `constellation_at`, same instant as the previous call | 1.4 µs | 1.3 µs | — |
+| `constellation_at`, new instant (the nutation series runs once) | 9 µs | 5 µs | — |
+| `starfield_catalog()`, once per session | — | 8 ms | — |
+
+The embedded data is 259 KB (stars 227 KB, boundaries 18 KB, figures 10 KB, names
+4 KB). The star field adds 305 KB to the release WebAssembly module (1 129 446 bytes
+against 824 836 for the commit before it, both built with `wasm-pack --release`), which
+stays under the 2 MB budget.
+
+### Known limitations
+
+- **No radial velocity**, as above: at most 0.31″ by 2060 among the stars checked.
+- **Catalogue precision and age**: positions to about 1″, magnitudes from one epoch.
+  Variable stars are drawn at the catalogue's magnitude (Betelgeuse 0.50, Mira 3.04);
+  η Carinae appears at the catalogue's V 6.21 although it has since brightened to
+  about fourth magnitude.
+- **Close doubles are separate entries** where the catalogue lists components
+  separately (α¹ and α² Centauri, α¹ and α² Crucis, Castor A and B, and others), so the
+  dome draws two stars a few arcseconds apart.
+- **310 stars have no B−V** (NaN on the wire); the Sky view must choose a neutral colour.
+- **Completeness**: the catalogue reaches about V 6.5, with some fainter entries.
+- **Range**: the functions answer for 1800–2200 and are validated for 1990–2060. Outside
+  the validated window the models (IAU 2006 precession, IAU 2000B nutation, linear proper
+  motion) are still good to about an arcsecond for most stars.
+- **Label positions** are a heuristic (the figure's centre, moved at least 1.5° inside
+  the boundary where the centre is outside or too close, as for Eridanus and Serpens).
+
+### Reproducing these numbers
+
+```
+python3 -m tools.starfield.fetch                                  # network: raw inputs
+tools/reference/.venv/bin/python -m tools.starfield.build         # embedded data and its checks
+tools/reference/.venv/bin/python -m tools.starfield.gen_fixtures  # Skyfield fixtures
+cargo test -p skyfix-starfield -- --nocapture
+cargo test --release -p skyfix-starfield --test timing -- --nocapture
+```
+
+## 9. Events: rise, set, twilight, transits, seasons and Moon phases
+
+Owner: events agent (`crates/skyfix-almanac/src/{events,sky}.rs`). Definitions are
+CONVENTIONS 13.3 to 13.5; the targets are CONVENTIONS 13.7. Every number below is printed
+by the tests named with it (run them with `-- --nocapture`), against real providers for
+the Sun, Moon, planets and stars.
+
+### How events are found
+
+A body's apparent geocentric state is evaluated exactly at nodes 3 h apart (the Moon),
+4 h (planets) or 8 h (the Sun and stars) and interpolated between them with a 4-point
+Lagrange cubic; the topocentric step (Earth rotation, WGS84 parallax, refraction) is
+exact at every evaluation. The altitude is bracketed on a 10-minute grid, every
+altitude extremum is located and added to the brackets (so a body grazing its
+threshold for a minute is caught on both sides), and each crossing is refined with
+Brent's method to 1 ms.
+
+| check (test) | measured |
+|---|---|
+| interpolation vs exact, real Moon / Mercury / other planets / Sun and stars (`track_interpolation`) | 0.0054″ / 0.0011″ / ≤ 0.0007″ / < 0.00001″ |
+| event instants vs a dense (20 s) exact scan with linear interpolation, Sun / synthetic Moon (`events_logic`) | 0.021 s / 0.001 s |
+| event `alt_deg`/`az_deg` vs an exact `sky_state` at the same instant (`events_logic`) | 0.0012″ |
+| Sun grazing its rise/set altitude by 0.0003° (below it for 2.4 minutes) | both crossings found, within 0.01 s of a 1-s exact scan |
+
+### Against Skyfield + JPL DE440s, the same `h0` (target 10 s)
+
+`fixtures/reference/events_*.json`, from `tools/reference/gen_events.py`: Skyfield's
+topocentric unrefracted altitude of the body's centre, UT1 = UTC, `find_discrete` on a
+one-minute grid (IAU 2000B nutation for the searches; against 2000A it moves no event by
+more than 0.0023 s). Test: `events_reference`.
+
+| bodies | windows | events | worst | where |
+|---|---|---|---|---|
+| Sun: rise, set, transit, lower transit, civil/nautical/astronomical dawn and dusk; 34 sites × 21 dates, 1990–2060, 14 sites at 60–70° N and S | 714 | 6242 | **0.215 s** | set at Kiruna (67.9° N), 2017-01-01, a Sun that barely rises |
+| 10 stars × 12 sites × 6 dates | 720 | 2174 | **0.108 s** | Polaris setting at Quito, where it skims the horizon |
+| Moon, 20 sites × 21 dates | 420 | 1548 | **0.420 s** | set at Rothera (67.6° S) |
+| Mercury to Neptune, 10 sites × 6 dates | 420 | 1679 | **0.256 s** | Neptune rising at Casey (66.3° S) |
+
+In every window the sky-phase sequence, the day length (within 20 s), and the
+`always_above`/`always_below` classification (midnight sun, polar night, circumpolar
+stars) agree with the reference; no grazing pair was missing on either side. Transits
+agree to 0.011 s (Sun), 0.043 s (Moon) and 0.15 s (planets): each provider's GHA error
+divided by the hour-angle rate. Rise and set errors are those GHA and declination
+errors, plus Skyfield's diurnal aberration (≤ 0.32″, which CONVENTIONS 13.2 leaves out),
+divided by the altitude rate, which is small where the path meets the horizon at a
+shallow angle — hence the high-latitude worst cases.
+
+### Against USNO (target 1 min, USNO rounds to the minute)
+
+`fixtures/reference/events_usno.json` (`rstt/oneday`, UTC days, 14 site-days including
+polar night and midnight sun). Test: `usno_reference`.
+
+| quantity | events | worst |
+|---|---|---|
+| Sun: civil dawn, rise, upper transit, set, civil dusk | 59 | 29.4 s |
+| Moon: rise, upper transit, set | 38 | 29.1 s |
+
+Both are inside the ±30 s of USNO's own rounding. USNO lists an upper transit only while
+the body is up; ours below the horizon (polar night) are left out of the comparison.
+
+### Equinoxes, solstices and Moon phases (target 1 min)
+
+Apparent geocentric ecliptic longitudes of date, from the providers' RA/Dec and the true
+obliquity. Tests: `seasons_moon_phases`, `usno_reference`.
+
+| quantity | events | vs Skyfield/DE440s | vs USNO |
+|---|---|---|---|
+| equinoxes and solstices 1990–2060 | 284 | **4.0 s** | ≤ 29.4 s for 1990, 2000, 2026 (12 events) |
+| Moon phases 1990–2060 | 3513 | **1.1 s** | ≤ 41 s for 1990, 2000, 2026 (149 events) |
+
+DE421 and DE440s agree on these instants to 0.003 s and 0.012 s. **A finding about
+USNO:** for future years its seasons and phases drift from ours by a growing offset —
+the band centre is about +20 s in 2045 and +30 s in 2060, with the individual
+differences spread over one minute around it, as rounding predicts. USNO states future
+instants in predicted UT (TT minus a predicted ΔT), while this project counts UTC with no
+leap seconds after 2017 (TT − UTC = 69.184 s, CONVENTIONS 6); the instant is fixed in TT,
+so the two clocks disagree by the difference of the ΔT assumptions. Skyfield with the
+project's convention agrees with us to seconds, and rise and set (fixed by the Earth's
+rotation) show no such drift. The test asserts the 1-minute bound through 2026 and, for
+later years, that the differences sit in a one-minute band around a constant offset,
+which it prints.
+
+### What these numbers are not
+
+They compare definitions and arithmetic. Real rise and set times depend on refraction at
+the horizon, which varies by several arcminutes with the weather (a minute or more of
+time), on the height of the observer and the terrain, and on DUT1 (up to 0.9 s of Earth
+rotation, which moves every event by up to about 0.9 s). The 34′ standard refraction is a
+convention, not a prediction.
+
+### Speed (EXPLORER_PLAN 3.7)
+
+Native release (`cargo test --release -p skyfix-almanac --test perf -- --ignored
+--nocapture`) and WASM under Node 24 (`wasm-pack --release`, real providers):
+
+| call | native | WASM |
+|---|---|---|
+| `sky_state`, all 67 bodies (WASM: with constellations) | 0.52 ms | 1.03 ms (budget 2 ms) |
+| `day_events_batch`, Sun, 365 days | 74 ms | 94 ms |
+| `day_events`, one day, all 67 bodies | 7.2 ms | 9.2 ms |
+| `sample_bodies`, 64 navigational bodies, one day at 5 min | 8.2 ms | 12.2 ms |
+| `seasons`, one year | 3.8 ms | 4.5 ms |
+| `sidereal` | — | 0.004 ms |
+
+The star provider builds its precession-nutation matrix and Earth state once per instant
+(`StarFrame`, bit-for-bit identical to the unbatched chain), which is what keeps 58 stars
+at about 0.18 ms.

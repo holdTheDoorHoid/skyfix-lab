@@ -16,7 +16,8 @@ import sys
 import time
 
 from . import common as c
-from . import gen_geocentric, gen_moon, gen_nav_methods, gen_planets, gen_sessions, gen_stars, gen_sun_sextant
+from . import gen_events, gen_geocentric, gen_moon, gen_nav_methods, gen_planets
+from . import gen_sessions, gen_stars, gen_sun_sextant
 from . import gen_topocentric, gen_usno
 
 STEPS = [
@@ -29,6 +30,8 @@ STEPS = [
     ("planets_* (Mercury to Neptune, DE440s)", gen_planets.main, False),
     ("nav_methods", gen_nav_methods.main, False),
     ("usno_celnav cross-check", gen_usno.main, True),
+    ("events: rise/set/twilight, seasons, Moon phases", gen_events.main_offline, False),
+    ("events USNO cross-check", gen_events.main_usno_only, True),
 ]
 
 
