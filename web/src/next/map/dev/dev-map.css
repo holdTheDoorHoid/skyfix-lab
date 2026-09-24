@@ -1,0 +1,113 @@
+/* The map's developer page: a thin strip of controls over a full-screen map. Plain on purpose. */
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 13px;
+}
+
+:root {
+  color-scheme: light;
+  --dm-paper: #1c242d;
+  --dm-ink: #f1f4f7;
+  --dm-rule: #3a4654;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --dm-paper: #0b1424;
+  --dm-ink: #e9eff7;
+  --dm-rule: #1c2b45;
+}
+
+:root[data-theme='night'] {
+  color-scheme: dark;
+  --dm-paper: #050000;
+  --dm-ink: #ff2e00;
+  --dm-rule: #2a0500;
+}
+
+body {
+  background: var(--dm-paper);
+  color: var(--dm-ink);
+}
+
+#app {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.dm-banner {
+  margin: 0;
+  padding: 3px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--dm-rule);
+}
+
+.dm-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--dm-rule);
+}
+
+.dm-bar input[type='range'] {
+  width: 220px;
+}
+
+.dm-bar button,
+.dm-bar select {
+  font: inherit;
+}
+
+.dm-clock,
+.dm-place {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dm-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.dm-notices {
+  position: fixed;
+  left: 8px;
+  bottom: 8px;
+  z-index: 10;
+  max-width: min(520px, 60vw);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 11.5px;
+}
+
+.dm-notice {
+  margin-top: 4px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--dm-paper);
+  color: var(--dm-ink);
+  opacity: 0.92;
+}
+
+.dm-bench {
+  position: fixed;
+  right: 8px;
+  bottom: 40px;
+  z-index: 10;
+  margin: 0;
+  padding: 8px;
+  background: var(--dm-paper);
+  color: var(--dm-ink);
+  font-size: 11px;
+}

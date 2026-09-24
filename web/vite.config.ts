@@ -42,6 +42,7 @@ export default defineConfig({
       input: {
         main: resolve(import.meta.dirname, 'index.html'),
         next: resolve(import.meta.dirname, 'next/index.html'),
+        'next-dev-map': resolve(import.meta.dirname, 'next/dev-map.html'),
       },
     },
   },

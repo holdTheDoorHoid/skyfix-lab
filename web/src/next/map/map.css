@@ -1,0 +1,516 @@
+/*
+ * The map view's DOM parts: dial, marker, controls, read-outs. OWNER: map agent.
+ * Colours come only from the --sfm-* properties that style-tokens.ts writes on .sfm from the
+ * theme's tokens; nothing here names a literal colour.
+ */
+
+.sfm {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  overflow: hidden;
+  background: var(--sfm-bg);
+  color: var(--sfm-ink);
+  font-family: var(--sfm-font);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sfm-map {
+  position: absolute;
+  inset: 0;
+}
+
+.sfm-map .maplibregl-canvas:focus-visible {
+  outline: 3px solid var(--sfm-focus);
+  outline-offset: -3px;
+}
+
+.sfm--measuring .sfm-map .maplibregl-canvas-container.maplibregl-interactive {
+  cursor: crosshair;
+}
+
+/* Night theme with the online street layer: every pixel of the map red only. */
+.sfm--red-streets .sfm-map canvas {
+  filter: url(#sfm-red-only);
+}
+
+.sfm-filters {
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+
+.sfm-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.sfm-fail {
+  margin: 2rem auto;
+  max-width: 34rem;
+  padding: 0 1rem;
+}
+
+/* --- The observer marker -------------------------------------------------------------- */
+
+.sfm-observer {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  cursor: grab;
+  touch-action: none;
+}
+
+.sfm-observer::before {
+  content: '';
+  position: absolute;
+  inset: 3px;
+  border-radius: 50%;
+  background: var(--sfm-observer-ring);
+  box-shadow: 0 0 0 2px var(--sfm-observer), 0 1px 5px var(--sfm-halo);
+}
+
+.sfm-observer-dot {
+  position: relative;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--sfm-observer);
+}
+
+.sfm--dragging .sfm-observer {
+  cursor: grabbing;
+}
+
+.sfm-measure-pin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--sfm-accent);
+  color: var(--sfm-halo);
+  font: 700 11px/1 var(--sfm-font);
+  box-shadow: 0 0 0 1.5px var(--sfm-halo);
+  cursor: grab;
+  touch-action: none;
+}
+
+/* --- The compass dial ------------------------------------------------------------------ */
+
+.sfm-dial-layer {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sfm-dial {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+
+.sfm-dial-disc {
+  fill: var(--sfm-compass-fill);
+}
+
+.sfm-dial-ring {
+  fill: none;
+  stroke: var(--sfm-compass-ring);
+  stroke-width: 1.6;
+}
+
+.sfm-dial-alt {
+  fill: none;
+  stroke: var(--sfm-compass-tick);
+  stroke-width: 0.9;
+  stroke-dasharray: 2 4;
+  opacity: 0.7;
+}
+
+.sfm-dial-tick {
+  stroke: var(--sfm-compass-tick);
+  stroke-width: 1;
+}
+
+.sfm-dial-tick--major {
+  stroke: var(--sfm-compass-ring);
+  stroke-width: 1.6;
+}
+
+.sfm-dial-cardinal {
+  fill: var(--sfm-compass-label);
+  font: 600 12.5px var(--sfm-font);
+  letter-spacing: 0.02em;
+}
+
+.sfm-dial-cardinal--n {
+  font-weight: 760;
+}
+
+.sfm-dial-band {
+  fill: var(--sfm-compass-band);
+  stroke: none;
+}
+
+.sfm-dial-solstice {
+  fill: none;
+  stroke: var(--sfm-body-sun);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+  opacity: 0.75;
+}
+
+.sfm-dial-rise {
+  stroke: var(--sfm-rise);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: var(--sfm-dash-rise);
+}
+
+.sfm-dial-set {
+  stroke: var(--sfm-set);
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-dasharray: var(--sfm-dash-set);
+}
+
+.sfm-dial-path {
+  fill: none;
+  stroke-width: 2.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: var(--sfm-dash-path);
+}
+
+.sfm-dial-now-line {
+  stroke: var(--sfm-now);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: var(--sfm-dash-now);
+}
+
+.sfm-dial-now-ray--below .sfm-dial-now-line {
+  stroke-dasharray: var(--sfm-dash-below);
+  opacity: 0.55;
+}
+
+/* A dark casing under every line, so lines read on any map colour. */
+.sfm-dial .sfm-dial-casing {
+  stroke: var(--sfm-halo);
+  stroke-width: 5.5;
+  opacity: 0.55;
+}
+
+.sfm-dial .sfm-dial-now-line.sfm-dial-casing {
+  stroke-width: 6;
+}
+
+.sfm-dial-transit {
+  fill: var(--sfm-transit);
+  stroke: var(--sfm-halo);
+  stroke-width: 1.4;
+}
+
+.sfm-dial-label {
+  font: 650 12px var(--sfm-font);
+  paint-order: stroke;
+  stroke: var(--sfm-halo);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+
+.sfm-dial-label--rise {
+  fill: var(--sfm-rise);
+}
+
+.sfm-dial-label--set {
+  fill: var(--sfm-set);
+}
+
+.sfm-dial-note {
+  font: 600 12px var(--sfm-font);
+  fill: var(--sfm-compass-label);
+  paint-order: stroke;
+  stroke: var(--sfm-compass-fill);
+  stroke-width: 4px;
+  stroke-linejoin: round;
+}
+
+.sfm-dial-glyph--below {
+  opacity: 0.55;
+}
+
+.sfm-glyph-rays line {
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.sfm-glyph-disc {
+  stroke: var(--sfm-halo);
+  stroke-width: 1.5;
+}
+
+.sfm-glyph-moon-dark {
+  fill: var(--sfm-halo);
+}
+
+.sfm-glyph-outline {
+  fill: none;
+  stroke: var(--sfm-halo);
+  stroke-width: 1.5;
+}
+
+.sfm-glyph-ring {
+  fill: none;
+  stroke-width: 1.6;
+}
+
+.sfm-dial-centre {
+  fill: var(--sfm-observer);
+  stroke: var(--sfm-observer-ring);
+  stroke-width: 1.5;
+}
+
+/* --- Controls ------------------------------------------------------------------------- */
+
+.sfm-controls {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.sfm-group {
+  display: flex;
+  flex-direction: column;
+  border-radius: 8px;
+  background: var(--sfm-surface);
+  box-shadow: 0 0 0 1px var(--sfm-line), 0 2px 8px -2px var(--sfm-halo);
+  overflow: hidden;
+}
+
+.sfm-btn {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--sfm-ink);
+  cursor: pointer;
+}
+
+.sfm-btn + .sfm-btn {
+  border-top: 1px solid var(--sfm-line);
+}
+
+.sfm-btn:hover {
+  background: color-mix(in srgb, var(--sfm-ink) 8%, transparent);
+}
+
+.sfm-btn:focus-visible,
+.sfm-textbtn:focus-visible,
+.sfm-layer input:focus-visible {
+  outline: 3px solid var(--sfm-focus);
+  outline-offset: -3px;
+}
+
+.sfm-btn[aria-pressed='true'],
+.sfm-btn.is-on {
+  background: var(--sfm-accent);
+  color: var(--sfm-halo);
+}
+
+.sfm-icon {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sfm-layers {
+  width: min(290px, calc(100vw - 80px));
+  max-height: min(60vh, 460px);
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--sfm-surface);
+  color: var(--sfm-ink);
+  box-shadow: 0 0 0 1px var(--sfm-line), 0 8px 24px -6px var(--sfm-halo);
+  font-size: 13px;
+}
+
+.sfm-layers-title {
+  margin: 0 0 6px;
+  font-weight: 650;
+}
+
+.sfm-layer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 5px 0;
+  cursor: pointer;
+}
+
+.sfm-layer input {
+  margin: 2px 0 0;
+  accent-color: var(--sfm-accent);
+}
+
+.sfm-layer-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.3;
+}
+
+.sfm-layer-hint {
+  color: var(--sfm-ink-2);
+  font-size: 11.5px;
+}
+
+/* The map centre, shown while keyboard users work the map. */
+.sfm-crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  display: none;
+  pointer-events: none;
+  z-index: 2;
+  background:
+    linear-gradient(var(--sfm-ink), var(--sfm-ink)) center / 2px 100% no-repeat,
+    linear-gradient(var(--sfm-ink), var(--sfm-ink)) center / 100% 2px no-repeat;
+  filter: drop-shadow(0 0 1.5px var(--sfm-surface)) drop-shadow(0 0 1px var(--sfm-surface));
+}
+
+.sfm-map:has(.maplibregl-canvas:focus-visible) ~ .sfm-crosshair,
+.sfm:has(.sfm-btn--centre:focus-visible) .sfm-crosshair {
+  display: block;
+}
+
+/* --- Read-outs ------------------------------------------------------------------------- */
+
+.sfm-readout {
+  position: absolute;
+  left: 50%;
+  bottom: 16px;
+  z-index: 3;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--sfm-surface);
+  color: var(--sfm-ink);
+  box-shadow: 0 0 0 1px var(--sfm-line), 0 6px 20px -6px var(--sfm-halo);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.sfm-readout[hidden] {
+  display: none;
+}
+
+.sfm-readout p {
+  margin: 0;
+}
+
+.sfm-readout-title {
+  font-weight: 650;
+}
+
+.sfm-readout-line {
+  font-variant-numeric: tabular-nums;
+}
+
+.sfm-readout-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.sfm-textbtn {
+  appearance: none;
+  border: 1px solid var(--sfm-line);
+  border-radius: 6px;
+  padding: 4px 10px;
+  background: transparent;
+  color: var(--sfm-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.sfm-attrib {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  z-index: 3;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--sfm-surface);
+  font-size: 11px;
+}
+
+.sfm-attrib a {
+  color: var(--sfm-ink);
+}
+
+.sfm .maplibregl-ctrl-bottom-left .maplibregl-ctrl-scale {
+  background: var(--sfm-surface);
+  color: var(--sfm-ink);
+  border-color: var(--sfm-ink);
+  font: 11px var(--sfm-font);
+}
+
+@media (max-width: 600px) {
+  .sfm-controls {
+    top: 8px;
+    right: 8px;
+    gap: 6px;
+  }
+  .sfm-btn {
+    width: 40px;
+    height: 40px;
+  }
+  .sfm-readout {
+    flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sfm * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

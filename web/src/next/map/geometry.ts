@@ -30,6 +30,11 @@ import type { LatLonDeg } from '../engine/types.js';
 const RAD = Math.PI / 180;
 const DEG = 180 / Math.PI;
 
+/** A new empty FeatureCollection. */
+export function emptyCollection(): FeatureCollection {
+  return { type: 'FeatureCollection', features: [] };
+}
+
 /** Longitude in (-180, 180], never -0. */
 export function wrapLon(lon: number): number {
   if (lon > -180 && lon <= 180) return lon === 0 ? 0 : lon;
