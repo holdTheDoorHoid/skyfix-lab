@@ -673,3 +673,51 @@ fn a_negative_height_of_eye_is_reported_and_treated_as_zero() {
         b.warnings
     );
 }
+
+#[test]
+fn an_observed_ho_at_low_altitude_is_flagged_but_its_sigma_is_left_alone() {
+    // The sigma of an observed_ho record was declared by whoever applied refraction to
+    // it. Flag the extra refraction uncertainty; do not inflate a second time.
+    let b = correct(3.0, AltitudeKind::ObservedHo, 1.0, star("obs-ho-low")).unwrap();
+    assert_eq!(b.ho_deg, 3.0);
+    assert_eq!(b.sigma_ho_arcmin, 1.0);
+    match b
+        .warnings
+        .iter()
+        .find(|w| matches!(w, Warning::LowAltitudeRefraction { .. }))
+    {
+        Some(Warning::LowAltitudeRefraction {
+            sigma_added_arcmin, ..
+        }) => assert_eq!(*sigma_added_arcmin, 0.0),
+        other => panic!("expected a low-altitude warning, got {other:?}"),
+    }
+}
+
+#[test]
+fn an_apparent_ha_under_an_artificial_horizon_is_not_halved_again() {
+    // `apparent_ha` is defined as post-halving (CONVENTIONS section 4). Halving it a
+    // second time would quietly put the sight 20 degrees out and leave sigma too small.
+    let mut inputs = star("obs-ah-ha");
+    inputs.horizon = HorizonMode::ArtificialReflected;
+    let b = correct(40.0, AltitudeKind::ApparentHa, 2.0, inputs).unwrap();
+    assert!(!step(&b, CorrectionKind::ArtificialHorizonHalving).applied);
+    assert_relative_eq!(
+        b.ho_deg,
+        40.0 - refraction_arcmin(40.0, 1010.0, 10.0) / 60.0,
+        epsilon = 1e-12
+    );
+    assert_eq!(
+        b.sigma_ho_arcmin, 2.0,
+        "sigma already describes the halved angle"
+    );
+    // The halving is named among the ignored steps, so the danger is visible.
+    let ignored = b
+        .warnings
+        .iter()
+        .find_map(|w| match w {
+            Warning::AlreadyCorrected { ignored, .. } => Some(ignored.clone()),
+            _ => None,
+        })
+        .expect("already-corrected warning");
+    assert!(ignored.contains(&CorrectionKind::ArtificialHorizonHalving));
+}

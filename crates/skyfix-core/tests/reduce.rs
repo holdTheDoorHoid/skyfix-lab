@@ -503,3 +503,38 @@ fn reduction_warnings_include_the_correction_warnings() {
         r.sigma_arcmin
     );
 }
+
+/// End to end over the fixture that uses every field: JSON in, reduced sights out.
+/// Expected altitudes computed outside the crate at 1013.25 hPa and 7.5 C.
+#[test]
+fn the_every_field_fixture_reduces_end_to_end() {
+    let (s, _) =
+        skyfix_core::session::parse_session(include_str!("data/every_field.session.json")).unwrap();
+    let results = reduce_session(&s, &SuppliedOnly);
+    assert_eq!(results.len(), 3);
+
+    // obs-1: star, sea horizon, IC -2.0', height of eye 2.5 m (dip 2.782 804 3').
+    let obs1 = results[0].as_ref().unwrap();
+    assert_relative_eq!(obs1.ho_deg, 61.145_538_010_063_45, epsilon = 1e-9);
+    assert_eq!(obs1.sigma_arcmin, 1.0);
+
+    // obs-2: Sun lower limb through a reflected artificial horizon. The recorded
+    // double angle halves to Ha 39.716 666 7 deg and its sigma halves with it.
+    let obs2 = results[1].as_ref().unwrap();
+    assert_relative_eq!(obs2.ho_deg, 39.965_068_263_516_75, epsilon = 1e-9);
+    assert_eq!(
+        obs2.sigma_arcmin, 1.0,
+        "2.0' on the double angle is 1.0' on Ha"
+    );
+    assert!(obs2.hc_deg.is_some() && obs2.zn_deg.is_some());
+
+    // obs-3 carries no direction and there is no provider: rejected by name, never
+    // quietly dropped from the list.
+    match &results[2] {
+        Err(SkyfixError::NoDirection { id, reason }) => {
+            assert_eq!(id, "obs-3");
+            assert!(reason.contains("no ephemeris provider"), "{reason}");
+        }
+        other => panic!("expected obs-3 to be rejected, got {other:?}"),
+    }
+}
