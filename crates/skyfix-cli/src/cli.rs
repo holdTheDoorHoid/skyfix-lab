@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use skyfix_core::types::{LatLon, PositionPrior};
 
+use crate::commands::plan::ObjectiveArg;
 use crate::commands::solve;
 use crate::provider::EphemerisChoice;
 
@@ -144,14 +145,21 @@ pub enum Command {
         #[arg(long, value_name = "RFC3339")]
         utc: String,
         /// Ignore bodies below this altitude, degrees.
-        #[arg(long = "min-alt", default_value_t = 15.0, value_name = "DEG")]
+        #[arg(long = "min-alt", default_value_t = skyfix_core::planner::DEFAULT_MIN_ALTITUDE_DEG, value_name = "DEG")]
         min_alt: f64,
         /// Ignore bodies above this altitude, degrees.
-        #[arg(long = "max-alt", default_value_t = 75.0, value_name = "DEG")]
+        #[arg(long = "max-alt", default_value_t = skyfix_core::planner::DEFAULT_MAX_ALTITUDE_DEG, value_name = "DEG")]
         max_alt: f64,
         /// How many bodies to recommend.
-        #[arg(long, default_value_t = 5, value_name = "N")]
+        #[arg(long, default_value_t = skyfix_core::planner::DEFAULT_SELECT, value_name = "N")]
         select: usize,
+        /// What the greedy selection minimises.
+        #[arg(long, value_enum, default_value_t = ObjectiveArg::MinTrace, value_name = "WHAT")]
+        objective: ObjectiveArg,
+        /// A session of sights already taken. They fix the starting geometry, so the
+        /// recommendation is what to shoot next.
+        #[arg(long, value_name = "SESSION")]
+        taken: Option<PathBuf>,
         #[arg(long)]
         json: bool,
     },

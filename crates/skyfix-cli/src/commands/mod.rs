@@ -7,9 +7,9 @@
 pub mod catalog;
 pub mod convert;
 pub mod experiment;
+pub mod plan;
 pub mod reduce;
 pub mod scenarios;
 pub mod simulate;
 pub mod solve;
-pub mod stubs;
 pub mod validate;

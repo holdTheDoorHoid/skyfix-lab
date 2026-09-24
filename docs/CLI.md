@@ -24,10 +24,12 @@ Two rules hold everywhere:
 | 1 | usage error, unreadable file, parse failure, or a validation error |
 | 2 | one or more sights were rejected; whatever could be reduced was still printed |
 | 3 | the solve failed, or `--require-unique` was given and the result was not unique |
-| 4 | the subcommand exists but is not wired up in this build |
+| 4 | reserved: a subcommand that exists but is not wired up |
 
 Codes compose by taking the worst one a run earned, so a session with a rejected sight
-that then fails to solve reports 3, not 2.
+that then fails to solve reports 3, not 2. Code 4 is currently **unreachable** — every
+subcommand has been wired since the planner landed — and is kept so that a future
+subcommand arriving ahead of its engine reuses it rather than inventing a sixth number.
 
 Two of these are worth stating plainly:
 
@@ -215,11 +217,54 @@ nothing — and the CLI reports the refusal as exit 1.
 Exit 3 when no repetition produced a unique fix with a usable covariance, which is what
 `--demo single-sight` does and is a correct result rather than a failure.
 
-### `skyfix plan` — not wired in this build
+### `skyfix plan`
 
-Exits 4. Its flags are settled (`--position LAT,LON --utc RFC3339 [--min-alt 15]
-[--max-alt 75] [--select 5] [--json]`), so `--help` describes the finished tool and a
-script written today keeps working; `skyfix_core::planner` is still a stub.
+Rank the bodies worth shooting from an approximate position at an instant, by what each
+one does to the **conditioning** of the fix rather than by how bright it is
+(docs/PLANNER.md).
+
+| flag | meaning |
+|---|---|
+| `--position LAT,LON` | approximate position, degrees, east-positive longitude. Required, and disclosed in the output |
+| `--utc RFC3339` | the instant, UTC with a trailing `Z`. Required |
+| `--min-alt DEG` | ignore bodies below this altitude; default 15 |
+| `--max-alt DEG` | ignore bodies above this altitude; default 75 |
+| `--select N` | how many to recommend; default 5 |
+| `--objective min-trace \| min-max-eigen \| min-condition` | what the greedy selection minimises; default `min-trace` |
+| `--taken SESSION` | sights already made. They fix the starting geometry, so the answer is what to shoot **next** |
+| `--json` | the `Plan` exactly as serde emits it |
+
+The three objectives answer different questions, and the plan prints the core's own
+one-line description of whichever you chose:
+
+- **`min-trace`** (A-optimal) minimises the overall size of the fix, in metres. The right
+  default: a navigator asks "how big is my error" before "in which direction".
+- **`min-max-eigen`** (E-optimal) minimises the *worst* direction — the semi-major axis —
+  and drives hard toward a round ellipse. Use it when one direction matters, such as
+  closing a coast.
+- **`min-condition`** minimises the ellipse's **aspect ratio**. It optimises shape and is
+  blind to size, so a plan built on it can end with a *larger* ellipse than one built on
+  `min-trace`. Use it to diagnose or repair geometry, not to minimise error.
+
+Three things the command discloses rather than hides:
+
+- **The position is an input.** A planner is allowed an approximate position where a
+  solver is not, and the notes say which one it rested on.
+- **Visibility is geometric only.** Nothing here knows about cloud, haze, a building or
+  the Moon. The Sun's altitude is computed with `SunProvider` and only attaches the
+  twilight sentence — it never removes a body.
+- **Every note is printed verbatim, one per line, unwrapped**, so the text report and
+  `--json` carry byte-identical disclosures.
+
+`--taken` reduces the session first, so a record that supplies its own direction and one
+the provider resolves are handled identically, and the sigma used is the *reduced* sigma
+— the one an artificial-horizon halving or a low-altitude inflation has already adjusted.
+The azimuths are recomputed at the plan's own `--position`, not at the session's assumed
+position, so every azimuth in the report is measured from the same place and a session
+with no assumed position still works.
+
+An instant outside a provider's coverage is refused (exit 1) rather than answered with
+half a sky.
 
 ---
 
@@ -393,6 +438,127 @@ Warnings
 The ellipse is now 52 km along its major axis, oriented due east-west, and it covers the
 truth. The position did not improve; the claim about it became true.
 
+
+### 4. What to shoot, and what to shoot next
+
+The planner ranks by geometry, not brightness. Same place and instant as the fixtures.
+
+```console
+$ skyfix plan --position 39.9526,-75.1652 --utc 2026-10-01T01:30:00Z
+OBSERVATION PLAN
+Position   39 57.16' N, 075 09.91' W (39.952600, -75.165200)
+Time       2026-10-01T01:30:00Z
+Sun        altitude -31.7 deg, so dark: stars visible, natural horizon likely not (artificial horizon or electronic vertical needed)
+Objective  objective min_trace (A-optimal): minimise sqrt(trace of the position covariance), i.e. the overall size of the fix, in metres
+
+Shoot in this order
+  #   body                  alt      Zn    mag  sigma '       score
+  1   Vega                 61.1   280.1   0.03     1.00        21.8
+  2   Polaris              40.0     0.8   1.97     1.00        21.8
+  3   Mirfak               27.0    46.0   1.79     1.00       457.1
+  4   Alkaid               18.3   319.7   1.85     1.00       337.1
+  5   Rasalhague           36.1   254.9   2.08     1.00       186.1
+
+  1.   no sights yet, so position is unconstrained in every direction; this body's azimuth
+       280 opens the first line of position. Magnitude 0.03, which did not enter the
+       ranking. dark: stars visible, natural horizon likely not (artificial horizon or
+       electronic vertical needed).
+  2.   current geometry is weak along the N-S axis (no constraint at all on that axis yet);
+       this body's azimuth 1 adds constraint there. Magnitude 1.97, which did not enter the
+       ranking. dark: stars visible, natural horizon likely not (artificial horizon or
+       electronic vertical needed).
+  (rationales for 3, 4 and 5 elided)
+  score is in nats (growth in ln det of the information matrix; the covariance was still
+  singular at this step)
+  score is in metres (reduction in sqrt(trace of position covariance))
+
+Predicted quality, sight by sight
+  step      sights   sigma N m   sigma E m  semi-maj m  semi-min m      axis    cond gap deg
+  before         0           -           -           -           -         -       -   360.0
+  +1             1           -           -           -           -         -       -   360.0
+  +2             2      1847.7      1904.5      2021.4      1719.1     NE-SW    1.18   279.2
+  +3             3      1546.8      1559.4      1721.2      1364.5     NW-SE    1.26   234.0
+  +4             4      1283.7      1345.2      1372.0      1254.9   ENE-WSW    1.09   234.0
+  +5             5      1260.9      1100.0      1264.0      1096.4       N-S    1.15   208.9
+
+Before these sights there is no position at all — fewer than two independent azimuths,
+so no covariance exists. Afterwards the predicted fix is about 1673 m overall.
+
+Excluded
+  Deneb             alt  82.7  Zn 320.6  altitude 82.7 deg is above the 75.0 deg maximum: near the zenith the azimuth of the
+        line of position is poorly defined (a small altitude error swings it a long way) and
+        the sextant is hard to hold and swing
+
+Notes
+  - approximate position supplied: 39.9526, -75.1652: ranking is only as good as it
+  - geometric visibility only: no weather, no twilight model beyond the Sun-altitude flag
+  - brightness is secondary to geometry in this ranking
+  - objective min_trace (A-optimal): minimise sqrt(trace of the position covariance), i.e. the overall size of the fix, in metres
+  - excluded Deneb: altitude 82.7 deg is above the 75.0 deg maximum: near the zenith the azimuth of the line of position is poorly defined (a small altitude error swings it a long way) and the sextant is hard to hold and swing
+  - fewer than two sights were available at the start, so the covariance did not exist: those steps were scored on the growth of ln det(J^T W J) with a ridge of one isotropic pseudo-sight at sigma 1e8 m (about 16 Earth radii, i.e. no navigational information). Their scores are in nats and are not comparable with the later metre-valued scores
+  - selected 5 of 17 eligible candidates (1 excluded), starting from 0 sight(s) already taken
+  - 18 of 59 bodies offered by skyfix-auto are at or above the 15.0 deg minimum altitude at this place and time; the rest were never ranked
+  - twilight flag from the supplied Sun altitude: dark: stars visible, natural horizon likely not (artificial horizon or electronic vertical needed)
+```
+
+Read the order, not the magnitudes. It is tempting to conclude that Vega was picked
+first because it is magnitude 0.03 and the brightest thing up. It was not: brightness
+never enters the arithmetic. With no sights yet, *every* candidate scores identically —
+one line of position is one line of position wherever it points, which is why steps 1 and
+2 both score 21.8 — and the planner breaks that tie on **altitude**, so Vega wins at 61.1
+degrees for being the highest body inside the window. Polaris then follows at magnitude
+1.97, and the rationale says exactly why: the geometry is unconstrained north-south and
+Polaris is due north, across Vega's westerly line.
+
+The first two scores are in nats rather than metres, and the notes say so. Until there
+are two independent azimuths there is no covariance to reduce, so those steps are scored
+on the growth of `ln det` of the information matrix instead. That is the same fact the
+progression table shows from the other side: the `before` and `+1` rows have no sigma at
+all, because one altitude is a circle and a circle is not a position.
+
+Deneb is excluded at 82.7 degrees. Near the zenith a small altitude error swings the
+azimuth of the line of position a long way, and the sextant is awkward to swing, so the
+default window stops at 75.
+
+Now suppose two sights are already in the book, both in the north-east 0.3 degrees apart
+in azimuth — the classic mistake of shooting whatever was in the one clear patch of sky:
+
+```console
+$ skyfix plan --position 39.9526,-75.1652 --utc 2026-10-01T01:30:00Z \
+      --taken $D/phl_clustered.session.json --select 2
+Shoot in this order
+  #   body                  alt      Zn    mag  sigma '       score
+  1   Alkaid               18.3   319.7   1.85     1.00    443364.5
+  2   Eltanin              55.4   305.7   2.24     1.00       418.3
+
+  1.   current geometry is weak along the NW-SE axis (information ratio 115798.9); this
+       body's azimuth 320 adds constraint there. Magnitude 1.85, which did not enter the
+       ranking. dark: stars visible, natural horizon likely not (artificial horizon or
+       electronic vertical needed).
+  2.   current geometry is weak along the NW-SE axis (information ratio 2.0); this body's
+       azimuth 306 adds constraint there. Magnitude 2.24, which did not enter the ranking.
+       dark: stars visible, natural horizon likely not (artificial horizon or electronic
+       vertical needed).
+  score is in metres (reduction in sqrt(trace of position covariance))
+
+Predicted quality, sight by sight
+  step      sights   sigma N m   sigma E m  semi-maj m  semi-min m      axis    cond gap deg
+  before         2    319832.6    310322.6    445635.8      1309.6     NW-SE  340.29   359.7
+  +1             3      1579.8      1634.6      1860.1      1306.7     NW-SE    1.42   273.6
+  +2             4      1346.8      1275.5      1348.3      1273.9       N-S    1.06   259.7
+```
+
+The `before` row is what those two sights alone predict: a semi-major axis of **446 km**
+against a semi-minor of 1310 m, a condition number of 340, and 359.7 degrees of azimuth
+gap. Two nearly parallel circles of position tell you almost exactly where you are along
+one line and almost nothing about where you are across it.
+
+One crossing sight fixes it. Alkaid is magnitude 1.85, low at 18 degrees, and nothing
+about it is impressive — but its azimuth of 320 is very nearly perpendicular to the pair
+already taken, and it brings the semi-major axis from 446 km to 1860 m. That is the
+planner's whole argument in one row: a dim body in the right direction beats a bright one
+in a direction you already have.
+
 ---
 
 ## Other things worth running
@@ -409,6 +575,9 @@ skyfix solve $D/phl_one_star.session.json
 # Good against clustered geometry: same stars, same seed, same noise.
 skyfix experiment --demo good-geometry --repetitions 100
 skyfix experiment --demo clustered-geometry --repetitions 100
+
+# The same plan optimised for shape rather than size.
+skyfix plan --position 39.9526,-75.1652 --utc 2026-10-01T01:30:00Z --objective min-condition
 ```
 
 `shared-bias` is *supposed* to report a coverage of 0.000 with an error thirty times the

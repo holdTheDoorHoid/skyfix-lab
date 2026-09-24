@@ -1,11 +1,13 @@
 //! Finding a scenario, for `simulate`, `experiment` and `demos`. OWNER: cli agent.
 //!
-//! `skyfix_sim::demos::by_name` reaches the eight scenarios in `demos::all()` plus
-//! `philadelphia-stars-real`, but not `philadelphia-stars-sextant`, which exists as a
-//! function and is listed in `docs/SIMULATOR.md` as one of the ten packaged scenarios.
-//! [`by_name`] here covers all ten so that `skyfix demos` and `--demo` agree with the
-//! documentation; if `skyfix_sim::demos::by_name` grows the missing arm, this falls back
-//! to it unchanged.
+//! `skyfix_sim::demos::all()` returns the eight scenarios that need no astronomy
+//! provider. Two more are packaged — `philadelphia-stars-real`, which needs one, and
+//! `philadelphia-stars-sextant`, which emits raw sextant readings — and
+//! `docs/SIMULATOR.md` section 8 lists all ten. [`all`] here puts the missing two back,
+//! beside the demo they are variants of, so `skyfix demos` matches the documentation.
+//!
+//! [`by_name`] defers to `skyfix_sim::demos::by_name` (which now reaches all ten) and
+//! falls back to this listing, so the two can never disagree about what exists.
 
 use std::path::Path;
 

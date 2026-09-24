@@ -403,11 +403,19 @@ pub fn names() -> Vec<String> {
     all().into_iter().map(|s| s.name).collect()
 }
 
-/// Look a demo up by name, including [`philadelphia_stars_named`], which [`all`] leaves
-/// out because it needs a provider.
+/// Look a demo up by name.
+///
+/// Covers all ten packaged scenarios, including the two [`all`] leaves out:
+/// [`philadelphia_stars_named`], which needs an astronomy provider, and
+/// [`philadelphia_stars_sextant`], which emits raw sextant readings. `docs/SIMULATOR.md`
+/// section 8 lists all ten, so a lookup that reached only eight of them made the
+/// documentation wrong.
 pub fn by_name(name: &str) -> Option<Scenario> {
     if name == "philadelphia-stars-real" {
         return Some(philadelphia_stars_named());
+    }
+    if name == "philadelphia-stars-sextant" {
+        return Some(philadelphia_stars_sextant());
     }
     all().into_iter().find(|s| s.name == name)
 }
@@ -538,10 +546,20 @@ mod tests {
         for n in &names {
             assert_eq!(by_name(n).unwrap().name, *n);
         }
-        assert_eq!(
-            by_name("philadelphia-stars-real").unwrap().name,
-            "philadelphia-stars-real"
-        );
+        // The two that `all()` leaves out must still be findable: docs/SIMULATOR.md
+        // section 8 lists ten packaged scenarios, and a lookup reaching only eight
+        // would make that documentation wrong.
+        for extra in ["philadelphia-stars-real", "philadelphia-stars-sextant"] {
+            assert_eq!(
+                by_name(extra).unwrap().name,
+                extra,
+                "{extra} is unreachable"
+            );
+            assert!(
+                !names.contains(&extra.to_string()),
+                "{extra} is in all() now"
+            );
+        }
         assert!(by_name("nope").is_none());
     }
 

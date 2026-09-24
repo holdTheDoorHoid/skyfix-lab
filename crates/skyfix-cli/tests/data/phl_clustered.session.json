@@ -1,0 +1,62 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Philadelphia two-star, clustered",
+    "notes": "Schedar at Zn 45.7 and Mirfak at Zn 46.0, both in the north-east. Used to check that `skyfix plan --taken` recommends a body across the weak axis rather than another bright one in the same direction.",
+    "kind": "simulated"
+  },
+  "observer": {
+    "height_of_eye_m": 0.0,
+    "pressure_hpa": 1010.0,
+    "temperature_c": 10.0,
+    "assumed_position": null,
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "",
+    "index_correction_arcmin": 0.0,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "obs-1",
+      "body": "Schedar",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 51.978992568828,
+      "altitude_kind": "observed_ho",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 21.787119437363,
+        "dec_deg": 56.686056200561,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    },
+    {
+      "id": "obs-2",
+      "body": "Mirfak",
+      "utc": "2026-10-01T01:30:00Z",
+      "altitude_deg": 26.969517462658,
+      "altitude_kind": "observed_ho",
+      "sigma_arcmin": 1.0,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": {
+        "gha_deg": 340.737190708403,
+        "dec_deg": 49.955153072109,
+        "semidiameter_arcmin": 0.0,
+        "horizontal_parallax_arcmin": 0.0
+      },
+      "notes": ""
+    }
+  ]
+}
