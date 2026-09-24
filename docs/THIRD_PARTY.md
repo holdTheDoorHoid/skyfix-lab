@@ -304,10 +304,20 @@ project. Note also that `aa.usno.navy.mil` resets connections from unfamiliar
 `User-Agent` strings, which is why `tools/reference/gen_usno.py` shells out to
 `curl` rather than using `urllib` directly.
 
-### OPEN QUESTION — Hipparcos licence vs the project's MIT/Apache-2.0 licence
+### Hipparcos licence vs the project's MIT/Apache-2.0 licence — DECIDED
 
-**This needs a human decision before any public release. Flagging, not
-resolving.**
+**Decision by the project owner, 2026-09-24: keep the 58-row extract, with the
+attribution below.** The reasoning: the rows are individual astrometric measurements
+(facts), the extract is 58 of 118 218 entries and six of 78 fields, the raw catalogue is
+never redistributed, and ESA and CDS are credited wherever the data appear. Expanding to
+a substantial part of the catalogue would reopen this question and would need either
+ESA/CDS confirmation of the terms or a permissively licensed source.
+
+**Attribution:** This product uses data from the Hipparcos catalogue, ESA (1997), *The
+Hipparcos and Tycho Catalogues*, ESA SP-1200, as served by the Centre de Données
+astronomiques de Strasbourg (CDS/VizieR, catalogue I/239).
+
+The original analysis, kept for the record:
 
 `fixtures/reference/navigational_stars_hip.json` **is committed** and contains
 58 rows copied verbatim out of `hip_main.dat`: for each star, `ra_deg`,
