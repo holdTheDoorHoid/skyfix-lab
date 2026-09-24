@@ -278,6 +278,13 @@ export interface ExplorerEngine {
    * (EXPLORER_API "starfield_frame_matrix"); optional so existing engines still compile.
    */
   starfieldFrameMatrix?(jdUtc: number): Float64Array;
+  /**
+   * The navigation tools (`NavEngine` and `NavSkyEngine`, below), composed in by the
+   * engine when its build has them (`engine/wasm-nav.ts`, `engine/mock-nav.ts`). Optional:
+   * a package built before the navigation exports has none, and the Navigate view says
+   * which functions are missing. Addition by the navigate agent.
+   */
+  readonly nav?: NavEngine & NavSkyEngine;
 }
 
 /** UTC-based Julian Date from a JS timestamp (EXPLORER_API "Common rules"). */
@@ -545,7 +552,11 @@ export interface AveragedSight {
   outliers: string[];
   residuals: RunResidual[];
   model_curve: CurvePoint[];
-  /** The averaged sight as an `observed_ho` observation, ready for a session. */
+  /**
+   * The averaged sight as an `observed_ho` observation, ready for a session. Its `utc` is on
+   * the session's chronometer (the averaged instant minus `clock.correction_s`), like the
+   * observations it replaces; the reducer's correction brings it back to `utc` above.
+   */
   observation: Observation;
   sights: ReducedSight[];
   warnings: Warning[];

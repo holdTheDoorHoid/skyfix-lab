@@ -22,3 +22,6 @@ __pycache__/
 
 # Working screenshots from agents; only curated images in docs/design/ are committed.
 docs/design/local/
+
+# The assembled Pages site (web/scripts/pages-site.sh), for local checks.
+/site/

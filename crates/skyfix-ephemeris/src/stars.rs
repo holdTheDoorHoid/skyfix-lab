@@ -119,6 +119,13 @@ impl StarProvider {
     }
 
     fn check_coverage(&self, jd_utc: f64) -> Result<(), EphemerisError> {
+        // A NaN compares false with both ends, so it must be refused on its own, as the
+        // Sun, Moon and planet providers do; otherwise it came back as a NaN direction.
+        if !jd_utc.is_finite() {
+            return Err(EphemerisError::Data(
+                "jd_utc is not a finite Julian date".to_string(),
+            ));
+        }
         if jd_utc < coverage_start_jd() || jd_utc > coverage_end_jd() {
             return Err(EphemerisError::OutOfCoverage {
                 provider: PROVIDER_NAME.to_string(),

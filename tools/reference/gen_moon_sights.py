@@ -708,7 +708,7 @@ def apparent_limb_distance(u_m, s_m, u_b, s_b, moon_limb, body_limb, p, t_c):
         m_point = refracted(disc_point(u_m, s_m, th_m), p, t_c)
         if body_limb == "center":
             break
-        th_b, _ = best_theta(u_b, s_b, m_point, p, t_c, False)
+        th_b, _ = best_theta(u_b, s_b, m_point, p, t_c, body_limb == "far")
         b_point = refracted(disc_point(u_b, s_b, th_b), p, t_c)
     m_point = refracted(disc_point(u_m, s_m, th_m), p, t_c)
     return angle(m_point, b_point)

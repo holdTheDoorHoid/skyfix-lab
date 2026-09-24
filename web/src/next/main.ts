@@ -14,6 +14,7 @@ import { createScheduler, memoEngine, type Component, type Ctx, type Mounted } f
 import { selectEngine } from './engine/index.js';
 import { createNotices } from './notices.js';
 import { bindTimeKeys, startPlayback } from './playback.js';
+import { startPwa } from './pwa/index.js';
 import { createExplorerStore, listenForShareLinks } from './state.js';
 
 const BANNER = 'Simulation and analysis workbench. Not a navigation instrument.';
@@ -105,3 +106,7 @@ if (app) {
       fatal(app, error instanceof Error ? error.message : String(error));
     });
 }
+
+// Offline use: the service worker, the Offline chip and the update prompt (release agent).
+// Outside `boot`, so a page that failed to start can still be offered a fixed version.
+startPwa();

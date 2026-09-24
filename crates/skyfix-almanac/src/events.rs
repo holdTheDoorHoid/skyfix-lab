@@ -876,7 +876,7 @@ fn quarter_crossings(
 /// (ecliptic and equinox of date) is 0, 90, 180 and 270 degrees (CONVENTIONS 13.5).
 ///
 /// Fails with [`AlmanacError::Unavailable`] when the provider cannot give the Moon or
-/// the Sun over the window (the Moon provider is a stub until its agent lands).
+/// the Sun over the whole window (outside their 1990-2060 coverage).
 pub fn moon_phases(
     eph: &dyn BodyEphemeris,
     jd_start: f64,
@@ -900,6 +900,10 @@ pub fn moon_phases(
         Ok(ecliptic_longitude_deg(m.ra_deg, m.dec_deg, eps)
             - ecliptic_longitude_deg(s.ra_deg, s.dec_deg, eps))
     };
+    // The end first: a window that runs past the Moon's or the Sun's coverage then fails
+    // at once, instead of after scanning every day up to the edge (6 s for a window of
+    // centuries, found by fuzzing). The start is the scan's first evaluation.
+    elongation(jd_end)?;
     // The elongation grows 10.8 to 14.4 degrees a day: two days is always < 90.
     Ok(quarter_crossings(elongation, jd_start, jd_end, 2.0)?
         .into_iter()
@@ -957,9 +961,15 @@ pub fn seasons(eph: &dyn BodyEphemeris, year: i32) -> Result<Vec<SeasonEvent>, A
 /// no ephemeris, no coverage limit. Local sidereal angle = `gha_aries + lon_east`.
 pub fn sidereal(jd_utc: f64) -> Result<Sidereal, AlmanacError> {
     check_jd("jd_utc", jd_utc)?;
-    Ok(Sidereal {
-        gha_aries_deg: skyfix_ephemeris::sidereal::gha_aries_deg(jd_utc, 0.0),
-    })
+    let gha_aries_deg = skyfix_ephemeris::sidereal::gha_aries_deg(jd_utc, 0.0);
+    // Far enough from J2000 the sidereal-time polynomial overflows: say so rather than
+    // hand back NaN as an angle.
+    if !gha_aries_deg.is_finite() {
+        return Err(AlmanacError::invalid(format!(
+            "jd_utc {jd_utc} is too far from J2000 for sidereal time"
+        )));
+    }
+    Ok(Sidereal { gha_aries_deg })
 }
 
 #[cfg(test)]
@@ -1073,6 +1083,56 @@ mod tests {
         );
     }
 
+    /// Counts provider calls, to show how much work a call does before it fails.
+    struct Counting {
+        sky: skyfix_ephemeris::body::Sky,
+        calls: std::cell::Cell<usize>,
+    }
+
+    impl skyfix_ephemeris::AstroProvider for Counting {
+        fn name(&self) -> &str {
+            "counting"
+        }
+        fn coverage(&self) -> skyfix_ephemeris::Coverage {
+            self.sky.coverage()
+        }
+        fn geocentric(
+            &self,
+            body: &str,
+            jd_utc: f64,
+        ) -> Result<skyfix_core::types::GeocentricDirection, skyfix_ephemeris::EphemerisError>
+        {
+            self.sky.geocentric(body, jd_utc)
+        }
+    }
+
+    impl BodyEphemeris for Counting {
+        fn apparent_state(
+            &self,
+            body: &str,
+            jd_utc: f64,
+        ) -> Result<ApparentState, skyfix_ephemeris::EphemerisError> {
+            self.calls.set(self.calls.get() + 1);
+            self.sky.apparent_state(body, jd_utc)
+        }
+    }
+
+    #[test]
+    fn a_phase_window_past_coverage_fails_before_scanning() {
+        // Verifier regression: 2060 to 2100 scanned every two days of 2060 (and refined
+        // each phase) before meeting the coverage edge; 1990 to 4728 took 6 s.
+        let eph = Counting {
+            sky: skyfix_ephemeris::body::Sky::new(),
+            calls: std::cell::Cell::new(0),
+        };
+        let e = moon_phases(&eph, civil_to_jd(2060, 1, 1), civil_to_jd(2100, 1, 1)).unwrap_err();
+        assert!(e.to_string().contains("Moon"), "{e}");
+        assert!(eph.calls.get() <= 2, "{} provider calls", eph.calls.get());
+        // Inside coverage nothing changes.
+        let p = moon_phases(&eph, civil_to_jd(2060, 1, 1), civil_to_jd(2060, 2, 1)).unwrap();
+        assert!((3..=5).contains(&p.len()), "{p:?}");
+    }
+
     #[test]
     fn sidereal_time_is_gast_with_dut1_zero() {
         let jd = 2_461_308.0;
@@ -1082,5 +1142,9 @@ mod tests {
             skyfix_ephemeris::sidereal::gha_aries_deg(jd, 0.0)
         );
         assert!(sidereal(f64::NAN).is_err());
+        // Verifier regression: a finite but absurd instant returned Ok(NaN).
+        for far in [1e308, -1e308] {
+            assert!(sidereal(far).is_err(), "{far}");
+        }
     }
 }

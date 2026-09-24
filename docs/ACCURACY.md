@@ -28,12 +28,12 @@ reproduce each row are in the numbered section named.
 | Planets, all seven (vs Skyfield + DE440s) | worst GHA 0.040′ (Neptune); the navigational four inside target by 15× or more | 0.1′ | 2, "Planets" |
 | Topocentric altitude/azimuth (any body, WGS84 site) | stars worst 0.0052′; the Sun's larger figure is the parallax itself being restored, residual 0.0034′ | 0.1′ | 2, "Spherical model…" |
 | Events: rise, set, twilight, transits (vs Skyfield, same threshold / vs USNO) | worst 0.420 s vs Skyfield; worst 29.4 s vs USNO's own 1-minute rounding | 10 s / 1 min | 9 |
-| Star field, display only (9,095 stars, apparent places vs Skyfield) | worst 0.307″ = 0.0051′ | 0.1′ | 8 |
+| Star field, display only (9,095 stars, apparent places vs Skyfield) | worst 0.307″ = 0.0051′; separately, BSC5P vs Hipparcos catalogue positions can disagree by up to 8.6″ = 0.14′ (Rigil Kentaurus, proper motion, at the edges of 1990-2060) | 0.1′ (exceeded for this one star; display only, never reaches a sight) | 8 |
 | Moon and planet sights (raw sextant readings vs Skyfield) | spherical-Earth chain worst 0.0063′; the one un-modelled term (the real Earth's shape) reaches 0.22′ for the Moon, median 0.09′, under 0.005′ for planets | matches ephemeris tolerance; Earth's-shape term not modelled (section 5) | 10 |
-| Lunar distance (UTC recovered, vs Skyfield) | within 0.74 s (altitudes computed from the DR) / 0.63 s (altitudes observed) | 5 s | 10 |
+| Lunar distance (UTC recovered, vs Skyfield) | within 0.74 s (altitudes computed from the DR) / 0.63 s (observed) / 2.1 s (one observed, one computed) | 5 s | 10 |
 | Almanac pages, tabulated values (vs Skyfield) | 99.2 % of printed values exact to the last digit; worst raw value 0.0197′ (a star's SHA) | 0.1′ angles/v/d/HP/SD, 1 min times | 11 |
 | Eclipses (vs NASA's canon / vs USNO local circumstances) | greatest eclipse worst 1.4 s (solar) / 11.3 s (lunar) vs NASA; local contacts within 2.0 s vs USNO | 2 min / 1 min | 12 |
-| Navigation methods: noon sight, Polaris, averaging, running fix (noise-free vs Skyfield truth; Bowditch's worked examples) | within 0.0001–0.0013′ of truth; running fix within 0.4–36 m; Bowditch reproduced to 0.02–0.18′ | — (numerical regression) | 3, "Navigation methods" |
+| Navigation methods: noon sight, Polaris, averaging, running fix (noise-free vs Skyfield truth; Bowditch's worked examples) | within 0.0001–0.0013′ of truth; running fix within 0.4–36 m; Bowditch reproduced to 0.02–0.19′ | — (numerical regression) | 3, "Navigation methods" |
 | Navigation methods: seeded-coverage of the stated sigma | 93.8–96.0 % (Polaris very near the pole with a poor DR: 89.8 %, a documented limit, `polaris_near_pole`) | ≈95 % | 3, "Navigation methods" |
 
 ## 1. What accuracy means here
@@ -532,7 +532,7 @@ runs (one near the zenith, one from a vessel making 15 knots); Polaris latitude 
 0.0001′ at ten latitudes from 1° to 89.8° N; averaged altitudes within 0.0001′ of the
 truth; a 36 NM running fix within 0.4 m (36 m on a true rhumb line, the great-circle-leg
 model of `docs/MOTION.md`). Bowditch's worked examples reproduce to 0.07′ (Polaris,
-§1912), 0.02′ (the Almanac's Polaris illustration) and 0.18′ (LAN, §1910, every tenth of
+§1912), 0.02′ (the Almanac's Polaris illustration) and 0.19′ (LAN, §1910, every tenth of
 it accounted for). The stated sigmas cover 93.8-96.0 % in seeded Monte Carlo, except
 Polaris within 1.5° of the pole with a DR good only to 30 NM (19° of longitude): 89.8 %,
 documented as a limit and flagged by `polaris_near_pole`.
@@ -791,10 +791,17 @@ step would fail it.
 
 What this comparison does not measure is the catalogue. Both sides start from the same
 Bright Star Catalogue values: FK5 J2000 positions to 0.1 s of RA and 1″ of Dec (so up
-to about 1″ from modern positions), proper motions to 1 mas/yr. Against the Hipparcos
-places `skyfix-ephemeris` uses, the 58 navigational stars agree to 0.9″ or better at
-J2000, except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
-differently along its 80-year orbit about B). At display scale none of this is visible.
+to about 1″ from modern positions at J2000), proper motions printed to 1 mas/yr but, for
+some stars, tens of mas/yr from Hipparcos's. Against the Hipparcos places
+`skyfix-ephemeris` uses, the 58 navigational stars agree to 0.9″ or better at J2000,
+except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
+differently along its 80-year orbit about B). Away from J2000 the proper motions tell
+(the verifier's check, apparent places of both at 1990.0, J2000, 2026.0 and the end of
+2060): Rigil Kentaurus reaches **8.6″ (0.14′) at the end of 2060** and 8.3″ in 1990,
+beyond the 0.1′ that CONVENTIONS 13.7 sets for star-field places; Ankaa 3.8″ and Dubhe
+2.9″ in 2060 (their catalogue proper motions are 52 and 36 mas/yr from Hipparcos's);
+every other navigational star stays under 1.5″. At display scale none of this is
+visible, and none of it reaches a sight (CONVENTIONS 13.6).
 
 ### Navigational stars
 
@@ -1006,7 +1013,8 @@ sphere's up to 0.22′ from it; the Moon's semidiameter 0.006′ larger than USN
 **Lunar distances** (`fixtures/reference/lunar_distances.json`, 22 cases to the Sun, ten
 stars and four planets, measured between refracted limbs found numerically on the WGS84
 Earth; `tests/lunar_distance_reference.rs`): from exact inputs the UTC comes back within
-**0.74 s** with altitudes computed from the DR and **0.63 s** with altitudes observed
+**0.74 s** with altitudes computed from the DR, **0.63 s** with altitudes observed and
+**2.1 s** with one observed and the other computed
 (target 5 s); the cleared distance within 0.007′. With altitudes computed from a DR 30 NM
 in error the time moves 5 s to 2 minutes, as the reported sensitivity predicts.
 

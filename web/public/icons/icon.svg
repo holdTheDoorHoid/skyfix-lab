@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <!-- SkyFix Lab app icon: the logo mark of web/src/next/theme/primitives.ts (a Sun on the
+       horizon under a star), drawn for this project. Colours are the light theme's design
+       tokens (tokens.css): chrome-raised-2 fading to chrome-bg-0, accent, chrome-ink.
+       The PNGs next to this file are rendered from it by web/scripts/render-icons.mjs. -->
+  <title>SkyFix Lab</title>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#303b48"/>
+      <stop offset="1" stop-color="#131a21"/>
+    </linearGradient>
+  </defs>
+  <rect width="24" height="24" rx="5.4" fill="url(#sky)"/>
+  <path d="M6.2 17.2a5.8 5.8 0 0 1 11.6 0Z" fill="#f2b63c"/>
+  <path d="M3.8 17.4h16.4" fill="none" stroke="#f1f4f7" stroke-width="1.6" stroke-linecap="round"/>
+  <path d="M16.6 4.2l.72 1.98 1.98.72-1.98.72-.72 1.98-.72-1.98-1.98-.72 1.98-.72Z" fill="#f1f4f7"/>
+</svg>

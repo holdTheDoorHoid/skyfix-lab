@@ -12,8 +12,8 @@
 //! event is accepted only as half of an opposite pair (rise + set, dawn + dusk) less
 //! than 15 minutes apart on the same side — a graze — and every such case is printed.
 //!
-//! The Moon and planet windows need the real providers: while those are stubs the
-//! tests **skip loudly**. The synthetic Moon of `common` is compared with the real
+//! The Moon and planet windows use the real providers (a provider that refuses fails
+//! the test; they once skipped while the providers were stubs). The synthetic Moon of `common` is compared with the real
 //! Moon's events too, loosely, as a check of the definitions (h0 = -34' - SD,
 //! topocentric parallax), not of accuracy.
 

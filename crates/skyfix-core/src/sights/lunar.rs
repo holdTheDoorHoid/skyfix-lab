@@ -534,7 +534,14 @@ impl Context<'_> {
         let da = cos_da_raw.clamp(-1.0, 1.0).acos();
         let (tsm, tcm) = h_m.to_radians().sin_cos();
         let (tsb, tcb) = h_b.to_radians().sin_cos();
-        let topocentric = (tsm * tsb + tcm * tcb * da.cos()).clamp(-1.0, 1.0).acos();
+        // The true topocentric distance with the unclamped cosine: Borda's clearing
+        // formula, the same triangle written without the azimuth difference. Where the
+        // triangle cannot quite close (an observed altitude combined with a computed one
+        // at a trial instant, or refraction near the horizon) it continues smoothly and
+        // keeps the measured distance; clamping the azimuth difference there instead put
+        // the bodies in one vertical and threw the measured distance away, which folded
+        // the search function over and hid the true root (docs/NAVIGATION_SKY.md).
+        let topocentric = (tsm * tsb + tcm * tcb * cos_da_raw).clamp(-1.0, 1.0).acos();
 
         // Parallax on the WGS84 Earth: true topocentric directions extended to each
         // body's geocentric distance from the observer's real position.
@@ -556,7 +563,14 @@ impl Context<'_> {
             ),
             None => tau_b,
         };
-        let cleared = angle(g_m, g_b).to_degrees();
+        // Where the triangle closes this is exactly the angle between the geocentric
+        // positions. Where it does not, the parallax is the change the nearest closing
+        // triangle (the bodies in one vertical) sees, applied to Borda's distance.
+        let cleared = if triangle_clamped {
+            (topocentric + angle(g_m, g_b) - angle(tau_m, tau_b)).to_degrees()
+        } else {
+            angle(g_m, g_b).to_degrees()
+        };
         let geocentric = angle(moon.geo_unit, body.geo_unit).to_degrees();
 
         let (sd, cd) = apparent.sin_cos();
@@ -929,8 +943,9 @@ impl Context<'_> {
             warnings.push(Warning::Other {
                 message: format!(
                     "lunar distance to {}: the distance and the two altitudes do not form a \
-                     triangle (an altitude or the distance is off); the azimuth difference \
-                     was clamped",
+                     triangle (an altitude or the distance is off); the distance was cleared \
+                     with Borda's formula, which does not need the triangle to close, and the \
+                     parallax with the nearest triangle that does",
                     self.body
                 ),
             });

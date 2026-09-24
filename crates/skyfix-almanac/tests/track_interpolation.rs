@@ -122,7 +122,7 @@ fn a_short_request_is_evaluated_exactly() {
 
 /// The same bound for the real Moon and planet providers, which the synthetic Moon
 /// only stands in for: their series may carry faster terms than the synthetic one.
-/// Skips loudly while a provider is a stub.
+/// A provider that refuses fails the test.
 #[test]
 fn the_real_moon_and_planets_interpolate_within_a_hundredth_of_an_arcsecond() {
     let jd = civil_to_jd(2026, 9, 24);

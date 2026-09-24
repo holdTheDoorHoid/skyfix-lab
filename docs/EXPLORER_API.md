@@ -169,8 +169,8 @@ cannot be computed over the window (at most 400 days).
 ### `moon_phases(jd_start, jd_end) -> PhaseEvent[]`
 
 `[{"kind": "new_moon" | "first_quarter" | "full_moon" | "last_quarter", "jd_utc", "utc"}]`.
-Throws when the Moon (or the Sun) cannot be computed over the window — today, until the
-Moon provider lands.
+Throws when the Moon (or the Sun) cannot be computed over the whole window (outside
+1990–2060).
 
 ### `seasons(year) -> SeasonEvent[]`
 
@@ -292,7 +292,8 @@ wire. TypeScript: the `NavEngine` interface and the types after it in
   method's `dr` defaults to the session's `observer.assumed_position` (and its prior
   `sigma_nm` when `assumed_position_role` is `prior`). The DR is never a prior on the
   answer.
-- `VesselMotion` is `{"course_deg", "speed_kn"}`, constant over the run.
+- `VesselMotion` is `{"course_deg", "speed_kn"}`, constant over the run; a speed beyond
+  1000 kn either way throws.
 - Shared result pieces: `LatitudeEstimate {lat_deg, sigma_arcmin}`;
   `LongitudeEstimate {lon_deg, sigma_arcmin, sigma_nm, clock_sigma_arcmin}` (sigma in
   arcminutes *of longitude* and as nautical miles east–west, clock term included);
@@ -434,7 +435,11 @@ with `sigma_nm` 10.)
 `free_slope` is `null` with fewer than four sights in use.
 `predicted_slope_sigma_arcmin_per_min` is `null` when the DR's `sigma_nm` was not stated.
 `observation` is a session `Observation`, fully corrected, ready to add to a session for
-`solve`; it carries a `geocentric` direction only when the run's own were supplied.
+`solve`; it carries a `geocentric` direction only when the run's own were supplied. Its
+`utc` is the one instant in a result on the session's chronometer rather than the
+corrected scale, like the observations it replaces: the averaged instant minus the
+session's `clock.correction_s`, so the reducer, which adds that correction to every
+recorded time, brings it back to `utc`/`jd_utc` above exactly once.
 
 ### `running_fix(session_json, request_json, ephemeris_mode) -> RunningFixOutput`
 

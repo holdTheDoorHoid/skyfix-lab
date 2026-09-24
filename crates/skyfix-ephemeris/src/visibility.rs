@@ -241,13 +241,26 @@ fn sun_samples(sky: &Sky, site: &TopoSite, from: f64, to: f64) -> Vec<(f64, Opti
 }
 
 /// Instants at which the sampled Sun crosses `level`, refined to half a second, with
-/// `true` for rising.
+/// `true` for rising, in time order.
 fn sun_crossings(
     sky: &Sky,
     site: &TopoSite,
     samples: &[(f64, Option<f64>)],
     level: f64,
 ) -> Vec<(f64, bool)> {
+    let below = |h: f64| h - level < 0.0;
+    // The crossing between `a` (altitude `ha`) and `b`, which lie on opposite sides.
+    let bisect = |mut a: f64, mut b: f64, ha: f64| {
+        while b - a > TWILIGHT_TOLERANCE_DAYS {
+            let m = 0.5 * (a + b);
+            match sun_altitude_at(sky, site, m) {
+                Ok(hm) if below(hm) == below(ha) => a = m,
+                Ok(_) => b = m,
+                Err(_) => break,
+            }
+        }
+        0.5 * (a + b)
+    };
     let mut out = Vec::new();
     let mut prev: Option<(f64, f64)> = None;
     for &(t, h) in samples {
@@ -256,22 +269,52 @@ fn sun_crossings(
             continue;
         };
         if let Some((tp, hp)) = prev
-            && (hp - level < 0.0) != (h - level < 0.0)
+            && below(hp) != below(h)
         {
-            let (mut a, mut b) = (tp, t);
-            let rising = h > hp;
-            while b - a > TWILIGHT_TOLERANCE_DAYS {
-                let m = 0.5 * (a + b);
-                match sun_altitude_at(sky, site, m) {
-                    Ok(hm) if (hm - level < 0.0) == (hp - level < 0.0) => a = m,
-                    Ok(_) => b = m,
-                    Err(_) => break,
-                }
-            }
-            out.push((0.5 * (a + b), rising));
+            out.push((bisect(tp, t, hp), h > hp));
         }
         prev = Some((t, h));
     }
+    // A Sun that only just reaches `level` at its lowest (or highest) point can cross it
+    // and come back between two samples, where the sign scan above sees nothing; the
+    // explorer's events locate every extremum for the same reason. Find each sampled
+    // extremum's true instant and, when it lies across `level`, the pair of crossings.
+    for w in samples.windows(3) {
+        let [(ta, Some(ha)), (_, Some(hb)), (tc, Some(hc))] = [w[0], w[1], w[2]] else {
+            continue;
+        };
+        let lowest = hb <= ha && hb < hc;
+        if !(lowest || (hb >= ha && hb > hc)) || below(ha) != below(hb) || below(hb) != below(hc) {
+            continue;
+        }
+        let sign = if lowest { 1.0 } else { -1.0 };
+        let f = |t: f64| sun_altitude_at(sky, site, t).map_or(f64::NAN, |h| sign * h);
+        let (mut a, mut b) = (ta, tc);
+        let g = (5f64.sqrt() - 1.0) / 2.0;
+        let (mut c, mut d) = (b - g * (b - a), a + g * (b - a));
+        let (mut fc, mut fd) = (f(c), f(d));
+        while b - a > TWILIGHT_TOLERANCE_DAYS && fc.is_finite() && fd.is_finite() {
+            if fc < fd {
+                (b, d, fd) = (d, c, fc);
+                c = b - g * (b - a);
+                fc = f(c);
+            } else {
+                (a, c, fc) = (c, d, fd);
+                d = a + g * (b - a);
+                fd = f(d);
+            }
+        }
+        let te = 0.5 * (a + b);
+        let Ok(he) = sun_altitude_at(sky, site, te) else {
+            continue;
+        };
+        if below(he) != below(hb) {
+            // Down through `level` and back up at a minimum; up and back down at a maximum.
+            out.push((bisect(ta, te, ha), !lowest));
+            out.push((bisect(te, tc, he), lowest));
+        }
+    }
+    out.sort_by(|p, q| p.0.total_cmp(&q.0));
     out
 }
 
@@ -303,9 +346,10 @@ pub struct NauticalTwilight {
 /// Nautical twilight periods overlapping `[jd_start, jd_end]` at a sea-level site, in
 /// time order: evening from the Sun's descent through -6 degrees to -12, morning from
 /// its ascent through -12 to -6 (the Sun's centre, topocentric and geometric, CONVENTIONS
-/// 13.3; sampled every 10 minutes, refined to half a second). When the Sun never gets
-/// below -12 degrees the evening window ends, and the morning one begins, at its lowest
-/// point.
+/// 13.3; sampled every 10 minutes with every extremum located, so a Sun that only grazes
+/// a level is caught as in the explorer's events, refined to half a second). When the Sun
+/// never gets below -12 degrees the evening window ends, and the morning one begins, at
+/// its lowest point.
 pub fn nautical_twilights(
     sky: &Sky,
     lat_deg: f64,
@@ -610,7 +654,9 @@ fn plan_window(
         .collect();
     if !chosen.is_empty() {
         notes.push(format!(
-            "{} chosen from {} eligible bodies for the best spread round the horizon: the              smallest fix error when a shared altitude error (dip, index error, refraction)              is unknown too, which only bodies on all sides can cancel",
+            "{} chosen from {} eligible bodies for the best spread round the horizon: the \
+             smallest fix error when a shared altitude error (dip, index error, refraction) \
+             is unknown too, which only bodies on all sides can cancel",
             chosen.len(),
             eligible.len()
         ));
