@@ -409,8 +409,6 @@ dependencies = [
 name = "skyfix-starfield"
 version = "0.1.0"
 dependencies = [
- "approx",
- "serde",
  "serde_json",
  "skyfix-core",
  "skyfix-ephemeris",

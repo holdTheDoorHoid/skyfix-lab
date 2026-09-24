@@ -507,8 +507,9 @@ in `docs/THIRD_PARTY.md`, "Star field and constellations".
 
 The 420 stars are the 58 navigational stars, the 25 largest proper motions, the 12
 nearest each pole, 10 straddling 0h, the 3 nearest the Sun (at least 1° away) at each
-epoch, and a seeded random sample. The worst case per epoch grows from 0.04″ in 2026 to
-0.31″ at the end of 2060, and it is one term: Skyfield is given each star's catalogued
+epoch, and a seeded random sample. The worst case per epoch is at most 0.04″ from 1990
+to 2026 and grows to 0.31″ at the end of 2060, and that growth is one term: Skyfield is
+given each star's catalogued
 radial velocity, and the Rust chain, like `skyfix-ephemeris`, has no radial-velocity
 (perspective acceleration) term. The worst star is 61 Cygni B (HR 8086). The regression
 guard in the test is 0.5″, far inside the 6″ target, so a broken deflection or parallax
@@ -517,8 +518,8 @@ step would fail it.
 What this comparison does not measure is the catalogue. Both sides start from the same
 Bright Star Catalogue values: FK5 J2000 positions to 0.1 s of RA and 1″ of Dec (so up
 to about 1″ from modern positions), proper motions to 1 mas/yr. Against the Hipparcos
-places `skyfix-ephemeris` uses, the 58 navigational stars agree within 0.9″ at J2000,
-except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
+places `skyfix-ephemeris` uses, the 58 navigational stars agree to 0.9″ or better at
+J2000, except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
 differently along its 80-year orbit about B). At display scale none of this is visible.
 
 ### Navigational stars
