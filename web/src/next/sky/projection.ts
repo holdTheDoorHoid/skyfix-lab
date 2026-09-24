@@ -188,6 +188,9 @@ export class PanoramaProjector implements Projector {
   fov = 180;
   bottomAlt = -5;
   topAlt = 70;
+  private sin0 = 0;
+  private cos0 = 1;
+  private cosReach = -2;
 
   /**
    * Fit the view into a `width × height` canvas. The field is clamped to the limits, and
@@ -209,6 +212,11 @@ export class PanoramaProjector implements Projector {
     this.bottomAlt = inverseMercator(bottom) / DEG;
     this.topAlt = inverseMercator(bottom + visible) / DEG;
     this.az0 = (((view.azimuth % 360) + 360) % 360) * DEG;
+    this.sin0 = Math.sin(this.az0);
+    this.cos0 = Math.cos(this.az0);
+    // project() keeps directions up to 20° beyond the edges; so does the dot-product test.
+    const reach = this.width / 2 / this.s + 20 * DEG;
+    this.cosReach = reach >= Math.PI ? -2 : Math.cos(reach);
     return { azimuth: this.az0 / DEG, fov: this.fov, bottomAlt: this.bottomAlt };
   }
 
@@ -226,6 +234,8 @@ export class PanoramaProjector implements Projector {
   }
 
   projectDir(alt: number, sinAlt: number, _cosAlt: number, sinAz: number, cosAz: number): boolean {
+    // Behind the viewer: rejected with a dot product, before any trigonometry.
+    if (sinAz * this.sin0 + cosAz * this.cos0 < this.cosReach) return false;
     const d = wrapPi(Math.atan2(sinAz, cosAz) - this.az0);
     this.x = this.width / 2 + this.s * d;
     const sa = alt > PANORAMA_MAX_ALT ? SIN_MAX : alt < -PANORAMA_MAX_ALT ? -SIN_MAX : sinAlt;

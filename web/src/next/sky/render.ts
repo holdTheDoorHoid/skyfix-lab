@@ -33,6 +33,8 @@ import type { SkyScene } from './scene.js';
 import { binBv, binMagnitude, COLOUR_BINS, colourBin, starAlpha, starRadius, starTitle } from './stars.js';
 
 const TAU = 2 * Math.PI;
+/** Figure segments shorter than this are drawn as chords (see `figures`). */
+const COS_CHORD = Math.cos((6 * Math.PI) / 180);
 const WHITE: Rgb = { r: 255, g: 255, b: 255 };
 
 /** Hover, focus and selection address stars by index and bodies by name. */
@@ -130,6 +132,8 @@ export class SkyRenderer {
   private readonly up = { x: 0, y: -1 };
   /** Glyph shapes as Path2D, built once. */
   private readonly glyphs = new Map<GlyphName, { fill: Path2D[]; stroke: Path2D[] }>();
+  /** Labels of reference lines, placed after the bodies' (which win a collision). */
+  private readonly lineLabels: { text: string; x: number; y: number; fill: string }[] = [];
   /** Indices of stars brighter than 1.5 (glows). */
   private bright = new Int32Array(0);
   private brightFor: object | null = null;
@@ -159,6 +163,7 @@ export class SkyRenderer {
     const ctx = this.ctx;
     if (!this.palette) this.setPalette(f.palette);
     this.rectCount = 0;
+    this.lineLabels.length = 0;
     this.updateBodies(f);
     ctx.save();
     ctx.lineCap = 'round';
@@ -452,7 +457,7 @@ export class SkyRenderer {
     // Label near the top of the view on the southern (or northern) half.
     const labelAz = f.scene.latDeg >= 0 ? Math.PI : 0;
     if (p.project(p instanceof DomeProjector ? 58 * DEG : 25 * DEG, labelAz)) {
-      this.tagText(f, 'Meridian', p.x + 5, p.y, css(f.palette.accent, 0.9), `600 10.5px ${f.palette.fontUi}`, 'left');
+      this.lineLabels.push({ text: 'Meridian', x: p.x + 5, y: p.y, fill: css(f.palette.accent, 0.9) });
     }
   }
 
@@ -487,7 +492,7 @@ export class SkyRenderer {
     }
     if (best >= 0 && p.projectDir(alt[best]!, sinAlt[best]!, cosAlt[best]!, sinAz[best]!, cosAz[best]!)) {
       const text = which === 'equator' ? 'Celestial equator' : 'Ecliptic';
-      this.tagText(f, text, p.x + 6, p.y - 6, css(colour, 0.95), `600 10.5px ${f.palette.fontUi}`, 'left');
+      this.lineLabels.push({ text, x: p.x + 6, y: p.y - 6, fill: css(colour, 0.95) });
     }
   }
 
@@ -554,6 +559,15 @@ export class SkyRenderer {
         s.starHorizonVector(a, ends, 0);
         s.starHorizonVector(b, ends, 1);
         const dot = ends[0]! * ends[3]! + ends[1]! * ends[4]! + ends[2]! * ends[5]!;
+        // Short segments with both ends drawn are straight chords between the projected
+        // stars (the great circle bows by under half a pixel over 6°, in both views).
+        if (dot > COS_CHORD && !Number.isNaN(xs[a]!) && !Number.isNaN(xs[b]!) && alt[a]! > 0 && alt[b]! > 0) {
+          if (Math.abs(xs[a]! - xs[b]!) < jump) {
+            ctx.moveTo(xs[a]!, s.y[a]!);
+            ctx.lineTo(xs[b]!, s.y[b]!);
+          }
+          continue;
+        }
         const n = Math.max(1, Math.ceil(Math.acos(Math.min(1, Math.max(-1, dot))) / step));
         let pen = false;
         let px = 0;
@@ -989,17 +1003,22 @@ export class SkyRenderer {
     for (const key of f.highlightKeys) forced.add(key);
     if (f.focusKey) forced.add(f.focusKey);
 
-    // Sun, Moon, planets: glyph and name (colour is never the only cue).
+    // Sun, Moon, planets: glyph and name (colour is never the only cue). Brightest
+    // first, so a crowded twilight horizon keeps Venus's name over Mercury's; a label
+    // that does not fit on the right tries the left.
     const bodyFont = `600 12px ${f.palette.fontUi}`;
-    ctx.textAlign = 'left';
-    for (const m of this.bodies) {
-      if (!m.drawn) continue;
+    const rank = (m: BodyMark): number => (m.kind === 'sun' ? -100 : m.kind === 'moon' ? -50 : (m.state?.magnitude ?? 9));
+    const ordered = this.bodies.filter((m) => m.drawn).sort((a, b) => rank(a) - rank(b));
+    for (const m of ordered) {
       const text = m.name;
-      const w = this.width(text, bodyFont);
       const glyph = 14;
-      const x = m.x + m.r + 4;
+      const width = glyph + 3 + this.width(text, bodyFont);
       const y = m.y + 4;
-      if (!this.place(x - 1, y - 12, glyph + 3 + w + 2, 16) && !forced.has(m.key)) continue;
+      let x = m.x + m.r + 4;
+      if (!this.place(x - 1, y - 12, width + 2, 16)) {
+        x = m.x - m.r - 4 - width;
+        if (!this.place(x - 1, y - 12, width + 2, 16) && !forced.has(m.key)) continue;
+      }
       const token = bodyToken(m.name);
       const colour = m.kind === 'planet' ? f.palette.body[token] : m.kind === 'sun' ? f.palette.body.sun : f.palette.moonDisc;
       this.glyph(f, token as GlyphName, x + glyph / 2, m.y, glyph, colour);
@@ -1010,11 +1029,18 @@ export class SkyRenderer {
       this.haloText(text, x + glyph + 3, y, css(nameColour, 0.95), halo);
     }
 
+    // Reference lines: after the bodies, before the stars.
+    for (const l of this.lineLabels) this.tagText(f, l.text, l.x, l.y, l.fill, `600 10.5px ${f.palette.fontUi}`, 'left');
+
     // Star names.
     const data = s.stars;
     if (data && s.starsOk) {
       ctx.font = `500 11px ${f.palette.fontUi}`;
-      const nameLimit = Math.min(f.limitMag + 0.5, f.projector instanceof DomeProjector ? 1.6 : 1.6 + 1.2 * (f.zoom - 1));
+      // Fewer names on a small chart (a phone), more when the panorama is zoomed in.
+      const p0 = f.projector;
+      const sizeLimit = p0 instanceof DomeProjector ? Math.min(1.6, Math.max(0.6, p0.radius / 190 - 0.3)) : 1.6 + 1.2 * (f.zoom - 1);
+      const nameLimit = Math.min(f.limitMag + 0.5, sizeLimit);
+      const roomyNames = !(p0 instanceof DomeProjector) || p0.radius >= 230;
       for (let k = 0; k < data.named.length; k += 1) {
         const i = data.named[k]!;
         if (s.onScreen[i] === 0) continue;
@@ -1022,13 +1048,16 @@ export class SkyRenderer {
         const nav = data.isNav[i] === 1;
         const mag = data.vmag[i]!;
         const isForced = forced.has(key);
-        if (!isForced && (!f.layers.starNames || (mag > nameLimit && !(nav && mag <= nameLimit + 1)))) continue;
+        if (!isForced && (!f.layers.starNames || (mag > nameLimit && !(nav && mag <= nameLimit + 1 && roomyNames)))) continue;
         const text = data.nameOf.get(i)!;
         const r = starRadius(mag) * f.zoom;
         const w = this.width(text, ctx.font);
-        const x = s.x[i]! + r + 3;
+        let x = s.x[i]! + r + 3;
         const y = s.y[i]! - r - 1;
-        if (!this.place(x - 1, y - 10, w + 2, 13) && !isForced) continue;
+        if (!this.place(x - 1, y - 10, w + 2, 13)) {
+          x = s.x[i]! - r - 3 - w;
+          if (!this.place(x - 1, y - 10, w + 2, 13) && !isForced) continue;
+        }
         const a = Math.max(0.55, Math.min(1, starAlpha(mag, f.limitMag) + 0.3));
         this.haloText(text, x, y, css(ink, (nav ? 0.95 : 0.8) * a), halo);
       }
@@ -1048,7 +1077,8 @@ export class SkyRenderer {
 
     // Constellation names, last and quietest.
     const cat = s.catalog;
-    if (cat && f.layers.constellationNames) {
+    const roomy = !(f.projector instanceof DomeProjector) || f.projector.radius >= 230;
+    if (cat && f.layers.constellationNames && roomy) {
       const p = f.projector;
       ctx.font = `600 10px ${f.palette.fontUi}`;
       ctx.textAlign = 'center';

@@ -15,6 +15,7 @@
  *   select=Jupiter  highlight=Vega,Arcturus  tip=Moon (hover tooltip)  focus=Jupiter
  *   bench=600 speed=3600        play for 600 frames and report frame times (#bench)
  *   bare=1                      hide the control strip (the honesty banner stays)
+ *   menu=1                      open the Layers popover
  */
 
 // The design system (fonts, tokens, components), as the shell loads it.
@@ -218,6 +219,11 @@ async function boot(root: HTMLElement): Promise<void> {
         if (active?.toLowerCase() === focus.toLowerCase()) break;
       }
     }
+  }
+
+  if (params.get('menu') === '1') {
+    await nextFrame();
+    document.querySelector<HTMLButtonElement>('.sky [aria-haspopup="dialog"]')?.click();
   }
 
   // Benchmark: play and measure.

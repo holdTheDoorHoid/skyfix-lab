@@ -165,10 +165,10 @@
     top: 52px;
     right: var(--space-2);
   }
+  /* Below the top row of controls, left of the zoom column, clear of the horizon. */
   .sky-ov--tl {
-    top: auto;
+    top: 52px;
     left: var(--space-2);
-    bottom: var(--space-2);
-    max-width: calc(100% - 2 * var(--space-2));
+    max-width: calc(100% - 64px);
   }
 }
