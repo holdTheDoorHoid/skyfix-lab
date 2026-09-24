@@ -1,0 +1,92 @@
+{
+  "clock": {
+    "correction_s": 0.000000,
+    "uncertainty_s": 0.000000
+  },
+  "instrument": {
+    "horizon": "sea",
+    "index_correction_arcmin": 0.8000,
+    "name": "synthetic sextant"
+  },
+  "meta": {
+    "kind": "simulated",
+    "name": "Crescent Venus, the Moon and Mars, morning twilight in the Timor Sea (spherical Earth)",
+    "notes": "Morning nautical twilight in the Timor Sea, a month after Venus's inferior conjunction of October 2026: Venus is a 25 per cent crescent whose light sits about 0.2' from the centre of its disc. The Moon's upper limb, Venus, Mars and Jupiter, with Canopus and Acrux to the south. Synthetic, zero noise; raw sextant readings built by tools/reference/gen_moon_sights.py from Skyfield + JPL DE440s on a spherical Earth of radius 6378.14 km, the Earth CONVENTIONS section 1 reduces sights on. No observation carries a geocentric block: every direction comes from the ephemeris (ephemeris mode auto)."
+  },
+  "observations": [
+    {
+      "altitude_deg": 40.3507822173,
+      "altitude_kind": "sextant_hs",
+      "body": "Canopus",
+      "horizon": null,
+      "id": "obs-1",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-11-26T19:52:00Z"
+    },
+    {
+      "altitude_deg": 26.5501166585,
+      "altitude_kind": "sextant_hs",
+      "body": "Acrux",
+      "horizon": null,
+      "id": "obs-2",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-11-26T19:54:00Z"
+    },
+    {
+      "altitude_deg": 36.4047376087,
+      "altitude_kind": "sextant_hs",
+      "body": "Moon",
+      "horizon": null,
+      "id": "obs-3",
+      "limb": "upper",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-11-26T19:56:00Z"
+    },
+    {
+      "altitude_deg": 60.2913711924,
+      "altitude_kind": "sextant_hs",
+      "body": "Jupiter",
+      "horizon": null,
+      "id": "obs-4",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-11-26T19:58:00Z"
+    },
+    {
+      "altitude_deg": 58.2945486807,
+      "altitude_kind": "sextant_hs",
+      "body": "Mars",
+      "horizon": null,
+      "id": "obs-5",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-11-26T20:00:00Z"
+    },
+    {
+      "altitude_deg": 21.8481495342,
+      "altitude_kind": "sextant_hs",
+      "body": "Venus",
+      "horizon": null,
+      "id": "obs-6",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2026-11-26T20:02:00Z"
+    }
+  ],
+  "observer": {
+    "assumed_position": {"lat_deg": -11.700000000, "lon_deg": 129.300000000},
+    "assumed_position_role": {"role": "initializer"},
+    "height_of_eye_m": 4.5000,
+    "pressure_hpa": 1010.00,
+    "temperature_c": 10.00
+  },
+  "schema": "skyfix.session/1"
+}
