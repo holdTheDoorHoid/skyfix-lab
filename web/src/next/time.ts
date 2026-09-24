@@ -220,10 +220,31 @@ function formatSigned(n: number): string {
 /** Local minus UTC at an instant, milliseconds. */
 export function zoneOffsetMs(ms: number, zone: Zone): number {
   if (zone.kind === 'fixed') return zone.offsetMs;
+  // Asking Intl costs tens of microseconds and the time bar and panel ask many times a
+  // frame. Between 1900 and 2100 every change of a zone's offset happens on a quarter
+  // hour of UTC, so the offset is constant within each UTC quarter hour: remember it.
+  const cacheable = ms >= CACHE_FROM_MS && ms < CACHE_TO_MS;
+  const key = cacheable ? `${zone.zone}|${Math.floor(ms / QUARTER_HOUR_MS)}` : '';
+  if (cacheable) {
+    const hit = offsetCache.get(key);
+    if (hit !== undefined) return hit;
+  }
   const base = ms - floorMod(ms, 1000); // whole second; no zone offset has a fraction of one
   const w = ianaParts(base, zone.zone);
-  return utcMs(w.year, w.month, w.day, w.hour, w.minute, w.second) - base;
+  const offset = utcMs(w.year, w.month, w.day, w.hour, w.minute, w.second) - base;
+  if (cacheable) {
+    if (offsetCache.size >= OFFSET_CACHE_MAX) offsetCache.clear();
+    offsetCache.set(key, offset);
+  }
+  return offset;
 }
+
+const QUARTER_HOUR_MS = 15 * MS_PER_MINUTE;
+/** 1900-01-01 and 2100-01-01 UTC: outside, local mean times change offsets at odd seconds. */
+const CACHE_FROM_MS = -2_208_988_800_000;
+const CACHE_TO_MS = 4_102_444_800_000;
+const OFFSET_CACHE_MAX = 20_000;
+const offsetCache = new Map<string, number>();
 
 function ianaParts(
   ms: number,

@@ -10,11 +10,11 @@
 
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx, type Mounted } from '../component.js';
-import { aroundToday, setText } from '../shell/derived.js';
+import { aroundToday, dayOf, setText } from '../shell/derived.js';
 import { eventTime, otherDay, relative } from '../shell/format.js';
 import { componentOf, registry } from '../shell/registry.js';
 import { brightening, nextRun } from '../shell/sky.js';
-import { currentDayWindow, displayZone, shallowEqual } from '../state.js';
+import { displayZone, shallowEqual } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { badge, section } from '../theme/primitives.js';
 import { zoneShortName } from '../time.js';
@@ -88,7 +88,7 @@ export function sightsSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   d.add(
     watch(
       ctx,
-      (s) => [Math.floor(s.time.jd_utc * 1440), currentDayWindow(s)[0], s.observer, s.settings.timeDisplay] as const,
+      (s) => [Math.floor(s.time.jd_utc * 1440), dayOf(s)[0], s.observer, s.settings.timeDisplay] as const,
       render,
       { equals: shallowEqual },
     ),

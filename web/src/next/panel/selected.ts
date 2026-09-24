@@ -9,7 +9,7 @@ import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import { coverageGroupFor, offeredForSights } from '../engine/bodies.js';
 import type { BodyInfo, BodyState, PhaseEvent, SkyEvent } from '../engine/types.js';
-import { aroundToday, bodyError, bodyIn, covered, setAttr, setText, skyNow, sunToday } from '../shell/derived.js';
+import { aroundToday, bodyError, bodyIn, covered, dayOf, setAttr, setText, skyNow, skySelected, sunToday } from '../shell/derived.js';
 import {
   bearing3,
   compassPoint,
@@ -26,7 +26,7 @@ import {
   otherDay,
 } from '../shell/format.js';
 import { passageAround, sunDay, type Passage } from '../shell/sky.js';
-import { currentDayWindow, displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
+import { displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
 import { bodyGlyph, moonPhaseName, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { kv, popover, section, swatch } from '../theme/primitives.js';
@@ -213,7 +213,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
 
   const buildMoonExtras = (s: ExplorerState): void => {
     const zone = displayZone(s);
-    const [a] = currentDayWindow(s);
+    const [a] = dayOf(s);
     const phases = (() => {
       try {
         return engine.moonPhases(a - 32, a + 32);
@@ -290,7 +290,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       setAttr(chooser, 'aria-label', `Selected body: ${name}. Choose another`);
     }
 
-    const sky = skyNow(ctx, s);
+    const sky = skySelected(ctx, s);
     const b = bodyIn(sky, name);
     const missing = bodyError(sky, name);
     const around = aroundToday(ctx, s, name);
@@ -371,7 +371,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     );
 
     // Extras
-    const [a] = currentDayWindow(s);
+    const [a] = dayOf(s);
     const key = `${name}|${b.kind}|${a}|${s.settings.timeDisplay}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.settings.horizon}|${s.settings.height_of_eye_m}`;
     if (key !== extrasKey) {
       extrasKey = key;
@@ -424,7 +424,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
   d.add(
     watch(
       ctx,
-      (s) => [s.time.jd_utc, s.observer, s.selection.body, s.settings, currentDayWindow(s)[0]] as const,
+      (s) => [s.time.jd_utc, s.observer, s.selection.body, s.settings, dayOf(s)[0]] as const,
       render,
       { equals: shallowEqual },
     ),

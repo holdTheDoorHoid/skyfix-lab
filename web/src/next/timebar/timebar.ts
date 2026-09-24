@@ -15,10 +15,10 @@ import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import type { SkyEvent } from '../engine/types.js';
 import { MONTH_S, PLAYBACK_SPEEDS, goNow, setPlaying, setSpeed, setTime, stepTime, timeKeyAction, togglePlay } from '../playback.js';
-import { aroundToday, setAttr, setText, sunToday } from '../shell/derived.js';
+import { aroundToday, dayOf, setAttr, setText, sunToday } from '../shell/derived.js';
 import { bearing3, clock, clockSeconds, compassPoint, dateLong, dateShort, eventTime, formatAngle } from '../shell/format.js';
 import { PHASE_LABEL, PHASE_MEANING, clipPhases, segmentAt } from '../shell/sky.js';
-import { currentDayWindow, displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
+import { displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { button, iconButton, menu, popover, segmented } from '../theme/primitives.js';
 import { UTC_ZONE, jdFromWallClock, jdNow, wallClock, zoneShortName, type Zone } from '../time.js';
@@ -82,7 +82,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
 
   // --- ribbon ----------------------------------------------------------------------------
   const s0 = store.get();
-  const w0 = currentDayWindow(s0);
+  const w0 = dayOf(s0);
   const ribbon = createRibbon({
     window: w0,
     phases: [],
@@ -119,7 +119,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const renderDay = (): void => {
     const s = store.get();
     const zone = displayZone(s);
-    const [a, b] = currentDayWindow(s);
+    const [a, b] = dayOf(s);
     const day = sunToday(ctx, s);
     phases = day ? clipPhases(day.phases, a, b) : [];
     const body = s.selection.body ?? 'Sun';
@@ -201,7 +201,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     watch(
       ctx,
       (s) => {
-        const [a, b] = currentDayWindow(s);
+        const [a, b] = dayOf(s);
         return [a, b, s.observer, s.selection.body, s.settings.horizon, s.settings.height_of_eye_m, s.settings.timeDisplay, s.settings.angleFormat] as const;
       },
       renderDay,

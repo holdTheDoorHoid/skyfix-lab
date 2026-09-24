@@ -176,8 +176,27 @@ export function skyNowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     }
   };
 
+  // Every body is the costliest question the panel asks, so while time runs (playing or a
+  // dragged handle) the list follows at most four times a second; a single change, and the
+  // last of a run, show at once.
+  let last = 0;
+  let trailing = 0;
+  const throttled = (): void => {
+    const now = performance.now();
+    const wait = 250 - (now - last);
+    if (wait > 0) {
+      if (!trailing) trailing = window.setTimeout(() => {
+        trailing = 0;
+        ctx.scheduler.schedule(throttled);
+      }, wait);
+      return;
+    }
+    last = now;
+    render();
+  };
+  d.add(() => window.clearTimeout(trailing));
   d.add(
-    watch(ctx, (s) => [s.time.jd_utc, s.observer, s.selection.body] as const, render, { equals: shallowEqual }),
+    watch(ctx, (s) => [s.time.jd_utc, s.observer, s.selection.body] as const, throttled, { equals: shallowEqual }),
   );
   return { el: sec.el, destroy: () => d.dispose() };
 }

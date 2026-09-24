@@ -57,10 +57,40 @@ export function attempt<T>(ctx: Pick<Ctx, 'notices'>, key: string, what: string,
   }
 }
 
-/** Every body now (Sun, Moon, planets, the 58 stars): about a millisecond. */
+/**
+ * Every body now (Sun, Moon, planets, the 58 stars). The costliest call the chrome makes
+ * (several milliseconds), so only "In the sky now" and the body chooser use it, and the
+ * former at most a few times a second while time runs.
+ */
 export function skyNow(ctx: Ctx, s: ExplorerState): SkyState | null {
   if (!covered(ctx, s.time.jd_utc)) return null;
   return attempt(ctx, 'engine-sky', 'Computing the sky', () => ctx.engine.skyState(engineObserver(s), s.time.jd_utc, 'all'));
+}
+
+/**
+ * The selected body now, with the sky phase (every `sky_state` result carries it): about
+ * a millisecond, cheap enough for every frame while time runs.
+ */
+export function skySelected(ctx: Ctx, s: ExplorerState): SkyState | null {
+  if (!covered(ctx, s.time.jd_utc)) return null;
+  const body = s.selection.body ?? 'Sun';
+  return attempt(ctx, 'engine-sky', 'Computing the sky', () => ctx.engine.skyState(engineObserver(s), s.time.jd_utc, [body]));
+}
+
+let lastDay: { key: string; window: [number, number] } | null = null;
+
+/**
+ * `currentDayWindow` (state.ts), remembered: the local day only changes when the time
+ * crosses a midnight or the zone changes, and working it out goes through `Intl` several
+ * times. Every section asks for it on every change of state.
+ */
+export function dayOf(s: ExplorerState): [number, number] {
+  const key = `${s.settings.timeDisplay}|${JSON.stringify(s.observer.zone)}|${s.observer.lon_deg}`;
+  const jd = s.time.jd_utc;
+  if (lastDay && lastDay.key === key && jd >= lastDay.window[0] && jd < lastDay.window[1]) return lastDay.window;
+  const window = currentDayWindow(s);
+  lastDay = { key, window };
+  return window;
 }
 
 export function bodyIn(sky: SkyState | null, body: string | null): BodyState | null {
@@ -83,7 +113,7 @@ export interface Day {
 
 /** The Sun over the local day being shown: its sky phases and events. */
 export function sunToday(ctx: Ctx, s: ExplorerState): Day | null {
-  const window = currentDayWindow(s);
+  const window = dayOf(s);
   const span = clampToCoverage(ctx, window[0], window[1]);
   if (!span) return null;
   const day = attempt(ctx, 'engine-day', 'Computing the day', () =>
@@ -99,7 +129,7 @@ export function sunToday(ctx: Ctx, s: ExplorerState): Day | null {
  * twilight. Cached per day, so dragging within a day costs nothing.
  */
 export function aroundToday(ctx: Ctx, s: ExplorerState, body: string): DayEvents | null {
-  const [a, b] = currentDayWindow(s);
+  const [a, b] = dayOf(s);
   if (!covered(ctx, s.time.jd_utc)) return null;
   const span = clampToCoverage(ctx, a - 1, b + 1);
   if (!span) return null;

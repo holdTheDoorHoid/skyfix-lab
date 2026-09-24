@@ -7,10 +7,10 @@
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import type { PhaseSegment, SkyPhase } from '../engine/types.js';
-import { aroundToday, setAttr, setText, skyNow } from '../shell/derived.js';
+import { aroundToday, dayOf, setAttr, setText, skySelected } from '../shell/derived.js';
 import { dateShort, clock, eventTime, otherDay, relative } from '../shell/format.js';
 import { PHASE_LABEL, PHASE_MEANING, skyFacts, type SkyFacts } from '../shell/sky.js';
-import { currentDayWindow, displayZone, eventOptions, shallowEqual } from '../state.js';
+import { displayZone, eventOptions, shallowEqual } from '../state.js';
 import { icon, type IconName } from '../theme/icons.js';
 import { section } from '../theme/primitives.js';
 import type { Zone } from '../time.js';
@@ -77,7 +77,7 @@ export function nowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     const zone = displayZone(s);
     const jd = s.time.jd_utc;
     setText(meta, `${dateShort(jd, zone)}, ${clock(jd, zone)}`);
-    const sky = skyNow(ctx, s);
+    const sky = skySelected(ctx, s);
     if (!sky) {
       setAttr(chip, 'data-phase', 'none');
       setText(chipText, 'Not computed');
@@ -96,14 +96,19 @@ export function nowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       chipIcon.replaceChildren(icon(PHASE_ICON[facts.phase]));
       lastIcon = facts.phase;
     }
-    text.replaceChildren(...meaning(facts, jd, zone));
+    const parts = meaning(facts, jd, zone);
+    const key = parts.map((p) => (typeof p === 'string' ? p : `<${p.textContent ?? ''}>`)).join('');
+    if (text.dataset.key !== key) {
+      text.dataset.key = key;
+      text.replaceChildren(...parts);
+    }
   };
   // Minutes are enough for the words; the phase itself changes at most a few times a day.
   d.add(
     watch(
       ctx,
       (s) => {
-        const [a] = currentDayWindow(s);
+        const [a] = dayOf(s);
         return [
           Math.floor(s.time.jd_utc * 1440),
           a,
