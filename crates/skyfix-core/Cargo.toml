@@ -9,9 +9,11 @@ rust-version.workspace = true
 
 [dependencies]
 serde = { workspace = true }
+# session.rs (CONVENTIONS section 10) parses the session document; the core cannot
+# depend on the CLI to do it. Pure Rust, builds for wasm32-unknown-unknown.
+serde_json = { workspace = true }
 thiserror = { workspace = true }
 chrono = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }
-serde_json = { workspace = true }
