@@ -686,7 +686,15 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
         if (alt > 0.5) hours.push({ alt, az: track.az_deg[i]! });
       }
     }
-    const events = dialEvents(body, p, s.time.jd_utc, zone);
+    // The highest point at its height as it looks (refraction included), as the path and the
+    // panel's Highest card give it; an event's own altitude is geometric (CONVENTIONS 13.3).
+    const events = dialEvents(body, p, s.time.jd_utc, zone).map((e) => {
+      if (e.kind !== 'transit' || !p.transit) return e;
+      const seen = attempt('map-transit', `the height of ${body} at its highest could not be computed`, () =>
+        engine.skyState(obs, p.transit!.jd_utc, [body]).bodies.find((b) => b.body === body)?.alt_apparent_deg,
+      );
+      return typeof seen === 'number' ? { ...e, alt: seen } : e;
+    });
     const note = passNote(body, p);
     const sun = kind === 'sun' && s.layers.paths ? solsticeData(s, zone) : null;
     summaryText = daySummary(body, events, note, s);

@@ -28,7 +28,7 @@ import {
   otherDay,
 } from '../shell/format.js';
 import { sunDay } from '../shell/sky.js';
-import { displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
+import { displayZone, engineObserver, placeZone, shallowEqual, type ExplorerState } from '../state.js';
 import { bodyGlyph, moonPhaseName, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { kv, popover, section, swatch } from '../theme/primitives.js';
@@ -314,6 +314,27 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     };
   };
 
+  /**
+   * The height the Highest card gives: as it looks, refraction included, like the readout
+   * above it (an event's `alt_deg` is geometric, CONVENTIONS 13.3), so at the moment of
+   * transit the two agree. Asked of the engine at the transit instant, once per pass.
+   */
+  let transitMemo: { key: string; value: number } | null = null;
+  const transitHeight = (e: SkyEvent): number => {
+    const s = store.get();
+    const body = s.selection.body ?? 'Sun';
+    const key = `${body}|${e.jd_utc}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.observer.height_m}`;
+    if (transitMemo?.key === key) return transitMemo.value;
+    let value = e.alt_deg;
+    try {
+      value = bodyIn(engine.skyState(engineObserver(s), e.jd_utc, [body]), body)?.alt_apparent_deg ?? e.alt_deg;
+    } catch {
+      value = e.alt_deg;
+    }
+    transitMemo = { key, value };
+    return value;
+  };
+
   // --- render -----------------------------------------------------------------------------
   const render = (): void => {
     const s = store.get();
@@ -394,7 +415,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       jd,
       zone,
       placeZ,
-      passage.transit ? `${formatAngle(passage.transit.alt_deg, f, 'coarse')} ${compassPoint(passage.transit.az_deg)}` : '',
+      passage.transit ? `${formatAngle(transitHeight(passage.transit), f, 'coarse')} ${compassPoint(passage.transit.az_deg)}` : '',
       name === 'Sun' ? 'Highest in the sky, on the meridian: local noon, the moment for a noon sight' : `Highest in the sky, on the meridian (the ${name}’s transit)`,
       '—',
     );
