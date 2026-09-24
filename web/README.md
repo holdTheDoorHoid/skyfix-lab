@@ -25,6 +25,7 @@ Run from the repository root, or from `web/` without the `--prefix`.
 | Preview the production build | `npm run preview --prefix web` |
 | Build the Pages site into `site/`, as the workflow does | `web/scripts/pages-site.sh` |
 | Check the site offline in headless Chrome | `node web/scripts/offline-check.mjs` |
+| Check every view in every theme, on a desktop and a phone, in headless Chrome | `node web/scripts/ui-check.mjs` |
 | Redraw the app icons after changing their SVG | `node web/scripts/render-icons.mjs` |
 
 A full build from a clean checkout is two commands, in this order:
