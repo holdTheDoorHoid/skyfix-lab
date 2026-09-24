@@ -768,10 +768,17 @@ step would fail it.
 
 What this comparison does not measure is the catalogue. Both sides start from the same
 Bright Star Catalogue values: FK5 J2000 positions to 0.1 s of RA and 1″ of Dec (so up
-to about 1″ from modern positions), proper motions to 1 mas/yr. Against the Hipparcos
-places `skyfix-ephemeris` uses, the 58 navigational stars agree to 0.9″ or better at
-J2000, except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
-differently along its 80-year orbit about B). At display scale none of this is visible.
+to about 1″ from modern positions at J2000), proper motions printed to 1 mas/yr but, for
+some stars, tens of mas/yr from Hipparcos's. Against the Hipparcos places
+`skyfix-ephemeris` uses, the 58 navigational stars agree to 0.9″ or better at J2000,
+except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
+differently along its 80-year orbit about B). Away from J2000 the proper motions tell
+(the verifier's check, apparent places of both at 1990.0, J2000, 2026.0 and the end of
+2060): Rigil Kentaurus reaches **8.6″ (0.14′) at the end of 2060** and 8.3″ in 1990,
+beyond the 0.1′ that CONVENTIONS 13.7 sets for star-field places; Ankaa 3.8″ and Dubhe
+2.9″ in 2060 (their catalogue proper motions are 52 and 36 mas/yr from Hipparcos's);
+every other navigational star stays under 1.5″. At display scale none of this is
+visible, and none of it reaches a sight (CONVENTIONS 13.6).
 
 ### Navigational stars
 
