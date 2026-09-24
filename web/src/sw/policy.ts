@@ -8,8 +8,11 @@
  *   another origin (OpenStreetMap tiles, anything)  -> untouched: the browser handles it
  *   not a GET, a Range request, outside this site   -> untouched
  *   sw.js itself                                    -> untouched
+ *   a page that moved (`next/`, the explorer's      -> redirect to its new address (`./`),
+ *   address before the switch-over)                    query kept; the browser keeps the
+ *                                                      fragment, so share links still work
  *   a precached file (the app shell, map data)      -> from the precache (cache first)
- *   `next` (a precached page, no trailing slash)    -> redirect to `next/`
+ *   `classic` (a precached page, no trailing slash) -> redirect to `classic/`
  *   anything else on this site (the docs, …)        -> network first, then the runtime
  *                                                      cache; a page never seen offline
  *                                                      gets a small offline page
@@ -26,10 +29,20 @@ export interface SwBuild {
   readonly entries: readonly SwEntry[];
   /** The app's pages, linked from the offline page. `url` is relative to the site root. */
   readonly pages: readonly { readonly url: string; readonly label: string }[];
+  /**
+   * Pages that moved: a navigation to `from` (a directory address such as `next/`, with or
+   * without its trailing slash or `index.html`) goes to `to`. Both relative to the site root.
+   */
+  readonly redirects?: readonly SwRedirect[];
+}
+
+export interface SwRedirect {
+  readonly from: string;
+  readonly to: string;
 }
 
 export interface SwEntry {
-  /** Relative to the site root, e.g. `assets/next-Ab12Cd34.js`, `next/index.html`. */
+  /** Relative to the site root, e.g. `assets/main-Ab12Cd34.js`, `classic/index.html`. */
   readonly url: string;
   /** SHA-256 of the file, first 16 hex digits (`revision`). */
   readonly rev: string;
@@ -82,6 +95,8 @@ export interface PrecacheIndex {
   readonly root: URL;
   /** Absolute URL (no query, no fragment) -> the precache key for it. */
   readonly keys: ReadonlyMap<string, string>;
+  /** Absolute URL of a moved page (every spelling of it, no query) -> where it went. */
+  readonly moved: ReadonlyMap<string, string>;
 }
 
 /**
@@ -92,17 +107,29 @@ export function precacheKey(absoluteUrl: string, rev: string): string {
   return `${absoluteUrl}?__rev=${rev}`;
 }
 
-export function precacheIndex(rootUrl: string, entries: readonly SwEntry[]): PrecacheIndex {
+function relative(path: string, what: string): string {
+  if (path.startsWith('/') || /^[a-z][a-z0-9+.-]*:/i.test(path)) {
+    throw new Error(`${what} are relative to the site root: ${path}`);
+  }
+  return path;
+}
+
+export function precacheIndex(rootUrl: string, entries: readonly SwEntry[], redirects: readonly SwRedirect[] = []): PrecacheIndex {
   const root = new URL('./', rootUrl);
   const keys = new Map<string, string>();
   for (const entry of entries) {
-    if (entry.url.startsWith('/') || /^[a-z][a-z0-9+.-]*:/i.test(entry.url)) {
-      throw new Error(`precache entries are relative to the site root: ${entry.url}`);
-    }
-    const url = new URL(entry.url, root).href;
+    const url = new URL(relative(entry.url, 'precache entries'), root).href;
     keys.set(url, precacheKey(url, entry.rev));
   }
-  return { root, keys };
+  const moved = new Map<string, string>();
+  for (const { from, to } of redirects) {
+    const dir = new URL(relative(from, 'redirects'), root).href;
+    if (!dir.endsWith('/') || dir === root.href) throw new Error(`a redirect moves a directory page, not ${from}`);
+    const target = new URL(relative(to, 'redirects'), root).href;
+    if (keys.has(`${dir}index.html`)) throw new Error(`${from} is precached and cannot also be redirected`);
+    for (const spelling of [dir, `${dir}index.html`, dir.slice(0, -1)]) moved.set(spelling, target);
+  }
+  return { root, keys, moved };
 }
 
 // ---------------------------------------------------------------------------------
@@ -128,7 +155,7 @@ export type Route =
 
 const PASS: Route = { kind: 'pass' };
 
-/** The file a URL names: `…/next/` is `…/next/index.html`. */
+/** The file a URL names: `…/classic/` is `…/classic/index.html`. */
 function fileUrl(href: string): string {
   return href.endsWith('/') ? `${href}index.html` : href;
 }
@@ -162,11 +189,15 @@ export function route(request: RequestFacts, index: PrecacheIndex, workerUrl: st
   if (bare.href === worker.href) return PASS;
 
   const navigate = request.mode === 'navigate';
+  // A page that moved: keep the query (`?engine=mock`); the browser carries the fragment
+  // across the redirect by itself, so a share link (`#v=1&…`) arrives intact, offline too.
+  const moved = navigate ? index.moved.get(bare.href) : undefined;
+  if (moved) return { kind: 'redirect', location: `${moved}${url.search}` };
   // The query never changes which build file is meant (`?engine=mock`, `?harness`).
   const key = index.keys.get(fileUrl(bare.href));
   if (key) return { kind: 'precache', key };
   if (navigate && !bare.pathname.endsWith('/') && index.keys.has(`${bare.href}/index.html`)) {
-    // Relative links inside the page only work from `next/`, never from `next`.
+    // Relative links inside the page only work from `classic/`, never from `classic`.
     return { kind: 'redirect', location: `${bare.href}/${url.search}` };
   }
   // Pages are stored without their query: an address never leaves anything personal in

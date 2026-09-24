@@ -4,9 +4,10 @@
  *
  * At the end of `vite build` (`closeBundle`: every file is on disk, public/ included):
  *
- *  1. Refuse HTML pages that are not app pages. Developer pages (next/dev-*.html,
- *     next/mockup.html) are served by `vite` in development only; one reaching the
- *     production build means vite.config.ts lost that rule, and it would be deployed.
+ *  1. Refuse HTML pages that are neither app pages nor redirects. Developer pages
+ *     (next/dev-*.html, next/mockup.html) are served by `vite` in development only; one
+ *     reaching the production build means vite.config.ts lost that rule, and it would be
+ *     deployed.
  *  2. Work out the precache (precache.ts): the app's pages and every hashed file they
  *     reach, minus development-only chunks (the mock engine, the developer harness);
  *     plus the basemap files its manifest lists, the gazetteer, the web app manifest and
@@ -35,6 +36,12 @@ export interface PwaOptions {
   readonly manifests: readonly string[];
   /** Further site paths precached as they are: data files, the web app manifest, icons. */
   readonly extra: readonly string[];
+  /**
+   * Pages that moved: `file` (a site path, built and deployed) forwards visitors from the
+   * directory address `from` to `to`, and the service worker answers the same redirect
+   * itself, offline too. Never precached.
+   */
+  readonly redirects?: readonly { readonly file: string; readonly from: string; readonly to: string }[];
   /** The service worker's source, relative to the Vite root. */
   readonly worker: string;
   /** Allow HTML pages other than `pages` in the output (never precached). Default false. */
@@ -130,7 +137,13 @@ export function skyfixPwa(options: PwaOptions): Plugin {
       files.delete(WORKER_FILE);
 
       const pages = options.pages.map((p) => p.file);
-      const others = [...files.keys()].filter((f) => /\.html?$/i.test(f) && !pages.includes(f));
+      const redirects = options.redirects ?? [];
+      for (const r of redirects) {
+        if (!files.has(r.file)) throw new Error(`skyfix-pwa: the redirect page ${r.file} is not in the built site`);
+        if (pages.includes(r.file)) throw new Error(`skyfix-pwa: ${r.file} cannot be both an app page and a redirect`);
+      }
+      const shipped = [...pages, ...redirects.map((r) => r.file)];
+      const others = [...files.keys()].filter((f) => /\.html?$/i.test(f) && !shipped.includes(f));
       if (others.length > 0 && !options.allowOtherPages) {
         throw new Error(
           `skyfix-pwa: ${others.join(', ')} ${others.length === 1 ? 'is' : 'are'} in the production build but not an app page.\n` +
@@ -155,6 +168,7 @@ export function skyfixPwa(options: PwaOptions): Plugin {
         version: list.version,
         entries: list.entries.map(({ url, rev }) => ({ url, rev })),
         pages: options.pages.map((p) => ({ url: pageAddress(p.file), label: p.label })),
+        redirects: redirects.map(({ from, to }) => ({ from, to })),
       });
 
       const gzip = list.entries.reduce((sum, e) => sum + gzipSync(files.get(e.url) as Uint8Array).byteLength, 0);
@@ -169,10 +183,11 @@ export function skyfixPwa(options: PwaOptions): Plugin {
             list.unreached.map((f) => `${f} (${Math.round((files.get(f)?.byteLength ?? 0) / 1000)} kB)`).join(', '),
         );
       }
-      if (list.unlisted.length > 0) {
+      const unlisted = list.unlisted.filter((f) => !redirects.some((r) => r.file === f));
+      if (unlisted.length > 0) {
         // Normally empty. A data file the app loads must be listed in `extra`, or it will
         // not work offline; developer pages (SKYFIX_DEV_PAGES=1) are expected here.
-        log.warn(`skyfix-pwa: in the site but not precached: ${list.unlisted.join(', ')}`);
+        log.warn(`skyfix-pwa: in the site but not precached: ${unlisted.join(', ')}`);
       }
     },
   };

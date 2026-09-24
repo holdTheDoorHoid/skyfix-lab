@@ -1,9 +1,8 @@
 /**
- * Offline support for the workbench at `/`: registers the same service worker as the
- * explorer and, when a new version waits, offers it in the workbench's own style
- * (styles.css `.sw-prompt`). Never reloads unless Reload is pressed. OWNER: release agent.
- * Retired with the workbench when the explorer moves to `/` (EXPLORER_PLAN, release
- * phase 2).
+ * Offline support for the original workbench at `/classic/`: registers the same service
+ * worker as the explorer and, when a new version waits, offers it in the workbench's own
+ * style (styles.css `.sw-prompt`). Never reloads unless Reload is pressed. OWNER: release
+ * agent. Goes when /classic/ does, at the end of the transition period.
  */
 
 import { startServiceWorker } from './register.js';

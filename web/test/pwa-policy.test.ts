@@ -20,14 +20,20 @@ import {
 
 const ROOT = 'https://holdthedoorhoid.github.io/skyfix-lab/';
 const WORKER = `${ROOT}sw.js`;
-const INDEX = precacheIndex(ROOT, [
-  { url: 'index.html', rev: 'aaaa' },
-  { url: 'next/index.html', rev: 'bbbb' },
-  { url: 'assets/next-Ab12Cd34.js', rev: 'cccc' },
-  { url: 'assets/skyfix_wasm_bg-D-fngT_p.wasm', rev: 'dddd' },
-  { url: 'data/basemap/land-110m.geojson', rev: 'eeee' },
-  { url: 'manifest.webmanifest', rev: 'ffff' },
-]);
+// The layout since the switch-over: the explorer at the root, the original workbench at
+// classic/, and next/ (the explorer's address while it was built) moved to the root.
+const INDEX = precacheIndex(
+  ROOT,
+  [
+    { url: 'index.html', rev: 'aaaa' },
+    { url: 'classic/index.html', rev: 'bbbb' },
+    { url: 'assets/explorer-Ab12Cd34.js', rev: 'cccc' },
+    { url: 'assets/skyfix_wasm_bg-D-fngT_p.wasm', rev: 'dddd' },
+    { url: 'data/basemap/land-110m.geojson', rev: 'eeee' },
+    { url: 'manifest.webmanifest', rev: 'ffff' },
+  ],
+  [{ from: 'next/', to: './' }],
+);
 
 const get = (url: string, extra: Partial<RequestFacts> = {}): RequestFacts => ({ url, method: 'GET', mode: 'cors', ...extra });
 const nav = (url: string): RequestFacts => get(url, { mode: 'navigate' });
@@ -61,9 +67,9 @@ describe('route: what the worker never touches', () => {
 
 describe('route: the precache', () => {
   it('answers precached files by their revisioned key', () => {
-    expect(route(get(`${ROOT}assets/next-Ab12Cd34.js`), INDEX, WORKER)).toEqual({
+    expect(route(get(`${ROOT}assets/explorer-Ab12Cd34.js`), INDEX, WORKER)).toEqual({
       kind: 'precache',
-      key: `${ROOT}assets/next-Ab12Cd34.js?__rev=cccc`,
+      key: `${ROOT}assets/explorer-Ab12Cd34.js?__rev=cccc`,
     });
     expect(route(get(`${ROOT}data/basemap/land-110m.geojson`), INDEX, WORKER)).toEqual({
       kind: 'precache',
@@ -72,33 +78,71 @@ describe('route: the precache', () => {
   });
 
   it('serves a page for its directory address, with or without a query', () => {
-    const next = { kind: 'precache', key: `${ROOT}next/index.html?__rev=bbbb` };
-    expect(route(nav(`${ROOT}next/`), INDEX, WORKER)).toEqual(next);
-    expect(route(nav(`${ROOT}next/index.html`), INDEX, WORKER)).toEqual(next);
-    expect(route(nav(`${ROOT}next/?engine=mock`), INDEX, WORKER)).toEqual(next);
-    expect(route(nav(`${ROOT}next/?harness#v=1&lat=1&lon=2`), INDEX, WORKER)).toEqual(next);
-    expect(route(nav(ROOT), INDEX, WORKER)).toEqual({ kind: 'precache', key: `${ROOT}index.html?__rev=aaaa` });
+    const explorer = { kind: 'precache', key: `${ROOT}index.html?__rev=aaaa` };
+    expect(route(nav(ROOT), INDEX, WORKER)).toEqual(explorer);
+    expect(route(nav(`${ROOT}index.html`), INDEX, WORKER)).toEqual(explorer);
+    expect(route(nav(`${ROOT}?engine=mock`), INDEX, WORKER)).toEqual(explorer);
+    expect(route(nav(`${ROOT}?harness#v=1&lat=1&lon=2`), INDEX, WORKER)).toEqual(explorer);
+    const classic = { kind: 'precache', key: `${ROOT}classic/index.html?__rev=bbbb` };
+    expect(route(nav(`${ROOT}classic/`), INDEX, WORKER)).toEqual(classic);
+    expect(route(nav(`${ROOT}classic/#fix`), INDEX, WORKER)).toEqual(classic);
   });
 
   it('redirects a page address without its trailing slash, keeping the query', () => {
-    expect(route(nav(`${ROOT}next`), INDEX, WORKER)).toEqual({ kind: 'redirect', location: `${ROOT}next/` });
-    expect(route(nav(`${ROOT}next?engine=mock`), INDEX, WORKER)).toEqual({
+    expect(route(nav(`${ROOT}classic`), INDEX, WORKER)).toEqual({ kind: 'redirect', location: `${ROOT}classic/` });
+    expect(route(nav(`${ROOT}classic?api=mock`), INDEX, WORKER)).toEqual({
       kind: 'redirect',
-      location: `${ROOT}next/?engine=mock`,
+      location: `${ROOT}classic/?api=mock`,
     });
   });
 
   it('works under / as well as under a sub-path (vite preview)', () => {
-    const local = precacheIndex('http://localhost:4173/', [{ url: 'next/index.html', rev: 'bbbb' }]);
-    expect(route(nav('http://localhost:4173/next/'), local, 'http://localhost:4173/sw.js')).toEqual({
+    const local = precacheIndex('http://localhost:4173/', [{ url: 'index.html', rev: 'aaaa' }], [{ from: 'next/', to: './' }]);
+    expect(route(nav('http://localhost:4173/'), local, 'http://localhost:4173/sw.js')).toEqual({
       kind: 'precache',
-      key: 'http://localhost:4173/next/index.html?__rev=bbbb',
+      key: 'http://localhost:4173/index.html?__rev=aaaa',
+    });
+    expect(route(nav('http://localhost:4173/next/'), local, 'http://localhost:4173/sw.js')).toEqual({
+      kind: 'redirect',
+      location: 'http://localhost:4173/',
     });
   });
 
   it('refuses absolute entries: everything is relative to the site root', () => {
-    expect(() => precacheIndex(ROOT, [{ url: '/skyfix-lab/next/index.html', rev: 'x' }])).toThrow(/relative/);
+    expect(() => precacheIndex(ROOT, [{ url: '/skyfix-lab/index.html', rev: 'x' }])).toThrow(/relative/);
     expect(() => precacheIndex(ROOT, [{ url: 'https://example.org/x.js', rev: 'x' }])).toThrow(/relative/);
+    expect(() => precacheIndex(ROOT, [], [{ from: '/skyfix-lab/next/', to: './' }])).toThrow(/relative/);
+  });
+});
+
+describe('route: pages that moved (next/ went to the site root)', () => {
+  const home = { kind: 'redirect', location: ROOT };
+
+  it('sends every spelling of the old address to the new one', () => {
+    expect(route(nav(`${ROOT}next/`), INDEX, WORKER)).toEqual(home);
+    expect(route(nav(`${ROOT}next/index.html`), INDEX, WORKER)).toEqual(home);
+    expect(route(nav(`${ROOT}next`), INDEX, WORKER)).toEqual(home);
+  });
+
+  it('keeps the query; the fragment (a share link) never reaches the worker and the browser keeps it', () => {
+    expect(route(nav(`${ROOT}next/?engine=mock`), INDEX, WORKER)).toEqual({ kind: 'redirect', location: `${ROOT}?engine=mock` });
+    expect(route(nav(`${ROOT}next/#v=1&lat=39.9526&lon=-75.1652`), INDEX, WORKER)).toEqual(home);
+  });
+
+  it('only for page loads; other requests and other addresses under next/ are not redirected', () => {
+    expect(route(get(`${ROOT}next/`), INDEX, WORKER)).toEqual({ kind: 'network-first', key: `${ROOT}next/`, navigate: false });
+    expect(route(nav(`${ROOT}next/dev-map.html`), INDEX, WORKER)).toEqual({
+      kind: 'network-first',
+      key: `${ROOT}next/dev-map.html`,
+      navigate: true,
+    });
+    expect(route(nav(`${ROOT}nextdoor/`), INDEX, WORKER)).toEqual({ kind: 'network-first', key: `${ROOT}nextdoor/`, navigate: true });
+  });
+
+  it('refuses a redirect that is not a directory page, is the root, or is also precached', () => {
+    expect(() => precacheIndex(ROOT, [], [{ from: 'next', to: './' }])).toThrow(/directory/);
+    expect(() => precacheIndex(ROOT, [], [{ from: './', to: 'classic/' }])).toThrow(/directory/);
+    expect(() => precacheIndex(ROOT, [{ url: 'next/index.html', rev: 'x' }], [{ from: 'next/', to: './' }])).toThrow(/precached/);
   });
 });
 
@@ -149,7 +193,7 @@ describe('cache names', () => {
   });
 
   it('key a file by URL and revision', () => {
-    expect(precacheKey(`${ROOT}next/index.html`, 'abc')).toBe(`${ROOT}next/index.html?__rev=abc`);
+    expect(precacheKey(`${ROOT}classic/index.html`, 'abc')).toBe(`${ROOT}classic/index.html?__rev=abc`);
   });
 });
 
@@ -194,13 +238,13 @@ describe('offline page', () => {
   it('links the app pages by absolute address and escapes their labels', () => {
     const html = offlinePageHtml(
       [
-        { url: 'next/', label: 'SkyFix Lab explorer' },
-        { url: './', label: 'A <b>workbench</b>' },
+        { url: './', label: 'SkyFix Lab explorer' },
+        { url: 'classic/', label: 'A <b>workbench</b>' },
       ],
       ROOT,
     );
-    expect(html).toContain(`href="${ROOT}next/"`);
     expect(html).toContain(`href="${ROOT}"`);
+    expect(html).toContain(`href="${ROOT}classic/"`);
     expect(html).toContain('A &#60;b&#62;workbench&#60;/b&#62;');
     expect(html).toContain('Not a navigation instrument.');
     expect(html).not.toMatch(/<script|https?:\/\/(?!holdthedoorhoid)/);

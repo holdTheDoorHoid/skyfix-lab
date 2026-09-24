@@ -88,7 +88,7 @@ const view: Component = (host, ctx) => {
       h(
         'ul',
         {},
-        h('li', {}, h('a', { href: '../' }, 'The current workbench'), ': sights, corrections, the fix with its uncertainty, the simulator and the planner.'),
+        h('li', {}, h('a', { href: 'classic/' }, 'The original workbench'), ', kept for reference for a while: Navigate and Learn now do everything it did (sights, corrections, the fix with its uncertainty, the simulator and the planner).'),
         h('li', {}, 'Map data: Natural Earth (public domain). Stars: the Yale Bright Star Catalogue from NASA HEASARC. Fonts: Inter and JetBrains Mono (SIL Open Font License).'),
       ),
     ),

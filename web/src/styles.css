@@ -366,3 +366,16 @@ thead th { border-bottom: 2px solid var(--ink-soft); font-size: 0.82rem; text-tr
   border: 1px solid var(--rule);
   box-shadow: 0 4px 14px rgba(12, 20, 30, 0.18);
 }
+
+/* --- /classic/: this page is the original workbench, kept for reference ---- */
+
+.classic-notice {
+  margin: 0;
+  padding: 7px 16px;
+  background: var(--paper-sunk);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  font-size: 0.9rem;
+  text-align: center;
+}
+.classic-notice a { color: var(--ink); font-weight: 700; text-decoration: underline; } /* 15:1 on --paper-sunk */
