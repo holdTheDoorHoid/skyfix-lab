@@ -32,21 +32,36 @@ use skyfix_ephemeris::stars::StarProvider;
 struct ReferenceFile {
     #[serde(default)]
     schema: String,
-    /// Arcminutes. The fixture states the tolerance it was generated to meet.
-    tolerance_arcmin: f64,
-    cases: Vec<Case>,
+    generator: Generator,
+    cases: Vec<Epoch>,
 }
 
 #[derive(Deserialize)]
-struct Case {
+struct Generator {
+    /// Arcminutes. The fixture states the tolerance it was generated to meet.
+    tolerance_arcmin: f64,
+}
+
+/// One epoch: every body at one instant. `gha_deg` includes Skyfield's IERS DUT1;
+/// `gha_deg_dut1_zero` treats the UTC instant as UT1, which is this project's
+/// convention (CONVENTIONS section 6) and the one the USNO almanac service follows.
+#[derive(Deserialize)]
+struct Epoch {
     utc: String,
-    body: String,
+    #[serde(default)]
+    dut1_s: f64,
+    #[serde(default)]
+    gha_aries_deg_dut1_zero: Option<f64>,
+    bodies: std::collections::BTreeMap<String, Body>,
+}
+
+#[derive(Deserialize)]
+struct Body {
     gha_deg: f64,
+    gha_deg_dut1_zero: f64,
     dec_deg: f64,
     #[serde(default)]
     sha_deg: Option<f64>,
-    #[serde(default)]
-    gha_aries_deg: Option<f64>,
 }
 
 fn fixture_path() -> PathBuf {
@@ -98,71 +113,85 @@ fn star_directions_match_the_independent_reference_fixture() {
         "{} has the wrong schema",
         path.display()
     );
+    let provider = StarProvider::new();
+    let tolerance = file.generator.tolerance_arcmin;
     assert!(
-        file.tolerance_arcmin > 0.0,
+        tolerance > 0.0,
         "{} does not state a usable tolerance_arcmin",
         path.display()
     );
-
-    let provider = StarProvider::new();
     let mut checked = 0usize;
     let mut skipped_sun = 0usize;
     let mut worst = (0.0f64, String::new());
+    let mut worst_dut1 = 0.0f64;
     let mut failures: Vec<String> = Vec::new();
 
-    for c in &file.cases {
-        if c.body.eq_ignore_ascii_case("sun") {
-            skipped_sun += 1;
-            continue;
-        }
-        let jd_utc = parse_utc(&c.utc)
-            .unwrap_or_else(|e| panic!("case {} {}: bad timestamp: {e}", c.body, c.utc));
+    for epoch in &file.cases {
+        let jd_utc = parse_utc(&epoch.utc)
+            .unwrap_or_else(|e| panic!("epoch {}: bad timestamp: {e}", epoch.utc));
+        // Second provider configured with the fixture's own DUT1: it must reproduce the
+        // DUT1-inclusive column, which proves the UT1 path is wired, not just ignored.
+        let provider_dut1 = StarProvider::with_dut1(epoch.dut1_s);
 
-        let got = match provider.geocentric(&c.body, jd_utc) {
-            Ok(d) => d,
-            Err(e) => {
-                failures.push(format!("{} at {}: provider refused: {e}", c.body, c.utc));
+        if let Some(aries) = epoch.gha_aries_deg_dut1_zero {
+            let d = wrap180(provider.gha_aries_deg(jd_utc) - aries) * 60.0;
+            if d.abs() > tolerance {
+                failures.push(format!("at {}: GHA Aries differs by {d:+.4}'", epoch.utc));
+            }
+        }
+
+        for (body, c) in &epoch.bodies {
+            if body.eq_ignore_ascii_case("sun") {
+                skipped_sun += 1;
                 continue;
             }
-        };
-
-        let sep = separation_arcmin((got.gha_deg, got.dec_deg), (c.gha_deg, c.dec_deg));
-        let d_dec = (got.dec_deg - c.dec_deg) * 60.0;
-        let d_gha = wrap180(got.gha_deg - c.gha_deg) * 60.0;
-        if sep > worst.0 {
-            worst = (sep, format!("{} at {}", c.body, c.utc));
-        }
-        if sep > file.tolerance_arcmin || d_dec.abs() > file.tolerance_arcmin {
-            failures.push(format!(
-                "{} at {}: separation {sep:.4}' (dGHA {d_gha:+.4}', dDec {d_dec:+.4}') \
-                 exceeds tolerance {:.4}'",
-                c.body, c.utc, file.tolerance_arcmin
-            ));
-        }
-
-        // The fixture's own SHA / GHA-Aries columns, when present, must agree too:
-        // GHA_star = GHA_Aries + SHA (CONVENTIONS section 2).
-        if let Some(sha) = c.sha_deg {
-            let ours = provider.sha_deg(&c.body, jd_utc).unwrap();
-            let d = wrap180(ours - sha) * 60.0;
-            if d.abs() > file.tolerance_arcmin {
-                failures.push(format!("{} at {}: SHA differs by {d:+.4}'", c.body, c.utc));
+            let got = match provider.geocentric(body, jd_utc) {
+                Ok(d) => d,
+                Err(e) => {
+                    failures.push(format!("{body} at {}: provider refused: {e}", epoch.utc));
+                    continue;
+                }
+            };
+            let sep =
+                separation_arcmin((got.gha_deg, got.dec_deg), (c.gha_deg_dut1_zero, c.dec_deg));
+            let d_dec = (got.dec_deg - c.dec_deg) * 60.0;
+            let d_gha = wrap180(got.gha_deg - c.gha_deg_dut1_zero) * 60.0;
+            if sep > worst.0 {
+                worst = (sep, format!("{body} at {}", epoch.utc));
             }
-        }
-        if let Some(aries) = c.gha_aries_deg {
-            let ours = provider.gha_aries_deg(jd_utc);
-            let d = wrap180(ours - aries) * 60.0;
-            if d.abs() > file.tolerance_arcmin {
-                failures.push(format!("at {}: GHA Aries differs by {d:+.4}'", c.utc));
+            if sep > tolerance || d_dec.abs() > tolerance {
+                failures.push(format!(
+                    "{body} at {}: separation {sep:.4}' (dGHA {d_gha:+.4}', dDec {d_dec:+.4}') \
+                     exceeds tolerance {tolerance:.4}'",
+                    epoch.utc
+                ));
             }
+            if let Ok(with_dut1) = provider_dut1.geocentric(body, jd_utc) {
+                let d = wrap180(with_dut1.gha_deg - c.gha_deg) * 60.0;
+                worst_dut1 = worst_dut1.max(d.abs());
+                if d.abs() > tolerance {
+                    failures.push(format!(
+                        "{body} at {}: GHA with DUT1 {:+.3} s differs by {d:+.4}'",
+                        epoch.utc, epoch.dut1_s
+                    ));
+                }
+            }
+            if let Some(sha) = c.sha_deg {
+                let ours = provider.sha_deg(body, jd_utc).unwrap();
+                let d = wrap180(ours - sha) * 60.0;
+                if d.abs() > tolerance {
+                    failures.push(format!("{body} at {}: SHA differs by {d:+.4}'", epoch.utc));
+                }
+            }
+            checked += 1;
         }
-        checked += 1;
     }
+    println!("worst GHA disagreement with the fixture's own DUT1 applied: {worst_dut1:.5}'");
 
     println!(
         "reference fixture: {checked} star cases checked ({skipped_sun} Sun cases \
          skipped), tolerance {:.4}', worst separation {:.4}' at {}",
-        file.tolerance_arcmin, worst.0, worst.1
+        tolerance, worst.0, worst.1
     );
     assert!(checked > 0, "{} contained no star cases", path.display());
     assert!(

@@ -70,6 +70,8 @@ struct CatalogFile {
     schema: String,
     #[serde(default)]
     generator: Generator,
+    /// The authoritative Skyfield-generated file calls this array `cases`.
+    #[serde(alias = "cases")]
     stars: Vec<StarRecord>,
 }
 
