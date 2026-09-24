@@ -1,8 +1,10 @@
 #!/usr/bin/env node
 /**
- * Screenshots of the Sky view for review, written to docs/design/sky-<case>.png.
- * Development tool only (Node built-ins and a local Chrome; not part of the site).
- * OWNER: sky agent.
+ * Screenshots of the Sky view for review, written to docs/design/local/sky-<case>.png
+ * (git-ignored working screenshots). Three curated ones are committed in docs/design/:
+ * night-philadelphia-dome, twilight-panorama and southern-dome-dark — copy them up when
+ * they are worth replacing. Development tool only (Node built-ins and a local Chrome;
+ * not part of the site). OWNER: sky agent.
  *
  *   npx vite --port 5192 --strictPort            # in web/, in another terminal
  *   node src/next/sky/dev/screenshots.mjs         # every case
@@ -10,7 +12,7 @@
  *
  * Chrome's virtual time is enough here: the Sky view draws on animation frames with no
  * workers. Environment: BASE (default http://localhost:5192), CHROME (google-chrome),
- * OUT (default docs/design at the repository root).
+ * OUT (default docs/design/local at the repository root).
  */
 
 import { spawnSync } from 'node:child_process';
@@ -21,7 +23,7 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const BASE = process.env.BASE ?? 'http://localhost:5192';
 const CHROME = process.env.CHROME ?? 'google-chrome';
-const OUT = resolve(process.env.OUT ?? join(here, '../../../../../docs/design'));
+const OUT = resolve(process.env.OUT ?? join(here, '../../../../../docs/design/local'));
 
 const DESKTOP = [1440, 900, 1];
 const PHONE = [390, 844, 2];
