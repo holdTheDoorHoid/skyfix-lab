@@ -9,6 +9,8 @@
 //! | `sky` | `skyfix_almanac::sky::sky_state`, constellations from `skyfix_starfield` |
 //! | `events` | `skyfix_almanac::events::day_events` |
 //! | `phases`, `seasons` | `skyfix_almanac::events::{moon_phases, seasons}` |
+//! | `eclipses`, `eclipse` | `skyfix_almanac::eclipses::Eclipses::{find, by_id, local, path}` |
+//! | `planet-events` | `skyfix_almanac::planet_events::planet_events` |
 //! | `noon`, `polaris`, `average` | `skyfix_core::methods::{noon, polaris, averaging}` |
 //! | `running-fix` | `skyfix_motion::request::running_fix_session` |
 //! | `predict` | `skyfix_core::sights::predict::predict_sextant` |
@@ -26,12 +28,15 @@
 
 pub mod args;
 pub mod average;
+pub mod eclipse;
+pub mod eclipses;
 pub mod events;
 pub mod lunar;
 pub mod methods;
 pub mod noon;
 pub mod phases;
 pub mod plan_sights;
+pub mod planet_events;
 pub mod polaris;
 pub mod predict;
 pub mod running_fix;
@@ -56,6 +61,17 @@ pub enum ExplorerCommand {
 
     /// The equinoxes and solstices of a year.
     Seasons(phases::SeasonsArgs),
+
+    /// Every solar and lunar eclipse in a window, and with --lat --lon whether each is
+    /// seen from there.
+    Eclipses(eclipses::Args),
+
+    /// One eclipse: its contacts, what a place sees (--lat --lon), or its path (--path).
+    Eclipse(eclipse::Args),
+
+    /// Oppositions, conjunctions (and transits), greatest elongations and closest
+    /// approaches of the planets in a window.
+    PlanetEvents(planet_events::Args),
 
     /// Latitude, meridian passage and a (weak) longitude from a run of sights of one body
     /// around its meridian passage.
@@ -89,6 +105,9 @@ pub fn run(command: ExplorerCommand) -> Result<u8> {
         ExplorerCommand::Events(a) => events::run(&a),
         ExplorerCommand::Phases(a) => phases::run_phases(&a),
         ExplorerCommand::Seasons(a) => phases::run_seasons(&a),
+        ExplorerCommand::Eclipses(a) => eclipses::run(&a),
+        ExplorerCommand::Eclipse(a) => eclipse::run(&a),
+        ExplorerCommand::PlanetEvents(a) => planet_events::run(&a),
         ExplorerCommand::Noon(a) => noon::run(&a),
         ExplorerCommand::Polaris(a) => polaris::run(&a),
         ExplorerCommand::Average(a) => average::run(&a),

@@ -56,6 +56,45 @@ pub struct PositionArgs {
     pub lon: f64,
 }
 
+/// `--lat DEG --lon DEG [--height M]`, all optional: the observer of a command that also
+/// answers without one (`eclipses`, `eclipse`). Latitude and longitude come together or
+/// not at all, and a height needs them.
+#[derive(clap::Args, Debug, Clone, Copy)]
+pub struct OptionalSiteArgs {
+    /// Observer's latitude, degrees, north positive (-90 to 90). With --lon, adds what that
+    /// place sees.
+    #[arg(long, value_name = "DEG", allow_negative_numbers = true, value_parser = parse_lat, requires = "lon")]
+    pub lat: Option<f64>,
+    /// Observer's longitude, degrees, EAST positive (-180 to 180): 75.17 W is -75.17.
+    #[arg(long, value_name = "DEG", allow_negative_numbers = true, value_parser = parse_lon, requires = "lat")]
+    pub lon: Option<f64>,
+    /// Height of the site above the WGS84 ellipsoid, metres; not the height of eye.
+    /// Default 0.
+    #[arg(
+        long,
+        value_name = "M",
+        allow_negative_numbers = true,
+        requires = "lat"
+    )]
+    pub height: Option<f64>,
+}
+
+impl OptionalSiteArgs {
+    /// The observer as the engine's site, or `None` when no position was given. Pressure
+    /// and temperature stay at their defaults: nothing that takes this site refracts.
+    pub fn site(&self) -> Option<skyfix_ephemeris::topocentric::Site> {
+        match (self.lat, self.lon) {
+            (Some(lat_deg), Some(lon_deg)) => Some(skyfix_ephemeris::topocentric::Site {
+                lat_deg,
+                lon_deg,
+                height_m: self.height.unwrap_or(0.0),
+                ..skyfix_ephemeris::topocentric::Site::default()
+            }),
+            _ => None,
+        }
+    }
+}
+
 /// The air, for refraction.
 #[derive(clap::Args, Debug, Clone, Copy)]
 pub struct AirArgs {
@@ -259,20 +298,49 @@ pub enum When {
 impl When {
     /// As the start of a window: a date means 00:00 UTC on it.
     pub fn start_jd(self) -> f64 {
-        match self {
-            When::Date(d) => d.jd0(),
-            When::Instant(jd) => jd,
-        }
+        self.start_jd_in(0)
     }
 
     /// As the end of a window: a date means the END of it, 00:00 UTC the next day, so
     /// `--from 2026-10-01 --to 2026-10-31` is the whole of October.
     pub fn end_jd(self) -> f64 {
+        self.end_jd_in(0)
+    }
+
+    /// As the start of a window, a date being a date in a zone `offset_minutes` east of
+    /// UTC (`--zone`): it starts at local midnight. An instant is an instant.
+    pub fn start_jd_in(self, offset_minutes: i32) -> f64 {
         match self {
-            When::Date(d) => d.jd0() + 1.0,
+            When::Date(d) => d.jd0() - f64::from(offset_minutes) / 1440.0,
             When::Instant(jd) => jd,
         }
     }
+
+    /// As the end of a window, a date in that zone: it ends at the next local midnight.
+    pub fn end_jd_in(self, offset_minutes: i32) -> f64 {
+        match self {
+            When::Date(d) => d.jd0() + 1.0 - f64::from(offset_minutes) / 1440.0,
+            When::Instant(jd) => jd,
+        }
+    }
+}
+
+/// `[start, end]` of a `--from`/`--to` window, a date being a date in the zone
+/// `offset_minutes` east of UTC (0: UTC), or why the window is empty.
+pub fn window(from: When, to: When, offset_minutes: i32) -> anyhow::Result<(f64, f64)> {
+    let (start, end) = (
+        from.start_jd_in(offset_minutes),
+        to.end_jd_in(offset_minutes),
+    );
+    if end <= start {
+        anyhow::bail!(
+            "--to must come after --from (a date as --to means the end of that day): {} is not \
+             after {}",
+            super::text::utc(end),
+            super::text::utc(start)
+        );
+    }
+    Ok((start, end))
 }
 
 /// `YYYY-MM-DD` or an RFC 3339 UTC instant.
@@ -447,6 +515,21 @@ mod tests {
         let i = parse_when("2026-10-01T12:00:00Z").unwrap();
         assert_eq!(i.start_jd(), i.end_jd());
         assert!(parse_when("2026-10-01T12:00:00").is_err());
+    }
+
+    #[test]
+    fn a_date_in_a_zone_runs_from_local_midnight_and_an_instant_does_not_move() {
+        use super::super::text::utc;
+        let w = parse_when("2026-09-01").unwrap();
+        assert_eq!(utc(w.start_jd_in(-240)), "2026-09-01T04:00:00Z");
+        assert_eq!(utc(w.end_jd_in(-240)), "2026-09-02T04:00:00Z");
+        assert_eq!(utc(w.start_jd_in(330)), "2026-08-31T18:30:00Z");
+        // UTC is exactly the zone-free window, not merely close to it.
+        assert_eq!(w.start_jd_in(0), w.start_jd());
+        assert_eq!(w.end_jd_in(0), w.end_jd());
+        let i = parse_when("2026-09-01T12:00:00Z").unwrap();
+        assert_eq!(i.start_jd_in(-240), i.start_jd());
+        assert_eq!(i.end_jd_in(600), i.end_jd());
     }
 
     #[test]
