@@ -93,8 +93,9 @@ visible in the API rather than papered over.
   `skyfix-core::geometry` and `skyfix-core::linalg` and never calls the solver. Its
   honesty rule: a heading estimate always returns the exact `best + 180` candidate
   alongside the best one, because the model's Sun/anti-Sun symmetry can make them
-  genuinely indistinguishable, and the crate does not attempt position at all —
-  geolocation from polarization is deferred by design (POLARIZATION.md sections 1 and 5).
+  genuinely indistinguishable (POLARIZATION.md section 5), and the crate does not
+  attempt position at all — "geolocation from polarization is deferred by design"
+  (POLARIZATION.md's opening scope statement and section 8).
 - **`skyfix-motion`** adds a moving observer without changing the position solver's
   model: `running_fix` advances each sight's geographic position to one reference
   instant by a rigid rotation of the sphere (measured to be exact at the linearisation
