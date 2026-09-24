@@ -4,7 +4,7 @@
  * map agent.
  */
 
-import type { ExpressionSpecification, LayerSpecification, Map as MapLibreMap, GeoJSONSource } from 'maplibre-gl';
+import type { ExpressionSpecification, LayerSpecification, Map as MapLibreMap, GeoJSONSource, UpdateImageOptions } from 'maplibre-gl';
 import { MAP_FONTS } from './fonts.js';
 import type { MapServiceImpl, OverlayEntry, OverlayEvent, OverlayStyle } from './overlays.js';
 import { LAYER } from './style.js';
@@ -16,7 +16,7 @@ const POLYGON: ExpressionSpecification = ['in', ['geometry-type'], ['literal', [
 const POINT: ExpressionSpecification = ['in', ['geometry-type'], ['literal', ['Point', 'MultiPoint']]];
 const NOT_POINT: ExpressionSpecification = ['!', POINT];
 
-const SUFFIXES = ['fill', 'casing', 'line', 'point', 'label-line', 'label-point'] as const;
+const SUFFIXES = ['fill', 'casing', 'line', 'point', 'label-line', 'label-point', 'raster'] as const;
 
 const sourceId = (id: string) => `ov:${id}`;
 const layerId = (id: string, part: (typeof SUFFIXES)[number]) => `ov:${id}:${part}`;
@@ -122,6 +122,8 @@ export class OverlayDrawer {
   /** Recolour after a theme change. */
   restyle(): void {
     for (const entry of this.service.overlays()) {
+      // A raster's colours are in its pixels; its publisher redraws it for a new theme.
+      if (entry.image) continue;
       for (const layer of overlayLayers(entry, this.tokens())) {
         if (!this.map.getLayer(layer.id) || !('paint' in layer) || !layer.paint) continue;
         for (const [k, v] of Object.entries(layer.paint)) this.map.setPaintProperty(layer.id, k as PaintName, v);
@@ -145,6 +147,10 @@ export class OverlayDrawer {
   }
 
   private draw(entry: OverlayEntry): void {
+    if (entry.image) {
+      this.drawImage(entry, entry.image);
+      return;
+    }
     const styleKey = JSON.stringify(entry.style);
     const existing = this.drawn.get(entry.id);
     const source = this.map.getSource(sourceId(entry.id)) as GeoJSONSource | undefined;
@@ -156,6 +162,28 @@ export class OverlayDrawer {
     this.map.addSource(sourceId(entry.id), { type: 'geojson', data: entry.data, tolerance: 0.3 });
     const before = this.beforeId(entry.id);
     for (const layer of overlayLayers(entry, this.tokens())) this.map.addLayer(layer, before);
+    this.drawn.set(entry.id, { styleKey });
+  }
+
+  /** An image overlay: one image source and one raster layer (addition by the misfit agent). */
+  private drawImage(entry: OverlayEntry, image: NonNullable<OverlayEntry['image']>): void {
+    const styleKey = JSON.stringify({ raster: true, ...entry.style, opacity: image.opacity });
+    const source = this.map.getSource(sourceId(entry.id)) as { updateImage?: (o: UpdateImageOptions) => unknown } | undefined;
+    if (this.drawn.get(entry.id)?.styleKey === styleKey && typeof source?.updateImage === 'function') {
+      source.updateImage({ url: image.url, coordinates: image.coordinates });
+      return;
+    }
+    this.remove(entry.id);
+    this.map.addSource(sourceId(entry.id), { type: 'image', url: image.url, coordinates: image.coordinates });
+    this.map.addLayer(
+      {
+        id: layerId(entry.id, 'raster'),
+        type: 'raster',
+        source: sourceId(entry.id),
+        paint: { 'raster-opacity': image.opacity ?? 0.7, 'raster-fade-duration': 0, 'raster-resampling': 'linear' },
+      },
+      this.beforeId(entry.id),
+    );
     this.drawn.set(entry.id, { styleKey });
   }
 

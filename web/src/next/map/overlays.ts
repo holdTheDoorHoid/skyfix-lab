@@ -38,10 +38,30 @@ export interface OverlayStyle {
   z?: number;
 }
 
+/**
+ * A raster laid on the map between four corners (a MapLibre image source), such as the
+ * misfit heat map (misfit/overlay.ts). Addition by the misfit agent.
+ */
+export interface ImageOverlay {
+  /** A `data:` or `blob:` URL: the map is offline, so never a network address. */
+  url: string;
+  /**
+   * `[lon, lat]` of the image's corners: top-left, top-right, bottom-right, bottom-left.
+   * The image is stretched linearly between them in the map's projection (so a raster for
+   * the flat map has rows evenly spaced in Web Mercator). Longitudes may run past 180.
+   */
+  coordinates: [[number, number], [number, number], [number, number], [number, number]];
+  /** 0-1, default 0.7. */
+  opacity?: number;
+}
+
 export interface OverlayEntry {
   readonly id: string;
+  /** For an image overlay, its outline (so `fitOverlay` works the same). */
   readonly data: FeatureCollection;
   readonly style: Readonly<OverlayStyle>;
+  /** Present for an image overlay (`addImageOverlay`). */
+  readonly image?: Readonly<ImageOverlay>;
   /** Increases on every change, so a drawer can tell a replaced overlay from an unchanged one. */
   readonly revision: number;
 }
@@ -66,6 +86,8 @@ export interface MapCamera {
 export interface MapService {
   /** Draw (or replace) an overlay. `id`: letters, digits, `-` and `_`. */
   addOverlay(id: string, data: GeoJSON, style?: OverlayStyle): void;
+  /** Draw (or replace) a raster overlay; `style.z` stacks it among the others. */
+  addImageOverlay(id: string, image: ImageOverlay, style?: Pick<OverlayStyle, 'z'>): void;
   removeOverlay(id: string): void;
   hasOverlay(id: string): boolean;
   /** Current overlays, bottom to top. */
@@ -144,6 +166,37 @@ export class MapServiceImpl implements MapService {
       throw new Error(`overlay ${id}: expected GeoJSON`);
     }
     const entry: OverlayEntry = { id, data: toFeatureCollection(data), style: { ...style }, revision: ++this.revision };
+    if (!this.entries.has(id)) this.order.push(id);
+    this.entries.set(id, entry);
+    this.emit({ kind: 'set', entry });
+  }
+
+  addImageOverlay(id: string, image: ImageOverlay, style: Pick<OverlayStyle, 'z'> = {}): void {
+    if (!ID.test(id)) throw new Error(`overlay id ${JSON.stringify(id)}: use 1-64 letters, digits, '-' or '_'`);
+    if (!/^(data|blob):/.test(image.url)) {
+      throw new Error(`overlay ${id}: an image overlay must be a data: or blob: URL (the map is offline)`);
+    }
+    const corners = image.coordinates;
+    if (corners.length !== 4 || corners.flat().some((v) => !Number.isFinite(v))) {
+      throw new Error(`overlay ${id}: an image needs four finite [lon, lat] corners`);
+    }
+    const outline: FeatureCollection = {
+      type: 'FeatureCollection',
+      features: [
+        {
+          type: 'Feature',
+          properties: {},
+          geometry: { type: 'Polygon', coordinates: [[...corners.map(([lon, lat]) => [lon, lat]), [corners[0][0], corners[0][1]]]] },
+        },
+      ],
+    };
+    const entry: OverlayEntry = {
+      id,
+      data: outline,
+      style: { ...(style.z === undefined ? {} : { z: style.z }) },
+      image: { url: image.url, coordinates: image.coordinates, opacity: image.opacity ?? 0.7 },
+      revision: ++this.revision,
+    };
     if (!this.entries.has(id)) this.order.push(id);
     this.entries.set(id, entry);
     this.emit({ kind: 'set', entry });

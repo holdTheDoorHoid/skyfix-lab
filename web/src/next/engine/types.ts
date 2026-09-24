@@ -1087,6 +1087,147 @@ export function isAlmanacEngine(engine: unknown): engine is AlmanacEngine {
 }
 
 // ---------------------------------------------------------------------------
+// Misfit grid: the residual heat map. Rust: crates/skyfix-wasm/src/misfit.rs over
+// skyfix_core::misfit (CONVENTIONS sections 8-9). Wire format: docs/EXPLORER_API.md,
+// "Misfit grid". Composed as `engine.misfit` by engine/wasm-misfit.ts and
+// engine/mock-misfit.ts. Addition by the misfit agent.
+// ---------------------------------------------------------------------------
+
+/**
+ * A latitude/longitude box, degrees. The grid runs east from `west_deg` to `east_deg`;
+ * across the antimeridian `east_deg` may be below `west_deg` (170 to -170) or above 180.
+ * In results it is normalised: `west_deg` in [-180, 180), `east_deg = west_deg + span`.
+ */
+export interface MisfitBounds {
+  south_deg: number;
+  north_deg: number;
+  west_deg: number;
+  east_deg: number;
+}
+
+/** A polished minimum of the map. */
+export interface MisfitPoint {
+  lat_deg: number;
+  lon_deg: number;
+  chi2: number;
+  /** `chi2 - min.chi2`. */
+  delta_chi2: number;
+  /** The best-fitting shared bias there, arcminutes; null unless the bias is estimated. */
+  shared_bias_arcmin: number | null;
+  inside_grid: boolean;
+  /** The sights fix a point here (full rank, condition number < 1e6); false along a valley. */
+  well_determined: boolean;
+  converged: boolean;
+}
+
+/** The lowest node: row `i` from the south edge, column `j` from the west edge. */
+export interface MisfitGridNode {
+  i: number;
+  j: number;
+  lat_deg: number;
+  lon_deg: number;
+  chi2: number;
+  delta_chi2: number;
+}
+
+export type MisfitLevelName = 'one_sigma' | 'p95' | 'three_sigma';
+
+/** One contour level: `chi2 = min.chi2 + delta_chi2`. */
+export interface MisfitLevel {
+  name: MisfitLevelName;
+  /** `68.3 % (1 sigma)`, `95 %`, `99.7 % (3 sigma)`. */
+  label: string;
+  confidence: number;
+  delta_chi2: number;
+  chi2: number;
+}
+
+export interface MisfitSight {
+  id: string;
+  body: string;
+  sigma_arcmin: number;
+  /** Multiplier on 1 / sigma²: 1 unless the solver's final robust weights are held fixed. */
+  weight: number;
+}
+
+/** What `solve` returned for the same inputs. */
+export type MisfitSolveKind = FixResult['kind'];
+
+/** `misfit_grid` (EXPLORER_API "Misfit grid"). */
+export interface MisfitGrid {
+  bounds: MisfitBounds;
+  /** The columns run past 180 degrees (`bounds.east_deg > 180`). */
+  crosses_antimeridian: boolean;
+  n_lat: number;
+  n_lon: number;
+  lat_step_deg: number;
+  lon_step_deg: number;
+  /** Node latitudes, south to north. */
+  lat_deg: number[];
+  /**
+   * Node longitudes, west to east, normalised to (-180, 180]; they jump by -360 where the
+   * grid crosses the antimeridian (`bounds.west_deg + j * lon_step_deg` has no jump).
+   */
+  lon_deg: number[];
+  /** Row-major, south row first: `chi2[i * n_lon + j]` at `(lat_deg[i], lon_deg[j])`. */
+  chi2: Float64Array;
+  /** The best point: the levels are measured from it. */
+  min: MisfitPoint;
+  grid_min: MisfitGridNode;
+  /** Distinct polished minima, best first (at most 8), `min` included. */
+  basins: MisfitPoint[];
+  /** 2, or 3 with the shared bias estimated. */
+  unknowns: number;
+  /** Usable sights minus unknowns; zero or negative when nothing is redundant. */
+  dof: number;
+  /** 1 sigma, 95 %, 3 sigma, in that order. */
+  levels: MisfitLevel[];
+  bias_profiled: boolean;
+  weighted: boolean;
+  sights: MisfitSight[];
+  /** Plain-language caveats for this map. */
+  notes: string[];
+  solve_kind: MisfitSolveKind;
+}
+
+/** `misfit_default_bounds`: the frame `misfit_grid` uses when given no bounds. */
+export interface MisfitDefaultBounds {
+  bounds: MisfitBounds;
+  centre: LatLon;
+  centred_on: 'fix' | 'candidates' | 'initializer' | 'circle';
+  /** The radius kept round each point framed, nautical miles. */
+  radius_nm: number;
+  reason: string;
+  solve_kind: MisfitSolveKind;
+}
+
+/**
+ * The residual heat map of a solve. The session, mode and options are exactly what
+ * `solve` takes; `bounds` null means the default frame; 2 to 1024 nodes along each axis.
+ * Errors throw.
+ */
+export interface MisfitEngine {
+  misfitGrid(
+    session: Session,
+    mode: EphemerisMode,
+    options: Partial<SolveOptions> | null,
+    bounds: MisfitBounds | null,
+    nLat: number,
+    nLon: number,
+  ): MisfitGrid;
+  misfitDefaultBounds(session: Session, mode: EphemerisMode, options: Partial<SolveOptions> | null): MisfitDefaultBounds;
+}
+
+/**
+ * `ExplorerEngine.misfit` (interface merging, so the declaration above stays untouched):
+ * present when the engine's build has the misfit exports; a package built before them has
+ * none.
+ */
+export interface ExplorerEngine {
+  readonly misfit?: MisfitEngine;
+}
+
+// ---------------------------------------------------------------------------
 // Wave 2 — eclipses. Rust: crates/skyfix-wasm/src/eclipses.rs over
 // skyfix_almanac::eclipses. Wire format: docs/EXPLORER_API.md, "Wave 2 — eclipses".
 // ---------------------------------------------------------------------------

@@ -17,6 +17,8 @@ import { createMockNav } from './mock-nav.js';
 import { mockAlmanacDay } from './mock/almanac.js';
 import * as A from './mock/astro.js';
 import { crossings, grid, sample } from './mock/roots.js';
+import { createMockMisfit } from './mock-misfit.js';
+import type { MisfitEngine } from './types.js';
 import {
   buildStarfield,
   mockConstellationAt,
@@ -207,6 +209,8 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
   private readonly byHip = new Map<number, BodyDef>();
   private readonly field: MockStarfield;
   private readonly validated: boolean;
+  /** The residual heat map (mock-misfit.ts): illustrative, like everything here. */
+  readonly misfit: MisfitEngine = createMockMisfit(this);
 
   constructor(options: MockEngineOptions = {}) {
     this.validated = options.validated ?? false;
