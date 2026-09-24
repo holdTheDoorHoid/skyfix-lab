@@ -304,7 +304,7 @@ export function renderKit(root: HTMLElement, theme: ThemeName, onTheme: (t: Them
             'div',
             { class: 'sf-readouts' },
             readout({ value: '26° 02′', label: 'Height above horizon', term: 'altitude' }),
-            readout({ value: '244° 44′', unit: 'WSW', label: 'Direction', term: 'azimuth, Zn' }),
+            readout({ value: '244° 44′', label: 'Direction · WSW', term: 'azimuth, Zn' }),
           ),
           kv('daylength', 'Length of day', '12 h 04 min'),
           kv('shadow', 'Shadow of a 1 m pole', '2.05 m'),

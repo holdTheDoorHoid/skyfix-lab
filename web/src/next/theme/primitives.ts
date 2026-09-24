@@ -359,7 +359,12 @@ export function switchRow(options: SwitchOptions): HTMLButtonElement {
     'button',
     { type: 'button', class: 'sf-switch', role: 'switch', 'aria-checked': String(options.checked) },
     options.lead ?? null,
-    h('span', {}, options.label, options.note ? h('span', { class: 'sf-switch__note' }, ` ${options.note}`) : null),
+    h(
+      'span',
+      { class: 'sf-switch__text' },
+      options.label,
+      options.note ? h('span', { class: 'sf-switch__note' }, options.note) : null,
+    ),
     h('span', { class: 'sf-switch__track', 'aria-hidden': 'true' }),
   );
   el.addEventListener('click', () => {

@@ -167,19 +167,19 @@
   pointer-events: none;
 }
 
+/* A mid-tone that shows on the darkest and the lightest band alike. */
 .sf-ribbon__tick {
   position: absolute;
   bottom: 0;
   width: 1px;
-  height: 5px;
-  background: currentColor;
-  opacity: 0.35;
-  color: #000;
+  height: 4px;
+  background: var(--chrome-ink-3);
+  opacity: 0.7;
 }
 
 .sf-ribbon__tick[data-major] {
-  height: 8px;
-  opacity: 0.5;
+  height: 7px;
+  opacity: 0.95;
 }
 
 /* Rise, transit and set of the selected body. */
@@ -229,6 +229,14 @@
   font-size: var(--text-2xs);
   line-height: 14px;
   white-space: nowrap;
+}
+
+.sf-ribbon__label[data-align='end'] {
+  transform: translateX(calc(-100% + 6px));
+}
+
+.sf-ribbon__label[data-align='start'] {
+  transform: translateX(-6px);
 }
 
 .sf-ribbon__label .sf-icon {

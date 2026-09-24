@@ -200,6 +200,8 @@
   --body-uranus: #5cc2bf;
   --body-neptune: #6e93ee;
   --body-star: #ffffff;
+  /* The lit part of a drawn Moon phase (large areas; dimmer than the body colour at night). */
+  --moon-disc: #b4c5dc;
 
   /* Events: rise and dawn, transit, set and dusk. */
   --event-rise: #ff9f43;
@@ -259,16 +261,16 @@
   --map-border: #2b3e5a;
   --map-graticule: rgba(160, 190, 230, 0.13);
   --map-shade: #000510;
-  --shade-civil: 0.16;
-  --shade-nautical: 0.3;
-  --shade-astronomical: 0.43;
-  --shade-night: 0.55;
+  --shade-civil: 0.22;
+  --shade-nautical: 0.38;
+  --shade-astronomical: 0.52;
+  --shade-night: 0.64;
   --line-halo: rgba(0, 4, 12, 0.78);
   --compass-fill: rgba(9, 18, 33, 0.66);
   --compass-ring: #b4c5da;
   --compass-tick: #8699b2;
   --compass-label: #e9eff7;
-  --compass-band: rgba(245, 180, 0, 0.18);
+  --compass-band: rgba(255, 205, 90, 0.09);
   --observer: #0b1424;
   --observer-ring: #e9eff7;
 
@@ -294,6 +296,7 @@
   --body-uranus: #62c7c4;
   --body-neptune: #7a9df2;
   --body-star: #ffffff;
+  --moon-disc: #c4d3e6;
 
   --event-rise: #ffa24d;
   --event-transit: #ffdb82;
@@ -386,6 +389,7 @@
   --body-uranus: #c82400;
   --body-neptune: #c01c00;
   --body-star: #ff3000;
+  --moon-disc: #c41c00;
 
   --event-rise: #ff4000;
   --event-transit: #d82800;

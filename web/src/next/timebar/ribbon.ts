@@ -148,14 +148,17 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
       ...m.marks.map((mark) => h('span', { class: 'sf-ribbon__mark', 'data-kind': mark.kind, style: `left:${pct(frac(mark.jd))}` })),
     );
     labels.replaceChildren(
-      ...m.marks.map((mark) =>
-        h(
+      ...m.marks.map((mark) => {
+        const x = frac(mark.jd);
+        // Near either end a label is aligned inward so it never runs off the ribbon.
+        const align = x > 0.95 ? 'end' : x < 0.05 ? 'start' : undefined;
+        return h(
           'span',
-          { class: 'sf-ribbon__label', 'data-kind': mark.kind, style: `left:${pct(frac(mark.jd))}`, 'data-tip': mark.tip },
+          { class: 'sf-ribbon__label', 'data-kind': mark.kind, 'data-align': align, style: `left:${pct(x)}`, 'data-tip': mark.tip },
           icon(mark.kind === 'rise' ? 'chevron-up' : mark.kind === 'set' ? 'chevron-down' : 'transit'),
           mark.label,
-        ),
-      ),
+        );
+      }),
       ...(m.nowJd !== null && m.nowJd !== undefined && m.nowJd >= m.window[0] && m.nowJd < m.window[1]
         ? [h('span', { class: 'sf-ribbon__now', style: `left:${pct(frac(m.nowJd))}` })]
         : []),

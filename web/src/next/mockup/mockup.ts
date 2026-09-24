@@ -5,10 +5,12 @@
  * `src/next/shell/` and reads the engine.
  *
  * Address options (fragment, so nothing reaches a server):
- *   #theme=light|dark|night   default: follow the system
- *   #screen=map|kit           the Map view (default) or the design kit
- *   #sheet=min|peek|full      phones: bottom-sheet position (default peek)
- *   #panel=closed             desktop: start with the panel hidden
+ *   #theme=light|dark|night     default: follow the system
+ *   #moment=afternoon|evening   16:30 EDT with the Sun, or 19:35 EDT with the Moon
+ *   #screen=map|kit             the Map view (default) or the design kit
+ *   #sheet=min|peek|full        phones: bottom-sheet position (default peek)
+ *   #panel=closed               desktop: start with the panel hidden
+ *   #scroll=<px>                desktop: scroll the panel (for screenshots of its lower half)
  */
 
 import '../theme/index.js';
@@ -16,26 +18,18 @@ import '../timebar/timebar.css';
 import '../panel/panel.css';
 import './mockup.css';
 import { h } from '../../dom.js';
-import { bodyGlyph } from '../theme/glyphs.js';
+import { bodyGlyph, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { installTooltips } from '../theme/primitives.js';
 import { applyTheme, systemTheme, type ThemeName } from '../theme/theme.js';
 import { drawCompass } from './compass.js';
-import {
-  at,
-  BODIES,
-  PLACE,
-  SOLSTICE_DECEMBER,
-  SOLSTICE_JUNE,
-  SUN_EVENTS,
-  SUN_PATH_ALT,
-  SUN_PATH_AZ,
-  ZONE,
-} from './data.js';
+import { PLACE, ZONE } from './data.js';
 import { hm } from './fmt.js';
 import { buildFrame } from './frame.js';
 import { renderKit } from './kit.js';
 import { createMockMap, type MockMap } from './map.js';
+import { wirePopovers } from './popovers.js';
+import { SCENARIOS, type Moment } from './scenario.js';
 
 const THEMES: ThemeName[] = ['light', 'dark', 'night'];
 
@@ -74,6 +68,8 @@ if (params.get('screen') === 'kit') {
 }
 
 function mountMapMockup(): void {
+  const moment: Moment = params.get('moment') === 'evening' ? 'evening' : 'afternoon';
+  const scenario = SCENARIOS[moment];
   let mock: MockMap | null = null;
   const setTheme = (t: ThemeName): void => {
     theme = t;
@@ -83,7 +79,7 @@ function mountMapMockup(): void {
     writeHash('theme', t);
     mock?.restyle();
   };
-  const frame = buildFrame(theme, {
+  const frame = buildFrame(theme, scenario, {
     onTheme: setTheme,
     onProjection: (v) => mock?.map.setProjection({ type: v === 'globe' ? 'globe' : 'mercator' }),
   });
@@ -98,6 +94,8 @@ function mountMapMockup(): void {
   const panel = frame.root.querySelector<HTMLElement>('.sf-panel')!;
   const sheetTop = (): void => frame.root.style.setProperty('--sheet-top', `${Math.round(timebar.getBoundingClientRect().bottom)}px`);
   sheetTop();
+  const scroll = Number(params.get('scroll'));
+  if (scroll > 0) panel.querySelector<HTMLElement>('.sf-panel__scroll')!.scrollTop = scroll;
 
   // The bottom sheet: the grab bar cycles min -> peek -> full on phones.
   const grab = panel.querySelector<HTMLElement>('.sf-panel__grab')!;
@@ -107,48 +105,56 @@ function mountMapMockup(): void {
     frame.root.dataset.sheet = next;
   });
 
-  const sun = BODIES.find((b) => b.body === 'Sun')!;
   const visibleSheet = phone ? Math.round(innerHeight * 0.46) : 0;
   const stageRect = frame.stage.getBoundingClientRect();
   mock = createMockMap({
     container: frame.mapHost,
     center: phone ? [-80, 32] : [-61, 23.5],
     zoom: phone ? 1.3 : 2.4,
-    subsolar: [sun.gp[0], sun.gp[1]],
+    subsolar: scenario.subsolar,
     padding: phone ? { bottom: Math.max(0, visibleSheet - (innerHeight - stageRect.bottom)) } : {},
   });
   const map = mock.map;
 
   // Compass at the place
-  const hourly = SUN_PATH_ALT.map((alt, i) => ({ alt, az: SUN_PATH_AZ[i]! })).filter((_, i) => i % 6 === 0);
+  const s = scenario;
+  const b = s.selected;
+  const words = b.kind === 'moon' ? ['Moonrise', 'Moonset'] : ['Sunrise', 'Sunset'];
+  const radius = phone ? 84 : 136;
   const compass = drawCompass({
-    radius: phone ? 84 : 136,
-    colorToken: '--body-sun',
-    glyph: 'sun',
-    path: { alt: SUN_PATH_ALT, az: SUN_PATH_AZ },
-    hourMarks: hourly,
-    band: { summer: SOLSTICE_JUNE, winter: SOLSTICE_DECEMBER },
+    radius,
+    colorToken: s.colorToken,
+    glyph: s.glyph,
+    path: { alt: s.path.alt, az: s.path.az },
+    hourMarks: s.path.alt
+      .map((alt, i) => ({ alt, az: s.path.az[i]! }))
+      .filter((_, i) => i % s.path.stepsPerHour === 0),
+    ...(s.band ? { band: s.band } : {}),
     // Phones have room only for the times; the icons and the panel carry the words.
-    rise: { az: SUN_EVENTS.rise.az, label: `${phone ? '' : 'Sunrise '}${hm(at(SUN_EVENTS.rise.h), ZONE)}` },
-    set: { az: SUN_EVENTS.set.az, label: `${phone ? '' : 'Sunset '}${hm(at(SUN_EVENTS.set.h), ZONE)}` },
-    transit: { alt: SUN_EVENTS.transit.alt, az: 180, label: `Highest ${hm(at(SUN_EVENTS.transit.h), ZONE)}` },
-    now: { alt: sun.alt, az: sun.az, label: 'Now' },
+    rise: { az: s.passage.rise.az!, label: `${phone ? '' : `${words[0]} `}${hm(s.passage.rise.jd, ZONE)}` },
+    set: { az: s.passage.set.az!, label: `${phone ? '' : `${words[1]} `}${hm(s.passage.set.jd, ZONE)}` },
+    transit: { alt: s.passage.transit.alt!, az: 180, label: `Highest ${hm(s.passage.transit.jd, ZONE)}` },
+    now: { alt: b.alt, az: b.az, label: 'Now' },
+    ...(b.kind === 'moon' && b.illuminated !== undefined
+      ? { phase: { illuminated: b.illuminated, limbFromUpDeg: b.limbFromUp ?? 270 } }
+      : {}),
     labels: true,
   });
-  const radius = phone ? 84 : 136;
   const place = h('span', { class: 'mk-compass__place', style: `top:calc(50% + ${radius + 12}px)` }, icon('pin'), PLACE.label);
   if (!phone) compass.appendChild(place);
   mock.addMarker([PLACE.lon_deg, PLACE.lat_deg], compass);
 
   // Ground points: where each body is straight overhead
-  for (const b of BODIES.filter((x) => ['Sun', 'Moon', 'Venus', 'Mercury', 'Jupiter'].includes(x.body))) {
+  for (const gp of s.groundPoints) {
     const el = h(
       'div',
-      { class: 'mk-gp', 'data-tip': `Ground point: ${b.body} straight overhead` },
-      bodyGlyph(b.body, { kind: b.kind, halo: true }),
-      h('span', { class: 'mk-gp__label' }, b.body, ' ', h('small', {}, 'overhead')),
+      { class: 'mk-gp', 'data-tip': `Ground point: the ${gp.body} is straight overhead here` },
+      gp.kind === 'moon' && gp.illuminated !== undefined
+        ? phaseDisc({ illuminated: gp.illuminated, limbFromUpDeg: gp.limbFromUp ?? 270, size: 20 })
+        : bodyGlyph(gp.body, { kind: gp.kind, halo: true }),
+      h('span', { class: 'mk-gp__label' }, gp.body, ' ', h('small', {}, 'overhead')),
     );
-    mock.addMarker([b.gp[1], b.gp[0]], el);
+    mock.addMarker([gp.gp[1], gp.gp[0]], el);
   }
 
   frame.zoomIn.addEventListener('click', () => map.zoomIn());
@@ -168,5 +174,12 @@ function mountMapMockup(): void {
   frame.themeCycle.addEventListener('click', () => setTheme(THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length]!));
   addEventListener('resize', sheetTop);
 
-  void mock.ready.then(markReady);
+  const pops = wirePopovers(frame.root, { year: 2026, month: 9, day: 24 }, true);
+  const open = params.get('open');
+  const which = ['speed', 'calendar', 'layers', 'share'].indexOf(open ?? '');
+
+  void mock.ready.then(() => {
+    if (which >= 0) pops[which]?.open();
+    markReady();
+  });
 }

@@ -134,6 +134,9 @@ const GRAPHIC_PAIRS: [string, string][] = [
   ['compass-ring', 'compass-fill>map-land'],
   ['compass-ring', 'compass-fill>map-water'],
   ['observer', 'observer-ring'],
+  // The lit part of a drawn Moon against its dark part (the panel draws that in chrome-bg-0).
+  ['moon-disc', 'chrome-bg-0'],
+  ['moon-disc', 'chrome-bg'],
   ...[...BODIES.map((b) => `body-${b}`), ...EVENTS.map((e) => `event-${e}`)].flatMap((fg): [string, string][] => [
     [fg, 'chrome-bg'],
     // On the map and the compass every line is drawn over a halo (casing).

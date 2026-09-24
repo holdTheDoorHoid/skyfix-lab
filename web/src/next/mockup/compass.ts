@@ -14,7 +14,7 @@
  */
 
 import { h } from '../../dom.js';
-import { drawGlyph, type GlyphName } from '../theme/glyphs.js';
+import { drawGlyph, phaseDisc, type GlyphName } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -35,6 +35,8 @@ export interface CompassModel {
   set?: { az: number; label: string };
   transit?: { alt: number; az: number; label: string };
   now: { alt: number; az: number; label: string };
+  /** The Moon: draw its real phase at its position instead of the glyph. */
+  phase?: { illuminated: number; limbFromUpDeg: number };
   /** Show the labels of the directions (hidden on small screens). */
   labels?: boolean;
 }
@@ -180,7 +182,7 @@ export function drawCompass(model: CompassModel): HTMLElement {
   for (const m of model.hourMarks ?? []) {
     if (m.alt < 0.5) continue;
     const [x, y] = dome(m.alt, m.az, R);
-    root.appendChild(svg('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 2.4, class: 'mk-compass__hour' }));
+    root.appendChild(svg('circle', { cx: x.toFixed(1), cy: y.toFixed(1), r: 2.4, class: 'mk-compass__hour', style: `fill:${color}` }));
   }
   if (model.transit) {
     const [x, y] = dome(model.transit.alt, model.transit.az, R);
@@ -193,7 +195,17 @@ export function drawCompass(model: CompassModel): HTMLElement {
   // The body now, in the dome
   const [bx, by] = dome(model.now.alt, model.now.az, R);
   root.appendChild(svg('circle', { cx: bx.toFixed(1), cy: by.toFixed(1), r: 15, class: 'mk-compass__glow', style: `fill:${color}` }));
-  drawGlyph(root, model.glyph, bx, by, 26, { halo: true, color });
+  if (model.phase) {
+    // The Moon as it looks now: its phase, turned the way it appears from the place.
+    root.appendChild(svg('circle', { cx: bx.toFixed(1), cy: by.toFixed(1), r: 12.5, class: 'mk-compass__moon-halo' }));
+    const disc = phaseDisc({ illuminated: model.phase.illuminated, limbFromUpDeg: model.phase.limbFromUpDeg, size: 22 });
+    disc.setAttribute('x', (bx - 11).toFixed(1));
+    disc.setAttribute('y', (by - 11).toFixed(1));
+    disc.classList.add('mk-compass__moon');
+    root.appendChild(disc);
+  } else {
+    drawGlyph(root, model.glyph, bx, by, 26, { halo: true, color });
+  }
 
   // Cardinal points
   for (const [label, az] of [

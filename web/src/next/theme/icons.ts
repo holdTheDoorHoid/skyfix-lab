@@ -156,20 +156,24 @@ const ICONS = {
     ['circle', 12, 12, 3],
   ],
   // Sky events and quantities
+  // A Sun on the horizon with rays, and an arrow up (rise) or down (set).
   rise: [
-    ['path', 'M3 19h18'],
-    ['path', 'M7.5 19a4.5 4.5 0 0 1 9 0'],
-    ['path', 'M12 11.5v-7M9.5 7 12 4.5 14.5 7'],
+    ['path', 'M2.5 19.5h19'],
+    ['path', 'M7.8 19.5a4.2 4.2 0 0 1 8.4 0'],
+    ['path', 'M4.2 15.2l1.6.9M19.8 15.2l-1.6.9'],
+    ['path', 'M12 12.4V3.6M9.6 6 12 3.6 14.4 6'],
   ],
   set: [
-    ['path', 'M3 19h18'],
-    ['path', 'M7.5 19a4.5 4.5 0 0 1 9 0'],
-    ['path', 'M12 4.5v7M9.5 9l2.5 2.5L14.5 9'],
+    ['path', 'M2.5 19.5h19'],
+    ['path', 'M7.8 19.5a4.2 4.2 0 0 1 8.4 0'],
+    ['path', 'M4.2 15.2l1.6.9M19.8 15.2l-1.6.9'],
+    ['path', 'M12 3.6v8.8M9.6 10 12 12.4 14.4 10'],
   ],
+  // The Sun at the top of its arc: highest in the sky (transit).
   transit: [
-    ['path', 'M4 20h16'],
-    ['path', 'M12 20v-8.5'],
-    ['circle', 12, 7.2, 3.2],
+    ['path', 'M2.5 19.5h19'],
+    ['path', 'M4.5 19.5C6.3 13.6 8.9 10.6 12 10.6s5.7 3 7.5 8.9'],
+    ['dot', 12, 7.2, 3],
   ],
   dawn: [
     ['path', 'M3 19h18'],

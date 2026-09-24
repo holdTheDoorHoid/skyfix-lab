@@ -101,6 +101,20 @@
   opacity: 0.2;
 }
 
+.mk-compass__moon-halo {
+  fill: var(--line-halo);
+}
+
+.mk-compass__moon .sf-phase__dark,
+.mk-gp .sf-phase__dark {
+  fill: var(--map-water);
+}
+
+.mk-compass__moon .sf-phase__rim,
+.mk-gp .sf-phase__rim {
+  stroke: var(--body-moon);
+}
+
 .mk-compass__observer {
   fill: var(--observer);
   stroke: var(--observer-ring);
