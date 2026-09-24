@@ -47,6 +47,13 @@ const SHOTS = {
   'healthy-globe': ['story=philadelphia-stars&view=globe', DESKTOP],
   simulator: ['tab=simulator&sim=shared-bias&run=1&experiment=50', { width: 1440, height: 3000, scale: 1 }],
   'map-clock': ['story=clock-offset&then=map', DESKTOP],
+  real: ['story=philadelphia-stars-real', DESKTOP],
+  sextant: ['story=philadelphia-stars-sextant', TALL],
+  clustered: ['story=clustered-geometry', DESKTOP],
+  'clock-sigma': ['story=clock-offset&variant=clock-sigma', DESKTOP],
+  'bias-estimate': ['story=shared-bias&variant=estimate-bias', DESKTOP],
+  'third-star': ['story=two-sight-ambiguous&variant=third-star', DESKTOP],
+  'third-star-globe': ['story=two-sight-ambiguous&variant=third-star&view=globe', DESKTOP],
   'phone-story': ['story=clock-offset', PHONE],
   'phone-primer': ['tab=primer', PHONE],
 };

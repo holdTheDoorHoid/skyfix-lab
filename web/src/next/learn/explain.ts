@@ -311,9 +311,14 @@ export function explain(
         return {
           happened: [
             `Asked to estimate one bias shared by every sight, the solver found ${f.sharedBiasArcmin === null ? '—' : arcmin(f.sharedBiasArcmin)} (the answer key says ${arcmin(bias, 1)} was added), and the fix moved to ${fmt.dist(f.errorM)} from the truth, ${insidePhrase(f, fmt)}.`,
+            ...(f.sharedBiasArcmin === null
+              ? []
+              : [
+                  `The lines are drawn from the sights as measured, so the fix now sits about ${arcmin(Math.abs(f.sharedBiasArcmin)).replace('+', '')} (${fmt.dist((Math.abs(f.sharedBiasArcmin) * 1852))}) short of every one of them: that is the bias the solver took off each sight.`,
+                ]),
           ],
           why: [
-            `A bias can only be told apart from position when the stars are spread widely enough. Here all three are on the eastern side, so the geometry is weak (condition number ${conditionText(f.conditionNumber)}) and the ellipse grows — honestly.`,
+            `A bias can only be told apart from position when the stars are spread widely enough. Here every star lies within ${(360 - f.maxAzimuthGapDeg).toFixed(0)}° of bearing of the others, so the geometry is weak (condition number ${conditionText(f.conditionNumber)}) and the ellipse grows — honestly.`,
           ],
         };
       }

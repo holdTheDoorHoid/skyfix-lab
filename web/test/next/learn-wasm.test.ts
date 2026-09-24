@@ -316,6 +316,10 @@ describe.skipIf(!hasPackage)(
       expect(f.sharedBiasArcmin!).toBeCloseTo(2.7026, 3);
       expect(f.ellipse!.semi_major_m).toBeCloseTo(1567.6, 1);
       expect(f.inside95).toBe(true);
+      const said = explain('shared-bias', (await story('shared-bias', 'estimate-bias')).run, f, fmt);
+      expect(said.happened.join(' ')).toContain('found +2.70′ (the answer key says +3.0′ was added)');
+      expect(said.happened.join(' ')).toContain('short of every one of them');
+      expect(said.why.join(' ')).toContain('within 106° of bearing');
     });
 
     it('the shared-bias experiment reproduces DEMOS.md: coverage 0, error 30.45 times sigma, residual RMS 0.745′', async () => {
