@@ -1,0 +1,76 @@
+{
+  "about": "Pinned inputs of tools/mapdata/build.mjs. Fetch with `node tools/mapdata/fetch.mjs`. Licences: docs/THIRD_PARTY.md, section 'Basemap and gazetteer'.",
+  "natural_earth": {
+    "version": "5.1.2",
+    "release": "https://github.com/nvkelso/natural-earth-vector/releases/tag/v5.1.2",
+    "terms": "https://www.naturalearthdata.com/about/terms-of-use/",
+    "base_url": "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/v5.1.2/geojson/",
+    "files": {
+      "ne_110m_land.geojson": {
+        "sha256": "9e0729ee253ca7d7a5c4ae9395fb1902264c5377c52e224d13dd85010e2835d9",
+        "bytes": 138160
+      },
+      "ne_50m_land.geojson": {
+        "sha256": "e874b27a51d146452be360cafb3cc50c86001074a67d534113e6534682f9826b",
+        "bytes": 1636166
+      },
+      "ne_50m_lakes.geojson": {
+        "sha256": "d350b75978b26fe839b797c2c529b2fb8f47fb3983c03f4964e36d5df9378a52",
+        "bytes": 876018
+      },
+      "ne_50m_rivers_lake_centerlines.geojson": {
+        "sha256": "f286e0ce978fde999ca2d7a78c764be08542e19b63cded52b05c12d5173ccc51",
+        "bytes": 827318
+      },
+      "ne_50m_admin_0_boundary_lines_land.geojson": {
+        "sha256": "2faac4f6b34386f3d21b6e018cf151f241f00e5c936d44dd17d7d9bfb147fa48",
+        "bytes": 760189
+      },
+      "ne_50m_admin_0_countries.geojson": {
+        "sha256": "3e458fc036ad0a66411f2c1e6cac49c5d7bfb81cb1123bc513b22511a2b7fdeb",
+        "bytes": 3083490
+      },
+      "ne_50m_admin_1_states_provinces.geojson": {
+        "sha256": "69a0e06e640b2d505858ae1cb63034e4677f3000b35a98e16312932b98c426b9",
+        "bytes": 2325694
+      },
+      "ne_50m_geography_marine_polys.geojson": {
+        "sha256": "6fe58083e0cc5c7fad9e396970e28a8580bbd8770cfa4d1d7b5a34423e912f97",
+        "bytes": 1163418
+      },
+      "ne_50m_geography_regions_points.geojson": {
+        "sha256": "203f19b6b690d4d1f6f2fd9a71ff0c93c2e31bc34c21f93a12ccf336f5b5ef4a",
+        "bytes": 190845
+      },
+      "ne_50m_geographic_lines.geojson": {
+        "sha256": "c74270a34cdc465e8c865642bf03ede9ef24ff4eb204b08ab7c66d735c20f559",
+        "bytes": 60564
+      },
+      "ne_50m_urban_areas.geojson": {
+        "sha256": "f134958140343a8e156d47805e4d0c362e244c194408c9d1a8e80e132fc67b48",
+        "bytes": 1232325
+      },
+      "ne_50m_glaciated_areas.geojson": {
+        "sha256": "c7a097b4b8e0d360dc82c90ab20c34b78aa5939a5ec8ab157c18945938e9c0a7",
+        "bytes": 512453
+      },
+      "ne_50m_antarctic_ice_shelves_polys.geojson": {
+        "sha256": "fedf866d20e20e37d037fa19968b6d3022fbe5323fd8728527b0f0ddb547e790",
+        "bytes": 131055
+      },
+      "ne_10m_populated_places.geojson": {
+        "sha256": "9b8e3de09048ef00dfc70357dbb9fa324493f214b5e0ae4daf1aa79a8d10116b",
+        "bytes": 19359003
+      }
+    }
+  },
+  "tzdata": {
+    "version": "2026d",
+    "about": "IANA time zone database; used for zone.tab (zones per country, with coordinates) and Link lines",
+    "url": "https://data.iana.org/time-zones/releases/tzdata2026d.tar.gz",
+    "file": "tzdata2026d.tar.gz",
+    "sha256": "0cb2aa8e333c3dc049badc42a0c61f21987b8cd44e107fa900bad764aacc7767",
+    "bytes": 479409
+  },
+  "recorded": "2026-09-24"
+}
