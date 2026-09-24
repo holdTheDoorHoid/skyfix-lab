@@ -437,9 +437,13 @@ function explainGenericUnique(f: UniqueFacts, run: Pick<Run, 'truth'>, fmt: Fmt)
   ];
   const why: string[] = [];
   if (correlated) {
+    const shared = `${run.truth.clock_offset_s ? `a clock ${run.truth.clock_offset_s} s off` : ''}${run.truth.clock_offset_s && run.truth.shared_altitude_bias_arcmin ? ' and ' : ''}${run.truth.shared_altitude_bias_arcmin ? `an altitude bias of ${arcmin(run.truth.shared_altitude_bias_arcmin, 1)}` : ''}`;
     why.push(
-      `The answer key shows an error shared by every sight (${run.truth.clock_offset_s ? `a clock ${run.truth.clock_offset_s} s off` : ''}${run.truth.clock_offset_s && run.truth.shared_altitude_bias_arcmin ? ' and ' : ''}${run.truth.shared_altitude_bias_arcmin ? `an altitude bias of ${arcmin(run.truth.shared_altitude_bias_arcmin, 1)}` : ''}). ` +
-        'The ellipse assumes independent errors, so it cannot describe one that every sight shares.',
+      f.inside95 && run.truth.shared_altitude_bias_arcmin && !run.truth.clock_offset_s
+        ? `The answer key shows an error shared by every sight (${shared}), yet the truth is inside the ellipse this time: with bodies spread round the sky, a shared altitude bias shows up in the residuals more than in the position. ` +
+            'The ellipse’s 95 % promise still does not cover shared errors; the coverage experiment shows how often it holds.'
+        : `The answer key shows an error shared by every sight (${shared}). ` +
+            'The ellipse assumes independent errors, so it cannot describe one that every sight shares.',
     );
   } else if (run.truth.wrong_sight_ids.length) {
     why.push(`${wrongSightSentence(run.truth)} Least squares splits the difference instead of rejecting it.`);

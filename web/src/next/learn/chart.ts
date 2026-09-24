@@ -12,7 +12,7 @@ import { h, s } from '../../dom.js';
 import type { LatLon } from '../../types.js';
 import { globeCenter, sheetFrame, type ChartModel, type ChartView } from './chart-model.js';
 import { arcmin, candidateLetter, type Fmt } from './facts.js';
-import { circleArcNear, distanceM, ellipseRing, fullCircle } from './geo.js';
+import { circleArcNear, distanceM, ellipseRing, fullCircle, nearestOnCircle } from './geo.js';
 import { Ortho, SheetProjection, clipPolyline, pathData, r2, ringOnGlobe, visibleRuns, type Rect, type XY } from './project.js';
 
 /** Land outlines for the globe: rings of [lon, lat] (display only, Natural Earth). */
@@ -288,10 +288,14 @@ function renderSheet(model: ChartModel, opts: ChartOptions): RenderedChart {
   const halfSpan = (Math.hypot(rect.w, rect.h) / proj.k) * 0.8;
   const lop = s('g', { class: 'sfl-ch-lops', 'clip-path': `url(#${clipId})` });
   const lopLabels: { x: number; y: number; text: string; color: number }[] = [];
+  const offFrame: { id: string; body: string; m: number }[] = [];
   for (const c of model.circles) {
     const arc = circleArcNear(c.gp, c.zenithDeg, centre, halfSpan, 48).map((p) => proj.project(p));
     const pieces = clipPolyline(arc, rect);
-    if (!pieces.length) continue;
+    if (!pieces.length) {
+      if (model.fix) offFrame.push({ id: c.id, body: c.body, m: distanceM(model.fix, nearestOnCircle(c.gp, c.zenithDeg, model.fix)) });
+      continue;
+    }
     const emph = opts.emphasis?.id === c.id;
     lop.append(line(pathData(pieces), c.color, emph ? 'sfl-ch-cop--emph' : ''));
     if (c.labelled || emph) {
@@ -379,8 +383,14 @@ function renderSheet(model: ChartModel, opts: ChartOptions): RenderedChart {
   if (model.truth && model.fix) parts.push(`the answer key ${opts.fmt.dist(distanceM(model.fix, model.truth))} away`);
   const description = `Close-up plotting sheet showing ${parts.join(', ')}. Scale bar ${nice.label}.`;
   svg.setAttribute('aria-label', description);
-  const note = model.ellipse ? null : `No ellipse is drawn: ${model.suppressedReason ?? 'the core did not emit one'}.`;
-  return { svg, description, note };
+  const notes: string[] = [];
+  if (!model.ellipse) notes.push(`No ellipse is drawn: ${model.suppressedReason ?? 'the core did not emit one'}.`);
+  if (offFrame.length) {
+    const named = offFrame.slice(0, 3).map((o) => `${o.id} (${o.body}), ${opts.fmt.dist(o.m)} from the fix`);
+    const more = offFrame.length > 3 ? ` and ${offFrame.length - 3} more` : '';
+    notes.push(`Outside this close-up: the line${offFrame.length === 1 ? '' : 's'} of ${named.join('; ')}${more}. “Whole Earth” shows every circle.`);
+  }
+  return { svg, description, note: notes.length ? notes.join(' ') : null };
 }
 
 // ---------------------------------------------------------------------------------------

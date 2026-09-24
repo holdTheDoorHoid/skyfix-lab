@@ -159,8 +159,9 @@ export function learnView(options: LearnOptions = {}): Component {
         root.dataset.state = 'ready';
       },
       reveal: (el) => {
-        const stacked = typeof matchMedia === 'function' && matchMedia('(max-width: 899px)').matches;
-        if (stacked) el.scrollIntoView({ block: 'start' });
+        // Stacked (the view is narrow): bring the result into view. Side by side it is
+        // already beside the list.
+        if (root.clientWidth < 900) el.scrollIntoView({ block: 'start' });
         el.focus({ preventScroll: true });
       },
     };

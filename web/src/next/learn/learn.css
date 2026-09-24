@@ -1401,19 +1401,32 @@
 }
 
 /* ------------------------------------------------------------------------------------ */
-/* Narrow screens                                                                          */
+/* Narrow screens. Container queries, not media queries: in the explorer the view gets     */
+/* the stage (the window less the side panel), which is what the layout must fit.          */
 
-@media (max-width: 1099px) {
-  .sfl-sim__grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
+.sfl {
+  container: sfl / inline-size;
+}
 
+/* The result columns size their own tiles. */
+.sfl-stage,
+.sfl-sim__results {
+  container: sfl-result / inline-size;
+}
+
+@container sfl-result (max-width: 620px) {
   .sfl-tiles {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 899px) {
+@container sfl (max-width: 1099px) {
+  .sfl-sim__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container sfl (max-width: 899px) {
   .sfl-panel:has(> .sfl-stories) {
     overflow-y: auto;
   }
@@ -1446,8 +1459,10 @@
   }
 }
 
-@media (max-width: 640px) {
-  .sfl {
+@container sfl (max-width: 640px) {
+  .sfl-head,
+  .sfl-notices,
+  .sfl-panel {
     --sfl-gap: var(--space-3);
   }
 

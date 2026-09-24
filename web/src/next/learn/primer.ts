@@ -283,7 +283,7 @@ function ellipsePromise(): Svg {
   children.push(text(100, 172, 'about 19 in 20 inside', 'sfl-dg-text', 'middle'));
   children.push(text(300, 20, 'An error every sight shares', 'sfl-dg-strong', 'middle'));
   children.push(...lines(296, 134, ['the same shift', 'every time'], 'sfl-dg-small', 'end'));
-  children.push(text(300, 188, 'all 20 outside; residuals still small', 'sfl-dg-text', 'middle'));
+  children.push(text(300, 188, 'all 20 outside, all the same way', 'sfl-dg-text', 'middle'));
   children.push(text(200, 212, 'Each dot is where the truth was in one of 20 repeats', 'sfl-dg-small', 'middle'));
   return svg(
     'Diagram: with independent random errors, about 19 of 20 repeats put the truth inside the 95 per cent ellipse; with an error every sight shares, every repeat misses in the same direction.',

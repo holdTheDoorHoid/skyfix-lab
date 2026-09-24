@@ -58,6 +58,11 @@ export function simulatedBadge(): HTMLElement {
   });
 }
 
+/** Shown beside results the mock adapter produced: its numbers are illustrative. */
+export function mockBadge(): HTMLElement {
+  return badge('mock', { text: 'Mock numbers', tip: 'The mock adapter produced this: illustrative numbers, not the numerical core.' });
+}
+
 // ---------------------------------------------------------------------------------------
 // The scorecard: the answer key against the claim
 

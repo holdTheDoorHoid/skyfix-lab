@@ -24,7 +24,7 @@ import { explain } from './explain.js';
 import { experimentResult } from './experiment-view.js';
 import { factsOf } from './facts.js';
 import { checkField, fieldGroup, numberField, selectField, textField, type Choice } from './form.js';
-import { answerKey, correctionTable, figure, kindChip, numbersList, residualChart, simulatedBadge, tiles, warningsList, type Figure } from './result.js';
+import { answerKey, correctionTable, figure, kindChip, mockBadge, numbersList, residualChart, simulatedBadge, tiles, warningsList, type Figure } from './result.js';
 import { experimentFor, simulateAndSolve, truthGuardRadiusNm } from './run.js';
 import { STORIES, type SimulatorPreset } from './stories.js';
 
@@ -429,7 +429,7 @@ function runPanel(env: LearnEnv, sim: SimState): { el: HTMLElement; fig: Figure 
   const el = h(
     'section',
     { class: 'sfl-panel-box', 'data-kind': run.result.kind },
-    h('div', { class: 'sfl-result__head' }, h('h3', { class: 'sfl-h3' }, `Last run: ${run.scenario.name}`), h('div', { class: 'sfl-result__badges' }, kindChip(run.result), simulatedBadge())),
+    h('div', { class: 'sfl-result__head' }, h('h3', { class: 'sfl-h3' }, `Last run: ${run.scenario.name}`), h('div', { class: 'sfl-result__badges' }, kindChip(run.result), simulatedBadge(), env.engineLabel() === 'mock adapter' ? mockBadge() : null)),
     stale ? h('p', { class: 'sf-notice sf-notice--caution' }, icon('info'), h('span', {}, 'The scenario has changed since this run. Generate and solve again to see the change.')) : null,
     tiles(facts, fmt),
     fig.el,
@@ -471,7 +471,7 @@ function experimentPanel(env: LearnEnv, sim: SimState): HTMLElement {
   return h(
     'section',
     { class: 'sfl-panel-box sfl-exp', 'aria-labelledby': 'sfl-exp-title' },
-    h('div', { class: 'sfl-result__head' }, h('h3', { class: 'sfl-h3', id: 'sfl-exp-title' }, 'Coverage experiment'), simulatedBadge()),
+    h('div', { class: 'sfl-result__head' }, h('h3', { class: 'sfl-h3', id: 'sfl-exp-title' }, 'Coverage experiment'), h('div', { class: 'sfl-result__badges' }, simulatedBadge(), env.engineLabel() === 'mock adapter' ? mockBadge() : null)),
     h(
       'p',
       { class: 'sfl-lede' },
@@ -491,9 +491,10 @@ export function simulatorTab(env: LearnEnv): { el: HTMLElement; destroy(): void 
   const description = h('p', { class: 'sfl-sim__desc' });
   const go = button({ label: 'Generate and solve', icon: 'play', variant: 'primary', onClick: () => void generateAndSolve(env) });
   const reset = button({
-    label: 'Reset to the packaged scenario',
+    label: 'Reset',
     size: 'sm',
-    variant: 'ghost',
+    variant: 'outline',
+    tip: 'Put every field back to the packaged scenario',
     onClick: () => {
       const name = env.state.get().sim.source;
       void env.demos().then((demos) => {
@@ -525,7 +526,16 @@ export function simulatorTab(env: LearnEnv): { el: HTMLElement; destroy(): void 
   );
 
   let fig: Figure | null = null;
+  // Results already there when the tab opens are not "new": no scrolling to them.
+  let lastRun: SimState['run'] = env.state.get().sim.run;
+  let lastSummary: SimState['summary'] = env.state.get().sim.summary;
   const titleOf = (name: string): string => STORIES.find((s) => s.id === name)?.title ?? name;
+  /** When the editor and the results are stacked, bring a new result into view. */
+  const bringIntoView = (el: HTMLElement): void => {
+    const grid = el.closest('.sfl-sim__grid');
+    const stacked = grid ? getComputedStyle(grid).gridTemplateColumns.trim().split(/\s+/).length === 1 : false;
+    if (stacked) el.scrollIntoView({ block: 'start' });
+  };
 
   void env.demos().then((demos) => {
     picker.replaceChildren(...demos.map((d) => h('option', { value: d.name }, `${titleOf(d.name)} (${d.name})`)));
@@ -583,6 +593,8 @@ export function simulatorTab(env: LearnEnv): { el: HTMLElement; destroy(): void 
         runSlot.replaceChildren(built.el);
         go.disabled = sim.runStatus === 'running' || !sim.scenario;
         if (built.fig) void built.fig.ready.then(() => env.markReady());
+        if (sim.run && sim.run !== lastRun) bringIntoView(runSlot);
+        lastRun = sim.run;
       },
       { immediate: true, equals: (a, b) => a.every((v, i) => Object.is(v, b[i])) },
     ),
@@ -592,6 +604,8 @@ export function simulatorTab(env: LearnEnv): { el: HTMLElement; destroy(): void 
         const sim = env.state.get().sim;
         expSlot.replaceChildren(experimentPanel(env, sim));
         if (sim.expStatus === 'idle' && sim.summary) env.markReady();
+        if (sim.summary && sim.summary !== lastSummary) bringIntoView(expSlot);
+        lastSummary = sim.summary;
       },
       { immediate: true, equals: (a, b) => a.every((v, i) => Object.is(v, b[i])) },
     ),

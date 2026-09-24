@@ -12,7 +12,7 @@ import { button, icon } from '../theme/index.js';
 import type { LearnEnv, StoryRunState } from './env.js';
 import { explain, keyNumber } from './explain.js';
 import { factsOf } from './facts.js';
-import { answerKey, correctionTable, figure, kindChip, numbersList, residualChart, simulatedBadge, tiles, warningsList, type Figure } from './result.js';
+import { answerKey, correctionTable, figure, kindChip, mockBadge, numbersList, residualChart, simulatedBadge, tiles, warningsList, type Figure } from './result.js';
 import { VARIANTS } from './run.js';
 import { GROUPS, STORIES, groupOf, storyById, type Story, type StoryId, type TryAction } from './stories.js';
 
@@ -145,7 +145,7 @@ function storyResult(env: LearnEnv, st: StoryRunState): { el: HTMLElement; fig: 
     title: story.title,
   });
 
-  const badges = h('div', { class: 'sfl-result__badges' }, kindChip(run.result), simulatedBadge());
+  const badges = h('div', { class: 'sfl-result__badges' }, kindChip(run.result), simulatedBadge(), env.engineLabel() === 'mock adapter' ? mockBadge() : null);
   if (variant) badges.append(h('span', { class: 'sfl-variant' }, icon('edit'), variant.label));
 
   const nextActions = story.next.actions.filter((a) => !(a.kind === 'variant' && a.variant === run.variant)).map((a) => actionButton(env, story, a));
