@@ -242,7 +242,7 @@ Residuals
 ```
 
 The truth is 39.9526, -75.1652. Latitude comes back exact to six decimals; longitude is
-0.2507 degrees (about 21.3 km, 11.5 NM) west of the truth, and **every residual is
+0.2507 degrees (about 21.35 km, 11.5 NM) west of the truth, and **every residual is
 exactly zero** — the data is perfectly self-consistent, because clock error and longitude
 are the same unknown for star sights (`docs/CONVENTIONS.md` section 6). The solver does
 not attempt to estimate a clock offset; declaring what you actually know about the clock
@@ -322,8 +322,30 @@ visible in the leftovers.
 | RMS error / RMS predicted sigma | 30.45 |
 | mean residual RMS | 0.745 arcminutes |
 
-An error thirty times the predicted sigma, with residuals that look entirely ordinary —
-more sights shrink the ellipse and do nothing for the answer.
+An error thirty times the predicted sigma. Look only at the individual residuals and
+nothing seems wrong: each one is under an arcminute, the size an ordinary sextant's
+scatter would produce. The fit statistic says otherwise: chi-squared is 129.5 on 22
+degrees of freedom, where a healthy independent-noise fit reads about 22 (its own degrees
+of freedom, on average). A navigator who eyeballs the residual column would miss this bias
+completely; one who checks chi-squared would not. More sights shrink the ellipse and do
+nothing for the answer.
+
+Asked to estimate a shared bias as well as the position, the solver recovers it almost
+exactly and the fit moves back close to where the stars actually put it:
+
+```console
+$ skyfix solve s.json --bias
+UNIQUE FIX
+Position     39.954234, -75.156115
+Shared bias  +2.703' estimated as a third unknown and removed from every residual
+Fit          chi2 26.5745 on 21 degree(s) of freedom, converged after 6 iteration(s)
+```
+
+The true injected bias was 3.0′; the solver recovers +2.703′. With it removed, the fix
+moves from 7.07 km off truth to about 795 m, and chi-squared falls from 129.5 (badly
+overdispersed for 22 degrees of freedom) to 26.6 (an ordinary fit for 21) — confirming, in
+the one statistic built to catch it, that the earlier fit's problem was never visible in
+any single residual.
 
 **In the browser:** load `shared-bias`, Solve, and compare the North/East nominal
 uncertainty against how far the plotted fix sits from where the assumed position and the
