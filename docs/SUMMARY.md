@@ -8,6 +8,7 @@
 - [Command line](CLI.md)
 - [Observation planner](PLANNER.md)
 - [Simulator](SIMULATOR.md)
+- [Camera sextant (synthetic)](CAMERA.md)
 - [Polarization compass laboratory](POLARIZATION.md)
 - [Motion and independent checks](MOTION.md)
 - [Accuracy and limitations](ACCURACY.md)
