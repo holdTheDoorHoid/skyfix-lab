@@ -522,7 +522,11 @@ not a limiting factor. GHA is compared with the DUT1 = 0 column.
 | GHA with each instant's own DUT1 (176 instants) | 0.0149′ | | |
 
 Worst on-sky error by instant set: random 0.76″, perigees 0.80″, apogees 0.57″,
-northern extremes 0.79″, southern extremes 0.77″. Every worst case falls in 2060.
+northern extremes 0.79″, southern extremes 0.77″. Every worst case falls in 2060. To
+check that the samples do not miss a larger error between them, a dense development-time
+scan of the last 121 days of 2060 at 3-hour steps (968 instants against Skyfield +
+DE440s, not committed) found worst GHA 0.90″ and worst Dec 0.42″: the declared 0.02′
+(1.2″) holds with a quarter of it to spare.
 
 **Where the error comes from**, largest first:
 
