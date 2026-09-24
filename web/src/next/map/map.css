@@ -23,6 +23,12 @@
   inset: 0;
 }
 
+/* Round the globe: a backdrop a step lighter than the stage, so the dark and night globes'
+   water stands out from the space around them. */
+.sfm--globe {
+  background: var(--stage-surface-2);
+}
+
 .sfm-map .maplibregl-map {
   font-family: var(--font-ui);
 }

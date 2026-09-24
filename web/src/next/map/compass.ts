@@ -109,6 +109,8 @@ export class CompassDial {
   private showDial = true;
   private compact = false;
   private lastPlace = '';
+  private nowKey = '';
+  private nowParts: { ray: SVGPathElement[]; glyph: SVGGElement } | null = null;
 
   constructor(parent: HTMLElement) {
     this.root = div('sfm-dial', parent);
@@ -139,6 +141,7 @@ export class CompassDial {
     this.blur.style.width = this.blur.style.height = `${2 * r}px`;
     this.blur.style.left = this.blur.style.top = `${-r}px`;
     this.lastPlace = '';
+    this.nowKey = '';
     this.drawStatic();
     this.drawDay();
     this.drawNow();
@@ -187,6 +190,7 @@ export class CompassDial {
 
   setDay(day: DialDay | null): void {
     this.day = day;
+    this.nowKey = '';
     this.drawDay();
     this.drawNow();
   }
@@ -304,23 +308,47 @@ export class CompassDial {
     }
   }
 
+  /**
+   * The body now: a ray from the observer and the glyph. Rebuilt only when the body, its
+   * side of the horizon or the Moon's drawn phase changes; otherwise (every frame while time
+   * is scrubbed) only the ray's end and the glyph's position move.
+   */
   private drawNow(): void {
     const g = this.nowG;
-    g.replaceChildren();
     const day = this.day;
     const now = this.now;
     const R = this.radius;
     if (!day || !now || R <= 0) {
-      svg('circle', { r: 4, class: 'sfm-dial__centre' }, g);
+      if (this.nowKey !== 'none') {
+        this.nowKey = 'none';
+        g.replaceChildren();
+        svg('circle', { r: 4, class: 'sfm-dial__centre' }, g);
+      }
       return;
     }
     const name = glyphFor(day.body, day.kind);
     const up = now.alt >= 0;
     const [rx, ry] = ringXY(now.az, R);
     const [x, y] = up ? skyXY(now.alt, now.az, R) : [rx, ry];
+    let moonAngle = 0;
+    let phaseKey = '';
+    if (name === 'moon') {
+      const limb = now.phase?.limbFromZenithDeg;
+      moonAngle = limb === null || limb === undefined ? -90 : (brightLimbScreenAngle(Math.max(0, now.alt), now.az, limb) * 180) / Math.PI;
+      phaseKey = `${Math.round((now.phase?.fraction ?? 1) * 200)}|${Math.round(moonAngle / 2)}`;
+    }
+    const key = `${name}|${up}|${phaseKey}|${R}`;
+    const rayD = `M0 0L${r1(rx)} ${r1(ry)}`;
+    if (key === this.nowKey && this.nowParts) {
+      for (const p of this.nowParts.ray) p.setAttribute('d', rayD);
+      this.nowParts.glyph.setAttribute('transform', `translate(${r1(x)} ${r1(y)})`);
+      return;
+    }
+    this.nowKey = key;
+    g.replaceChildren();
     const ray = svg('g', { class: up ? 'sfm-dial__now' : 'sfm-dial__now sfm-dial__now--below', style: `color:var(--body-${name})` }, g);
-    // Up: from the observer to the body. Below the horizon: a dimmed ray to the ring.
-    casedLine(ray, `M0 0L${r1(up ? rx : rx)} ${r1(up ? ry : ry)}`, 'sfm-dial__ray');
+    // Above the horizon the ray passes through the body to the ring; below, it is dimmed.
+    casedLine(ray, rayD, 'sfm-dial__ray');
     const glyph = svg('g', { class: up ? 'sfm-dial__body' : 'sfm-dial__body sfm-dial__body--below', transform: `translate(${r1(x)} ${r1(y)})` }, g);
     if (up) svg('circle', { r: 15, class: 'sfm-dial__glow', style: `fill:var(--body-${name})` }, glyph);
     if (name === 'moon') {
@@ -328,14 +356,11 @@ export class CompassDial {
       svg('circle', { r: r + 1.8, class: 'sfm-dial__moon-halo' }, glyph);
       svg('circle', { r, class: 'sfm-dial__moon-dark' }, glyph);
       const lit = moonLitPath(now.phase?.fraction ?? 1, r);
-      if (lit) {
-        const limb = now.phase?.limbFromZenithDeg;
-        const angle = limb === null || limb === undefined ? -Math.PI / 2 : brightLimbScreenAngle(Math.max(0, now.alt), now.az, limb);
-        svg('path', { d: lit, class: 'sfm-dial__moon-lit', transform: `rotate(${r1((angle * 180) / Math.PI)})` }, glyph);
-      }
+      if (lit) svg('path', { d: lit, class: 'sfm-dial__moon-lit', transform: `rotate(${r1(moonAngle)})` }, glyph);
     } else {
       drawGlyph(glyph, name, 0, 0, name === 'sun' ? 26 : 20, { halo: true, color: `var(--body-${name})` });
     }
     svg('circle', { r: 4, class: 'sfm-dial__centre' }, g);
+    this.nowParts = { ray: [...ray.querySelectorAll('path')], glyph };
   }
 }

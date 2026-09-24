@@ -180,6 +180,9 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   });
 
   let loaded = false;
+  /** The map's size in CSS pixels, read on resize only (reading it each frame forces a layout). */
+  let viewW = mapEl.clientWidth;
+  let viewH = mapEl.clientHeight;
   const dial = new CompassDial(dialLayer);
   d.add(() => dial.destroy());
   const groundPoints = new GroundPoints(map, (body) => {
@@ -437,8 +440,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
    */
   function occluded(ll: LngLat, p: { x: number; y: number }): boolean {
     if (currentView !== 'globe') return false;
-    const c = map.getContainer();
-    if (p.x < -1e4 || p.y < -1e4 || p.x > c.clientWidth + 1e4 || p.y > c.clientHeight + 1e4) return true;
+    if (p.x < -1e4 || p.y < -1e4 || p.x > viewW + 1e4 || p.y > viewH + 1e4) return true;
     const back = map.unproject([p.x, p.y]);
     return angularDistanceDeg({ lat_deg: back.lat, lon_deg: back.lng }, { lat_deg: ll.lat, lon_deg: ll.lng }) > 0.5;
   }
@@ -454,15 +456,13 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     const ll = new LngLat(nearestCopy(lon), lat);
     const p = map.project(ll);
     if (occluded(ll, p)) return false;
-    const c = map.getContainer();
-    return p.x >= marginPx && p.y >= marginPx && p.x <= c.clientWidth - marginPx && p.y <= c.clientHeight - marginPx;
+    return p.x >= marginPx && p.y >= marginPx && p.x <= viewW - marginPx && p.y <= viewH - marginPx;
   }
 
   function recentre(): void {
     const o = store.get().observer;
     const p = map.project(new LngLat(nearestCopy(o.lon_deg), o.lat_deg));
-    const c = map.getContainer();
-    const centred = Math.hypot(p.x - c.clientWidth / 2, p.y - c.clientHeight / 2) < 4;
+    const centred = Math.hypot(p.x - viewW / 2, p.y - viewH / 2) < 4;
     map.easeTo({
       center: [o.lon_deg, o.lat_deg],
       zoom: centred ? (currentView === 'globe' ? GLOBE_ZOOM : FLAT_ZOOM) : map.getZoom(),
@@ -554,9 +554,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   let graticuleKey = '';
   function syncGraticule(): void {
     if (!loaded || !store.get().layers.graticule) return;
-    const c = map.getContainer();
     const zoom = map.getZoom();
-    const span = Math.min(360, (360 * Math.max(c.clientWidth, 1)) / (512 * 2 ** zoom));
+    const span = Math.min(360, (360 * Math.max(viewW, 1)) / (512 * 2 ** zoom));
     const step = graticuleStep(span);
     let key = `g${step}`;
     let bounds: { west: number; south: number; east: number; north: number } | undefined;
@@ -626,6 +625,18 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     return z.kind === 'iana' ? z.zone : `${z.name}|${z.offsetMs}`;
   }
 
+  /** `currentDayWindow`, kept while the time stays inside the same local day (it costs Intl calls). */
+  let dayMemo: { zone: string; start: number; end: number } | null = null;
+  function dayWindowOf(s: ExplorerState): [number, number] {
+    const zone = displayZone(s);
+    const key = zoneKeyOf(zone);
+    const jd = s.time.jd_utc;
+    if (dayMemo && dayMemo.zone === key && jd >= dayMemo.start && jd < dayMemo.end) return [dayMemo.start, dayMemo.end];
+    const [start, end] = currentDayWindow(s);
+    dayMemo = { zone: key, start, end };
+    return [start, end];
+  }
+
   function solsticeData(s: ExplorerState, zone: Zone): { region: SkyRegion; runs: AltAz[][][] } | null {
     const obs = engineObserver(s);
     const year = wallClock(s.time.jd_utc, zone).year;
@@ -652,7 +663,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
 
   function buildDay(s: ExplorerState, body: string, info: BodyState | undefined): DialDay | null {
     const obs = engineObserver(s);
-    const [start, end] = currentDayWindow(s);
+    const [start, end] = dayWindowOf(s);
     const zone = displayZone(s);
     const kind = info?.kind ?? engine.bodies().find((b) => b.body === body)?.kind ?? 'star';
     const data = attempt('map-day', `today’s path of ${body} could not be computed`, () => ({
@@ -698,17 +709,16 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
 
   function syncDial(s: ExplorerState, sky: SkyState | null): void {
     const L = s.layers;
-    const c = map.getContainer();
-    dial.setRadius(compassRadius(c.clientWidth, c.clientHeight));
-    dial.setCompact(c.clientWidth < COMPACT_WIDTH);
-    root.classList.toggle('sfm--compact', c.clientWidth < COMPACT_WIDTH);
+    dial.setRadius(compassRadius(viewW, viewH));
+    dial.setCompact(viewW < COMPACT_WIDTH);
+    root.classList.toggle('sfm--compact', viewW < COMPACT_WIDTH);
     dial.setDialVisible(L.compass);
     root.classList.toggle('sfm--bare', !L.compass);
     const o = s.observer;
     dial.setPlaceLabel(o.label || formatLatLon({ lat_deg: o.lat_deg, lon_deg: o.lon_deg }));
     const body = L.compass ? s.selection.body : null;
     const info = body ? sky?.bodies.find((b) => b.body === body) : undefined;
-    const [start, end] = currentDayWindow(s);
+    const [start, end] = dayWindowOf(s);
     const opts = eventOptions(s);
     const key = body
       ? `${observerKey(engineObserver(s))}|${start}|${end}|${body}|${opts.horizon}|${opts.height_of_eye_m}|${zoneKeyOf(displayZone(s))}|${L.paths}|${s.settings.angleFormat}`
@@ -742,9 +752,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     const o = store.get().observer;
     const ll = new LngLat(nearestCopy(o.lon_deg), o.lat_deg);
     const p = map.project(ll);
-    const c = map.getContainer();
-    const R = compassRadius(c.clientWidth, c.clientHeight) + 80;
-    const visible = !occluded(ll, p) && p.x > -R && p.y > -R && p.x < c.clientWidth + R && p.y < c.clientHeight + R;
+    const R = compassRadius(viewW, viewH) + 80;
+    const visible = !occluded(ll, p) && p.x > -R && p.y > -R && p.x < viewW + R && p.y < viewH + R;
     let rotation = 0;
     if (currentView === 'globe' && visible) {
       // The dial's north follows the local meridian on the globe.
@@ -759,6 +768,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
 
   // --- The frame ----------------------------------------------------------------------------
   let lastMarker = '';
+  let controlsLayers: Layers | null = null;
+  let controlsState = '';
   function render(): void {
     if (!loaded || destroyed) return;
     const s = store.get();
@@ -775,7 +786,12 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     const sky = attempt('map-sky', 'positions could not be computed', () => engine.skyState(engineObserver(s), s.time.jd_utc, 'all'));
     syncWorld(s, sky);
     syncDial(s, sky);
-    controls?.update({ layers: s.layers, measuring: measuring.active, projection: currentView });
+    const controlsKey = `${measuring.active}|${currentView}`;
+    if (controls && (s.layers !== controlsLayers || controlsKey !== controlsState)) {
+      controlsLayers = s.layers;
+      controlsState = controlsKey;
+      controls.update({ layers: s.layers, measuring: measuring.active, projection: currentView });
+    }
     if (measuring.active && measuring.a && measuring.b) syncMeasure();
   }
 
@@ -809,10 +825,11 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   map.on('move', placeDial);
   map.on('moveend', syncGraticule);
   map.on('resize', () => {
-    const c = map.getContainer();
-    dial.setRadius(compassRadius(c.clientWidth, c.clientHeight));
-    dial.setCompact(c.clientWidth < COMPACT_WIDTH);
-    root.classList.toggle('sfm--compact', c.clientWidth < COMPACT_WIDTH);
+    viewW = mapEl.clientWidth;
+    viewH = mapEl.clientHeight;
+    dial.setRadius(compassRadius(viewW, viewH));
+    dial.setCompact(viewW < COMPACT_WIDTH);
+    root.classList.toggle('sfm--compact', viewW < COMPACT_WIDTH);
     placeDial();
     graticuleKey = '';
     syncGraticule();
@@ -821,6 +838,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   map.once('load', () => {
     if (destroyed) return;
     loaded = true;
+    viewW = mapEl.clientWidth;
+    viewH = mapEl.clientHeight;
     overlays = new OverlayDrawer(map, service, () => tokens);
     d.add(() => overlays?.destroy());
     service.attachCamera({

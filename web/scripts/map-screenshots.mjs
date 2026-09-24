@@ -174,9 +174,9 @@ async function shoot(name, query, fragment, view) {
 
 async function bench() {
   return withChrome(DESKTOP, async (send) => {
-    await send('Page.navigate', { url: `${BASE}/next/dev-map.html?bare=1&theme=light&bench=600${ENGINE}#v=1&${PHL}&${AFTERNOON}&body=Sun&view=map` });
+    await send('Page.navigate', { url: `${BASE}/next/dev-map.html?bare=1&theme=light&bench=240${ENGINE}#v=1&${PHL}&${AFTERNOON}&body=Sun&view=map` });
     await waitFor(send, READY, 90_000);
-    const done = await waitFor(send, 'window.__mapBench !== undefined', 180_000);
+    const done = await waitFor(send, "window.__mapBench !== undefined", 400_000);
     const r = await send('Runtime.evaluate', { expression: 'JSON.stringify(window.__mapBench)', returnByValue: true });
     console.log(done ? `bench: ${r.result.value}` : 'bench: did not finish');
   });

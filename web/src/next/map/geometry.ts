@@ -52,11 +52,33 @@ function toVec(p: LatLonDeg): Vec3 {
   return [c * Math.cos(lam), c * Math.sin(lam), Math.sin(phi)];
 }
 
-function fromVec(v: Vec3): LatLonDeg {
-  const [x, y, z] = v;
-  const lat = Math.atan2(z, Math.hypot(x, y)) * DEG;
+function fromXYZ(x: number, y: number, z: number): LatLonDeg {
+  // sqrt, not Math.hypot: this runs thousands of times a frame and the vectors are unit length.
+  const lat = Math.atan2(z, Math.sqrt(x * x + y * y)) * DEG;
   const lon = Math.abs(lat) > 90 - 1e-12 ? 0 : Math.atan2(y, x) * DEG;
   return { lat_deg: lat, lon_deg: wrapLon(lon) };
+}
+
+function fromVec(v: Vec3): LatLonDeg {
+  return fromXYZ(v[0], v[1], v[2]);
+}
+
+const trigTables = new Map<number, { cos: Float64Array; sin: Float64Array }>();
+
+/** cos and sin of 2 pi i / n, shared by every circle drawn with n segments. */
+function trig(n: number): { cos: Float64Array; sin: Float64Array } {
+  let t = trigTables.get(n);
+  if (!t) {
+    const cos = new Float64Array(n);
+    const sin = new Float64Array(n);
+    for (let i = 0; i < n; i++) {
+      cos[i] = Math.cos((2 * Math.PI * i) / n);
+      sin[i] = Math.sin((2 * Math.PI * i) / n);
+    }
+    t = { cos, sin };
+    trigTables.set(n, t);
+  }
+  return t;
 }
 
 /** Angular distance between two points, degrees (atan2 form: accurate everywhere). */
@@ -109,20 +131,18 @@ export function smallCircle(center: LatLonDeg, radiusDeg: number, segments = 360
   const { c, north, east } = frame(center);
   const cd = Math.cos(radiusDeg * RAD);
   const sd = Math.sin(radiusDeg * RAD);
-  const out: LatLonDeg[] = [];
+  const { cos, sin } = trig(n);
+  const out: LatLonDeg[] = new Array(n + 1);
   for (let i = 0; i < n; i++) {
-    const t = (2 * Math.PI * i) / n;
-    const ct = Math.cos(t) * sd;
-    const st = Math.sin(t) * sd;
-    out.push(
-      fromVec([
-        c[0] * cd + north[0] * ct + east[0] * st,
-        c[1] * cd + north[1] * ct + east[1] * st,
-        c[2] * cd + north[2] * ct + east[2] * st,
-      ]),
+    const ct = cos[i]! * sd;
+    const st = sin[i]! * sd;
+    out[i] = fromXYZ(
+      c[0] * cd + north[0] * ct + east[0] * st,
+      c[1] * cd + north[1] * ct + east[1] * st,
+      c[2] * cd + north[2] * ct + east[2] * st,
     );
   }
-  out.push(out[0]!);
+  out[n] = out[0]!;
   return out;
 }
 
@@ -445,8 +465,12 @@ export function stackedAlphas(targets: readonly number[]): number[] {
   });
 }
 
-/** Stacked shading polygons, darkest last, each with its per-layer `alpha`. */
-export function twilightFeatures(sunGp: LatLonDeg, alphas: readonly number[], segments = 360): FeatureCollection<MultiPolygon> {
+/**
+ * Stacked shading polygons, darkest last, each with its per-layer `alpha`. 180 segments (a
+ * vertex every 2 degrees of the circle) keep the edge within a kilometre or so of the true
+ * circle, and keep a frame's work small while time is scrubbed.
+ */
+export function twilightFeatures(sunGp: LatLonDeg, alphas: readonly number[], segments = 180): FeatureCollection<MultiPolygon> {
   const anti = antipode(sunGp);
   return {
     type: 'FeatureCollection',
