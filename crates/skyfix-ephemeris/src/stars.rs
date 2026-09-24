@@ -119,6 +119,13 @@ impl StarProvider {
     }
 
     fn check_coverage(&self, jd_utc: f64) -> Result<(), EphemerisError> {
+        // A NaN compares false with both ends, so it must be refused on its own, as the
+        // Sun, Moon and planet providers do; otherwise it came back as a NaN direction.
+        if !jd_utc.is_finite() {
+            return Err(EphemerisError::Data(
+                "jd_utc is not a finite Julian date".to_string(),
+            ));
+        }
         if jd_utc < coverage_start_jd() || jd_utc > coverage_end_jd() {
             return Err(EphemerisError::OutOfCoverage {
                 provider: PROVIDER_NAME.to_string(),
@@ -354,5 +361,29 @@ impl AstroProvider for StarProvider {
             semidiameter_arcmin: 0.0,
             horizontal_parallax_arcmin: 0.0,
         })
+    }
+}
+
+/// The GHA of Aries and Polaris from this crate (DUT1 = 0, CONVENTIONS section 6), for
+/// the Nautical Almanac's a0, a1 and a2 teaching terms that
+/// `skyfix_core::methods::polaris::polaris_latitude` reports beside every Polaris
+/// latitude (docs/NAVIGATION_METHODS.md section 3.4). The core computes no sidereal time
+/// of its own, so its callers pass this. The terms are display only: the Polaris
+/// latitude itself uses the caller's direction source.
+///
+/// Shared by the WASM `polaris_latitude` export and `skyfix polaris`, so the teaching
+/// terms are the same number in the browser and on the command line.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct EphemerisPolarisTable;
+
+impl skyfix_core::methods::polaris::PolarisTableSource for EphemerisPolarisTable {
+    fn gha_aries_deg(&self, jd_utc: f64) -> f64 {
+        gha_aries_deg(jd_utc, 0.0)
+    }
+
+    fn polaris(&self, jd_utc: f64) -> Result<GeocentricDirection, String> {
+        StarProvider::new()
+            .geocentric("Polaris", jd_utc)
+            .map_err(|e| e.to_string())
     }
 }

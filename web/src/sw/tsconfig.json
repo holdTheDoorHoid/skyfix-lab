@@ -1,0 +1,13 @@
+// The service worker runs in a ServiceWorkerGlobalScope, not a window, so it is
+// type-checked on its own against the WebWorker library instead of the DOM
+// (`npm run typecheck` runs both programs; the main one leaves sw.ts out). OWNER:
+// release agent.
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "WebWorker"],
+    "types": []
+  },
+  "include": ["./*.ts"],
+  "exclude": []
+}

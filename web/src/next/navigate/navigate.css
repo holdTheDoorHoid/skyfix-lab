@@ -1,0 +1,1723 @@
+/*
+ * Navigate view. OWNER: navigate agent.
+ *
+ * Only design tokens (theme/tokens.css), never a literal colour. The view sits on the
+ * stage (`.sf-on-stage`); `data-theme` on <html> switches everything with no script. The
+ * "Tonight's star sights" component also sits in the side panel, on the chrome's colours,
+ * so its rules use the `--ui-*` variables that follow either surface.
+ *
+ * Body colours are designed for dark skies; on a light stage every coloured line gets a dark
+ * casing (as on the map) and every label is written in ink, never in the body's colour.
+ */
+
+.sfn {
+  container: sfn / inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4);
+  background: var(--stage-bg);
+  color: var(--stage-ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--leading);
+}
+
+.sfn *[hidden] {
+  display: none !important;
+}
+
+/* The view scrolls as a whole; its rows never shrink to fit. */
+.sfn > * {
+  flex-shrink: 0;
+}
+
+/* Body colours: `--c` on an element with one of these classes. */
+.sfn-b-sun { --c: var(--body-sun); }
+.sfn-b-moon { --c: var(--body-moon); }
+.sfn-b-mercury { --c: var(--body-mercury); }
+.sfn-b-venus { --c: var(--body-venus); }
+.sfn-b-mars { --c: var(--body-mars); }
+.sfn-b-jupiter { --c: var(--body-jupiter); }
+.sfn-b-saturn { --c: var(--body-saturn); }
+.sfn-b-uranus { --c: var(--body-uranus); }
+.sfn-b-neptune { --c: var(--body-neptune); }
+.sfn-b-star { --c: var(--body-star); }
+
+.sfn-loading {
+  padding: var(--space-6);
+  color: var(--stage-ink-2);
+}
+
+.sfn-muted {
+  color: var(--ui-ink-3);
+}
+
+.sfn-num,
+.sfn .sfn-num {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+.sfn-term {
+  color: var(--ui-ink-3);
+  font-weight: var(--weight-regular);
+}
+
+.sfn-note {
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.sfn-plain {
+  color: var(--ui-ink);
+  font-size: var(--text-md);
+  line-height: 1.5;
+}
+
+.sfn p + p {
+  margin-top: var(--space-1);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Header, tabs, status                                                                  */
+
+.sfn-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.sfn-head__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+  min-width: 0;
+}
+
+.sfn-head__title h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+}
+
+.sfn-head__title h1 .sf-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--stage-accent-ink);
+}
+
+.sfn-head__session {
+  color: var(--stage-ink-2);
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+}
+
+/* On the stage the badges take the stage's ink (their default is the chrome's). */
+.sfn .sf-badge--simulated,
+.sfn .sf-badge--real,
+.sfn .sf-badge--wasm {
+  color: var(--stage-ink);
+}
+
+.sfn-head__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.sfn-head__group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sfn-head__label {
+  margin-left: var(--space-2);
+  color: var(--stage-ink-3);
+  font-size: var(--text-sm);
+}
+
+.sfn-head .sfn-select {
+  width: auto;
+  max-width: 18rem;
+  height: var(--control-h-sm);
+  font-size: var(--text-sm);
+}
+
+.sfn-methods {
+  display: flex;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.sfn-tabs {
+  flex: none;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 560px) {
+  .sfn-methods {
+    overflow-x: visible;
+  }
+  .sfn-tabs {
+    flex: 1;
+  }
+}
+
+.sfn-tabs .sf-seg__opt[aria-selected='true'] {
+  background: var(--stage-surface);
+  color: var(--stage-ink);
+  box-shadow: var(--shadow-1);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-tabs .sf-seg__opt[aria-selected='true']::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.sfn-say:empty {
+  display: none;
+}
+
+.sfn-say__warnings {
+  margin-top: var(--space-2);
+}
+
+/* Notices on the stage: the design system's, with the stage's surface. */
+.sfn .sf-notice {
+  background: var(--stage-surface);
+  box-shadow:
+    inset 3px 0 0 var(--info),
+    inset 0 0 0 1px var(--stage-line);
+}
+
+.sfn .sf-notice--caution {
+  box-shadow:
+    inset 3px 0 0 var(--caution),
+    inset 0 0 0 1px var(--stage-line);
+}
+
+.sfn .sf-notice--error {
+  box-shadow:
+    inset 3px 0 0 var(--danger),
+    inset 0 0 0 1px var(--stage-line);
+}
+
+.sfn .sf-notice > .sf-icon {
+  color: var(--stage-ink-2);
+}
+
+.sfn .sf-notice .sf-btn {
+  margin-left: var(--space-2);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Layout                                                                                */
+
+.sfn-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+@container sfn (min-width: 1020px) {
+  .sfn-grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  }
+}
+
+/* Each column is its own container: what is inside it adapts to the column's width. */
+.sfn-col {
+  container-type: inline-size;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.sfn-col--method:focus {
+  outline: none;
+}
+
+.sfn-card {
+  min-width: 0;
+  border: 1px solid var(--stage-line);
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sfn-card__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) 0;
+}
+
+.sfn-card__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+
+.sfn-card__title .sf-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--stage-accent-ink);
+}
+
+.sfn-card__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+}
+
+.sfn-count {
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-weight: var(--weight-medium);
+}
+
+.sfn-sub {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--stage-line);
+}
+
+.sfn-sub--first {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.sfn-sub h3,
+.sfn h4 {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) 0 var(--space-6);
+  border-top: 1px solid var(--stage-line);
+}
+
+.sfn-autosave {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.sfn-autosave > .sfn-note:last-child {
+  flex-basis: 100%;
+}
+
+.sfn-honesty {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Fields                                                                                */
+
+.sfn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.sfn-field > label,
+.sfn-label {
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.sfn .sf-input {
+  height: 34px;
+  background: var(--stage-surface);
+}
+
+.sfn select.sf-input {
+  padding-right: 8px;
+}
+
+.sfn-textarea {
+  height: auto !important;
+  min-height: 3.2em;
+  padding: 6px 12px;
+  resize: vertical;
+}
+
+.sfn-help {
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
+/* Errors: the design system's red is for graphics; the words stay in ink, marked by a bar. */
+.sfn-error {
+  padding: 2px 0 2px 8px;
+  border-left: 3px solid var(--danger);
+  color: var(--ui-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  line-height: 1.35;
+}
+
+.sfn-error::before {
+  content: 'Check: ';
+  font-weight: var(--weight-semibold);
+}
+
+.sfn .sf-input[aria-invalid='true'] {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger);
+}
+
+.sfn-field--inline {
+  flex-direction: column;
+}
+
+.sfn-grid-2,
+.sfn-grid-3 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+@container (min-width: 520px) {
+  .sfn-grid-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sfn-grid-3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.sfn-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-md);
+}
+
+.sfn-group > legend {
+  padding: 0 var(--space-1);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sfn-check {
+  align-items: flex-start;
+  line-height: 1.35;
+}
+
+.sfn-check input {
+  margin-top: 2px;
+  flex: none;
+}
+
+.sfn-check__note {
+  display: block;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sfn-checks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfn-advanced {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface-2);
+}
+
+.sfn-advanced[open] {
+  padding-bottom: var(--space-3);
+}
+
+.sfn-advanced > summary {
+  color: var(--stage-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+}
+
+.sfn-advanced .sf-input {
+  background: var(--stage-surface);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Session                                                                               */
+
+.sfn-session {
+  border-radius: var(--radius-lg);
+}
+
+.sfn-session__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  list-style: none;
+}
+
+.sfn-session__summary::-webkit-details-marker {
+  display: none;
+}
+
+.sfn-session__summary::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  margin-right: 2px;
+  border-right: 2px solid var(--stage-ink-2);
+  border-bottom: 2px solid var(--stage-ink-2);
+  transform: rotate(-45deg);
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.sfn-session[open] > .sfn-session__summary::before {
+  transform: rotate(45deg);
+}
+
+.sfn-session__title {
+  font-size: var(--text-base);
+}
+
+.sfn-session__facts {
+  flex-basis: 100%;
+  color: var(--stage-ink-2);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+}
+
+.sfn-session__edit {
+  margin-left: auto;
+  color: var(--stage-accent-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.sfn-session[open] .sfn-session__edit {
+  visibility: hidden;
+}
+
+.sfn-session__body {
+  padding-top: 0;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Sights                                                                                */
+
+.sfn-planned {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--stage-line-strong);
+  border-radius: var(--radius-md);
+}
+
+.sfn-planned__title {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-planned__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sfn-planned__item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sfn-planned__text {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.sfn-sight-list {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--stage-line);
+}
+
+.sfn-sight {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--stage-line);
+}
+
+.sfn-run__list > .sfn-sight:last-child {
+  border-bottom: 0;
+}
+
+.sfn-sight--unused .sfn-sight__body,
+.sfn-sight--unused .sfn-sight__line {
+  opacity: 0.62;
+}
+
+.sfn-sight--editing {
+  box-shadow: inset 3px 0 0 var(--accent);
+  padding-left: var(--space-2);
+}
+
+.sfn-sight__row {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-areas: 'use glyph body actions';
+  align-items: center;
+  column-gap: var(--space-2);
+}
+
+/* A narrow column (a phone): the buttons go under the sight instead of beside it. */
+@container (max-width: 420px) {
+  .sfn-sight__row {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    grid-template-areas: 'use glyph body' '. . actions';
+  }
+  .sfn-sight__actions {
+    justify-content: flex-start;
+    margin-left: -6px;
+  }
+  .sfn-sight__line,
+  .sfn-sight__details,
+  .sfn-run__list {
+    padding-left: 0;
+    margin-left: 0;
+  }
+}
+
+.sfn-sight__use {
+  grid-area: use;
+  display: inline-flex;
+  padding: 4px;
+}
+
+.sfn-sight__use input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+}
+
+/* Body glyphs sit on a small night-sky tile, where their colours are made to be seen. */
+.sfn-sight__glyph,
+.sfn-planned__item > .sf-glyph,
+.sfn-glyph-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--phase-night);
+  flex: none;
+}
+
+.sfn-sight__glyph {
+  grid-area: glyph;
+}
+
+.sfn-sight__body {
+  grid-area: body;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+  min-width: 0;
+}
+
+.sfn-sight__id {
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+}
+
+.sfn-sight__time {
+  min-width: 0;
+  color: var(--stage-ink);
+  font-size: var(--text-sm);
+}
+
+.sfn-sight-date {
+  padding: var(--space-2) 0 2px;
+  border-bottom: 1px solid var(--stage-line);
+  color: var(--stage-ink-2);
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-run {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--stage-line);
+}
+
+.sfn-run__list {
+  margin: var(--space-1) 0 0 calc(24px + 18px + 2 * var(--space-2));
+  border-top: 1px dashed var(--stage-line);
+}
+
+.sfn-sight__actions {
+  grid-area: actions;
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+}
+
+.sfn-sight__line {
+  padding-left: calc(24px + 18px + 2 * var(--space-2));
+  font-size: var(--text-sm);
+}
+
+.sfn-sight__reading,
+.sfn-sight__outcome {
+  white-space: nowrap;
+}
+
+.sfn-sight__outcome strong {
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-sight__intercept {
+  color: var(--stage-ink-2);
+  white-space: normal;
+}
+
+.sfn-sight__rejected {
+  display: inline;
+  padding-left: 6px;
+  border-left: 3px solid var(--danger);
+  color: var(--stage-ink);
+  white-space: normal;
+}
+
+.sfn-sight__rejected .sf-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sfn-sight__details {
+  padding: var(--space-2) 0 var(--space-2) calc(24px + 18px + 2 * var(--space-2));
+}
+
+.sfn-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px solid var(--stage-line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--stage-ink-2);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.sfn-tag .sf-icon {
+  width: 12px;
+  height: 12px;
+}
+
+.sfn-tag--caution {
+  border-color: var(--caution);
+  background: var(--caution);
+  color: var(--on-caution);
+}
+
+.sfn-empty {
+  padding: var(--space-3) 0;
+  color: var(--stage-ink-2);
+}
+
+.sfn-status:empty {
+  display: none;
+}
+
+.sfn-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+/* The entry form */
+
+.sfn-entry {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: 1px solid var(--stage-line-strong);
+  border-radius: var(--radius-md);
+  background: var(--stage-bg);
+}
+
+.sfn-entry__title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-entry__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+@container (min-width: 560px) {
+  .sfn-entry__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .sfn-entry__time {
+    grid-column: 1 / -1;
+  }
+}
+
+.sfn-entry__body {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.sfn-entry__body > .sfn-field {
+  flex: 1;
+}
+
+.sfn-entry__glyph {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  margin-bottom: 0;
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-md);
+  background: var(--phase-night);
+  flex: none;
+}
+
+.sfn-entry__body > .sfn-field .sfn-help:empty,
+.sfn-entry__body > .sfn-field .sfn-error[hidden] {
+  display: none;
+}
+
+.sfn-entry__time {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.sfn-entry__time > .sfn-field {
+  flex: 1 1 14rem;
+}
+
+.sfn-entry__time-buttons {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: 21px;
+}
+
+.sfn-entry__reading {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: var(--space-3);
+  grid-column: 1 / -1;
+}
+
+.sfn-entry__instrument {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-md);
+}
+
+@container (min-width: 560px) {
+  .sfn-entry__instrument {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.sfn-entry__instrument > legend {
+  padding: 0 var(--space-1);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-entry__preview-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfn-entry__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Workings, facts, tables                                                               */
+
+.sfn-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.sfn-workings {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.sfn-workings th,
+.sfn-workings td {
+  padding: 5px 6px;
+  border-top: 1px solid var(--stage-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.sfn-workings thead th {
+  border-top: 0;
+  color: var(--stage-ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.sfn-workings tbody th {
+  font-weight: var(--weight-medium);
+}
+
+.sfn-workings .sfn-num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sfn-workings__delta {
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-workings__note {
+  display: block;
+  margin-top: 1px;
+  color: var(--stage-ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  line-height: 1.35;
+}
+
+.sfn-workings__skip th {
+  color: var(--stage-ink-2);
+}
+
+.sfn-workings__start th,
+.sfn-workings__end th {
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-workings__end td,
+.sfn-workings__end th {
+  border-top: 2px solid var(--stage-line-strong);
+}
+
+.sfn-facts {
+  display: grid;
+  grid-template-columns: minmax(8rem, max-content) minmax(0, 1fr);
+  gap: 4px var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.sfn-facts__row {
+  display: contents;
+}
+
+.sfn-facts dt {
+  color: var(--ui-ink-2);
+}
+
+.sfn-facts dd {
+  color: var(--ui-ink);
+  overflow-wrap: anywhere;
+}
+
+@container (max-width: 460px) {
+  .sfn-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sfn-facts dd {
+    margin-bottom: var(--space-1);
+  }
+}
+
+.sfn-table th,
+.sfn-table td {
+  padding: 0 8px 0 0;
+}
+
+.sfn-table thead th {
+  white-space: normal;
+  vertical-align: bottom;
+}
+
+.sfn-table tbody td {
+  font-size: var(--text-sm);
+}
+
+/* Row headings that carry a note wrap instead of widening the table. */
+.sfn-table tbody th {
+  min-width: 12rem;
+  white-space: normal;
+}
+
+.sfn-table .sfn-workings__note {
+  white-space: normal;
+}
+
+.sfn-row--outlier > * {
+  box-shadow: inset 0 -2px 0 var(--caution);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-left: 1.2em;
+  list-style: disc;
+  font-size: var(--text-sm);
+}
+
+/* Warnings: Caution or Note in words, with the code; colour only reinforces. */
+.sfn-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfn-warning {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: 'tag text' '. code';
+  gap: 2px var(--space-2);
+  align-items: baseline;
+  font-size: var(--text-sm);
+}
+
+.sfn-warning__tag {
+  grid-area: tag;
+  padding: 1px 7px;
+  border-radius: var(--radius-xs);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sfn-warning--caution .sfn-warning__tag {
+  background: var(--caution);
+  color: var(--on-caution);
+}
+
+.sfn-warning--note .sfn-warning__tag {
+  border: 1px solid var(--ui-line-strong);
+  color: var(--ui-ink-2);
+}
+
+.sfn-warning__text {
+  grid-area: text;
+  color: var(--ui-ink);
+}
+
+.sfn-warning__code {
+  grid-area: code;
+  color: var(--ui-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Methods and results                                                                   */
+
+.sfn-method__explain {
+  max-width: 62em;
+}
+
+.sfn-method__inputs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sfn-method__status:empty {
+  display: none;
+}
+
+.sfn-busy {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfn-method__results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sfn-method__results:empty {
+  display: none;
+}
+
+.sfn-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfn-kind {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  line-height: 1.2;
+}
+
+.sfn-kind__mark {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.sfn-kind__mark path {
+  stroke: var(--stage-ink);
+  stroke-width: 1.3;
+}
+
+.sfn-kind--unique .sfn-kind__mark path {
+  fill: var(--accent);
+}
+
+.sfn-kind--ambiguous .sfn-kind__mark path {
+  fill: var(--caution);
+}
+
+.sfn-kind--underdetermined .sfn-kind__mark path {
+  fill: none;
+  stroke-width: 2;
+}
+
+.sfn-kind--failed .sfn-kind__mark path {
+  fill: none;
+  stroke: var(--danger);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.sfn-candidates {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: var(--text-sm);
+}
+
+.sfn-readouts {
+  gap: var(--space-2) var(--space-6);
+  padding: var(--space-2) 0;
+}
+
+.sfn .sf-readout__value {
+  font-size: var(--text-2xl);
+}
+
+.sfn-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sfn-disclosures {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-left: 1.3em;
+  list-style: decimal;
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfn-disclosures strong {
+  color: var(--stage-ink);
+}
+
+.sfn-ranked {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-left: 1.3em;
+  list-style: decimal;
+  font-size: var(--text-sm);
+}
+
+.sfn-legs {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfn-leg {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+@container (max-width: 520px) {
+  .sfn-leg {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
+  }
+  .sfn-leg > .sfn-field:first-child {
+    grid-column: 1 / -1;
+  }
+}
+
+.sfn-leg > .sf-btn {
+  margin-bottom: 3px;
+}
+
+.sfn-figure {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* The chart panel, the position plot and the curve                                      */
+
+.sfn-chart__tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+}
+
+.sfn-chart__stage {
+  display: block;
+  width: 100%;
+  min-height: 200px;
+  border-radius: var(--radius-md);
+  touch-action: none;
+  cursor: grab;
+}
+
+.sfn-chart__stage:active {
+  cursor: grabbing;
+}
+
+.sfn-chart__stage svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.sfn-chart__empty {
+  padding: var(--space-6) var(--space-3);
+  text-align: center;
+}
+
+.sfn-plot,
+.sfn-curve,
+.sfn-residuals,
+.sfn-rose {
+  font-family: var(--font-ui);
+  overflow: visible;
+}
+
+/* Plots are drawn on a night-chart ground in every theme (as the Charts view's sky is), so
+   the body colours, made for dark skies, read on it; ticks outside the frame use the ink. */
+.sfn-plot__frame {
+  fill: var(--phase-night);
+  stroke: var(--stage-line-strong);
+  stroke-width: 1;
+}
+
+.sfn-plot__grid line {
+  stroke: var(--phase-night-ink);
+  stroke-opacity: 0.16;
+  stroke-width: 1;
+}
+
+.sfn-plot__tick,
+.sfn-plot__axis {
+  fill: var(--stage-ink-2);
+  font-family: var(--font-num);
+  font-size: 10.5px;
+}
+
+.sfn-plot__axis {
+  font-family: var(--font-ui);
+  font-size: 11px;
+}
+
+.sfn-plot__cop-halo {
+  fill: none;
+  stroke: var(--phase-night);
+  stroke-width: 5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.sfn-plot__cop {
+  fill: none;
+  stroke: var(--c, var(--accent));
+  stroke-width: 2;
+  stroke-dasharray: var(--dash-circle);
+  stroke-linejoin: round;
+}
+
+.sfn-plot__label {
+  fill: var(--phase-night-ink);
+  font-size: 12px;
+  font-weight: var(--weight-medium);
+  paint-order: stroke;
+  stroke: var(--phase-night);
+  stroke-width: 3.5px;
+  stroke-linejoin: round;
+}
+
+.sfn-plot__label--strong {
+  font-weight: var(--weight-bold);
+}
+
+.sfn-plot__label--muted {
+  font-size: 11px;
+}
+
+.sfn-plot__ellipse {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.6;
+}
+
+.sfn-plot__fix {
+  fill: var(--accent);
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.6;
+}
+
+.sfn-plot__fix-cross {
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.6;
+}
+
+.sfn-plot__candidate {
+  fill: var(--caution);
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.6;
+}
+
+.sfn-plot__alternative {
+  fill: none;
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.6;
+  stroke-dasharray: 2 2;
+}
+
+.sfn-plot__assumed {
+  fill: none;
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.6;
+}
+
+.sfn-plot__pointer {
+  fill: var(--phase-night-ink);
+}
+
+.sfn-plot__parallel {
+  stroke: var(--c, var(--accent));
+  stroke-width: 2;
+  stroke-dasharray: var(--dash-rise);
+}
+
+.sfn-plot__band {
+  fill: var(--accent-soft);
+  stroke: none;
+}
+
+.sfn-plot__meridian {
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 4;
+}
+
+.sfn-plot__scale path {
+  fill: none;
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.5;
+}
+
+.sfn-plot__scale .sfn-plot__tick {
+  fill: var(--phase-night-ink);
+}
+
+.sfn-curve__model {
+  fill: none;
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.8;
+  stroke-opacity: 0.85;
+}
+
+.sfn-curve__bar {
+  fill: none;
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.2;
+}
+
+.sfn-curve__bar--result {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.sfn-curve__pt {
+  fill: var(--c, var(--accent));
+  stroke: var(--phase-night);
+  stroke-width: 1.5;
+}
+
+.sfn-curve__pt--out {
+  fill: var(--phase-night);
+  stroke: var(--phase-night-ink);
+  stroke-width: 2;
+}
+
+.sfn-curve__result {
+  fill: var(--accent);
+  stroke: var(--phase-night-ink);
+  stroke-width: 1.5;
+}
+
+.sfn-curve__level {
+  stroke: var(--phase-night-ink);
+  stroke-opacity: 0.7;
+  stroke-width: 1;
+  stroke-dasharray: 5 4;
+}
+
+.sfn-curve__mark {
+  stroke: var(--phase-night-ink);
+  stroke-opacity: 0.8;
+  stroke-width: 1.2;
+  stroke-dasharray: 2 3;
+}
+
+.sfn-residuals {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+}
+
+.sfn-residuals__label,
+.sfn-residuals__value {
+  fill: var(--stage-ink);
+  font-family: var(--font-num);
+  font-size: 11.5px;
+}
+
+.sfn-residuals__caption {
+  fill: var(--stage-ink-2);
+  font-size: 11px;
+}
+
+.sfn-residuals__band {
+  fill: var(--accent-soft);
+}
+
+.sfn-residuals__bar {
+  fill: var(--stage-ink-2);
+}
+
+.sfn-residuals__bar--out {
+  fill: var(--caution);
+  stroke: var(--stage-ink);
+  stroke-width: 1.5;
+}
+
+.sfn-residuals__axis {
+  stroke: var(--stage-ink);
+  stroke-width: 1;
+}
+
+.sfn-chart__legend:empty {
+  display: none;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Tonight's star sights (side panel: chrome colours; Plan tab: stage colours)           */
+
+.sfn-tonight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  color: var(--ui-ink);
+  font-size: var(--text-md);
+}
+
+.sfn-tonight__window {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfn-tonight__window + .sfn-tonight__window {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--ui-line);
+}
+
+.sfn-tonight__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px var(--space-2);
+}
+
+.sfn-tonight__when {
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfn-tonight__grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sfn-tonight__list {
+  flex: 1 1 12rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sfn-tonight__body {
+  display: grid;
+  grid-template-columns: 18px minmax(5.5em, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 24px;
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* In the side panel the list takes the full width and the rose sits under it. */
+.sfn-tonight--compact .sfn-tonight__grid {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.sfn-tonight--compact .sfn-tonight__list {
+  flex: none;
+}
+
+.sfn-tonight--compact .sfn-rose {
+  align-self: center;
+}
+
+.sfn-tonight__body .sf-glyph {
+  filter: drop-shadow(0 0 1px var(--line-halo));
+}
+
+.sfn-tonight__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sfn-tonight__hs {
+  color: var(--ui-ink);
+}
+
+.sfn-tonight__zn {
+  min-width: 4.5em;
+  color: var(--ui-ink-2);
+  text-align: right;
+}
+
+.sfn-tonight__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.sfn-tonight__why {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.sfn-tonight__why .sfn-advanced {
+  margin-top: var(--space-1);
+}
+
+.sfn-tonight .sfn-note {
+  color: var(--ui-ink-2);
+}
+
+.sfn-tonight .sfn-note .sf-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sfn-rose {
+  flex: none;
+}
+
+.sfn-rose__ring {
+  fill: var(--phase-night);
+  stroke: var(--ui-line-strong);
+  stroke-width: 1;
+}
+
+.sfn-rose__cardinal {
+  fill: var(--ui-ink-2);
+  font-size: 10.5px;
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-rose__ray {
+  stroke: var(--c, var(--accent));
+  stroke-width: 2;
+}
+
+.sfn-rose__dot {
+  fill: var(--c, var(--accent));
+  stroke: var(--phase-night);
+  stroke-width: 1.5;
+}
+
+.sfn-rose__centre {
+  fill: var(--phase-night-ink);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Phones                                                                                */
+
+@container (max-width: 560px) {
+  .sfn-card__head,
+  .sfn-card__body {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+  .sfn-sight__line,
+  .sfn-sight__details {
+    padding-left: 0;
+  }
+  .sfn-entry {
+    padding: var(--space-2);
+  }
+  .sfn .sf-readout__value {
+    font-size: var(--text-xl);
+  }
+}
+
+@media (max-width: 560px) {
+  .sfn {
+    padding: var(--space-2);
+  }
+}
+
+@media print {
+  .sfn {
+    height: auto;
+    overflow: visible;
+  }
+  .sfn-entry,
+  .sfn-head__actions,
+  .sfn-chart__tools,
+  .sfn-sight__actions {
+    display: none !important;
+  }
+}
+
+/* In the Plan tab (on the stage) the star glyphs need their night tile too. */
+.sfn .sfn-tonight__body > .sf-glyph {
+  width: 22px;
+  height: 22px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--phase-night);
+}

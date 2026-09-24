@@ -1,0 +1,9 @@
+SEASONS 2026
+  2026-03-20T14:45:56Z  March equinox
+  2026-06-21T08:24:29Z  June solstice
+  2026-09-23T00:05:12Z  September equinox
+  2026-12-21T20:50:13Z  December solstice
+
+The instants at which the Sun's apparent geocentric ecliptic longitude is 0, 90, 180 and
+270 degrees (CONVENTIONS 13.5), to the nearest second; --format json carries the
+milliseconds.

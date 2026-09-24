@@ -1,0 +1,43 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Bowditch 1912: latitude by Polaris",
+    "notes": "Typed from Bowditch, NGA Pub. 9 (2019), section 1912, via fixtures/reference/bowditch_worked_examples.json: 22 March 2016 at 23-18-56 UT, DR 40 46.0' N, 043 22.0' W, observed altitude of Polaris 40 52.1'. The book's answer is 40 48.4' N.",
+    "kind": "real"
+  },
+  "observer": {
+    "height_of_eye_m": 0.0,
+    "pressure_hpa": 1010.0,
+    "temperature_c": 10.0,
+    "assumed_position": {
+      "lat_deg": 40.766666667,
+      "lon_deg": -43.366666667
+    },
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "",
+    "index_correction_arcmin": 0.0,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "polaris",
+      "body": "Polaris",
+      "utc": "2016-03-22T23:18:56Z",
+      "altitude_deg": 40.868333333,
+      "altitude_kind": "observed_ho",
+      "sigma_arcmin": 0.2,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    }
+  ]
+}

@@ -144,6 +144,16 @@ fn queries_outside_coverage_are_refused_with_the_range() {
     // The edges themselves are inside.
     assert!(p.geocentric("Vega", jd("1990-01-01T00:00:00Z")).is_ok());
     assert!(p.geocentric("Vega", jd("2060-12-31T23:59:59Z")).is_ok());
+    // Verifier regression: a NaN instant compared false with both ends and came back
+    // as Ok with a NaN GHA and declination; it is refused like the other providers do.
+    for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
+        assert!(p.geocentric("Vega", bad).is_err(), "{bad}");
+        assert!(p.apparent_radec_deg("Vega", bad).is_err(), "{bad}");
+        assert!(p.sha_deg("Vega", bad).is_err(), "{bad}");
+        let sky = skyfix_ephemeris::body::Sky::new();
+        use skyfix_ephemeris::body::BodyEphemeris;
+        assert!(sky.apparent_state("Vega", bad).is_err(), "{bad}");
+    }
 }
 
 /// CONVENTIONS section 2: `GHA_star = GHA_Aries + SHA`.

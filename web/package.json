@@ -8,7 +8,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p src/sw",
     "test": "vitest run",
     "test:watch": "vitest",
     "wasm": "CARGO_PROFILE_RELEASE_OPT_LEVEL=s wasm-pack build ../crates/skyfix-wasm --target web --out-dir ../../web/src/wasm-pkg --out-name skyfix_wasm --release"

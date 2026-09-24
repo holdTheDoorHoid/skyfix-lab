@@ -1,0 +1,115 @@
+{
+  "schema": "skyfix.session/1",
+  "meta": {
+    "name": "Vega, seven sights over three minutes",
+    "notes": "Transcribed from fixtures/reference/nav_methods.json (Skyfield, case vega-run-philadelphia): seven noise-free sextant readings of Vega setting over Philadelphia, stationary. The assumed position is the case's DR, 15 NM from the truth.",
+    "kind": "simulated"
+  },
+  "observer": {
+    "height_of_eye_m": 3.0,
+    "pressure_hpa": 1010.0,
+    "temperature_c": 10.0,
+    "assumed_position": {
+      "lat_deg": 40.077256408,
+      "lon_deg": -74.882250386
+    },
+    "assumed_position_role": {
+      "role": "initializer"
+    }
+  },
+  "instrument": {
+    "name": "simulated sextant",
+    "index_correction_arcmin": -1.2,
+    "horizon": "sea"
+  },
+  "clock": {
+    "uncertainty_s": 0.0,
+    "correction_s": 0.0
+  },
+  "observations": [
+    {
+      "id": "a00",
+      "body": "Vega",
+      "utc": "2026-10-01T01:28:30.000Z",
+      "altitude_deg": 61.436228321,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "a01",
+      "body": "Vega",
+      "utc": "2026-10-01T01:29:00.000Z",
+      "altitude_deg": 61.341619233,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "a02",
+      "body": "Vega",
+      "utc": "2026-10-01T01:29:30.000Z",
+      "altitude_deg": 61.247024756,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "a03",
+      "body": "Vega",
+      "utc": "2026-10-01T01:30:00.000Z",
+      "altitude_deg": 61.152444955,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "a04",
+      "body": "Vega",
+      "utc": "2026-10-01T01:30:30.000Z",
+      "altitude_deg": 61.057879893,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "a05",
+      "body": "Vega",
+      "utc": "2026-10-01T01:31:00.000Z",
+      "altitude_deg": 60.963329632,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    },
+    {
+      "id": "a06",
+      "body": "Vega",
+      "utc": "2026-10-01T01:31:30.000Z",
+      "altitude_deg": 60.868794238,
+      "altitude_kind": "sextant_hs",
+      "sigma_arcmin": 0.5,
+      "limb": "center",
+      "horizon": null,
+      "geocentric": null,
+      "notes": ""
+    }
+  ]
+}

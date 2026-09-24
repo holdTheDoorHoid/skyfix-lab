@@ -136,7 +136,7 @@ pub mod native {
     pub struct CoverageGroup {
         pub name: String,
         pub provider: String,
-        /// The provider's documented accuracy; `null` when it has none (a stub).
+        /// The provider's documented accuracy; `null` when it declares none.
         pub accuracy_arcmin: Option<f64>,
         /// `accuracy_arcmin` is finite and at most 0.1' (CONVENTIONS 13.7): only then is
         /// the group offered for sights.
@@ -498,6 +498,10 @@ mod tests {
         let sun = &c.groups[0];
         assert!(sun.validated && sun.accuracy_arcmin == Some(0.01));
         assert!(c.groups[3].validated);
+        // Every group is a real provider now: the Moon (0.02') and the planets (0.05')
+        // are validated too, so the UI offers the Moon and the four planets for sights.
+        assert!(c.groups[1].validated && c.groups[1].accuracy_arcmin == Some(0.02));
+        assert!(c.groups[2].validated && c.groups[2].accuracy_arcmin == Some(0.05));
         // Each group names its bodies; together they are exactly explorer_bodies().
         assert_eq!(sun.bodies, vec!["Sun"]);
         assert_eq!(c.groups[1].bodies, vec!["Moon"]);
@@ -509,16 +513,6 @@ mod tests {
         listed.sort();
         assert_eq!(all, listed);
         assert!(v["groups"][3]["bodies"].is_array());
-        // The stubs: no accuracy (null on the wire, not Infinity), not validated.
-        let moon = &v["groups"][1];
-        if moon["provider"]
-            .as_str()
-            .unwrap()
-            .contains("not yet implemented")
-        {
-            assert!(moon["accuracy_arcmin"].is_null());
-            assert_eq!(moon["validated"], false);
-        }
     }
 
     #[test]
@@ -606,13 +600,11 @@ mod tests {
             assert_eq!(con(star).as_deref(), Some(abbr), "{star}");
         }
         assert!(s.bodies.iter().all(|b| b.constellation.is_some()));
-        // Every body is either computed or listed with its reason.
-        let n_ok = s.bodies.len();
-        let n_err = s.errors.len();
-        assert_eq!(n_ok + n_err, 67);
-        for e in &s.errors {
-            assert!(e.body == "Moon" || skyfix_ephemeris::body::PLANETS.contains(&e.body.as_str()));
-        }
+        // Inside coverage every body is computed: the Moon and the planets are real
+        // providers, so an error here is a regression, not a stub (verifier: this used
+        // to accept the Moon and every planet failing).
+        assert!(s.errors.is_empty(), "{:?}", s.errors);
+        assert_eq!(s.bodies.len(), 67);
         assert!(sky_state(PHILLY, jd, "[\"Vulcan\"]").is_err());
         assert!(sky_state(PHILLY, f64::NAN, "\"all\"").is_err());
         // Outside the Sun's coverage there is no sky phase: the call fails.
@@ -625,9 +617,10 @@ mod tests {
         let t0 = civil_to_jd(2026, 9, 24);
         let s = sample_bodies(PHILLY, "[\"Sun\", \"Vega\", \"Moon\"]", t0, t0 + 1.0, 10.0).unwrap();
         assert_eq!(s.jd_utc.len(), 145);
-        // Every body is either sampled or listed with its reason, never both, never
-        // neither (whether the Moon provider is in this build or not).
-        assert_eq!(s.bodies.len() + s.errors.len(), 3);
+        // Every body is sampled: the Moon is a real provider (this used to accept it
+        // failing, from when it was a stub).
+        assert!(s.errors.is_empty(), "{:?}", s.errors);
+        assert_eq!(s.bodies.len(), 3);
         for b in &s.bodies {
             for v in [
                 &b.alt_deg,
@@ -639,11 +632,6 @@ mod tests {
                 assert_eq!(v.len(), 145, "{}", b.body);
             }
         }
-        assert!(
-            s.errors
-                .iter()
-                .all(|e| e.body == "Moon" && !e.message.is_empty())
-        );
         let e = sample_bodies(PHILLY, "\"Sun\"", t0, t0 + 20.0, 1.0).unwrap_err();
         assert!(e.contains("20000"), "{e}");
     }
@@ -711,11 +699,12 @@ mod tests {
         assert!(seasons(2026.5).is_err());
         assert!(seasons(1980.0).is_err());
 
-        // The Moon provider is a stub in this build: phases need it.
-        match moon_phases(t0, t0 + 30.0) {
-            Ok(p) => assert!(p.len() >= 3),
-            Err(e) => assert!(e.contains("Moon"), "{e}"),
-        }
+        // Thirty days hold three or four principal phases.
+        let p = moon_phases(t0, t0 + 30.0).unwrap();
+        assert!((3..=5).contains(&p.len()), "{p:?}");
+        // Outside the Moon's coverage the call says why.
+        let e = moon_phases(2_446_000.5, 2_446_030.5).unwrap_err();
+        assert!(e.contains("Moon"), "{e}");
         let g = sidereal(t0).unwrap();
         assert!((0.0..360.0).contains(&g.gha_aries_deg));
         assert!(sidereal(f64::INFINITY).is_err());

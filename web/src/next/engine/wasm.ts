@@ -10,6 +10,7 @@
  * time, and the missing exports are named exactly.
  */
 
+import { createWasmNav, type NavTools } from './wasm-nav.js';
 import type {
   AlmanacDay,
   AlmanacEngine,
@@ -149,6 +150,8 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
+  /** Navigation tools (wasm-nav.ts); absent when the package predates their exports. */
+  readonly nav?: NavTools;
 
   private bodiesCache: BodyInfo[] | null = null;
   private coverageCache: ExplorerCoverage | null = null;
@@ -164,6 +167,8 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
       version = null;
     }
     this.version = version;
+    const nav = createWasmNav(x);
+    if (nav) this.nav = nav;
     this.description =
       `The SkyFix Lab numerical core${version ? ` ${version}` : ''}, compiled to WebAssembly. ` +
       'It runs entirely in this browser, with no network.';

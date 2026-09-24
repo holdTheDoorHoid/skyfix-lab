@@ -1,0 +1,1512 @@
+/*
+ * Learn view. OWNER: learn agent.
+ *
+ * Only design tokens (theme/tokens.css), never a literal colour, so the light, dark and
+ * night themes switch with no script. The view sits on the stage (`.sf-on-stage`). Lines
+ * of position carry a dark casing as map lines do, so any palette colour reads on any
+ * paper; marks differ by shape and carry labels, so colour is never the only cue.
+ */
+
+.sfl {
+  /* Circle palette: one colour per body in a picture (chart-model.ts PALETTE_SIZE). */
+  --sfl-c0: var(--body-sun);
+  --sfl-c1: var(--body-neptune);
+  --sfl-c2: var(--body-mars);
+  --sfl-c3: var(--body-uranus);
+  --sfl-c4: var(--body-venus);
+  --sfl-c5: var(--body-moon);
+  --sfl-gap: var(--space-4);
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  background: var(--stage-bg);
+  color: var(--stage-ink);
+  font-family: var(--font-ui);
+  font-size: var(--text-md);
+  line-height: var(--leading);
+}
+
+.sfl-c0 { --c: var(--sfl-c0); }
+.sfl-c1 { --c: var(--sfl-c1); }
+.sfl-c2 { --c: var(--sfl-c2); }
+.sfl-c3 { --c: var(--sfl-c3); }
+.sfl-c4 { --c: var(--sfl-c4); }
+.sfl-c5 { --c: var(--sfl-c5); }
+
+/* The design system's simulated badge is drawn for the chrome; on the stage it takes the
+   stage's ink so it reads on light paper too. */
+.sfl .sf-badge--simulated {
+  color: var(--stage-ink);
+}
+
+.sfl p {
+  max-width: 76ch;
+}
+
+.sfl-muted {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Header and tabs                                                                        */
+
+.sfl-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-6);
+  padding: var(--space-4) var(--sfl-gap) var(--space-3);
+  border-bottom: 1px solid var(--stage-line);
+}
+
+.sfl-head__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sfl-h1 {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+}
+
+.sfl-h1 .sf-icon {
+  width: 22px;
+  height: 22px;
+  color: var(--stage-accent-ink);
+}
+
+.sfl-head__lede {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfl-tabs .sf-seg__opt {
+  height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-md);
+}
+
+.sfl-tabs .sf-seg__opt[aria-selected='true'] {
+  background: var(--stage-surface);
+  color: var(--stage-ink);
+  box-shadow: var(--shadow-1);
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-tabs .sf-seg__opt[aria-selected='true']::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.sfl-notices:empty {
+  display: none;
+}
+
+.sfl-notices {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--sfl-gap) 0;
+}
+
+.sfl-panel {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sfl-panel:focus {
+  outline: none;
+}
+
+.sfl-panel:has(> .sfl-stories) {
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Type                                                                                   */
+
+.sfl-h2 {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+}
+
+.sfl-h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-h3 .sf-icon {
+  width: 16px;
+  height: 16px;
+  color: var(--stage-accent-ink);
+}
+
+.sfl-eyebrow {
+  color: var(--stage-accent-ink);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.sfl-lede {
+  color: var(--stage-ink-2);
+  font-size: var(--text-base);
+}
+
+.sfl-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Demonstrations: list and result                                                       */
+
+.sfl-stories {
+  display: grid;
+  grid-template-columns: minmax(270px, 330px) minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.sfl-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--space-3) var(--space-6) var(--sfl-gap);
+  border-right: 1px solid var(--stage-line);
+}
+
+.sfl-stage {
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-4) var(--sfl-gap) var(--space-8);
+}
+
+.sfl-stage:focus {
+  outline: none;
+}
+
+.sfl-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfl-group__title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  letter-spacing: 0.01em;
+}
+
+.sfl-group__n {
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--stage-ink);
+  color: var(--stage-surface);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-bold);
+}
+
+.sfl-group__line {
+  margin-top: -4px;
+  padding-left: 28px;
+  color: var(--stage-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sfl-story {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-lg);
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sfl-story[aria-current='true'] {
+  border-color: var(--stage-accent-ink);
+  box-shadow: 0 0 0 1px var(--stage-accent-ink), var(--shadow-1);
+}
+
+.sfl-story__title {
+  font-size: var(--text-base);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+}
+
+.sfl-story__summary {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfl-story__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  margin-top: 2px;
+}
+
+.sfl-story__name {
+  overflow: hidden;
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sfl-result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 1040px;
+}
+
+.sfl-result--welcome,
+.sfl-result--busy {
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border: 1px dashed var(--stage-line-strong);
+  border-radius: var(--radius-lg);
+}
+
+.sfl-steps {
+  display: grid;
+  gap: var(--space-2);
+  padding-left: 1.4em;
+  list-style: decimal;
+  color: var(--stage-ink-2);
+}
+
+.sfl-result__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.sfl-result__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sfl-kind {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 10px;
+  border: 1.5px solid var(--stage-line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--stage-surface);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-kind .sf-icon {
+  width: 15px;
+  height: 15px;
+}
+
+.sfl-kind--unique {
+  border-color: var(--stage-ink);
+}
+
+.sfl-kind--ambiguous,
+.sfl-kind--underdetermined {
+  border-style: dashed;
+}
+
+.sfl-kind--failed {
+  border-color: var(--danger);
+}
+
+.sfl-variant {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--stage-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.sfl-variant .sf-icon {
+  width: 14px;
+  height: 14px;
+}
+
+.sfl-variant-note {
+  margin-top: calc(-1 * var(--space-2));
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfl-hero {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid var(--stage-accent-ink);
+  border-radius: var(--radius-sm);
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sfl-hero__value {
+  font-size: var(--text-3xl);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.sfl-hero__caption {
+  flex: 1 1 18em;
+  color: var(--stage-ink-2);
+  font-size: var(--text-base);
+}
+
+/* The scorecard. */
+.sfl-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.sfl-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface);
+}
+
+.sfl-tile__label {
+  color: var(--stage-ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.sfl-tile__value {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.sfl-tile__sub {
+  color: var(--stage-ink-3);
+  font-size: var(--text-2xs);
+}
+
+.sfl-tile--good {
+  box-shadow: inset 0 3px 0 var(--ok);
+}
+
+.sfl-tile--bad {
+  box-shadow: inset 0 3px 0 var(--danger);
+}
+
+/* The figure. */
+.sfl-figure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-lg);
+  background: var(--stage-surface);
+}
+
+.sfl-figure__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.sfl-figure__view {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfl-figure__plot {
+  position: relative;
+  width: 100%;
+  min-height: 200px;
+}
+
+.sfl-figure__note {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfl-figure__caption {
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfl-figure__caption strong {
+  color: var(--stage-ink);
+}
+
+.sfl-seg .sf-seg__opt[aria-checked='true'] {
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sfl-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  color: var(--stage-ink-2);
+  font-size: var(--text-xs);
+}
+
+.sfl-legend__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sfl-legend__sym {
+  flex: none;
+  overflow: visible;
+}
+
+.sfl-message {
+  padding: var(--space-4);
+  border: 1px dashed var(--stage-line-strong);
+  border-radius: var(--radius-md);
+  color: var(--stage-ink-2);
+  text-align: center;
+}
+
+/* Explanation, next steps, warnings, numbers. */
+.sfl-explain {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+}
+
+.sfl-explain .sfl-h3 + p {
+  margin-top: -2px;
+}
+
+.sfl-next {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--accent-soft);
+}
+
+.sfl-warnings {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.sfl-more {
+  border-top: 1px solid var(--stage-line);
+  padding-top: var(--space-3);
+}
+
+.sfl-more > summary {
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-more[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+.sfl-more > * + * {
+  margin-top: var(--space-3);
+}
+
+.sfl-numbers {
+  display: grid;
+  gap: 0;
+  font-size: var(--text-sm);
+}
+
+.sfl-kv {
+  display: grid;
+  grid-template-columns: minmax(10em, 15em) minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: 5px 0;
+  border-bottom: 1px solid var(--stage-line);
+}
+
+.sfl-kv dt {
+  color: var(--stage-ink-2);
+}
+
+.sfl-kv dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.sfl-kv--truth dt::after {
+  content: ' ✳';
+}
+
+.sfl-key {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1.5px dashed var(--stage-line-strong);
+  border-radius: var(--radius-lg);
+}
+
+.sfl-key__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sfl-key__head .sf-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.sfl-table-wrap {
+  overflow-x: auto;
+}
+
+.sfl-table {
+  width: 100%;
+  font-size: var(--text-sm);
+}
+
+.sfl-table caption {
+  padding-bottom: var(--space-2);
+  color: var(--stage-ink-2);
+  text-align: left;
+}
+
+/* Residuals. */
+.sfl-resid-fig {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.sfl-resid-fig__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-2);
+}
+
+.sfl-resid {
+  display: block;
+  width: 100%;
+  font-family: var(--font-num);
+}
+
+.sfl-resid__band {
+  fill: var(--stage-surface-2);
+}
+
+.sfl-resid__guide {
+  stroke: var(--stage-line-strong);
+  stroke-dasharray: 3 3;
+}
+
+.sfl-resid__zero {
+  stroke: var(--stage-ink-3);
+}
+
+.sfl-resid__axis,
+.sfl-resid__id {
+  fill: var(--stage-ink-3);
+  font-size: 10.5px;
+}
+
+.sfl-resid__bar {
+  fill: var(--stage-ink-2);
+}
+
+.sfl-resid__bar--out {
+  fill: var(--danger);
+  stroke: var(--stage-ink);
+  stroke-width: 1;
+}
+
+.sfl-resid__bar--down {
+  fill-opacity: 0.35;
+  stroke: var(--stage-ink-2);
+  stroke-dasharray: 2 2;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* The chart                                                                              */
+
+.sfl-chart {
+  display: block;
+  max-width: 100%;
+  font-family: var(--font-ui);
+}
+
+.sfl-ch-paper {
+  fill: var(--map-land);
+  stroke: var(--stage-line);
+}
+
+.sfl-ch-grid path {
+  fill: none;
+  stroke: var(--map-graticule);
+  stroke-width: 1;
+}
+
+.sfl-ch-gridlabels text {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: 10.5px;
+}
+
+.sfl-ch-cop .sfl-ch-casing {
+  fill: none;
+  stroke: var(--line-halo);
+  stroke-width: 5.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sfl-ch-cop .sfl-ch-line {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 2.6;
+  stroke-dasharray: var(--dash-circle);
+  stroke-linejoin: round;
+}
+
+.sfl-ch-cop--emph .sfl-ch-casing {
+  stroke-width: 8;
+}
+
+.sfl-ch-cop--emph .sfl-ch-line {
+  stroke-width: 4;
+  stroke-dasharray: none;
+}
+
+.sfl-ch-ellipse {
+  fill: color-mix(in srgb, var(--stage-accent-ink) 16%, transparent);
+  stroke: var(--stage-accent-ink);
+  stroke-width: 2.2;
+}
+
+.sfl-ch-error {
+  fill: none;
+  stroke: var(--stage-ink);
+  stroke-width: 1.8;
+  stroke-dasharray: 1 5;
+  stroke-linecap: round;
+}
+
+.sfl-ch-fix .sfl-ch-halo,
+.sfl-ch-truth .sfl-ch-halo,
+.sfl-ch-cand .sfl-ch-halo {
+  fill: none;
+  stroke: var(--stage-surface);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sfl-ch-fix .sfl-ch-ring {
+  fill: none;
+  stroke: var(--stage-ink);
+  stroke-width: 2.4;
+}
+
+.sfl-ch-fix .sfl-ch-dot {
+  fill: var(--stage-ink);
+}
+
+.sfl-ch-truth .sfl-ch-stroke {
+  fill: none;
+  stroke: var(--stage-ink);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+
+.sfl-ch-cand .sfl-ch-shape {
+  fill: var(--stage-surface);
+  stroke: var(--stage-ink);
+  stroke-width: 2.4;
+  stroke-linejoin: round;
+}
+
+.sfl-ch-gp {
+  fill: var(--c);
+  stroke: var(--line-halo);
+  stroke-width: 1.3;
+  stroke-linejoin: round;
+}
+
+.sfl-ch-pill rect {
+  fill: var(--stage-surface);
+  stroke: var(--stage-line-strong);
+  stroke-width: 1;
+}
+
+.sfl-ch-pill text {
+  fill: var(--stage-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-ch-pill--line rect,
+.sfl-ch-pill--gp rect {
+  stroke: var(--c);
+  stroke-width: 2;
+}
+
+.sfl-ch-pill--error text {
+  font-family: var(--font-num);
+}
+
+.sfl-ch-pill--error rect {
+  stroke: var(--stage-ink);
+  stroke-dasharray: 1 3;
+  stroke-linecap: round;
+}
+
+.sfl-ch-pill--ellipse rect {
+  stroke: var(--stage-accent-ink);
+  stroke-width: 1.5;
+}
+
+.sfl-ch-pill--truth rect,
+.sfl-ch-pill--fix rect,
+.sfl-ch-pill--cand rect {
+  stroke: var(--stage-ink);
+  stroke-width: 1.5;
+}
+
+.sfl-ch-scale-bg {
+  fill: var(--stage-surface);
+  fill-opacity: 0.85;
+}
+
+.sfl-ch-scale path {
+  fill: none;
+  stroke: var(--stage-ink);
+  stroke-width: 2;
+}
+
+.sfl-ch-scale text,
+.sfl-ch-north text {
+  fill: var(--stage-ink);
+  font-family: var(--font-num);
+  font-size: 11px;
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-ch-north path {
+  fill: var(--stage-ink);
+}
+
+.sfl-ch-sea {
+  fill: var(--map-water);
+}
+
+.sfl-ch-land {
+  fill: var(--map-land);
+  stroke: var(--map-coast);
+  stroke-width: 0.7;
+  stroke-linejoin: round;
+}
+
+.sfl-ch-grat {
+  fill: none;
+  stroke: var(--map-graticule);
+  stroke-width: 1;
+}
+
+.sfl-ch-rim {
+  fill: none;
+  stroke: var(--stage-line-strong);
+  stroke-width: 1.2;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* How it works                                                                           */
+
+.sfl-primer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-width: 1040px;
+  padding: var(--space-4) var(--sfl-gap) var(--space-8);
+}
+
+.sfl-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sfl-step {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: var(--space-3);
+}
+
+.sfl-step__n {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--stage-ink);
+  color: var(--stage-surface);
+  font-family: var(--font-num);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+}
+
+.sfl-step__body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-lg);
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sfl-step__title {
+  font-size: var(--text-lg);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+}
+
+.sfl-step__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.sfl-step__fig {
+  padding: var(--space-2);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface-2);
+}
+
+.sfl-step__text {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  font-size: var(--text-base);
+}
+
+.sfl-step__text .sfl-actions {
+  margin-top: var(--space-1);
+}
+
+.sfl-dg {
+  display: block;
+  width: 100%;
+  height: auto;
+  font-family: var(--font-ui);
+}
+
+.sfl-dg-text {
+  fill: var(--stage-ink-2);
+  font-size: 11.5px;
+}
+
+.sfl-dg-small {
+  fill: var(--stage-ink-2);
+  font-size: 10.5px;
+}
+
+.sfl-dg-strong {
+  fill: var(--stage-ink);
+  font-size: 11.5px;
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-dg-num {
+  fill: var(--stage-accent-ink);
+  font-family: var(--font-num);
+  font-size: 12px;
+  font-weight: var(--weight-bold);
+}
+
+.sfl-dg-earth {
+  fill: var(--map-water);
+  stroke: var(--stage-line-strong);
+  stroke-width: 1.2;
+}
+
+.sfl-dg-paper {
+  fill: var(--map-land);
+  stroke: var(--stage-line);
+}
+
+.sfl-dg-ray {
+  fill: none;
+  stroke: var(--stage-accent-ink);
+  stroke-width: 1.4;
+  stroke-dasharray: 5 4;
+}
+
+.sfl-dg-dotted {
+  fill: none;
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.2;
+  stroke-dasharray: 1.5 3.5;
+  stroke-linecap: round;
+}
+
+.sfl-dg-arc {
+  fill: none;
+  stroke: var(--stage-accent-ink);
+  stroke-width: 1.8;
+}
+
+.sfl-dg-move {
+  fill: none;
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.6;
+}
+
+.sfl-dg-move-head {
+  fill: var(--stage-ink-2);
+}
+
+.sfl-dg-horizon {
+  fill: none;
+  stroke: var(--stage-ink);
+  stroke-width: 1.8;
+}
+
+.sfl-dg-star {
+  fill: var(--body-sun);
+  stroke: var(--line-halo);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+}
+
+.sfl-dg-gp,
+.sfl-dg-centre {
+  fill: var(--stage-ink);
+}
+
+.sfl-dg-you {
+  fill: var(--stage-accent-ink);
+  stroke: var(--stage-surface);
+  stroke-width: 1.5;
+}
+
+.sfl-dg-dot {
+  fill: var(--stage-ink-2);
+}
+
+.sfl-dg-dot--out {
+  fill: var(--stage-surface);
+  stroke: var(--danger);
+  stroke-width: 1.8;
+}
+
+.sfl-dg-ring-inner {
+  fill: none;
+  stroke: var(--stage-line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 3;
+}
+
+.sfl-dg-dr {
+  fill: color-mix(in srgb, var(--stage-accent-ink) 10%, transparent);
+  stroke: var(--stage-accent-ink);
+  stroke-width: 1.2;
+  stroke-dasharray: 3 3;
+}
+
+/* Sketch lines are thinner than chart lines. */
+.sfl-dg .sfl-ch-cop .sfl-ch-casing {
+  stroke-width: 4;
+}
+
+.sfl-dg .sfl-ch-cop .sfl-ch-line {
+  stroke-width: 2;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Simulator                                                                              */
+
+.sfl-sim {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--sfl-gap) var(--space-8);
+}
+
+.sfl-sim__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+}
+
+.sfl-sim__source {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 32em;
+  min-width: 0;
+}
+
+.sfl-sim__desc {
+  margin-top: var(--space-1);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfl-sim__go .sf-btn {
+  height: var(--control-h-lg);
+}
+
+.sfl-sim__grid {
+  display: grid;
+  grid-template-columns: minmax(300px, 400px) minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: start;
+}
+
+.sfl-sim__results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.sfl-editor {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sfl-group-box {
+  padding: var(--space-3);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-lg);
+  background: var(--stage-surface);
+}
+
+.sfl-group-box > summary {
+  cursor: pointer;
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-group-box--truth {
+  border-left: 4px solid var(--stage-ink);
+}
+
+.sfl-group-box--reported {
+  border-left: 4px dashed var(--stage-accent-ink);
+}
+
+.sfl-group-box__lede {
+  margin: 4px 0 var(--space-3);
+}
+
+.sfl-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.sfl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sfl-field--check,
+.sfl-field--wide,
+.sfl-field--select,
+.sfl-fields > .sf-notice,
+.sfl-bodies {
+  grid-column: 1 / -1;
+}
+
+.sfl-field__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sfl-input {
+  height: var(--control-h);
+  font-size: var(--text-md);
+}
+
+.sfl-select {
+  padding-right: 8px;
+}
+
+.sfl-input[aria-invalid='true'] {
+  border-color: var(--danger);
+}
+
+.sfl-unit {
+  color: var(--stage-ink-2);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+}
+
+.sfl-help {
+  color: var(--stage-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sfl-help--error {
+  color: var(--stage-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.sfl-bodies summary {
+  cursor: pointer;
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfl-bodies ul {
+  display: grid;
+  gap: 4px;
+  margin: var(--space-2) 0;
+  padding-left: 1.2em;
+  list-style: disc;
+  color: var(--stage-ink-2);
+  font-size: var(--text-xs);
+}
+
+.sfl-panel-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--stage-line);
+  border-radius: var(--radius-lg);
+  background: var(--stage-surface);
+  box-shadow: var(--shadow-1);
+}
+
+.sfl-panel-box .sfl-figure {
+  border: 0;
+  padding: 0;
+}
+
+.sfl-panel-box--empty {
+  border-style: dashed;
+  box-shadow: none;
+  background: transparent;
+}
+
+.sfl-exp__controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.sfl-exp__controls .sfl-field {
+  width: 12em;
+}
+
+.sfl-exp__result {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sfl-exp__chart {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sfl-exp__big {
+  font-size: var(--text-base);
+}
+
+.sfl-exp__big .sf-num {
+  font-size: var(--text-xl);
+  font-weight: var(--weight-bold);
+}
+
+.sfl-verdict {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface-2);
+  box-shadow: inset 4px 0 0 var(--stage-line-strong);
+}
+
+.sfl-verdict--healthy {
+  box-shadow: inset 4px 0 0 var(--ok);
+}
+
+.sfl-verdict--disagrees,
+.sfl-verdict--meant-to-fail {
+  box-shadow: inset 4px 0 0 var(--danger);
+}
+
+.sfl-verdict__chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: var(--weight-bold);
+}
+
+.sfl-verdict__chip .sf-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.sfl-band,
+.sfl-dots {
+  display: block;
+  width: 100%;
+  font-family: var(--font-num);
+}
+
+.sfl-band__track {
+  fill: var(--stage-surface-2);
+  stroke: var(--stage-line);
+}
+
+.sfl-band__ok {
+  fill: color-mix(in srgb, var(--ok) 34%, transparent);
+  stroke: var(--stage-ink-3);
+  stroke-width: 1;
+}
+
+.sfl-band__nominal {
+  stroke: var(--stage-ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.sfl-band__ci {
+  fill: var(--stage-ink-2);
+}
+
+.sfl-band__dot {
+  fill: var(--stage-accent-ink);
+  stroke: var(--stage-surface);
+  stroke-width: 2;
+}
+
+.sfl-band__mark {
+  fill: var(--stage-accent-ink);
+}
+
+.sfl-band__tick,
+.sfl-band__label {
+  fill: var(--stage-ink-3);
+  font-size: 11px;
+}
+
+.sfl-band__label {
+  fill: var(--stage-ink-2);
+}
+
+.sfl-dots__inside {
+  fill: color-mix(in srgb, var(--ok) 18%, transparent);
+}
+
+.sfl-dots__edge {
+  stroke: var(--stage-ink);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.sfl-dots__dot {
+  fill: var(--stage-ink-2);
+  fill-opacity: 0.75;
+}
+
+.sfl-dots__dot--out {
+  fill: var(--danger);
+  fill-opacity: 0.85;
+  stroke: var(--stage-ink);
+  stroke-width: 0.8;
+}
+
+.sfl-notes {
+  display: grid;
+  gap: 4px;
+  padding-left: 1.2em;
+  list-style: disc;
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Narrow screens. Container queries, not media queries: in the explorer the view gets     */
+/* the stage (the window less the side panel), which is what the layout must fit.          */
+
+.sfl {
+  container: sfl / inline-size;
+}
+
+/* The result columns size their own tiles. */
+.sfl-stage,
+.sfl-sim__results {
+  container: sfl-result / inline-size;
+}
+
+@container sfl-result (max-width: 620px) {
+  .sfl-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container sfl (max-width: 1099px) {
+  .sfl-sim__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container sfl (max-width: 899px) {
+  .sfl-panel:has(> .sfl-stories) {
+    overflow-y: auto;
+  }
+
+  .sfl-stories {
+    display: flex;
+    flex-direction: column;
+    height: auto;
+  }
+
+  .sfl-list {
+    overflow: visible;
+    border-right: 0;
+    padding-right: var(--sfl-gap);
+  }
+
+  /* The result comes first; the list of demonstrations follows it. */
+  .sfl-stage {
+    order: -1;
+    overflow: visible;
+    border-bottom: 1px solid var(--stage-line);
+  }
+
+  .sfl-step__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sfl-step__fig {
+    max-width: 440px;
+  }
+}
+
+@container sfl (max-width: 640px) {
+  .sfl-head,
+  .sfl-notices,
+  .sfl-panel {
+    --sfl-gap: var(--space-3);
+  }
+
+  .sfl-head__lede {
+    display: none;
+  }
+
+  .sfl-tabs {
+    width: 100%;
+  }
+
+  .sfl-tabs .sf-seg__opt {
+    flex: 1;
+    padding: 0 var(--space-1);
+    font-size: var(--text-sm);
+  }
+
+  .sfl-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sfl-step {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sfl-step__n {
+    display: none;
+  }
+
+  .sfl-kv {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .sfl-hero__value {
+    font-size: var(--text-2xl);
+  }
+}
+
+@media (forced-colors: active) {
+  .sfl-ch-cop .sfl-ch-line,
+  .sfl-ch-ellipse,
+  .sfl-ch-fix .sfl-ch-ring,
+  .sfl-ch-truth .sfl-ch-stroke {
+    stroke: CanvasText;
+  }
+}

@@ -1,8 +1,9 @@
 # `skyfix` — the command line
 
 `skyfix` is the whole engine with a terminal in front of it. Every number it prints is
-computed by `skyfix-core`, `skyfix-ephemeris` and `skyfix-sim`; this crate owns the
-argument parsing, the files and the words.
+computed by `skyfix-core`, `skyfix-ephemeris`, `skyfix-sim`, `skyfix-almanac` and
+`skyfix-motion` (and the constellation labels of `skyfix sky` by the display-only
+`skyfix-starfield`); this crate owns the argument parsing, the files and the words.
 
 Two rules hold everywhere:
 
@@ -22,8 +23,8 @@ Two rules hold everywhere:
 |---|---|
 | 0 | everything asked for was done |
 | 1 | usage error, unreadable file, parse failure, or a validation error |
-| 2 | one or more sights were rejected; whatever could be reduced was still printed |
-| 3 | the solve failed, or `--require-unique` was given and the result was not a unique fix **with a reported 95 % ellipse** |
+| 2 | one or more sights were rejected (or, for `sky` and `events`, a requested body could not be computed); whatever could be was still printed |
+| 3 | the solve failed (`solve`, `running-fix`), or `--require-unique` was given and the result was not a unique fix **with a reported 95 % ellipse** |
 | 4 | reserved: a subcommand that exists but is not wired up |
 
 Codes compose by taking the worst one a run earned, so a session with a rejected sight
@@ -605,6 +606,509 @@ in a direction you already have.
 
 ---
 
+## The sky, almanac events and the navigation methods
+
+The explorer redesign gave the engine a model of the whole sky, almanac events, four
+navigation methods and Moon and planet sights, and the browser reaches them through WASM
+(`docs/EXPLORER_API.md`). These commands reach the same functions, offline, one call each:
+
+| command | the question | the engine function |
+|---|---|---|
+| `sky` | where is everything right now? | `skyfix_almanac::sky::sky_state` |
+| `events` | when does it rise, set and transit, and when is twilight? | `skyfix_almanac::events::day_events` |
+| `phases`, `seasons` | when are the Moon's phases, the equinoxes and the solstices? | `skyfix_almanac::events::{moon_phases, seasons}` |
+| `noon` | what is my latitude from a noon run (and, weakly, my longitude)? | `skyfix_core::methods::noon::noon_sight` |
+| `polaris` | what is my latitude from Polaris? | `skyfix_core::methods::polaris::polaris_latitude` |
+| `average` | what one sight does a run of rough ones make? | `skyfix_core::methods::averaging::average_sights` |
+| `running-fix` | where am I, from sights taken while under way? | `skyfix_motion::request::running_fix_session` |
+| `predict` | what will the sextant read, and where do I look? | `skyfix_core::sights::predict::predict_sextant` |
+| `lunar` | what time is it, from the Moon? | `skyfix_core::sights::lunar::lunar_distance` |
+| `plan-sights` | what should I shoot at tonight's twilights? | `skyfix_ephemeris::visibility::plan_sights` |
+
+Rules every one of them keeps:
+
+- **`--format text|json`**, and `--json` as the older commands spell it. Text prints
+  angles in navigator style — whole degrees and decimal minutes to 0.1' (185 m), `183 12.4`
+  for an hour angle or a bearing, `N 38 47.1` for a declination, and a sign on every
+  altitude so a body below the horizon cannot be read as one above it — and instants as
+  RFC 3339 UTC with `Z`, to the second. A value that rounds to zero never carries a sign.
+  JSON is the engine's own result exactly as serde emits it, milliseconds included: the
+  wire shapes of `docs/EXPLORER_API.md`. A test calls each engine function directly and
+  compares its result with the command's JSON, number by number.
+- **`--lat` and `--lon`** are decimal degrees, longitude east-positive, and a leading
+  minus sign needs no `=`: `--lat -33.87 --lon 151.21`.
+- **`--bodies`** takes `all`, `solar_system` (or `solar-system`), `navigational`, or a
+  comma-separated list of names and groups. Names match without regard to case, stars
+  also as `HIP <number>`, and the order given is kept. An unknown name exits 1.
+- **A time window** takes a date or an instant at each end. As a start, `2026-10-01`
+  means 00:00 UTC that day; as an end it means the END of that day, so `--from 2026-10-01
+  --to 2026-10-31` is the whole of October.
+- **The navigation methods read sessions exactly as `solve` does** — JSON or CSV,
+  validated against the body list — and take `--ephemeris auto|supplied`. A sight the
+  reducer rejects becomes a warning that names it, and the exit code is 2, as for
+  `reduce` and `solve`. A method that cannot run at all (no usable sight, sights of two
+  bodies, no DR) exits 1 with the engine's reason.
+- **A DR is not a prior.** `--dr LAT,LON[,SIGMA_NM]` (default: the session's assumed
+  position, with its sigma when its role is `prior`) chooses between answers, predicts
+  and propagates uncertainty; it never pulls an answer towards itself
+  (`docs/NAVIGATION_METHODS.md` section 1). Leave `SIGMA_NM` out when you do not know it,
+  and every result that would have used it says so rather than guessing.
+- **Offline.** Nothing here opens a socket or reads a file it was not given.
+
+The examples below are real output, run from the repository root with `$D` standing for
+`crates/skyfix-cli/tests/data`, as above; `...` marks lines left out.
+
+### Time zones: `--zone`
+
+The engine works only in UTC, and every report prints UTC beside any zone time
+(CONVENTIONS 13.8). The web UI shows a named zone such as `America/New_York` through the
+browser's `Intl`, which carries the tz database: every region's offsets and every
+daylight-saving rule. This tool deliberately does not carry that database. It is large,
+it changes whenever a government moves its clocks, and it would be the one thing here
+that goes out of date on its own. So `--zone` accepts only zones that need no database:
+
+| `--zone` | means |
+|---|---|
+| `utc` (default; also `z`, `gmt`) | UTC |
+| `-04:00`, `+05:30`, `+0530`, `-4`, `UTC-4` | a fixed offset from UTC; the sign is required |
+| `nautical` | the nautical zone time of the longitude: `ZD = round(lon_east / -15)` hours, zone time + ZD = UTC, so 75 W is ZD +5 |
+
+A named zone is refused with a sentence saying what to type instead — the offset that
+applies on your date, such as `-04:00` for US Eastern daylight time. It is never guessed
+at: a wrong guess about daylight saving would put every event an hour out, with nothing
+on the screen to say so.
+
+### `skyfix sky --lat --lon --utc [--bodies] [--height] [--pressure] [--temperature]`
+
+The whole sky from one place at one instant: for each body the apparent altitude and the
+azimuth (what the eye sees), GHA and declination (what the Almanac tabulates), magnitude,
+illuminated fraction and constellation. `--format json` is `sky_state`'s `SkyState`,
+which also carries SHA, RA, the ground point, the geometric altitude, the navigator's
+`hc_deg`/`zn_deg` at the observer, distances, semidiameters, parallaxes, phase and
+bright-limb angles.
+
+| flag | meaning |
+|---|---|
+| `--lat DEG --lon DEG` | the observer. Required |
+| `--utc RFC3339` | the instant. Required |
+| `--bodies LIST` | default `all`: the Sun, the Moon, the seven planets and the 58 stars |
+| `--height M` | the site's height above the WGS84 ellipsoid (it moves the Moon by its parallax). Not the height of eye. Default 0 |
+| `--pressure HPA`, `--temperature C` | the air, for the display refraction. Defaults 1010 hPa, 10 C |
+
+```console
+$ skyfix sky --lat 39.9526 --lon -75.1652 --utc 2026-10-01T01:30:00Z \
+      --bodies Moon,Venus,Saturn,Vega,Polaris,Sirius
+SKY
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84 ellipsoid
+Time       2026-10-01T01:30:00Z
+Sky        night: the Sun's centre is at -31 44.0, geometric (CONVENTIONS 13.4)
+Aries      GHA 32 18.4
+
+  body                    alt        Az       GHA        Dec     mag   lit  con
+  Moon               + 5 24.9   60 52.5  330 29.9  N 26 08.9  -11.29   77%  Tau
+  Venus              -22 47.3  261 36.3  178 42.9  S 20 58.7   -4.77   15%  Vir
+  Saturn             +27 54.2  112 55.2   20 36.3  N  2 04.8    0.34  100%  Cet
+  Vega               +61 04.9  280 03.4  112 50.6  N 38 48.8    0.03     -  Lyr
+  Polaris            +39 58.2    0 49.0  345 13.7  N 89 22.4    1.97     -  UMi
+  Sirius             -50 49.1   63 21.6  290 43.4  S 16 44.9   -1.44     -  CMa
+
+4 of 6 bodies are above the horizon (upper limb above the sea-level horizon).
+...
+```
+
+Two altitudes exist and the report never mixes them (CONVENTIONS 13.2). `alt` is the
+topocentric apparent altitude — WGS84 site, parallax applied, refraction added — which is
+what the eye and the browser's sky view show; the sky phase is defined on the Sun's
+geometric altitude, printed in the header. Below -1 degree the display refraction is held
+at its -1 degree value, so a body 31 degrees down shows 39' of "refraction": there `alt`
+is a display value, not a measurement. The navigator's `Hc` and `Zn` (geocentric,
+CONVENTIONS 3) are in the JSON, and `skyfix predict` turns them into a sextant reading.
+
+The constellations come from the display-only star field (CONVENTIONS 13.6): they label,
+and never enter a reduction, a fix or a plan. A body that cannot be computed at that
+instant is listed under "Not computed", named on stderr, and the exit code is 2; outside
+the Sun's coverage (1990 to 2060) there is no sky phase, so the command exits 1.
+
+### `skyfix events --lat --lon --date [--zone] [--bodies] [--horizon standard|dip --height-of-eye M]`
+
+One day's rise, set, upper and lower transit, the Sun's three twilights, and the sky
+phases, from local midnight to local midnight in `--zone` — the way the web UI takes a
+day in its display zone.
+
+| flag | meaning |
+|---|---|
+| `--date YYYY-MM-DD` | the day. Required |
+| `--zone ZONE` | see "Time zones" above. Default `utc` |
+| `--bodies LIST` | default `Sun,Moon` |
+| `--horizon standard\|dip` | `standard` (default): rise and set when the centre is at -50' for the Sun, -34' - SD for the Moon, -34' for planets and stars. `dip`: all of those lowered by the dip of the sea horizon, 1.76' x sqrt(height of eye) |
+| `--height-of-eye M` | required by `--horizon dip`, and refused without it: on the standard horizon it would silently do nothing |
+| `--height M` | the site's height above the ellipsoid (the Moon's parallax). Default 0 |
+
+```console
+$ skyfix events --lat 39.9526 --lon -75.1652 --date 2026-09-24 --zone -04:00
+EVENTS
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200)
+Day        2026-09-24 in UTC-04:00: 2026-09-24T04:00:00Z to 2026-09-25T04:00:00Z
+Horizon    standard: rise and set when the centre is at -50' for the Sun, -34' - SD for
+           the Moon and -34' for planets and stars
+
+Sky phases
+  local     UTC                   phase
+  00:00:00  2026-09-24T04:00:00Z  night until 05:19:36
+  05:19:36  2026-09-24T09:19:36Z  astronomical twilight until 05:51:41
+  ...
+  20:24:44  2026-09-25T00:24:44Z  night until the end of the day
+
+Sun   day length 12 h 04 min
+  local     UTC                   event                    alt        Az
+  00:52:47  2026-09-24T04:52:47Z  lower transit       -50 30.9    0 00.0
+  05:19:36  2026-09-24T09:19:36Z  astronomical dawn   -18 00.0   74 58.5
+  ...
+  06:50:15  2026-09-24T10:50:15Z  rise                - 0 50.0   90 02.3
+  12:52:37  2026-09-24T16:52:37Z  transit             +49 23.1  180 00.0
+  18:54:19  2026-09-24T22:54:19Z  set                 - 0 50.0  269 42.3
+  ...
+
+Moon
+  local     UTC                   event                    alt        Az
+  04:30:45  2026-09-24T08:30:45Z  set                 - 0 49.3  256 29.7
+  11:18:18  2026-09-24T15:18:18Z  lower transit       -59 08.2    0 00.0
+  17:54:15  2026-09-24T21:54:15Z  rise                - 0 49.4   99 13.9
+  23:40:19  2026-09-25T03:40:19Z  transit             +43 49.3  180 00.0
+...
+```
+
+The Moon's transit at 23:40 local is 03:40Z on the next UTC date: the UTC column always
+carries its date. `alt` here is the geometric altitude of the centre, so at a rise or set
+it is exactly the threshold used (-50' for the Sun; -34' less the semidiameter for the
+Moon). The times are the engine's to the second, but rise and set assume the standard 34'
+of refraction at the horizon, and the real air moves them by a minute or more.
+
+`--format json` is the engine's `DayEvents` for the window, with the day that was asked
+for alongside: `{"date": "2026-09-24", "zone": "UTC-04:00", "utc_offset_minutes": -240,
+"jd_start": ..., "jd_end": ..., "phases": [...], "bodies": [...], "errors": [...]}`.
+A body that could not be computed is in `errors`, named on stderr, and the exit code is 2.
+
+### `skyfix phases --from --to` and `skyfix seasons --year`
+
+The instants at which the Moon's apparent geocentric ecliptic longitude minus the Sun's
+is 0, 90, 180 and 270 degrees, and at which the Sun's own is (CONVENTIONS 13.5), in UTC.
+`--format json` is the engine's list, `[{"kind", "jd_utc", "utc"}]`.
+
+```console
+$ skyfix phases --from 2026-09-01 --to 2026-09-30
+MOON PHASES  2026-09-01T00:00:00Z to 2026-10-01T00:00:00Z
+  2026-09-04T07:51:14Z  last quarter
+  2026-09-11T03:27:00Z  new moon
+  2026-09-18T20:43:47Z  first quarter
+  2026-09-26T16:49:02Z  full moon
+...
+$ skyfix seasons --year 2026
+SEASONS 2026
+  2026-03-20T14:45:56Z  March equinox
+  2026-06-21T08:24:29Z  June solstice
+  2026-09-23T00:05:12Z  September equinox
+  2026-12-21T20:50:13Z  December solstice
+...
+```
+
+A year or a window outside the providers' coverage (1990 to 2060) exits 1.
+
+### `skyfix noon <session>`
+
+Latitude at meridian passage, the time of passage, and a longitude that the command
+calls weak because it is (`docs/NAVIGATION_METHODS.md` section 2). The session holds a
+run of altitudes of one body around its meridian passage, or a single altitude.
+
+| flag | meaning |
+|---|---|
+| `--dr LAT,LON[,SIGMA_NM]` | the DR. It picks the side of the zenith and predicts when noon should be. Default: the session's assumed position |
+| `--vessel COURSE,SPEED` | course and speed over the ground during the run, degrees true and knots. Leave it out on a moving vessel and the peak is taken for the passage: 32' of longitude wrong in the 15-knot case of section 2.6 |
+| `--body-bearing auto\|north\|south` | which side of the zenith the body crossed; `auto` decides from the DR |
+| `--curvature predicted\|fitted` | `predicted` (default): the exact curve from the geometry; `fitted`: a free parabola, three or more sights |
+| `--single-altitude maximum\|ex-meridian` | one sight: the recorded peak (default), or an altitude at its recorded time reduced to the meridian on the DR longitude |
+| `--ephemeris auto\|supplied` | as for `reduce` |
+
+```console
+$ skyfix noon $D/noon_equinox_sun.session.json --dr 39.779322089,-75.295321012,10
+NOON SIGHT
+Session    Philadelphia equinox noon, 21 Sun sights (simulated)
+Ephemeris  auto -> skyfix-auto
+DR         39 46.76' N, 075 17.72' W (39.779322, -75.295321), sigma 10 NM, from --dr
+
+Sun, 21 sight(s): curve fit, curvature predicted; the Sun crossed the meridian SOUTH of
+the zenith
+
+Latitude   39 57.15' N (39.952583) sigma 0.11'
+           The Sun crossed your meridian SOUTH of the zenith, so latitude = declination +
+           zenith distance, counting north as positive: −0°16.3′ + 40°13.5′ = +39°57.2′
+           (39°57.2′ N). Zenith distance = 90° − meridian altitude 49°46.5′.
+Meridian   altitude +49 46.5 (Ho of the centre at passage), declination S 0 16.3, zenith
+           distance 40 13.5
+Passage    2026-09-23T16:52:58Z sigma 7.0 s
+Longitude  075 09.91' W (-75.165190) sigma 1.75' of longitude, 1.34 NM east-west (of
+           which the clock 0.00')
+           Near noon the Sun's height hardly changes: for about 5 minutes either side of
+           the peak it is within 1′ of its highest. The time of the peak — and the
+           longitude, which is nothing but that time — is therefore uncertain by ±7 s (1
+           sigma): ±1.7′ of longitude, ±1.3 NM east–west. The latitude does not suffer
+           from this: it comes from how HIGH the peak is, not WHEN it happened. Every 4
+           seconds of timing error move the longitude 1′.
+Peak       2026-09-23T16:52:45Z at +49 46.5, 12.5 s before passage
+...
+DR check   the DR predicts passage at 2026-09-23T16:53:29Z (sigma 52 s); answer minus DR:
+           latitude +10.40', longitude +7.81'
+...
+```
+
+The session is the Skyfield case `philadelphia-equinox-sun` of
+`fixtures/reference/nav_methods.json`: 21 noise-free lower-limb sextant readings. The
+truth is 39.9526 N, 75.1652 W with passage at 16:52:57.689Z, and the answer is within
+0.001' and 0.1 s of it. Note the two sigmas: 0.11' of latitude from the height of the
+peak, 1.75' of longitude from its time. That is not a weakness of the method; it is
+the flat top of the curve, and the report says so in words.
+
+`noon_bowditch_1910.session.json` is Bowditch's own example (section 1910), a single
+altitude on a vessel making 10 knots on 045: `skyfix noon
+$D/noon_bowditch_1910.session.json --vessel 45,10` gives 39 48.78' N against the book's
+39 48.6', a difference `docs/NAVIGATION_METHODS.md` section 6.2 accounts for piece by piece.
+
+### `skyfix polaris <session>`
+
+Latitude from one or more sights of Polaris, solved exactly on the DR meridian, with the
+Nautical Almanac's a0, a1, a2 terms beside it for teaching (section 3). Other bodies in
+the session are ignored, with a warning naming them.
+
+| flag | meaning |
+|---|---|
+| `--dr LAT,LON[,SIGMA_NM]` | the DR; its longitude is required (Polaris' correction depends on its hour angle), and its sigma enters the latitude's. Default: the session's assumed position |
+| `--vessel COURSE,SPEED` | the run between several sights |
+| `--reference-utc RFC3339` | the instant a combined latitude refers to; default the last sight |
+| `--ephemeris auto\|supplied` | as for `reduce` |
+
+```console
+$ skyfix polaris $D/polaris_bowditch_1912.session.json --dr 40.766666667,-43.366666667,10
+LATITUDE BY POLARIS
+Session    Bowditch 1912: latitude by Polaris (real)
+Ephemeris  auto -> skyfix-auto
+DR         40 46.00' N, 043 22.00' W (40.766667, -43.366667), sigma 10 NM, from --dr
+
+Latitude   40 48.47' N (40.807792) sigma 0.25' at 2016-03-22T23:18:56Z
+
+Sights
+  id        UTC                         Ho       LHA        Zn  latitude     sigma '
+  polaris   2016-03-22T23:18:56Z  +40 52.1   84 29.7  359 07.4  40 48.47' N     0.25
+    correction (latitude - Ho) -3.63'; sigma parts: altitude 0.20', DR longitude 0.15
+    (+0.0153' per NM east), clock 0.00'
+
+Almanac Polaris table, unrounded (teaching only; the rigorous latitude is above)
+  id         LHA Aries    a0 '    a1 '    a2 '  Ho - 1 + a0 + a1 + a2   rigorous minus '
+  polaris     127 15.1   54.93    0.52    0.91  40 48.47' N                       -0.001
+...
+```
+
+Bowditch works this example to 40 48.4' N with LHA Aries 127 15.1 and a0, a1, a2 of
+54.9', 0.5' and 0.9'. The table's own formula agrees with the rigorous answer to 0.001'
+here; the command never uses it for the answer, because near the pole it drifts (0.8' at
+88.5 N, 16' at 89.8 N).
+
+### `skyfix average <session>`
+
+A run of sights of one body, taken over a few minutes, averaged into one sight whose
+level is fitted while its shape — the body's real rate of climb or fall at the DR — is
+predicted (section 4). The text ends with the averaged sight as one line of session
+JSON, ready to paste into a session for `skyfix solve`.
+
+| flag | meaning |
+|---|---|
+| `--dr LAT,LON[,SIGMA_NM]` | where the slope is predicted. Default: the session's assumed position |
+| `--reference-utc RFC3339` | the instant of the averaged sight; default the weighted mean time, where its sigma is smallest |
+| `--vessel COURSE,SPEED` | the run during the sights |
+| `--keep-outliers` | flag outliers but keep them in the average (they are left out by default) |
+| `--outlier-threshold SIGMAS` | default 3 |
+| `--ephemeris auto\|supplied` | as for `reduce` |
+
+```console
+$ skyfix average $D/average_vega.session.json --dr 40.077256408,-74.882250386,10
+AVERAGED SIGHT
+Session    Vega, seven sights over three minutes (simulated)
+Ephemeris  auto -> skyfix-auto
+DR         40 04.64' N, 074 52.94' W (40.077256, -74.882250), sigma 10 NM, from --dr
+
+Vega       at 2026-10-01T01:30:00Z: Ho +61 04.3 (61.072473 deg) sigma 0.19'
+           7 of 7 sight(s) used; outliers left out: none
+Slope      -11.336'/min predicted at the DR (sigma 0.018'/min), curvature +0.0035'/min^2
+Free line  slope -11.353 +/- 0.189'/min, Ho 61.072473 deg sigma 0.19', z -0.09:
+           consistent with the predicted slope
+...
+```
+
+Vega was falling eleven arcminutes a minute; Skyfield's altitude at 01:30:00Z is
+61.072473 degrees, and so is the average.
+
+### `skyfix running-fix <session> --leg [START,]COURSE,SPEED ...`
+
+A fix from sights taken while under way: each sight's geographic position is advanced
+along the dead-reckoning track to one instant, the track's own uncertainty is folded into
+each sight's sigma along its line of sight, and the ordinary solver does the rest
+(`docs/MOTION.md`; section 5). The result is the same report `skyfix solve` prints, after
+the workings of the advance.
+
+| flag | meaning |
+|---|---|
+| `--leg [START_UTC,]COURSE,SPEED` | a dead-reckoning leg, repeated for each leg in time order. Only the first may leave out its start, which is then the first sight. Required |
+| `--end-utc RFC3339` | when the track stops; the vessel is stationary after it |
+| `--reference-utc RFC3339` | the instant the fix is for; default the last sight |
+| `--speed-sigma KN`, `--course-sigma DEG`, `--random-walk NM_PER_SQRT_H` | the dead reckoning's 1-sigma errors. All zero (the default) means *not stated*: the run is then treated as exact, and the report says so |
+| the `solve` flags | `--ephemeris`, `--init`, `--no-init`, `--prior`, `--bias`, `--robust`, `--clock-sigma`, `--posterior-scaling`, `--no-multistart`, `--grid-step`, `--require-unique` |
+
+The solver options are built exactly as `skyfix solve` builds them: the session's assumed
+position in its declared role, its clock uncertainty, then the flags. So a running fix of
+sights taken at one place is the fix `solve` gives.
+
+```console
+$ skyfix running-fix $D/running_fix_north.session.json --leg 0,12 \
+      --speed-sigma 0.5 --course-sigma 2
+RUNNING FIX
+Session    Running fix, three stars an hour and a half apart, 12 kn due north (simulated)
+Ephemeris  auto -> skyfix-auto
+Assumed    none: Hc, Zn and the intercept need an assumed position
+Reference  2026-10-01T03:00:00Z (the last sight)
+Track      from the first sight: course 000 at 12 kn
+Motion     1-sigma speed 0.5 kn, course 2 deg, random walk 0 NM per sqrt(hour)
+Advance    applied in 2 pass(es), linearised at 40 36.01' N, 069 59.99' W (40.600232,
+           -69.999771)
+
+What the dead reckoning adds to each sight's sigma
+  id         h to ref   run NM        Zn   sight '  motion '   total '
+  r0            +3.00     36.0   44 42.5      0.50      1.38      1.47
+  r1            +1.50     18.0  172 04.8      0.50      0.75      0.90
+  r2             0.00      0.0  290 29.8      0.50      0.00      0.50
+
+UNIQUE FIX
+Position     40.600001, -70.000005
+             40 36.00' N, 070 00.00' W
+Uncertainty  sigma north 1502.1 m (0.811 NM), sigma east 1077.5 m (0.582 NM)
+...
+Warnings
+  - RUNNING FIX at 2026-10-01T03:00:00.000Z: 3 sight(s) were converted to equivalent
+    stationary sights ...
+  - RUNNING FIX uncertainty is OPTIMISTIC: every sight's inflated sigma carries the same
+    speed and course error, so those inflations are correlated across sights, ...
+```
+
+The Skyfield truth (`due-north-12kn`) is 40.6 N, 70.0 W: the fix is 0.4 m from it. The
+first sight's own 0.50' becomes 1.47' after three hours of dead reckoning, and the second
+warning is the one to read twice: the ellipse is a lower bound, because the solver treats
+the inflated sigmas as independent and they are not. `--format json` is the engine's
+`RunningFixOutput`, whose `result` is the `FixResult` `solve --json` prints. Exit codes
+are `solve`'s: 3 when the fix failed, or under `--require-unique` when it is not a single
+fix with an ellipse.
+
+### `skyfix predict --lat --lon --utc --body [--limb] [--height-of-eye] [--ic] [--horizon]`
+
+What the sextant will read, and where to look: the computed altitude `Hc` run backwards
+through the very correction chain `reduce` runs forwards, so reducing the predicted
+reading gives `Hc` back to 1e-9 degrees (`docs/NAVIGATION_SKY.md` section 3). The Sun,
+the Moon, Venus (at its centre of light), Mars, Jupiter, Saturn and the stars; Mercury,
+Uranus and Neptune are refused, as they are for sights.
+
+| flag | meaning |
+|---|---|
+| `--body NAME` | Required |
+| `--limb lower\|upper\|center` | for the Sun and the Moon; ignored with a warning on a planet or star. Default `center` |
+| `--height-of-eye M` | the dip of the sea horizon. Default 0 |
+| `--ic ARCMIN` | index correction, ADDED to the reading (index error on the arc is negative). Default 0 |
+| `--horizon sea\|artificial\|electronic` | a reflected artificial horizon reads the double angle. Default `sea` |
+| `--pressure HPA`, `--temperature C` | the air, for refraction. Defaults 1010 hPa, 10 C |
+
+```console
+$ skyfix predict --lat 39.9526 --lon -75.1652 --utc 2026-10-01T03:00:00Z \
+      --body Moon --limb lower --height-of-eye 2.5 --ic -2.0
+PREDICTED SEXTANT READING
+Body        Moon, lower limb
+Observer    39 57.16' N, 075 09.91' W (39.952600, -75.165200)
+            height of eye 2.5 m, 1010 hPa, 10 C
+Instrument  sea horizon, index correction -2.0' (added to the reading)
+Time        2026-10-01T03:00:00Z
+Direction   GHA 352 05.0, Dec N 26 18.3, SD 16.17', HP 59.34' (from skyfix-auto)
+
+Hs  +20 28.7   the sextant reading: set this on the arc
+Zn   73 06.1   the true bearing to look along
+Hc  +21 33.1   the computed altitude here; reducing Hs gives it back
+Ha  +20 24.0   the apparent altitude after the index correction and the horizon step
+...
+```
+
+The Moon reads more than a degree below its computed altitude: 55.5' of parallax and
+16.3' of semidiameter, less 2.7' of refraction, 2.8' of dip and the 2.0' index correction.
+That is exactly why presetting `Hc` on the arc would not bring it into the telescope. A body below the lowest altitude the horizon lets a sextant
+show exits 1 and says so.
+
+### `skyfix lunar <input.json>`
+
+Clear a lunar distance and find the UTC it was taken at (`docs/NAVIGATION_SKY.md`
+section 4). The input is the WASM export's own document, a `LunarDistanceInput`
+(`docs/EXPLORER_API.md`): the DR, the instrument, the body, the watch's time, the sextant
+reading of the distance, and optionally the observed altitudes. `-` reads it from
+standard input.
+
+```console
+$ skyfix lunar $D/lunar_19.input.json
+LUNAR DISTANCE: the Moon to Venus
+DR         23 08.66' N, 103 06.47' W (23.144300, -103.107900)
+           height of eye 10 m, 1010 hPa, 10 C
+Reading    74 14.4 (74.240349 deg), the Moon's near limb to Venus's centre, index
+           correction -1.5'
+Watch      2029-10-17T01:05:43Z
+
+UTC        2029-10-17T01:15:25Z sigma 41.7 s
+Watch      +9 min 42 s: add this to the watch's time
+Longitude  sigma 10.45' of longitude, 9.61 NM at the DR latitude, from the time's sigma
+Distance   apparent between the centres 74 28.3, cleared (geocentric) 74 22.9, changing
+           +0.476'/min
+...
+```
+
+The input is the Skyfield case `lunar-19`, whose answer is 2029-10-17T01:15:25Z. Every
+clearing step, the altitudes used, the error budget term by term and any other instant
+in the window with the same distance follow. A distance no instant in the window
+matches exits 1 with the engine's sentence.
+
+### `skyfix plan-sights --lat --lon --from --to [--height-of-eye] [--ic] [--horizon]`
+
+Tonight's sights: the next evening and the next morning nautical twilight in the window
+(the Sun's centre between -6 and -12 degrees; at most 7 days), and for each the three to
+five bodies with the best spread round the horizon, bright enough for that twilight,
+with their predicted sextant readings at the start of the window (section 5). Not to be
+confused with `skyfix plan`, which ranks what is up at one instant.
+
+```console
+$ skyfix plan-sights --lat 39.9526 --lon -75.1652 --from 2026-10-01T12:00:00Z \
+      --to 2026-10-02T12:00:00Z --height-of-eye 2.5
+TONIGHT'S SIGHTS
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200)
+           height of eye 2.5 m, 1010 hPa, 10 C
+Instrument sea horizon, index correction +0.0' (added)
+Window     2026-10-01T12:00:00Z to 2026-10-02T12:00:00Z
+
+EVENING NAUTICAL TWILIGHT  2026-10-01T23:09:48Z to 2026-10-01T23:41:08Z
+  predicted for 2026-10-01T23:09:48Z, the Sun at -6 00.0; limiting magnitude 1.5
+  #   body                mag  limb          Hs        Zn        Hc
+  1   Deneb              1.25  centre  +69 09.1   65 51.0  +69 06.0
+  2   Altair             0.76  centre  +56 16.3  152 32.5  +56 12.8
+  3   Antares            1.06  centre  +16 00.6  212 27.5  +15 54.4
+  4   Arcturus          -0.05  centre  +28 14.6  271 58.0  +28 10.0
+...
+```
+
+The evening's four run from 66 to 272 degrees of azimuth and the morning's five right
+round the horizon: the spread that cancels an unknown shared altitude error (dip, index
+error, refraction) as well as fixing the position. The brightness limit is a stated rule
+of thumb, not a model of the twilight sky, and the plan says so in its notes.
+
+---
+
 ## Other things worth running
 
 ```console
@@ -652,3 +1156,14 @@ SKYFIX_WRITE_FIXTURES=1 cargo test -p skyfix-cli --test fixtures
 ```
 
 If that changes anything, every worked example above needs re-running.
+
+The inputs of the explorer commands' examples are transcriptions, not computations:
+`noon_equinox_sun`, `average_vega` and `running_fix_north` are raw sextant readings from
+the Skyfield cases of `fixtures/reference/nav_methods.json`, the two `bowditch` sessions
+are typed from Bowditch's sections 1910 and 1912 via
+`fixtures/reference/bowditch_worked_examples.json`, and `lunar_19.input.json` is the
+`lunar_distance` example of `docs/EXPLORER_API.md`. `tests/explorer_fixtures.rs` rebuilds
+them from those sources (`SKYFIX_WRITE_FIXTURES=1 cargo test -p skyfix-cli --test
+explorer_fixtures`), and `tests/explorer_golden.rs` holds seven of the text reports above
+to the byte against `tests/golden/` (`SKYFIX_WRITE_GOLDEN=1` to regenerate after a
+deliberate change, then read the diff).

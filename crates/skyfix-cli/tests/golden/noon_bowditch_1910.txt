@@ -1,0 +1,33 @@
+NOON SIGHT
+Session    Bowditch 1910: latitude at local apparent noon (real)
+Ephemeris  auto -> skyfix-auto
+DR         39 49.00' N, 044 33.00' W (39.816667, -44.550000), sigma not stated, from the
+           session's assumed position
+Vessel     course 045 at 10 kn over the ground
+
+Sun, 1 sight(s): one altitude, taken as the peak; the Sun crossed the meridian SOUTH of
+the zenith
+
+Latitude   39 48.78' N (39.812948) sigma 0.20'
+           The Sun crossed your meridian SOUTH of the zenith, so latitude = declination +
+           zenith distance, counting north as positive: −4°09.9′ + 43°58.6′ = +39°48.8′
+           (39°48.8′ N). Zenith distance = 90° − meridian altitude 46°01.4′.
+Meridian   altitude +46 01.4 (Ho of the centre at passage), declination S 4 09.9, zenith
+           distance 43 58.6
+Passage    not timed by this method
+Longitude  none
+           One altitude cannot time the peak: near noon the Sun hangs at almost the same
+           height for minutes, so no longitude comes from this sight. It was taken as the
+           meridian altitude (the highest the Sun rose); only the latitude is measured.
+Curve      curvature 0.0369'/min^2 predicted; the meridian altitude itself changes
+           -0.1015'/min, putting the peak 0.0699' above it
+DR check   the DR predicts passage at 2016-03-09T15:08:34Z (sigma not stated); answer
+           minus DR: latitude -0.22'
+Fit        chi2 0.0000 on 0 degree(s) of freedom
+
+Residuals (minutes from meridian passage)
+  id        UTC                        min      Ho deg   model deg  resid '    norm  used
+  lan       2016-03-09T15:08:04Z     -0.50   46.023784   46.023784     0.00    0.00  yes
+
+Every sight's correction chain is in --format json (sights), and skyfix reduce prints it
+step by step. This is a simulation and analysis workbench, not a navigation instrument.

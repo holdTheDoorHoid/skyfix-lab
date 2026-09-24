@@ -2,8 +2,8 @@
 //! over 1990-2060, and the Moon-phase algorithm on the synthetic Moon.
 //!
 //! Target (CONVENTIONS 13.7): within 1 minute. The seasons use the real Sun and run
-//! now; the Moon phases need the real Moon provider and **skip loudly** while it is a
-//! stub, but the algorithm itself (every quarter found once, in order, the right kind)
+//! now; the Moon phases use the real Moon provider (a refusal fails the test), and the
+//! algorithm itself (every quarter found once, in order, the right kind)
 //! is proven here on the synthetic Moon against the same reference, loosely.
 
 mod common;
