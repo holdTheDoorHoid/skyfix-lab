@@ -2,6 +2,7 @@
 
 [SkyFix Lab](README.md)
 
+- [Design brief](BRIEF.md)
 - [Demos](DEMOS.md)
 - [Conventions (normative)](CONVENTIONS.md)
 - [Architecture](ARCHITECTURE.md)
