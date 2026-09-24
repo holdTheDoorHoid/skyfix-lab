@@ -288,7 +288,11 @@ function check(name, ok, detail = '') {
 }
 
 async function main() {
-  if (!existsSync(join(SITE, 'next/index.html'))) throw new Error(`${SITE} has no next/index.html: build first (npm run build --prefix web)`);
+  // The explorer is the home page (the switch-over, 2026-09-24); classic/ holds the
+  // original workbench, and next/ only forwards here.
+  if (!existsSync(join(SITE, 'index.html')) || !existsSync(join(SITE, 'classic/index.html'))) {
+    throw new Error(`${SITE} is not a built site with the explorer at its root: build first (npm run build --prefix web)`);
+  }
   mkdirSync(OUT, { recursive: true });
   const server = await serve();
   const scratch = mkdtempSync(join(tmpdir(), 'skyfix-ui-check-'));
@@ -300,13 +304,13 @@ async function main() {
     await send('Page.navigate', { url: 'about:blank' });
     await sleep(100);
     if (fresh) {
-      await send('Page.navigate', { url: `${BASE}next/?setup` });
+      await send('Page.navigate', { url: `${BASE}?setup` });
       await waitFor('document.readyState === "complete"');
       await evaluate(`localStorage.clear(); localStorage.setItem('skyfix.explorer.prefs.v1', JSON.stringify({ settings: { theme: '${theme}' } })); localStorage.setItem('skyfix.explorer.tour.v1', 'done'); true`);
       await send('Page.navigate', { url: 'about:blank' });
       await sleep(100);
     }
-    await send('Page.navigate', { url: `${BASE}next/#${hash}` });
+    await send('Page.navigate', { url: `${BASE}#${hash}` });
     await waitFor(`document.documentElement.dataset.ready === '1'`);
     await waitFor(`(() => { const v = document.querySelector('.sf-stage__view'); return v && !v.hasAttribute('aria-busy') && v.children.length > 0; })()`);
     if (/view=(map|globe)|^(map|globe)$/.test(hash)) await waitFor(`document.querySelector('.sfm')?.dataset.detail === '1'`);
