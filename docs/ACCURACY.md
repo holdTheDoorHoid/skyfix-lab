@@ -990,7 +990,8 @@ sphere's up to 0.22′ from it; the Moon's semidiameter 0.006′ larger than USN
 **Lunar distances** (`fixtures/reference/lunar_distances.json`, 22 cases to the Sun, ten
 stars and four planets, measured between refracted limbs found numerically on the WGS84
 Earth; `tests/lunar_distance_reference.rs`): from exact inputs the UTC comes back within
-**0.74 s** with altitudes computed from the DR and **0.63 s** with altitudes observed
+**0.74 s** with altitudes computed from the DR, **0.63 s** with altitudes observed and
+**2.1 s** with one observed and the other computed
 (target 5 s); the cleared distance within 0.007′. With altitudes computed from a DR 30 NM
 in error the time moves 5 s to 2 minutes, as the reported sensitivity predicts.
 

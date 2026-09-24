@@ -183,7 +183,13 @@ it would be from the Earth's centre before it can be compared with the almanac.
    outline of the disc, not with a formula.
 3. **Refraction** removed. It acts straight up and down, so the difference in bearing
    between the two bodies is the same in the seen and the true sky; the true distance
-   follows from the true altitudes around that bearing difference.
+   follows from the true altitudes around that bearing difference — Borda's clearing
+   formula, which never needs the bearing difference itself. That matters when one
+   altitude is observed and the other computed: at trial instants away from the answer
+   the two no longer fit the measured distance, and forcing a closed triangle there
+   (the bodies put in one vertical) used to throw the measured distance away and hide
+   the true instant from the search (a verifier's check: 7 of the 22 validation lunars,
+   with only the Moon's altitude observed, came back 4 minutes to 10 hours wrong).
 4. **Parallax** removed with the observer on the **WGS84 ellipsoid** at the DR position:
    each true direction is extended to the body's distance from the observer's real
    position. This is the one navigation method that leaves the project's spherical Earth
@@ -229,6 +235,7 @@ outlines point by point, independently of the Rust clearing. From exact inputs
 |---|---|---|---|
 | computed from the (true) DR position | **0.74 s** | 0.007′ | 5 s |
 | observed | **0.63 s** | 0.005′ | 5 s |
+| one observed, the other computed (either way round) | **2.1 s** | | 5 s |
 
 The reported sigmas were 20 s to 48 s for a 0.2′ measurement, as they should be.
 
