@@ -149,7 +149,7 @@ function heightCircle(): Svg {
     text(gx, 30, 'Seen from above', 'sfl-dg-strong', 'middle'),
     text(gx, gy + 20, '60° high', 'sfl-dg-small', 'middle'),
     text(gx, 194, '40° high everywhere', 'sfl-dg-text', 'middle'),
-    text(gx, 208, 'on this circle round ★', 'sfl-dg-small', 'middle'),
+    text(gx, 208, 'on this circle', 'sfl-dg-text', 'middle'),
   );
 }
 

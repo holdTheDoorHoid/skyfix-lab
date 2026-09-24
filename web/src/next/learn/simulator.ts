@@ -17,7 +17,7 @@
 
 import { h } from '../../dom.js';
 import { MAX_REPETITIONS, type AssumedPositionMode, type BodySource, type Scenario } from '../../api/adapter.js';
-import type { AssumedPositionRole } from '../../types.js';
+import { NM_M, type AssumedPositionRole } from '../../types.js';
 import { button, icon } from '../theme/index.js';
 import type { LearnEnv, SimState } from './env.js';
 import { explain } from './explain.js';
@@ -27,6 +27,7 @@ import { checkField, fieldGroup, numberField, selectField, textField, type Choic
 import { answerKey, correctionTable, figure, kindChip, mockBadge, numbersList, residualChart, simulatedBadge, tiles, warningsList, type Figure } from './result.js';
 import { experimentFor, simulateAndSolve, truthGuardRadiusNm } from './run.js';
 import { STORIES, type SimulatorPreset } from './stories.js';
+import { distanceM } from './geo.js';
 
 // ---------------------------------------------------------------------------------------
 // Actions (also used by the stories' "try next" buttons through the view's env)
@@ -119,9 +120,12 @@ function editor(env: LearnEnv, scenario: Scenario): HTMLElement {
   const wrong = s.wrong_sight;
   const mode = s.assumed_position.mode;
   const role = s.assumed_position.role;
+  const guard = truthGuardRadiusNm(role.role === 'prior' ? role.sigma_nm : null);
   const leak =
     role.role !== 'disabled' &&
-    ((mode.mode === 'offset_from_truth' && mode.distance_nm <= truthGuardRadiusNm(role.role === 'prior' ? role.sigma_nm : null)) || mode.mode === 'truth');
+    ((mode.mode === 'offset_from_truth' && mode.distance_nm <= guard) ||
+      (mode.mode === 'explicit' && distanceM({ lat_deg: mode.lat_deg, lon_deg: mode.lon_deg }, s.truth) / NM_M <= guard) ||
+      mode.mode === 'truth');
 
   const truthGroup = fieldGroup(
     'What is really done to the sights',
@@ -475,8 +479,8 @@ function experimentPanel(env: LearnEnv, sim: SimState): HTMLElement {
     h(
       'p',
       { class: 'sfl-lede' },
-      'Repeat the scenario with fresh random noise each time (seed, seed + 1, …), solve every repetition, and count how often the truth lands inside that run’s 95 % ellipse. ' +
-        'An honest error model scores close to 95 %; the interval says how sure that number is.',
+      'Repeat the scenario with fresh random noise each time (seed, seed + 1, …), solve every repetition from its sights alone (no starting point, no prior), ' +
+        'and count how often the truth lands inside that run’s 95 % ellipse. An honest error model scores close to 95 %; the interval says how sure that number is.',
     ),
     h('div', { class: 'sfl-exp__controls' }, reps, run),
     body,
