@@ -273,3 +273,26 @@ mod tests {
         assert!(lunar_distance_impl("{}").is_err());
     }
 }
+
+#[cfg(test)]
+mod api_example {
+    /// The `lunar_distance` example in docs/EXPLORER_API.md parses and gives the answer
+    /// the document states.
+    #[test]
+    fn the_documented_lunar_distance_example_works() {
+        let doc = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/EXPLORER_API.md"),
+        )
+        .unwrap();
+        let start = doc
+            .find("\"utc_estimate\": \"2029-10-17T01:05:43Z\"")
+            .unwrap();
+        let open = doc[..start].rfind("```json").unwrap() + "```json".len();
+        let close = open + doc[open..].find("```").unwrap();
+        let r = super::lunar_distance_impl(&doc[open..close]).unwrap();
+        let truth = skyfix_core::time::parse_utc("2029-10-17T01:15:25Z").unwrap();
+        assert!((r.jd_utc - truth).abs() * 86_400.0 < 5.0, "{}", r.utc);
+        assert!(doc.contains("9 min 42 s after the watch's estimate"));
+        assert!((r.utc_minus_estimate_s - 582.0).abs() < 5.0);
+    }
+}
