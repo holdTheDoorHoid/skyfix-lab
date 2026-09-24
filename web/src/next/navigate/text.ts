@@ -204,4 +204,4 @@ export const PLANNER_DISCLOSURES: readonly { strong: string; text: string }[] = 
 ];
 
 export const AUTOSAVE_TEXT =
-  'Your sights are kept in this browser only, on this device, so a reload does not lose them. Nothing is sent anywhere, and no position is ever put in the address bar.';
+  'Your sights, and the assumed position that goes with them, are kept in this browser only, on this device, so a reload does not lose them. Nothing is kept until you enter a sight or a reading, nothing is sent anywhere, and no position is ever put in the address bar.';

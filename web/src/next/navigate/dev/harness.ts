@@ -19,8 +19,8 @@ import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
 import { createNotices } from '../../notices.js';
 import { bindTimeKeys, goNow, setTime, startPlayback } from '../../playback.js';
-import { createExplorerStore, type AngleFormat, type Theme } from '../../state.js';
-import { applyTheme, installTooltips, section } from '../../theme/index.js';
+import { createExplorerStore, type AngleFormat } from '../../state.js';
+import { applyTheme, installTooltips, section, type ThemeName } from '../../theme/index.js';
 import { formatWithUtc, jdFromWallClock, resolveZone, type ZoneChoice } from '../../time.js';
 import { EXAMPLES } from '../examples.js';
 import { navigateView, tonight } from '../index.js';
@@ -41,7 +41,8 @@ const PLACES: Place[] = [
   { id: 'greenwich', label: 'Royal Observatory Greenwich', lat: 51.4779, lon: -0.0015, zone: { kind: 'iana', zone: 'Europe/London' } },
   { id: 'tromso', label: 'Tromsø', lat: 69.6492, lon: 18.9553, zone: { kind: 'iana', zone: 'Europe/Oslo' } },
 ];
-const THEMES: Theme[] = ['light', 'dark', 'night'];
+// The three drawn themes (the shell's setting may also be 'system', which follows the OS).
+const THEMES: ThemeName[] = ['light', 'dark', 'night'];
 
 function params(): URLSearchParams {
   return new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -50,7 +51,7 @@ function params(): URLSearchParams {
 async function boot(root: HTMLElement): Promise<void> {
   const p = params();
   const place = PLACES.find((x) => x.id === p.get('place')) ?? PLACES[0]!;
-  const theme = (THEMES as string[]).includes(p.get('theme') ?? '') ? (p.get('theme') as Theme) : 'light';
+  const theme = (THEMES as string[]).includes(p.get('theme') ?? '') ? (p.get('theme') as ThemeName) : 'light';
   const method = METHODS.some((m) => m.id === p.get('method')) ? (p.get('method') as MethodId) : undefined;
   const example = p.get('example') ?? undefined;
   const angles = (['dm', 'dms', 'decimal'] as AngleFormat[]).includes(p.get('angles') as AngleFormat) ? (p.get('angles') as AngleFormat) : 'dm';
@@ -92,8 +93,8 @@ async function boot(root: HTMLElement): Promise<void> {
   const themeSelect = h('select', { 'aria-label': 'Theme' });
   for (const t of THEMES) themeSelect.append(h('option', { value: t, selected: t === theme }, t));
   themeSelect.addEventListener('change', () => {
-    applyTheme(themeSelect.value as Theme);
-    store.patch({ settings: { theme: themeSelect.value as Theme } });
+    applyTheme(themeSelect.value as ThemeName);
+    store.patch({ settings: { theme: themeSelect.value as ThemeName } });
   });
   const placeSelect = h('select', { 'aria-label': 'Place' });
   for (const x of PLACES) placeSelect.append(h('option', { value: x.id, selected: x.id === place.id }, x.label));

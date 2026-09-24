@@ -17,6 +17,7 @@ import {
   defaultWorking,
   emptySession,
   fixSession,
+  hasOwnData,
   lunarInputFor,
   nextObservationId,
   noonOptionsFor,
@@ -302,20 +303,59 @@ describe('autosave', () => {
     const handle = createWorking(explorer, { storage, delayMs: 100, now: () => Date.UTC(2026, 8, 24, 12) });
     expect(handle.store.get().session.observer.height_of_eye_m).toBe(3);
     expect(handle.store.get().session.instrument.index_correction_arcmin).toBe(-1.2);
-    handle.store.patch({ method: 'noon' });
+    const addSight = (): void => handle.store.patch({ session: withObservation(handle.store.get().session, obs('obs-1', 'Vega')) });
+    addSight();
     expect(storage.getItem(AUTOSAVE_KEY)).toBeNull();
     vi.advanceTimersByTime(150);
-    expect(JSON.parse(storage.getItem(AUTOSAVE_KEY)!).working.method).toBe('noon');
+    expect(JSON.parse(storage.getItem(AUTOSAVE_KEY)!).working.session.observations).toHaveLength(1);
     expect(handle.autosave.get().savedUtc).toBe('2026-09-24T12:00:00.000Z');
     handle.setAutosave(false);
     expect(JSON.parse(storage.getItem(AUTOSAVE_KEY)!).working).toBeNull();
-    handle.store.patch({ method: 'fix' });
+    handle.store.patch({ method: 'noon' });
     vi.advanceTimersByTime(500);
     expect(JSON.parse(storage.getItem(AUTOSAVE_KEY)!).working).toBeNull();
     handle.dispose();
     const none = createWorking(explorer, { storage: null });
     expect(none.autosave.get()).toMatchObject({ enabled: false, available: false });
     none.dispose();
+  });
+
+  it('keeps nothing, not even the place it copied, until the session holds something the person entered', () => {
+    const storage = new MemoryStorage();
+    const explorer = createStore({
+      observer: { lat_deg: 39.9526, lon_deg: -75.1652, height_m: 0, label: '', zone: { kind: 'utc' } },
+      settings: { height_of_eye_m: 3, index_correction_arcmin: -1.2 },
+    }) as never;
+    const handle = createWorking(explorer, { storage, delayMs: 100, now: () => Date.UTC(2026, 8, 24, 12) });
+    // The new session's assumed position is the map's place: switching methods or taking
+    // tonight's bodies to shoot stores nothing.
+    expect(handle.store.get().session.observer.assumed_position).toEqual({ lat_deg: 39.9526, lon_deg: -75.1652 });
+    handle.store.patch({ method: 'noon' });
+    handle.store.patch({ planned: [{ body: 'Vega', kind: 'star', limb: 'center', utc: '2026-09-24T23:30:00Z', hs_deg: 60, hc_deg: 60, zn_deg: 270, from: 'plan' }] });
+    vi.advanceTimersByTime(500);
+    expect(storage.dump()).not.toMatch(/39\.9526|75\.1652/);
+    expect(handle.autosave.get().savedUtc).toBeNull();
+    // A sight is the person's own: now the session (with its assumed position) is kept.
+    handle.store.patch({ session: withObservation(handle.store.get().session, obs('obs-1', 'Vega')) });
+    vi.advanceTimersByTime(150);
+    expect(JSON.parse(storage.getItem(AUTOSAVE_KEY)!).working.method).toBe('noon');
+    expect(storage.dump()).toMatch(/39\.9526/);
+    // Deleting the last sight takes the saved copy away again.
+    handle.store.patch({ session: withoutObservation(handle.store.get().session, 'obs-1') });
+    vi.advanceTimersByTime(150);
+    expect(storage.getItem(AUTOSAVE_KEY)).toBeNull();
+    expect(handle.autosave.get().savedUtc).toBeNull();
+    handle.dispose();
+  });
+
+  it('counts sights, lunar readings, running-fix legs and notes as the person’s own', () => {
+    const base = defaultWorking({ position: { lat_deg: 10, lon_deg: 20 } });
+    expect(hasOwnData(base)).toBe(false);
+    expect(hasOwnData({ ...base, method: 'lunar', planned: [] })).toBe(false);
+    expect(hasOwnData({ ...base, session: withObservation(base.session, obs('obs-1', 'Vega')) })).toBe(true);
+    expect(hasOwnData({ ...base, lunar: { ...base.lunar, distanceDeg: 45.5 } })).toBe(true);
+    expect(hasOwnData({ ...base, running: { ...base.running, legs: [{ start_utc: null, course_deg: 45, speed_kn: 6 }] } })).toBe(true);
+    expect(hasOwnData({ ...base, session: { ...base.session, meta: { ...base.session.meta, notes: 'Log p. 12' } } })).toBe(true);
   });
 });
 

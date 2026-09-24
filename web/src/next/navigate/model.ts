@@ -249,6 +249,27 @@ export function withoutObservation(session: Session, id: string): Session {
   return { ...session, observations: session.observations.filter((o) => o.id !== id) };
 }
 
+/**
+ * Whether the working session holds something the person entered: a sight, a lunar
+ * reading, running-fix legs, notes. Autosave keeps nothing until it does. A new session's
+ * assumed position is a copy of the map's place, and the explorer never stores the place
+ * on its own, so opening Navigate, switching methods or taking tonight's bodies to shoot
+ * (a plan the panel remakes in one click) must not store it either.
+ */
+export function hasOwnData(w: Working): boolean {
+  const legs = w.running.legs;
+  const untouchedLegs = legs.length === 1 && legs[0]!.start_utc === null && legs[0]!.course_deg === 0 && legs[0]!.speed_kn === 0;
+  return (
+    w.session.observations.length > 0 ||
+    w.lunar.distanceDeg !== null ||
+    w.lunar.watchUtc !== null ||
+    w.lunar.moonAltitude.deg !== null ||
+    w.lunar.bodyAltitude.deg !== null ||
+    !untouchedLegs ||
+    w.session.meta.notes.trim() !== ''
+  );
+}
+
 export interface SessionPatch {
   meta?: Partial<Session['meta']>;
   observer?: Partial<Session['observer']>;

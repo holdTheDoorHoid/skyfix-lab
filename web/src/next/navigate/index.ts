@@ -319,7 +319,9 @@ export function navigateView(options: NavigateOptions = {}): Component {
                 ? ' The last save did not work (the browser refused it).'
                 : a.enabled && a.savedUtc
                   ? ` Saved ${a.savedUtc.slice(11, 19)} UTC.`
-                  : '',
+                  : a.enabled
+                    ? ' Nothing kept yet.'
+                    : '',
           ),
           forget,
           para(AUTOSAVE_TEXT, 'sfn-note sfn-muted'),

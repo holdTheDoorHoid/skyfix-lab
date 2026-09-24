@@ -3,13 +3,14 @@
  * "Tonight's star sights" panel section (so "Use these bodies" there lands in the view's
  * sight list). It is created on first use from the saved copy (autosave.ts) or, with none,
  * from the explorer's place and instrument settings, and it saves itself while autosave
- * is on. OWNER: navigate agent.
+ * is on and it holds something the person entered (model.ts `hasOwnData`; until then the
+ * explorer's place stays out of storage). OWNER: navigate agent.
  */
 
 import { createStore, safeLocalStorage, type ExplorerStore, type Store } from '../state.js';
 import { isoUtc, jdNow } from '../time.js';
 import { AUTOSAVE_KEY, forgetWorking, loadWorking, saveWorking } from './autosave.js';
-import { defaultWorking, type Working } from './model.js';
+import { defaultWorking, hasOwnData, type Working } from './model.js';
 
 export type WorkingStore = Store<Working>;
 
@@ -67,6 +68,13 @@ export function createWorking(explorer: ExplorerStore, options: WorkingOptions =
   const flush = (): void => {
     timer = null;
     if (!autosave.get().enabled) return;
+    if (!hasOwnData(store.get())) {
+      // Nothing of the person's own (model.ts `hasOwnData`): keep nothing, and drop an
+      // older copy (the last sight was deleted, or a new session was started).
+      forgetWorking(storage, false);
+      autosave.patch({ savedUtc: null, failed: false });
+      return;
+    }
     const at = isoUtc(jdNow(now()));
     const ok = saveWorking(storage, store.get(), at);
     autosave.patch({ savedUtc: ok ? at : autosave.get().savedUtc, failed: !ok });
