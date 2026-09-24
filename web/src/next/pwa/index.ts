@@ -13,7 +13,12 @@ import type { Dock } from './dock.js';
 let dock: Promise<Dock> | null = null;
 
 function withDock(use: (dock: Dock) => void): void {
-  dock ??= import('./dock.js').then((m) => m.createDock());
+  dock ??= import('./dock.js')
+    .then((m) => m.createDock())
+    .catch((error: unknown) => {
+      dock = null; // try again next time
+      throw error;
+    });
   dock.then(use).catch((error: unknown) => console.warn('SkyFix Lab: could not show the connection notice.', error));
 }
 

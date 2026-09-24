@@ -49,6 +49,7 @@ function devPages(): Record<string, string> {
   for (const file of readdirSync(dir)) {
     if (!file.endsWith('.html') || file === 'index.html') continue;
     const name = file.replace(/\.html$/, '').replace(/-([a-z])/g, (_, c: string) => c.toUpperCase());
+    if (name in APP_PAGES) throw new Error(`next/${file}: a developer page may not share its input name with an app page`);
     pages[name] = resolve(dir, file);
   }
   return pages;
