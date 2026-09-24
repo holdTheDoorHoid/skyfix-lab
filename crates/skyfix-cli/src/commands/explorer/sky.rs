@@ -170,9 +170,9 @@ pub fn render(s: &SkyState, site: &Site) -> String {
         "alt is the topocentric apparent altitude of the centre, what the eye sees: WGS84 \
          site, parallax applied, refraction for {} hPa and {} C (display only, CONVENTIONS \
          13.2); below -1 degree the refraction is held at its -1 degree value, so there alt \
-         is a display value and not a measurement. Az is true, clockwise from north. GHA and Dec are apparent geocentric of \
-         date, as the Nautical Almanac tabulates them. lit is the illuminated fraction of the \
-         disc. con is the IAU constellation, from the display-only star field (CONVENTIONS \
+         is a display value and not a measurement. Az is true, clockwise from north. GHA \
+         and Dec are apparent geocentric of date, as the Nautical Almanac tabulates them. \
+         lit is the illuminated fraction of the disc. con is the IAU constellation, from the display-only star field (CONVENTIONS \
          13.6). A navigator's Hc and Zn at this position are hc_deg and zn_deg in --format \
          json; skyfix predict gives the sextant reading.",
         site.pressure_hpa, site.temperature_c

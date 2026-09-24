@@ -178,7 +178,11 @@ fn bowditch_1910() -> String {
             "assumed_position": {"lat_deg": i["dr_lat_deg"], "lon_deg": i["dr_lon_deg"]},
             "assumed_position_role": {"role": "initializer"},
         },
-        "instrument": {"name": "", "index_correction_arcmin": i["index_correction_arcmin"], "horizon": "sea"},
+        "instrument": {
+            "name": "",
+            "index_correction_arcmin": i["index_correction_arcmin"],
+            "horizon": "sea",
+        },
         "observations": [{
             "id": "lan",
             "body": "Sun",

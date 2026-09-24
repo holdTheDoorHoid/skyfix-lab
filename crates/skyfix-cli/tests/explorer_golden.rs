@@ -206,7 +206,8 @@ fn the_documented_explorer_examples_are_real_output() {
             let want = want.strip_suffix(" ...").unwrap_or(&want).trim_end();
             assert!(
                 got.any(|g| g.starts_with(want)),
-                "docs/CLI.md: `{cmd}` no longer prints {want:?} (in this order)\n--- stdout ---\n{}",
+                "docs/CLI.md: `{cmd}` no longer prints {want:?} (in this order)\n\
+                 --- stdout ---\n{}",
                 run.stdout
             );
         }

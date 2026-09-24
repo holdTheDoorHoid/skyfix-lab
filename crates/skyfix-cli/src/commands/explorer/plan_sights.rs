@@ -213,7 +213,8 @@ fn render_window(w: &TwilightPlan, out: &mut String) {
         }
         if let Some(m) = w.plan.predicted.trace_sigma_m {
             out.push_str(&format!(
-                "  Taking them all predicts a fix of about {m:.0} m overall (planner, CONVENTIONS 9).\n"
+                "  Taking them all predicts a fix of about {m:.0} m overall (planner, \
+                 CONVENTIONS 9).\n"
             ));
         }
     }
