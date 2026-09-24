@@ -64,10 +64,11 @@
   align-items: flex-end;
 }
 
-.sky-ov--bl {
-  left: var(--space-3);
-  bottom: var(--space-3);
-  max-width: calc(100% - 2 * var(--space-3));
+.sky-ov--tl {
+  /* Clear of the tab that opens and closes the side panel (layout.css). */
+  top: var(--space-3);
+  left: 34px;
+  max-width: calc(100% - 300px);
 }
 
 .sky-look > .sf-btn {
@@ -164,8 +165,10 @@
     top: 52px;
     right: var(--space-2);
   }
-  .sky-ov--bl {
+  .sky-ov--tl {
+    top: auto;
     left: var(--space-2);
     bottom: var(--space-2);
+    max-width: calc(100% - 2 * var(--space-2));
   }
 }

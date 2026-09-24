@@ -59,6 +59,13 @@ export function luminance(c: Rgb): number {
   return 0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b);
 }
 
+/** WCAG contrast ratio of two colours. */
+export function contrast(a: Rgb, b: Rgb): number {
+  const la = luminance(a);
+  const lb = luminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
 /**
  * Night vision: the same perceived brightness in red only (green 12 % of red, blue 0).
  * Colours that already obey the rule (the night tokens) keep their hue.
@@ -296,7 +303,11 @@ export function skyColours(sunAltDeg: number, p: SkyPalette): SkyColours {
   // soon after sunrise.
   const glowAlpha =
     h > 12 ? 0 : h > -1 ? 0.5 * (1 - (h + 1) / 13) + 0.1 : h > -14 ? 0.6 * (1 - (-1 - h) / 13) : 0;
-  const light = (luminance(zenith) + luminance(horizon)) / 2 > 0.3;
+  // Labels and lines take whichever ink reads better on this sky (WCAG contrast
+  // against the colour halfway up), so a mid-blue day sky gets dark ink.
+  const middle = mix(zenith, horizon, 0.5);
+  // (The night theme's sky is always the dark case: both of its inks are reds.)
+  const light = p.theme !== 'night' && contrast(p.inkOnLight, middle) > contrast(p.inkOnDark, middle);
   return {
     zenith: p.filter(zenith),
     horizon: p.filter(horizon),

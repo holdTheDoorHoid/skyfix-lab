@@ -74,7 +74,7 @@ const viewSettings = new WeakMap<object, SkyViewSettings>();
 function settingsFor(ctx: Pick<Ctx, 'store'>): SkyViewSettings {
   let s = viewSettings.get(ctx.store);
   if (!s) {
-    s = { mode: 'dome', southUp: false, panorama: { azimuth: 180, fov: 180, bottomAlt: -5 }, aimed: false };
+    s = { mode: 'dome', southUp: false, panorama: { azimuth: 180, fov: 180, bottomAlt: -8 }, aimed: false };
     viewSettings.set(ctx.store, s);
   }
   return s;
@@ -246,7 +246,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     face,
   );
   const statusText = el('span', { class: 'sky-status__text' });
-  const status = el('div', { class: 'sky-ov sky-ov--bl sf-on-stage' }, el('div', { class: 'sky-status sf-float' }, statusText));
+  const status = el('div', { class: 'sky-ov sky-ov--tl sf-on-stage' }, el('div', { class: 'sky-status sf-float' }, statusText));
   const topRight = el('div', { class: 'sky-ov sky-ov--tr sf-on-stage' }, southUp, modeControl.el, layersButton);
 
   root.append(canvas, tooltip, topRight, panoControls, status, live, hint);
@@ -941,7 +941,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     view.aimed = true;
     view.panorama.azimuth = (at.az * RAD + 360) % 360;
     const alt = at.alt * RAD;
-    if (alt > pano.topAlt - 5 || alt < pano.bottomAlt + 2) view.panorama.bottomAlt = Math.max(-5, alt - 20);
+    if (alt > pano.topAlt - 5 || alt < pano.bottomAlt + 2) view.panorama.bottomAlt = Math.max(-8, alt - 20);
     requestDraw();
   }
 

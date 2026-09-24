@@ -802,11 +802,13 @@ export class SkyRenderer {
       m.x = p.x;
       m.y = p.y;
       const sdPx = (b.semidiameter_arcmin / 60) * DEG * p.scaleAt(m.alt);
+      // The Sun and Moon are never smaller than a readable disc (their true size is
+      // under a pixel in the dome); zoomed in, the Moon grows so its phase reads.
       m.r =
         b.kind === 'sun'
-          ? Math.max(7 * Math.min(f.zoom, 1.3), sdPx)
+          ? Math.max(7 * f.zoom, sdPx)
           : b.kind === 'moon'
-            ? Math.max(6.5 * Math.min(f.zoom, 1.3), sdPx)
+            ? Math.max(6.5 * f.zoom * f.zoom, sdPx)
             : planetRadius(b.magnitude) * f.zoom;
       const sd = (b.semidiameter_arcmin / 60) * DEG;
       m.drawn = ok && m.alt + sd >= 0 && m.x > -20 && m.x < f.width + 20 && m.y > -20 && m.y < f.height + 20;
@@ -842,6 +844,10 @@ export class SkyRenderer {
     ctx.beginPath();
     ctx.arc(m.x, m.y, m.r, 0, TAU);
     ctx.fill();
+    // The shared casing, so a pale planet still shows on a light sky.
+    ctx.strokeStyle = css(f.palette.halo, f.palette.haloAlpha * (f.colours.light ? 0.8 : 0.45));
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
     ctx.globalAlpha = 1;
   }
 
@@ -999,7 +1005,9 @@ export class SkyRenderer {
       this.glyph(f, token as GlyphName, x + glyph / 2, m.y, glyph, colour);
       ctx.font = bodyFont;
       ctx.textAlign = 'left';
-      this.haloText(text, x + glyph + 3, y, css(m.kind === 'planet' ? colour : ink, 0.95), halo);
+      // Body-coloured names read on a dark sky; on a light (day) sky the ink does.
+      const nameColour = m.kind === 'planet' && !f.colours.light ? colour : ink;
+      this.haloText(text, x + glyph + 3, y, css(nameColour, 0.95), halo);
     }
 
     // Star names.
