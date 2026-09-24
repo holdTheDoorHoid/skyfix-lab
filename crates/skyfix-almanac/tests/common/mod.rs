@@ -292,19 +292,18 @@ pub fn load_fixture(name: &str) -> serde_json::Value {
     v
 }
 
-/// True, with a loud note on stderr, when `body` is still a stub in this build: the
-/// provider refuses it at `jd`. Tests that need the real Moon or planets skip then.
+/// Written while the Moon and planet providers were stubs, this used to return true
+/// (and the tests calling it skipped, with a note on stderr that `cargo test` hides) when
+/// the provider refused `body` at `jd`. Every provider is real now, so a refusal is a
+/// regression: it fails the test, and the function always returns false.
 pub fn skip_if_stub(body: &str, jd: f64, test: &str) -> bool {
-    match Sky::new().apparent_state(body, jd) {
-        Ok(_) => false,
-        Err(e) => {
-            eprintln!(
-                "SKIPPED {test}: the {body} provider is not available in this build ({e}). \
-                 This test runs once the real provider is merged."
-            );
-            true
-        }
+    if let Err(e) = Sky::new().apparent_state(body, jd) {
+        panic!(
+            "{test}: the {body} provider refused JD {jd} ({e}); the Moon and planet \
+             providers are real, so this is a regression, not a stub to skip"
+        );
     }
+    false
 }
 
 pub fn site_of(v: &serde_json::Value) -> Site {

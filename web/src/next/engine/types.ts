@@ -552,7 +552,11 @@ export interface AveragedSight {
   outliers: string[];
   residuals: RunResidual[];
   model_curve: CurvePoint[];
-  /** The averaged sight as an `observed_ho` observation, ready for a session. */
+  /**
+   * The averaged sight as an `observed_ho` observation, ready for a session. Its `utc` is on
+   * the session's chronometer (the averaged instant minus `clock.correction_s`), like the
+   * observations it replaces; the reducer's correction brings it back to `utc` above.
+   */
   observation: Observation;
   sights: ReducedSight[];
   warnings: Warning[];

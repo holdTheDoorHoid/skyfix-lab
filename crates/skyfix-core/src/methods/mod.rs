@@ -173,13 +173,28 @@ pub(crate) fn check_dr(dr: &DrPosition) -> Result<(), SkyfixError> {
     Ok(())
 }
 
+/// The fastest vessel (or aircraft with a bubble sextant) a method accepts, knots. Far
+/// beyond it the dead-reckoning track wraps round the Earth within the run, and a typo
+/// such as 1e6 for 10 came back as an averaged altitude of 159 degrees.
+pub const MAX_VESSEL_SPEED_KN: f64 = 1000.0;
+
 pub(crate) fn check_vessel(vessel: Option<VesselMotion>) -> Result<(), SkyfixError> {
-    if let Some(v) = vessel
-        && (!v.course_deg.is_finite() || !v.speed_kn.is_finite())
-    {
-        return Err(SkyfixError::NonFinite {
-            field: "vessel".to_string(),
-        });
+    if let Some(v) = vessel {
+        if !v.course_deg.is_finite() || !v.speed_kn.is_finite() {
+            return Err(SkyfixError::NonFinite {
+                field: "vessel".to_string(),
+            });
+        }
+        if v.speed_kn.abs() > MAX_VESSEL_SPEED_KN {
+            return Err(SkyfixError::InvalidField {
+                field: "vessel.speed_kn".to_string(),
+                message: format!(
+                    "{} kn is not a speed over the ground a navigator can sight from; at most \
+                     {MAX_VESSEL_SPEED_KN} kn either way",
+                    v.speed_kn
+                ),
+            });
+        }
     }
     Ok(())
 }
@@ -498,6 +513,26 @@ mod tests {
         assert_eq!(fmt_lat(-4.165), "4°09.9′ S");
         assert_eq!(fmt_lon(-44.55), "44°33.0′ W");
         assert_eq!(fmt_signed(-4.165), "−4°09.9′");
+    }
+
+    #[test]
+    fn an_impossible_speed_is_refused_not_averaged() {
+        // Verifier regression: 1e6 kn (a typo for 10) passed the finiteness check and the
+        // averaging method returned Ho = 158.9 deg; 1e308 kn returned NaN as a result.
+        let v = |speed_kn: f64| {
+            check_vessel(Some(VesselMotion {
+                course_deg: 45.0,
+                speed_kn,
+            }))
+        };
+        for bad in [1e6, 1e308, -1001.0] {
+            let e = v(bad).unwrap_err().to_string();
+            assert!(e.contains("speed_kn"), "{e}");
+        }
+        for fine in [0.0, 12.0, -12.0, 1000.0] {
+            assert!(v(fine).is_ok(), "{fine}");
+        }
+        assert!(check_vessel(None).is_ok());
     }
 
     #[test]

@@ -166,6 +166,53 @@ fn every_lunar_distance_gives_back_its_utc_within_five_seconds() {
     );
 }
 
+/// Verifier regression: an altitude observed for one body and computed for the other.
+///
+/// At trial instants away from the truth the fixed observed altitude and the moving
+/// computed one stop forming a triangle with the measured distance. The clearing used to
+/// clamp the azimuth difference there, which discarded the measured distance, folded the
+/// search function over within minutes of the truth and hid the true root from the
+/// 10-minute scan: with only the Moon's altitude observed, 7 of these 22 cases came back
+/// 4 minutes to 10 hours from the truth, each with a sigma of 4 to 10 seconds.
+#[test]
+fn one_observed_altitude_and_one_computed_give_back_the_utc_too() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(FIXTURE);
+    let f: File = serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+    let src = source();
+    let mut worst = 0.0f64;
+    for c in &f.cases {
+        let truth = parse_utc(&c.utc).unwrap();
+        let both = input(c, true);
+        for which in ["Moon", "body"] {
+            let mut one = both.clone();
+            one.search_hours = 12.0;
+            if which == "Moon" {
+                one.body_altitude = None;
+            } else {
+                one.moon_altitude = None;
+            }
+            let r = lunar_distance(&one, &src)
+                .unwrap_or_else(|e| panic!("{} {} ({which} observed): {e}", c.id, c.body));
+            let err_s = (r.jd_utc - truth) * 86_400.0;
+            println!(
+                "{} {:<9} only the {which} observed: UTC error {err_s:+6.2} s",
+                c.id, c.body
+            );
+            assert!(
+                err_s.abs() <= f.generator.time_tolerance_s,
+                "{} {} ({which} observed): {err_s:+.1} s, sigma {:.1} s",
+                c.id,
+                c.body,
+                r.sigma_s
+            );
+            worst = worst.max(err_s.abs());
+        }
+    }
+    println!("worst UTC error with one altitude observed: {worst:.2} s");
+}
+
 #[test]
 fn a_wrong_dr_position_moves_the_time_about_as_the_reported_sensitivity_says() {
     let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

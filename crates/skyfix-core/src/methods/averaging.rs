@@ -332,6 +332,7 @@ pub fn average_sights(
         &sights,
         &used,
         t_ref,
+        session.clock.correction_s,
         ho_avg / 60.0,
         sigma,
         slope,
@@ -430,12 +431,19 @@ fn loo(ho: &[f64], p: &[f64], w: &[f64], used: &[bool], b: f64, i: usize) -> f64
 /// The averaged sight as a session observation. `observed_ho`, so the chain never runs
 /// on it again (CONVENTIONS 4). A run of supplied directions supplies one here too,
 /// read off the same straight line; otherwise the provider answers at reduction time.
+///
+/// Its `utc` is on the session's chronometer, like the observations it averages:
+/// `t_ref` (the corrected instant) minus `clock_correction_s`, so that the reducer,
+/// which adds the session's correction to every recorded time (CONVENTIONS 6), brings it
+/// back to `t_ref` exactly once. Written as `t_ref` itself, a session with a chronometer
+/// correction would apply it twice.
 #[allow(clippy::too_many_arguments)]
 fn averaged_observation(
     body: &str,
     sights: &[ReducedSight],
     used: &[bool],
     t_ref: f64,
+    clock_correction_s: f64,
     ho_deg: f64,
     sigma_arcmin: f64,
     slope: f64,
@@ -450,7 +458,7 @@ fn averaged_observation(
     let all_supplied = sights
         .iter()
         .all(|s| s.direction_source == crate::reduce::SUPPLIED_DIRECTION_SOURCE);
-    let utc = format_utc(t_ref);
+    let utc = format_utc(t_ref - clock_correction_s / SECONDS_PER_DAY);
     let stamp: String = utc
         .chars()
         .filter(|c| c.is_ascii_digit())
@@ -482,9 +490,19 @@ fn averaged_observation(
         },
         notes: format!(
             "Average of {} sights ({}) at a predicted slope of {slope:.3}′/min; fully corrected \
-             (observed_ho), so no correction runs on it again. docs/NAVIGATION_METHODS.md.",
+             (observed_ho), so no correction runs on it again. docs/NAVIGATION_METHODS.md.{}",
             ids.len(),
-            ids.join(", ")
+            ids.join(", "),
+            if clock_correction_s == 0.0 {
+                String::new()
+            } else {
+                format!(
+                    " Its time is on the session's chronometer, like the sights it averages: \
+                     the session's clock correction ({clock_correction_s:+.3} s) brings it to \
+                     {}.",
+                    format_utc(t_ref)
+                )
+            }
         ),
     }
 }
@@ -611,6 +629,36 @@ mod tests {
         let a = average_sights(&session, &s, &AveragingOptions::default()).unwrap();
         assert!((a.sigma_arcmin - 1.0 / 5f64.sqrt()).abs() < 1e-12);
         assert!(a.free_slope.as_ref().unwrap().consistent);
+    }
+
+    #[test]
+    fn the_averaged_observation_goes_back_into_its_session_at_the_averaged_instant() {
+        // Verifier regression: the observation's utc was the corrected instant, so put
+        // back into a session with a chronometer correction the reducer added the
+        // correction a second time (30 s: a 5.7' intercept for Vega at Philadelphia).
+        let s = star();
+        let truth = Point::from_deg(40.0, -75.0);
+        for correction_s in [30.0, -12.5, 0.0] {
+            let mut session = run(&s, truth, &[-1.0, 0.0, 1.0], &[0.0; 3], 0.5);
+            session.clock.correction_s = correction_s;
+            let a = average_sights(&session, &s, &AveragingOptions::default()).unwrap();
+            let mut again = session.clone();
+            again.observations = vec![a.observation.clone()];
+            let r = crate::reduce::reduce_observation(&again, &again.observations[0], &s).unwrap();
+            assert!(
+                (r.jd_utc - a.jd_utc).abs() * SECONDS_PER_DAY < 1e-3,
+                "{correction_s} s: reduced at {} for an average at {}",
+                format_utc(r.jd_utc),
+                a.utc
+            );
+            assert!((r.ho_deg - a.ho_deg).abs() < 1e-12);
+            assert_eq!(
+                a.observation.notes.contains("chronometer"),
+                correction_s != 0.0,
+                "{}",
+                a.observation.notes
+            );
+        }
     }
 
     #[test]
