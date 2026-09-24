@@ -1,16 +1,41 @@
 # SkyFix Lab — accuracy and limitations
 
 What this project's numbers are worth, and where they stop being worth
-anything. Sections are owned by the agent that produced the measurement; add
-yours rather than editing someone else's.
+anything. Sections below are owned by the agent that produced each
+measurement; add yours rather than editing someone else's.
 
 Throughout: **numerical accuracy is not field accuracy.** A synthetic fixture
 recovering its truth to a metre says the arithmetic is right. It says nothing
-about what a sextant, a horizon and a wristwatch will do.
+about what a sextant, a horizon and a wristwatch will do. This is also the
+one place in the project where the word "accuracy" is used loosely in
+headings for readability; everywhere else — the CLI, the browser workbench,
+`skyfix coverage` — it is deliberately avoided in favour of *nominal
+uncertainty under a stated model*, and the browser's About view says so in
+those words.
 
----
+## 1. What accuracy means here
 
-## Reference data and tolerances
+Two different questions get asked of this project, and they have different
+answers:
+
+- **Numerical agreement.** Does the Rust arithmetic match an independent
+  implementation of the same published model (Skyfield, ERFA, USNO), and does
+  the solver recover a known synthetic truth? This is what sections 2 and 3
+  below measure, and it is checkable to fractions of an arcsecond or metres
+  of position.
+- **Field accuracy.** Would a real sextant sight, taken from a real horizon,
+  with a real chronometer, actually land where this tool says it would? This
+  project does not measure that, because it has taken no real sights (see
+  section 5). Every number anywhere in this document, `fixtures/`, or the
+  test suite comes from a simulation, an independently generated reference
+  fixture, or a synthetic session — never an instrument.
+
+Reading a small number in this document (0.05 arcminutes of ephemeris error,
+10 metres of solver regression, 95 % coverage of a nominal ellipse) as a
+promise about a real fix in the field is the one mistake every section here
+is written to prevent.
+
+## 2. Ephemeris versus the Skyfield reference
 
 All figures below are *measured* by `tools/reference/`, not asserted. Each one
 is reproducible with `make -C tools/reference`. See
@@ -31,6 +56,9 @@ and licences.
 Generated with Skyfield 1.55, numpy 2.5.3, pandas 3.0.6, jplephem 2.24 under
 CPython 3.12.3; ephemeris JPL DE421 (DE440s as cross-check); star catalogue
 Hipparcos I/239 `hip_main.dat`, **epoch J1991.25, not J2000.0**.
+
+The last two rows are session and solver-regression fixtures, not pure
+ephemeris comparisons; their numbers are discussed in section 3.
 
 ### Why 0.05′ for the ephemeris
 
@@ -81,7 +109,10 @@ is 15.0410686″ of hour angle, so **the assumption alone puts up to 0.88′ int
 GHA — 17 times the 0.05′ tolerance.** That is far too large to leave implicit,
 and it is not a rounding detail: at 2055 Skyfield's extrapolated ΔT implies a
 DUT1 of −3.5 s, well outside the ±0.9 s that real leap seconds enforce, simply
-because leap seconds that have not been announced cannot be modelled.
+because leap seconds that have not been announced cannot be modelled. Section 4
+below carries the everyday-case figure (|DUT1| < 0.9 s, up to 0.23′ of GHA)
+into the error budget; this section is where the extrapolated worst case
+(0.88′) comes from.
 
 Every GHA in `geocentric_sun_stars.json` and `topocentric_altaz.json` is
 therefore published twice:
@@ -131,9 +162,9 @@ reduction, agreeing to 12 milliarcseconds. Against Skyfield's UT1 instead, the
 same comparison gives 0.0235′ in GHA and 0.0179′ in Hc — still inside
 tolerance, and entirely explained by DUT1.
 
-USNO also returned the Moon and Saturn. Those are deferred bodies and are not
-differenced, but the response stores them, so a future Moon or planet provider
-already has an independent check waiting.
+USNO also returned the Moon and Saturn. Those are deferred bodies (section 5)
+and are not differenced, but the response stores them, so a future Moon or
+planet provider already has an independent check waiting.
 
 ### Spherical model vs full topocentric computation
 
@@ -188,7 +219,72 @@ the horizon.
 CONVENTIONS section 5 formula reimplemented in `tools/reference/common.py` from
 the text of `CONVENTIONS.md`.
 
-### The session fixtures
+### Star catalogue: what is and is not verified
+
+Every one of the 58 `name → HIP` mappings was checked against an independently
+known position and V magnitude for the star the name promises. All 58 resolved
+within 0.2° and 0.5 mag; no mapping is in doubt. The three largest position
+residuals are **Rigil Kentaurus 32.30″, Arcturus 21.73″, Sirius 11.58″** —
+exactly their proper motion over the 8.75 years from the catalogue epoch
+J1991.25 to J2000.0, which independently confirms both the identities and the
+epoch.
+
+Caveats recorded in the file itself:
+
+* **Positions are at J1991.25, not J2000.0.** The `generator` block declares
+  `"epoch": "J1991.25"`. A consumer that assumes J2000 is wrong by 32″ for
+  Rigil Kentaurus.
+* `pm_ra_cosdec_mas_yr` is the catalogue's `pmRA`, already μ<sub>α</sub>·cos δ,
+  not dRA/dt.
+* `parallax_mas` can be negative where measurement noise exceeded the parallax;
+  published values are left as published.
+* Radial velocity is not in `hip_main.dat` and is taken as zero, so there is no
+  perspective-acceleration term. For the fast, nearby Rigil Kentaurus
+  (−22 km/s) that is a real approximation over decades.
+* **Acrux** (HIP 60718) is α¹ Crucis; the Almanac tabulates the combined image
+  of a close pair, a difference of about 4″. **Rigil Kentaurus** (HIP 71683) is
+  α Centauri A; the Almanac's is the A+B photocentre, which orbits with an
+  80-year period and can differ by several arcseconds. These two are the reason
+  the star file's tolerance is 0.05′ rather than something tighter.
+* **Betelgeuse** is a semiregular variable (V ≈ 0.0 to 1.3); its catalogue
+  magnitude is one epoch, not a prediction.
+
+### Ephemeris providers versus the Skyfield reference (measured at integration)
+
+Both offline providers were compared with `fixtures/reference/geocentric_sun_stars.json`
+(Skyfield 1.55, JPL DE421 with a DE440s cross-check, 58 epochs from 1995 to 2055 plus
+every hour of 2026-10-01). The fixture's tolerance is 0.05'. The project convention is
+DUT1 = 0, so the comparison column is `gha_deg_dut1_zero`; the USNO almanac service agrees
+with that column to 1e-8 degrees.
+
+| provider | cases | worst GHA | worst Dec | tolerance |
+|---|---|---|---|---|
+| stars (IAU 2006/2000B, Hipparcos) | 3364 | 0.0011' (0.07") separation | included in separation | 0.05' |
+| Sun (VSOP87D, 1020 terms) | 58 | 0.0026' (0.16") | 0.0012' (0.07") | 0.05' |
+
+With the fixture's own DUT1 applied through `StarProvider::with_dut1`, the star GHA agrees
+with the DUT1-inclusive column to 0.027' worst case; the difference from the DUT1 = 0
+comparison is the DUT1 handling itself, which the project reports as an external error
+term (up to 0.23' for |DUT1| < 0.9 s) rather than folding into the model accuracy.
+
+Each provider also declares its own, rounder, documented figure through
+`skyfix coverage` — the number a caller sees without reading this document:
+**0.01 arcminutes for the Sun, 0.02 arcminutes for the stars**, explicitly
+*not* including the DUT1 term. Section 4 uses the more conservative, measured
+worst cases above.
+
+What these numbers are not: field accuracy. They say the Rust astronomy reproduces an
+independent implementation of the same IAU models to well under an arcsecond; sextant
+sights are a hundred to a thousand times noisier than that.
+
+## 3. Solver regression targets and the Monte Carlo coverage results
+
+### The session fixtures: a 10 m numerical regression target
+
+`docs/BRIEF.md` states the target plainly: *"clean, well-conditioned synthetic
+geometry should recover its truth within 10 metres; this is a numerical
+regression target, not a real-world accuracy claim."* These fixtures are
+where that target is measured.
 
 **`reference-sun-sextant` — tolerance 0.02′ on Ho.** Five lower-limb Sun sights
 over an hour around local apparent noon at Philadelphia (transit
@@ -225,18 +321,18 @@ most useful number in `fixtures/`:
 
 Both pass the 10 m target. But the topocentric session's 6.24 m is not solver
 error: it is diurnal aberration, up to 0.21″ across these five sights, which
-CONVENTIONS section 7 deliberately excludes from the model. It is almost purely
-east-west, because diurnal aberration displaces the apparent sky toward the
-east point of the horizon. **62 % of the 10 m budget is spent before the solver
-does anything wrong.**
+CONVENTIONS section 7 deliberately excludes from the model (compare the more
+general, worst-case 0.32″ at the equator measured in section 2 above). It is
+almost purely east-west, because diurnal aberration displaces the apparent sky
+toward the east point of the horizon. **62 % of the 10 m budget is spent before
+the solver does anything wrong.**
 
 So: regress the solver against `reference-philadelphia-5star-geocentric`, where
 any error at all is a solver error. Use `reference-philadelphia-5star` to show
 that a physically realistic synthetic sight still lands inside 10 m. The 10 m
 figure is a numerical regression target on clean, well-conditioned synthetic
-geometry, exactly as `docs/BRIEF.md` frames it — **not a field accuracy
-claim.** No sextant, horizon, atmosphere or clock is involved anywhere in these
-files.
+geometry — **not a field accuracy claim.** No sextant, horizon, atmosphere or
+clock is involved anywhere in these files.
 
 Note the deliberate inversion. With σ = 0.1′ on these five azimuths the *a
 priori* covariance gives σ<sub>north</sub> = 118.9 m, σ<sub>east</sub> =
@@ -255,38 +351,113 @@ which finds only the nearby minimum looks like it succeeded.
 The assumed position in every star session is (40.5, −74.5), about 83 km from
 truth, with role `initializer`. A converged fix must be independent of it.
 
-### Star catalogue: what is and is not verified
+### The Monte Carlo coverage results
 
-Every one of the 58 `name → HIP` mappings was checked against an independently
-known position and V magnitude for the star the name promises. All 58 resolved
-within 0.2° and 0.5 mag; no mapping is in doubt. The three largest position
-residuals are **Rigil Kentaurus 32.30″, Arcturus 21.73″, Sirius 11.58″** —
-exactly their proper motion over the 8.75 years from the catalogue epoch
-J1991.25 to J2000.0, which independently confirms both the identities and the
-epoch.
+`docs/BRIEF.md`'s "Validation that matters" asks for "seeded Monte Carlo
+coverage checks for nominal ellipses under the stated independent-noise model
+... [and] correlated-error scenarios as explicit failures of that simpler
+model." `crates/skyfix-core/tests/solver_coverage.rs` is that check. Every
+number below is printed by
 
-Caveats recorded in the file itself:
+```console
+cargo test -p skyfix-core --test solver_coverage -- --nocapture
+```
 
-* **Positions are at J1991.25, not J2000.0.** The `generator` block declares
-  `"epoch": "J1991.25"`. A consumer that assumes J2000 is wrong by 32″ for
-  Rigil Kentaurus.
-* `pm_ra_cosdec_mas_yr` is the catalogue's `pmRA`, already μ<sub>α</sub>·cos δ,
-  not dRA/dt.
-* `parallax_mas` can be negative where measurement noise exceeded the parallax;
-  published values are left as published.
-* Radial velocity is not in `hip_main.dat` and is taken as zero, so there is no
-  perspective-acceleration term. For the fast, nearby Rigil Kentaurus
-  (−22 km/s) that is a real approximation over decades.
-* **Acrux** (HIP 60718) is α¹ Crucis; the Almanac tabulates the combined image
-  of a close pair, a difference of about 4″. **Rigil Kentaurus** (HIP 71683) is
-  α Centauri A; the Almanac's is the A+B photocentre, which orbits with an
-  80-year period and can differ by several arcseconds. These two are the reason
-  the star file's tolerance is 0.05′ rather than something tighter.
-* **Betelgeuse** is a semiregular variable (V ≈ 0.0 to 1.3); its catalogue
-  magnitude is one epoch, not a prediction.
+run in this worktree. The scenario: four stars at azimuth/altitude (0°, 42°),
+(70°, 28°), (140°, 55°) and (210°, 33°) — deliberately not a symmetric layout,
+so that a shared bias cannot simply cancel out in the residuals and hide the
+correlated-error failure — with a fixed initializer away from the truth and
+multistart disabled, over 2000 seeded trials (`TRIALS = 2000`):
 
-### What none of this covers
+| trial | setup | result | assertion |
+|---|---|---|---|
+| independent noise | 1.0′ sigma, drawn fresh per trial | **1902/2000 inside the nominal 95 % ellipse = 0.9510** (binomial standard error 0.0049) | `0.93..=0.97` |
+| shared bias estimated as a third unknown | 1.0′ sigma plus a bias of sigma 2.0′, `estimate_shared_bias = true` | **1910/2000 = 0.9550**; 2000/2000 bias estimates within 3 sigma | `0.93..=0.97` |
+| shared bias, *not* estimated (the correlated-error failure) | six rounds of the same four stars (24 sights), one shared bias of sigma 2.0′ drawn per trial and left for the independent-noise model to misinterpret | **845/2000 = 0.4225** | must be `< 0.80` |
 
+The first two rows confirm the nominal 95 % ellipse means what it says under
+the model it assumes — both with and without a bias term explicitly estimated.
+The third is deliberate: exactly as the shared-bias demo in `docs/DEMOS.md`
+shows at the CLI level, an uncorrected shared error collapses the ellipse's
+coverage to well under half, because repeating an observation under a shared
+bias narrows the reported covariance without correcting the position. The
+0.4225 measured here and the 42 % figure `docs/BACKLOG.md` quotes for the same
+test are the same number, rounded.
+
+## 4. Error budget
+
+Every term below that this project models is either applied in the correction
+chain or reported as an explicit uncertainty; every term it does not model is
+listed here with its size, so it can be weighed against whichever of those two
+categories a real error would have fallen into.
+
+| term | size | modelled? | source |
+|---|---|---|---|
+| sextant sigma (realistic instrument, independent noise) | 1.0′ per sight (0.1′ is the tightest anywhere in this project's fixtures) | yes — the solver's whole uncertainty model is built on a declared per-sight sigma | this document, section 2, "Why 0.05′ for the ephemeris"; `docs/CONVENTIONS.md` section 10 example session |
+| refraction model (Bennett 1982) | own residual against the standard atmosphere ≤ 0.07′ | yes, as the correction chain's step 3 | `docs/CONVENTIONS.md` section 5 |
+| DUT1 (UT1 − UTC) assumed zero | up to 0.23′ of GHA for the everyday case (\|DUT1\| < 0.9 s); up to 0.88′ in Skyfield's extrapolated worst case at 2055 | no — DUT1 is assumed 0 everywhere unless a provider is given one | `docs/CONVENTIONS.md` section 6; this document, section 2, "ΔT and DUT1" |
+| diurnal aberration | up to 0.32″ (0.0052′) for an equatorial observer, worst case measured; 0.21″ across the five `reference-philadelphia-5star` sights specifically | no — CONVENTIONS section 7 defines the frame as geocentric of date, with diurnal aberration explicitly excluded | this document, section 2, "Spherical model vs full topocentric computation", and section 3, "The session fixtures"; measured from `fixtures/reference/topocentric_altaz.json` |
+| ephemeris (Sun and stars vs the independent Skyfield/JPL/USNO reference) | declared 0.01′ (Sun) / 0.02′ (stars); worst measured 0.0026′ (Sun GHA) / 0.0011′ (star separation) | yes, to the tolerance shown — this is what section 2 measures in full | `skyfix coverage` (command run in this worktree); this document, section 2 |
+| sphere vs ellipsoid | Earth's flattening is about 0.3 %, "irrelevant at the tens-of-metres level" against this project's targets | no — the model is a sphere everywhere, no ellipsoid correction | `docs/CONVENTIONS.md` section 1 ("the model is a sphere; no ellipsoid correction is applied anywhere"); `docs/ARCHITECTURE.md`, "Why these choices" |
+
+Two of these rows are worth reading together: DUT1 and diurnal aberration are
+both frame choices this project states and then deliberately does not correct
+for, and both are small enough to sit inside the 10 m regression target
+(section 3) while still being far larger than the ephemeris error itself
+(section 2). Neither is hidden; both are the reason the regression target is
+stated as a target on *clean synthetic geometry*, not a field-accuracy number.
+
+## 5. Known limitations and things deliberately not modelled
+
+* **The Moon and planets are not covered.** Deferred by `docs/BRIEF.md`
+  ("Defer Moon/planets unless independently validated") and by
+  `docs/BACKLOG.md`. The offline ephemeris covers the Sun and the 57
+  Nautical Almanac stars plus Polaris only. The USNO response used for the
+  cross-check in section 2 also returned the Moon and Saturn; those values
+  are stored but not differenced, so a future Moon or planet provider already
+  has an independent check waiting.
+* **The core solver assumes a stationary observer.** `skyfix-core::solver`
+  has no motion model. `skyfix-motion::running_fix` (see `docs/MOTION.md`)
+  handles a moving observer by advancing each sight's geographic position to
+  a common reference instant and inflating its sigma, entirely outside the
+  core; `docs/BACKLOG.md` lists a first-class moving-observer treatment
+  *inside* the solver itself as unstarted, because that would require
+  treating dead-reckoning error as correlated across sights rather than as
+  independently inflated sigmas — the next limitation.
+* **Correlated errors are not represented in the nominal ellipse, and this is
+  measured, not assumed.** The solver's covariance model treats every sight's
+  error as independent (`docs/CONVENTIONS.md` section 9). Three independent
+  measurements say so at different points in the project:
+  - the Monte Carlo test in section 3 above shows coverage collapsing from
+    95.1 % to 42.25 % once a bias shared across repeated sights is left for
+    the independent-noise model to misread;
+  - `docs/MOTION.md` section 3 measures a running fix's own nominal 95 %
+    ellipse covering the truth only **92.3 %** of the time over 300 seeded
+    repetitions, because the dead-reckoning error behind every sight in one
+    fix shares the same speed and course bias, and the solver is never told
+    so;
+  - `docs/CAMERA.md` section 7 combines a camera sight's independent
+    centroid noise and its shared local-vertical error into one
+    `sigma_arcmin`, which "gets the *size* of the uncertainty right and the
+    *correlation* wrong, which makes the reported ellipse optimistic in the
+    direction the vertical tilts" — by the module's own description.
+* **Nothing here has touched real hardware.** Every number in this project —
+  the CLI's worked examples, every packaged demo, the camera, polarization
+  and motion modules — comes from a simulation, a synthetic session, or an
+  independently generated reference fixture (`docs/DEMOS.md` states this for
+  every demo). `docs/CAMERA.md` section 9: "Nothing in this crate has met a
+  real lens, a real sensor or a real sky." `docs/POLARIZATION.md`: "Every
+  photon in this module is synthetic." `docs/MOTION.md` section 8: its
+  scenarios "build their own sky ... so no ephemeris is involved and the
+  truth is exact by construction." `docs/BACKLOG.md` lists real sextant
+  sights and camera work on real imagery as unstarted for the same reason.
+* **Visibility is geometric only; there is no weather.** The observation
+  planner (`docs/PLANNER.md`, `skyfix plan`) ranks bodies by measurement
+  geometry alone and states in its own output notes that there is "no
+  weather, no twilight model beyond the Sun-altitude flag." The polarization
+  laboratory's sky has "no cloud, no haze and no aerosol" (`docs/POLARIZATION.md`
+  section 8); its missing-sky mask and depolarization degradations are
+  explicitly a stress model for "a hole in the data," never cloud physics.
 * **Polar motion** is never applied, by Skyfield or by the project. It reaches
   0.3″ of station displacement, about 9 m — below the ephemeris tolerance but
   not below the 10 m regression target. It is not in any fixture.
@@ -294,41 +465,25 @@ Caveats recorded in the file itself:
   arcseconds in mountainous terrain and is not modelled anywhere. A real
   artificial horizon measures the *geoid* normal; every fixture assumes the
   WGS84 ellipsoid normal.
-* **The Moon and planets** are not covered. The USNO response contains an
-  independent check for them if they are ever added.
 * **Refraction below Ha = 0** is rejected, and Bennett's own residual (≤ 0.07′)
   is inside the sigma floor and not modelled. Real anomalous refraction near
   the horizon is far larger than either and is not represented in any fixture.
-* **Everything here is synthetic.** Not one number in `fixtures/` came from an
-  instrument.
 
-## Ephemeris providers versus the Skyfield reference (measured at integration)
+## 6. How to reproduce every number here
 
-Both offline providers were compared with `fixtures/reference/geocentric_sun_stars.json`
-(Skyfield 1.55, JPL DE421 with a DE440s cross-check, 58 epochs from 1995 to 2055 plus
-every hour of 2026-10-01). The fixture's tolerance is 0.05'. The project convention is
-DUT1 = 0, so the comparison column is `gha_deg_dut1_zero`; the USNO almanac service agrees
-with that column to 1e-8 degrees.
-
-| provider | cases | worst GHA | worst Dec | tolerance |
-|---|---|---|---|---|
-| stars (IAU 2006/2000B, Hipparcos) | 3364 | 0.0011' (0.07") separation | included in separation | 0.05' |
-| Sun (VSOP87D, 1020 terms) | 58 | 0.0026' (0.16") | 0.0012' (0.07") | 0.05' |
-
-With the fixture's own DUT1 applied through `StarProvider::with_dut1`, the star GHA agrees
-with the DUT1-inclusive column to 0.027' worst case; the difference from the DUT1 = 0
-comparison is the DUT1 handling itself, which the project reports as an external error
-term (up to 0.23' for |DUT1| < 0.9 s) rather than folding into the model accuracy.
-
-What these numbers are not: field accuracy. They say the Rust astronomy reproduces an
-independent implementation of the same IAU models to well under an arcsecond; sextant
-sights are a hundred to a thousand times noisier than that.
-
-## Diurnal aberration (deliberately not modelled)
-
-The spherical altitude model (CONVENTIONS section 3) omits diurnal aberration, at most
-0.32" for an equatorial observer. Solving the Skyfield-generated topocentric five-star
-session (`reference-philadelphia-5star`) lands 6.2 m from the truth, almost entirely
-east-west, which is that term. The geocentric variant of the same session recovers the
-truth to 0.000 m. Both sit inside the 10 m numerical regression target; the 6.2 m is
-recorded here so nobody mistakes it for a solver defect.
+- **Ephemeris vs Skyfield/USNO (section 2):** `make -C tools/reference`
+  regenerates every file under `fixtures/reference/` and `fixtures/expected/`
+  from Skyfield, JPL DE421/DE440s, Hipparcos and (network permitting) the
+  USNO API; see `tools/reference/README.md`. `cargo test -p skyfix-ephemeris`
+  compares the Rust providers against the regenerated fixtures.
+- **Each provider's declared accuracy:** `skyfix coverage` (or
+  `cargo run -p skyfix-cli --release -- coverage`).
+- **Solver regression targets (section 3):** `cargo test -p skyfix-cli --test
+  fixtures`, and the worked example in `docs/CLI.md` section "A four-star fix
+  from supplied directions".
+- **Monte Carlo coverage (section 3):** `cargo test -p skyfix-core --test
+  solver_coverage -- --nocapture`.
+- **The packaged-demo coverage numbers in `docs/DEMOS.md`:** `skyfix
+  experiment --demo <name> --repetitions 50` for any of the ten scenario
+  names `skyfix demos` lists.
+- **Everything at once:** `cargo test --workspace`.
