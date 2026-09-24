@@ -44,6 +44,38 @@ const EXAMPLES: Record<WarningCode, Warning> = {
   duplicate_observation: { code: 'duplicate_observation', ids: ['obs-2', 'obs-3'] },
   not_converged: { code: 'not_converged', iterations: 50 },
   other: { code: 'other', message: 'Something worth saying.' },
+  flat_peak_longitude: {
+    code: 'flat_peak_longitude',
+    body: 'Sun',
+    sigma_time_s: 21,
+    sigma_lon_arcmin: 5.3,
+    sigma_east_nm: 4.1,
+  },
+  meridian_near_zenith: { code: 'meridian_near_zenith', body: 'Sun', meridian_altitude_deg: 87.9 },
+  meridian_side_ambiguous: {
+    code: 'meridian_side_ambiguous',
+    body: 'Sun',
+    latitude_deg: 18.5,
+    other_latitude_deg: 21.5,
+  },
+  not_at_meridian_passage: { code: 'not_at_meridian_passage', id: 'obs-1', minutes_from_passage: 24 },
+  one_sided_run: { code: 'one_sided_run', body: 'Sun', before: 5, after: 0 },
+  curvature_inconsistent: {
+    code: 'curvature_inconsistent',
+    body: 'Sun',
+    predicted_arcmin_per_min2: 0.036,
+    fitted_arcmin_per_min2: 0.052,
+    z: 4.2,
+  },
+  slope_inconsistent: {
+    code: 'slope_inconsistent',
+    body: 'Vega',
+    predicted_arcmin_per_min: -10.1,
+    fitted_arcmin_per_min: -9.2,
+    z: 3.6,
+  },
+  run_outlier: { code: 'run_outlier', id: 'obs-3', normalized_residual: 5.4, rejected: true },
+  polaris_near_pole: { code: 'polaris_near_pole', id: 'obs-1', latitude_deg: 88.9, azimuth_deg: 342 },
 };
 
 describe('Warning vocabulary', () => {

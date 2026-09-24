@@ -398,7 +398,40 @@ export type Warning =
   | { code: 'posterior_scaling_skipped'; dof: number }
   | { code: 'duplicate_observation'; ids: string[] }
   | { code: 'not_converged'; iterations: number }
-  | { code: 'other'; message: string };
+  | { code: 'other'; message: string }
+  // Navigation methods (docs/NAVIGATION_METHODS.md)
+  | {
+      code: 'flat_peak_longitude';
+      body: string;
+      sigma_time_s: number;
+      sigma_lon_arcmin: number;
+      sigma_east_nm: number;
+    }
+  | { code: 'meridian_near_zenith'; body: string; meridian_altitude_deg: number }
+  | {
+      code: 'meridian_side_ambiguous';
+      body: string;
+      latitude_deg: number;
+      other_latitude_deg: number;
+    }
+  | { code: 'not_at_meridian_passage'; id: string; minutes_from_passage: number }
+  | { code: 'one_sided_run'; body: string; before: number; after: number }
+  | {
+      code: 'curvature_inconsistent';
+      body: string;
+      predicted_arcmin_per_min2: number;
+      fitted_arcmin_per_min2: number;
+      z: number;
+    }
+  | {
+      code: 'slope_inconsistent';
+      body: string;
+      predicted_arcmin_per_min: number;
+      fitted_arcmin_per_min: number;
+      z: number;
+    }
+  | { code: 'run_outlier'; id: string; normalized_residual: number; rejected: boolean }
+  | { code: 'polaris_near_pole'; id: string; latitude_deg: number; azimuth_deg: number };
 
 export type WarningCode = Warning['code'];
 
@@ -423,6 +456,15 @@ export const WARNING_CODES = [
   'duplicate_observation',
   'not_converged',
   'other',
+  'flat_peak_longitude',
+  'meridian_near_zenith',
+  'meridian_side_ambiguous',
+  'not_at_meridian_passage',
+  'one_sided_run',
+  'curvature_inconsistent',
+  'slope_inconsistent',
+  'run_outlier',
+  'polaris_near_pole',
 ] as const satisfies readonly WarningCode[];
 
 /** "caution" changes what you should believe; "note" records what the code did. */
@@ -444,6 +486,15 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   duplicate_observation: 'caution',
   not_converged: 'caution',
   other: 'note',
+  flat_peak_longitude: 'caution',
+  meridian_near_zenith: 'caution',
+  meridian_side_ambiguous: 'caution',
+  not_at_meridian_passage: 'caution',
+  one_sided_run: 'caution',
+  curvature_inconsistent: 'caution',
+  slope_inconsistent: 'caution',
+  run_outlier: 'caution',
+  polaris_near_pole: 'caution',
 };
 
 const HORIZON_PHRASE: Record<HorizonMode, string> = {
@@ -549,6 +600,58 @@ export function warningSentence(w: Warning): string {
       );
     case 'other':
       return w.message;
+    case 'flat_peak_longitude':
+      return (
+        `The noon longitude rests on the time of the ${w.body}'s flat-topped peak, which is ` +
+        `uncertain by ${n(w.sigma_time_s, 0)} s: ${n(w.sigma_lon_arcmin, 1)} arcmin of longitude, ` +
+        `${n(w.sigma_east_nm, 1)} NM east-west (1 sigma). The latitude is far better determined.`
+      );
+    case 'meridian_near_zenith':
+      return (
+        `The ${w.body} crossed the meridian at ${n(w.meridian_altitude_deg, 2)} deg, close to the ` +
+        `zenith: its bearing swings quickly there, the altitude is hard to measure, and whether ` +
+        `it passed north or south of you decides the latitude.`
+      );
+    case 'meridian_side_ambiguous':
+      return (
+        `The DR does not clearly say which side of the zenith the ${w.body} passed: the answer is ` +
+        `${n(w.latitude_deg, 4)} deg, but on the other side it would be ` +
+        `${n(w.other_latitude_deg, 4)} deg. Check which way you faced.`
+      );
+    case 'not_at_meridian_passage':
+      return (
+        `Sight ${w.id} was used as the highest (meridian) altitude, but it was taken ` +
+        `${n(w.minutes_from_passage, 1)} min from the meridian passage the DR predicts.`
+      );
+    case 'one_sided_run':
+      return (
+        `Every ${w.body} sight is on one side of meridian passage (${w.before} before, ` +
+        `${w.after} after), so the time of the peak is extrapolated rather than bracketed.`
+      );
+    case 'curvature_inconsistent':
+      return (
+        `The ${w.body} sights curve over the peak at ${n(w.fitted_arcmin_per_min2, 4)} arcmin/min², ` +
+        `but the geometry predicts ${n(w.predicted_arcmin_per_min2, 4)} (z = ${n(w.z, 1)}). ` +
+        `Check the times, the vessel's course and speed, and the body.`
+      );
+    case 'slope_inconsistent':
+      return (
+        `The ${w.body} sights change height at ${n(w.fitted_arcmin_per_min, 3)} arcmin/min, but ` +
+        `the ephemeris predicts ${n(w.predicted_arcmin_per_min, 3)} at the DR (z = ${n(w.z, 1)}). ` +
+        `Check the times, the body, the DR, and the course and speed.`
+      );
+    case 'run_outlier':
+      return (
+        `Sight ${w.id} sits ${n(w.normalized_residual, 1)} standard deviations from the rest of ` +
+        `its run` +
+        (w.rejected ? ' and was left out of the average.' : '; it was kept, but look at it.')
+      );
+    case 'polaris_near_pole':
+      return (
+        `Sight ${w.id}: at latitude ${n(w.latitude_deg, 2)} deg Polaris bears ` +
+        `${n(w.azimuth_deg, 1)} deg, well away from north, so the latitude depends strongly on ` +
+        `the longitude and the time, and its stated uncertainty is only approximate.`
+      );
     default: {
       const exhaustive: never = w;
       return `Unmapped warning: ${JSON.stringify(exhaustive)}`;
