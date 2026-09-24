@@ -1697,7 +1697,7 @@
     },
     "description": "Conjunctions, oppositions and greatest elongations of Mercury to Neptune in 1990-2060 from NASA's SKYCAL Sky Events Calendar decade files, parsed verbatim: the Julian date (4 decimals) and SKYCAL's type code; greatest elongations carry SKYCAL's elongation in tenths of a degree.",
     "generated_utc": "2026-09-24T00:00:00Z",
-    "licence": "U.S. Government work (NASA Goddard Space Flight Center, eclipse.gsfc.nasa.gov, archived pages). Predictions by Fred Espenak, NASA's GSFC.",
+    "licence": "U.S. Government work (NASA Goddard Space Flight Center, eclipse.gsfc.nasa.gov, archived pages). The page grants reproduction with this acknowledgment: \"Sky Events Calendar by Fred Espenak and Sumit Dutta (NASA's GSFC)\".",
     "never_a_runtime_dependency": "Development-time reference. CONVENTIONS section 11: never regenerate a fixture from Rust output.",
     "retrieved": "2026-09-24",
     "sources": [

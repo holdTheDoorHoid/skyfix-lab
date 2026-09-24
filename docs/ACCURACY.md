@@ -1292,3 +1292,76 @@ evaluations per eclipse at 66 µs each. The unoptimised test build scans 1990-20
 - `cargo test -p skyfix-almanac --test eclipse_canon --test eclipse_paths --test
   eclipse_local -- --nocapture` and `cargo test -p skyfix-almanac --lib bessel --
   --nocapture` print every number above.
+
+## 13. Planet events
+
+Owner: eclipse agent. The engine is `skyfix_almanac::planet_events` (definitions in its
+module documentation; wire format in `docs/EXPLORER_API.md`, "Wave 2 — planet events").
+It follows the planet provider's apparent places (section 2, "Planets"), so its accuracy
+is that provider's, converted into time by how fast each configuration changes.
+
+**Definitions.** Conjunction and opposition: the apparent geocentric ecliptic longitude
+of date of the planet minus the Sun's is 0 or 180 degrees (as the Moon's phases,
+CONVENTIONS 13.5); a conjunction of Mercury or Venus is inferior when the phase angle is
+over 90 degrees. Greatest elongation: a local maximum of the apparent planet-Sun angle,
+east when the planet is east of the Sun in longitude. Closest approach: a local minimum
+of the light-time distance. Transit: the least separation near an inferior conjunction
+is under the sum of the semidiameters (the Sun's 959.63″ at 1 au). The search samples
+each planet every 3 days (Mercury) to 16 days (Jupiter to Neptune) and refines each
+sign change or extremum with Brent's method.
+
+### Against Skyfield + JPL DE440s
+
+`tests/planet_events.rs` against `fixtures/reference/planet_events_skyfield.json`, built
+with Skyfield's own `almanac.oppositions_conjunctions`, `find_maxima` and `find_minima`.
+**All 2266 events of 1990-2060 are found, one for one, none extra, of the same kind**:
+537 inferior and superior conjunctions of Mercury and Venus, 308 conjunctions and 308
+oppositions of Mars to Neptune, 536 greatest elongations, 577 closest approaches. **All
+12 transits are identified** (Mercury 1993, 1999, 2003, 2006, 2016, 2019, 2032, 2039,
+2049, 2052; Venus 2004, 2012), and no other inferior conjunction is called one.
+
+| quantity | target | median | worst | where |
+|---|---|---|---|---|
+| conjunctions of Mercury and Venus | 1 min | 0.3 s | **3.0 s** | Venus |
+| conjunctions of Mars to Neptune | 1 min | 6.2 s | **55.4 s** | Neptune, 2059-06-06 |
+| oppositions | 1 min | 6.3 s | **52.7 s** | Neptune |
+| greatest elongations, instant | 10 min | 0.9 s | **13.3 s** | |
+| greatest elongations, angle | 0.001° | | **0.00001°** | |
+| closest approaches, instant | 10 min | 2.1 s | **68.4 s** | Neptune, 2059-12-08 |
+| closest approaches, distance | 1e-5 | | **3.7e-6** (11 148 km) | Neptune |
+
+The time residuals grow with the planet's distance because the configurations change
+slowly: at a conjunction of Neptune the longitude difference changes by about a degree
+a day, so 55 s is 2.2″ of combined Sun and Neptune error, well inside the planets'
+0.1′ target (a 0.1′ error there would be 2.4 min). Neptune's conjunctions and
+oppositions have a median of 35 s, Uranus's 15 s, Saturn's and Jupiter's 4-5 s, Mars's
+0.7 s. Greatest elongations and closest approaches are flat maxima and minima: Venus's
+elongation changes by under 0.001° in the 12 hours either side of its greatest, so the
+instant is loosely defined and the angle is what matters.
+
+### Against NASA's SKYCAL (a published U.S. Government source)
+
+`fixtures/reference/planet_events_nasa_skycal.json`, NASA's *Sky Events Calendar*
+(Espenak and Dutta, GSFC), parsed verbatim for 1990-2060. **Its 1689 conjunctions,
+oppositions and greatest elongations are exactly our list less the closest approaches**
+(SKYCAL has none): every event matched, of the same kind, none missing, none extra. Its
+instants are approximate: median 18 min from ours, 95 % within 1.9 h, worst 4.4 h (a
+conjunction of Jupiter), with the Mercury events closest (median 10 min) and those of
+Jupiter and Uranus furthest (median 73 and 83 min). Ours are 0.3 to 55 s from DE440s, so
+the differences are SKYCAL's; its calendar is meant to the day. Its greatest
+elongations, printed to 0.1°, agree with ours within **0.05°**.
+
+### Speed
+
+Release build, x86-64, on the shared 8-core machine: one year of events in 29 ms (70 ms
+under heavy load), 1990-2060 in 1.8-3.0 s. Most of it is the planet provider: about 590
+evaluations a year for the seven planets (the grid, then 18 per event refined), 28 µs
+each.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python -m tools.reference.gen_planet_events` regenerates
+  both fixtures (SKYCAL needs the network; `--offline` rebuilds only the Skyfield file,
+  about five minutes).
+- `cargo test --release -p skyfix-almanac --test planet_events -- --include-ignored
+  --nocapture` prints the numbers for 2019-2026 and 1990-2060.

@@ -12,7 +12,8 @@ Two files, each independent of the Rust code:
   separation within a day under the sum of the semidiameters; the Sun's 959.63" at
   1 au, the planet's IAU equatorial radius).
 * ``planet_events_nasa_skycal.json`` — the same kinds of events (no perigees) from
-  NASA's SKYCAL Sky Events Calendar (Fred Espenak, NASA GSFC; a U.S. Government work),
+  NASA's SKYCAL, "Sky Events Calendar by Fred Espenak and Sumit Dutta (NASA's GSFC)"
+  (the acknowledgment the page asks for; a U.S. Government work),
   whose decade files ``jcYYYY.js`` list Julian dates of conjunctions, oppositions and
   greatest elongations. Parsed verbatim for 1990-2060. Needs network (``--offline``
   keeps the file already there; ``--network-only`` refreshes just this file).
@@ -116,7 +117,8 @@ def build_skycal(ts):
             "sources": sources,
             "licence": (
                 "U.S. Government work (NASA Goddard Space Flight Center, eclipse.gsfc.nasa.gov, "
-                "archived pages). Predictions by Fred Espenak, NASA's GSFC."
+                "archived pages). The page grants reproduction with this acknowledgment: "
+                "\"Sky Events Calendar by Fred Espenak and Sumit Dutta (NASA's GSFC)\"."
             ),
             "conventions": {
                 "jd": (

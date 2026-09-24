@@ -21,11 +21,15 @@
 
 import {
   isAlmanacEngine,
+  isEclipseEngine,
+  isPlanetEventsEngine,
   type AlmanacEngine,
   type BodySelection,
+  type EclipseEngine,
   type EventOptions,
   type ExplorerEngine,
   type Observer,
+  type PlanetEventsEngine,
 } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
@@ -290,12 +294,30 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     return value;
   }
 
-  const memo: ExplorerEngine & Partial<AlmanacEngine> = {
+  const memo: ExplorerEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> = {
     // Optional: present on the wrapper exactly when the engine makes almanac pages (the
     // Almanac view checks with `isAlmanacEngine`). A page is tens of milliseconds, so a
     // few dates are kept.
     ...(isAlmanacEngine(engine)
       ? { almanacDay: (date: string) => cached('almanacDay', date, 4, () => engine.almanacDay(date)) }
+      : {}),
+    // Optional, the same way (the Events view checks with `isEclipseEngine` and
+    // `isPlanetEventsEngine`). Lists are asked for a few windows at a time; local
+    // circumstances per eclipse and place; paths are the largest results (tens of kB).
+    ...(isEclipseEngine(engine)
+      ? {
+          eclipses: (jdStart: number, jdEnd: number) =>
+            cached('eclipses', `${jdStart}|${jdEnd}`, 4, () => engine.eclipses(jdStart, jdEnd)),
+          eclipseLocal: (id: string, observer: Observer) =>
+            cached('eclipseLocal', `${id}|${observerKey(observer)}`, 64, () => engine.eclipseLocal(id, observer)),
+          eclipsePath: (id: string) => cached('eclipsePath', id, 4, () => engine.eclipsePath(id)),
+        }
+      : {}),
+    ...(isPlanetEventsEngine(engine)
+      ? {
+          planetEvents: (jdStart: number, jdEnd: number) =>
+            cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
+        }
       : {}),
     kind: engine.kind,
     description: engine.description,
