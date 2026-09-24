@@ -85,18 +85,38 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
         Command::Coverage { json } => commands::catalog::run_coverage(json),
         Command::Convert { input, output } => commands::convert::run(&input, &output),
 
-        Command::Simulate { .. } => {
-            commands::stubs::not_wired("simulate", "the skyfix-sim crate is not merged yet")
-        }
-        Command::Experiment { .. } => {
-            commands::stubs::not_wired("experiment", "the skyfix-sim crate is not merged yet")
-        }
-        Command::Demos { .. } => {
-            commands::stubs::not_wired("demos", "the skyfix-sim crate is not merged yet")
-        }
+        Command::Simulate {
+            demo,
+            scenario,
+            out_session,
+            out_truth,
+            show_truth,
+        } => commands::simulate::run(&commands::simulate::Args {
+            demo,
+            scenario,
+            out_session,
+            out_truth,
+            show_truth,
+        }),
+
+        Command::Experiment {
+            scenario,
+            demo,
+            repetitions,
+            out,
+            options,
+        } => commands::experiment::run(&commands::experiment::Args {
+            demo,
+            scenario,
+            repetitions,
+            out,
+            flags: options.to_flags(false, false),
+        }),
+
+        Command::Demos { json } => commands::simulate::run_demos(json),
         Command::Plan { .. } => commands::stubs::not_wired(
             "plan",
-            "it needs the Sun provider and the planner, neither merged yet",
+            "skyfix_core::planner is still a stub",
         ),
     }
 }

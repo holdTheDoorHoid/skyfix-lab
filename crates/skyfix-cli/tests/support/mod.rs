@@ -254,6 +254,12 @@ pub fn write_tmp(name: &str, text: &str) -> PathBuf {
 // Running the binary
 // ---------------------------------------------------------------------------
 
+/// Collapse runs of whitespace, so an assertion about wording does not depend on where
+/// the report wrapped a line.
+pub fn flatten(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 pub struct Run {
     pub code: i32,
     pub stdout: String,
@@ -288,6 +294,16 @@ impl Run {
         self
     }
 
+    /// As [`Run::expect_stdout`], but ignoring where the report chose to wrap.
+    pub fn expect_stdout_flat(self, needle: &str) -> Self {
+        assert!(
+            flatten(&self.stdout).contains(needle),
+            "stdout does not contain {needle:?} (whitespace-insensitive)\n--- stdout ---\n{}",
+            self.stdout
+        );
+        self
+    }
+
     pub fn expect_stderr(self, needle: &str) -> Self {
         assert!(
             self.stderr.contains(needle),
@@ -314,6 +330,53 @@ where
         .output()
         .expect("the skyfix binary was built by cargo test");
     Run::from(output)
+}
+
+/// Compare two JSON documents, allowing numbers to differ by up to `tol`.
+///
+/// A fixture derived from floating-point astronomy cannot be compared byte for byte:
+/// rebuilding a dependency, or a different rounding in one `f64` operation, moves the
+/// last digit or two, and a test that fails on that is noise. `tol` is chosen to be far
+/// below anything that could matter (1e-8 degrees is 0.04 milliarcseconds, under a
+/// tenth of a millimetre on the ground) and far above that floor, so a genuine change in
+/// the sky model still fails.
+pub fn json_close(a: &serde_json::Value, b: &serde_json::Value, tol: f64, path: &str) -> Result<(), String> {
+    use serde_json::Value;
+    match (a, b) {
+        (Value::Number(x), Value::Number(y)) => {
+            let (x, y) = (x.as_f64().unwrap_or(f64::NAN), y.as_f64().unwrap_or(f64::NAN));
+            if (x - y).abs() <= tol {
+                Ok(())
+            } else {
+                Err(format!("{path}: {x} vs {y} (differ by {:.3e}, tolerance {tol:.0e})", (x - y).abs()))
+            }
+        }
+        (Value::Object(x), Value::Object(y)) => {
+            let mut keys: Vec<&String> = x.keys().chain(y.keys()).collect();
+            keys.sort();
+            keys.dedup();
+            for k in keys {
+                match (x.get(k), y.get(k)) {
+                    (Some(xv), Some(yv)) => json_close(xv, yv, tol, &format!("{path}.{k}"))?,
+                    (None, Some(_)) => return Err(format!("{path}.{k}: missing from the committed file")),
+                    (Some(_), None) => return Err(format!("{path}.{k}: missing from the generated document")),
+                    (None, None) => unreachable!("the key came from one of the two"),
+                }
+            }
+            Ok(())
+        }
+        (Value::Array(x), Value::Array(y)) => {
+            if x.len() != y.len() {
+                return Err(format!("{path}: {} entries vs {}", x.len(), y.len()));
+            }
+            for (i, (xv, yv)) in x.iter().zip(y).enumerate() {
+                json_close(xv, yv, tol, &format!("{path}[{i}]"))?;
+            }
+            Ok(())
+        }
+        (x, y) if x == y => Ok(()),
+        (x, y) => Err(format!("{path}: {x} vs {y}")),
+    }
 }
 
 /// Great-circle distance between two positions, metres.

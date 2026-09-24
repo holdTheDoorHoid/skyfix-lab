@@ -111,8 +111,13 @@ pub fn run(path: &Path, flags: &Flags) -> Result<u8> {
 /// whose role is `initializer`; a `prior` role becomes a prior and nothing else, so an
 /// assumed position can never act as both.
 pub fn build_options(session: &Session, flags: &Flags) -> SolveOptions {
-    let mut o = SolveOptions::default();
+    apply_flags(options_from_session(session), flags)
+}
 
+/// The session's own contribution: the assumed position in whatever role it declares,
+/// and the clock uncertainty to propagate (CONVENTIONS sections 6 and 8).
+pub fn options_from_session(session: &Session) -> SolveOptions {
+    let mut o = SolveOptions::default();
     if let Some(ap) = session.observer.assumed_position {
         match session.observer.assumed_position_role {
             AssumedPositionRole::Initializer => o.initializer = Some(ap),
@@ -126,7 +131,12 @@ pub fn build_options(session: &Session, flags: &Flags) -> SolveOptions {
         }
     }
     o.clock_uncertainty_s = session.clock.uncertainty_s;
+    o
+}
 
+/// Lay the command-line flags over whatever options were built so far. Every flag that
+/// is present wins.
+pub fn apply_flags(mut o: SolveOptions, flags: &Flags) -> SolveOptions {
     if flags.no_init {
         o.initializer = None;
     }
@@ -167,10 +177,12 @@ pub fn render(result: &FixResult, options: &SolveOptions) -> String {
         FixResult::Unique {
             fix,
             alternatives,
+            circles,
             warnings,
         } => {
             out.push_str("UNIQUE FIX\n");
             render_fix(fix, options, &mut out);
+            render_circles(circles, &mut out);
             if !alternatives.is_empty() {
                 out.push_str("\nRejected alternatives\n");
                 for (i, c) in alternatives.iter().enumerate() {
@@ -195,7 +207,14 @@ pub fn render(result: &FixResult, options: &SolveOptions) -> String {
                 render_candidate(i + 1, c, &mut out);
             }
             out.push('\n');
-            for line in report::wrap(&ambiguity_sentence(candidates.len()), 88, "") {
+            // The headline goes out unwrapped: it is the sentence a reader scanning the
+            // output is looking for, and a line break through the middle of it would
+            // make it harder to find and harder to grep for.
+            out.push_str(&format!(
+                "These observations cannot distinguish the {} candidates.\n",
+                candidates.len()
+            ));
+            for line in report::wrap(AMBIGUITY_REMEDY, 88, "") {
                 out.push_str(&line);
                 out.push('\n');
             }
@@ -211,7 +230,10 @@ pub fn render(result: &FixResult, options: &SolveOptions) -> String {
             out.push_str(&format!("Reason  {reason}\n"));
             render_circles(circles, &mut out);
             out.push('\n');
-            for line in report::wrap(&underdetermined_sentence(circles.len()), 88, "") {
+            let (headline, remedy) = underdetermined_sentences(circles.len());
+            out.push_str(headline);
+            out.push('\n');
+            for line in report::wrap(remedy, 88, "") {
                 out.push_str(&line);
                 out.push('\n');
             }
@@ -417,27 +439,34 @@ fn render_circles(circles: &[CircleOfPosition], out: &mut String) {
     }
 }
 
-fn ambiguity_sentence(n: usize) -> String {
-    format!(
-        "These observations cannot distinguish the {n} candidates: every one of them fits the \
-         sights about equally well, so promoting any of them would be false precision. One more \
-         sight of a body 60 to 120 degrees away in azimuth from the ones already used would \
-         separate them, and so would any independent knowledge of position good to less than the \
-         distance between the candidates."
-    )
-}
+/// What would settle an ambiguity, in the terms a navigator can act on.
+const AMBIGUITY_REMEDY: &str =
+    "Every candidate fits the sights about equally well, so promoting one of them would be \
+     false precision. One more sight of a body 60 to 120 degrees away in azimuth from those \
+     already used would separate them, and so would any independent knowledge of position good \
+     to less than the distance between the candidates — declared as a prior, so that the \
+     reported uncertainty includes it.";
 
-fn underdetermined_sentence(circles: usize) -> String {
+/// The headline sentence, which is printed unwrapped, and the paragraph that follows it.
+///
+/// The headline is deliberately short enough to survive on one line: it is the finding,
+/// and a line break through the middle of it would make the output harder to read and
+/// harder to search.
+fn underdetermined_sentences(circles: usize) -> (&'static str, &'static str) {
     if circles <= 1 {
-        "There is not enough geometry here to intersect anything: one sight constrains you to a \
-         circle, not a point. Every position on the circle above fits the observation exactly as \
-         well as every other."
-            .to_string()
+        (
+            "Geometrically: one sight constrains you to a circle, not a point.",
+            "Every position on the circle above fits the observation exactly as well as every \
+             other, so there is no position to report and none is reported. A second body, at \
+             an azimuth well away from the first, is what turns a circle into a pair of points.",
+        )
     } else {
-        "These sights do not cross at a point: their circles of position are parallel or tangent \
-         where they meet, so they constrain you to a line, not a point. A body at a different \
-         azimuth is what breaks it."
-            .to_string()
+        (
+            "Geometrically: these sights constrain you to a line, not a point.",
+            "Their circles of position are parallel or tangent where they meet, so moving along \
+             that line changes no predicted altitude enough to notice. A body at a different \
+             azimuth is what breaks it.",
+        )
     }
 }
 
@@ -610,7 +639,7 @@ mod tests {
         let text = render(&under, &SolveOptions::default());
         assert!(text.starts_with("UNDERDETERMINED\n"), "{text}");
         assert!(
-            text.contains("one sight constrains you to a circle, not a point"),
+            report::flatten(&text).contains("one sight constrains you to a circle, not a point"),
             "{text}"
         );
         assert!(text.contains("1800.0 NM"), "radius in NM missing: {text}");

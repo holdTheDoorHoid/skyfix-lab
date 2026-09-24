@@ -129,6 +129,11 @@ fn truth_json() -> String {
     s
 }
 
+/// How far a committed number may sit from a freshly generated one: 1e-8 degrees is
+/// 0.04 milliarcseconds, under a tenth of a millimetre of position. Anything a reader
+/// would call a change in the sky is orders of magnitude larger.
+const NUMERIC_TOLERANCE: f64 = 1e-8;
+
 #[test]
 fn committed_fixtures_match_their_generator() {
     let wanted: Vec<(&str, String)> = vec![
@@ -156,14 +161,18 @@ fn committed_fixtures_match_their_generator() {
                 path.display()
             )
         });
-        assert_eq!(
-            found,
-            text,
-            "{} has drifted from its generator. If the star provider changed on purpose, \
-             regenerate with SKYFIX_WRITE_FIXTURES=1 and re-check every worked example in \
-             docs/CLI.md",
-            path.display()
-        );
+        let committed: serde_json::Value =
+            serde_json::from_str(&found).expect("the committed fixture is JSON");
+        let generated: serde_json::Value =
+            serde_json::from_str(&text).expect("the generator emits JSON");
+        if let Err(what) = support::json_close(&committed, &generated, NUMERIC_TOLERANCE, name) {
+            panic!(
+                "{} has drifted from its generator: {what}. If the sky model changed on \
+                 purpose, regenerate with SKYFIX_WRITE_FIXTURES=1 and re-check every worked \
+                 example in docs/CLI.md",
+                path.display()
+            );
+        }
     }
 }
 

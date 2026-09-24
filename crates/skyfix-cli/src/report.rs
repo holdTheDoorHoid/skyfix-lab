@@ -150,6 +150,15 @@ pub fn emit_line(text: &str) -> std::io::Result<()> {
     emit(&format!("{text}\n"))
 }
 
+/// Collapse every run of whitespace to one space.
+///
+/// A wrapped report can break a phrase across two lines, so a test (or a `grep`) that
+/// looks for wording must flatten the text first: where the line break falls is a
+/// formatting detail, not part of the contract.
+pub fn flatten(s: &str) -> String {
+    s.split_whitespace().collect::<Vec<_>>().join(" ")
+}
+
 /// One CSV field, quoted in the RFC 4180 way when it needs to be.
 pub fn csv_field(s: &str) -> String {
     if s.contains([',', '"', '\n', '\r']) || s.starts_with(' ') || s.ends_with(' ') {
@@ -371,9 +380,12 @@ mod tests {
 
     #[test]
     fn wrapping_respects_the_width_and_drops_empty_text() {
+        // The indent is not counted against the width; "four five" is exactly 9.
         let lines = wrap("one two three four five", 9, "  ");
-        assert_eq!(lines, vec!["  one two", "  three", "  four", "  five"]);
+        assert_eq!(lines, vec!["  one two", "  three", "  four five"]);
+        assert_eq!(wrap("one two three four five", 8, "  "), vec!["  one two", "  three", "  four", "  five"]);
         assert!(wrap("   ", 20, "  ").is_empty());
+        assert_eq!(flatten(&lines.join("\n")), "one two three four five");
     }
 
     #[test]
@@ -450,10 +462,15 @@ mod tests {
                 !s.contains('{') && !s.contains('}'),
                 "{w:?} -> {s:?} looks like a debug dump, not a sentence"
             );
-            assert!(
-                s.chars().next().is_some_and(|c| c.is_uppercase()),
-                "{w:?} -> {s:?} does not start a sentence"
-            );
+            // `Other` carries a message written by whoever raised it, often naming a
+            // field ("observer.pressure_hpa 500 is outside..."), so it is the one
+            // variant whose sentence may legitimately start lower case.
+            if !matches!(w, Warning::Other { .. }) {
+                assert!(
+                    s.chars().next().is_some_and(|c| c.is_uppercase()),
+                    "{w:?} -> {s:?} does not start a sentence"
+                );
+            }
         }
     }
 

@@ -28,14 +28,14 @@
       "id": "obs-1",
       "body": "Vega",
       "utc": "2026-10-01T01:30:00Z",
-      "altitude_deg": 61.072469044209,
+      "altitude_deg": 61.072469040535,
       "altitude_kind": "observed_ho",
       "sigma_arcmin": 1.0,
       "limb": "center",
       "horizon": null,
       "geocentric": {
-        "gha_deg": 112.844023232568,
-        "dec_deg": 38.812938149832,
+        "gha_deg": 112.844023236059,
+        "dec_deg": 38.812938145649,
         "semidiameter_arcmin": 0.0,
         "horizontal_parallax_arcmin": 0.0
       },

@@ -226,7 +226,9 @@ fn step_row(step: &CorrectionStep) -> String {
         step.before_deg,
         step.after_deg,
         step.delta_arcmin,
-        step.note
+        // A note is free text from the core. Flattening it keeps one step on one row,
+        // so the columns stay readable even if a future note gains a line break.
+        report::flatten(&step.note)
     )
 }
 
