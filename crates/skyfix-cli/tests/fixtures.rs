@@ -111,6 +111,22 @@ fn sextant_json() -> String {
     b.json()
 }
 
+/// Two stars 0.3 degrees apart in azimuth: the classic bad geometry, and the input the
+/// planner's `--taken` path has to recognise. Their circles of position are nearly
+/// parallel, so they pin down how far along one line you are and say almost nothing
+/// about where you are across it.
+fn clustered_json() -> String {
+    SessionBuilder::new(
+        "Philadelphia two-star, clustered",
+        "Schedar at Zn 45.7 and Mirfak at Zn 46.0, both in the north-east. Used to check \
+         that `skyfix plan --taken` recommends a body across the weak axis rather than \
+         another bright one in the same direction.",
+    )
+    .observed_ho("obs-1", "Schedar", PHL, 1.0)
+    .observed_ho("obs-2", "Mirfak", PHL, 1.0)
+    .json()
+}
+
 fn truth_json() -> String {
     let truth = Truth {
         schema: TRUTH_SCHEMA.to_string(),
@@ -141,6 +157,7 @@ fn committed_fixtures_match_their_generator() {
         ("phl_two_star.session.json", two_star_json()),
         ("phl_one_star.session.json", one_star_json()),
         ("phl_sextant.session.json", sextant_json()),
+        ("phl_clustered.session.json", clustered_json()),
         ("phl.truth.json", truth_json()),
     ];
 
@@ -185,6 +202,7 @@ fn every_fixture_altitude_is_the_truth_altitude() {
         "phl_two_star.session.json",
         "phl_one_star.session.json",
         "phl_sextant.session.json",
+        "phl_clustered.session.json",
     ] {
         let text = std::fs::read_to_string(data_file(name)).expect("fixture exists");
         let (session, _) = skyfix_core::session::parse_session(&text).expect("fixture is valid");

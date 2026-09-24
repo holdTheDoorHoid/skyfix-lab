@@ -908,17 +908,373 @@ fn an_experiment_pointed_at_the_answer_is_refused() {
 // exit codes and usage
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// plan
+// ---------------------------------------------------------------------------
+
+/// Philadelphia at the fixtures' own instant, 21:30 local on 1 October 2026.
+const PLAN_ARGS: [&str; 5] = [
+    "plan",
+    "--position",
+    "39.9526,-75.1652",
+    "--utc",
+    "2026-10-01T01:30:00Z",
+];
+
 #[test]
-fn plan_is_not_wired_and_exits_four() {
-    skyfix([
+fn plan_ranks_the_sky_that_is_actually_up() {
+    let run = skyfix(PLAN_ARGS).expect_code(0);
+    assert!(
+        run.stdout.starts_with("OBSERVATION PLAN\n"),
+        "{}",
+        run.stdout
+    );
+
+    // Vega is nearly overhead in the west and Polaris sits due north: between them they
+    // open two axes, so a geometry-first ranking has to want both.
+    assert!(
+        run.stdout.contains("Vega"),
+        "Vega is missing:\n{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout.contains("Polaris"),
+        "Polaris is missing:\n{}",
+        run.stdout
+    );
+    // Sirius does not rise until the small hours: a planner that offered it would be
+    // ranking a body that is not in the sky.
+    assert!(
+        !run.stdout.contains("Sirius"),
+        "Sirius is below the horizon at this instant and must not appear:\n{}",
+        run.stdout
+    );
+
+    // Each ranked body carries altitude, azimuth, magnitude, expected sigma and a score.
+    assert!(run.stdout.contains("alt"), "{}", run.stdout);
+    assert!(run.stdout.contains("Zn"), "{}", run.stdout);
+    assert!(run.stdout.contains("mag"), "{}", run.stdout);
+    assert!(run.stdout.contains("sigma '"), "{}", run.stdout);
+    assert!(run.stdout.contains("score"), "{}", run.stdout);
+    assert!(
+        support::flatten(&run.stdout).contains("score is in metres"),
+        "the score's units have to be stated:\n{}",
+        run.stdout
+    );
+
+    // The progression, and the excluded bodies with their reasons.
+    assert!(
+        run.stdout.contains("Predicted quality, sight by sight"),
+        "{}",
+        run.stdout
+    );
+    assert!(run.stdout.contains("semi-maj m"), "{}", run.stdout);
+    assert!(run.stdout.contains("Excluded"), "{}", run.stdout);
+    assert!(
+        support::flatten(&run.stdout).contains("above the 75.0 deg maximum"),
+        "a near-zenith body must say why it was excluded:\n{}",
+        run.stdout
+    );
+}
+
+#[test]
+fn plan_prints_every_disclosure_note_verbatim() {
+    let run = skyfix(PLAN_ARGS).expect_code(0);
+    // These strings are the core's own constants; the report may not reword them.
+    for note in [
+        skyfix_core::planner::NOTE_GEOMETRIC_VISIBILITY,
+        skyfix_core::planner::NOTE_BRIGHTNESS_SECONDARY,
+    ] {
+        assert!(
+            run.stdout.contains(note),
+            "the disclosure {note:?} is missing or reworded:\n{}",
+            run.stdout
+        );
+    }
+    assert!(
+        run.stdout
+            .contains(&skyfix_core::planner::note_approximate_position(&PHL)),
+        "the plan must disclose the position it rested on:\n{}",
+        run.stdout
+    );
+    // Notes go out one per line, so a disclosure is never split across a wrap.
+    let json: Value = serde_json::from_str(
+        &skyfix(
+            PLAN_ARGS
+                .iter()
+                .copied()
+                .chain(["--json"])
+                .collect::<Vec<_>>(),
+        )
+        .expect_code(0)
+        .stdout,
+    )
+    .expect("plan --json is JSON");
+    for n in json["notes"].as_array().expect("notes") {
+        let n = n.as_str().expect("a note is a string");
+        assert!(
+            run.stdout
+                .lines()
+                .any(|l| l.trim_start_matches("  - ") == n),
+            "note {n:?} is not on a line of its own in the text report"
+        );
+    }
+}
+
+#[test]
+fn plan_computes_the_sun_altitude_for_the_twilight_note() {
+    let run = skyfix(PLAN_ARGS).expect_code(0);
+    // 21:30 local on 1 October: the Sun is well down, so stars yes, sea horizon no.
+    assert!(
+        run.stdout.contains("Sun        altitude -31."),
+        "the Sun's computed altitude belongs in the header:\n{}",
+        run.stdout
+    );
+    assert!(
+        run.stdout.contains(skyfix_ephemeris::visibility::NOTE_DARK),
+        "{}",
+        run.stdout
+    );
+
+    // Local noon the same day: too bright for stars, and the Sun itself is a candidate.
+    let noon = skyfix([
         "plan",
         "--position",
         "39.9526,-75.1652",
         "--utc",
+        "2026-10-01T17:00:00Z",
+    ])
+    .expect_code(0);
+    assert!(
+        noon.stdout
+            .contains(skyfix_ephemeris::visibility::NOTE_TOO_BRIGHT),
+        "{}",
+        noon.stdout
+    );
+    assert!(
+        noon.stdout.contains("Sun        altitude +"),
+        "the Sun should be above the horizon at local noon:\n{}",
+        noon.stdout
+    );
+}
+
+#[test]
+fn plan_taken_recommends_a_body_across_the_weak_axis() {
+    // Schedar and Mirfak are 0.3 degrees apart in azimuth, both about 46 degrees: two
+    // nearly parallel lines of position. The next sight has to cross them, not join them.
+    let run = skyfix(
+        PLAN_ARGS
+            .iter()
+            .copied()
+            .chain([
+                "--taken",
+                &fixture("phl_clustered.session.json"),
+                "--select",
+                "1",
+            ])
+            .collect::<Vec<_>>(),
+    )
+    .expect_code(0);
+
+    let json: Value = serde_json::from_str(
+        &skyfix(
+            PLAN_ARGS
+                .iter()
+                .copied()
+                .chain([
+                    "--taken",
+                    &fixture("phl_clustered.session.json"),
+                    "--select",
+                    "1",
+                    "--json",
+                ])
+                .collect::<Vec<_>>(),
+        )
+        .expect_code(0)
+        .stdout,
+    )
+    .expect("plan --json is JSON");
+
+    let first = &json["bodies"][0];
+    let zn = first["azimuth_deg"].as_f64().expect("an azimuth");
+    // Angle between the recommendation and the 46-degree cluster, folded onto [0, 90]:
+    // 90 is perpendicular, 0 is straight down the same line.
+    let taken_zn = 45.87_f64;
+    let mut sep = (zn - taken_zn).rem_euclid(180.0);
+    if sep > 90.0 {
+        sep = 180.0 - sep;
+    }
+    assert!(
+        sep > 75.0,
+        "recommended {} at Zn {zn:.1}, only {sep:.1} degrees from the cluster at {taken_zn};          a body across the weak axis was the point",
+        first["body"]
+    );
+    assert!(
+        support::flatten(&run.stdout).contains("weak along the"),
+        "the rationale must name the weak axis:\n{}",
+        run.stdout
+    );
+    assert!(
+        support::flatten(&run.stdout).contains("already taken were read from"),
+        "reading a --taken session is a disclosure:\n{}",
+        run.stdout
+    );
+
+    // The baseline is what the two clustered sights alone predict, and it is dreadful.
+    let baseline = &json["baseline"];
+    assert_eq!(baseline["sight_count"], 2);
+    let before = baseline["trace_sigma_m"]
+        .as_f64()
+        .expect("a baseline sigma");
+    let after = json["predicted"]["trace_sigma_m"]
+        .as_f64()
+        .expect("a predicted sigma");
+    assert!(
+        before > 10.0 * after,
+        "one crossing sight should transform the fix: {before:.0} m -> {after:.0} m"
+    );
+}
+
+#[test]
+fn plan_select_and_altitude_window_are_honoured() {
+    let json: Value = serde_json::from_str(
+        &skyfix(
+            PLAN_ARGS
+                .iter()
+                .copied()
+                .chain([
+                    "--select",
+                    "3",
+                    "--min-alt",
+                    "30",
+                    "--max-alt",
+                    "60",
+                    "--json",
+                ])
+                .collect::<Vec<_>>(),
+        )
+        .expect_code(0)
+        .stdout,
+    )
+    .expect("plan --json is JSON");
+
+    let bodies = json["bodies"].as_array().expect("bodies");
+    assert_eq!(bodies.len(), 3);
+    for b in bodies {
+        let alt = b["altitude_deg"].as_f64().expect("an altitude");
+        assert!(
+            (30.0..=60.0).contains(&alt),
+            "{} at {alt} is outside the requested window",
+            b["body"]
+        );
+    }
+}
+
+#[test]
+fn plan_objective_changes_what_is_optimised_and_says_so() {
+    for (arg, needle) in [
+        ("min-trace", "A-optimal"),
+        ("min-max-eigen", "E-optimal"),
+        ("min-condition", "aspect ratio"),
+    ] {
+        let run = skyfix(
+            PLAN_ARGS
+                .iter()
+                .copied()
+                .chain(["--objective", arg])
+                .collect::<Vec<_>>(),
+        )
+        .expect_code(0);
+        assert!(
+            run.stdout.contains(needle),
+            "--objective {arg} should describe itself as {needle:?}:\n{}",
+            run.stdout
+        );
+    }
+    // min_condition optimises shape and is blind to size, so it can end up with a
+    // rounder ellipse and a larger one. Asserting only that it is rounder.
+    let ratio = |arg: &str| -> f64 {
+        let v: Value = serde_json::from_str(
+            &skyfix(
+                PLAN_ARGS
+                    .iter()
+                    .copied()
+                    .chain(["--objective", arg, "--select", "3", "--json"])
+                    .collect::<Vec<_>>(),
+            )
+            .expect_code(0)
+            .stdout,
+        )
+        .expect("json");
+        v["predicted"]["condition_number"]
+            .as_f64()
+            .expect("a condition number")
+    };
+    assert!(
+        ratio("min-condition") <= ratio("min-trace") + 1e-9,
+        "min-condition produced a less round ellipse than min-trace"
+    );
+}
+
+#[test]
+fn plan_json_round_trips_through_the_core_type() {
+    let run = skyfix(
+        PLAN_ARGS
+            .iter()
+            .copied()
+            .chain(["--json"])
+            .collect::<Vec<_>>(),
+    )
+    .expect_code(0);
+    let plan: skyfix_core::planner::Plan =
+        serde_json::from_str(&run.stdout).expect("round-trips through the core type");
+    assert_eq!(plan.approximate_position, PHL);
+    assert_eq!(plan.utc, "2026-10-01T01:30:00Z");
+    assert_eq!(plan.bodies.len(), skyfix_core::planner::DEFAULT_SELECT);
+    // progression[0] is the baseline, then one entry per selected body.
+    assert_eq!(plan.progression.len(), plan.bodies.len() + 1);
+    assert_eq!(plan.progression[0], plan.baseline);
+    assert_eq!(
+        plan.progression.last().expect("a last step"),
+        &plan.predicted
+    );
+    for (i, b) in plan.bodies.iter().enumerate() {
+        assert_eq!(b.step, i + 1, "steps are 1-based and in order");
+        assert!(!b.rationale.is_empty(), "{} has no rationale", b.body);
+    }
+}
+
+#[test]
+fn plan_refuses_a_position_it_cannot_parse() {
+    skyfix([
+        "plan",
+        "--position",
+        "somewhere",
+        "--utc",
         "2026-10-01T01:30:00Z",
     ])
-    .expect_code(4)
-    .expect_stderr("not yet wired in this build");
+    .expect_code(1);
+    skyfix(["plan", "--utc", "2026-10-01T01:30:00Z"]).expect_code(1);
+    skyfix(["plan", "--position", "39.9526,-75.1652"]).expect_code(1);
+}
+
+#[test]
+fn plan_refuses_a_time_outside_provider_coverage() {
+    // 1850 is outside every provider's coverage, so there is no sky to rank and no Sun
+    // altitude to report. The request fails rather than inventing either.
+    let run = skyfix([
+        "plan",
+        "--position",
+        "39.9526,-75.1652",
+        "--utc",
+        "1850-01-01T00:00:00Z",
+    ])
+    .expect_code(1);
+    assert!(
+        support::flatten(&run.stderr).contains("coverage"),
+        "the refusal must name the coverage limit:\n{}",
+        run.stderr
+    );
 }
 
 #[test]
