@@ -33,6 +33,7 @@ import {
 import {
   applyMode,
   bindTimeButtons,
+  scrollToCurrent,
   card,
   errorText,
   glyph,
@@ -45,6 +46,7 @@ import {
   stepperNav,
   svgText,
   table,
+  textWidth,
   timeButtonText,
   tipHead,
   tipRow,
@@ -352,11 +354,20 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       const x = round(xs(pos)) + 0.5;
       seasons.append(s('line', { x1: x, x2: x, y1: y0, y2: y1 }));
       const date = localDateOf(ev.jd_utc, zone);
-      const lp = pill(x, y1 - 11, `${SEASON_LABELS[ev.kind]} ${dayMonth(date)}`, { size: 10 });
-      const shift = clamp(x, x0 + lp.box.w / 2 + 2, x1 - lp.box.w / 2 - 2) - x;
-      if (shift) lp.el.setAttribute('transform', `translate(${round(shift)} 0)`);
-      labelBoxes.push({ ...lp.box, x: lp.box.x + shift });
-      seasons.append(lp.el);
+      for (const [text, dy] of [
+        [`${SEASON_LABELS[ev.kind]} ${dayMonth(date)}`, 0],
+        [`${SEASON_LABELS[ev.kind]} ${dayMonth(date)}`, -20],
+        [dayMonth(date), 0],
+      ] as const) {
+        const lp = pill(x, y1 - 11 + dy, text, { size: 10 });
+        const shift = clamp(x, x0 + lp.box.w / 2 + 2, x1 - lp.box.w / 2 - 2) - x;
+        const box = { ...lp.box, x: lp.box.x + shift };
+        if (labelBoxes.some((b) => overlaps(b, box))) continue;
+        if (shift) lp.el.setAttribute('transform', `translate(${round(shift)} 0)`);
+        labelBoxes.push(box);
+        seasons.append(lp.el);
+        break;
+      }
     }
     root.append(seasons);
 
@@ -402,7 +413,10 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     // Moon phases along the top.
     const strip = s('g', { class: 'sfc-moonstrip' });
     const ym = polarRow ? 10 : 12;
-    for (const ev of sky?.moonPhases ?? []) {
+    // Where the quarters would crowd each other, only new and full moons.
+    const phases = sky?.moonPhases ?? [];
+    const crowded = phases.length > 0 && (x1 - x0) / phases.length < 13;
+    for (const ev of crowded ? phases.filter((p) => p.kind === 'new_moon' || p.kind === 'full_moon') : phases) {
       const pos = dayPosition(days, ev.jd_utc);
       if (pos === null) continue;
       const disc = phaseGlyph(ev.kind, xs(pos), ym, narrow ? 4.5 : 5.5, south);
@@ -466,6 +480,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     if (open) area += `L${round(lastX)} ${round(dly(0))}L${round(firstX)} ${round(dly(0))}Z`;
     dl.append(s('path', { class: 'sfc-daylen-area', d: area }), s('path', { class: 'sfc-daylen-line', d: line }));
     const ext = s('g', { class: 'sfc-extreme' });
+    const extBoxes: Box[] = [];
     for (const [which, e] of [
       ['Longest', data.longest && data.longest.hours < 23.99 ? data.longest : null],
       ['Shortest', data.shortest && data.shortest.hours > 0.01 ? data.shortest : null],
@@ -476,7 +491,17 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       ext.append(s('circle', { cx: round(x), cy: round(y), r: 4 }));
       const text = `${which} ${duration(e.hours)}, ${dayMonth(days[e.index]!.day.date)}`;
       const anchorRight = x > (x0 + x1) / 2;
-      ext.append(svgText(x + (anchorRight ? -8 : 8), clamp(y + (which === 'Longest' ? 13 : -7), dlTop + 10, dlBottom - 4), text, { 'text-anchor': anchorRight ? 'end' : 'start' }));
+      const w = textWidth(text, 10.5);
+      const tx = x + (anchorRight ? -8 : 8);
+      // Longest below its point, shortest above; the other side if that collides.
+      for (const dy of which === 'Longest' ? [13, -7] : [-7, 13]) {
+        const ty = clamp(y + dy, dlTop + 10, dlBottom - 4);
+        const box = { x: anchorRight ? tx - w : tx, y: ty - 10, w, h: 12 };
+        if (extBoxes.some((b) => overlaps(b, box))) continue;
+        extBoxes.push(box);
+        ext.append(svgText(tx, ty, text, { 'text-anchor': anchorRight ? 'end' : 'start' }));
+        break;
+      }
     }
     dl.append(ext);
     root.append(dl);
@@ -756,6 +781,10 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       drawDirty = true;
       recompute();
       renderLegend();
+      if (ui.get().mode === 'table') {
+        renderHeader();
+        renderTable();
+      }
     }
     if (drawDirty) {
       drawDirty = false;
@@ -788,7 +817,10 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       (u) => u.mode,
       (mode) => {
         applyMode(c, mode);
-        if (mode === 'table') renderTable();
+        if (mode === 'table') {
+          renderTable();
+          scrollToCurrent(c);
+        }
         else schedule();
       },
       { immediate: true },

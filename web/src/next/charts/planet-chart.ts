@@ -30,6 +30,7 @@ import {
 import {
   applyMode,
   bindTimeButtons,
+  scrollToCurrent,
   card,
   errorText,
   glyph,
@@ -79,11 +80,20 @@ export function planetInputFor(state: ExplorerState): PlanetInput {
   return { ...y, planets: ALL_PLANETS };
 }
 
+/** Where in the night a planet is up, in words: from dusk (evening), until dawn (morning). */
 const PLACEMENT_WORDS: Record<Placement, string> = {
-  evening: 'evening',
-  morning: 'morning',
+  evening: 'from dusk',
+  morning: 'until dawn',
   'all night': 'all night',
-  midnight: 'middle of the night',
+  midnight: 'in the middle of the night',
+};
+
+/** The same for the summary table's "part of the night" column. */
+const PLACEMENT_NAMES: Record<Placement, string> = {
+  evening: 'Evening (up at dusk)',
+  morning: 'Morning (up at dawn)',
+  'all night': 'All night',
+  midnight: 'Middle of the night',
 };
 
 interface Band {
@@ -129,6 +139,8 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
 
   const tip = tooltip(c.plot);
   const nav = stepperNav(c.nav, 'Previous year', 'Next year', (dir) => stepTime(store, { unit: 'year', count: dir }));
+  const progress = h('span', { class: 'sfc-progress', 'aria-hidden': 'true' });
+  c.status.after(progress);
 
   // --- data --------------------------------------------------------------------------------
   let inputCache: { key: string; start: number; end: number; input: PlanetInput } | null = null;
@@ -210,7 +222,9 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
   });
 
   function updateStatus(): void {
-    c.status.textContent = job && !job.done ? `Working out the planets night by night… ${Math.round(job.progress * 100)} %` : '';
+    const text = job && !job.done ? 'Working out the planets night by night…' : '';
+    if (c.status.textContent !== text) c.status.textContent = text;
+    progress.textContent = job && !job.done ? `${Math.round(job.progress * 100)} %` : '';
     const drawn = ui.get().mode === 'table' ? c.tableWrap.childElementCount > 0 : geom !== null;
     c.root.dataset.ready = job?.done && sky && drawn ? '1' : '0';
   }
@@ -234,7 +248,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       h('span', { class: 'sfc-legend-sep', 'aria-hidden': 'true' }),
       h('span', { class: 'sfc-legend-item' }, h('span', { class: 'sfc-swatch sfc-swatch--body sfc-b-jupiter', 'aria-hidden': 'true' }), 'Planet up in the dark (in its own colour)'),
       h('span', { class: 'sfc-legend-sep', 'aria-hidden': 'true' }),
-      h('span', { class: 'sfc-legend-item sfc-muted' }, 'Each column is one night: evening at the top, morning at the bottom'),
+      h('span', { class: 'sfc-legend-note sfc-muted' }, 'Each column is one night: evening at the top, morning at the bottom.'),
     );
   }
 
@@ -272,7 +286,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     for (const b of bandsSpec) {
       if (lastPrimary && !b.primary) {
         y += 22;
-        groupLabels.push({ y: y - 7, text: 'Harder to see: low in twilight, or too faint for the eye' });
+        groupLabels.push({ y: y - 7, text: narrow ? 'Harder to see' : 'Harder to see: low in twilight, or too faint for the eye' });
       }
       lastPrimary = b.primary;
       const height = b.primary ? (narrow ? 40 : 52) : narrow ? 26 : 32;
@@ -319,6 +333,23 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       }
       if (astro) bandsG.append(s('path', { class: 'sfc-dark-astro', d: astro }));
       if (night) bandsG.append(s('path', { class: 'sfc-dark-night', d: night }));
+      // Where darkness begins and ends each night, as two thin lines: in the dark themes
+      // "too light" and astronomical twilight are close in colour.
+      let edges = '';
+      for (const key of ['from', 'to'] as const) {
+        let open = false;
+        for (const nt of nights) {
+          const sp = key === 'from' ? nt.dark[0] : nt.dark[nt.dark.length - 1];
+          if (!sp) {
+            open = false;
+            continue;
+          }
+          const yv = round(band.ys(clamp(sp[key], band.ys.domain[0], band.ys.domain[1])));
+          edges += `${open ? 'L' : 'M'}${round(xs(nt.index + 0.5))} ${yv}`;
+          open = true;
+        }
+      }
+      if (edges) bandsG.append(s('path', { class: 'sfc-dark-edge', d: edges }));
       // Midnight, faintly.
       if (range && 12 > range[0] && 12 < range[1]) {
         const ym = round(band.ys(12)) + 0.5;
@@ -587,6 +618,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     const zone = job.data.input.zone;
     const lines: string[] = [];
     if (!nt.darkWindow) return { night: nt, lines: ['the sky does not get dark'] };
+    if (!nt.computed && !PRIMARY_PLANETS.some((p) => nt.visible.has(p))) return { night: nt, lines: ['working it out…'] };
     for (const planet of PRIMARY_PLANETS) {
       const spans = nt.visible.get(planet);
       if (!spans) continue;
@@ -653,7 +685,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
             'tr',
             {},
             h('th', { scope: 'row' }, k ? '' : planet),
-            h('td', { class: 'sfc-text' }, PLACEMENT_WORDS[r.placement]),
+            h('td', { class: 'sfc-text' }, PLACEMENT_NAMES[r.placement]),
             h('td', {}, dateShort(nights[r.first]!.night.date)),
             h('td', {}, dateShort(nights[r.last]!.night.date)),
             h('td', {}, `${duration(r.bestHours)} (${dayMonth(nights[r.bestIndex]!.night.date)})`),
@@ -723,6 +755,10 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       drawDirty = true;
       recompute();
       renderLegend();
+      if (ui.get().mode === 'table') {
+        renderHeader();
+        renderTable();
+      }
     }
     if (drawDirty) {
       drawDirty = false;
@@ -763,7 +799,10 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       (u) => u.mode,
       (mode) => {
         applyMode(c, mode);
-        if (mode === 'table') renderTable();
+        if (mode === 'table') {
+          renderTable();
+          scrollToCurrent(c);
+        }
         else schedule();
       },
       { immediate: true },

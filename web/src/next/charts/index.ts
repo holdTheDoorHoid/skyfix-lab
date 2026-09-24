@@ -24,7 +24,7 @@ import { disposer, type Component, type Ctx, type Mounted } from '../component.j
 import { createStore } from '../state.js';
 import { segmented } from '../theme/primitives.js';
 import { dayChart } from './day-chart.js';
-import type { ChartComponent, ChartMode, ChartTab, ChartUi } from './frame.js';
+import { uid, type ChartComponent, type ChartMode, type ChartTab, type ChartUi } from './frame.js';
 import { moonCalendar } from './moon-calendar.js';
 import { planetChart } from './planet-chart.js';
 import { yearChart } from './year-chart.js';
@@ -62,11 +62,12 @@ export function chartsView(options: ChartsOptions = {}): Component {
 
     // Tabs (WAI-ARIA tabs, automatic activation, arrows move between them).
     const tablist = h('div', { class: 'sf-seg sfc-tabs', role: 'tablist', 'aria-label': 'Charts' });
-    const panel = h('div', { class: 'sfc-panel', role: 'tabpanel', tabindex: '-1' });
+    const panelId = uid('sfc-chart-panel');
+    const panel = h('div', { class: 'sfc-panel', role: 'tabpanel', tabindex: '-1', id: panelId });
     const tabs = CHART_TABS.map((t) => {
       const el = h(
         'button',
-        { type: 'button', class: 'sf-seg__opt', role: 'tab', id: `sfc-tab-${t.id}`, 'data-tip': t.title, 'aria-controls': 'sfc-chart-panel' },
+        { type: 'button', class: 'sf-seg__opt', role: 'tab', id: `${panelId}-${t.id}`, 'data-tip': t.title, 'aria-controls': panelId },
         t.label,
       );
       el.addEventListener('click', () => ui.patch({ tab: t.id }));
@@ -85,7 +86,6 @@ export function chartsView(options: ChartsOptions = {}): Component {
       tablist.append(el);
       return el;
     });
-    panel.id = 'sfc-chart-panel';
 
     // Chart or table.
     const mode = segmented<ChartMode>({
@@ -111,7 +111,7 @@ export function chartsView(options: ChartsOptions = {}): Component {
       mounted?.destroy();
       panel.replaceChildren();
       const def = CHART_TABS.find((t) => t.id === tab) ?? CHART_TABS[0]!;
-      panel.setAttribute('aria-labelledby', `sfc-tab-${def.id}`);
+      panel.setAttribute('aria-labelledby', `${panelId}-${def.id}`);
       mounted = def.chart(panel, ctx, ui);
       mountedTab = def.id;
     };

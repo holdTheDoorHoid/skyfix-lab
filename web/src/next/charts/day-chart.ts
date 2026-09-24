@@ -38,6 +38,7 @@ import { chip } from '../theme/primitives.js';
 import {
   applyMode,
   bindTimeButtons,
+  scrollToCurrent,
   card,
   errorText,
   glyph,
@@ -279,12 +280,13 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     const yH = ys(0);
     geom = { day, zone, xs, ys, x0, x1, y0, y1, width: W, height: H };
 
+    // A group, not an image: it holds the time slider, which must stay reachable.
     const root = s_('svg', {
       width: W,
       height: H,
       viewBox: `0 0 ${W} ${H}`,
-      role: 'img',
-      'aria-label': summaryText(),
+      role: 'group',
+      'aria-label': `Height above the horizon through the day. ${summaryText()} The table view lists every value.`,
     }) as SVGSVGElement;
     const defs = s_('defs');
     defs.append(
@@ -807,13 +809,14 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       ...data.series.map((x) => x.body),
     ]);
     const per = Math.round(60 / DAY_STEP_MINUTES);
+    const now = store.get().time.jd_utc;
     for (let i = 0; i < data.times.length; i += per) {
       const jd = data.times[i]!;
       if (jd >= day.jd_end - 1e-9) break;
       hourly.body.append(
         h(
           'tr',
-          {},
+          { class: now >= jd && now < jd + 1 / 24 ? 'sfc-row-current' : '' },
           h('th', { scope: 'row' }, timeButton(jd, zone)),
           ...data.series.map((x) => h('td', {}, altitude(x.alt[i]!, fmt))),
         ),
@@ -849,6 +852,11 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       drawDirty = true;
       recompute();
       renderLegend();
+      // The table is what is showing: it needs the new numbers even though nothing is drawn.
+      if (ui.get().mode === 'table') {
+        renderHeader();
+        renderTable();
+      }
     }
     if (drawDirty) {
       drawDirty = false;
@@ -912,7 +920,10 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
       (u) => u.mode,
       (mode) => {
         applyMode(c, mode);
-        if (mode === 'table') renderTable();
+        if (mode === 'table') {
+          renderTable();
+          scrollToCurrent(c);
+        }
         else schedule();
       },
       { immediate: true },

@@ -213,6 +213,10 @@
   white-space: nowrap;
 }
 
+.sfc-legend-note {
+  flex-basis: 100%;
+}
+
 .sfc-select {
   height: var(--control-h-sm);
   padding: 0 var(--space-2);
@@ -295,8 +299,15 @@
 }
 
 .sfc-status:empty,
-.sfc-notes:empty {
+.sfc-notes:empty,
+.sfc-progress:empty {
   display: none;
+}
+
+.sfc-progress {
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
 }
 
 .sfc-note {
@@ -610,6 +621,14 @@
 
 .sfc-visible {
   fill: var(--c);
+}
+
+.sfc-dark-edge {
+  fill: none;
+  stroke: var(--stage-line-strong);
+  stroke-width: 1;
+  stroke-opacity: 0.8;
+  stroke-linejoin: round;
 }
 
 .sfc-band-name {

@@ -64,6 +64,9 @@ const SHOTS = {
   'planets-tromso': [`${TROMSO_JUNE}&theme=light&tab=planets`, DESKTOP],
   'planets-sydney': [`${SYDNEY}&theme=light&tab=planets`, DESKTOP],
   'planets-table': [`${PHILLY}&theme=light&tab=planets&mode=table`, DESKTOP],
+  'planets-phone': [`${PHILLY}&theme=dark&tab=planets`, PHONE],
+  'day-table': [`${PHILLY}&theme=light&tab=day&mode=table`, DESKTOP],
+  'moon-table': [`${PHILLY}&theme=dark&tab=moon&mode=table`, DESKTOP],
   // Not a picture: warm and cold timings in this browser, printed (see harness.ts `bench`).
   bench: [`${PHILLY}&bench=1`, DESKTOP],
 };

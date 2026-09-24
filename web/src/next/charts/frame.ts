@@ -176,11 +176,11 @@ export function card(kind: string, headingText: string): Card {
 }
 
 /**
- * ◀ label ▶ in the card's header, with the design system's buttons. The label is live, so
- * screen readers hear where they moved to. Returns the label element.
+ * ◀ label ▶ in the card's header, with the design system's buttons. The label is not a live
+ * region: during playback it changes every frame. Returns the label element.
  */
 export function stepperNav(nav: HTMLElement, prevLabel: string, nextLabel: string, onStep: (dir: -1 | 1) => void): HTMLElement {
-  const label = h('span', { class: 'sfc-nav-label', 'aria-live': 'polite' });
+  const label = h('span', { class: 'sfc-nav-label' });
   nav.replaceChildren(
     iconButton('chevron-left', prevLabel, { size: 'sm', variant: 'secondary', tip: prevLabel, onClick: () => onStep(-1) }),
     label,
@@ -250,11 +250,17 @@ export function tooltip(container: HTMLElement): Tooltip {
       const ch = container.clientHeight;
       const tw = el.offsetWidth;
       const th = el.offsetHeight;
-      let left = x + 14;
-      if (left + tw > cw - 4) left = x - 14 - tw;
-      if (left < 4) left = Math.max(4, Math.min(cw - tw - 4, x - tw / 2));
-      let top = y - th / 2;
-      top = Math.max(4, Math.min(ch - th - 4, top));
+      let left: number;
+      let top: number;
+      if (x + 14 + tw <= cw - 4 || x - 14 - tw >= 4) {
+        // Beside the pointer.
+        left = x + 14 + tw <= cw - 4 ? x + 14 : x - 14 - tw;
+        top = Math.max(4, Math.min(ch - th - 4, y - th / 2));
+      } else {
+        // Too narrow: above the pointer, or below it, so it never hides what is pointed at.
+        left = Math.max(4, Math.min(cw - tw - 4, x - tw / 2));
+        top = y - 16 - th >= 4 ? y - 16 - th : y + 16;
+      }
       el.style.transform = `translate(${Math.round(left)}px, ${Math.round(top)}px)`;
     },
     hide() {
@@ -329,6 +335,12 @@ export function table(captionText: string, headers: string[], cls = ''): { table
     body,
   );
   return { table: t, body };
+}
+
+/** Bring the table row for the app's current time into view (when a table is opened). */
+export function scrollToCurrent(c: Card): void {
+  const row = c.tableWrap.querySelector<HTMLElement>('.sfc-row-current');
+  if (row && typeof row.scrollIntoView === 'function') row.scrollIntoView({ block: 'center' });
 }
 
 /** An in-chart message instead of a picture (engine fault, outside coverage). */

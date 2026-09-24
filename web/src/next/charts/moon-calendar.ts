@@ -36,6 +36,7 @@ import {
 import {
   applyMode,
   bindTimeButtons,
+  scrollToCurrent,
   card,
   errorText,
   message,
@@ -388,7 +389,10 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
       (mode) => {
         applyMode(c, mode);
         c.legend.hidden = false;
-        if (mode === 'table') renderTable();
+        if (mode === 'table') {
+          renderTable();
+          scrollToCurrent(c);
+        }
       },
       { immediate: true },
     ),
