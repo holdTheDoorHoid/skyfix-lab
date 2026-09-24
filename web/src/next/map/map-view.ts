@@ -772,6 +772,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   let controlsState = '';
   function render(): void {
     if (!loaded || destroyed) return;
+    // Mounted but not shown (a hidden tab or panel): nothing to draw until it is resized in.
+    if (viewW === 0 || viewH === 0) return;
     const s = store.get();
     syncView(s.view);
     syncLayers(s.layers);
@@ -825,8 +827,10 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   map.on('move', placeDial);
   map.on('moveend', syncGraticule);
   map.on('resize', () => {
+    const wasHidden = viewW === 0 || viewH === 0;
     viewW = mapEl.clientWidth;
     viewH = mapEl.clientHeight;
+    if (wasHidden) requestRender();
     dial.setRadius(compassRadius(viewW, viewH));
     dial.setCompact(viewW < COMPACT_WIDTH);
     root.classList.toggle('sfm--compact', viewW < COMPACT_WIDTH);
