@@ -1,0 +1,16 @@
+[package]
+name = "skyfix-motion"
+description = "Module C: running fixes with explicit motion uncertainty and independent navigation-estimate disagreement checks."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+skyfix-core = { path = "../skyfix-core" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+approx = { workspace = true }

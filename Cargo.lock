@@ -343,6 +343,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "skyfix-camera"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "serde",
+ "serde_json",
+ "skyfix-core",
+ "skyfix-ephemeris",
+]
+
+[[package]]
 name = "skyfix-cli"
 version = "0.1.0"
 dependencies = [
@@ -376,6 +387,27 @@ dependencies = [
  "serde_json",
  "skyfix-core",
  "thiserror",
+]
+
+[[package]]
+name = "skyfix-motion"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "serde",
+ "serde_json",
+ "skyfix-core",
+]
+
+[[package]]
+name = "skyfix-polar"
+version = "0.1.0"
+dependencies = [
+ "approx",
+ "serde",
+ "serde_json",
+ "skyfix-core",
+ "skyfix-ephemeris",
 ]
 
 [[package]]

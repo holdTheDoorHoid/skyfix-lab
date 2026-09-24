@@ -6,6 +6,9 @@ members = [
     "crates/skyfix-sim",
     "crates/skyfix-cli",
     "crates/skyfix-wasm",
+    "crates/skyfix-camera",
+    "crates/skyfix-polar",
+    "crates/skyfix-motion",
 ]
 
 [workspace.package]
