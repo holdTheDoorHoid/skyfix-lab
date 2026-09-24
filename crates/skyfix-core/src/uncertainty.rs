@@ -83,11 +83,16 @@ pub fn conditioning(weighted_jacobian: &[Vec<f64>], azimuths_rad: &[f64]) -> Con
             geom.push(vec![row[0] / norm, row[1] / norm]);
         }
     }
-    let geometric_dilution_m_per_arcmin = match linalg::invert_sym_pd(&linalg::gram(&geom)) {
-        // trace((J^T J)^-1) is in (radians of position)^2 per (radian of altitude)^2;
-        // one arcminute of altitude is one nautical mile of position at unit dilution.
-        Some(inv) => (inv[0][0] + inv[1][1]).sqrt() * NM_M,
-        None => f64::INFINITY,
+    // An empty Jacobian (no usable sights) has no geometry to speak of.
+    let geometric_dilution_m_per_arcmin = if geom.is_empty() {
+        f64::INFINITY
+    } else {
+        match linalg::invert_sym_pd(&linalg::gram(&geom)) {
+            // trace((J^T J)^-1) is in (radians of position)^2 per (radian of altitude)^2;
+            // one arcminute of altitude is one nautical mile of position at unit dilution.
+            Some(inv) if inv.len() >= 2 => (inv[0][0] + inv[1][1]).sqrt() * NM_M,
+            _ => f64::INFINITY,
+        }
     };
 
     Conditioning {
@@ -132,4 +137,16 @@ pub fn is_poor_geometry(c: &Conditioning) -> bool {
     c.condition_number.is_nan()
         || c.condition_number > POOR_GEOMETRY_CONDITION
         || c.max_azimuth_gap_deg > POOR_GEOMETRY_GAP_DEG
+}
+
+#[cfg(test)]
+mod empty_jacobian {
+    #[test]
+    fn conditioning_of_nothing_does_not_panic() {
+        let c = super::conditioning(&[], &[]);
+        assert_eq!(c.rank, 0);
+        assert!(c.condition_number.is_infinite());
+        assert!(c.geometric_dilution_m_per_arcmin.is_infinite());
+        assert_eq!(c.max_azimuth_gap_deg, 360.0);
+    }
 }

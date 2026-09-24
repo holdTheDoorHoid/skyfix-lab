@@ -454,6 +454,8 @@ pub struct Residual {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+/// `condition_number` and `geometric_dilution_m_per_arcmin` are infinite for a singular
+/// geometry; serde_json writes infinity as `null`, so JSON consumers must accept null there.
 pub struct Conditioning {
     pub singular_values: Vec<f64>,
     pub condition_number: f64,
