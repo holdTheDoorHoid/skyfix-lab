@@ -137,14 +137,27 @@ export const DEMOS: Demo[] = [
   {
     id: 'shared-bias',
     title: '5. A shared altitude bias',
-    why: 'Repeating a measurement cannot average away an error common to every measurement.',
+    why: 'Repeating a measurement cannot average away an error common to every measurement. Whether you can SEE the bias depends entirely on the azimuth spread.',
     variants: [
       {
-        id: 'shared-bias-3',
-        label: 'Six sights, +3.0′ on every one',
+        id: 'shared-bias-clustered',
+        label: 'Six clustered sights, +3.0′ on every one',
         expect:
-          'Residuals stay under a minute — the fit looks excellent — yet the position is about three miles out. More sights do not help.',
-        scenario: scenario('Shared altitude bias', {
+          'Every residual stays under half a minute — the fit looks excellent — yet the position is about three nautical miles out. Six sights are no better than one.',
+        scenario: scenario('Shared bias, clustered sights', {
+          seed: 11,
+          geometry: 'clustered',
+          sight_count: 6,
+          noise_arcmin: 0.4,
+          shared_altitude_bias_arcmin: 3,
+        }),
+      },
+      {
+        id: 'shared-bias-spread',
+        label: 'Six spread sights, +3.0′ on every one',
+        expect:
+          'The same bias, now visible: every residual is about +3′ while the position barely moves. Surrounding yourself with bodies is what exposes a common error.',
+        scenario: scenario('Shared bias, spread sights', {
           seed: 11,
           geometry: 'good',
           sight_count: 6,

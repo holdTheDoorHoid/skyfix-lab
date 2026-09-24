@@ -74,6 +74,7 @@ html, body {
 .kind-simulated { color: var(--paper); background: var(--oi-blue); border: 2px dashed var(--paper); outline: 2px solid var(--oi-blue); }
 .kind-real { color: var(--paper); background: var(--oi-green); border: 2px solid var(--oi-green); }
 .api-wasm { color: var(--ink); background: var(--paper); border: 2px solid var(--ink); }
+.api-hybrid { color: var(--ink); background: var(--paper); border: 2px solid var(--ink); border-right-width: 10px; border-right-color: var(--oi-yellow); }
 .api-mock { color: var(--ink); background: var(--oi-yellow); border: 2px solid var(--ink); }
 
 .titlebar { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 8px 2px 0; }
@@ -236,18 +237,33 @@ thead th { border-bottom: 2px solid var(--ink-soft); font-size: 0.82rem; text-tr
 .grid-label-lat { text-anchor: end; }
 .grid-label-lon { text-anchor: middle; }
 
+/* Circles of position: a colour AND a dash pattern, so the plot survives greyscale
+   printing and every form of colour vision deficiency. */
 .cop { fill: none; stroke-width: 2.2; }
-.cop-label { font-size: 11px; font-family: var(--mono); }
-.cop-0 { stroke: var(--oi-blue); fill: var(--oi-blue); stroke-dasharray: none; }
-.cop-1 { stroke: var(--oi-vermillion); fill: var(--oi-vermillion); stroke-dasharray: 9 4; }
-.cop-2 { stroke: var(--oi-green); fill: var(--oi-green); stroke-dasharray: 2 4; }
-.cop-3 { stroke: var(--oi-purple); fill: var(--oi-purple); stroke-dasharray: 12 3 2 3; }
-.cop-4 { stroke: var(--oi-orange); fill: var(--oi-orange); stroke-dasharray: 6 3 2 3; }
-.cop-5 { stroke: var(--oi-sky); fill: var(--oi-sky); stroke-dasharray: 16 5; }
-.cop-6 { stroke: var(--oi-black); fill: var(--oi-black); stroke-dasharray: 3 3; }
-.cop-7 { stroke: #7a5c00; fill: #7a5c00; stroke-dasharray: 10 3 3 3; }
-.cop-label.cop-0, .cop-label.cop-1, .cop-label.cop-2, .cop-label.cop-3,
-.cop-label.cop-4, .cop-label.cop-5, .cop-label.cop-6, .cop-label.cop-7 { stroke: none; }
+.cop-0 { stroke: var(--oi-blue); stroke-dasharray: none; }
+.cop-1 { stroke: var(--oi-vermillion); stroke-dasharray: 9 4; }
+.cop-2 { stroke: var(--oi-green); stroke-dasharray: 2 4; }
+.cop-3 { stroke: var(--oi-purple); stroke-dasharray: 12 3 2 3; }
+.cop-4 { stroke: var(--oi-orange); stroke-dasharray: 6 3 2 3; }
+.cop-5 { stroke: var(--oi-sky); stroke-dasharray: 16 5; }
+.cop-6 { stroke: var(--oi-black); stroke-dasharray: 3 3; }
+.cop-7 { stroke: #7a5c00; stroke-dasharray: 10 3 3 3; }
+
+.cop-label {
+  font-size: 11px;
+  font-family: var(--mono);
+  paint-order: stroke;
+  stroke: var(--paper);
+  stroke-width: 3px;
+}
+.lab-0 { fill: var(--oi-blue); }
+.lab-1 { fill: var(--oi-vermillion); }
+.lab-2 { fill: #00795a; }
+.lab-3 { fill: #a8517f; }
+.lab-4 { fill: #9a6b00; }
+.lab-5 { fill: #1f7fb5; }
+.lab-6 { fill: var(--oi-black); }
+.lab-7 { fill: #7a5c00; }
 
 .ellipse polyline { fill: rgba(0, 0, 0, 0.05); stroke: var(--ink); stroke-width: 1.6; stroke-dasharray: 5 4; }
 
@@ -278,7 +294,9 @@ thead th { border-bottom: 2px solid var(--ink-soft); font-size: 0.82rem; text-tr
 /* --- narrow screens ------------------------------------------------------ */
 
 @media (max-width: 760px) {
-  .app-nav { top: 96px; }
+  /* The banner wraps to three lines on a phone; a sticky header would eat the screen.
+     Both scroll away instead, and the banner is the first thing you see on return. */
+  .app-header, .app-nav { position: static; }
   .tab { padding: 8px 10px; font-size: 0.92rem; }
   .kv { grid-template-columns: 1fr; }
   .kv dt { font-size: 0.82rem; color: var(--ink-soft); }

@@ -15,12 +15,13 @@ async function start(): Promise<void> {
   const hash = globalThis.location?.hash.replace('#', '') as ViewId | undefined;
   if (hash && VIEWS.some((v) => v.id === hash)) store.state.view = hash;
 
-  if (selection.fallbackReason) store.notice('caution', selection.fallbackReason);
   if (selection.api.kind === 'mock') {
     store.notice(
       'caution',
       'Running the mock adapter. Numbers on screen are illustrative, not results from the numerical core.',
     );
+  } else if (selection.fallbackReason) {
+    store.notice('caution', selection.fallbackReason);
   }
 
   mount(store, root);

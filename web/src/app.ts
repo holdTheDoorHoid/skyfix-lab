@@ -26,11 +26,17 @@ function kindBadge(kind: 'simulated' | 'real'): HTMLElement {
   );
 }
 
+const API_BADGE_TEXT: Record<'wasm' | 'mock' | 'hybrid', string> = {
+  wasm: '■ WASM core',
+  hybrid: '◨ WASM core, partly mocked',
+  mock: '△ MOCK adapter',
+};
+
 function apiBadge(store: Store): HTMLElement {
   return h(
     'span',
     { class: `api-badge api-${store.api.kind}`, title: store.api.description },
-    store.api.kind === 'wasm' ? '■ WASM core' : '△ MOCK adapter',
+    API_BADGE_TEXT[store.api.kind],
   );
 }
 

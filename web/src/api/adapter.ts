@@ -139,10 +139,16 @@ export function defaultScenario(): Scenario {
 }
 
 export interface SkyfixApi {
-  /** Which implementation this is. Shown in the header; never hidden from the user. */
-  readonly kind: 'wasm' | 'mock';
+  /**
+   * Which implementation this is. Shown in the header; never hidden from the user.
+   * `hybrid` means the WASM package is loaded but some of its exports are still
+   * `not implemented`, so those calls are served by the mock — see `mockedCalls`.
+   */
+  readonly kind: 'wasm' | 'mock' | 'hybrid';
   /** One line the About and header banner show verbatim. */
   readonly description: string;
+  /** Names of the calls that are NOT coming from the numerical core. */
+  readonly mockedCalls: readonly string[];
 
   init(): Promise<void>;
   version(): Promise<string>;

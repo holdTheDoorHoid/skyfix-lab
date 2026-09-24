@@ -717,6 +717,15 @@ export class MockApi implements SkyfixApi {
   readonly kind = 'mock' as const;
   readonly description =
     'Mock adapter: spherical geometry is real, everything that needs an ephemeris is invented. Not a result.';
+  readonly mockedCalls = [
+    'parse_session',
+    'reduce',
+    'solve',
+    'circle_points',
+    'simulate',
+    'catalog',
+    'coverage',
+  ] as const;
 
   async init(): Promise<void> {}
 

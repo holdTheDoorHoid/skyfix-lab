@@ -68,14 +68,24 @@ export function defaultPlotView(): PlotView {
   return { zoom: 1, offsetLat: 0, offsetLon: 0 };
 }
 
+/**
+ * What the default view must contain. When there is anything point-like — a fix, the
+ * ambiguous candidates, the assumed position, the truth — the view frames those and
+ * lets the circles run off the edges, because a circle of position is thousands of
+ * miles across and framing it would shrink the answer to a pixel. With no point at
+ * all (the underdetermined case) the circle itself is the answer, so it is framed.
+ */
 function allPoints(spec: PlotSpec): Pt[] {
-  const points: Pt[] = [];
-  for (const circle of spec.circles) points.push(...circle.points);
-  if (spec.fix) points.push(spec.fix);
-  for (const candidate of spec.candidates) points.push(candidate);
-  if (spec.assumed) points.push(spec.assumed.position);
-  if (spec.truth) points.push(spec.truth);
-  return points;
+  const anchors: Pt[] = [];
+  if (spec.fix) anchors.push(spec.fix);
+  anchors.push(...spec.candidates);
+  if (spec.assumed) anchors.push(spec.assumed.position);
+  if (spec.truth) anchors.push(spec.truth);
+  if (spec.ellipse) {
+    anchors.push(...ellipsePoints(spec.ellipse.centre, spec.ellipse.ellipse, 16));
+  }
+  if (anchors.length > 0) return anchors;
+  return spec.circles.flatMap((circle) => circle.points);
 }
 
 /** Sample the 95 % ellipse in the local tangent plane, then lift it to lat/lon. */
@@ -142,7 +152,7 @@ function marker(
 
 export function renderPlot(spec: PlotSpec, view: PlotView): SVGSVGElement {
   const rect: Rect = { x: 48, y: 12, width: PLOT_WIDTH - 60, height: PLOT_HEIGHT - 44 };
-  const base = fitProjection(allPoints(spec), rect, { padding: 28, minSpanDeg: 0.02 });
+  const base = fitProjection(allPoints(spec), rect, { padding: 34, minSpanDeg: 0.2 });
   const projection = new Projection(
     base.lat0 + view.offsetLat,
     base.lon0 + view.offsetLon,
@@ -205,7 +215,7 @@ export function renderPlot(spec: PlotSpec, view: PlotView): SVGSVGElement {
     if (first && first.length > 0) {
       const [x, y] = first[Math.floor(first.length / 2)]!;
       circles.appendChild(
-        s('text', { x: x + 4, y: y - 4, class: `cop-label cop-${index % 8}` }, circle.body),
+        s('text', { x: x + 4, y: y - 4, class: `cop-label lab-${index % 8}` }, circle.body),
       );
     }
   });

@@ -55,6 +55,7 @@ function rethrow(context: string, error: unknown): never {
 export class WasmApi implements SkyfixApi {
   readonly kind = 'wasm' as const;
   readonly description = 'skyfix-core compiled to WebAssembly. Runs entirely in this browser.';
+  readonly mockedCalls = [] as const;
 
   private constructor(private readonly exports: WasmExports) {}
 
