@@ -245,3 +245,19 @@ describe.skipIf(!hasPackage)('the built WebAssembly package (src/wasm-pkg)', () 
     console.info(`almanac_day in WebAssembly under node: ${ms.toFixed(0)} ms`);
   });
 });
+
+describe('printing', () => {
+  // The printed pages are checked in Chrome (`--print-to-pdf`, two sheets on A4 and on US
+  // Letter). What can be checked here: a width query that is not limited to the screen
+  // also applies in print, where the media width is the paper's printable width — A4's
+  // 190 mm is 718 px, so a phone layout at `max-width: 720px` stacked every table and the
+  // two pages took four sheets.
+  it('keeps its screen layouts out of print', () => {
+    const css = readFileSync(resolve(import.meta.dirname, '../../src/next/almanac/almanac.css'), 'utf8');
+    const queries = [...css.matchAll(/@media([^{]*)\{/g)].map((m) => m[1]!.trim());
+    expect(queries.length).toBeGreaterThan(0);
+    for (const q of queries) {
+      if (/(min|max)-width/.test(q)) expect(q, `@media ${q}`).toMatch(/^screen and /);
+    }
+  });
+});
