@@ -25,15 +25,15 @@ import { h } from '../../../dom.js';
 import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
 import { createNotices } from '../../notices.js';
-import { createExplorerStore, type AngleFormat, type Theme, type Units } from '../../state.js';
-import { applyTheme, installTooltips } from '../../theme/index.js';
+import { createExplorerStore, type AngleFormat, type Units } from '../../state.js';
+import { applyTheme, installTooltips, type ThemeName } from '../../theme/index.js';
 import type { ChartView } from '../chart-model.js';
 import { TABS, type Tab } from '../env.js';
 import { learnView } from '../index.js';
 import { isStoryId } from '../stories.js';
 import type { VariantId } from '../stories.js';
 
-const THEMES: Theme[] = ['light', 'dark', 'night'];
+const THEMES: ThemeName[] = ['light', 'dark', 'night'];
 const VARIANTS: VariantId[] = ['robust', 'clock-sigma', 'estimate-bias', 'third-star'];
 
 function params(): URLSearchParams {
@@ -44,7 +44,7 @@ function params(): URLSearchParams {
 
 async function boot(root: HTMLElement): Promise<void> {
   const p = params();
-  const theme = (THEMES as string[]).includes(p.get('theme') ?? '') ? (p.get('theme') as Theme) : 'light';
+  const theme = (THEMES as string[]).includes(p.get('theme') ?? '') ? (p.get('theme') as ThemeName) : 'light';
   applyTheme(theme);
   const selection = await selectEngine();
   const notices = createNotices();
@@ -59,8 +59,8 @@ async function boot(root: HTMLElement): Promise<void> {
   const themeSelect = h('select', { 'aria-label': 'Theme' });
   for (const t of THEMES) themeSelect.append(h('option', { value: t, selected: t === theme }, t));
   themeSelect.addEventListener('change', () => {
-    applyTheme(themeSelect.value as Theme);
-    store.patch({ settings: { theme: themeSelect.value as Theme } });
+    applyTheme(themeSelect.value as ThemeName);
+    store.patch({ settings: { theme: themeSelect.value as ThemeName } });
   });
   const unitSelect = h('select', { 'aria-label': 'Units' });
   for (const u of ['metric', 'nautical', 'imperial']) unitSelect.append(h('option', { value: u, selected: u === units }, u));
