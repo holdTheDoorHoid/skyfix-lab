@@ -3,11 +3,10 @@
 The explorer is the map-first way to use SkyFix Lab: pick a place, pick a moment, and see
 where the Sun, the Moon, the planets and the navigational stars are from there — how high,
 in which direction, and when each one rises and sets. It lives at
-<https://holdthedoorhoid.github.io/skyfix-lab/next/>, alongside the original workbench
-(sights, corrections, the fix and the simulator) at
-<https://holdthedoorhoid.github.io/skyfix-lab/>. Nothing the original workbench can do is
-gone — see [Navigate](#navigate-and-events-still-being-built) below for how to reach it
-today.
+<https://holdthedoorhoid.github.io/skyfix-lab/next/>, alongside the original workbench at
+<https://holdthedoorhoid.github.io/skyfix-lab/>. Nothing the original workbench could do is
+gone: the [Navigate](#navigate) view below now does everything it did (sights,
+corrections, the fix, the planner) and more.
 
 **Simulation and analysis workbench. Not a navigation instrument.** Every position and
 time on the page comes from the same offline calculation engine as the command line
@@ -135,22 +134,43 @@ line ([Command line](CLI.md)) and is normative in
 
 ![A daily almanac page: GHA and declination for Aries, the four navigational planets and every navigational star, at every hour of the day.](design/almanac-screen.png)
 
-### Navigate and Events: still being built
+### Navigate
 
-Two tabs currently say **Coming soon**: **Navigate** (sights, corrections, the fix with
-its uncertainty, noon sight, Polaris, a running fix, averaging a run of sights, lunar
-distance and planning tonight's sights) and **Events** (eclipses, Moon phases, equinoxes
-and solstices, and when planets pass close together). The underlying calculations all
-exist and are documented and tested — see [Navigation methods](NAVIGATION_METHODS.md) and
-[Moon and planet sights](NAVIGATION_SKY.md) — but their screens in the explorer have not
-been built yet.
+Where you actually work out a position, the way the whole project is really about. Enter
+sights body-first — pick the body, which edge of the disc you brought to the horizon, the
+time, the sextant reading and how sure you are — and every correction (index error, dip,
+refraction, semidiameter, parallax) is worked out live beside it, never hidden. Seven
+methods, each explained in plain words as you open it:
 
-Until they are, everything Navigate will offer is already in **the current workbench**
-(the link on each "coming soon" page, and at the site's front page): enter sights, see
-every correction worked out, get the fix on a plot with its ellipse, and run the planner.
-If you are comfortable with a terminal, every navigation method, plus events, eclipses,
-Moon phases and seasons, is also available from the command line — see
-[Command line](CLI.md), sections "The sky, almanac events and the navigation methods".
+| method | what it gives you |
+|---|---|
+| **Fix** | your position from several sights, by weighted least squares, with the honest 95 % ellipse, conditioning and every result kind (unique, ambiguous, underdetermined, failed) |
+| **Noon sight** | latitude from a body's highest point, and a weak longitude from when it happened |
+| **Polaris** | latitude from the Pole Star, with the Nautical Almanac's a0/a1/a2 shown beside the rigorous answer |
+| **Running fix** | sights taken on the move, brought to one instant along your course and speed |
+| **Average a run** | several quick sights of one body turned into one good one |
+| **Lunar distance** | Greenwich time — and so longitude — from the angle between the Moon and another body, with no chronometer |
+| **Plan sights** | tonight's evening and morning twilight windows, which bodies to shoot and in what order, predicted readings included |
+
+The fix (and the circles of position behind it) draws directly on the Map view. Sessions
+save automatically **in this browser only** — nothing is kept until you enter a sight, and
+nothing is ever sent anywhere or written into the address bar — and you can import or
+export a session as JSON or CSV, or save a fix as a GPX waypoint. A handful of worked
+examples are built in if you want to see a method with real numbers before typing your
+own. This view now does everything the original workbench did, and more.
+
+![The Navigate view's Fix method: five star sights with their corrections, tonight's recommended bodies in the side panel, the solved position with its 95% ellipse, and the circles of position plotted on a chart.](design/navigate-fix-light.png)
+
+### Events: still being built
+
+One tab still says **Coming soon**: **Events** (eclipses, Moon phases, equinoxes and
+solstices, and when planets pass close together). The underlying calculations exist and
+are documented and tested — see [Accuracy and limitations](ACCURACY.md), sections "Events"
+and "Eclipses" — but this screen has not been built yet. If you are comfortable with a
+terminal, the same data is already available from the command line — see
+[Command line](CLI.md), "The sky, almanac events and the navigation methods" — as
+`skyfix events`, `skyfix phases` and `skyfix seasons`; eclipses do not yet have a
+command-line front end either.
 
 ### Learn
 
@@ -198,17 +218,18 @@ never written into the address bar and never leaves your browser.
 
 ## Working offline
 
-Load the page once while you have a connection. After that, everything it needs — the
-calculation engine, the offline map, the star catalogue and the fonts — is already in your
-browser, and nothing further is fetched from the network to compute anything (the one
-exception is the optional street-map layer under Layers, which is off by default and only
-ever asked for while it is switched on). Leaving the tab open, you can lose your
-connection entirely — at sea, in the air — and keep using it exactly as before.
+Load the page once while you have a connection. It saves itself on your device — you will
+see **"Saved on this device: SkyFix Lab now works offline"** the first time — and after
+that everything it needs (the calculation engine, the offline map, the star catalogue, the
+fonts) runs from your device with no network at all: not just in the tab you loaded it in,
+but the next time you open it too, connection or none. The one exception is the optional
+street-map layer under Layers, which is off by default and only ever asked for while it is
+switched on; it does not work offline.
 
-Reopening the page later with *no* connection at all is not yet guaranteed to work — that
-needs one more piece (an "install this page" step) the team has planned but not shipped.
-If you might need it with genuinely zero signal, load it again shortly before you expect
-to lose connection, or leave the tab open throughout.
+Lose your connection while using the page and an **Offline** chip appears in the top bar
+to say so — a reassurance, not a warning, since nothing else changes. When a new version
+of the site is published, a card offers to reload into it; your work is never lost or
+reloaded without your say so.
 
 ## Celestial navigation in five minutes
 
