@@ -153,6 +153,9 @@ display time zone). `options_json`: `{"horizon": "standard" | "dip", "height_of_
 ### `day_events_batch(observer_json, windows_json, bodies_json, options_json) -> DayEvents[]`
 
 `windows_json` is `[[jd_start, jd_end], …]`, at most 400 windows (a year of days).
+A window the Sun cannot cover (outside the providers' coverage) does not fail the batch:
+its entry has empty `phases` and `bodies` and the reason in `errors`. Malformed input
+still throws.
 
 ### `find_altitude(observer_json, body, jd_start, jd_end, altitude_deg) -> TimeEvent[]`
 
