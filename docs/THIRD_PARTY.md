@@ -105,6 +105,132 @@ Cited in the source; no licence attaches to a published scientific model.
   the loader propagates to J2000.0 itself.** When `generator.epoch` is absent the
   loader assumes J2000.0, which is what this file provides.
 
+## Sun model and fixture packs
+
+Owner: ephemeris agent (`crates/skyfix-ephemeris/src/{sun,fixture_pack}.rs`,
+`crates/skyfix-ephemeris/data/vsop87_sun_terms.json`).
+
+### VSOP87D — the Earth's heliocentric motion
+
+- **What is used:** the coefficients of the VSOP87 version D series for the Earth
+  (heliocentric spherical `L`, `B`, `R`, referred to the mean dynamical ecliptic and
+  equinox *of date*), truncated for the 1990-2060 coverage window and embedded in
+  `crates/skyfix-ephemeris/data/vsop87_sun_terms.json`. Also the published check values
+  in `vsop87.chk` and the record format and time-scale statement in `vsop87.txt`.
+- **Source:** CDS catalogue **VI/81**, *Planetary Solutions VSOP87*, Bretagnon P.,
+  Francou G. (1988), *A&A* **202**, 309 (1988A&A...202..309B). Bureau des Longitudes /
+  CNRS.
+- **URL:** <https://cdsarc.cds.unistra.fr/ftp/cats/VI/81/> — files `VSOP87D.ear`
+  (SHA-256 `8b160c859136d467f2be7fc29efa8a9652e95516dfbde00e4c739d7ddc90ca91`),
+  `vsop87.chk`, `vsop87.txt`, `ReadMe`.
+- **Retrieved:** 2026-09-23
+- **Licence:** CDS/VizieR data are freely usable with acknowledgement of the Centre de
+  Données astronomiques de Strasbourg and citation of Bretagnon & Francou (1988).
+  Compatible with this workspace's MIT OR Apache-2.0.
+- **Stated accuracy (from `vsop87.txt`):** relative precision `p0 = 0.6e-8` for the
+  Earth, about 0.0012 arcseconds, with 1 arcsecond held for 4000 years either side of
+  J2000. The time argument is dynamical time, which the notice states may be taken as
+  TT; `skyfix_core::time::jd_tt` supplies it.
+- **Truncation applied, and the rule:** a term `A tau^n cos(B + C tau)` is kept when its
+  peak contribution over the coverage window, `|A| * tau_abs^n` with
+  `tau_abs = 0.061001` (2061-01-01), exceeds a per-variable threshold. The thresholds
+  were chosen so that the **sum of the peak contributions of every dropped term** — a
+  worst case that assumes they all align, not an RMS estimate — stays inside a budget of
+  0.05" for `L` and `B` and 1e-7 au for `R`.
+
+  | | threshold | dropped, worst case | measured max error, 1990-2060 |
+  |---|---|---|---|
+  | `L` | 1.5625e-9 rad | 0.0441" | **0.0073"** |
+  | `B` | 4.7684e-9 rad | 0.0452" | **0.0135"** |
+  | `R` | 7.4506e-10 au | 9.0e-8 au | **1.6e-8 au** (1.5e-5" of semidiameter) |
+
+  **1020 of 2425 terms are kept.** The generator is a development-time Python script;
+  it is not in the repository because it is not reproducible without the 317 kB source
+  file, and re-running it is a matter of re-fetching `VSOP87D.ear` and applying the rule
+  above. The embedded file records the rule, the thresholds and both error figures in
+  its `truncation` block.
+- **Verification that the transcription is right:** the data file ships nine
+  `checkpoints`, the first of which is the value published in the catalogue's own
+  `vsop87.chk` (`VSOP87D EARTH JD2451545.0`: `l 1.7519238681`, `b -.0000039656`,
+  `r .9833276819`). `skyfix_ephemeris::sun::vsop87_self_check` re-evaluates the embedded
+  series at all nine and is asserted in two tests. The full untruncated series reproduces
+  the published check value to 0.00001".
+
+### Verification against the Skyfield reference fixture
+
+`crates/skyfix-ephemeris/tests/reference_fixtures_sun.rs` compares `SunProvider`
+against `fixtures/reference/geocentric_sun_stars.json` (Skyfield + JPL DE421, with
+DE440s for the one epoch outside DE421's coverage) at all 58 epochs, judged at the
+`generator.tolerance_arcmin` of 0.05' the file records. Worst deviation over those
+epochs:
+
+| quantity | worst | where |
+|---|---|---|
+| GHA, DUT1 = 0, vs `gha_deg_dut1_zero` | 0.0026' = 0.16" | 2055-01-01 |
+| GHA, the epoch's DUT1 supplied, vs `gha_deg` | 0.0026' = 0.16" | 2055-01-01 |
+| Dec | 0.0012' = 0.07" | 2028-02-29 |
+| RA of date | 0.0026' = 0.16" | 2055-01-01 |
+| semidiameter | 0.00005' | 2027-01-01 |
+| horizontal parallax | 0.00005' | 2003-01-01 |
+| radius vector (VSOP87D vs the JPL kernel) | 6.2e-8 au | 2023-01-01 |
+
+This is an independent check in every sense that matters: a different ephemeris
+(JPL numerical integration rather than the VSOP87 analytical fit), a different
+implementation, a different language. The file's DUT1 runs to -3.52 s, worth 0.88'
+of GHA, so the DUT1 = 0 column is the one a CONVENTIONS section 6 implementation
+must be judged on; the second row above additionally feeds each epoch's own DUT1 to
+`SunProvider::with_dut1_s` and checks the other column, which is what proves the
+DUT1 input is applied rather than ignored.
+
+### Solar constants
+
+Cited in the source; no licence attaches to a published constant.
+
+- Semidiameter at unit distance **959.63"** and equatorial horizontal parallax at unit
+  distance **8.794"** — the Astronomical Almanac / IAU values, applied as `959.63"/R`
+  and `8.794"/R` (CONVENTIONS section 5, steps 4 and 5).
+- Aberration applied as **-20.4898"/R** in longitude, which to this order also carries
+  the Sun's light-time (CONVENTIONS section 7).
+
+### Meeus, *Astronomical Algorithms*, 2nd edition (Willmann-Bell, 1998)
+
+- **What is used:** the VSOP87-to-FK5 rotation of chapter 25 (equation 25.9:
+  `-0.09033"` in longitude, `+0.03916" (cos L' - sin L')` in latitude), the equation of
+  time of chapter 28 (equation 28.1, with the Sun's mean longitude from 28.2), and four
+  worked examples used as test cases:
+  - **25.b** (1992 October 13.0 TD, the high-accuracy method): apparent longitude
+    `199d 54' 21".56`, apparent RA `13h 13m 30s.749`, apparent Dec `-7d 47' 01".74`,
+    radius vector `0.99760853 au`, `dpsi = +15".908`, `deps = -0".308`. This crate
+    reproduces the RA and Dec to better than 0.1".
+  - **25.a** (the same instant by the low-accuracy method, stated good to 0.01 deg):
+    apparent longitude `199.90895 deg`, RA `13h13m31.4s`, Dec `-7d47'06"`. Used only to
+    pin how far the two methods are apart (10.7" in longitude, 4.3" in declination).
+  - **28.b**: equation of time `+13m 42s.6`.
+  - **22.a** (1987 April 10.0 TD): `dpsi = -3".788`, `deps = +9".443`, mean obliquity
+    `23d 26' 27".407`, true obliquity `23d 26' 36".850`.
+- **Licence:** the book is copyrighted; the formulae and the published numbers of the
+  worked examples are facts used as a reference, not reproduced text. No code was
+  copied.
+
+### Season instants used as sanity checks
+
+`crates/skyfix-ephemeris/tests/sun_seasons.rs` uses the published 2026 equinox and
+solstice instants (March 20 14:46 UTC, June 21 08:24 UTC, September 23 00:05 UTC,
+December 21 20:50 UTC). They are *inputs*: the test asserts that the Sun's apparent
+longitude is 0/90/180/270 deg at those instants, so an error in either the instants or
+the model would show. No licence attaches to a published astronomical instant.
+
+### Fixture packs — no third-party data
+
+`fixture_pack.rs` carries no embedded data at all. It loads a `skyfix.almanac_pack/1`
+document handed to it by the caller, and every pack must record its own `generator`
+block (tool, ephemeris, Earth-orientation assumptions). The interpolation error the
+provider adds on top of whatever the pack's source achieved is measured in
+`crates/skyfix-ephemeris/tests/fixture_pack_interpolation.rs` and recorded in the
+`fixture_pack` module documentation. The synthetic lunar signal in that test is built
+from the classical main terms of the lunar theory (equation of the centre 6.289 deg,
+evection 1.274 deg, variation 0.658 deg, and smaller terms) purely to give the
+interpolator realistic curvature; **it is not an ephemeris and is not used as one.**
 
 ## Reference data (development-time only)
 
