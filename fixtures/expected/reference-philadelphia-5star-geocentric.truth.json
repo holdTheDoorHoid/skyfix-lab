@@ -1,0 +1,10 @@
+{
+  "clock_offset_s": 0.000000,
+  "notes": "Philadelphia City Hall. Synthetic, zero noise, no clock offset and no shared bias, so `seed` is unused and recorded as 0. Height above the WGS84 ellipsoid 10 m, which affects nothing for stars.",
+  "position": {"lat_deg": 39.952600000, "lon_deg": -75.165200000},
+  "schema": "skyfix.truth/1",
+  "seed": 0,
+  "session_name": "reference-philadelphia-5star-geocentric",
+  "shared_altitude_bias_arcmin": 0.0000,
+  "wrong_sight_ids": []
+}

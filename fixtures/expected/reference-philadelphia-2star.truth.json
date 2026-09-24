@@ -1,0 +1,10 @@
+{
+  "clock_offset_s": 0.000000,
+  "notes": "Philadelphia City Hall. The same two sights as in the five-star session. Two circles of position intersect twice; the truth is one of the two intersections and nothing in the data distinguishes it from the other.",
+  "position": {"lat_deg": 39.952600000, "lon_deg": -75.165200000},
+  "schema": "skyfix.truth/1",
+  "seed": 0,
+  "session_name": "reference-philadelphia-2star",
+  "shared_altitude_bias_arcmin": 0.0000,
+  "wrong_sight_ids": []
+}

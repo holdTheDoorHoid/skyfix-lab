@@ -230,6 +230,78 @@ def spherical_altitude_azimuth_deg(lat_deg, lon_east_deg, gha_deg, dec_deg):
     return hc, zn
 
 
+def gp_of(gha_deg, dec_deg):
+    """Geographic position of a body (CONVENTIONS section 2): (lat, lon_east)."""
+    return dec_deg, norm180(-gha_deg)
+
+
+def _unit(lat_deg, lon_deg):
+    la, lo = math.radians(lat_deg), math.radians(lon_deg)
+    return (
+        math.cos(la) * math.cos(lo),
+        math.cos(la) * math.sin(lo),
+        math.sin(la),
+    )
+
+
+def _latlon_of(v):
+    x, y, z = v
+    r = math.sqrt(x * x + y * y + z * z)
+    return math.degrees(math.asin(z / r)), norm180(math.degrees(math.atan2(y, x)))
+
+
+def two_circle_intersections(gp1, z1_deg, gp2, z2_deg):
+    """Both intersections of two circles of position, or [] if they miss.
+
+    gp = (lat_deg, lon_east_deg); z = zenith distance in degrees. Used only to
+    fill the two-sight ambiguity fixture with independently computed answers.
+    """
+    u1 = _unit(*gp1)
+    u2 = _unit(*gp2)
+    c1 = math.cos(math.radians(z1_deg))
+    c2 = math.cos(math.radians(z2_deg))
+    dot = sum(a * b for a, b in zip(u1, u2))
+    denom = 1.0 - dot * dot
+    if abs(denom) < 1e-15:
+        return []
+    a = (c1 - c2 * dot) / denom
+    b = (c2 - c1 * dot) / denom
+    p0 = tuple(a * x + b * y for x, y in zip(u1, u2))
+    n = (
+        u1[1] * u2[2] - u1[2] * u2[1],
+        u1[2] * u2[0] - u1[0] * u2[2],
+        u1[0] * u2[1] - u1[1] * u2[0],
+    )
+    n2 = sum(x * x for x in n)
+    rem = 1.0 - sum(x * x for x in p0)
+    if rem < 0.0 or n2 <= 0.0:
+        return []
+    s = math.sqrt(rem / n2)
+    return [
+        _latlon_of(tuple(p + s * q for p, q in zip(p0, n))),
+        _latlon_of(tuple(p - s * q for p, q in zip(p0, n))),
+    ]
+
+
+def great_circle_m(lat1, lon1, lat2, lon2):
+    """Great-circle distance on the project's sphere (CONVENTIONS section 1)."""
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dl = math.radians(lon2 - lon1)
+    c_ = math.sin(p1) * math.sin(p2) + math.cos(p1) * math.cos(p2) * math.cos(dl)
+    return math.acos(max(-1.0, min(1.0, c_))) * EARTH_RADIUS_M
+
+
+def ne_offset_m(lat_ref, lon_ref, lat, lon):
+    """Tangent-plane (north, east) offset in metres, CONVENTIONS section 1 sphere."""
+    dn = math.radians(lat - lat_ref) * EARTH_RADIUS_M
+    de = (
+        math.radians(wrap_diff_deg(lon, lon_ref))
+        * math.cos(math.radians(lat_ref))
+        * EARTH_RADIUS_M
+    )
+    return dn, de
+
+
 # ---------------------------------------------------------------------------
 # CONVENTIONS section 5: the correction chain, coded from the text
 # ---------------------------------------------------------------------------
