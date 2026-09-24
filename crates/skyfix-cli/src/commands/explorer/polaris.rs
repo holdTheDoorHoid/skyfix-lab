@@ -115,27 +115,25 @@ pub fn render(r: &PolarisResult) -> String {
 
     out.push_str("\nSights\n");
     out.push_str(&format!(
-        "  {}{}{:>9}{:>10}{:>10}  {}{:>9}{:>14}\n",
+        "  {}{}{:>9}{:>10}{:>10}  {}{:>8}\n",
         report::pad("id", 10),
-        report::pad("UTC", 22),
+        report::pad("UTC", 21),
         "Ho",
         "LHA",
         "Zn",
         report::pad("latitude", 12),
-        "sigma '",
-        "correction '"
+        "sigma '"
     ));
     for s in &r.polaris {
         out.push_str(&format!(
-            "  {}{}{:>9}{:>10}{:>10}  {}{:>9.2}{:>14}\n",
+            "  {}{}{:>9}{:>10}{:>10}  {}{:>8.2}\n",
             report::pad(&s.id, 10),
-            report::pad(&text::utc(s.jd_utc), 22),
+            report::pad(&text::utc(s.jd_utc), 21),
             text::alt(s.ho_deg),
             text::dm360(s.lha_deg),
             text::dm360(s.azimuth_deg),
             report::pad(&report::format_lat(s.latitude.lat_deg), 12),
-            s.latitude.sigma_arcmin,
-            text::fixed(s.correction_arcmin, 2)
+            s.latitude.sigma_arcmin
         ));
         let lon = match s.sigma_from_longitude_arcmin {
             Some(l) => format!("{l:.2}"),
@@ -148,19 +146,26 @@ pub fn render(r: &PolarisResult) -> String {
             ),
             None => String::new(),
         };
-        out.push_str(&format!(
-            "    sigma parts: altitude {:.2}', DR longitude {lon} ({}' per NM east), clock \
-             {:.2}'{resid}\n",
-            s.sigma_from_altitude_arcmin,
-            text::signed_fixed(s.longitude_sensitivity_arcmin_per_nm, 4),
-            s.sigma_from_clock_arcmin
-        ));
+        for line in report::wrap(
+            &format!(
+                "correction (latitude - Ho) {}'; sigma parts: altitude {:.2}', DR longitude \
+                 {lon} ({}' per NM east), clock {:.2}'{resid}",
+                text::fixed(s.correction_arcmin, 2),
+                s.sigma_from_altitude_arcmin,
+                text::signed_fixed(s.longitude_sensitivity_arcmin_per_nm, 4),
+                s.sigma_from_clock_arcmin
+            ),
+            84,
+            "    ",
+        ) {
+            out.push_str(&line);
+            out.push('\n');
+        }
     }
 
     if r.polaris.iter().any(|s| s.almanac.is_some()) {
         out.push_str(
-            "\nNautical Almanac Polaris table, unrounded (teaching only: the latitude above is \
-             the rigorous one)\n",
+            "\nAlmanac Polaris table, unrounded (teaching only; the rigorous latitude is above)\n",
         );
         out.push_str(&format!(
             "  {}{:>10}{:>8}{:>8}{:>8}  {}{:>18}\n",

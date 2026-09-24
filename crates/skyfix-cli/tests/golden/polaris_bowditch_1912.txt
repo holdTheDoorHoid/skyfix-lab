@@ -1,0 +1,23 @@
+LATITUDE BY POLARIS
+Session    Bowditch 1912: latitude by Polaris (real)
+Ephemeris  auto -> skyfix-auto
+DR         40 46.00' N, 043 22.00' W (40.766667, -43.366667), sigma 10 NM, from --dr
+
+Latitude   40 48.47' N (40.807792) sigma 0.25' at 2016-03-22T23:18:56Z
+
+Sights
+  id        UTC                         Ho       LHA        Zn  latitude     sigma '
+  polaris   2016-03-22T23:18:56Z  +40 52.1   84 29.7  359 07.4  40 48.47' N     0.25
+    correction (latitude - Ho) -3.63'; sigma parts: altitude 0.20', DR longitude 0.15
+    (+0.0153' per NM east), clock 0.00'
+
+Almanac Polaris table, unrounded (teaching only; the rigorous latitude is above)
+  id         LHA Aries    a0 '    a1 '    a2 '  Ho - 1 + a0 + a1 + a2   rigorous minus '
+  polaris     127 15.1   54.93    0.52    0.91  40 48.47' N                       -0.001
+  Unrounded Nautical Almanac Polaris-table terms: a0 from LHA Aries 127.25° with the
+  year's mean position of Polaris (SHA 316.81°, Dec 89.3318°) at latitude 50°; a1 for
+  latitude 40.8°; a2 for this date. The printed table rounds each to 0.1′ and
+  interpolates, so expect it to differ from these by a tenth or two.
+
+Every sight's correction chain is in --format json (sights), and skyfix reduce prints it
+step by step. This is a simulation and analysis workbench, not a navigation instrument.

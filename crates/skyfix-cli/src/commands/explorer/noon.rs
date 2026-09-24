@@ -137,8 +137,9 @@ pub fn method_words(m: NoonMethod) -> &'static str {
 }
 
 pub fn render(r: &NoonSightResult) -> String {
-    let mut out = format!(
-        "{}, {} sight(s): {}; the {} crossed the meridian {} of the zenith\n\n",
+    let mut out = String::new();
+    let headline = format!(
+        "{}, {} sight(s): {}; the {} crossed the meridian {} of the zenith",
         r.body,
         r.n_sights,
         method_words(r.method),
@@ -148,6 +149,11 @@ pub fn render(r: &NoonSightResult) -> String {
             MeridianSide::South => "SOUTH",
         }
     );
+    for line in report::wrap(&headline, 88, "") {
+        out.push_str(&line);
+        out.push('\n');
+    }
+    out.push('\n');
     labelled(
         "Latitude",
         &latitude_line(r.latitude.lat_deg, r.latitude.sigma_arcmin),
