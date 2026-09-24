@@ -17,8 +17,10 @@
 //!
 //! `ephemeris_mode = "supplied"` honours only the direction written into an observation.
 //! `"auto"` uses that when present and otherwise asks [`auto_provider`]:
-//! `skyfix_ephemeris::fixture_pack::CompositeProvider` holding the `SunProvider` and the
-//! `StarProvider`, in that order. `coverage()` reports each of them separately.
+//! `skyfix_ephemeris::fixture_pack::CompositeProvider` holding the `SunProvider`, the
+//! `MoonProvider`, the `SightPlanetProvider` (Venus, Mars, Jupiter, Saturn; Venus at its
+//! centre of light) and the `StarProvider`, in that order. `coverage()` reports each of
+//! them separately.
 
 // Explorer exports, one module per feature so parallel work never collides here
 // (docs/EXPLORER_PLAN.md section 4). Wire formats: docs/EXPLORER_API.md.
@@ -26,6 +28,7 @@ pub mod almanac;
 pub mod eclipses;
 pub mod explorer;
 pub mod nav;
+pub mod navsky;
 pub mod starfield;
 
 use serde::{Deserialize, Serialize};
@@ -69,20 +72,29 @@ pub fn version() -> String {
 // Astronomy: every provider this build has, behind one AstroProvider
 // ---------------------------------------------------------------------------
 
-/// The astronomy `ephemeris_mode = "auto"` uses: the computed Sun model first, then the
+/// The astronomy `ephemeris_mode = "auto"` uses: the computed Sun, the Moon, the four
+/// navigational planets (Venus at its centre of light, CONVENTIONS section 5) and the
 /// star catalogue. `CompositeProvider` reports the most informative failure when none of
-/// them can answer, so "this provider stops in 2060" wins over "nobody has a Moon".
+/// them can answer, so "this provider stops in 2060" wins over "nobody has that body",
+/// and "Mercury is not offered for sights" wins over both.
 pub fn auto_provider() -> skyfix_ephemeris::fixture_pack::CompositeProvider {
-    skyfix_ephemeris::fixture_pack::CompositeProvider::new("skyfix-auto (Sun, stars)")
-        .with(skyfix_ephemeris::sun::SunProvider::new())
-        .with(skyfix_ephemeris::stars::StarProvider::new())
+    skyfix_ephemeris::fixture_pack::CompositeProvider::new(
+        "skyfix-auto (Sun, Moon, planets, stars)",
+    )
+    .with(skyfix_ephemeris::sun::SunProvider::new())
+    .with(skyfix_ephemeris::moon::MoonProvider::new())
+    .with(skyfix_ephemeris::sights::SightPlanetProvider::new())
+    .with(skyfix_ephemeris::stars::StarProvider::new())
 }
 
-/// The bodies the planner ranks: the navigational stars. The Sun is not a candidate —
-/// it is the thing that decides whether the stars are visible at all.
+/// The bodies the planner ranks: the Moon, the navigational planets and the stars, each
+/// only when its provider is validated for sights (`skyfix_ephemeris::sights`). The Sun
+/// is not a candidate — it is the thing that decides whether the stars are visible at
+/// all.
 fn planner_bodies() -> Vec<String> {
-    skyfix_ephemeris::catalog::names()
+    skyfix_ephemeris::sights::sight_bodies()
         .into_iter()
+        .filter(|b| *b != skyfix_ephemeris::body::SUN)
         .map(str::to_string)
         .collect()
 }
@@ -405,9 +417,11 @@ pub fn experiment(experiment_json: &str) -> Result<JsValue, JsValue> {
     to_js(&summary)
 }
 
-/// Body names the UI offers in the observation body field: the Sun, then every star the
-/// compiled catalogue answers to, in catalogue order. The field still accepts any name
-/// typed into it, and a supplied `geocentric` direction makes any name work.
+/// Body names the UI offers in the observation body field: the Sun, the Moon, Venus,
+/// Mars, Jupiter and Saturn, then every star the compiled catalogue answers to, in
+/// catalogue order — every body validated for sights (`skyfix_ephemeris::sights`). The
+/// field still accepts any name typed into it, and a supplied `geocentric` direction
+/// makes any name work.
 #[wasm_bindgen]
 pub fn catalog() -> JsValue {
     let mut names = vec!["Sun".to_string()];
@@ -421,6 +435,8 @@ pub fn catalog() -> JsValue {
 pub fn coverage() -> JsValue {
     let providers: Vec<ProviderCoverage> = [
         Box::new(skyfix_ephemeris::sun::SunProvider::new()) as Box<dyn AstroProvider>,
+        Box::new(skyfix_ephemeris::moon::MoonProvider::new()) as Box<dyn AstroProvider>,
+        Box::new(skyfix_ephemeris::sights::SightPlanetProvider::new()) as Box<dyn AstroProvider>,
         Box::new(skyfix_ephemeris::stars::StarProvider::new()) as Box<dyn AstroProvider>,
     ]
     .iter()

@@ -1,0 +1,103 @@
+{
+  "clock": {
+    "correction_s": 0.000000,
+    "uncertainty_s": 0.000000
+  },
+  "instrument": {
+    "horizon": "sea",
+    "index_correction_arcmin": -1.2000,
+    "name": "synthetic sextant"
+  },
+  "meta": {
+    "kind": "simulated",
+    "name": "Moon and four planets, evening twilight off Cape May (spherical Earth)",
+    "notes": "The planet parade of February 2025 seen from a ship at anchor off Cape May, New Jersey, in evening nautical twilight: the Moon's lower limb, Venus, Mars, Jupiter and Saturn, with Polaris and Capella to close the northern sky. Synthetic, zero noise; raw sextant readings built by tools/reference/gen_moon_sights.py from Skyfield + JPL DE440s on a spherical Earth of radius 6378.14 km, the Earth CONVENTIONS section 1 reduces sights on. No observation carries a geocentric block: every direction comes from the ephemeris (ephemeris mode auto)."
+  },
+  "observations": [
+    {
+      "altitude_deg": 34.1991846481,
+      "altitude_kind": "sextant_hs",
+      "body": "Venus",
+      "horizon": null,
+      "id": "obs-1",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2025-02-10T23:02:00Z"
+    },
+    {
+      "altitude_deg": 17.0551245014,
+      "altitude_kind": "sextant_hs",
+      "body": "Saturn",
+      "horizon": null,
+      "id": "obs-2",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2025-02-10T23:04:00Z"
+    },
+    {
+      "altitude_deg": 25.7862267208,
+      "altitude_kind": "sextant_hs",
+      "body": "Moon",
+      "horizon": null,
+      "id": "obs-3",
+      "limb": "lower",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2025-02-10T23:06:00Z"
+    },
+    {
+      "altitude_deg": 41.4034492479,
+      "altitude_kind": "sextant_hs",
+      "body": "Mars",
+      "horizon": null,
+      "id": "obs-4",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2025-02-10T23:08:00Z"
+    },
+    {
+      "altitude_deg": 68.1360714635,
+      "altitude_kind": "sextant_hs",
+      "body": "Jupiter",
+      "horizon": null,
+      "id": "obs-5",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2025-02-10T23:10:00Z"
+    },
+    {
+      "altitude_deg": 39.6084678350,
+      "altitude_kind": "sextant_hs",
+      "body": "Polaris",
+      "horizon": null,
+      "id": "obs-6",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2025-02-10T23:12:00Z"
+    },
+    {
+      "altitude_deg": 70.6366212371,
+      "altitude_kind": "sextant_hs",
+      "body": "Capella",
+      "horizon": null,
+      "id": "obs-7",
+      "limb": "center",
+      "notes": "synthetic, zero noise: a raw sextant reading built from Skyfield's sky",
+      "sigma_arcmin": 0.2000,
+      "utc": "2025-02-10T23:14:00Z"
+    }
+  ],
+  "observer": {
+    "assumed_position": {"lat_deg": 39.400000000, "lon_deg": -74.100000000},
+    "assumed_position_role": {"role": "initializer"},
+    "height_of_eye_m": 3.0000,
+    "pressure_hpa": 1010.00,
+    "temperature_c": 10.00
+  },
+  "schema": "skyfix.session/1"
+}

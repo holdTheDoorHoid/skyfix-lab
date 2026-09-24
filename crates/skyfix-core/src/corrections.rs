@@ -1,14 +1,30 @@
 //! CONVENTIONS section 5: the correction chain.
 //!
-//! OWNER: core-reduce agent.
+//! OWNER: core-reduce agent; Moon and planet sights added by the navigation-Moon agent.
 //! Pure functions; every step is reported in a [`CorrectionBreakdown`] so the UI can show
 //! the table and so a record can never be corrected twice.
 //!
 //! The breakdown always lists all six [`CorrectionKind`]s in the order of section 5.
 //! A step that did not run carries `applied = false`, `before_deg == after_deg` and a
 //! note saying *why* — either "already in the reading" (the declared [`AltitudeKind`] is
-//! already past it) or "not applicable" (wrong horizon mode, or not the Sun). Nothing is
-//! ever silently dropped.
+//! already past it) or "not applicable" (wrong horizon mode, or a body without a disc or
+//! a parallax). Nothing is ever silently dropped.
+//!
+//! # Which body follows which rules
+//!
+//! [`SightBody`] decides steps 4 and 5 (CONVENTIONS section 5):
+//!
+//! | body | semidiameter (step 4) | parallax in altitude (step 5) |
+//! |---|---|---|
+//! | Sun | geocentric SD by limb | `HP cos(Ha)` |
+//! | Moon | **topocentric** (augmented) SD by limb | `asin(sin HP cos h)`, `h` the topocentric altitude of the centre |
+//! | planet | none: the centre of light is observed | `asin(sin HP cos h)` |
+//! | star | none | none |
+//!
+//! [`correct`] keeps its original contract (Sun when `is_sun`, otherwise a star), so every
+//! existing caller gets bit-identical results; [`correct_sight`] takes the body class.
+
+use serde::{Deserialize, Serialize};
 
 use crate::SkyfixError;
 use crate::types::{
@@ -20,6 +36,7 @@ use crate::types::{
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CorrectionInputs<'a> {
     pub id: &'a str,
+    /// Read only by [`correct`]; [`correct_sight`] takes the body class explicitly.
     pub is_sun: bool,
     pub limb: Limb,
     pub horizon: HorizonMode,
@@ -27,8 +44,53 @@ pub struct CorrectionInputs<'a> {
     pub height_of_eye_m: f64,
     pub pressure_hpa: f64,
     pub temperature_c: f64,
-    /// Semidiameter and horizontal parallax come from here (Sun only).
+    /// Semidiameter and horizontal parallax come from here (Sun, Moon and planets).
     pub direction: Option<GeocentricDirection>,
+}
+
+/// Which rules of CONVENTIONS section 5 steps 4 and 5 a body follows.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum SightBody {
+    /// Geocentric semidiameter by limb; parallax `HP cos(Ha)`.
+    Sun,
+    /// Topocentric (augmented) semidiameter by limb; rigorous parallax. HP is required.
+    Moon,
+    /// Observed at its centre of light, no semidiameter; rigorous parallax from its HP.
+    Planet,
+    /// Refraction only.
+    Star,
+}
+
+/// The planets by canonical name (CONVENTIONS 13.1). The core carries no ephemeris, so
+/// the list is spelled out here; `skyfix_ephemeris::body::PLANETS` is the same list.
+pub const PLANET_NAMES: [&str; 7] = [
+    "Mercury", "Venus", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune",
+];
+
+/// The class of a body name, trimmed and case-insensitive. Anything that is not the Sun,
+/// the Moon or a planet is a star (catalogue names, `HIP <number>`, or a name that only
+/// works with a supplied direction).
+pub fn sight_body(body: &str) -> SightBody {
+    let b = body.trim();
+    if b.eq_ignore_ascii_case("sun") {
+        SightBody::Sun
+    } else if b.eq_ignore_ascii_case("moon") {
+        SightBody::Moon
+    } else if PLANET_NAMES.iter().any(|p| p.eq_ignore_ascii_case(b)) {
+        SightBody::Planet
+    } else {
+        SightBody::Star
+    }
+}
+
+/// The class [`correct`] has always assumed: the Sun when `is_sun`, otherwise a star.
+fn legacy_class(inputs: &CorrectionInputs<'_>) -> SightBody {
+    if inputs.is_sun {
+        SightBody::Sun
+    } else {
+        SightBody::Star
+    }
 }
 
 /// Apparent altitude below this (degrees) inflates sigma by [`LOW_ALTITUDE_SIGMA_ARCMIN`].
@@ -78,11 +140,86 @@ pub fn refraction_arcmin(apparent_altitude_deg: f64, pressure_hpa: f64, temperat
 
 /// Parallax in altitude, arcminutes: `PA = HP cos(Ha)` (CONVENTIONS section 5 step 5).
 /// `Ha` in degrees. Stars have `HP = 0` and therefore `PA = 0`.
+///
+/// This is the Sun's form. It differs from the rigorous
+/// [`rigorous_parallax_in_altitude_arcmin`] by under 0.001' for the Sun's 0.15' HP, and
+/// is kept so that every Sun result stays what it has always been.
 pub fn parallax_in_altitude_arcmin(
     horizontal_parallax_arcmin: f64,
     apparent_altitude_deg: f64,
 ) -> f64 {
     horizontal_parallax_arcmin * apparent_altitude_deg.to_radians().cos()
+}
+
+/// Parallax in altitude on the spherical Earth of CONVENTIONS section 1, arcminutes:
+/// `p = asin(sin HP cos h)`, with `h` the **topocentric airless** altitude of the body's
+/// centre in degrees (after refraction and, for a limb, the semidiameter).
+///
+/// Exact for an observer at the radius `HP` refers to: in the triangle Earth's centre,
+/// observer, body, the sine rule gives `sin p = (a / d) sin z'` with `z' = 90 - h`. The
+/// Moon's HP reaches 61.5', where the first-order `HP cos h` is 0.001' short and using
+/// the apparent altitude instead of `h` would be up to 0.2' wrong.
+pub fn rigorous_parallax_in_altitude_arcmin(
+    horizontal_parallax_arcmin: f64,
+    topocentric_altitude_deg: f64,
+) -> f64 {
+    let sin_hp = (horizontal_parallax_arcmin / 60.0).to_radians().sin();
+    let x = (sin_hp * topocentric_altitude_deg.to_radians().cos()).clamp(-1.0, 1.0);
+    x.asin().to_degrees() * 60.0
+}
+
+/// Topocentric ("augmented") semidiameter, arcminutes, of a body whose geocentric
+/// semidiameter is `semidiameter_arcmin` and horizontal parallax
+/// `horizontal_parallax_arcmin`, when its centre stands at topocentric airless altitude
+/// `topocentric_altitude_deg` (CONVENTIONS section 5 step 4, the Moon).
+///
+/// The observer at radius `a` is nearer the body than the Earth's centre: with
+/// `sin HP = a / d`, the law of cosines in the triangle Earth's centre, observer, body
+/// gives `d' / d = sqrt(1 - sin^2 HP cos^2 h) - sin HP sin h`, and
+/// `sin SD' = sin SD / (d' / d)`. At the zenith the Moon's disc grows by `SD sin HP`,
+/// about 0.28'; on the horizon by 0.002'.
+pub fn topocentric_semidiameter_arcmin(
+    semidiameter_arcmin: f64,
+    horizontal_parallax_arcmin: f64,
+    topocentric_altitude_deg: f64,
+) -> f64 {
+    let sin_hp = (horizontal_parallax_arcmin / 60.0).to_radians().sin();
+    let (sin_h, cos_h) = topocentric_altitude_deg.to_radians().sin_cos();
+    let ratio = (1.0 - sin_hp * sin_hp * cos_h * cos_h).max(0.0).sqrt() - sin_hp * sin_h;
+    let sin_sd = (semidiameter_arcmin / 60.0).to_radians().sin();
+    if ratio <= 0.0 || !ratio.is_finite() {
+        return f64::NAN;
+    }
+    (sin_sd / ratio).clamp(-1.0, 1.0).asin().to_degrees() * 60.0
+}
+
+/// The topocentric semidiameter of a limb observation and the altitude of the centre it
+/// implies, found together: `h_c = h_limb + s SD'(h_c)` with `s = +1` for the lower limb
+/// and `-1` for the upper. `SD'` changes by about 0.005' per degree of altitude, so the
+/// fixed point converges in two passes; four are run.
+///
+/// Returns `(sd_topocentric_arcmin, centre_altitude_deg)`.
+pub fn limb_to_centre(
+    limb_altitude_deg: f64,
+    limb_sign: f64,
+    semidiameter_arcmin: f64,
+    horizontal_parallax_arcmin: f64,
+) -> (f64, f64) {
+    let mut sd = topocentric_semidiameter_arcmin(
+        semidiameter_arcmin,
+        horizontal_parallax_arcmin,
+        limb_altitude_deg,
+    );
+    let mut centre = limb_altitude_deg + limb_sign * sd / 60.0;
+    for _ in 0..4 {
+        sd = topocentric_semidiameter_arcmin(
+            semidiameter_arcmin,
+            horizontal_parallax_arcmin,
+            centre,
+        );
+        centre = limb_altitude_deg + limb_sign * sd / 60.0;
+    }
+    (sd, centre)
 }
 
 /// The corrections whose parameters the caller supplied but which `kind` has already
@@ -92,10 +229,22 @@ pub fn parallax_in_altitude_arcmin(
 ///
 /// Triggers: a nonzero index correction, a positive height of eye under a sea horizon,
 /// an artificial horizon (the halving), a non-centre limb on the Sun, and a nonzero
-/// solar horizontal parallax.
+/// solar horizontal parallax. This is [`ignored_correction_kinds_for`] with the class
+/// [`correct`] assumes (the Sun when `is_sun`, otherwise a star).
 pub fn ignored_correction_kinds(
     kind: AltitudeKind,
     inputs: &CorrectionInputs<'_>,
+) -> Vec<CorrectionKind> {
+    ignored_correction_kinds_for(kind, inputs, legacy_class(inputs))
+}
+
+/// [`ignored_correction_kinds`] for an explicit body class: a non-centre limb on the Sun
+/// or the Moon, and a nonzero horizontal parallax on the Sun, the Moon or a planet, are
+/// ignored by an `observed_ho` record.
+pub fn ignored_correction_kinds_for(
+    kind: AltitudeKind,
+    inputs: &CorrectionInputs<'_>,
+    body: SightBody,
 ) -> Vec<CorrectionKind> {
     let mut ignored = Vec::new();
     if matches!(kind, AltitudeKind::SextantHs) {
@@ -112,13 +261,14 @@ pub fn ignored_correction_kinds(
         ignored.push(CorrectionKind::ArtificialHorizonHalving);
     }
     if matches!(kind, AltitudeKind::ObservedHo) {
-        if inputs.is_sun && inputs.limb != Limb::Center {
+        let has_disc = matches!(body, SightBody::Sun | SightBody::Moon);
+        if has_disc && inputs.limb != Limb::Center {
             ignored.push(CorrectionKind::Semidiameter);
         }
         let hp = inputs
             .direction
             .map_or(0.0, |d| d.horizontal_parallax_arcmin);
-        if inputs.is_sun && hp != 0.0 {
+        if body != SightBody::Star && hp != 0.0 {
             ignored.push(CorrectionKind::Parallax);
         }
     }
@@ -128,6 +278,9 @@ pub fn ignored_correction_kinds(
 /// Run the chain from `altitude_deg` of the declared `kind` to `Ho`. Steps already
 /// implied by `kind` are reported with `applied = false`.
 ///
+/// The body is the Sun when `inputs.is_sun`, otherwise a star: this is the chain's
+/// original contract, unchanged. Moon and planet sights go through [`correct_sight`].
+///
 /// Errors: non-finite inputs, a non-positive sigma, an apparent altitude below the
 /// horizon (section 5 makes that `RefractionOutOfRange`) and a corrected altitude above
 /// the zenith.
@@ -136,6 +289,22 @@ pub fn correct(
     kind: AltitudeKind,
     sigma_arcmin: f64,
     inputs: CorrectionInputs<'_>,
+) -> Result<CorrectionBreakdown, SkyfixError> {
+    let body = legacy_class(&inputs);
+    correct_sight(altitude_deg, kind, sigma_arcmin, inputs, body)
+}
+
+/// [`correct`] for an explicit body class (CONVENTIONS section 5, steps 4 and 5 per
+/// [`SightBody`]). `inputs.is_sun` is not read: `body` decides.
+///
+/// Additional errors for the Moon: a sextant or apparent altitude whose direction carries
+/// no horizontal parallax (0.0' means unknown, and the Moon's parallax is up to 61').
+pub fn correct_sight(
+    altitude_deg: f64,
+    kind: AltitudeKind,
+    sigma_arcmin: f64,
+    inputs: CorrectionInputs<'_>,
+    body: SightBody,
 ) -> Result<CorrectionBreakdown, SkyfixError> {
     let id = inputs.id;
     check_inputs(altitude_deg, sigma_arcmin, &inputs)?;
@@ -319,8 +488,22 @@ pub fn correct(
         ));
     }
 
-    // --- 4. semidiameter (Sun only) -----------------------------------------
+    // --- 4. semidiameter (Sun and Moon) ------------------------------------
     let sd = inputs.direction.map_or(0.0, |d| d.semidiameter_arcmin);
+    let hp = inputs
+        .direction
+        .map_or(0.0, |d| d.horizontal_parallax_arcmin);
+    if needs_ho_steps && body == SightBody::Moon && hp == 0.0 {
+        // Unlike the Sun's 0.15', the Moon's parallax is up to 61': a sight reduced
+        // without it would put the line of position up to 61 NM out. Refuse it.
+        return Err(SkyfixError::Rejected {
+            id: id.to_string(),
+            reason: "the Moon's horizontal parallax is 0.0' (unknown); supply \
+                     horizontal_parallax_arcmin from the almanac (54' to 61.5'), without it \
+                     the altitude would be wrong by up to 61'"
+                .to_string(),
+        });
+    }
     if !needs_ho_steps {
         steps.push(make_step(
             CorrectionKind::Semidiameter,
@@ -329,13 +512,31 @@ pub fn correct(
             false,
             already.clone(),
         ));
-    } else if !inputs.is_sun {
+    } else if body == SightBody::Moon {
+        h = moon_semidiameter_step(&mut steps, &mut warnings, id, inputs.limb, h, sd, hp);
+    } else if body == SightBody::Planet {
         steps.push(make_step(
             CorrectionKind::Semidiameter,
             h,
             h,
             false,
-            "not applicable: semidiameter is applied for the Sun only".to_string(),
+            "not applicable: a planet is observed at its centre of light, with no \
+             semidiameter (Venus's phase is carried in its direction, as in the Nautical \
+             Almanac)"
+                .to_string(),
+        ));
+        if inputs.limb != Limb::Center {
+            warnings.push(Warning::LimbIgnoredForStar { id: id.to_string() });
+        }
+    } else if body == SightBody::Star {
+        steps.push(make_step(
+            CorrectionKind::Semidiameter,
+            h,
+            h,
+            false,
+            "not applicable: a star has no disc (semidiameter is geocentric for the Sun only; \
+             the Moon's is augmented to its topocentric value)"
+                .to_string(),
         ));
         if inputs.limb != Limb::Center {
             warnings.push(Warning::LimbIgnoredForStar { id: id.to_string() });
@@ -386,21 +587,47 @@ pub fn correct(
         h = after;
     }
 
-    // --- 5. parallax in altitude (Sun only), added --------------------------
-    let hp = inputs
-        .direction
-        .map_or(0.0, |d| d.horizontal_parallax_arcmin);
+    // --- 5. parallax in altitude (Sun, Moon, planets), added ----------------
     if !needs_ho_steps {
         steps.push(make_step(CorrectionKind::Parallax, h, h, false, already));
-    } else if !inputs.is_sun {
+    } else if body == SightBody::Star {
         steps.push(make_step(
             CorrectionKind::Parallax,
             h,
             h,
             false,
-            "not applicable: parallax in altitude is modelled for the Sun only (stars: 0.000')"
+            "not applicable: a star has no parallax in altitude (0.000'); HP cos(Ha) is used \
+             for the Sun only, asin(sin HP cos h) for the Moon and the planets"
                 .to_string(),
         ));
+    } else if matches!(body, SightBody::Moon | SightBody::Planet) {
+        // `h` is now the topocentric airless altitude of the centre (the Moon's limb was
+        // moved to the centre in step 4; a planet is observed at its centre of light).
+        let pa = rigorous_parallax_in_altitude_arcmin(hp, h);
+        let after = h + pa / 60.0;
+        let who = if body == SightBody::Moon {
+            "Moon".to_string()
+        } else {
+            "planet".to_string()
+        };
+        steps.push(make_step(
+            CorrectionKind::Parallax,
+            h,
+            after,
+            true,
+            format!(
+                "{who}: asin(sin HP {hp:.3}' x cos h), h = {h:.4} deg topocentric: {pa:.3}' added"
+            ),
+        ));
+        if body == SightBody::Planet && hp == 0.0 {
+            warnings.push(Warning::Other {
+                message: format!(
+                    "observation {id}: planet horizontal parallax supplied as 0.0' (unknown); \
+                     parallax omitted, which is up to 0.56' for Venus and 0.4' for Mars"
+                ),
+            });
+        }
+        h = after;
     } else {
         let pa = parallax_in_altitude_arcmin(hp, ha_deg);
         let after = h + pa / 60.0;
@@ -423,7 +650,7 @@ pub fn correct(
     }
 
     // --- already-corrected report -------------------------------------------
-    let ignored = ignored_correction_kinds(kind, &inputs);
+    let ignored = ignored_correction_kinds_for(kind, &inputs, body);
     if !ignored.is_empty() {
         warnings.push(Warning::AlreadyCorrected {
             id: id.to_string(),
@@ -513,6 +740,67 @@ fn check_inputs(
         });
     }
     Ok(())
+}
+
+/// Step 4 for the Moon: the topocentric (augmented) semidiameter by limb. `h` is the
+/// airless topocentric altitude of the observed limb; the return value is the altitude of
+/// the centre (unchanged for a centre observation or an unknown semidiameter).
+fn moon_semidiameter_step(
+    steps: &mut Vec<CorrectionStep>,
+    warnings: &mut Vec<Warning>,
+    id: &str,
+    limb: Limb,
+    h: f64,
+    sd: f64,
+    hp: f64,
+) -> f64 {
+    if limb == Limb::Center {
+        steps.push(make_step(
+            CorrectionKind::Semidiameter,
+            h,
+            h,
+            false,
+            "not applicable: the Moon's centre observed, no semidiameter".to_string(),
+        ));
+        return h;
+    }
+    if sd == 0.0 {
+        warnings.push(Warning::Other {
+            message: format!(
+                "observation {id}: Moon {} limb requested but the semidiameter supplied is \
+                 0.0' (unknown); no semidiameter applied, so Ho is a limb altitude, not a \
+                 centre altitude",
+                limb_name(limb)
+            ),
+        });
+        steps.push(make_step(
+            CorrectionKind::Semidiameter,
+            h,
+            h,
+            true,
+            format!(
+                "Moon {} limb, but semidiameter is unknown (0.000'): nothing added",
+                limb_name(limb)
+            ),
+        ));
+        return h;
+    }
+    let sign = if limb == Limb::Lower { 1.0 } else { -1.0 };
+    let (sd_topo, centre) = limb_to_centre(h, sign, sd, hp);
+    steps.push(make_step(
+        CorrectionKind::Semidiameter,
+        h,
+        centre,
+        true,
+        format!(
+            "Moon {} limb: semidiameter {sd:.3}' augmented by {:.3}' to {sd_topo:.3}' \
+             (topocentric, centre at {centre:.4} deg) {}",
+            limb_name(limb),
+            sd_topo - sd,
+            if sign > 0.0 { "added" } else { "subtracted" }
+        ),
+    ));
+    centre
 }
 
 fn make_step(
