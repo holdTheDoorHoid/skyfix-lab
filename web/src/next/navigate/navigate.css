@@ -365,11 +365,9 @@
 
 .sfn .sf-input {
   height: 34px;
-  background: var(--stage-surface);
-}
-
-.sfn select.sf-input {
-  padding-right: 8px;
+  /* The colour only: a select keeps the design system's drawn arrow (shell.css), which
+     the \`background\` shorthand used to wipe, leaving selects that looked like text fields. */
+  background-color: var(--stage-surface);
 }
 
 .sfn-textarea {

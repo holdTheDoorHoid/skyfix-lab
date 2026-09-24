@@ -287,7 +287,8 @@ button.sf-chip:hover {
   width: 12px;
   height: 12px;
   border-radius: 3px;
-  box-shadow: inset 0 0 0 1px rgba(127, 127, 127, 0.35);
+  /* An edge in the text's own colour (a neutral grey was white light in the night theme). */
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent);
   flex: none;
 }
 
