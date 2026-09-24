@@ -35,7 +35,6 @@ import { compassPoint, formatAngle, formatBearing, formatMagnitude } from './for
 import { skyHighlights } from './highlight.js';
 import {
   documentReadVar,
-  documentTheme,
   readPalette,
   skyColours,
   type SkyPalette,
@@ -54,7 +53,7 @@ import {
 import { bodyKey, bodyToken, SkyRenderer, starKey, type Frame, type PathData } from './render.js';
 import { SkyScene } from './scene.js';
 import { button, iconButton, phaseChip, popover, segmented, setPressed, switchRow } from '../theme/primitives.js';
-import { onThemeChange, systemTheme } from '../theme/theme.js';
+import { currentTheme, onThemeChange } from '../theme/theme.js';
 import { starAlpha, starDesignation, starRadius, starTitle } from './stars.js';
 
 // ---------------------------------------------------------------------------
@@ -345,9 +344,10 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     return true;
   }
 
-  function currentPalette(state: ExplorerState): SkyPalette {
-    // The theme on screen (<html data-theme>); the setting may be 'system' (follow the device).
-    const theme = documentTheme(state.settings.theme === 'system' ? systemTheme() : state.settings.theme);
+  function currentPalette(): SkyPalette {
+    // The theme on screen (<html data-theme>, applied by the shell), never the setting: the
+    // setting may be 'system', and the device's preference can change under it.
+    const theme: SkyTheme = currentTheme();
     if (!palette || paletteTheme !== theme) {
       palette = readPalette(theme, documentReadVar);
       paletteTheme = theme;
@@ -449,7 +449,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     } else {
       displayJd = state.time.jd_utc;
     }
-    const pal = currentPalette(state);
+    const pal = currentPalette();
     const observer = engineObserver(state);
 
     try {
