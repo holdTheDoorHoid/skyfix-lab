@@ -4,7 +4,7 @@
  *
  * Sources are GeoJSON under data/basemap/ (web/public/data, Natural Earth, public domain;
  * see geo/basemap.ts), the gazetteer's places, and the map's own live layers (terminator and
- * twilight, ground points, circles, measuring lines). The optional street layer is an
+ * twilight, circles, measuring lines). The optional street layer is an
  * OpenStreetMap raster source added only while `layers.streets` is on.
  *
  * Natural Earth's `minzoom` values are for 256-pixel tiles, one level above MapLibre's
@@ -13,7 +13,8 @@
  * Draw order (bottom to top): water, land, ice, built-up areas, lakes, rivers, coasts,
  * borders, [streets], day/night and twilight shading, graticule and reference lines,
  * terminator, place and sea labels, altitude rings, circle of equal altitude, [overlays
- * from other views], ground points, measuring lines.
+ * from other views], measuring lines. Ground points, the observer and the compass dial are
+ * DOM on top (map-view.ts).
  */
 
 import type { FeatureCollection } from 'geojson';
@@ -51,7 +52,6 @@ export const SRC = {
   graticule: 'graticule',
   shade: 'shade',
   terminator: 'terminator',
-  groundPoints: 'ground-points',
   equalAltitude: 'equal-altitude',
   rings: 'altitude-rings',
   measure: 'measure',
@@ -86,10 +86,8 @@ export const DETAIL_ZOOM = 2;
 export const LAYER = {
   /** The street layer goes under everything the map draws on top of the basemap. */
   streetsBefore: 'shade',
-  /** Overlays from other views go under the ground points and the measuring lines. */
-  overlaysBefore: 'gp-halo',
-  groundPoints: 'gp-circle',
-  groundPointLabels: 'gp-label',
+  /** Overlays from other views go under the measuring lines (ground points are markers, above all layers). */
+  overlaysBefore: 'measure-halo',
 } as const;
 
 /** Which layers each `layers.*` switch shows. */
@@ -97,7 +95,6 @@ export const LAYER_GROUPS = {
   shade: ['shade'],
   terminator: ['terminator'],
   graticule: ['graticule', 'graticule-label', 'geolines', 'geolines-label'],
-  groundPoints: ['gp-halo', 'gp-circle', 'gp-label'],
   circles: ['equal-altitude-halo', 'equal-altitude', 'equal-altitude-label'],
   altitudeRings: ['rings', 'rings-label'],
 } as const;
@@ -332,40 +329,6 @@ export function buildLayers(t: MapTokens): LayerSpecification[] {
         'text-font': labelBold,
         'text-size': 11,
         'text-offset': [0, -0.9],
-      },
-      paint: { 'text-color': t.stageInk, 'text-halo-color': t.labelHalo, 'text-halo-width': 1.6 },
-    },
-    // Ground points of the bodies.
-    {
-      id: 'gp-halo',
-      type: 'circle',
-      source: SRC.groundPoints,
-      filter: ['==', ['get', 'selected'], true],
-      paint: { 'circle-radius': ['+', ['get', 'radius'], 4.5], 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': t.accent, 'circle-stroke-width': 2 },
-    },
-    {
-      id: 'gp-circle',
-      type: 'circle',
-      source: SRC.groundPoints,
-      paint: {
-        'circle-radius': ['get', 'radius'],
-        'circle-color': ['get', 'color'],
-        'circle-stroke-color': halo,
-        'circle-stroke-width': 1.5,
-      },
-    },
-    {
-      id: 'gp-label',
-      type: 'symbol',
-      source: SRC.groundPoints,
-      layout: {
-        'text-field': ['get', 'label'],
-        'text-font': labelBold,
-        'text-size': 11.5,
-        'text-variable-anchor': ['left', 'right', 'top', 'bottom'],
-        'text-radial-offset': 0.9,
-        'text-allow-overlap': false,
-        'symbol-sort-key': ['get', 'order'],
       },
       paint: { 'text-color': t.stageInk, 'text-halo-color': t.labelHalo, 'text-halo-width': 1.6 },
     },

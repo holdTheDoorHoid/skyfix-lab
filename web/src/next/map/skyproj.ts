@@ -261,19 +261,30 @@ export function moonLitPath(k: number, r: number): string {
   return `M0 ${fmt(-r)}A${fmt(r)} ${fmt(r)} 0 0 1 0 ${fmt(r)}A${fmt(e)} ${fmt(r)} 0 0 ${sweep} 0 ${fmt(-r)}Z`;
 }
 
-/** Text alignment for a label just outside the ring at azimuth `azDeg`. */
-export function labelPlacement(azDeg: number, R: number, gap = 8): { x: number; y: number; anchor: 'start' | 'middle' | 'end'; baseline: 'auto' | 'middle' | 'hanging' } {
+/**
+ * Where a label goes just outside the ring at screen azimuth `azDeg` (clockwise from up):
+ * its anchor point, and the CSS translation that keeps the label's box outside the ring
+ * (to the right on the east side, above at the north, centred where it is neither).
+ */
+export function labelPlacement(azDeg: number, R: number, gap = 12): { x: number; y: number; tx: '0%' | '-50%' | '-100%'; ty: '0%' | '-50%' | '-100%' } {
   const [x, y] = ringXY(azDeg, R + gap);
   const s = Math.sin(azDeg * RAD);
-  const c = Math.cos(azDeg * RAD);
-  const anchor = s > 0.35 ? 'start' : s < -0.35 ? 'end' : 'middle';
-  const baseline = c > 0.35 ? 'auto' : c < -0.35 ? 'hanging' : 'middle';
-  return { x, y, anchor, baseline };
+  const c = -Math.cos(azDeg * RAD);
+  return { x, y, tx: s > 0.3 ? '0%' : s < -0.3 ? '-100%' : '-50%', ty: c > 0.3 ? '0%' : c < -0.3 ? '-100%' : '-50%' };
 }
 
-/** The dial's radius: about 38 % of the smaller side of the view, within [min, max] pixels. */
-export function compassRadius(width: number, height: number, max = 220, min = 64): number {
-  return Math.max(min, Math.min(max, 0.38 * Math.min(width, height)));
+/** Below this width the dial is compact: times without words, no place label (phones). */
+export const COMPACT_WIDTH = 640;
+
+/**
+ * The dial's radius: about 38 % of the smaller side of the view, within [min, max] pixels.
+ * The cap keeps it the size of the approved design (docs/design/map-light.png) on a desktop;
+ * on a narrow screen it leaves room beside the ring for the rise and set times.
+ */
+export function compassRadius(width: number, height: number, max = 150, min = 64): number {
+  let r = 0.38 * Math.min(width, height);
+  if (width < COMPACT_WIDTH) r = Math.min(r, 0.23 * width);
+  return Math.max(min, Math.min(max, r));
 }
 
 /** Degrees between the screen's up and a direction given as a screen vector (for rotating the dial). */

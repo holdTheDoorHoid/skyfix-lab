@@ -13,9 +13,13 @@
  *   ?measure=lat,lon;lat,lon                       draw a measurement
  *   ?overlay=demo                                  a sample overlay through the map service
  *   ?bench=600                                     step time 2 min per frame and report timings
+ *   ?bare=1                                        hide the developer strip (screenshots)
  */
 
+import '../../theme/index.js';
 import './dev-map.css';
+import { applyTheme as applyDocumentTheme } from '../../theme/theme.js';
+import { installTooltips } from '../../theme/primitives.js';
 import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
 import { createNotices } from '../../notices.js';
@@ -60,8 +64,9 @@ async function boot(app: HTMLElement): Promise<void> {
 
   // Theme on the document, as the shell will do.
   const applyTheme = (t: Theme) => {
-    document.documentElement.dataset.theme = t;
+    applyDocumentTheme(t);
   };
+  installTooltips();
   applyTheme(store.get().settings.theme);
   store.select((s) => s.settings.theme, applyTheme);
 
@@ -71,6 +76,7 @@ async function boot(app: HTMLElement): Promise<void> {
   const stage = h('main', { class: 'dm-stage' });
   const noticeList = h('ul', { class: 'dm-notices', 'aria-live': 'polite' });
   app.replaceChildren(banner, bar, stage, noticeList);
+  if (params.get('bare') === '1') app.classList.add('dm-bare');
 
   const themeSel = h('select', { 'aria-label': 'Theme' });
   for (const t of ['light', 'dark', 'night']) themeSel.append(h('option', { value: t }, t[0]!.toUpperCase() + t.slice(1)));

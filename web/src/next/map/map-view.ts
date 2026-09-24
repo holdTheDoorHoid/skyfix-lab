@@ -1,17 +1,20 @@
 /**
  * The Map and Globe views (EXPLORER_PLAN section 2): a full-screen offline world map where a
- * click (a long press on touch) sets the observer, with the SunCalc-style compass dial at
- * the observer, day/night and twilight, the bodies' ground points, circles of equal
- * altitude, a graticule, a measuring tool, and overlays from other views. OWNER: map agent.
+ * click (a long press on touch) sets the observer, with the SunCalc-style compass dial
+ * centred exactly on the observer, day/night and twilight shading, the bodies' ground
+ * points, circles of equal altitude, a graticule, a measuring tool, and overlays from other
+ * views. OWNER: map agent. The look is the approved design (docs/design/map-light.png).
  *
  * One component serves both views: `view === 'globe'` switches MapLibre to its globe
  * projection, `'map'` to Mercator; any other view leaves the projection as it was.
+ *
+ * Needs the design system on the page (theme/index.ts: tokens, components, layout).
  *
  * Data flow: the store is read in the scheduler's frame (component contract). Per frame the
  * map asks the engine for one `sky_state` of every body (shared with other views through the
  * memoised engine) and redraws the terminator, ground points, circles and the dial's "now".
  * `sample_bodies` and `day_events` run only when the day, the observer or the selection
- * changes (EXPLORER_PLAN 3.7).
+ * change (EXPLORER_PLAN 3.7).
  */
 
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -21,48 +24,40 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url';
 import type { FeatureCollection } from 'geojson';
 import { disposer, observerKey, type Component, type Ctx, type Mounted } from '../component.js';
 import type { BodyState, LatLonDeg, SkyState } from '../engine/types.js';
+import { basemapUrl } from '../geo/basemap.js';
 import { formatLatLon } from '../geo/coords.js';
 import { describeLocation, loadGazetteer, placesGeoJson, type Gazetteer } from '../geo/gazetteer.js';
 import { loadRegionIndex, type RegionIndex } from '../geo/regions.js';
-import { basemapUrl } from '../geo/basemap.js';
 import { currentDayWindow, displayZone, engineObserver, eventOptions, type ExplorerState, type Layers, type ObserverState } from '../state.js';
 import { dayWindow, formatTime, wallClock, type Zone } from '../time.js';
 import { CompassDial, type DialDay, type DialEvent } from './compass.js';
-import { createControls, type LayerKey, type MapControls } from './controls.js';
+import { createControls, createCredit, type LayerKey, type MapControls } from './controls.js';
 import { registerMapFonts } from './fonts.js';
 import { formatAngle, formatBearing } from './format.js';
 import { angularDistanceDeg, emptyCollection, graticuleFeatures, graticuleStep, wrapLon } from './geometry.js';
+import { GroundPoints } from './groundpoints.js';
 import { measureFeatures, measure as measureBetween, measureText } from './measure.js';
 import { OverlayDrawer } from './overlay-layers.js';
 import { serviceImpl } from './overlays.js';
 import { describePlace, sameZone } from './place.js';
-import { aboveHorizonRuns, compassRadius, norm360, screenBearing, solsticeBand, type AltAz, type SkyRegion } from './skyproj.js';
-import {
-  DEFERRED_SOURCES,
-  LAYER,
-  LAYER_GROUPS,
-  OSM_ATTRIBUTION,
-  OSM_COPYRIGHT_URL,
-  SRC,
-  buildStyle,
-  restyle,
-  streetsLayer,
-  streetsSource,
-} from './style.js';
-import { applyCssTokens, onThemeChange, readTokens, type MapTokens } from './style-tokens.js';
-import { altitudeRingData, equalAltitudeFeatures, groundPointFeatures, shadeFeatures, terminatorFeatures } from './world.js';
+import { COMPACT_WIDTH, aboveHorizonRuns, compassRadius, norm360, screenBearing, solsticeBand, type AltAz, type SkyRegion } from './skyproj.js';
+import { DEFERRED_SOURCES, LAYER, LAYER_GROUPS, SRC, buildStyle, restyle, streetsLayer, streetsSource } from './style.js';
+import { onThemeChange, readTokens, type MapTokens } from './style-tokens.js';
+import { altitudeRingData, equalAltitudeFeatures, shadeFeatures, terminatorFeatures } from './world.js';
 
 setWorkerUrl(workerUrl);
 
 /** Opening zoom on the flat chart: a region around the observer. */
-export const FLAT_ZOOM = 3.4;
+export const FLAT_ZOOM = 2.7;
 /** Opening zoom on the globe: the hemisphere around the observer. */
 export const GLOBE_ZOOM = 1.55;
 /** How long a touch must be held to set the observer, ms. */
 const LONG_PRESS_MS = 550;
+/** Samples per hour of `sample_bodies` at the 5-minute step. */
+const SAMPLES_PER_HOUR = 12;
 
 export interface MapViewOptions {
-  /** The map's own buttons (zoom, your place, measure, layers, flat/globe). Default true. */
+  /** The map's own controls (projection, layers, zoom, your place, measuring, legend). Default true. */
   controls?: boolean;
   /** Called once the map has loaded (the developer page and tests). */
   onReady?: (map: MapLibreMap, api: MapViewApi) => void;
@@ -103,6 +98,13 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, cls: string, attrs: R
   return node;
 }
 
+/** The words for a body's rise and set: "Sunrise", "Moonset", "Venus rises". */
+function eventWords(body: string, kind: 'rise' | 'set' | 'transit'): string {
+  if (kind === 'transit') return 'Highest';
+  if (body === 'Sun' || body === 'Moon') return `${body}${kind}`;
+  return kind === 'rise' ? `${body} rises` : `${body} sets`;
+}
+
 function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted {
   const { store, engine, notices, scheduler } = ctx;
   const d = disposer();
@@ -114,32 +116,28 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   const mapEl = el('div', 'sfm-map');
   const dialLayer = el('div', 'sfm-dial-layer', { 'aria-hidden': 'true' });
   const crosshair = el('div', 'sfm-crosshair', { 'aria-hidden': 'true' });
-  const readout = el('div', 'sfm-readout', { role: 'status' });
+  const readout = el('div', 'sfm-readout sf-float sf-on-stage', { role: 'status' });
   readout.hidden = true;
-  const attribution = el('div', 'sfm-attrib');
-  attribution.hidden = true;
-  const link = el('a', '', { href: OSM_COPYRIGHT_URL, target: '_blank', rel: 'noopener noreferrer' });
-  link.textContent = OSM_ATTRIBUTION;
-  attribution.append(link);
   const live = el('p', 'sfm-sr', { 'aria-live': 'polite' });
-  const summary = el('p', 'sfm-sr', { id: `sfm-summary-${Math.random().toString(36).slice(2, 8)}` });
-  const help = el('p', 'sfm-sr', { id: `sfm-help-${Math.random().toString(36).slice(2, 8)}` });
+  const uid = Math.random().toString(36).slice(2, 8);
+  const summary = el('p', 'sfm-sr', { id: `sfm-summary-${uid}` });
+  const help = el('p', 'sfm-sr', { id: `sfm-help-${uid}` });
   help.textContent =
     'Click the map, or press and hold on a touch screen, to set your place; drag the marker to move it. ' +
-    'With the keyboard: move the map with the arrow keys and use "Put your place at the centre of the map".';
-  // A red-only colour filter for the online street layer in the night theme.
+    'With the keyboard: move the map with the arrow keys, then use "Set your place to the centre of the map".';
+  // A red-only filter for the online street layer in the night theme.
   const filterSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
   filterSvg.setAttribute('class', 'sfm-filters');
   filterSvg.setAttribute('aria-hidden', 'true');
   filterSvg.innerHTML =
     '<filter id="sfm-red-only" color-interpolation-filters="sRGB"><feColorMatrix type="matrix" values="0.3 0.59 0.11 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"/></filter>';
-  root.append(mapEl, dialLayer, crosshair, readout, attribution, live, summary, help, filterSvg);
+  const credit = createCredit();
+  root.append(mapEl, dialLayer, crosshair, readout, credit.element, live, summary, help, filterSvg);
   host.appendChild(root);
   d.add(() => root.remove());
 
   let tokens: MapTokens = readTokens();
   let tokensVersion = 0;
-  applyCssTokens(root, tokens);
 
   const s0 = store.get();
   let currentView: 'map' | 'globe' = s0.view === 'globe' ? 'globe' : 'map';
@@ -167,11 +165,9 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       },
     });
   } catch (error) {
-    root.replaceChildren(
-      Object.assign(el('p', 'sfm-fail', { role: 'alert' }), {
-        textContent: `The map could not start in this browser (${errorText(error)}). It needs WebGL; the other views still work.`,
-      }),
-    );
+    const fail = el('p', 'sfm-fail', { role: 'alert' });
+    fail.textContent = `The map could not start in this browser (${errorText(error)}). It needs WebGL; the other views still work.`;
+    root.replaceChildren(fail);
     return { destroy: () => d.dispose() };
   }
   map.touchZoomRotate.disableRotation();
@@ -186,6 +182,11 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   let loaded = false;
   const dial = new CompassDial(dialLayer);
   d.add(() => dial.destroy());
+  const groundPoints = new GroundPoints(map, (body) => {
+    store.patch({ selection: { body } });
+    live.textContent = `${body} selected.`;
+  });
+  d.add(() => groundPoints.destroy());
 
   // --- Scheduling -----------------------------------------------------------------------
   const renderTask = (): void => render();
@@ -194,11 +195,10 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   d.add(() => scheduler.cancel(renderTask));
 
   const setData = (id: string, data: FeatureCollection | string): void => {
-    const src = map.getSource(id) as GeoJSONSource | undefined;
-    src?.setData(data);
+    (map.getSource(id) as GeoJSONSource | undefined)?.setData(data);
   };
 
-  // --- Engine calls with failures shown once --------------------------------------------
+  /** Engine calls with a failure shown once, as a keyed notice. */
   function attempt<T>(key: string, what: string, fn: () => T): T | null {
     try {
       const v = fn();
@@ -210,22 +210,26 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     }
   }
 
-  // --- Places: gazetteer and country polygons (for names and time zones) ----------------
+  // --- Places: gazetteer and country polygons, for names and time zones -----------------
   let gazetteer: Gazetteer | null = null;
   let regions: RegionIndex | null = null;
-  /** The last position the map itself put the observer on (so it can relabel it). */
+  /** The last position the map itself put the observer on (its zone may be re-guessed). */
   let lastMapSet: string | null = null;
   let labelledWithRegions = false;
 
-  function relabelMapPosition(): void {
+  /** Name an unnamed observer, and finish a guess made before the data had loaded. */
+  function relabel(): void {
+    if (!gazetteer) return;
     const o = store.get().observer;
-    if (!gazetteer || lastMapSet !== positionKey(o.lat_deg, o.lon_deg)) return;
-    if (o.label && labelledWithRegions) return;
+    const mapSet = lastMapSet === positionKey(o.lat_deg, o.lon_deg);
+    if (o.label && (!mapSet || labelledWithRegions)) return;
     const info = describePlace(gazetteer, regions, o.lat_deg, o.lon_deg, o.zone);
-    labelledWithRegions = regions !== null;
-    const patch: Partial<ObserverState> = { label: info.label };
-    if (info.zone && !sameZone(info.zone, o.zone)) patch.zone = info.zone;
-    store.patch({ observer: patch });
+    const patch: Partial<ObserverState> = {};
+    if (!o.label || mapSet) patch.label = info.label;
+    // A zone that came with the place (a share link) is kept; one the map guessed is refined.
+    if (mapSet && info.zone && !sameZone(info.zone, o.zone)) patch.zone = info.zone;
+    labelledWithRegions = mapSet && regions !== null;
+    if (Object.keys(patch).length) store.patch({ observer: patch });
   }
 
   // --- Setting the observer ---------------------------------------------------------------
@@ -247,11 +251,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       patch.label = info.label;
       if (info.zone && !sameZone(info.zone, current.zone)) patch.zone = info.zone;
       labelledWithRegions = regions !== null;
-    } else if (gazetteer) {
-      patch.label = describeLocation(gazetteer, la, lo).text;
-      labelledWithRegions = false;
     } else {
-      patch.label = '';
+      patch.label = gazetteer ? describeLocation(gazetteer, la, lo).text : '';
       labelledWithRegions = false;
     }
     lastMapSet = positionKey(la, lo);
@@ -263,9 +264,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   }
 
   // --- The observer marker ------------------------------------------------------------------
-  const markerEl = el('div', 'sfm-observer', { 'aria-hidden': 'true' });
-  markerEl.append(el('span', 'sfm-observer-dot'));
-  const marker = new Marker({ element: markerEl, draggable: true, anchor: 'center' })
+  const markerEl = el('div', 'sfm-observer', { 'aria-hidden': 'true', title: 'Your place: drag to move it' });
+  const marker = new Marker({ element: markerEl, draggable: true, anchor: 'center', opacityWhenCovered: 0 })
     .setLngLat([s0.observer.lon_deg, s0.observer.lat_deg])
     .addTo(map);
   marker.on('dragstart', () => root.classList.add('sfm--dragging'));
@@ -286,11 +286,11 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   // --- Measuring ----------------------------------------------------------------------------
   const measuring = { active: false, a: null as LatLonDeg | null, b: null as LatLonDeg | null };
   const measureMarkers: Marker[] = [];
-  const readoutText = el('div', 'sfm-readout-text');
-  const readoutButtons = el('div', 'sfm-readout-buttons');
-  const clearBtn = el('button', 'sfm-textbtn', { type: 'button' });
+  const readoutText = el('div', 'sfm-readout__text');
+  const readoutButtons = el('div', 'sfm-readout__buttons');
+  const clearBtn = el('button', 'sf-btn sf-btn--secondary sf-btn--sm', { type: 'button' });
   clearBtn.textContent = 'Clear';
-  const doneBtn = el('button', 'sfm-textbtn', { type: 'button' });
+  const doneBtn = el('button', 'sf-btn sf-btn--secondary sf-btn--sm', { type: 'button' });
   doneBtn.textContent = 'Done';
   readoutButtons.append(clearBtn, doneBtn);
   readout.append(readoutText, readoutButtons);
@@ -328,19 +328,17 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     root.classList.toggle('sfm--measuring', measuring.active);
     if (!measuring.active) return;
     readoutText.replaceChildren();
-    const title = el('p', 'sfm-readout-title');
-    const units = store.get().settings.units;
+    const title = el('p', 'sfm-readout__title');
     if (a && b) {
-      const m = measureBetween(a, b);
-      const t = measureText(m, units);
+      const t = measureText(measureBetween(a, b), store.get().settings.units);
       title.textContent = 'From A to B';
-      const gc = el('p', 'sfm-readout-line');
+      const gc = el('p', 'sfm-readout__line');
       gc.textContent = t.greatCircle;
-      const rh = el('p', 'sfm-readout-line sfm-readout-line--rhumb');
+      const rh = el('p', 'sfm-readout__line');
       rh.textContent = t.rhumb;
       readoutText.append(title, gc, rh);
     } else {
-      title.textContent = a ? 'Click the second point (B).' : 'Measure: click the first point (A).';
+      title.textContent = a ? 'Now click the second point (B).' : 'Measuring: click the first point (A).';
       readoutText.append(title);
     }
   }
@@ -356,7 +354,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   }
 
   // --- Picking on the map ------------------------------------------------------------------
-  function pick(lngLat: LngLat, point: { x: number; y: number }): void {
+  function pick(lngLat: LngLat): void {
     const ll = lngLat.wrap();
     if (measuring.active) {
       const p = { lat_deg: ll.lat, lon_deg: ll.lng };
@@ -368,22 +366,6 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       }
       syncMeasure();
       return;
-    }
-    // A click on a ground point selects that body.
-    if (store.get().layers.groundPoints && map.getLayer(LAYER.groundPoints)) {
-      const hits = map.queryRenderedFeatures(
-        [
-          [point.x - 7, point.y - 7],
-          [point.x + 7, point.y + 7],
-        ],
-        { layers: [LAYER.groundPoints, LAYER.groundPointLabels] },
-      );
-      const body = hits[0]?.properties?.body;
-      if (typeof body === 'string') {
-        store.patch({ selection: { body } });
-        live.textContent = `${body} selected.`;
-        return;
-      }
     }
     setObserverAt(ll.lat, ll.lng, 'final');
   }
@@ -407,8 +389,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       timer: window.setTimeout(() => {
         longPress = null;
         const rect = mapEl.getBoundingClientRect();
-        const point = { x: start.x - rect.left, y: start.y - rect.top };
-        pick(map.unproject([point.x, point.y]), point);
+        pick(map.unproject([start.x - rect.left, start.y - rect.top]));
         navigator.vibrate?.(12);
       }, LONG_PRESS_MS),
     };
@@ -416,13 +397,13 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   const onPointerMove = (e: PointerEvent): void => {
     if (longPress && e.pointerId === longPress.id && Math.hypot(e.clientX - longPress.x, e.clientY - longPress.y) > 10) cancelLongPress();
   };
+  const onContextMenu = (e: Event): void => {
+    if (lastPointerType === 'touch') e.preventDefault();
+  };
   mapEl.addEventListener('pointerdown', onPointerDown, true);
   mapEl.addEventListener('pointermove', onPointerMove, true);
   mapEl.addEventListener('pointerup', cancelLongPress, true);
   mapEl.addEventListener('pointercancel', cancelLongPress, true);
-  const onContextMenu = (e: Event): void => {
-    if (lastPointerType === 'touch') e.preventDefault();
-  };
   mapEl.addEventListener('contextmenu', onContextMenu);
   d.add(() => {
     cancelLongPress();
@@ -434,13 +415,9 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   });
 
   map.on('click', (e: MapMouseEvent) => {
-    if (lastPointerType === 'touch') return; // touch sets the place with a long press only
-    pick(e.lngLat, e.point);
+    if (lastPointerType === 'touch') return; // on touch a long press sets the place
+    pick(e.lngLat);
   });
-  for (const layer of [LAYER.groundPoints, LAYER.groundPointLabels]) {
-    map.on('mouseenter', layer, () => (map.getCanvas().style.cursor = 'pointer'));
-    map.on('mouseleave', layer, () => (map.getCanvas().style.cursor = ''));
-  }
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape' && measuring.active) {
@@ -455,8 +432,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   const duration = (ms: number) => (reducedMotion() ? 0 : ms);
 
   /**
-   * On the globe, whether a location is on the far side: project it, read the map back at that
-   * pixel, and compare (the front surface answers for a hidden point). Public API only.
+   * On the globe, whether a location is on the far side: project it, read the map back at
+   * that pixel, and compare (the near surface answers for a hidden point). Public API only.
    */
   function occluded(ll: LngLat, p: { x: number; y: number }): boolean {
     if (currentView !== 'globe') return false;
@@ -466,19 +443,19 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     return angularDistanceDeg({ lat_deg: back.lat, lon_deg: back.lng }, { lat_deg: ll.lat, lon_deg: ll.lng }) > 0.5;
   }
 
+  /** The longitude of the world copy nearest the map's centre (Mercator draws copies side by side). */
+  function nearestCopy(lon: number): number {
+    if (currentView === 'globe') return lon;
+    const c = map.getCenter().lng;
+    return lon + 360 * Math.round((c - lon) / 360);
+  }
+
   function viewportContains(lat: number, lon: number, marginPx = 40): boolean {
     const ll = new LngLat(nearestCopy(lon), lat);
     const p = map.project(ll);
     if (occluded(ll, p)) return false;
     const c = map.getContainer();
     return p.x >= marginPx && p.y >= marginPx && p.x <= c.clientWidth - marginPx && p.y <= c.clientHeight - marginPx;
-  }
-
-  /** The longitude of the world copy nearest the map's centre (Mercator draws copies side by side). */
-  function nearestCopy(lon: number): number {
-    if (currentView === 'globe') return lon;
-    const c = map.getCenter().lng;
-    return lon + 360 * Math.round((c - lon) / 360);
   }
 
   function recentre(): void {
@@ -510,16 +487,19 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   // --- Controls ---------------------------------------------------------------------------
   let controls: MapControls | null = null;
   if (options.controls ?? true) {
-    controls = createControls({
-      zoomIn: () => map.zoomIn({ duration: duration(250) }),
-      zoomOut: () => map.zoomOut({ duration: duration(250) }),
-      recentre,
-      placeAtCentre,
-      toggleMeasure: () => toggleMeasure(),
-      setProjection: (view) => store.patch({ view }),
-      setLayer: (key: LayerKey, on: boolean) => store.patch({ layers: { [key]: on } }),
-    });
-    root.appendChild(controls.element);
+    controls = createControls(
+      {
+        zoomIn: () => map.zoomIn({ duration: duration(250) }),
+        zoomOut: () => map.zoomOut({ duration: duration(250) }),
+        recentre,
+        placeAtCentre,
+        toggleMeasure: () => toggleMeasure(),
+        setProjection: (view) => store.patch({ view }),
+        setLayer: (key: LayerKey, on: boolean) => store.patch({ layers: { [key]: on } }),
+      },
+      root,
+    );
+    root.append(...controls.elements);
     d.add(() => controls?.destroy());
   }
 
@@ -534,11 +514,9 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     vis(LAYER_GROUPS.shade, L.terminator || L.twilight);
     vis(LAYER_GROUPS.terminator, L.terminator);
     vis(LAYER_GROUPS.graticule, L.graticule);
-    vis(LAYER_GROUPS.groundPoints, L.groundPoints);
     vis(LAYER_GROUPS.circles, L.circles);
     vis(LAYER_GROUPS.altitudeRings, L.altitudeRings);
     syncStreets(L.streets);
-    syncScale(L.scaleBar, store.get().settings.units);
     if (L.graticule) syncGraticule();
   }
 
@@ -551,7 +529,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       if (map.getLayer(SRC.streets)) map.removeLayer(SRC.streets);
       map.removeSource(SRC.streets);
     }
-    attribution.hidden = !on;
+    credit.setStreets(on);
     root.classList.toggle('sfm--red-streets', on && tokens.theme === 'night');
   }
 
@@ -564,8 +542,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       return;
     }
     if (!scale) {
-      scale = new ScaleControl({ maxWidth: 120, unit: units });
-      map.addControl(scale, 'bottom-left');
+      scale = new ScaleControl({ maxWidth: 110, unit: units });
+      map.addControl(scale, 'bottom-right');
       scaleUnit = units;
     } else if (scaleUnit !== units) {
       scale.setUnit(units);
@@ -607,7 +585,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   }
 
   // --- World layers -----------------------------------------------------------------------
-  const keys = { shade: '', terminator: '', gp: '', circle: '', rings: '' };
+  const keys = { shade: '', terminator: '', circle: '', rings: '' };
   function syncWorld(s: ExplorerState, sky: SkyState | null): void {
     const L = s.layers;
     const sun = sky?.bodies.find((b) => b.body === 'Sun');
@@ -625,11 +603,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       keys.terminator = termKey;
       setData(SRC.terminator, sun && L.terminator ? terminatorFeatures(sun.gp) : emptyCollection());
     }
-    const gpKey = sky && L.groundPoints ? `${sky.jd_utc}|${selected}|${v}` : 'off';
-    if (gpKey !== keys.gp) {
-      keys.gp = gpKey;
-      setData(SRC.groundPoints, sky && L.groundPoints ? groundPointFeatures(sky.bodies, selected, tokens) : emptyCollection());
-    }
+    groundPoints.update(sky?.bodies ?? [], selected, L.groundPoints && sky !== null);
     const circleKey = body && L.circles ? `${body.gp.lat_deg}|${body.gp.lon_deg}|${body.hc_deg}|${s.settings.angleFormat}|${v}` : 'off';
     if (circleKey !== keys.circle) {
       keys.circle = circleKey;
@@ -689,35 +663,50 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     const track = data.sampled.bodies[0];
     const bodyEvents = data.events.bodies[0];
     const path = track && s.layers.paths ? aboveHorizonRuns({ alt: track.alt_apparent_deg, az: track.az_deg }) : [];
-    const words: Record<string, string> = { rise: 'Rise', set: 'Set', transit: 'Highest' };
+    const hours: AltAz[] = [];
+    if (track && s.layers.paths) {
+      // Whole hours of the display clock: the day window starts on one.
+      for (let i = SAMPLES_PER_HOUR; i < track.alt_apparent_deg.length - 1; i += SAMPLES_PER_HOUR) {
+        const alt = track.alt_apparent_deg[i]!;
+        if (alt > 0.5) hours.push({ alt, az: track.az_deg[i]! });
+      }
+    }
     const events: DialEvent[] = (bodyEvents?.events ?? [])
       .filter((e) => e.kind === 'rise' || e.kind === 'set' || e.kind === 'transit')
-      .map((e) => ({ kind: e.kind as DialEvent['kind'], alt: e.alt_deg, az: e.az_deg, label: `${words[e.kind]} ${formatTime(e.jd_utc, zone)}` }));
+      .map((e) => {
+        const kind = e.kind as DialEvent['kind'];
+        const time = formatTime(e.jd_utc, zone);
+        return { kind, alt: e.alt_deg, az: e.az_deg, label: `${eventWords(body, kind)} ${time}`, time };
+      });
     let note = '';
-    if (bodyEvents?.always_above) note = body === 'Sun' ? 'Sun up all day (midnight Sun)' : `${body} up all day`;
-    else if (bodyEvents?.always_below) note = body === 'Sun' ? 'Sun below the horizon all day (polar night)' : `${body} below the horizon all day`;
+    if (bodyEvents?.always_above) note = `${body} up all day`;
+    else if (bodyEvents?.always_below) note = `${body} down all day`;
     const sun = kind === 'sun' && s.layers.paths ? solsticeData(s, zone) : null;
     summaryText = daySummary(body, events, note, s);
-    return { body, kind, path, events, note, band: sun?.region ?? null, solstices: sun?.runs ?? [] };
+    return { body, kind, path, hours, events, note, band: sun?.region ?? null, solstices: sun?.runs ?? [] };
   }
 
   function daySummary(body: string, events: DialEvent[], note: string, s: ExplorerState): string {
     if (note) return `${note}.`;
     const parts = events.map((e) =>
-      e.kind === 'transit' ? `highest at ${e.label.split(' ').pop()} (${formatAngle(e.alt, s.settings.angleFormat)} up)` : `${e.label.toLowerCase()}, bearing ${formatBearing(e.az)}`,
+      e.kind === 'transit'
+        ? `highest ${e.time} at ${formatAngle(e.alt, s.settings.angleFormat)}`
+        : `${e.label}, bearing ${formatBearing(e.az)}`,
     );
     return parts.length ? `${body} today: ${parts.join('; ')}.` : '';
   }
 
   function syncDial(s: ExplorerState, sky: SkyState | null): void {
     const L = s.layers;
-    if (!L.compass) {
-      dial.place(0, 0, 0, false);
-      return;
-    }
     const c = map.getContainer();
     dial.setRadius(compassRadius(c.clientWidth, c.clientHeight));
-    const body = s.selection.body;
+    dial.setCompact(c.clientWidth < COMPACT_WIDTH);
+    root.classList.toggle('sfm--compact', c.clientWidth < COMPACT_WIDTH);
+    dial.setDialVisible(L.compass);
+    root.classList.toggle('sfm--bare', !L.compass);
+    const o = s.observer;
+    dial.setPlaceLabel(o.label || formatLatLon({ lat_deg: o.lat_deg, lon_deg: o.lon_deg }));
+    const body = L.compass ? s.selection.body : null;
     const info = body ? sky?.bodies.find((b) => b.body === body) : undefined;
     const [start, end] = currentDayWindow(s);
     const opts = eventOptions(s);
@@ -749,16 +738,12 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   }
 
   function placeDial(): void {
-    const s = store.get();
-    if (!loaded || !s.layers.compass) {
-      dial.place(0, 0, 0, false);
-      return;
-    }
-    const o = s.observer;
+    if (!loaded) return;
+    const o = store.get().observer;
     const ll = new LngLat(nearestCopy(o.lon_deg), o.lat_deg);
     const p = map.project(ll);
     const c = map.getContainer();
-    const R = compassRadius(c.clientWidth, c.clientHeight);
+    const R = compassRadius(c.clientWidth, c.clientHeight) + 80;
     const visible = !occluded(ll, p) && p.x > -R && p.y > -R && p.x < c.clientWidth + R && p.y < c.clientHeight + R;
     let rotation = 0;
     if (currentView === 'globe' && visible) {
@@ -795,11 +780,11 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   }
 
   // --- Theme --------------------------------------------------------------------------------
+  let overlays: OverlayDrawer | null = null;
   d.add(
     onThemeChange(() => {
       tokens = readTokens();
       tokensVersion += 1;
-      applyCssTokens(root, tokens);
       if (loaded) {
         restyle(map, tokens);
         overlays?.restyle();
@@ -810,17 +795,24 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   );
 
   // --- Loading --------------------------------------------------------------------------------
-  let overlays: OverlayDrawer | null = null;
+  let pendingDetail = new Set<string>();
   map.on('error', (e) => {
     const message = errorText((e as { error?: unknown }).error ?? e);
     console.warn('map:', message);
     notices.push('caution', `Map: some map data could not be loaded (${message}).`, { key: 'map-data' });
+  });
+  map.on('sourcedata', (e) => {
+    if (!pendingDetail.size || !e.sourceId || !pendingDetail.has(e.sourceId) || !map.isSourceLoaded(e.sourceId)) return;
+    pendingDetail.delete(e.sourceId);
+    if (!pendingDetail.size) root.dataset.detail = '1';
   });
   map.on('move', placeDial);
   map.on('moveend', syncGraticule);
   map.on('resize', () => {
     const c = map.getContainer();
     dial.setRadius(compassRadius(c.clientWidth, c.clientHeight));
+    dial.setCompact(c.clientWidth < COMPACT_WIDTH);
+    root.classList.toggle('sfm--compact', c.clientWidth < COMPACT_WIDTH);
     placeDial();
     graticuleKey = '';
     syncGraticule();
@@ -864,21 +856,24 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   map.once('idle', () => {
     if (destroyed) return;
     // The heavier 1:50m layers, once the first picture is on screen.
+    root.dataset.detail = 'loading';
+    pendingDetail = new Set(Object.keys(DEFERRED_SOURCES));
     for (const [id, layer] of Object.entries(DEFERRED_SOURCES)) setData(id, basemapUrl(layer));
     loadGazetteer()
       .then((g) => {
         if (destroyed) return;
         gazetteer = g;
         setData(SRC.places, placesGeoJson(g) as FeatureCollection);
-        relabelMapPosition();
+        relabel();
+        root.dataset.places = '1';
         return loadRegionIndex().then((r) => {
           if (destroyed) return;
           regions = r;
-          relabelMapPosition();
+          relabel();
         });
       })
       .catch((error: unknown) => {
-        notices.push('caution', `Map: place names could not be loaded (${errorText(error)}); positions are shown as coordinates.`, { key: 'map-places' });
+        notices.push('caution', `Map: place names could not be loaded (${errorText(error)}); places are shown as coordinates.`, { key: 'map-places' });
       });
   });
 

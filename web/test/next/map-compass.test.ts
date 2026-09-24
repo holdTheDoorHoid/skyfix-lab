@@ -72,8 +72,9 @@ describe('projection', () => {
   });
 
   it('sizes the dial to 38 % of the smaller side, within limits', () => {
-    expect(compassRadius(1440, 900)).toBe(220);
-    expect(compassRadius(400, 300)).toBeCloseTo(114, 9);
+    expect(compassRadius(1440, 900)).toBe(150);
+    expect(compassRadius(700, 300)).toBeCloseTo(114, 9);
+    expect(compassRadius(390, 700)).toBeCloseTo(89.7, 9); // a phone: room for the times
     expect(compassRadius(100, 100)).toBe(64);
   });
 
@@ -189,9 +190,12 @@ describe('the Moon glyph', () => {
 
 describe('labels', () => {
   it('anchors labels away from the ring', () => {
-    expect(labelPlacement(90, 100).anchor).toBe('start');
-    expect(labelPlacement(270, 100).anchor).toBe('end');
-    expect(labelPlacement(0, 100)).toMatchObject({ anchor: 'middle', baseline: 'auto' });
-    expect(labelPlacement(180, 100)).toMatchObject({ anchor: 'middle', baseline: 'hanging' });
+    expect(labelPlacement(90, 100)).toMatchObject({ tx: '0%', ty: '-50%' });
+    expect(labelPlacement(270, 100)).toMatchObject({ tx: '-100%', ty: '-50%' });
+    expect(labelPlacement(0, 100)).toMatchObject({ tx: '-50%', ty: '-100%' });
+    expect(labelPlacement(180, 100)).toMatchObject({ tx: '-50%', ty: '0%' });
+    const p = labelPlacement(90, 100, 12);
+    expect(p.x).toBeCloseTo(112, 9);
+    expect(p.y).toBeCloseTo(0, 9);
   });
 });
