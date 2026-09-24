@@ -549,6 +549,75 @@ pub enum Warning {
     Other {
         message: String,
     },
+    // --- navigation methods (docs/NAVIGATION_METHODS.md) -----------------------
+    /// Noon sight: the longitude comes from the *time* of a flat-topped peak, so it is
+    /// far weaker than the latitude. Emitted whenever a noon longitude is reported.
+    FlatPeakLongitude {
+        body: String,
+        /// 1-sigma of the time of meridian passage, seconds (clock included).
+        sigma_time_s: f64,
+        /// 1-sigma of the longitude, arcminutes of longitude (clock included).
+        sigma_lon_arcmin: f64,
+        /// The same as an east-west distance, nautical miles.
+        sigma_east_nm: f64,
+    },
+    /// Noon sight: the body crossed the meridian within 5 deg of the zenith, where its
+    /// bearing swings fast, the altitude is hard to measure and north/south decides
+    /// the latitude.
+    MeridianNearZenith {
+        body: String,
+        meridian_altitude_deg: f64,
+    },
+    /// Noon sight: the DR latitude does not clearly decide whether the body passed
+    /// north or south of the zenith; `other_latitude_deg` is the answer for the other side.
+    MeridianSideAmbiguous {
+        body: String,
+        latitude_deg: f64,
+        other_latitude_deg: f64,
+    },
+    /// A single altitude used as the meridian (maximum) altitude was taken far from the
+    /// meridian passage the DR predicts.
+    NotAtMeridianPassage {
+        id: String,
+        minutes_from_passage: f64,
+    },
+    /// Noon sight: every sight is on one side of meridian passage, so the time of the
+    /// peak is extrapolated rather than bracketed.
+    OneSidedRun {
+        body: String,
+        before: usize,
+        after: usize,
+    },
+    /// Noon sight: the curvature fitted to the sights disagrees with the curvature the
+    /// geometry predicts by more than 3 sigma.
+    CurvatureInconsistent {
+        body: String,
+        predicted_arcmin_per_min2: f64,
+        fitted_arcmin_per_min2: f64,
+        z: f64,
+    },
+    /// Averaging: the free-slope fit disagrees with the slope the ephemeris predicts at
+    /// the DR position by more than 3 sigma.
+    SlopeInconsistent {
+        body: String,
+        predicted_arcmin_per_min: f64,
+        fitted_arcmin_per_min: f64,
+        z: f64,
+    },
+    /// A sight in a run whose normalised residual exceeds the outlier threshold.
+    /// `rejected` says whether it was left out of the averaged answer.
+    RunOutlier {
+        id: String,
+        normalized_residual: f64,
+        rejected: bool,
+    },
+    /// Polaris latitude near the pole: Polaris is nearly overhead, its bearing is far
+    /// from north, and the latitude depends strongly on the longitude.
+    PolarisNearPole {
+        id: String,
+        latitude_deg: f64,
+        azimuth_deg: f64,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -570,6 +639,413 @@ pub struct Truth {
     pub wrong_sight_ids: Vec<String>,
     #[serde(default)]
     pub notes: String,
+}
+
+// ---------------------------------------------------------------------------
+// Navigation methods: noon sight, Polaris latitude, averaging a run of sights.
+// docs/NAVIGATION_METHODS.md is normative; the computation is `crate::methods`.
+// Wire shapes only. Every input reuses the session model above: the sights are a
+// `Session`'s observations and go through the ordinary reduction (CONVENTIONS 4-5).
+// ---------------------------------------------------------------------------
+
+/// Constant course and speed over the ground while a method's sights were taken.
+/// The run is a great circle through the method's reference position on this course.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct VesselMotion {
+    /// Course over the ground, degrees true.
+    pub course_deg: f64,
+    /// Speed over the ground, knots.
+    pub speed_kn: f64,
+}
+
+/// A dead-reckoning position and, when the navigator states it, its uncertainty.
+/// Used to choose between answers, to predict, and to propagate uncertainty; never as
+/// a prior on an answer (CONVENTIONS section 8).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct DrPosition {
+    pub lat_deg: f64,
+    pub lon_deg: f64,
+    /// 1-sigma error of the DR position, nautical miles, in each of north and east.
+    /// `None` means "not stated", which is never silently replaced by a guess.
+    #[serde(default)]
+    pub sigma_nm: Option<f64>,
+}
+
+/// Which side of the zenith the body crosses the meridian, as the navigator states it.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum BodyBearing {
+    /// Decide from the DR latitude and the declination.
+    #[default]
+    Auto,
+    /// The body was north of the zenith at meridian passage (you faced north).
+    North,
+    /// The body was south of the zenith at meridian passage (you faced south).
+    South,
+}
+
+/// The side a result found. `Auto` never appears in output.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum MeridianSide {
+    North,
+    South,
+}
+
+/// How the noon curve's curvature is obtained.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NoonCurvature {
+    /// From the geometry (the exact altitude curve at the solved position). Default.
+    #[default]
+    Predicted,
+    /// Fitted to the sights as a free parabola (needs three or more sights).
+    Fitted,
+}
+
+/// What a single noon altitude means.
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum SingleAltitudeMode {
+    /// The navigator recorded the peak: it is the meridian altitude. Default.
+    #[default]
+    Maximum,
+    /// An altitude taken near noon at the recorded time, reduced to the meridian with
+    /// the DR longitude (the ex-meridian method; the altitude equation solved exactly).
+    ExMeridian,
+}
+
+/// Options for [`crate::methods::noon::noon_sight`]. Every field has a default, so `{}`
+/// is a valid document.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct NoonSightOptions {
+    /// DR position for the middle of the run. Defaults to the session's assumed
+    /// position (and its prior sigma, if its role is `prior`).
+    pub dr: Option<DrPosition>,
+    pub vessel: Option<VesselMotion>,
+    pub body_bearing: BodyBearing,
+    pub curvature: NoonCurvature,
+    pub single_altitude: SingleAltitudeMode,
+}
+
+/// Which computation produced a noon answer.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum NoonMethod {
+    /// Two or more sights fitted with the exact altitude curve (curvature predicted).
+    CurveFit,
+    /// Three or more sights fitted with a free-curvature parabola.
+    CurveFitFreeCurvature,
+    /// Latitude only, reducing the sight(s) to the meridian with the DR longitude.
+    ExMeridian,
+    /// One altitude, recorded at the peak, used as the meridian altitude.
+    MaximumAltitude,
+}
+
+/// A latitude and its 1-sigma, arcminutes (= nautical miles).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct LatitudeEstimate {
+    pub lat_deg: f64,
+    pub sigma_arcmin: f64,
+}
+
+/// A longitude and its 1-sigma, both as arcminutes of longitude and as an east-west
+/// distance. `sigma_arcmin` includes the clock term `clock_sigma_arcmin`.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct LongitudeEstimate {
+    pub lon_deg: f64,
+    pub sigma_arcmin: f64,
+    pub sigma_nm: f64,
+    /// The part of `sigma_arcmin` that is the session's clock uncertainty (CONVENTIONS 6).
+    pub clock_sigma_arcmin: f64,
+}
+
+/// An instant and its 1-sigma, seconds.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct TimeEstimate {
+    pub utc: String,
+    pub jd_utc: f64,
+    pub sigma_s: f64,
+}
+
+/// The highest point of the fitted noon curve. It differs from meridian passage when
+/// the declination changes or the vessel moves north or south.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CurveMaximum {
+    pub utc: String,
+    pub jd_utc: f64,
+    pub altitude_deg: f64,
+    /// Positive when the peak comes after meridian passage.
+    pub seconds_after_passage: f64,
+}
+
+/// The shape of the noon curve near meridian passage: `h ~ H0 + a t - k t^2`,
+/// `t` in minutes from passage.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct CurvatureReport {
+    /// `k` from the geometry, arcminutes per minute squared.
+    pub predicted_arcmin_per_min2: f64,
+    /// `a`, the rate of the meridian altitude itself (declination change and the
+    /// vessel's north-south motion), arcminutes per minute.
+    pub rate_at_passage_arcmin_per_min: f64,
+    /// `a^2 / (4 k)`: how much higher the peak is than the meridian altitude, arcminutes.
+    pub max_minus_meridian_arcmin: f64,
+    /// `k` fitted as a free parameter (three or more sights), with its 1-sigma.
+    pub fitted_arcmin_per_min2: Option<f64>,
+    pub fitted_sigma_arcmin_per_min2: Option<f64>,
+    /// `(fitted - predicted) / sigma`.
+    pub z: Option<f64>,
+    /// `|z| <= 3`.
+    pub consistent: Option<bool>,
+}
+
+/// The answers of the noon computation that was *not* chosen as primary, for comparison.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NoonAlternative {
+    pub method: NoonMethod,
+    pub latitude: LatitudeEstimate,
+    pub meridian_altitude_deg: f64,
+    pub meridian_passage: Option<TimeEstimate>,
+    pub longitude: Option<LongitudeEstimate>,
+    pub chi2: f64,
+    pub dof: i64,
+}
+
+/// The noon answer against the DR.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NoonDrCheck {
+    /// Meridian passage predicted from the DR longitude (moved with the vessel).
+    pub predicted_passage_utc: String,
+    pub predicted_passage_jd_utc: f64,
+    /// 1-sigma of that prediction from the DR's stated uncertainty; `None` if unstated.
+    pub predicted_passage_sigma_s: Option<f64>,
+    /// Answer minus DR at the answer's instant, arcminutes of latitude (= NM).
+    pub latitude_difference_arcmin: f64,
+    /// Answer minus DR, arcminutes of longitude; `None` when no longitude was found.
+    pub longitude_difference_arcmin: Option<f64>,
+}
+
+/// One sight of a run against the fitted model.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct RunResidual {
+    pub id: String,
+    pub utc: String,
+    pub jd_utc: f64,
+    /// Minutes from the method's reference instant (noon: meridian passage;
+    /// averaging: the chosen reference time).
+    pub minutes: f64,
+    pub ho_deg: f64,
+    pub model_deg: f64,
+    /// `Ho - model`, arcminutes.
+    pub residual_arcmin: f64,
+    /// `residual / sigma` (CONVENTIONS section 9).
+    pub normalized: f64,
+    /// Averaging only: the residual against the fit to the *other* sights, divided by
+    /// its own standard deviation. This is the statistic the outlier test uses.
+    pub normalized_loo: Option<f64>,
+    pub used: bool,
+    pub outlier: bool,
+}
+
+/// A point on a fitted curve, for plotting.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub struct CurvePoint {
+    pub jd_utc: f64,
+    pub minutes: f64,
+    pub altitude_deg: f64,
+}
+
+/// Result of [`crate::methods::noon::noon_sight`].
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct NoonSightResult {
+    pub body: String,
+    pub method: NoonMethod,
+    pub n_sights: usize,
+    /// Which side of the zenith the body crossed the meridian.
+    pub side: MeridianSide,
+    pub latitude: LatitudeEstimate,
+    /// Altitude of the body's centre at meridian passage (Ho), degrees.
+    pub meridian_altitude_deg: f64,
+    pub declination_deg: f64,
+    pub zenith_distance_deg: f64,
+    /// The rule applied, in words, with the numbers.
+    pub latitude_rule: String,
+    /// Measured time of meridian passage; `None` for the single-altitude and
+    /// ex-meridian methods, which cannot time the peak.
+    pub meridian_passage: Option<TimeEstimate>,
+    pub longitude: Option<LongitudeEstimate>,
+    /// Plain-language statement of how weak the longitude is (the flat peak), or why
+    /// there is none.
+    pub longitude_caveat: String,
+    /// Ex-meridian only: arcminutes of latitude per nautical mile of east-west DR error.
+    pub longitude_sensitivity_arcmin_per_nm: Option<f64>,
+    pub maximum: Option<CurveMaximum>,
+    pub curvature: CurvatureReport,
+    pub alternative: Option<NoonAlternative>,
+    pub dr_check: NoonDrCheck,
+    pub chi2: f64,
+    pub dof: i64,
+    pub residuals: Vec<RunResidual>,
+    pub model_curve: Vec<CurvePoint>,
+    /// Every sight through the correction chain, with its workings.
+    pub sights: Vec<ReducedSight>,
+    pub warnings: Vec<Warning>,
+}
+
+/// Options for [`crate::methods::polaris::polaris_latitude`]. Every field defaults.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct PolarisOptions {
+    /// DR position at the reference instant. Defaults to the session's assumed position.
+    /// The longitude is required; its `sigma_nm` enters the latitude's sigma.
+    pub dr: Option<DrPosition>,
+    pub vessel: Option<VesselMotion>,
+    /// The instant a combined latitude refers to, RFC 3339 UTC. Default: the last sight.
+    pub reference_utc: Option<String>,
+}
+
+/// The Nautical Almanac's Polaris-table terms for one sight, unrounded, for teaching:
+/// `Latitude = Ho - 1 deg + a0 + a1 + a2`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolarisAlmanacTerms {
+    pub lha_aries_deg: f64,
+    pub a0_arcmin: f64,
+    pub a1_arcmin: f64,
+    pub a2_arcmin: f64,
+    /// `Ho - 1 deg + a0 + a1 + a2`, degrees.
+    pub latitude_deg: f64,
+    /// Rigorous latitude minus the table formula, arcminutes.
+    pub difference_arcmin: f64,
+    /// The latitude the a1 term was entered with (DR, else the rigorous answer).
+    pub table_latitude_deg: f64,
+    /// The year's mean position of Polaris the table is built on.
+    pub mean_sha_deg: f64,
+    pub mean_dec_deg: f64,
+    /// The printed a1 table runs from 0 to 68 degrees north.
+    pub within_printed_table: bool,
+    pub note: String,
+}
+
+/// One Polaris sight, solved for latitude.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolarisSight {
+    pub id: String,
+    pub utc: String,
+    pub jd_utc: f64,
+    pub ho_deg: f64,
+    pub gha_deg: f64,
+    pub dec_deg: f64,
+    /// DR longitude used for this sight (moved with the vessel), degrees.
+    pub dr_lon_deg: f64,
+    /// Local hour angle of Polaris, `[0, 360)`.
+    pub lha_deg: f64,
+    pub azimuth_deg: f64,
+    /// Total 1-sigma: altitude, DR longitude and clock in quadrature.
+    pub latitude: LatitudeEstimate,
+    pub sigma_from_altitude_arcmin: f64,
+    /// `None` when the DR's uncertainty was not stated.
+    pub sigma_from_longitude_arcmin: Option<f64>,
+    pub sigma_from_clock_arcmin: f64,
+    /// Arcminutes of latitude per nautical mile of east-west DR error.
+    pub longitude_sensitivity_arcmin_per_nm: f64,
+    /// `latitude - Ho`, arcminutes: the whole Polaris correction.
+    pub correction_arcmin: f64,
+    /// Against the combined latitude, when there are several sights.
+    pub normalized_residual: Option<f64>,
+    pub almanac: Option<PolarisAlmanacTerms>,
+}
+
+/// Result of [`crate::methods::polaris::polaris_latitude`].
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PolarisResult {
+    /// The latitude at `reference_utc`: the one sight's, or all of them combined.
+    pub latitude: LatitudeEstimate,
+    pub reference_utc: String,
+    pub reference_jd_utc: f64,
+    pub polaris: Vec<PolarisSight>,
+    /// Scatter of the individual latitudes about the combined one (several sights).
+    pub chi2: Option<f64>,
+    pub dof: i64,
+    pub sights: Vec<ReducedSight>,
+    pub warnings: Vec<Warning>,
+}
+
+/// Options for [`crate::methods::averaging::average_sights`].
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct AveragingOptions {
+    /// The instant of the averaged sight, RFC 3339 UTC (already corrected, like every
+    /// time in a result). Default: the weighted mean time of the sights used.
+    pub reference_utc: Option<String>,
+    /// DR position for the middle of the run; the predicted slope is computed there.
+    /// Defaults to the session's assumed position.
+    pub dr: Option<DrPosition>,
+    pub vessel: Option<VesselMotion>,
+    /// Leave sights whose normalised residual exceeds `outlier_threshold` out of the
+    /// average (default true). They are always flagged either way.
+    pub reject_outliers: bool,
+    pub outlier_threshold: f64,
+}
+
+impl Default for AveragingOptions {
+    fn default() -> Self {
+        AveragingOptions {
+            reference_utc: None,
+            dr: None,
+            vessel: None,
+            reject_outliers: true,
+            outlier_threshold: 3.0,
+        }
+    }
+}
+
+/// The free-slope line through a run (four or more sights), for comparison with the
+/// predicted slope.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct FreeSlopeFit {
+    pub slope_arcmin_per_min: f64,
+    pub slope_sigma_arcmin_per_min: f64,
+    /// The averaged altitude this line gives at the reference instant.
+    pub ho_deg: f64,
+    pub sigma_arcmin: f64,
+    /// `(fitted - predicted) / sigma`, with the predicted slope's own sigma included.
+    pub z: f64,
+    /// `|z| <= 3`.
+    pub consistent: bool,
+    pub chi2: f64,
+    pub dof: i64,
+}
+
+/// Result of [`crate::methods::averaging::average_sights`]: one averaged sight.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct AveragedSight {
+    pub body: String,
+    pub utc: String,
+    pub jd_utc: f64,
+    /// Averaged observed altitude (fully corrected), degrees.
+    pub ho_deg: f64,
+    pub sigma_arcmin: f64,
+    pub n_used: usize,
+    pub n_total: usize,
+    /// Rate of change of the altitude predicted at the DR position, at the reference
+    /// instant, arcminutes per minute.
+    pub predicted_slope_arcmin_per_min: f64,
+    /// Its 1-sigma from the DR's stated uncertainty; `None` when unstated.
+    pub predicted_slope_sigma_arcmin_per_min: Option<f64>,
+    /// Second derivative of the predicted altitude at the reference instant,
+    /// arcminutes per minute squared (tiny over a few minutes; included in the model).
+    pub predicted_curvature_arcmin_per_min2: f64,
+    pub chi2: f64,
+    pub dof: i64,
+    pub free_slope: Option<FreeSlopeFit>,
+    pub outliers: Vec<String>,
+    pub residuals: Vec<RunResidual>,
+    pub model_curve: Vec<CurvePoint>,
+    /// The averaged sight as a session observation (`observed_ho`), ready for a fix.
+    pub observation: Observation,
+    pub sights: Vec<ReducedSight>,
+    pub warnings: Vec<Warning>,
 }
 
 #[cfg(test)]
