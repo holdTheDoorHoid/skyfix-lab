@@ -67,6 +67,9 @@ const SHOTS = {
   'app-dark-phone': [`/next/${AFTERNOON}`, PHONE, 'dark'],
   'app-night-phone': [`/next/${EVENING}`, PHONE, 'dark', night],
   'app-about-light': [`/next/${AFTERNOON.replace('view=map', 'view=about')}`, DESKTOP, 'light'],
+  'app-globe-dark': [`/next/${EVENING.replace('view=map', 'view=globe')}`, DESKTOP, 'dark'],
+  'app-sky-dark': [`/next/${EVENING.replace('view=map', 'view=sky')}`, DESKTOP, 'dark'],
+  'app-sky-night-phone': [`/next/${EVENING.replace('view=map', 'view=sky')}`, PHONE, 'dark', night],
   'app-charts-light': [`/next/${AFTERNOON.replace('view=map', 'view=charts')}`, DESKTOP, 'light'],
   'app-charts-night': [`/next/${EVENING.replace('view=map', 'view=charts')}`, DESKTOP, 'dark', night],
   'map-light': ['/next/mockup.html#theme=light', DESKTOP],
@@ -151,16 +154,20 @@ async function shoot(name, path, view, scheme, prefs) {
       });
     }
     await send('Page.navigate', { url: `${BASE}${path}` });
+    // The page's first frame; on the Map and Globe views also the map's detail data and place
+    // names (map/map-view.ts sets them on its root when they have loaded).
+    const map = /[#&]view=(map|globe)\b/.test(path);
+    const expression = [
+      "document.documentElement.dataset.ready === '1'",
+      ...(map ? ["document.querySelector('.sfm')?.dataset.detail === '1'", "document.querySelector('.sfm')?.dataset.places === '1'"] : []),
+    ].join(' && ');
     let ready = false;
-    for (const start = Date.now(); Date.now() - start < 60_000 && !ready; ) {
+    for (const start = Date.now(); Date.now() - start < 90_000 && !ready; ) {
       await sleep(250);
-      const r = await send('Runtime.evaluate', {
-        expression: "document.documentElement.dataset.ready === '1'",
-        returnByValue: true,
-      }).catch(() => null);
+      const r = await send('Runtime.evaluate', { expression, returnByValue: true }).catch(() => null);
       ready = r?.result?.value === true;
     }
-    await sleep(1500);
+    await sleep(map ? 4000 : 1500);
     const shot = await send('Page.captureScreenshot', { format: 'png' });
     writeFileSync(join(OUT, `${name}.png`), Buffer.from(shot.data, 'base64'));
     ws.close();

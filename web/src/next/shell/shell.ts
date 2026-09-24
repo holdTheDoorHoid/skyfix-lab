@@ -17,8 +17,7 @@ import { h } from '../../dom.js';
 import { disposer, watch, type Component } from '../component.js';
 import { panel } from '../panel/panel.js';
 import { bottomSheet } from '../panel/sheet.js';
-import { icon } from '../theme/icons.js';
-import { installTooltips } from '../theme/primitives.js';
+import { iconButton, installTooltips } from '../theme/primitives.js';
 import { timebar } from '../timebar/timebar.js';
 import { displayZone } from '../state.js';
 import { UTC_ZONE } from '../time.js';
@@ -42,12 +41,13 @@ export const shell: Component = (host, ctx) => {
   const time = timebar(ctx);
   const viewHost = h('div', { class: 'sf-stage__fill' });
   const notices = noticeBar(ctx);
-  const toggle = h(
-    'button',
-    { type: 'button', class: 'sf-panel-toggle', 'aria-controls': 'sf-panel', 'aria-expanded': 'true', 'aria-label': 'Hide the panel', 'data-tip': 'Hide the panel' },
-    icon('chevron-left'),
-  );
-  const stageEl = h('main', { class: 'sf-stage', id: 'sf-stage' }, viewHost, toggle, notices.el);
+  // The panel switch leads the app strip (as a sidebar switch does in most apps), so it
+  // never covers a view's own controls; phones drag the bottom sheet instead.
+  const toggle = iconButton('panel', 'Hide the panel', { size: 'sm', class: 'sf-panel-toggle', tip: 'Hide the panel' });
+  toggle.setAttribute('aria-controls', 'sf-panel');
+  toggle.setAttribute('aria-expanded', 'true');
+  bar.el.prepend(toggle);
+  const stageEl = h('main', { class: 'sf-stage', id: 'sf-stage' }, viewHost, notices.el);
   let sheet: ReturnType<typeof bottomSheet> | null = null;
   const side = panel(ctx, place, {
     // On a phone, step the sheet aside after a place is chosen so the map shows it.
@@ -72,7 +72,6 @@ export const shell: Component = (host, ctx) => {
     toggle.setAttribute('aria-expanded', String(!closing));
     toggle.setAttribute('aria-label', closing ? 'Show the panel' : 'Hide the panel');
     toggle.dataset.tip = closing ? 'Show the panel' : 'Hide the panel';
-    toggle.replaceChildren(icon(closing ? 'chevron-right' : 'chevron-left'));
   });
 
   d.add(
