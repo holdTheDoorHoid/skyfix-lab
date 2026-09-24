@@ -37,7 +37,7 @@ has been taken with it. Numerical agreement with reference data is not field acc
 
 ## Test results
 
-`cargo test --workspace` at the final commit: **678 tests, 0 failures** (native), plus
+`cargo test --workspace` at the final commit: **687 tests, 0 failures** (native), plus
 98 TypeScript unit tests in `web/` and a WebAssembly build of every numerical crate. CI runs
 formatting, tests, the wasm32 build, an offline smoke test of the release binary inside an
 empty network namespace, and clippy with warnings denied; it is green on `main`.
@@ -83,10 +83,12 @@ claims. It found and fixed four defects, all now on `main` with regression tests
    parser. Fixed.
 4. A lint failure on the newer compiler used by CI. Fixed.
 
-It also reported three honesty gaps, addressed in a follow-up: the experiment's guard
-against a prior centred on the truth was exact-equality only; the experiment verdict had
-no lower bound on the error-to-sigma ratio; and `--require-unique` accepted a fix whose
-ellipse had been suppressed. Its verdict: the physical-honesty requirements hold. One sight
+It also reported three honesty gaps, then fixed them with tests in a follow-up: the
+experiment's guard against a prior centred on the truth was exact-equality only (now a
+radius of three sigma or one nautical mile); the experiment verdict had no lower bound on
+the error-to-sigma ratio (now a two-sided band, and the sentence names the direction of
+the miss); and `--require-unique` accepted a fix whose ellipse had been suppressed (now
+exit code 3). Five message-level paper cuts were fixed at the same time. Its verdict: the physical-honesty requirements hold. One sight
 is a circle; two crossing circles stay ambiguous from five initializers including the
 antipode; a converged fix is bit-identical across initializers; the clock term grows the
 east sigma by exactly the predicted amount and the north sigma not at all; no code path
