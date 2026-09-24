@@ -133,8 +133,10 @@ fn embedded_series_still_matches_its_published_checkpoint() {
 }
 
 /// The provider must be able to run with no filesystem and no network — that is the
-/// whole point of embedding the coefficients. A crude but effective guard: nothing in
-/// `src/` may mention `std::fs`, `File::open` or a URL scheme.
+/// whole point of embedding the coefficients. A crude but effective guard: no code
+/// line in `src/` may reach for the filesystem or a socket. Comments are skipped, so
+/// provenance URLs in documentation are fine; a URL in a string literal is text, not a
+/// network call, and is not what this looks for.
 #[test]
 fn library_sources_contain_no_filesystem_or_network_access() {
     let src = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
@@ -150,7 +152,7 @@ fn library_sources_contain_no_filesystem_or_network_access() {
             if t.starts_with("//") {
                 continue;
             }
-            for needle in ["std::fs", "File::open", "http://", "https://", "TcpStream"] {
+            for needle in ["std::fs", "std::net", "File::open", "TcpStream", "reqwest"] {
                 assert!(
                     !line.contains(needle),
                     "{}:{} uses {needle:?}, which will not build for wasm32: {line}",
