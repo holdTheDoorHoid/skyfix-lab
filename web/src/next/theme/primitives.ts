@@ -460,6 +460,22 @@ export interface Popover {
 
 let popoverSeq = 0;
 
+/** A popover shorter than this scrolls rather than shrinking further. */
+const MIN_POPOVER_HEIGHT = 120;
+
+/**
+ * The band of the screen a popover may use: the window, and for one on the stage only the
+ * view's own area — on phones the bottom sheet covers the stage below it (`.sf-stage__view`
+ * ends where the sheet begins), and a stage popover cannot rise above the sheet.
+ */
+function popoverRoom(anchor: HTMLElement, onStage: boolean): { top: number; bottom: number } {
+  const vh = document.documentElement.clientHeight;
+  const host = onStage ? anchor.closest<HTMLElement>('.sf-stage__view') : null;
+  if (!host) return { top: 0, bottom: vh };
+  const r = host.getBoundingClientRect();
+  return r.height > 0 ? { top: Math.max(0, r.top), bottom: Math.min(vh, r.bottom) } : { top: 0, bottom: vh };
+}
+
 /**
  * A popover anchored to a button: toggles on click, closes on Escape (focus returns to
  * the button) and on a press outside, keeps inside the window, and flips above the
@@ -484,20 +500,33 @@ export function popover(anchor: HTMLElement, content: Node, options: PopoverOpti
   const place = (): void => {
     if (!open) return;
     const margin = 8;
+    const gap = 6;
+    // Measure at the content's own height, then fit it into the room there is.
+    el.style.maxHeight = '';
+    el.style.overflowY = '';
     const a = anchor.getBoundingClientRect();
-    const r = el.getBoundingClientRect();
+    let r = el.getBoundingClientRect();
     const placement = options.placement ?? 'bottom-start';
     const vw = document.documentElement.clientWidth;
-    const vh = document.documentElement.clientHeight;
-    let top = placement.startsWith('top') ? a.top - r.height - 6 : a.bottom + 6;
-    if (!placement.startsWith('top') && top + r.height > vh - margin && a.top - r.height - 6 > margin) {
-      top = a.top - r.height - 6;
-    } else if (placement.startsWith('top') && top < margin) {
-      top = a.bottom + 6;
+    const room = popoverRoom(anchor, Boolean(options.onStage));
+    const below = room.bottom - margin - (a.bottom + gap);
+    const above = a.top - gap - (room.top + margin);
+    // The side asked for, unless the content does not fit there and the other side has more room.
+    let onTop = placement.startsWith('top');
+    if (!onTop && r.height > below && above > below) onTop = true;
+    else if (onTop && r.height > above && below > above) onTop = false;
+    const space = Math.max(MIN_POPOVER_HEIGHT, onTop ? above : below);
+    if (r.height > space) {
+      // Too tall for the room (a phone's stage above the bottom sheet, a short window): it
+      // scrolls, so every item stays reachable.
+      el.style.maxHeight = `${Math.floor(space)}px`;
+      el.style.overflowY = 'auto';
+      r = el.getBoundingClientRect();
     }
+    let top = onTop ? a.top - r.height - gap : a.bottom + gap;
     let left = placement.endsWith('end') ? a.right - r.width : placement.endsWith('start') ? a.left : a.left + a.width / 2 - r.width / 2;
     left = Math.max(margin, Math.min(left, vw - r.width - margin));
-    top = Math.max(margin, Math.min(top, vh - r.height - margin));
+    top = Math.max(room.top + margin, Math.min(top, room.bottom - r.height - margin));
     el.style.left = `${Math.round(left)}px`;
     el.style.top = `${Math.round(top)}px`;
   };

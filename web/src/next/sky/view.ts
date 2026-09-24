@@ -104,7 +104,8 @@ export interface SkyMounted extends Mounted {
 const EASE_MAX_DAYS = 0.25;
 const EASE_MS = 260;
 
-const LAYER_ITEMS: readonly { key: keyof Layers; label: string; note?: string; group: 'sky' | 'lines' }[] = [
+/** The Sky's Layers menu (the shell has none: every layer flag is offered by the map or here). */
+export const SKY_LAYER_OPTIONS: readonly { key: keyof Layers; label: string; note?: string; group: 'sky' | 'lines' }[] = [
   { key: 'constellations', label: 'Constellation figures', group: 'sky' },
   { key: 'constellationNames', label: 'Constellation names', group: 'sky' },
   { key: 'constellationBoundaries', label: 'Constellation boundaries', note: 'IAU, as agreed in 1930', group: 'sky' },
@@ -210,9 +211,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     'div',
     { class: 'sf-layers' },
     el('div', { class: 'sf-popover__title' }, 'In the sky'),
-    ...LAYER_ITEMS.filter((i) => i.group === 'sky').map(switchFor),
+    ...SKY_LAYER_OPTIONS.filter((i) => i.group === 'sky').map(switchFor),
     el('div', { class: 'sf-popover__title' }, 'Lines'),
-    ...LAYER_ITEMS.filter((i) => i.group === 'lines').map(switchFor),
+    ...SKY_LAYER_OPTIONS.filter((i) => i.group === 'lines').map(switchFor),
   );
   const layersPopover = popover(layersButton, layersContent, { label: 'Sky layers', placement: 'bottom-end', onStage: true });
   cleanups.push(() => layersPopover.destroy());
