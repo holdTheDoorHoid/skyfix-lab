@@ -9,6 +9,7 @@
 
 pub mod catalog;
 pub mod fixture_pack;
+pub mod frames;
 pub mod sidereal;
 pub mod stars;
 pub mod sun;
