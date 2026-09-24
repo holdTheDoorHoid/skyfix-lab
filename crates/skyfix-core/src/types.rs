@@ -345,6 +345,7 @@ impl Default for MultistartOptions {
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(tag = "kind", rename_all = "snake_case")]
+#[allow(clippy::large_enum_variant)] // one result per solve; readability over 1 kB of stack
 pub enum FixResult {
     /// Fewer than two usable sights, or rank < 2: circles only, no point.
     Underdetermined {
