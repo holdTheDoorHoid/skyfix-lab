@@ -22,8 +22,6 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: Format
         run: cargo fmt --all -- --check
-      - name: Clippy
-        run: cargo clippy --workspace --all-targets -- -D warnings
       - name: Test
         run: cargo test --workspace
       - name: wasm32 build
@@ -32,3 +30,5 @@ jobs:
         run: |
           cargo build -p skyfix-cli --release
           sudo unshare -n ./target/release/skyfix --help
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
