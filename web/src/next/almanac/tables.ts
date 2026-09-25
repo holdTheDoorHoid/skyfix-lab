@@ -165,32 +165,43 @@ export function incrementsPageMinutes(page: number): [number, number] {
 // Altitude correction tables
 // ---------------------------------------------------------------------------
 
-function planetBlock(pc: PlanetCorrections | null, body: 'venus' | 'mars'): HTMLElement {
+/**
+ * The additional correction for Venus or Mars through the year: one row per run of dates,
+ * each a critical table read across (the altitudes, with the correction printed between
+ * the two it holds for), ending where the correction becomes 0.0. Across rather than down
+ * so that the busiest year (fifteen runs, 2018) still fits page A2.
+ */
+function planetTable(pc: PlanetCorrections | null, body: 'venus' | 'mars'): HTMLElement {
   const name = body === 'venus' ? 'Venus' : 'Mars';
   if (!pc) return h('p', { class: 'alm-na' }, `${name}: not available in this engine`);
   const periods = pc[body];
-  if (!periods.length) return h('p', { class: 'alm-na' }, `${name}: not computed for ${pc.year}`);
+  if (!periods.length) return h('p', { class: 'alm-na' }, `${name}: not computed for ${yearText(pc.year)}`);
+  const rows = periods.map((p) => ({
+    range: `${MONTH_ABBR[p.from.month - 1]} ${p.from.day} – ${MONTH_ABBR[p.to.month - 1]} ${p.to.day}`,
+    lines: trimZeroTail(criticalLines(p.table)),
+  }));
+  const width = Math.max(...rows.map((r) => r.lines.length * 2 - 1));
   return h(
-    'div',
-    { class: 'alm-planet-corr' },
-    h('h4', {}, name.toUpperCase()),
-    ...periods.map((p) => {
-      const range = `${MONTH_ABBR[p.from.month - 1]} ${p.from.day} – ${MONTH_ABBR[p.to.month - 1]} ${p.to.day}`;
-      const lines = trimZeroTail(criticalLines(p.table));
-      return h(
-        'table',
-        { class: 'alm-table alm-crit alm-crit-small' },
-        caption(`${name}, ${range}: additional correction by apparent altitude`),
-        h('thead', {}, h('tr', {}, th(range, { colspan: 2, scope: 'colgroup' }))),
+    'table',
+    { class: 'alm-table alm-planet-corr' },
+    caption(`${name}, ${yearText(pc.year)}: the additional correction for each run of dates. Between two apparent altitudes add the correction printed between them; above the last, 0.0′`),
+    h(
+      'thead',
+      {},
+      h('tr', {}, th(name.toUpperCase(), { scope: 'col', class: 'alm-body' }), th('App. Alt. and correction', { scope: 'colgroup', colspan: width, class: 'alm-pc-head' })),
+    ),
+    h(
+      'tbody',
+      {},
+      ...rows.map((r) =>
         h(
-          'tbody',
-          {},
-          ...lines.map((l) =>
-            h('tr', { 'aria-label': l.label }, th(`${l.boundary}°`, { scope: 'row', class: 'alm-crit-arg' }), td(h('span', {}, l.values?.[0] ?? ''), 'alm-crit-v')),
-          ),
+          'tr',
+          { 'aria-label': `${r.range}: ${r.lines.map((l) => l.label).join('; ')}` },
+          th(r.range, { scope: 'row', class: 'alm-pc-range' }),
+          ...r.lines.flatMap((l) => [td(`${l.boundary}°`, 'alm-pc-arg'), ...(l.values ? [td(l.values[0] ?? '', 'alm-pc-v')] : [])]),
         ),
-      );
-    }),
+      ),
+    ),
   );
 }
 
@@ -204,6 +215,11 @@ function dipMore(rows: { printed_height: string; dip: { printed: string } }[], u
   );
 }
 
+/** The engine's worked examples for a sheet: the Moon's go with the Moon's table. */
+function examplesFor(t: AltitudeTables, moon: boolean): { title: string; text: string }[] {
+  return t.examples.filter((e) => /moon/i.test(e.title) === moon);
+}
+
 function a2Sheet(t: AltitudeTables, pc: PlanetCorrections | null, mock: boolean): HTMLElement {
   const year = pc ? yearText(pc.year) : '';
   return sheet(
@@ -214,25 +230,19 @@ function a2Sheet(t: AltitudeTables, pc: PlanetCorrections | null, mock: boolean)
       label: 'Altitude correction tables, 10 to 90 degrees: Sun, stars, planets, and dip',
       footer: `Refraction ${t.refraction.model} at ${t.refraction.pressure_hpa} hPa and ${t.refraction.temperature_c} °C · Sun SD ${t.sun_sd_oct_mar_arcmin}′ Oct–Mar, ${t.sun_sd_apr_sep_arcmin}′ Apr–Sep`,
       mock,
-      extraClass: 'alm-sheet alm-alt-sheet',
+      extraClass: 'alm-sheet alm-alt-sheet alm-a2-sheet',
     },
+    // Laid out as the printed page A2: the three critical tables and dip across the top,
+    // Venus and Mars under the tables they correct, more heights of eye under dip.
     h(
       'div',
-      { class: 'alm-crit-row' },
-      h('div', { class: 'alm-crit-col' }, h('h4', {}, 'SUN · OCT.–MAR.'), criticalTableEl(t.sun_oct_mar, 'Sun, October to March', ['° ′', '′', '′'])),
-      h('div', { class: 'alm-crit-col' }, h('h4', {}, 'SUN · APR.–SEPT.'), criticalTableEl(t.sun_apr_sep, 'Sun, April to September', ['° ′', '′', '′'])),
+      { class: 'alm-a2' },
+      h('div', { class: 'alm-crit-col alm-a2-sun1' }, h('h4', {}, 'SUN · OCT.–MAR.'), criticalTableEl(t.sun_oct_mar, 'Sun, October to March', ['° ′', '′', '′'])),
+      h('div', { class: 'alm-crit-col alm-a2-sun2' }, h('h4', {}, 'SUN · APR.–SEPT.'), criticalTableEl(t.sun_apr_sep, 'Sun, April to September', ['° ′', '′', '′'])),
+      h('div', { class: 'alm-crit-col alm-a2-stars' }, h('h4', {}, 'STARS AND PLANETS'), criticalTableEl(t.stars_planets, 'Stars and planets', ['° ′', '′'])),
       h(
         'div',
-        { class: 'alm-crit-col' },
-        h('h4', {}, 'STARS AND PLANETS'),
-        criticalTableEl(t.stars_planets, 'Stars and planets', ['° ′', '′']),
-        h('h4', { class: 'alm-sub' }, `ADDITIONAL CORRECTIONS${year ? `, ${year}` : ''}`),
-        planetBlock(pc, 'venus'),
-        planetBlock(pc, 'mars'),
-      ),
-      h(
-        'div',
-        { class: 'alm-crit-col' },
+        { class: 'alm-crit-col alm-a2-dip' },
         h('h4', {}, 'DIP'),
         h(
           'div',
@@ -240,10 +250,21 @@ function a2Sheet(t: AltitudeTables, pc: PlanetCorrections | null, mock: boolean)
           criticalTableEl(t.dip.metres, 'Dip, height of eye in metres', ['m', '′']),
           criticalTableEl(t.dip.feet, 'Dip, height of eye in feet', ['ft', '′']),
         ),
+      ),
+      h(
+        'div',
+        { class: 'alm-a2-add' },
+        h('h4', {}, `ADDITIONAL CORRECTIONS FOR VENUS AND MARS${year ? `, ${year}` : ''}`),
+        h('div', { class: 'alm-a2-planets' }, planetTable(pc, 'venus'), planetTable(pc, 'mars')),
+      ),
+      h(
+        'div',
+        { class: 'alm-a2-dipmore' },
+        h('h4', {}, 'DIP · OTHER HEIGHTS'),
         h('div', { class: 'alm-dip-pair' }, dipMore(t.dip.more_metres, 'm'), dipMore(t.dip.more_feet, 'ft')),
       ),
     ),
-    howTo(t.how_to_use, t.examples),
+    howTo(t.how_to_use, examplesFor(t, false)),
     notesList(t.notes),
   );
 }
@@ -389,7 +410,7 @@ function a4Sheet(t: AltitudeTables, mock: boolean): HTMLElement {
   );
 }
 
-function moonSheet(t: AltitudeTables['moon'], page: 0 | 1, mock: boolean): HTMLElement {
+function moonSheet(t: AltitudeTables['moon'], page: 0 | 1, mock: boolean, moonExamples: { title: string; text: string }[] = []): HTMLElement {
   const cols = moonPageColumns(t, page);
   const upperRows: HTMLTableSectionElement[] = [];
   for (let d = 0; d < 5; d += 1) {
@@ -461,13 +482,13 @@ function moonSheet(t: AltitudeTables['moon'], page: 0 | 1, mock: boolean): HTMLE
       h('thead', {}, h('tr', {}, th('', { scope: 'col' }), ...cols.map((c) => th(`${c.from_deg}°–${c.from_deg + 4}°`, { colspan: 2, scope: 'colgroup' })), th('', { scope: 'col' }))),
       lower,
     ),
-    page === 0 ? howTo(t.how_to_use) : notesList(t.notes),
+    page === 0 ? howTo(t.how_to_use, moonExamples) : notesList(t.notes),
   );
 }
 
 /** The altitude correction pages: A2, A3, A4 and the Moon's two. */
 export function altitudeSheets(t: AltitudeTables, pc: PlanetCorrections | null, mock: boolean): HTMLElement[] {
-  return [a2Sheet(t, pc, mock), a3Sheet(t, mock), a4Sheet(t, mock), moonSheet(t.moon, 0, mock), moonSheet(t.moon, 1, mock)];
+  return [a2Sheet(t, pc, mock), a3Sheet(t, mock), a4Sheet(t, mock), moonSheet(t.moon, 0, mock, examplesFor(t, true)), moonSheet(t.moon, 1, mock)];
 }
 
 // ---------------------------------------------------------------------------

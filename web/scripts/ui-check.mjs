@@ -27,6 +27,12 @@
  *      time and UT on the clock, the ±ΔT chip, the calendar's century step and October 1582,
  *      UTC inside 1972-2035; playback at ten years a second on the Map view (frame times
  *      and script time per frame, reported) and the Sky view.
+ *   8. the Almanac (almanac2 agent): every tab (daily pages as a three-date opening and as
+ *      one date, increments, altitude corrections, Polaris, arc to time) in each theme and
+ *      size: drawn, no overlap or cut-off text, no sideways scroll, a clean console, no blue
+ *      or white light in the night theme; every tab printed to PDF on A4 and on US Letter
+ *      as exactly the sheets it promises (one per page: 2, 2, 1, 5, 3, 1, and 30 for "Print
+ *      all"), black on white whatever the theme; the time to compute an opening, reported.
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
  * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
@@ -35,6 +41,8 @@
  *   SITE=site node web/scripts/ui-check.mjs          # the assembled Pages site
  *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts
  *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,time
+ *   ONLY=almanac node web/scripts/ui-check.mjs        # the Almanac's tabs, screenshots and printed sheets
+ *   ONLY=almanac ALMANAC_SCREEN=0 node web/scripts/ui-check.mjs   # its printed sheets only
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
  * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
@@ -60,7 +68,7 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,almanac').split(','));
 /** charts2: the Charts view's tabs and sub-views, `tab` or `tab/sub`. */
 const CHART_VIEWS = (process.env.CHARTS ?? 'day,year,sun/path,sun/analemma,sun/bearings,sun/eot,sun/solar,moon/phases,moon/year,planets,tides').split(',');
 const SWITCHES = Number(process.env.SWITCHES ?? 50);
@@ -641,6 +649,202 @@ async function main() {
           JSON.stringify({ ...fast, after, reached: year }),
         );
       }
+    }
+    // 8. The Almanac (almanac2 agent): the tabs on screen, and printed on A4 and US Letter.
+    if (ONLY.has('almanac')) {
+      summary.almanac = { views: [], prints: [], timings: {} };
+      // 8 March 2016, Bowditch's worked examples' date: the opening of 7, 8 and 9 March.
+      const AT = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&t=2016-03-08T21:00:00Z&body=Moon';
+      const TABS = ['pages', 'increments', 'altitude', 'polaris', 'arc'];
+      const SHEETS = { opening: 2, day: 2, increments: 1, altitude: 5, polaris: 3, arc: 1 };
+      const openTab = async (tab) => {
+        await evaluate(`document.querySelector('.alm-tabs [id$="-${tab}"]')?.click(); true`);
+        return waitFor(`(() => { const r = document.querySelector('.almanac'); return r?.dataset.tab === '${tab}' && r.querySelectorAll('.alm-panel .alm-page').length > 0; })()`, 30000);
+      };
+      const setMode = async (mode) => {
+        const label = mode === 'opening' ? 'Three dates' : 'One date';
+        await evaluate(`[...document.querySelectorAll('.alm-subbar .sf-seg__opt')].find((b) => b.textContent.trim() === '${label}')?.click(); true`);
+        return waitFor(`document.querySelectorAll('.alm-spread .alm-page${mode === 'opening' ? '.alm-opening' : ':not(.alm-opening)'}').length === 2`, 30000);
+      };
+      // Pages of a PDF: the page tree's /Count (Chrome writes one tree).
+      const pdfPages = (data) => {
+        const text = Buffer.from(data, 'base64').toString('latin1');
+        const counts = [...text.matchAll(/\/Type\s*\/Pages\b[^>]*?\/Count\s+(\d+)|\/Count\s+(\d+)[^>]*?\/Type\s*\/Pages\b/g)].map((m) => Number(m[1] ?? m[2]));
+        return counts.length ? Math.max(...counts) : (text.match(/\/Type\s*\/Page(?!s)/g) ?? []).length;
+      };
+      const PAPERS = { A4: [8.27, 11.69], Letter: [8.5, 11] };
+      const MARGIN = 10 / 25.4;
+      // Each sheet's height laid out for print at the paper's printable width, in mm.
+      const sheetHeights = async (pw, what = '') => {
+        await send('Emulation.setEmulatedMedia', { media: 'print' });
+        await send('Emulation.setDeviceMetricsOverride', { width: Math.round((pw - 2 * MARGIN) * 96), height: 900, deviceScaleFactor: 1, mobile: false });
+        await sleep(300);
+        const mm = JSON.parse(await evaluate(`JSON.stringify([...document.querySelectorAll('.alm-page')].filter((p) => p.getClientRects().length > 0).map((p) => Math.round((p.getBoundingClientRect().height / 96) * 254) / 10))`));
+        if (what && process.env.ALMANAC_PRINT_SHOTS === '1') {
+          // The sheets as the printer lays them out, one image (for looking, not judged).
+          const height = await evaluate('Math.ceil(document.documentElement.scrollHeight)');
+          const r = await send('Page.captureScreenshot', { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: Math.round((pw - 2 * MARGIN) * 96), height: Math.min(height, 16000), scale: 1 } });
+          writeFileSync(join(OUT, `ui-almanac-printlayout-${what}.png`), Buffer.from(r.data, 'base64'));
+        }
+        await send('Emulation.setEmulatedMedia', { media: '' });
+        await viewport(1440, 900, false);
+        return mm;
+      };
+      const printed = async (what, expected, papers = Object.keys(PAPERS), before = async () => {}) => {
+        for (const paper of papers) {
+          const [pw, ph] = PAPERS[paper];
+          await before();
+          const heights = await sheetHeights(pw, paper === 'A4' ? what : '');
+          const r = await send('Page.printToPDF', { paperWidth: pw, paperHeight: ph, marginTop: MARGIN, marginBottom: MARGIN, marginLeft: MARGIN, marginRight: MARGIN, printBackground: true });
+          const n = pdfPages(r.data);
+          if (paper === 'A4') writeFileSync(join(OUT, `ui-almanac-print-${what}.pdf`), Buffer.from(r.data, 'base64'));
+          const room = Math.round((ph - 2 * MARGIN) * 254) / 10;
+          const tallest = heights.length ? Math.max(...heights) : 0;
+          check(`almanac ${what} printed on ${paper}: ${expected} sheet${expected === 1 ? '' : 's'}, one per page`, n === expected, `${n} pages; tallest sheet ${tallest} of ${room} mm`);
+          summary.almanac.prints.push({ what, paper, pages: n, expected, sheetHeightsMm: heights, roomMm: room });
+        }
+      };
+      // In print, black on white whatever the theme: every colour the printed sheets use
+      // (text, rules, fills, the zone chart's strokes) is a grey, and the paper is white.
+      // Read from the styles, not the pixels: a screenshot's text carries the screen's
+      // subpixel colour fringes, which a PDF does not.
+      const INK = String.raw`JSON.stringify((() => {
+        const chroma = (c) => {
+          if (!c || c === 'none' || c === 'transparent' || c === 'currentcolor') return 0;
+          let m = /^rgba?\(([^)]*)\)$/.exec(c);
+          if (m) {
+            const [r, g, b, a = 1] = m[1].split(/[\s,\/]+/).filter(Boolean).map(Number);
+            return a === 0 ? 0 : Math.max(r, g, b) - Math.min(r, g, b);
+          }
+          m = /^color\(srgb ([^)]*)\)$/.exec(c);
+          if (m) {
+            const [r, g, b, a = 1] = m[1].split(/[\s\/]+/).filter(Boolean).map(Number);
+            return a === 0 ? 0 : 255 * (Math.max(r, g, b) - Math.min(r, g, b));
+          }
+          m = /^ok(?:lch|lab)\(([^)]*)\)$/.exec(c);
+          if (m) {
+            const v = m[1].split(/[\s\/]+/).filter(Boolean).map(Number);
+            return /lch/.test(c) ? 400 * v[1] : 400 * Math.hypot(v[1], v[2]);
+          }
+          return url(c) ? 0 : 999;
+        };
+        const url = (c) => /^url\(/.test(c);
+        const bad = [];
+        const root = document.querySelector('.almanac');
+        for (const el of [root, ...root.querySelectorAll('*')]) {
+          if (!el.getClientRects().length) continue;
+          const cs = getComputedStyle(el);
+          for (const prop of ['color', 'backgroundColor', 'borderTopColor', 'borderBottomColor', 'borderLeftColor', 'borderRightColor', 'fill', 'stroke', 'outlineColor', 'textDecorationColor']) {
+            if (chroma(cs[prop]) > 6) bad.push(el.tagName.toLowerCase() + '.' + String(el.className.baseVal ?? el.className).split(' ')[0] + ' ' + prop + ' ' + cs[prop]);
+          }
+          if (cs.boxShadow !== 'none' && /rgb/.test(cs.boxShadow) && chroma((/rgba?\([^)]*\)/.exec(cs.boxShadow) ?? [''])[0]) > 6) bad.push(el.tagName.toLowerCase() + ' box-shadow ' + cs.boxShadow);
+        }
+        const paper = [document.documentElement, document.body, root].map((el) => getComputedStyle(el).backgroundColor);
+        const white = (c) => /^rgba?\(255, 255, 255(, 1)?\)$/.test(c) || c === 'rgba(0, 0, 0, 0)';
+        return { bad: [...new Set(bad)].slice(0, 8), count: bad.length, paper, paperWhite: paper.every(white) && white(paper[2]) && paper[2] !== 'rgba(0, 0, 0, 0)' };
+      })())`;
+      const inkCheck = async (what) => {
+        await send('Emulation.setEmulatedMedia', { media: 'print' });
+        await sleep(300);
+        const r = JSON.parse(await evaluate(INK));
+        writeFileSync(join(OUT, `ui-almanac-print-${what}.png`), Buffer.from((await send('Page.captureScreenshot', { format: 'png' })).data, 'base64'));
+        await send('Emulation.setEmulatedMedia', { media: '' });
+        check(`almanac ${what} in print: black on white`, r.count === 0 && r.paperWhite, r.count || !r.paperWhite ? `${r.count} coloured: ${r.bad.join('; ')}; paper ${r.paper.join(', ')}` : '');
+      };
+
+      for (const size of process.env.ALMANAC_SCREEN === '0' ? [] : SIZES) {
+        const [w, h, mobile] = DIMS[size];
+        await viewport(w, h, mobile);
+        for (const theme of THEMES) {
+          messages.length = 0;
+          await open(`${AT}&view=almanac`, { theme });
+          for (const tab of TABS) {
+            const modes = tab === 'pages' ? ['opening', 'day'] : [tab];
+            for (const mode of modes) {
+              const drawn = await openTab(tab);
+              if (tab === 'pages') await setMode(mode);
+              await sleep(400);
+              const tag = `almanac ${mode}, ${theme}, ${size}`;
+              const L = JSON.parse(await evaluate(LAYOUT));
+              const png = await shot(`almanac-${mode}-${size}-${theme}`);
+              const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+              check(`${tag}: drawn`, drawn);
+              check(`${tag}: no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+              if (mobile) check(`${tag}: the view ends where the sheet begins`, L.underSheet <= 0, `${L.underSheet}px under the sheet`);
+              check(`${tag}: console clean`, noise.length === 0, noise.slice(0, 3).join(' | '));
+              if (theme === 'night') {
+                const n = lightNotRed(decodePng(png));
+                check(`${tag}: no blue, green or white light`, n.count < 50, n.count ? `${n.count} px, worst ${JSON.stringify(n.worst)}` : '');
+              }
+              summary.almanac.views.push({ mode, size, theme, layout: L, messages: noise });
+            }
+          }
+        }
+      }
+
+      // Printing, on the desktop, in the night theme (the paper must not care).
+      await viewport(1440, 900, false);
+      await open(`${AT}&view=almanac`, { theme: 'night' });
+      for (const tab of TABS) {
+        const modes = tab === 'pages' ? ['opening', 'day'] : [tab];
+        for (const mode of modes) {
+          await openTab(tab);
+          if (tab === 'pages') await setMode(mode);
+          await sleep(300);
+          await printed(mode, SHEETS[mode]);
+          if (mode === 'opening' || mode === 'altitude') await inkCheck(mode);
+        }
+      }
+      // The busiest year for Venus and Mars (2018: fifteen runs of dates) still prints A2 on one sheet.
+      await open(`${AT.replace('t=2016-03-08T21', 't=2018-10-15T21')}&view=almanac`, { theme: 'night' });
+      await openTab('altitude');
+      await sleep(300);
+      await printed('altitude-2018', SHEETS.altitude);
+      // "Print all 30 pages" of increments: the copy made for printing, removed once printed
+      // (printing to PDF fires afterprint, so it is made again for each paper).
+      await openTab('increments');
+      let all = true;
+      await printed('increments-all', 30, Object.keys(PAPERS), async () => {
+        await evaluate(`window.print = () => {}; [...document.querySelectorAll('.alm-subbar button')].find((b) => /Print all/.test(b.textContent))?.click(); true`);
+        all &&= await waitFor(`document.querySelector('.almanac')?.dataset.printAll === '1' && document.querySelectorAll('.alm-print-all .alm-page').length === 30`, 30000);
+      });
+      check('almanac increments: "Print all 30 pages" builds the thirty sheets', all);
+      check('almanac increments: the thirty sheets are removed after printing', await waitFor(`document.querySelector('.almanac')?.dataset.printAll === undefined && !document.querySelector('.alm-print-all .alm-page')`, 5000));
+
+      // The screenshots named in the report: the opening's two facing pages side by side, an
+      // increments page, the Moon's corrections; light, and the opening at night.
+      for (const [theme, name] of [['light', 'light'], ['night', 'night']]) {
+        await viewport(1920, 2100, false);
+        await open(`${AT}&view=almanac`, { theme });
+        await openTab('pages');
+        await setMode('opening');
+        await sleep(500);
+        await shot(`almanac-opening-pair-${name}`);
+      }
+      await viewport(1440, 1500, false);
+      await open(`${AT}&view=almanac`, { theme: 'light' });
+      await openTab('increments');
+      await shot('almanac-increments-page-light');
+      await openTab('altitude');
+      await evaluate(`(() => { const m = document.querySelector('.alm-moon-sheet'); m?.scrollIntoView({ block: 'start' }); return true; })()`);
+      await sleep(400);
+      await shot('almanac-moon-corrections-light');
+
+      // Computing an opening in the browser: the next opening, from the click to the pages.
+      await viewport(1440, 900, false);
+      await open(`${AT}&view=almanac`, { theme: 'light' });
+      await openTab('pages');
+      await setMode('opening');
+      const times = [];
+      for (let i = 0; i < 4; i++) {
+        const before = await evaluate(`document.querySelector('.alm-spread .alm-head-date')?.textContent ?? ''`);
+        const t0 = Date.now();
+        await evaluate(`document.querySelector('.alm-subbar [aria-label="Next"]')?.click(); true`);
+        await waitFor(`(document.querySelector('.alm-spread .alm-head-date')?.textContent ?? '') !== ${JSON.stringify(before)}`, 30000);
+        times.push(Date.now() - t0);
+      }
+      summary.almanac.timings.openingMs = times;
+      console.log(`info  an opening (three daily pages) in the browser, click to pages: ${times.join(', ')} ms`);
     }
   } finally {
     page.close();

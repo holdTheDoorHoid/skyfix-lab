@@ -754,11 +754,52 @@
   padding-bottom: calc(var(--alm-lh) * 0.5em + 0.28em);
 }
 
-.alm-crit-row {
+/* Page A2: the three critical tables and dip across the top; Venus and Mars under the
+   tables, the other heights of eye under dip. */
+.alm-a2 {
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  grid-template-areas:
+    'sun1 sun2 stars dip'
+    'add add add dipmore';
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--space-4, 16px) var(--space-5, 24px);
+}
+
+.alm-a2-sun1 {
+  grid-area: sun1;
+}
+
+.alm-a2-sun2 {
+  grid-area: sun2;
+}
+
+.alm-a2-stars {
+  grid-area: stars;
+}
+
+.alm-a2-dip {
+  grid-area: dip;
+}
+
+.alm-a2-add {
+  grid-area: add;
+  padding-top: var(--space-2, 8px);
+  border-top: 1px solid var(--alm-line);
+}
+
+.alm-a2-dipmore {
+  grid-area: dipmore;
+  padding-top: var(--space-2, 8px);
+  border-top: 1px solid var(--alm-line);
+}
+
+.alm-a2-planets {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: var(--space-4, 16px) var(--space-5, 24px);
+  gap: var(--space-2, 8px) var(--space-5, 24px);
 }
 
 .alm-crit-col {
@@ -774,25 +815,26 @@
   gap: var(--space-3, 12px);
 }
 
-.alm-planet-corr {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: var(--space-1, 4px) var(--space-3, 12px);
-  max-width: 24em;
+/* Venus and Mars: each run of dates read across, the corrections between the altitudes. */
+.alm-planet-corr th.alm-pc-range {
+  padding-right: 0.8em;
+  font-weight: var(--weight-regular, 430);
+  text-align: left;
 }
 
-.alm-planet-corr h4 {
-  flex-basis: 100%;
-  margin: var(--space-1, 4px) 0 0;
+.alm-planet-corr thead th.alm-pc-head {
+  text-align: left;
 }
 
-.alm-crit-small {
-  font-size: calc(var(--alm-table-size) * 0.94);
+.alm-planet-corr td.alm-pc-arg {
+  color: var(--alm-ink-2);
+  text-align: right;
 }
 
-.alm-crit-small thead th {
-  font-size: 0.86em;
+.alm-planet-corr td.alm-pc-v {
+  padding: 0 0.25em;
+  font-weight: var(--weight-semibold, 620);
+  text-align: center;
 }
 
 /* Increments: two minutes side by side, a rule every five seconds. */
@@ -964,7 +1006,14 @@
     justify-content: start;
   }
 
-  .alm-crit-row {
+  .alm-a2 {
+    grid-template-columns: repeat(2, max-content);
+    grid-template-areas:
+      'sun1 sun2'
+      'stars dip'
+      'add add'
+      'dipmore dipmore';
+    justify-content: start;
     gap: var(--space-3, 12px);
   }
 }
@@ -1164,11 +1213,11 @@
   }
 
   .alm-opening .alm-table {
-    line-height: 1.12;
+    line-height: 1.06;
   }
 
   .alm-opening .alm-table tr.alm-block > * {
-    padding-top: 0.3em;
+    padding-top: 0.25em;
   }
 
   .alm-opening .alm-explain,
@@ -1231,8 +1280,39 @@
     gap: 6mm;
   }
 
-  .alm-crit-row {
-    gap: 3mm 5mm;
+  .alm-a2 {
+    gap: 2.5mm 4mm;
+  }
+
+  /* A2 holds the longest tables (58 lines of dip): a smaller face so the page fits Letter. */
+  .alm-a2-sheet {
+    --alm-table-size: 6.3pt;
+  }
+
+  .alm-a2-sheet .alm-table {
+    line-height: 1.06;
+  }
+
+  .alm-a2-sheet .alm-crit {
+    --alm-lh: 1.06;
+  }
+
+  .alm-a2-add,
+  .alm-a2-dipmore {
+    padding-top: 1.5mm;
+    border-top-color: #8c8c8c;
+  }
+
+  /* Notes in two columns: an opening's right page and the sheets are full to the foot. */
+  .alm-opening .alm-notes ul,
+  .alm-sheet .alm-notes ul {
+    column-count: 2;
+    column-gap: 6mm;
+  }
+
+  .alm-opening .alm-notes li,
+  .alm-sheet .alm-notes li {
+    break-inside: avoid;
   }
 
   .alm-zone-chart {
