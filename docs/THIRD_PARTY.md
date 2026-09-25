@@ -2386,3 +2386,24 @@ Also consulted, all facts: USNO's Celestial Navigation Data at 15 dates 1800-205
 Rigil Kentaurus (to establish that USNO extrapolates A's Hipparcos motion linearly);
 NASA's Besselian elements (already in `eclipses_nasa_paths.json`) to measure the eclipse
 floor. NASA's Besselian CSV the planner offered as an oracle was not needed.
+
+<!-- verify2 -->
+## Verification (verify2 agent, 2026-09-25): development-time references only
+
+Nothing here ships. Two items are committed as test data; the rest were read to check the
+engines (`docs/VERIFICATION_2.md` says what each was used for).
+
+| what | where it is used | retrieved | licence basis | hash (SHA-256) | processing |
+|---|---|---|---|---|---|
+| JPL Horizons API (`https://ssd.jpl.nasa.gov/api/horizons.api`): apparent RA and Dec of date (quantity 2, airless) of Jupiter (599) and Io to Callisto (501-504) from the geocentre at 400 TT instants of 1600-2200 | **committed**: `fixtures/reference/galilean_horizons.json` (108 355 bytes), written by `tools/reference/gen_galilean_horizons.py`; read by `crates/skyfix-almanac/tests/galilean_horizons.rs` | 2026-09-25 | NASA/JPL, U.S. Government work | `7b7c1d8f95945029a0945524d4a613fb30917fcacc58358f473434900de56a9e` (the fixture) | each moon's offset from Jupiter on the gnomonic tangent plane at Jupiter's direction, east and north, arcseconds, 4 decimals |
+| Akeson et al. (2021), "Precision Millimeter Astrometry of the α Centauri AB System", *AJ* 162, 14; e-print `https://arxiv.org/e-print/2104.10086` (1 596 907 bytes) | **committed as 9 rows typed into** `crates/skyfix-ephemeris/tests/acen_alma.rs` (Table 2, ALMA's measured ICRS positions of α Cen A) | 2026-09-25 | facts (measured positions) from a published paper | `919f1cd2b59afdcfacc6ca7dd13cd6e89a96a29f3ccae670d774b76a639a2d54` (the e-print) | none: the published degrees; the test adds annual parallax to the engine's direction |
+| NOAA CO-OPS predictions API, Anchorage 9455920, hourly, MLLW, GMT, metric, 2026 and 2027 (`api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions…`) | not committed: the σ1 analysis (ACCURACY 16) | 2026-09-25 | U.S. Government work (NOAA/NOS) | 2026: `bbeaf4656a9ad0a2c9d06c27ec78da08dd45e36a53c636771c25c3886ff023fd`; 2027: `7057eec92c48d3ccc80dc55c5550f119d82534740d37bf8440ea4b2e958d0cbd` | residual against the engine, least squares at the 120 constituents' speeds |
+| NASA GSFC eclipse pages (Espenak): "Uncertainty in Delta T" (`SEhelp/uncertainty2004.html`), "Polynomial Expressions for Delta T" (`SEhelp/deltatpoly2004.html`), the Mercury transit catalogue (`transit/catalog/MercuryCatalog.html`, fetched again), the 2024-04-08 and 2023-10-14 eclipse pages (`SEsearch/SEsearchmap.php`, their stated Delta T) | not committed: ACCURACY 17, 19, 21 | 2026-09-25 | U.S. Government work (NASA) | `10735159…67af`, `a6ec749c…9687`, `e29ff3e1…ba40`, `8b6e52ea…28e8ad`, `88c9a21e…6626a` | read |
+| NASA SVS item 5073 page (`https://svs.gsfc.nasa.gov/5073/`), for what it states about its method | not committed: ACCURACY 19 | 2026-09-25 | U.S. Government work (NASA) | `3e19c65b0522aa94add2f5bf36e74cbea01f6a36cf4b903eee65b54851338343` | read |
+| Stephenson, Morrison & Hohenkerk (2016), *Proc. R. Soc. A* 472: 20160404, full text from Europe PMC (PMC5247521, `fullTextXML`) | not committed: the tidal acceleration they adopt (ACCURACY 21) | 2026-09-25 | open-access article (CC BY 4.0) | `543c1466ed45225a16eb4f5935dbb67658d37bfa25c7fab0d9db0cce99a715bd` | read |
+| Bowditch 2024, vol. 2, chapter 6 (the copy the almanac2 fixture cites) | not committed: the tables' standard conditions | 2026-09-25 | U.S. Government work (NGA) | `181261d80e7a4ecda1ba2e402aafbbcaba6625981fb3a1f76dcaf1772efaa2e9` (identical to the fixture's `copy_sha256`) | read |
+| pyerfa 2.0.1.5 (ERFA, the SOFA algorithms) from PyPI, installed in a private directory, never in the shared venv | not committed: an independent long-term precession (eraLtpb, eraLtpecl, eraLtpequ) and IAU 2000A nutation for the labelled-tier checks, and `eraRefco` for refraction | 2026-09-25 | BSD-3-Clause | the PyPI wheel as installed | used as a library |
+
+The lunar-limb pack's ring was also read by a separate Python decoder for the independent
+contact computation of ACCURACY 19; no new data.
+<!-- /verify2 -->
