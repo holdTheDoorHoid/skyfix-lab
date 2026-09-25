@@ -22,7 +22,7 @@
 import './tonight.css';
 import { h } from '../../dom.js';
 import { disposer, watch, type Component } from '../component.js';
-import { isDeepSkyEngine, type Dso } from '../engine/types.js';
+import { isDeepSkyEngine, isTidesEngine, type Dso } from '../engine/types.js';
 import { setTime } from '../playback.js';
 import { displayZone, shallowEqual, type ExplorerState, type ExplorerStore } from '../state.js';
 import { bearing3, compassPoint, formatLat, formatLon } from '../shell/format.js';
@@ -60,7 +60,8 @@ import {
   type DsoRow,
 } from './model.js';
 import { showInSky } from './sky-link.js';
-import { datumWords, markDeclined, stationWhere, tideCard, tideHeight, TIDES_PACK, TIDES_REASON, type TideCard } from './tides.js';
+import { datumWords, markDeclined, stationWhere, tideCard, tideHeight, tidesLoaded, TIDES_PACK, TIDES_REASON, type TideCard } from './tides.js';
+import { mayHaveTideStation } from './tide-cells.js';
 import { formatBytes } from '../packs/manifest.js';
 import { timelineModel, timelineView, type TimelineModel } from './timeline.js';
 import { timeInfoForSpan, uncertaintyChip, type ChipInfo } from '../time/chip.js';
@@ -627,11 +628,8 @@ const view: Component = (host, ctx) => {
     if (t.kind === 'loading') return void fill(body, para('Loading the tides pack…', 'sft-p sft-muted'));
     if (t.kind === 'error') return void fill(body, para(`Tides could not be worked out: ${t.message}`, 'sft-p sft-muted'));
     if (t.kind === 'offer') {
-      // The size is the site's list's (the pack service reads it once, when first needed).
-      if (!t.bytes && !manifestAsked) {
-        manifestAsked = true;
-        void ctx.packs.refresh();
-      }
+      // The size is the site's list's (asked for once, see `learnPackSize`).
+      learnPackSize();
       const size = t.bytes ? formatBytes(t.bytes) : '';
       const get = button({
         label: `Get tide predictions (US stations${size ? `, ${size}` : ''})`,
@@ -770,11 +768,24 @@ const view: Component = (host, ctx) => {
 
   const runLast = (gen: number): void => {
     if (gen !== generation || !core) return;
-    refreshTides();
     if (detail && core.covered) {
       detail.features = loadFeatures(ctx, core, featuresMoment(core));
       drawMoon(store.get(), fmtOf(store.get()));
     }
+  };
+
+  /**
+   * The tides pack's size comes from the site's list of packs, which the pack service reads
+   * when first needed: ask for it once, as the page opens, where the offer may be shown, so
+   * the button can say how big the download is.
+   */
+  const learnPackSize = (): void => {
+    if (manifestAsked || !isTidesEngine(engine) || tidesLoaded(ctx)) return;
+    if (ctx.packs.status().some((p) => p.name === TIDES_PACK)) return;
+    const o = store.get().observer;
+    if (!mayHaveTideStation(o.lat_deg, o.lon_deg)) return;
+    manifestAsked = true;
+    void ctx.packs.refresh();
   };
 
   const refreshTides = (): void => {
@@ -849,6 +860,7 @@ const view: Component = (host, ctx) => {
       drawPlanets(f);
       drawDeep(f);
       drawNotes();
+      refreshTides();
       root.dataset.stage = 'detail';
       later(() => runComing(gen, q, f, 0));
     });
@@ -953,6 +965,7 @@ const view: Component = (host, ctx) => {
   );
   // A pack loaded or removed (the tides pack): the tides card may change.
   d.add(ctx.packs.subscribe(() => refreshTides()));
+  learnPackSize();
 
   return { destroy: () => d.dispose() };
 };
