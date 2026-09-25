@@ -1467,3 +1467,9 @@
   display: table;
   margin: 2px 0 0 30px;
 }
+
+/* On a narrow stage a card opens under its row, across the whole of it. */
+.sfe-ev2 > .sfe-card {
+  grid-column: 1 / -1;
+  margin-top: var(--space-2);
+}
