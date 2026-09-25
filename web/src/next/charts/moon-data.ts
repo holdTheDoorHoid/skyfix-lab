@@ -8,7 +8,10 @@
  * per day at local noon for the disc.
  */
 
-import type { EventOptions, ExplorerEngine, Observer, PhaseEvent } from '../engine/types.js';
+import type { EventOptions, ExplorerEngine, MoonApsides, MoonApsis, MoonSyzygy, Observer, PhaseEvent } from '../engine/types.js';
+import { formatDistance } from '../shell/format.js';
+import type { Units } from '../state.js';
+import { clockAt, offsetOn } from './format.js';
 import { jdFromWallClock, type Zone } from '../time.js';
 import { coverageRange, covers, OutsideCoverageError } from './coverage.js';
 import { daysOfMonth, localDateOf, sameDate, type LocalDate, type LocalDay } from './windows.js';
@@ -197,4 +200,53 @@ export function monthGrid<T extends { readonly day: LocalDay }>(days: readonly T
   const rows: (T | null)[][] = [];
   for (let i = 0; i < cells.length; i += 7) rows.push(cells.slice(i, i + 7));
   return rows;
+}
+
+// ---------------------------------------------------------------------------------------
+// Perigee and apogee on the calendar (charts2 agent)
+
+export const APSIS_WORDS: Record<MoonApsis['kind'], { name: string; short: string; long: string }> = {
+  perigee: { name: 'Nearest', short: 'Nearest', long: 'Nearest to the Earth (perigee)' },
+  apogee: { name: 'Farthest', short: 'Farthest', long: 'Farthest from the Earth (apogee)' },
+};
+
+/** A full Moon's size in words: supermoon, micromoon. */
+export function syzygyWords(sz: MoonSyzygy): string {
+  const what = sz.kind === 'full_moon' ? 'Full Moon' : 'New Moon';
+  if (sz.supermoon) return `${what} near perigee: a supermoon${sz.largest_of_year ? ', the year’s largest' : ''}`;
+  if (sz.micromoon) return `${what} near apogee: a micromoon${sz.smallest_of_year ? ', the year’s smallest' : ''}`;
+  return what;
+}
+
+export interface DayMark {
+  readonly kind: 'perigee' | 'apogee' | 'supermoon' | 'micromoon';
+  readonly jd: number;
+  readonly short: string;
+  title(units: Units, zone: Zone): string;
+}
+
+/** The perigee, apogee, supermoon or micromoon falling on a local day. */
+export function apsidesOn(apsides: MoonApsides | null, day: LocalDay): DayMark[] {
+  if (!apsides) return [];
+  const inDay = (jd: number): boolean => jd >= day.jd_start && jd < day.jd_end;
+  const out: DayMark[] = [];
+  for (const a of apsides.apsides) {
+    if (!inDay(a.jd_utc)) continue;
+    out.push({
+      kind: a.kind,
+      jd: a.jd_utc,
+      short: APSIS_WORDS[a.kind].short,
+      title: (units, zone) => `${APSIS_WORDS[a.kind].long} at ${clockAt(a.jd_utc, offsetOn(day, a.jd_utc, zone))}: ${formatDistance(a.distance_km, units)}, ${a.diameter_vs_mean_percent >= 0 ? '+' : '−'}${Math.abs(a.diameter_vs_mean_percent).toFixed(1)} % against its mean size`,
+    });
+  }
+  for (const sz of apsides.syzygies) {
+    if (!inDay(sz.jd_utc) || sz.kind !== 'full_moon' || !(sz.supermoon || sz.micromoon)) continue;
+    out.push({
+      kind: sz.supermoon ? 'supermoon' : 'micromoon',
+      jd: sz.jd_utc,
+      short: sz.supermoon ? 'Supermoon' : 'Micromoon',
+      title: (units) => `${syzygyWords(sz)}: ${formatDistance(sz.distance_km, units)}`,
+    });
+  }
+  return out;
 }

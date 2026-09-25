@@ -1,6 +1,7 @@
 /**
  * The engine's time coverage (`explorer_coverage`), for keeping every chart request inside
- * it. OWNER: charts agent.
+ * it. OWNER: charts agent; the tiers and the words: time-ui agent (time/tier.ts has
+ * `tierAt` and the notices for the validated and labelled tiers).
  *
  * The engine refuses a whole `day_events_batch` when one window reaches outside its
  * coverage (the Sun defines each window's phases), so the charts send only the windows it
@@ -9,6 +10,7 @@
 
 import type { ExplorerEngine } from '../engine/types.js';
 import { jdFromIso } from '../time.js';
+import { wireDateText } from '../time/tier.js';
 
 export interface CoverageRange {
   readonly start: number;
@@ -17,21 +19,27 @@ export interface CoverageRange {
   readonly endUtc: string;
 }
 
-const cache = new WeakMap<ExplorerEngine, CoverageRange | null>();
+/**
+ * Ranges worked out, by the coverage report they came from: the memoised engine returns the
+ * same report until a data pack widens it (a new report is then worked out again).
+ */
+const cache = new WeakMap<object, CoverageRange | null>();
 
 /** The engine's coverage as Julian dates, or null when it does not say. */
 export function coverageRange(engine: ExplorerEngine): CoverageRange | null {
-  if (cache.has(engine)) return cache.get(engine) ?? null;
-  let range: CoverageRange | null = null;
+  let c: ReturnType<ExplorerEngine['coverage']>;
   try {
-    const c = engine.coverage();
-    const start = jdFromIso(c.start_utc);
-    const end = jdFromIso(c.end_utc);
-    if (start !== null && end !== null && end > start) range = { start, end, startUtc: c.start_utc, endUtc: c.end_utc };
+    c = engine.coverage();
   } catch {
-    range = null;
+    return null;
   }
-  cache.set(engine, range);
+  if (!c || typeof c !== 'object') return null;
+  if (cache.has(c)) return cache.get(c) ?? null;
+  let range: CoverageRange | null = null;
+  const start = jdFromIso(c.start_utc);
+  const end = jdFromIso(c.end_utc);
+  if (start !== null && end !== null && end > start) range = { start, end, startUtc: c.start_utc, endUtc: c.end_utc };
+  cache.set(c, range);
   return range;
 }
 
@@ -41,11 +49,16 @@ export function covers(engine: ExplorerEngine, jdStart: number, jdEnd: number): 
   return !range || (jdStart >= range.start && jdEnd <= range.end);
 }
 
-/** A plain-words sentence for a request outside the coverage. */
+/**
+ * A plain-words sentence for a request outside the coverage, naming its bounds as dates:
+ * "… 1 January 1990 to 31 December 2060." (a bound before 1582 is a proleptic Gregorian
+ * date, as the engine states it, and says so).
+ */
 export function outsideCoverage(engine: ExplorerEngine): string {
   const range = coverageRange(engine);
   if (!range) return 'This date is outside the time the engine can compute.';
-  return `This date is outside the time the engine can compute: ${range.startUtc.slice(0, 10)} to ${range.endUtc.slice(0, 10)} (UTC).`;
+  const gregorian = range.start < 2_299_160.5 ? ' (Gregorian calendar)' : '';
+  return `This date is outside the time the engine can compute: ${wireDateText(range.startUtc)} to ${wireDateText(range.endUtc)}${gregorian}.`;
 }
 
 /** Thrown for a request wholly outside the coverage; the charts show its message as it is. */

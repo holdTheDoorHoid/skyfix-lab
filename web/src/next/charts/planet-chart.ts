@@ -67,6 +67,7 @@ import {
 import { clamp, linearScale, type LinearScale } from './scale.js';
 import { jdAtWallHours, zoneKey } from './windows.js';
 import { yearInputFor, yearMemo, yearSkyMemo } from './year-chart.js';
+import { attachExport } from './export-menu.js';
 import type { YearSky } from './year-data.js';
 
 const jobMemo = memoize(
@@ -660,6 +661,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
 
   function renderTable(): void {
     if (!job) {
+      // time-ui: the tier chip belongs beside each table's caption (the ±ΔT band outside the validated tier).
       c.tableWrap.replaceChildren(h('p', { class: 'sfc-message' }, failure ?? 'Nothing to show.'));
       return;
     }
@@ -821,6 +823,18 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
   d.add(bindTimeButtons(c.tableWrap, ctx));
   d.add(() => ctx.scheduler.cancel(hoverTask));
   d.add(() => ctx.scheduler.cancel(frame));
+  // Save: picture, table, print, share (charts2 agent).
+  d.add(
+    attachExport(c, {
+      fileParts: () => ['planets', inputFor(store.get()).year],
+      picture: () => svg,
+      tables: () => {
+        renderTable();
+        return [...c.tableWrap.querySelectorAll('table')];
+      },
+      labels: () => ['A planet counts as up in the dark while it is above the horizon and the Sun is more than 12° below it (astronomical twilight or night).'],
+    }),
+  );
 
   return { destroy: () => d.dispose() };
 };

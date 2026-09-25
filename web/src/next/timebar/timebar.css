@@ -630,3 +630,162 @@ button.sf-tb-clock:hover {
 .sf-tb-clock__ampm:empty {
   display: none;
 }
+
+/* ---------------------------------------------------------------------------------- */
+/* Deep time (time-ui agent): the calendar tag, the ±ΔT chip beside the clock, golden  */
+/* and blue hours on the ribbon, fast playback, and the calendar's year controls.       */
+/* ---------------------------------------------------------------------------------- */
+
+.sf-tb-date__cal {
+  margin-left: 2px;
+}
+
+.sf-tb-clockline {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sf-tb-clock__chip {
+  flex: none;
+}
+
+/* Golden and blue hours: a strip along the top edge of the bar, clear of the phase names. */
+.sf-ribbon {
+  --band-golden: #f5b400;
+  --band-blue: #3b6fd8;
+}
+
+:root[data-theme='dark'] .sf-ribbon {
+  --band-golden: #ffc933;
+  --band-blue: #6d9cf5;
+}
+
+/* Night vision: no blue light. Golden is the bright red, blue hour a dim red with a hatch,
+   so the two still differ by more than colour. */
+:root[data-theme='night'] .sf-ribbon {
+  --band-golden: #ff4400;
+  --band-blue: #8a1200;
+}
+
+.sf-ribbon__band {
+  position: absolute;
+  top: 0;
+  height: 5px;
+  background: var(--band-color);
+  box-shadow: 0 1px 0 var(--line-halo);
+  pointer-events: auto;
+}
+
+.sf-ribbon__band[data-kind='golden'] {
+  --band-color: var(--band-golden);
+}
+
+.sf-ribbon__band[data-kind='blue'] {
+  --band-color: var(--band-blue);
+  background: repeating-linear-gradient(90deg, var(--band-color) 0 4px, transparent 4px 6px);
+}
+
+/* While time runs faster than two days a second the day's phases wait: a plain bar. */
+.sf-timebar--fast .sf-ribbon__bar {
+  background: var(--chrome-raised);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-ribbon__band {
+    transition: none;
+  }
+}
+
+/* --- The calendar's year controls ------------------------------------------------------- */
+
+.sf-cal__note {
+  margin: -2px 0 6px;
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.sf-cal__years {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--ui-line);
+}
+
+.sf-cal__year {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sf-cal__year-label {
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.sf-cal__year-input {
+  width: 72px;
+  min-width: 0;
+  flex: 1 1 72px;
+}
+
+.sf-cal__error:empty {
+  display: none;
+}
+
+.sf-cal__steps {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 2px;
+}
+
+.sf-cal__step {
+  justify-content: center;
+  padding: 0 2px;
+  font-family: var(--font-num);
+  font-size: var(--text-xs);
+}
+
+/*
+ * Phones: the date on one line and the clock (in one row, with its chip) on the next, the
+ * same height for every date, since the bottom sheet measures the bar only when the window
+ * is resized. The year is hidden to save room unless it is the news: before AD 1000 or after
+ * 9999 (then the weekday gives way to it).
+ */
+@media (max-width: 767px) {
+  .sf-tb-when {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    min-height: 58px;
+  }
+
+  .sf-tb-date__label[data-far] .sf-tb-date__year {
+    display: inline;
+  }
+
+  .sf-tb-date__label[data-far] .sf-tb-date__wd {
+    display: none;
+  }
+
+  .sf-tb-clockline {
+    flex-direction: row;
+    align-items: center;
+    padding-left: 26px;
+  }
+
+  button.sf-tb-clock {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .sf-tb-clock__local {
+    font-size: var(--text-md);
+  }
+}

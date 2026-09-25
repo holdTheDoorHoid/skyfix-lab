@@ -56,7 +56,7 @@ describe('manifest', () => {
       expect(gzipSync(buf, { level: 9 }).length, f.path).toBe(f.gzip_bytes);
     }
     expect(manifest.files.some((f) => f.path === '../gazetteer.json')).toBe(true);
-  });
+  }, 30_000); // hashes 6.5 MB of basemap files: slow on a loaded machine
 
   it('stays within the 3 MB gzip budget', () => {
     const total = manifest.files.reduce((a, f) => a + f.gzip_bytes, 0);

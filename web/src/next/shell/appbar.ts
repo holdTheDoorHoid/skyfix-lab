@@ -42,6 +42,7 @@ function help(ctx: Ctx, onTour: () => void, install: HTMLElement, onAbout: () =>
     row(key('Shift', '←', '→'), 'an hour'),
     row(key('Alt', '←', '→'), 'a day'),
     row(key('PgUp', 'PgDn'), 'a month (with Shift, a year)'),
+    row(key('Ctrl', 'PgUp', 'PgDn'), 'a century (with Shift, a thousand years)'),
     row(key('Space'), 'play or pause'),
     row(key('N'), 'now: follow the clock'),
     row(key('Esc'), 'close a menu'),
