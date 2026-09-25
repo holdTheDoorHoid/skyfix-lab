@@ -23,6 +23,13 @@ export function repositoryLink(text = 'The source code'): HTMLAnchorElement {
   return h('a', { href: REPOSITORY_URL, target: '_blank', rel: 'noopener noreferrer' }, text);
 }
 
+/** The manual's page of every data source and its licence (polish2). */
+export const SOURCES_URL = `${MANUAL_URL}THIRD_PARTY.html`;
+
+export function sourcesLink(text = 'Every source and its licence'): HTMLAnchorElement {
+  return h('a', { href: SOURCES_URL, target: '_blank', rel: 'noopener' }, text);
+}
+
 /**
  * "Install SkyFix Lab" while the browser offers it; on an iPhone or iPad the one line that
  * says how; nothing once installed, or where the browser has not offered. Follows the

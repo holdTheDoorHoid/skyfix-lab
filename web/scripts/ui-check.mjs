@@ -1098,6 +1098,12 @@ async function main() {
       const aboutAtHash = await waitFor(`/^About/.test(document.title) && !!document.querySelector('.sf-about')`, 20000);
       const tabbable = await evaluate(`[...document.querySelectorAll('.sf-views__tab')].filter((b) => b.tabIndex === 0).length`);
       check('About opens from the Help menu and at #about, and the tab strip stays in the Tab order', aboutFromHelp && aboutAtHash && tabbable === 1, `help ${aboutFromHelp}, #about ${aboutAtHash}, tabbable ${tabbable}`);
+      // About's links (polish2): the manual, every data source and its licence, and the source
+      // code. The manual is built from docs/*.md, so each page it links to must have its file.
+      const aboutLinks = JSON.parse(await evaluate(`JSON.stringify([...document.querySelectorAll('.sf-about a[href]')].map((a) => a.getAttribute('href')))`));
+      const manualPage = (href) => { const m = /^docs\/(?:([A-Za-z_]+)\.html)?(?:#.*)?$/.exec(href); return !!m && existsSync(join(REPO, 'docs', m[1] ? `${m[1]}.md` : 'SUMMARY.md')); };
+      const wantedLinks = ['docs/', 'docs/THIRD_PARTY.html', 'https://github.com/holdTheDoorHoid/skyfix-lab'];
+      check('About links the manual, every source and its licence, and the source code; each manual page exists', wantedLinks.every((w) => aboutLinks.includes(w)) && aboutLinks.filter((l) => l.startsWith('docs/')).every(manualPage), aboutLinks.join(' '));
 
       // The printed sheet: one page of Letter and one of A4.
       await open(`${MOMENT}&view=tonight`);
