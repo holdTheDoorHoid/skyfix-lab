@@ -110,6 +110,24 @@ pub fn centuries_since_j2000(jd: f64) -> f64 {
     (jd - JD_J2000) / 36_525.0
 }
 
+// --- moonshape (expansion programme, 2026-09-24): the single DUT1 lookup -----------
+
+/// DUT1 = UT1 - UTC in seconds at `jd_utc`: the navigator's own value (a session's
+/// `clock.dut1_s`, the CLI's `--dut1`) when given, otherwise the engine's.
+///
+/// This is the one lookup every reduce, solve, predict and plan path goes through
+/// (EXPLORER_API.md, "Expansion programme", session schema). **Interim fallback:** with
+/// no user value it returns 0 s, the CONVENTIONS section 6 assumption this programme
+/// retires; the timescales agent replaces that fallback with the IERS history (1973 to
+/// the build date) and the model of CONVENTIONS 15.2, keeping this signature. A user
+/// value always wins.
+pub fn dut1_s(jd_utc: f64, user: Option<f64>) -> f64 {
+    let _ = jd_utc;
+    user.unwrap_or(0.0)
+}
+
+// --- end moonshape ------------------------------------------------------------------
+
 #[cfg(test)]
 mod tests {
     use super::*;

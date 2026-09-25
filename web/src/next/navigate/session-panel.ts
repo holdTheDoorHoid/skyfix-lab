@@ -12,7 +12,7 @@ import { badge } from '../theme/primitives.js';
 import { angleFormat, type NavCtx } from './context.js';
 import { fmtArcmin, fmtPosition, positionInputText } from './format.js';
 import { patchSession, type SessionPatch } from './model.js';
-import { parseNumber, parsePosition, type Parsed } from './parse.js';
+import { parseNumber, parseOptionalNumber, parsePosition, type Parsed } from './parse.js';
 import { HORIZON_TEXT, ROLE_TEXT } from './text.js';
 import { btn, field, onChange, para, parsedField, selectInput, textInput, type ParsedField } from './ui.js';
 
@@ -113,6 +113,18 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
   horizon.addEventListener('change', () => patch({ instrument: { horizon: horizon.value as HorizonMode } }));
   const clockSigma = num('Clock uncertainty (s, 1 sigma)', undefined, 'Propagated into an east-west term of the position uncertainty, never estimated: for star sights a clock error and a longitude error are the same unknown.', () => session().clock.uncertainty_s, (v) => patch({ clock: { uncertainty_s: v } }), 0, 's');
   const clockCorrection = num('Known watch correction (s)', 'chronometer correction, added', 'Added to every recorded time before use.', () => session().clock.correction_s, (v) => patch({ clock: { correction_s: v } }));
+  // UT1 − UTC (expansion programme, moonshape): the session's `clock.dut1_s`. Blank means
+  // automatic (the engine's own value); the time signal's DUT1 is within ±0.9 s.
+  const dut1 = parsedField<number | null>('UT1 − UTC from the time signal (s)', {
+    term: 'DUT1',
+    inputmode: 'decimal',
+    size: 8,
+    placeholder: 'automatic',
+    parse: (t) => parseOptionalNumber(t, { what: 'UT1 − UTC', min: -0.9, max: 0.9, unit: 's' }),
+    format: (v) => (v === null ? '' : String(v)),
+    read: () => session().clock.dut1_s ?? null,
+    commit: (v) => patch({ clock: { dut1_s: v } }),
+  });
 
   const mode = selectInput<'auto' | 'supplied'>(
     [
@@ -140,11 +152,11 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     group('Assumed position', position.el, h('div', { class: 'sfn-inline' }, usePlace), h('div', { class: 'sfn-grid-2' }, roleField.el, priorSigma.el)),
     group('Observer', h('div', { class: 'sfn-grid-3' }, hoe.el, pressure.el, temperature.el)),
     group('Instrument', h('div', { class: 'sfn-grid-3' }, field('Name', instrumentName).el, ic.el, horizonField.el)),
-    group('Clock', h('div', { class: 'sfn-grid-2' }, clockSigma.el, clockCorrection.el)),
+    group('Clock', h('div', { class: 'sfn-grid-2' }, clockSigma.el, clockCorrection.el), dut1.el),
     group('Almanac', modeField.el),
   );
 
-  const fields: ParsedField[] = [position, priorSigma, hoe, pressure, temperature, ic, clockSigma, clockCorrection];
+  const fields: ParsedField[] = [position, priorSigma, hoe, pressure, temperature, ic, clockSigma, clockCorrection, dut1];
 
   function render(): void {
     const s = session();
@@ -161,6 +173,7 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
           : 'No assumed position',
         ` · eye ${s.observer.height_of_eye_m} m · IC ${fmtArcmin(s.instrument.index_correction_arcmin, 1)} · ${HORIZON_TEXT[s.instrument.horizon].label.toLowerCase()}` +
           (s.clock.uncertainty_s ? ` · clock ±${s.clock.uncertainty_s} s` : '') +
+          (typeof s.clock.dut1_s === 'number' ? ` · UT1 − UTC ${s.clock.dut1_s} s` : '') +
           (store.get().mode === 'supplied' ? ' · typed directions only' : ''),
       ),
       h('span', { class: 'sfn-session__edit' }, 'Session settings'),
@@ -175,6 +188,11 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     horizon.value = s.instrument.horizon;
     horizonField.setHelp(HORIZON_TEXT[s.instrument.horizon].explain);
     schema.textContent = s.schema;
+    dut1.parts.setHelp(
+      typeof s.clock.dut1_s === 'number'
+        ? `Every Greenwich hour angle uses UT1 = UTC ${s.clock.dut1_s < 0 ? '−' : '+'} ${Math.abs(s.clock.dut1_s)} s. Leave blank for automatic.`
+        : 'Unknown: ±0.9 s, up to ±0.23′ of longitude. Blank means automatic; type the DUT1 your time signal gives to remove it.',
+    );
     mode.value = store.get().mode;
     for (const f2 of fields) f2.refresh();
   }

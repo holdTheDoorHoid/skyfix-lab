@@ -143,6 +143,8 @@ export function sanitizeSession(raw: unknown): Session | null {
     clock: {
       uncertainty_s: Math.max(0, num(clock.uncertainty_s, 0)),
       correction_s: num(clock.correction_s, 0),
+      // UT1 − UTC (expansion programme): kept when it is a number, else automatic.
+      ...(typeof clock.dut1_s === 'number' && Number.isFinite(clock.dut1_s) ? { dut1_s: clock.dut1_s } : {}),
     },
     observations,
   };

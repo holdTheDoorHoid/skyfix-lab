@@ -84,6 +84,8 @@ export function sightObserverJson(o: SightObserver): string {
   if (o.height_of_eye_m !== undefined) out.height_of_eye_m = o.height_of_eye_m;
   if (o.pressure_hpa !== undefined) out.pressure_hpa = o.pressure_hpa;
   if (o.temperature_c !== undefined) out.temperature_c = o.temperature_c;
+  // UT1 − UTC for the directions (expansion programme): read at the WASM boundary.
+  if (typeof o.dut1_s === 'number') out.dut1_s = o.dut1_s;
   return JSON.stringify(out);
 }
 

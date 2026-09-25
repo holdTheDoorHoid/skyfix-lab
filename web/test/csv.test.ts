@@ -128,3 +128,18 @@ describe('CSV convenience parsing of imperfect input', () => {
     expect(session.observations[0]!.altitude_deg).toBe(0);
   });
 });
+
+describe('clock.dut1_s (expansion programme)', () => {
+  it('is written only when given and round-trips; empty means automatic', () => {
+    const plain = sample();
+    expect(toCsv(plain)).not.toMatch(/dut1_s/);
+    const { session: back } = fromCsv(toCsv(plain), emptySession(''));
+    expect(back.clock.dut1_s).toBeUndefined();
+    const given = sample();
+    given.clock = { ...given.clock, dut1_s: -0.2 };
+    const csv = toCsv(given);
+    expect(csv).toMatch(/# clock\.dut1_s,-0\.2/);
+    expect(fromCsv(csv, emptySession('')).session.clock.dut1_s).toBe(-0.2);
+    expect(fromCsv(csv.replace('# clock.dut1_s,-0.2', '# clock.dut1_s,'), emptySession('')).session.clock.dut1_s).toBeNull();
+  });
+});

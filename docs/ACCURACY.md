@@ -29,7 +29,7 @@ reproduce each row are in the numbered section named.
 | Topocentric altitude/azimuth (any body, WGS84 site) | stars worst 0.0052′; the Sun's larger figure is the parallax itself being restored, residual 0.0034′ | 0.1′ | 2, "Spherical model…" |
 | Events: rise, set, twilight, transits (vs Skyfield, same threshold / vs USNO) | worst 0.420 s vs Skyfield; worst 29.4 s vs USNO's own 1-minute rounding | 10 s / 1 min | 9 |
 | Star field, display only (9,095 stars, apparent places vs Skyfield) | worst 0.307″ = 0.0051′; separately, BSC5P vs Hipparcos catalogue positions can disagree by up to 8.6″ = 0.14′ (Rigil Kentaurus, proper motion, at the edges of 1990-2060) | 0.1′ (exceeded for this one star; display only, never reaches a sight) | 8 |
-| Moon and planet sights (raw sextant readings vs Skyfield) | spherical-Earth chain worst 0.0063′; the one un-modelled term (the real Earth's shape) reaches 0.22′ for the Moon, median 0.09′, under 0.005′ for planets | matches ephemeris tolerance; Earth's-shape term not modelled (section 5) | 10 |
+| Moon and planet sights (raw sextant readings vs Skyfield) | on the real (WGS84) Earth every reduced Ho within 0.0064′ of its model altitude, the Moon's with its Earth-shape term (0.22′ in this sample, median 0.09′; CONVENTIONS 15.4); WGS84 Moon sessions fix 2.6 m and 5.1 m from the truth; the Moon's parallax through the model within 0.0004′ of USNO's | matches ephemeris tolerance | 10 |
 | Lunar distance (UTC recovered, vs Skyfield) | within 0.74 s (altitudes computed from the DR) / 0.63 s (observed) / 2.1 s (one observed, one computed) | 5 s | 10 |
 | Almanac pages, tabulated values (vs Skyfield) | 99.2 % of printed values exact to the last digit; worst raw value 0.0197′ (a star's SHA) | 0.1′ angles/v/d/HP/SD, 1 min times | 11 |
 | Eclipses (vs NASA's canon / vs USNO local circumstances) | greatest eclipse worst 1.4 s (solar) / 11.3 s (lunar) vs NASA; local contacts within 2.0 s vs USNO | 2 min / 1 min | 12 |
@@ -550,11 +550,14 @@ categories a real error would have fallen into.
 |---|---|---|---|
 | sextant sigma (realistic instrument, independent noise) | 1.0′ per sight (0.1′ is the tightest anywhere in this project's fixtures) | yes — the solver's whole uncertainty model is built on a declared per-sight sigma | this document, section 2, "Why 0.05′ for the ephemeris"; `docs/CONVENTIONS.md` section 10 example session |
 | refraction model (Bennett 1982) | own residual against the standard atmosphere ≤ 0.07′ | yes, as the correction chain's step 3 | `docs/CONVENTIONS.md` section 5 |
-| DUT1 (UT1 − UTC) assumed zero | up to 0.23′ of GHA for the everyday case (\|DUT1\| < 0.9 s); up to 0.88′ in Skyfield's extrapolated worst case at 2055 | no — DUT1 is assumed 0 everywhere unless a provider is given one | `docs/CONVENTIONS.md` section 6; this document, section 2, "ΔT and DUT1" |
+| DUT1 (UT1 − UTC) | up to 0.23′ of GHA (a quarter of a mile of longitude) when unknown, for the everyday case (\|DUT1\| < 0.9 s); up to 0.88′ in Skyfield's extrapolated worst case at 2055 | **an input** (expansion programme): the session's `clock.dut1_s`, the CLI's `--dut1`, the Navigate field "UT1 − UTC from the time signal"; each moves every GHA by 15.04″ per second, whatever the body (`crates/skyfix-cli/tests/dut1.rs`, `crates/skyfix-wasm/src/nav.rs` tests). Without one the engine uses 0 until the IERS history lands (timescales work), and the Navigate field says "Unknown: ±0.9 s, up to ±0.23′ of longitude" | `docs/CONVENTIONS.md` sections 6 and 15.2; this document, section 2, "ΔT and DUT1" |
+| a sight time typed without seconds | a whole minute of time is 15′ of GHA; `HH:MM` means `:00` | guarded: the Navigate sight form says "Seconds omitted: :00 assumed; each second is 0.25′ of longitude" and takes the time (`web/src/next/navigate/parse.ts`) | `web/test/next/navigate-input.test.ts` |
 | diurnal aberration | up to 0.32″ (0.0052′) for an equatorial observer, worst case measured; 0.21″ across the five `reference-philadelphia-5star` sights specifically | no — CONVENTIONS section 7 defines the frame as geocentric of date, with diurnal aberration explicitly excluded | this document, section 2, "Spherical model vs full topocentric computation", and section 3, "The session fixtures"; measured from `fixtures/reference/topocentric_altaz.json` |
 | ephemeris (Sun and stars vs the independent Skyfield/JPL/USNO reference) | declared 0.01′ (Sun) / 0.02′ (stars); worst measured 0.0026′ (Sun GHA) / 0.0011′ (star separation) | yes, to the tolerance shown — this is what section 2 measures in full | `skyfix coverage` (command run in this worktree); this document, section 2 |
-| sphere vs ellipsoid | Earth's flattening is about 0.3 %, "irrelevant at the tens-of-metres level" against this project's targets | no — the model is a sphere everywhere, no ellipsoid correction | `docs/CONVENTIONS.md` section 1 ("the model is a sphere; no ellipsoid correction is applied anywhere"); `docs/ARCHITECTURE.md`, "Why these choices" |
-| the Earth's shape in the Moon's parallax | up to 0.22′ (median 0.09′) per Moon sight; under 0.005′ for planets | no in sight reduction and predicted readings (the sphere of CONVENTIONS section 1); **yes** in the lunar-distance clearing (WGS84 observer) | section 10; `docs/CONVENTIONS.md` section 5 step 5 |
+| sphere vs ellipsoid | Earth's flattening is about 0.3 %, "irrelevant at the tens-of-metres level" against this project's targets | no — the model is a sphere (1′ = 1 NM, geodetic coordinates), with the three exceptions of CONVENTIONS section 1: the display's topocentric values, the lunar-distance clearing and the Moon's model altitude (next row) | `docs/CONVENTIONS.md` section 1; `docs/ARCHITECTURE.md`, "Why these choices" |
+| the Earth's shape in the Moon's parallax | up to 0.24′ (median 0.09′ over 104 Skyfield sights, 0.05′ over random observable sights); at most 0.0021′ for a planet (Venus at inferior conjunction), 0.0006′ for the Sun | **yes** for the Moon (expansion programme): in its model altitude wherever one is evaluated (CONVENTIONS 15.4), leaving a perfect WGS84 Moon sight within 0.0064′ of it; and in the lunar-distance clearing. Not applied to the planets or the Sun | section 10; `crates/skyfix-core/tests/moon_earth_shape.rs`; `docs/CONVENTIONS.md` section 15.4 |
+| dip anomaly (the air–sea temperature difference bending the line to the horizon) | 1–2′ is common, more in extremes (looming, a mirage at the horizon) | no — physical, and no model of the air over the sea is worth having. The remedy is the shared-bias estimate: `SolveOptions.estimate_shared_bias` (CLI `solve --bias`) solves a common altitude error as a third unknown, which a dip error is, given three or more sights spread round the horizon (the sight planner picks them that way). Section 3 measures it: coverage stays 95.5 % with a shared 2′ bias estimated, and falls to 42 % when it is not | `docs/CONVENTIONS.md` sections 5 step 2 and 8; section 3, "The Monte Carlo coverage results" |
+| anomalous refraction near the horizon | several ′ below 5° of altitude, about 0.1–0.2′ at 10° | flagged below 10°, 1′ added to the sigma below 5°, refused below 0° (CONVENTIONS section 5 step 3); the anomaly itself is physical and not modelled. Its common part is absorbed by the shared-bias estimate as above; the rest is avoided by sights above 10–15° (the planner's floor is 15°) | `docs/CONVENTIONS.md` section 5 step 3; `docs/PLANNER.md` |
 | Venus's centre of light | up to 0.41′ between the disc's centre and its light; the model agrees with USNO to 0.003′ | yes — Venus's sight direction is its centre of light, as in the Nautical Almanac | section 10; `docs/CONVENTIONS.md` section 7 |
 
 Two of these rows are worth reading together: DUT1 and diurnal aberration are
@@ -566,13 +569,14 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
 
 ## 5. Known limitations and things deliberately not modelled
 
-* **Moon and planet sights reduce on the spherical Earth.** The Moon, Venus, Mars,
-  Jupiter and Saturn are offered for sights (section 10, `docs/NAVIGATION_SKY.md`):
-  the Moon's augmented semidiameter and rigorous parallax, the planets' parallax,
-  Venus at its centre of light, and each body's own GHA rate for the clock term.
-  The one thing left out is the Earth's shape in the Moon's parallax: up to 0.22′
-  (median 0.09′) on the real Earth, a few tens of metres in the fixes of section 10.
-  Mercury, Uranus and Neptune are shown but never offered for sights.
+* **Moon and planet sights reduce on the spherical Earth, the Moon's model altitude
+  on the real one.** The Moon, Venus, Mars, Jupiter and Saturn are offered for sights
+  (section 10, `docs/NAVIGATION_SKY.md`): the Moon's augmented semidiameter and rigorous
+  parallax, the planets' parallax, Venus at its centre of light, and each body's own GHA
+  rate for the clock term. The Earth's shape in the Moon's parallax (up to 0.24′) is in
+  its model altitude (CONVENTIONS 15.4). Left out: the observer's height in that term
+  (30 m is 0.0003′) and the planets' term (at most 0.0021′). Mercury, Uranus and Neptune
+  are shown but never offered for sights.
 * **The core solver assumes a stationary observer.** `skyfix-core::solver`
   has no motion model. `skyfix-motion::running_fix` (see `docs/MOTION.md`)
   handles a moving observer by advancing each sight's geographic position to
@@ -624,7 +628,9 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
   WGS84 ellipsoid normal.
 * **Refraction below Ha = 0** is rejected, and Bennett's own residual (≤ 0.07′)
   is inside the sigma floor and not modelled. Real anomalous refraction near
-  the horizon is far larger than either and is not represented in any fixture.
+  the horizon is far larger than either and is not represented in any fixture;
+  section 4 gives its size, and the dip anomaly's, with the shared-bias estimate as
+  the remedy for the part the sights share.
 
 ## 6. How to reproduce every number here
 
@@ -656,7 +662,8 @@ Owner: Moon agent. The provider is `skyfix_ephemeris::moon::MoonProvider`: ELP 2
 (CDS VI/79, 2023 of 37 872 terms) through the project's IAU 2006/2000B frame chain; see
 the module documentation for the model and `docs/THIRD_PARTY.md`, "Moon model", for the
 data. It declares **`accuracy_arcmin` = 0.02′**, excluding (like the Sun and the stars)
-the DUT1 = 0 assumption of CONVENTIONS section 6, which is worth up to 0.23′ of GHA.
+the DUT1 of CONVENTIONS section 6 (0 unless the session or the caller gives it), which
+is worth up to 0.23′ of GHA when unknown.
 
 ### Geocentric, against Skyfield + JPL DE440s
 
@@ -996,21 +1003,40 @@ positions with the CONVENTIONS refraction, dip and index error;
 | Rust chain vs the chain transcribed in Python from the text | 1.1e-10′ (all bodies) | | | |
 | sphere Earth, supplied DE440s directions | 0.0059′ | 0.0048′ | 0.0038′ | 0.0039′ |
 | sphere Earth, the providers' own directions | 0.0063′ | 0.0053′ | 0.0041′ | 0.0035′ |
-| WGS84 Earth | **0.2202′** (median 0.088′) | 0.0048′ | 0.0023′ | 0.0045′ |
+| WGS84 Earth, Ho against the sphere's geocentric altitude | 0.2202′ (median 0.088′) | 0.0048′ | 0.0023′ | 0.0045′ |
+| **WGS84 Earth, Ho against the model altitude** (CONVENTIONS 15.4) | **0.0064′** | 0.0048′ | 0.0023′ | 0.0045′ |
 
 The sphere residuals are the diurnal aberration Skyfield includes; the WGS84 Moon
-residual is the Earth's shape, which the sphere of CONVENTIONS section 1 leaves out.
+residual against the sphere is the Earth's shape, which the Moon's model altitude now
+carries (the expansion programme's Earth-shape term: its size over these 104 Moon sights,
+median 0.088′, worst 0.222′).
 
 **End to end** (`fixtures/sessions/reference-moon-*.json`, ephemeris `auto`, raw sextant
-readings, solved with the unchanged solver): 2.7 m and 5.2 m from truth on the sphere,
-17.9 m and 34.9 m on the WGS84 Earth.
+readings): the WGS84 sessions fix **2.6 m** and **5.1 m** from the truth (17.9 m and 34.9 m
+on the sphere alone; the test bound, 60 m and 80 m before, is now 15 m). The `*-sphere`
+sessions, built on a sphere of radius 6378.14 km, recover their truth to 2.7 m and 5.2 m
+solved with the term switched off, the model they were built for, and miss by 22.7 m and
+30.4 m with it on.
+
+**The term itself** (`crates/skyfix-core/src/sights/wgs84.rs` and
+`tests/moon_earth_shape.rs`): the component form the solver uses equals the explicit
+vector form to 1.5e-12′ and an independent Python computation to 1e-11′; the first-order
+formula `HP f (sin²φ cos h − sin 2φ sin h cos Z)` with the observed altitude matches it to
+0.00018′ below 84°; worst case 0.2382′ (φ 54.9°, the Moon toward the equator at 55°,
+HP 61.5′). A Moon and three stars on the real Earth fix to 0.00 m (137 m on the sphere
+alone); a Moon noon latitude (term +0.22′ there) to 1e-6′, single maximum 0.001′,
+ex-meridian 4e-6′; a running fix with a Moon sight to 0.03 m (266 m without the term).
+The solver keeps the sphere's Jacobian row: measured, the term's own slope is 0.9e-4 of
+the main term's below 45°, 1.8e-4 below 70° and 7e-4 at 85°.
 
 **Against USNO** (`fixtures/reference/usno_celnav_venus_phase.json`,
 `tests/usno_venus_phase.rs`, USNO's 10.36 s lag allowed for): Venus's centre of light
 within 0.0031′ at twelve phase angles from 15° to 157° (the geometric centre misses by up
 to 0.41′; fitted coefficient 0.4403 against the 0.44 used); Mars within 0.0007′ (no phase
-correction, as in USNO); the WGS84 Moon parallax within 0.004′ of USNO's, and the
-sphere's up to 0.22′ from it; the Moon's semidiameter 0.006′ larger than USNO's (k).
+correction, as in USNO); the Moon's parallax implied by the sight model (the sphere's
+less the Earth-shape term) within **0.0004′** of USNO's at eight positions, the WGS84
+display within 0.004′, and the sphere's alone up to 0.22′ from it; the Moon's
+semidiameter 0.006′ larger than USNO's (k).
 
 **Lunar distances** (`fixtures/reference/lunar_distances.json`, 22 cases to the Sun, ten
 stars and four planets, measured between refracted limbs found numerically on the WGS84

@@ -131,6 +131,7 @@ fn session_from(observations: Vec<skyfix_core::types::Observation>, notes: Strin
         clock: Clock {
             uncertainty_s: 0.0,
             correction_s: 0.0,
+            dut1_s: None,
         },
         observations,
     }

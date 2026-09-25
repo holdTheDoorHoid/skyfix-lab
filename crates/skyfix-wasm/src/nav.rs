@@ -11,6 +11,10 @@
 //! `"auto"` or `"supplied"`, exactly as `reduce` and `solve` take it. Each export has a
 //! plain-Rust `*_json` twin that returns the result or the error message, so every path
 //! is tested natively without a JavaScript runtime. Errors throw a string.
+//!
+//! DUT1 (expansion programme, moonshape): the `auto` providers turn the Earth with the
+//! session's `clock.dut1_s` (UT1 - UTC, seconds), else the engine's value, through
+//! [`session_source`], which `reduce`, `solve` and the misfit grid use too.
 
 use serde::de::DeserializeOwned;
 use wasm_bindgen::prelude::*;
@@ -22,8 +26,9 @@ use skyfix_core::types::{
     PolarisResult, Session,
 };
 use skyfix_ephemeris::ProviderSource;
+use skyfix_ephemeris::fixture_pack::CompositeProvider;
 
-use crate::{apply_session_position, auto_provider, err, to_js};
+use crate::{apply_session_position, err, to_js};
 
 // The running fix's wire shapes and the whole of its work live in `skyfix-motion`, and
 // the Almanac-style Polaris terms' GHA of Aries in `skyfix-ephemeris`, so the command
@@ -99,7 +104,7 @@ pub fn noon_sight_json(
 ) -> Result<NoonSightResult, String> {
     let session = session_from(session_json)?;
     let options: NoonSightOptions = document(options_json, "noon sight options")?;
-    let source = source_for(ephemeris_mode)?;
+    let source = session_source(ephemeris_mode, &session)?;
     noon::noon_sight(&session, source.as_ref(), &options).map_err(|e| e.to_string())
 }
 
@@ -110,7 +115,7 @@ pub fn polaris_latitude_json(
 ) -> Result<PolarisResult, String> {
     let session = session_from(session_json)?;
     let options: PolarisOptions = document(options_json, "Polaris options")?;
-    let source = source_for(ephemeris_mode)?;
+    let source = session_source(ephemeris_mode, &session)?;
     polaris::polaris_latitude(
         &session,
         source.as_ref(),
@@ -127,7 +132,7 @@ pub fn average_sights_json(
 ) -> Result<AveragedSight, String> {
     let session = session_from(session_json)?;
     let options: AveragingOptions = document(options_json, "averaging options")?;
-    let source = source_for(ephemeris_mode)?;
+    let source = session_source(ephemeris_mode, &session)?;
     averaging::average_sights(&session, source.as_ref(), &options).map_err(|e| e.to_string())
 }
 
@@ -138,7 +143,7 @@ pub fn running_fix_json(
 ) -> Result<RunningFixOutput, String> {
     let session = session_from(session_json)?;
     let mut request: RunningFixRequest = document(request_json, "running fix request")?;
-    let source = source_for(ephemeris_mode)?;
+    let source = session_source(ephemeris_mode, &session)?;
     // The session's assumed position and clock uncertainty fill the options exactly as
     // they do for `solve`; `running_fix_session` then uses them as given.
     apply_session_position(&session, &mut request.options);
@@ -153,16 +158,44 @@ pub fn running_fix_json(
 // ---------------------------------------------------------------------------
 
 /// The direction source for an `ephemeris_mode`, as `lib.rs` defines the modes, but
-/// with a plain error so the `*_json` functions run natively.
-fn source_for(mode: &str) -> Result<Box<dyn DirectionSource>, String> {
+/// with a plain error so the `*_json` functions run natively, and with the `auto`
+/// providers turning the Earth by `dut1_s` (UT1 - UTC, seconds).
+pub fn source_for(mode: &str, dut1_s: f64) -> Result<Box<dyn DirectionSource>, String> {
     match mode {
         "supplied" => Ok(Box::new(SuppliedOnly)),
-        "auto" | "" => Ok(Box::new(ProviderSource(auto_provider()))),
+        "auto" | "" => Ok(Box::new(ProviderSource(auto_provider_with_dut1(dut1_s)))),
         other => Err(format!(
             "unknown ephemeris_mode {other:?}: expected \"supplied\" or \"auto\""
         )),
     }
 }
+
+// --- moonshape (expansion programme): DUT1 from the session ----------------------
+
+/// The direction source for reducing `session`: its `clock.dut1_s` (UT1 - UTC), else the
+/// engine's value, through the single lookup, once for the session
+/// (`skyfix_core::reduce::session_dut1_s`). `reduce`, `solve`, the misfit grid and every
+/// method here build their source with it, so a session's DUT1 reaches every answer.
+pub fn session_source(mode: &str, session: &Session) -> Result<Box<dyn DirectionSource>, String> {
+    source_for(mode, skyfix_core::reduce::session_dut1_s(session))
+}
+
+/// [`crate::auto_provider`] with every member's Earth rotation taken at UT1 = UTC +
+/// `dut1_s`: the same members in the same order (a test holds the two together).
+pub fn auto_provider_with_dut1(dut1_s: f64) -> CompositeProvider {
+    CompositeProvider::new(AUTO_NAME)
+        .with(skyfix_ephemeris::sun::SunProvider::with_dut1_s(dut1_s))
+        .with(skyfix_ephemeris::moon::MoonProvider::with_dut1_s(dut1_s))
+        .with(skyfix_ephemeris::sights::SightPlanetProvider::with_dut1_s(
+            dut1_s,
+        ))
+        .with(skyfix_ephemeris::stars::StarProvider::with_dut1(dut1_s))
+}
+
+/// The name `crate::auto_provider` reports, which a reduced sight carries.
+const AUTO_NAME: &str = "skyfix-auto (Sun, Moon, planets, stars)";
+
+// --- end moonshape ------------------------------------------------------------------
 
 fn session_from(json: &str) -> Result<Session, String> {
     skyfix_core::session::parse_session(json)
@@ -272,6 +305,54 @@ mod tests {
             FixResult::Unique { fix, .. } => fix.position,
             other => panic!("expected a unique fix, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn the_dut1_composition_is_the_auto_provider() {
+        use crate::auto_provider;
+        use skyfix_ephemeris::AstroProvider;
+        let plain = auto_provider();
+        let zero = auto_provider_with_dut1(0.0);
+        assert_eq!(plain.name(), zero.name());
+        assert_eq!(plain.provider_names(), zero.provider_names());
+        let jd = 2_461_314.562_5;
+        for body in ["Sun", "Moon", "Venus", "Saturn", "Vega", "Polaris"] {
+            assert_eq!(
+                plain.geocentric(body, jd),
+                zero.geocentric(body, jd),
+                "{body}"
+            );
+        }
+        // DUT1 turns the Earth: every GHA moves by 15.041" per second of it.
+        let moved = auto_provider_with_dut1(0.5);
+        for body in ["Sun", "Moon", "Vega"] {
+            let a = plain.geocentric(body, jd).unwrap();
+            let b = moved.geocentric(body, jd).unwrap();
+            let shift = ((b.gha_deg - a.gha_deg + 540.0).rem_euclid(360.0) - 180.0) * 3600.0;
+            assert!((shift - 7.5205).abs() < 0.01, "{body}: {shift}");
+            assert_eq!(a.dec_deg, b.dec_deg);
+        }
+    }
+
+    #[test]
+    fn a_sessions_dut1_reaches_the_methods() {
+        let doc = fixture();
+        let case = doc["averaging"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == "vega-run-philadelphia")
+            .unwrap();
+        let sights = case["sights"].as_array().unwrap();
+        let options = json!({"dr": case["dr"]}).to_string();
+        let plain = session_json(sights, Some("Vega"));
+        let mut with: Value = serde_json::from_str(&plain).unwrap();
+        with["clock"] = json!({"dut1_s": 0.5});
+        let a = average_sights_json(&plain, &options, "auto").unwrap();
+        let b = average_sights_json(&with.to_string(), &options, "auto").unwrap();
+        // The reduced sights' GHAs move with the Earth, 7.5" for half a second.
+        let shift = (b.sights[0].gha_deg - a.sights[0].gha_deg) * 3600.0;
+        assert!((shift - 7.5205).abs() < 0.01, "{shift}");
     }
 
     #[test]

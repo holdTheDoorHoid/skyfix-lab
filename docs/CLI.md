@@ -79,6 +79,26 @@ Be careful not to conflate two different things:
 - a body being **answerable** — whether a provider in this build will return a direction
   for it. That is what `skyfix catalog` reports.
 
+### UT1 − UTC: `--dut1 SECONDS`
+
+The Earth's rotation runs on UT1, a clock is UTC, and the difference (DUT1, within 0.9 s
+while leap seconds last) turns every Greenwich hour angle by 15.04″ per second — up to
+0.23′, a quarter of a mile of longitude. `--dut1` gives it, from a time signal or IERS
+Bulletin A, on every command that reduces, predicts or plans: `reduce`, `solve`,
+`predict`, `noon`, `polaris`, `average`, `running-fix`, `lunar`, `plan-sights` and
+`plan`. It overrides a session's `clock.dut1_s` (for `lunar`, the input document's
+`observer.dut1_s`); without either the engine's own value is used, 0 s until the IERS
+history is built in, and then the error above is unknown. A value beyond 0.9 s is used
+with a warning on standard error; beyond 60 s it is refused as not being in seconds.
+
+```console
+$ skyfix predict --lat 39.9526 --lon -75.1652 --utc 2026-10-01T03:00:00Z --body Vega \
+      --dut1 -0.3
+```
+
+The providers are built once per session, with the value at its earliest sight
+(CONVENTIONS section 6).
+
 ---
 
 ## Commands
@@ -109,6 +129,11 @@ letter.
 | `--ephemeris auto\|supplied` | see above; default `auto` |
 | `--json` | the `Vec<ReducedSight>` as serde emits it. A rejected sight appears as `{"id": ..., "error": ...}` in the same position, so the array stays aligned with the session |
 | `--csv` | one row per sight: `id,body,utc,direction_source,gha_deg,dec_deg,ho_deg,sigma_arcmin,hc_deg,zn_deg,intercept_nm` |
+| `--dut1 SECONDS` | UT1 − UTC, over the session's `clock.dut1_s` (above) |
+
+For a Moon sight `Hc` and the intercept include the Earth-shape term (CONVENTIONS
+15.4), and the text says how much: `Hc includes the Moon's Earth-shape term, +0.057'`.
+The JSON carries it as `earth_shape_arcmin`; the CSV's `hc_deg` includes it.
 
 A rejected sight never discards the others. The rest are reduced and printed, the
 rejections are named, and the exit code is 2.
@@ -124,6 +149,7 @@ own line: `UNIQUE FIX`, `AMBIGUOUS: N CANDIDATES`, `UNDERDETERMINED` or `FAILED`
 | flag | meaning |
 |---|---|
 | `--ephemeris auto\|supplied` | as for `reduce` |
+| `--dut1 SECONDS` | as for `reduce` |
 | `--json` | the `FixResult` exactly as serde emits it |
 | `--init LAT,LON` | start the iteration here. A starting point only; it never weights a converged fix |
 | `--no-init` | ignore the session's assumed position and rely on multistart |
@@ -1288,17 +1314,21 @@ Instrument  sea horizon, index correction -2.0' (added to the reading)
 Time        2026-10-01T03:00:00Z
 Direction   GHA 352 05.0, Dec N 26 18.3, SD 16.17', HP 59.34' (from skyfix-auto)
 
-Hs  +20 28.7   the sextant reading: set this on the arc
+Hs  +20 28.8   the sextant reading: set this on the arc
 Zn   73 06.1   the true bearing to look along
-Hc  +21 33.1   the computed altitude here; reducing Hs gives it back
+Hc  +21 33.2   the computed altitude here; reducing Hs gives it back
+         including the Moon's Earth-shape term, +0.057' (CONVENTIONS 15.4)
 Ha  +20 24.0   the apparent altitude after the index correction and the horizon step
 ...
 ```
 
 The Moon reads more than a degree below its computed altitude: 55.5' of parallax and
 16.3' of semidiameter, less 2.7' of refraction, 2.8' of dip and the 2.0' index correction.
-That is exactly why presetting `Hc` on the arc would not bring it into the telescope. A body below the lowest altitude the horizon lets a sextant
-show exits 1 and says so.
+That is exactly why presetting `Hc` on the arc would not bring it into the telescope. For
+the Moon `Hc` also carries the Earth-shape term (CONVENTIONS 15.4): the part of its
+parallax that the spherical Earth leaves out, here +0.057', so the reading is what a
+perfect sextant shows on the real Earth. A body below the lowest altitude the horizon
+lets a sextant show exits 1 and says so.
 
 ### `skyfix lunar <input.json>`
 

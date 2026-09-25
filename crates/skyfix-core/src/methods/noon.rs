@@ -15,7 +15,10 @@
 //!
 //! and the latitude follows from the meridian altitude exactly (on the sphere,
 //! `sin H0 = cos(phi - dec)` at `LHA = 0`): `phi = dec + (90 - H0)` when the body is
-//! south of the zenith, `dec - (90 - H0)` when it is north.
+//! south of the zenith, `dec - (90 - H0)` when it is north. For the Moon the model
+//! altitude includes its Earth-shape term `E` (CONVENTIONS 15.4), which on the meridian
+//! is the whole error of a latitude reduced on the sphere, so its rule reads
+//! `phi = dec +/- (90 - (H0 - E))`, with `E` taken at that latitude.
 //!
 //! **Predicted curvature (the default).** The curve is not approximated at all: the
 //! unknowns are the observer's latitude and longitude at `T`, the model altitude of
@@ -42,8 +45,9 @@
 
 use super::{
     BodyTrack, JD_STEP_TOLERANCE, MINUTES_PER_DAY, SECONDS_PER_DAY, THREE_SIGMA, check_dr,
-    check_vessel, clock_sigma_s, dr_move, fmt_dm, fmt_lat, fmt_signed, hc_zn, inverse_2x2,
-    latitudes_for_altitude, meridian_passage, nothing_usable, one_body, reduce_all, resolve_dr,
+    check_vessel, clock_sigma_s, dr_move, earth_shape_rad, fmt_dm, fmt_lat, fmt_signed,
+    inverse_2x2, latitudes_for_altitude, meridian_passage, model_hc_zn, nothing_usable, one_body,
+    reduce_all, resolve_dr,
 };
 use crate::SkyfixError;
 use crate::geometry::{Point, apply_tangent_step};
@@ -231,21 +235,57 @@ impl<'a> Run<'a> {
         self.at(self.dr_point, self.t_mid, t)
     }
 
-    /// Exact altitude (radians) at `t` for an observer who is at `p_ref` at `t_ref`.
+    /// Exact model altitude (radians) at `t` for an observer who is at `p_ref` at
+    /// `t_ref` (for the Moon with its Earth-shape term, CONVENTIONS 15.4).
     fn curve(&self, p_ref: Point, t_ref: f64, t: f64) -> f64 {
-        hc_zn(self.at(p_ref, t_ref, t), &self.track.direction(t)).0
+        self.track.model_hc_zn(self.at(p_ref, t_ref, t), t).0
     }
 
-    /// Exact altitude and azimuth of sight `i` from its own direction.
+    /// Exact model altitude and azimuth of sight `i` from its own direction.
     fn sight_model(&self, p_ref: Point, t_ref: f64, i: usize) -> (f64, f64) {
         let s = &self.sights[i];
         let d = GeocentricDirection {
             gha_deg: s.gha_deg,
             dec_deg: s.dec_deg,
             semidiameter_arcmin: 0.0,
-            horizontal_parallax_arcmin: 0.0,
+            horizontal_parallax_arcmin: s.horizontal_parallax_arcmin,
         };
-        hc_zn(self.at(p_ref, t_ref, s.jd_utc), &d)
+        model_hc_zn(self.at(p_ref, t_ref, s.jd_utc), &d, self.track.is_moon())
+    }
+
+    /// The Moon's Earth-shape term (arcminutes) on the meridian at meridian passage `t`,
+    /// for an observer at latitude `lat_deg` there; 0 for every other body.
+    fn meridian_earth_shape_arcmin(&self, lat_deg: f64, t: f64) -> f64 {
+        if !self.track.is_moon() {
+            return 0.0;
+        }
+        let d = self.track.direction(t);
+        // On the meridian LHA = 0: the observer's longitude is -GHA.
+        let p = Point::from_deg(lat_deg.clamp(-90.0, 90.0), norm_180(-d.gha_deg));
+        rad_to_arcmin(earth_shape_rad(p, &d, true))
+    }
+
+    /// The latitude on `side` at which the body at meridian passage `t` has the model
+    /// meridian altitude `h0_deg` (an `Ho`): `dec +/- (90 - (h0 - E))`, with the Moon's
+    /// Earth-shape term `E` at that latitude (two fixed-point passes: on the meridian `E`
+    /// changes by about 0.4' per radian of latitude). Returns the latitude and `E` in
+    /// arcminutes.
+    fn meridian_latitude(
+        &self,
+        side: MeridianSide,
+        h0_deg: f64,
+        dec_deg: f64,
+        t: f64,
+    ) -> (f64, f64) {
+        let mut e = 0.0;
+        let mut lat = dec_deg + side_sign(side) * (90.0 - h0_deg);
+        if self.track.is_moon() {
+            for _ in 0..2 {
+                e = self.meridian_earth_shape_arcmin(lat, t);
+                lat = dec_deg + side_sign(side) * (90.0 - (h0_deg - e / 60.0));
+            }
+        }
+        (lat, e)
     }
 
     fn passage(&self, p_ref: Point, t_ref: f64, t_guess: f64) -> Option<f64> {
@@ -493,7 +533,7 @@ impl<'a> Run<'a> {
         } else {
             MeridianSide::North
         };
-        let lat = dec + side_sign(side) * (90.0 - h0_free / 60.0);
+        let (lat, _) = self.meridian_latitude(side, h0_free / 60.0, dec, passage);
         let lon = norm_180(-self.track.direction(passage).gha_deg);
         let sigma_t_s = sigma_tau_min * 60.0;
         let lon_sigma = self.gha_rate_arcmin_per_s(passage).abs() * sigma_t_s;
@@ -543,7 +583,9 @@ impl<'a> Run<'a> {
         let (a, k) = self.shape(p, t_pass, t_pass);
         let dec = self.track.direction(t_pass).dec_deg;
         let lat = p.lat_deg();
-        let h0 = 90.0 - (lat - dec).abs();
+        // The model meridian altitude (an Ho): the sphere's, plus the Moon's Earth-shape
+        // term there (CONVENTIONS 15.4).
+        let h0 = 90.0 - (lat - dec).abs() + self.meridian_earth_shape_arcmin(lat, t_pass) / 60.0;
 
         let clock = self.clock_sigma_s;
         let gha_rate = self.gha_rate_arcmin_per_s(t_pass).abs();
@@ -691,7 +733,15 @@ impl<'a> Run<'a> {
             (residuals, curve, Some(self.exact_maximum(p, t_pass, a, k)))
         };
 
-        let lat_rule = latitude_rule(&self.body, side_out, h0_out, dec_out, latitude.lat_deg);
+        let earth_shape = self.meridian_earth_shape_arcmin(latitude.lat_deg, passage_jd);
+        let lat_rule = latitude_rule(
+            &self.body,
+            side_out,
+            h0_out,
+            dec_out,
+            latitude.lat_deg,
+            earth_shape,
+        );
         let caveat = flat_peak_caveat(&self.body, k, &passage, &longitude);
         warnings.push(Warning::FlatPeakLongitude {
             body: self.body.clone(),
@@ -718,7 +768,7 @@ impl<'a> Run<'a> {
             latitude,
             meridian_altitude_deg: h0_out,
             declination_deg: dec_out,
-            zenith_distance_deg: 90.0 - h0_out,
+            zenith_distance_deg: 90.0 - (h0_out - earth_shape / 60.0),
             latitude_rule: lat_rule,
             meridian_passage: Some(passage),
             longitude: Some(longitude),
@@ -845,7 +895,7 @@ impl<'a> Run<'a> {
         // minutes for the Moon, whose declination moves up to 0.27'/min, and its
         // declination would put the latitude out by a^2/2k, twice the correction above.
         let dec = self.track.direction(t_dr).dec_deg;
-        let lat = dec + side_sign(side) * (90.0 - h0);
+        let (lat, earth_shape) = self.meridian_latitude(side, h0, dec, t_dr);
         let dr_check = self.dr_check(t_dr, lat, None);
         // The passage instant is only as good as the DR longitude; when its sigma is
         // stated, the declination's change over that time goes into the latitude's.
@@ -872,8 +922,8 @@ impl<'a> Run<'a> {
             latitude,
             meridian_altitude_deg: h0,
             declination_deg: dec,
-            zenith_distance_deg: 90.0 - h0,
-            latitude_rule: latitude_rule(&self.body, side, h0, dec, lat),
+            zenith_distance_deg: 90.0 - (h0 - earth_shape / 60.0),
+            latitude_rule: latitude_rule(&self.body, side, h0, dec, lat, earth_shape),
             meridian_passage: None,
             longitude: None,
             longitude_caveat: format!(
@@ -961,7 +1011,8 @@ impl<'a> Run<'a> {
         } else {
             MeridianSide::North
         };
-        let h0 = 90.0 - (lat - dec).abs();
+        let earth_shape = self.meridian_earth_shape_arcmin(lat, t_dr);
+        let h0 = 90.0 - (lat - dec).abs() + earth_shape / 60.0;
         // d(phi)/dE, dimensionless (NM of latitude per NM of east-west DR error).
         let sensitivity = -fit.cross / fit.nn;
         let sigma_fit = rad_to_arcmin(fit.cov[0][0].max(0.0).sqrt());
@@ -1012,8 +1063,8 @@ impl<'a> Run<'a> {
             },
             meridian_altitude_deg: h0,
             declination_deg: dec,
-            zenith_distance_deg: 90.0 - h0,
-            latitude_rule: latitude_rule(&self.body, side_out, h0, dec, lat),
+            zenith_distance_deg: 90.0 - (h0 - earth_shape / 60.0),
+            latitude_rule: latitude_rule(&self.body, side_out, h0, dec, lat, earth_shape),
             meridian_passage: None,
             longitude: None,
             longitude_caveat: caveat,
@@ -1055,9 +1106,24 @@ impl<'a> Run<'a> {
             });
         }
         // The answer for the other side of the zenith, and whether the DR tells them apart.
+        // For the Moon the Earth-shape term is taken again at that other latitude.
         let lat = result.latitude.lat_deg;
-        let other = result.declination_deg - side_sign(result.side) * result.zenith_distance_deg;
         let instant = result.meridian_passage.as_ref().map_or(t_dr, |p| p.jd_utc);
+        let other_side = match result.side {
+            MeridianSide::North => MeridianSide::South,
+            MeridianSide::South => MeridianSide::North,
+        };
+        let other = if self.track.is_moon() {
+            self.meridian_latitude(
+                other_side,
+                result.meridian_altitude_deg,
+                result.declination_deg,
+                instant,
+            )
+            .0
+        } else {
+            result.declination_deg - side_sign(result.side) * result.zenith_distance_deg
+        };
         let dr_lat = self.dr_at(instant).lat_deg();
         let separation = (lat - other).abs();
         // With its sigma stated, the DR cannot tell the sides apart when the other answer
@@ -1111,29 +1177,45 @@ fn side_sign(side: MeridianSide) -> f64 {
     }
 }
 
-/// The latitude rule in words, with the numbers (north positive).
-fn latitude_rule(body: &str, side: MeridianSide, h0: f64, dec: f64, lat: f64) -> String {
-    let z = 90.0 - h0;
+/// The latitude rule in words, with the numbers (north positive). `earth_shape_arcmin`
+/// is the Moon's Earth-shape term in the meridian altitude (0 for every other body,
+/// CONVENTIONS 15.4); the zenith distance is taken from the altitude without it.
+fn latitude_rule(
+    body: &str,
+    side: MeridianSide,
+    h0: f64,
+    dec: f64,
+    lat: f64,
+    earth_shape_arcmin: f64,
+) -> String {
+    let z = 90.0 - (h0 - earth_shape_arcmin / 60.0);
+    let zenith = if earth_shape_arcmin == 0.0 {
+        format!("Zenith distance = 90° − meridian altitude {}.", fmt_dm(h0))
+    } else {
+        format!(
+            "Zenith distance = 90° − (meridian altitude {} {} {:.2}′, the Earth's-shape term \
+             of the Moon's parallax on the real Earth; CONVENTIONS 15.4).",
+            fmt_dm(h0),
+            if earth_shape_arcmin < 0.0 { "+" } else { "−" },
+            earth_shape_arcmin.abs()
+        )
+    };
     match side {
         MeridianSide::South => format!(
             "The {body} crossed your meridian SOUTH of the zenith, so latitude = declination + \
-             zenith distance, counting north as positive: {} + {} = {} ({}). Zenith distance = \
-             90° − meridian altitude {}.",
+             zenith distance, counting north as positive: {} + {} = {} ({}). {zenith}",
             fmt_signed(dec),
             fmt_dm(z),
             fmt_signed(lat),
             fmt_lat(lat),
-            fmt_dm(h0)
         ),
         MeridianSide::North => format!(
             "The {body} crossed your meridian NORTH of the zenith, so latitude = declination − \
-             zenith distance, counting north as positive: {} − {} = {} ({}). Zenith distance = \
-             90° − meridian altitude {}.",
+             zenith distance, counting north as positive: {} − {} = {} ({}). {zenith}",
             fmt_signed(dec),
             fmt_dm(z),
             fmt_signed(lat),
             fmt_lat(lat),
-            fmt_dm(h0)
         ),
     }
 }
@@ -1164,6 +1246,7 @@ fn flat_peak_caveat(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::methods::hc_zn;
     use crate::reduce::DirectionSource;
     use crate::types::{
         AltitudeKind, Clock, GeocentricDirection, Instrument, LatLon, Limb, Observation, Observer,

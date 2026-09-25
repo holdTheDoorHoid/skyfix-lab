@@ -41,16 +41,22 @@ pub struct Flags {
     pub no_multistart: bool,
     pub grid_step: Option<f64>,
     pub require_unique: bool,
+    /// `--dut1`: UT1 - UTC in seconds, over the session's `clock.dut1_s`.
+    pub dut1: Option<f64>,
 }
 
 pub fn run(path: &Path, flags: &Flags) -> Result<u8> {
     let bodies = provider::known_bodies();
-    let loaded = input::load(path, &bodies)?;
+    let mut loaded = input::load(path, &bodies)?;
     for w in &loaded.warnings {
         eprintln!("warning: {}", warning_sentence(w));
     }
 
-    let source = provider::direction_source(flags.ephemeris);
+    // `--dut1` wins over the session's clock.dut1_s (expansion programme).
+    if let Some(d) = flags.dut1 {
+        loaded.session.clock.dut1_s = Some(d);
+    }
+    let source = provider::session_source(flags.ephemeris, &loaded.session);
     let (reduced, errors) = reduce::reduce_session_partitioned(&loaded.session, source.as_ref());
     for e in &errors {
         eprintln!("rejected: {e}");
@@ -563,6 +569,7 @@ mod tests {
             clock: Clock {
                 uncertainty_s: clock_s,
                 correction_s: 0.0,
+                dut1_s: None,
             },
             observations: Vec::new(),
         }
