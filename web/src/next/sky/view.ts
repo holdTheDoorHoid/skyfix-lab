@@ -36,6 +36,7 @@ import {
   isPlanetDetailEngine,
   type BodyState,
   type CustomBodyInput,
+  type CustomBodyState,
   type DsoVisibility,
   type SearchHit,
   type ShowerYear,
@@ -554,6 +555,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   let active: ActiveShower[] = [];
   let radiantMarks: RadiantMark[] = [];
   let customMarks: CustomMark[] = [];
+  /** This frame's states of the added bodies, by name (the card reads them). */
+  const customStates = new Map<string, CustomBodyState>();
   let customError = '';
   let tonight: Tonight | null = null;
   let tonightKey = '';
@@ -852,12 +855,14 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   // --- sky2: comets and asteroids --------------------------------------------------------
   function updateCustom(state: ExplorerState): void {
     const list = added.get();
+    customStates.clear();
     if (!list.length || (!state.layers.customBodies && keyKind(pinnedKey) !== 'c') || !isPlanetDetailEngine(engine)) {
       customMarks = [];
       return;
     }
     try {
       const states = engine.customBodyStates(engineObserver(state), displayJd, list as CustomBodyInput[]);
+      for (const b of states.bodies) customStates.set(b.body, b);
       const sun = sky?.bodies.find((b) => b.body === 'Sun') ?? null;
       customMarks = states.bodies.map((b) => {
         let sunward: { alt: number; az: number } | null = null;
@@ -1643,15 +1648,11 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     } else if (kind === 'c') {
       const body = added.get().find((b) => customKey(b.name) === key);
       symbol = () => kindSymbol(body?.class === 'comet' ? 'comet' : 'asteroid');
-      if (body && isPlanetDetailEngine(engine)) {
-        try {
-          const st = engine.customBodyStates(engineObserver(state), displayJd, [body]).bodies[0];
-          if (st) {
-            lines.push({ label: 'Distance', value: `${st.distance_au.toFixed(3)} AU from Earth, ${st.heliocentric_distance_au.toFixed(3)} AU from the Sun` });
-            notes.push(...st.warnings);
-          }
-        } catch {
-          /* described by the notice */
+      if (body) {
+        const st = customStates.get(body.name);
+        if (st) {
+          lines.push({ label: 'Distance', value: `${st.distance_au.toFixed(3)} AU from Earth, ${st.heliocentric_distance_au.toFixed(3)} AU from the Sun` });
+          notes.push(...st.warnings);
         }
         const credit = added.creditOf(body);
         if (credit) source = credit;
