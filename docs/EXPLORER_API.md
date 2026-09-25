@@ -3040,6 +3040,15 @@ outside the coverage (`… is outside the ephemeris coverage (… to …)`).
 (`-0584-05-22`, `+12026-01-01`) wherever the providers answer; `AlmanacDay.date` is written
 the same way. Four-digit dates are unchanged.
 
+**polish2 (after the deeptime merge), additive:** `almanac_day`, `almanac_opening` and
+`almanac_planet_corrections` answer the labelled tier too, 2001 BC to AD 3000. The pages are
+for display and never a sight, and the interface marks them as estimates with the ±ΔT
+chip. They use the explorer's display sky (`almanac_tables::native::sky()`, which is
+`Sky::new().with_policy(TierPolicy::WithLabelled)`), and outside it they throw as before.
+The "1990-01-01 to 2060-12-31" in `almanac_day` above predates both tiers.
+`almanac_polaris` keeps the validated tier (1550 to 2650), because the a0, a1, a2 method
+needs Polaris near the pole.
+
 ### `almanac_increments(minute) -> IncrementsMinute`
 
 One minute's table, `minute` 0 to 59 (else throws). Microseconds.
