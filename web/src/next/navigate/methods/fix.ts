@@ -14,7 +14,6 @@ import { emptyOverlayData, type OverlayData } from '../overlays.js';
 import { emptyPlotSpec, type PlotSpec } from '../plot.js';
 import { conditioningBlock, fixSummary, residualChart, residualTable, warningsBlock } from '../results.js';
 import { btn, errorText, para } from '../ui.js';
-import { openFixPrintables } from '../print/open.js';
 import { autoRun, gpxButton, methodFrame, publish, solveOptionsForm } from './common.js';
 
 /** Plot and map data for any fix result (the Fix and the Running fix share it). */
@@ -130,7 +129,7 @@ export function fixMethod(host: HTMLElement, nc: NavCtx): Mounted {
       f.setStatus('idle');
       const count = result.kind === 'unique' ? result.fix.residuals.length : result.kind === 'failed' ? 0 : result.circles.length;
       // navigate2: the plotting sheet and a worksheet per sight, print-clean (print/).
-      const printButton = btn('Print worksheets and plotting sheet', () => openFixPrintables(nc, session, result), {
+      const printButton = btn('Print worksheets and plotting sheet', () => void import('../print/open.js').then((m) => m.openFixPrintables(nc, session, result)), {
         variant: 'outline',
         icon: 'list',
         tip: 'Each sight worked in the six classic steps, and the lines of position on a universal plotting sheet centred on the DR',

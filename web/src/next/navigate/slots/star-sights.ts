@@ -16,11 +16,13 @@
 import '../../theme/index.js';
 import '../navigate.css';
 import type { Component } from '../../component.js';
-import { installPassage } from '../passage/page.js';
 import { tonight } from '../tonight.js';
 
 const starSights: Component = (host, ctx) => {
-  installPassage(ctx);
+  // Loaded after the panel, in its own chunk: nothing of it is needed for the first frame.
+  void import('../passage/page.js')
+    .then((m) => m.installPassage(ctx))
+    .catch((error: unknown) => console.error('the passage could not be installed', error));
   return tonight(host, ctx);
 };
 
