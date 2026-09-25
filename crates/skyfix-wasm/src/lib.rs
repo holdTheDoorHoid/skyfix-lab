@@ -32,6 +32,8 @@ pub mod nav;
 pub mod navsky;
 pub mod planet_events;
 pub mod starfield;
+// Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod moondetail;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
