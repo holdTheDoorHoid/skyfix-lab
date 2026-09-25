@@ -35,7 +35,8 @@
 //!   greatest eclipse. **Saros** and **lunation** numbers as NASA numbers them
 //!   (`search.rs`).
 //!
-//! Coverage is the Moon provider's, 1990-01-01T00:00Z to 2060-12-31T23:59:59Z.
+//! Coverage is 1990-01-01T00:00Z to 2060-12-31T23:59:59Z (the Moon provider's until the
+//! expansion programme widened it; see [`COVERAGE_START_UTC`]).
 
 mod bessel;
 pub(crate) mod cheb;
@@ -60,10 +61,13 @@ pub use local::{
 pub use lunar::DANJON_FACTOR;
 pub use path::{MAX_SAGITTA_KM, MAX_SEGMENT_KM, Polyline};
 
-/// First instant any eclipse can be computed: the Moon provider's coverage.
-pub const COVERAGE_START_UTC: &str = skyfix_ephemeris::moon::COVERAGE_START_UTC;
+/// First instant any eclipse can be computed. (deeptime agent: this was the Moon
+/// provider's coverage, which is now the validated tier 1550-2650; the eclipse engine
+/// keeps 1990-2060, the span it is validated over against NASA's canon, until its owner
+/// widens it. `coverage_start_jd` and `coverage_end_jd` below must agree with these.)
+pub const COVERAGE_START_UTC: &str = "1990-01-01T00:00:00Z";
 /// Last instant, likewise.
-pub const COVERAGE_END_UTC: &str = skyfix_ephemeris::moon::COVERAGE_END_UTC;
+pub const COVERAGE_END_UTC: &str = "2060-12-31T23:59:59Z";
 
 /// Half-width of the window sampled around each eclipse, hours. A penumbral phase
 /// lasts at most about 6.3 h, so +-6 h around the estimated instant (itself good to

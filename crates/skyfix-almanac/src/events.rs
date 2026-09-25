@@ -1120,16 +1120,17 @@ mod tests {
     #[test]
     fn a_phase_window_past_coverage_fails_before_scanning() {
         // Verifier regression: 2060 to 2100 scanned every two days of 2060 (and refined
-        // each phase) before meeting the coverage edge; 1990 to 4728 took 6 s.
+        // each phase) before meeting the coverage edge; 1990 to 4728 took 6 s. (deeptime
+        // agent: the validated tier now ends 2650-01-22.)
         let eph = Counting {
             sky: skyfix_ephemeris::body::Sky::new(),
             calls: std::cell::Cell::new(0),
         };
-        let e = moon_phases(&eph, civil_to_jd(2060, 1, 1), civil_to_jd(2100, 1, 1)).unwrap_err();
+        let e = moon_phases(&eph, civil_to_jd(2650, 1, 1), civil_to_jd(2700, 1, 1)).unwrap_err();
         assert!(e.to_string().contains("Moon"), "{e}");
         assert!(eph.calls.get() <= 2, "{} provider calls", eph.calls.get());
         // Inside coverage nothing changes.
-        let p = moon_phases(&eph, civil_to_jd(2060, 1, 1), civil_to_jd(2060, 2, 1)).unwrap();
+        let p = moon_phases(&eph, civil_to_jd(2649, 12, 1), civil_to_jd(2650, 1, 1)).unwrap();
         assert!((3..=5).contains(&p.len()), "{p:?}");
     }
 

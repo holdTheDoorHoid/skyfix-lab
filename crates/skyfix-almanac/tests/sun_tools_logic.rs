@@ -300,8 +300,8 @@ fn the_default_band_keeps_only_crossings_above_the_horizon() {
         &sky,
         &site,
         SUN,
-        civil_to_jd(2070, 1, 1),
-        civil_to_jd(2070, 1, 2),
+        civil_to_jd(2651, 1, 1),
+        civil_to_jd(2651, 1, 2),
         90.0,
         &all,
     )
@@ -646,7 +646,8 @@ fn the_equation_of_time_series_is_the_almanac_pages_value() {
         assert!(d.starts_with(prefix), "{d} vs {prefix}");
     }
     assert!(equation_of_time(&sky, 2026, 24.0).is_err());
-    assert!(equation_of_time(&sky, 2100, 12.0).is_err());
+    // Past the validated tier (2650-01-22, deeptime agent).
+    assert!(equation_of_time(&sky, 2651, 12.0).is_err());
     let edge = equation_of_time(&sky, 2060, 23.99).unwrap();
     assert_eq!(edge.points.len(), 366);
 }

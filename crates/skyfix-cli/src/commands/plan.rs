@@ -450,7 +450,8 @@ mod tests {
             lat_deg: 39.9526,
             lon_deg: -75.1652,
         };
-        assert!(sun_altitude(p, "1850-01-01T00:00:00Z", 0.0).is_none());
+        // Before the validated tier (1550-2650, deeptime agent).
+        assert!(sun_altitude(p, "1549-01-01T00:00:00Z", 0.0).is_none());
         assert!(sun_altitude(p, "not a timestamp", 0.0).is_none());
         assert_eq!(
             visibility::sun_altitude_note(None),
