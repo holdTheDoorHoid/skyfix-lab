@@ -68,8 +68,11 @@ function litPath(ctx: Ctx2D, cx: number, cy: number, r: number, dirX: number, di
   ctx.restore();
 }
 
-/** North and east ticks outside a disc, so the orientation reads at a glance. */
-function compassTicks(f: InsetFrame, cx: number, cy: number, r: number): void {
+/**
+ * North and east ticks outside a drawing, so the orientation reads at a glance. `r` is
+ * the drawing's extent: a radius, or the distance to its edge in a screen direction.
+ */
+function compassTicks(f: InsetFrame, cx: number, cy: number, extent: number | ((dx: number, dy: number) => number)): void {
   const ctx = f.ctx;
   const ink = css(f.palette.inkOnDark, 0.8);
   ctx.font = `600 10.5px ${f.palette.fontUi}`;
@@ -79,6 +82,7 @@ function compassTicks(f: InsetFrame, cx: number, cy: number, r: number): void {
     [90, 'E'],
   ] as const) {
     const d = paDirection(f.basis, pa);
+    const r = typeof extent === 'number' ? extent : extent(d.x, d.y);
     ctx.beginPath();
     ctx.moveTo(cx + d.x * (r + 4), cy + d.y * (r + 4));
     ctx.lineTo(cx + d.x * (r + 11), cy + d.y * (r + 11));
@@ -283,22 +287,33 @@ export function drawJupiterInset(f: InsetFrame, g: GalileanMoons): JupiterInsetR
   const eq = paDirection(f.basis, P - 90);
   const words: string[] = [];
   // --- the system strip -------------------------------------------------------------
-  const stripH = Math.round(f.height * 0.38);
-  const cy = stripH / 2 + 4;
+  const stripH = Math.round(f.height * 0.42);
+  const cy = stripH / 2 + 2;
   const cx = f.width / 2;
-  let reach = 28;
-  for (const m of g.moons) reach = Math.max(reach, Math.hypot(m.offset_east_arcsec, m.offset_north_arcsec) / req + 2);
-  const s = (f.width / 2 - 14) / reach; // px per Jupiter radius
+  // The farthest moon near the edge; never so close in that Jupiter looks bigger than a disc.
+  let reach = 8;
+  for (const m of g.moons) reach = Math.max(reach, Math.hypot(m.offset_east_arcsec, m.offset_north_arcsec) / req + 1.5);
+  const s = (f.width / 2 - 16) / reach; // px per Jupiter radius
+  // The moons' line: Jupiter's equator, across the strip.
+  ctx.beginPath();
+  ctx.moveTo(cx - eq.x * f.width, cy - eq.y * f.width);
+  ctx.lineTo(cx + eq.x * f.width, cy + eq.y * f.width);
+  ctx.strokeStyle = css(p.inkOnDark, 0.14);
+  ctx.lineWidth = 1;
+  ctx.stroke();
   disc(ctx, cx, cy, s, s * (rpol / req), pole, eq, colour, p, false);
   const placer = new Placer();
-  ctx.font = `600 10.5px ${p.fontUi}`;
-  const sorted = [...g.moons].sort((a, b) => a.offset_east_arcsec - b.offset_east_arcsec);
-  sorted.forEach((m, k) => {
-    const o = toScreen(f.basis, m.offset_east_arcsec / req, m.offset_north_arcsec / req);
-    const x = cx + o.x * s;
-    const y = cy + o.y * s;
-    const hidden = m.occulted;
-    const dim = m.eclipsed || hidden;
+  placer.place(cx - s - 2, cy - s - 2, 2 * s + 4, 2 * s + 4);
+  ctx.font = `600 10px ${p.fontUi}`;
+  // Nearest the planet first: they get the places nearest their dots.
+  const placed = g.moons
+    .map((m) => {
+      const o = toScreen(f.basis, m.offset_east_arcsec / req, m.offset_north_arcsec / req);
+      return { m, x: cx + o.x * s, y: cy + o.y * s, d: Math.hypot(o.x, o.y) };
+    })
+    .sort((a, b) => a.d - b.d);
+  for (const { x, y, m } of placed) {
+    const dim = m.eclipsed || m.occulted;
     ctx.beginPath();
     ctx.arc(x, y, 2.6, 0, TAU);
     if (dim) {
@@ -309,20 +324,47 @@ export function drawJupiterInset(f: InsetFrame, g: GalileanMoons): JupiterInsetR
       ctx.fillStyle = css(p.inkOnDark);
       ctx.fill();
     }
+    placer.place(x - 3, y - 3, 6, 6);
+  }
+  for (const { x, y, m } of placed) {
+    const dim = m.eclipsed || m.occulted;
     const text = m.name;
     const w = ctx.measureText(text).width;
-    // Alternate above and below so close pairs keep both names.
-    for (const dy of k % 2 === 0 ? [16, -9] : [-9, 16]) {
-      if (placer.place(x - w / 2 - 1, y + dy - 10, w + 2, 12)) {
-        haloText(f, text, x, y + dy, css(p.inkOnDark, dim ? 0.6 : 0.95), 'center');
+    // Below, above, then further out, then beside: the first place that is free.
+    const spots: [number, number][] = [
+      [0, 15],
+      [0, -7],
+      [0, 27],
+      [0, -19],
+      [w / 2 + 6, 4],
+      [-w / 2 - 6, 4],
+    ];
+    let done = false;
+    for (const [dx, dy] of spots) {
+      const lx = x + dx;
+      const ly = y + dy;
+      if (lx - w / 2 < 2 || lx + w / 2 > f.width - 2 || ly - 9 < 1 || ly > stripH) continue;
+      if (placer.place(lx - w / 2 - 1, ly - 9, w + 2, 11)) {
+        if (Math.abs(dy) > 16) {
+          // A short leader from the name to a moon it is far from.
+          ctx.beginPath();
+          ctx.moveTo(x, y + Math.sign(dy) * 4);
+          ctx.lineTo(lx, ly - (dy > 0 ? 9 : -2));
+          ctx.strokeStyle = css(p.inkOnDark, 0.35);
+          ctx.lineWidth = 0.8;
+          ctx.stroke();
+        }
+        haloText(f, text, lx, ly, css(p.inkOnDark, dim ? 0.6 : 0.95), 'center');
+        done = true;
         break;
       }
     }
+    if (!done) haloText(f, text, x, y + 15, css(p.inkOnDark, dim ? 0.6 : 0.95), 'center');
     if (m.in_transit) words.push(`${m.name} is crossing Jupiter’s face`);
     else if (m.occulted) words.push(`${m.name} is behind Jupiter`);
     else if (m.eclipsed) words.push(`${m.name} is in Jupiter’s shadow`);
     if (m.shadow_on_disc) words.push(`${m.name}’s shadow is on Jupiter`);
-  });
+  }
   // A scale of one arcminute when it fits.
   const arcminPx = (60 / req) * s;
   if (arcminPx > 12 && arcminPx < f.width / 3) scaleBar(f, 12, stripH - 4, arcminPx, '1′');
@@ -419,7 +461,7 @@ export function drawSaturnInset(f: InsetFrame, rings: SaturnRings, discInfo: Pla
   const cy = f.height / 2;
   const outer = rings.edges.find((e) => /A outer/i.test(e.name)) ?? rings.edges[0];
   if (!outer) return;
-  const s = (f.width * 0.86) / outer.major_axis_arcsec; // px per arcsecond
+  const s = (f.width * 0.78) / outer.major_axis_arcsec; // px per arcsecond
   const pole = paDirection(f.basis, rings.position_angle_deg);
   const eq = paDirection(f.basis, rings.position_angle_deg - 90);
   const angle = Math.atan2(eq.y, eq.x);
@@ -435,9 +477,10 @@ export function drawSaturnInset(f: InsetFrame, rings: SaturnRings, discInfo: Pla
   const bIn = edge(/B inner/i);
   const cIn = edge(/C inner/i);
   const litFace = rings.lit_face_visible;
-  const ringA = mix(colour, p.inkOnDark, 0.25);
-  const ringB = mix(colour, p.inkOnDark, 0.45);
-  const ringC = mix(colour, background(f), 0.55);
+  // The B ring is brighter and whiter than the globe, the A ring a little dimmer, the C ring faint.
+  const ringB = mix(p.inkOnDark, colour, 0.2);
+  const ringA = mix(mix(p.inkOnDark, colour, 0.4), background(f), 0.18);
+  const ringC = mix(colour, background(f), 0.62);
   const dimmed = (c: Rgb): string => css(litFace ? c : mix(c, background(f), 0.6));
   const annulus = (o: { a: number; b: number } | null, i: { a: number; b: number } | null, fill: string): void => {
     if (!o || !i) return;
@@ -447,7 +490,7 @@ export function drawSaturnInset(f: InsetFrame, rings: SaturnRings, discInfo: Pla
     ctx.fillStyle = fill;
     ctx.fill('evenodd');
   };
-  const drawRings = (half: 1 | -1): void => {
+  const drawRings = (half: 1 | -1, front: boolean): void => {
     ctx.save();
     ctx.translate(cx, cy);
     ctx.rotate(angle);
@@ -458,10 +501,21 @@ export function drawSaturnInset(f: InsetFrame, rings: SaturnRings, discInfo: Pla
     annulus(aOut, aIn, dimmed(ringA));
     annulus(bOut, bIn, dimmed(ringB));
     annulus(bIn, cIn, dimmed(ringC));
+    if (front) {
+      // The near half's edges, so it reads where it crosses the globe.
+      ctx.strokeStyle = css(background(f), 0.55);
+      ctx.lineWidth = 0.8;
+      for (const e of [aOut, bIn]) {
+        if (!e) continue;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, e.a, e.b, 0, 0, TAU);
+        ctx.stroke();
+      }
+    }
     ctx.restore();
   };
   // The far half, the globe, the near half.
-  drawRings(near > 0 ? -1 : 1);
+  drawRings(near > 0 ? -1 : 1, false);
   // Without the disc, the ratio of the A ring's outer edge to Saturn's equatorial radius (136 780 / 60 268 km).
   const req = ((discInfo?.equatorial_diameter_arcsec ?? outer.major_axis_arcsec / 2.2696) / 2) * s;
   const rpol = discInfo ? (discInfo.polar_diameter_arcsec / 2) * s : req * 0.9;
@@ -473,11 +527,21 @@ export function drawSaturnInset(f: InsetFrame, rings: SaturnRings, discInfo: Pla
   ctx.fillStyle = css(colour);
   ctx.fill();
   ctx.clip();
+  // A darker band on the hemisphere away from the rings' near half, where it shows.
   ctx.fillStyle = css(mix(colour, p.phase.night, 0.25), 0.7);
-  ctx.fillRect(-req, poleSide * 0.2 * rpol, 2 * req, poleSide * 0.18 * rpol);
+  ctx.fillRect(-req, -near * 0.3 * rpol, 2 * req, -near * 0.16 * rpol);
   ctx.restore();
-  drawRings(near > 0 ? 1 : -1);
-  compassTicks(f, cx, cy, Math.max(req, 10));
+  drawRings(near > 0 ? 1 : -1, true);
+  // The rings' ellipse (or the globe, where it stands out beyond them) in that direction.
+  const ringA2 = aOut?.a ?? req;
+  const ringB2 = aOut?.b ?? rpol;
+  compassTicks(f, cx, cy, (dx, dy) => {
+    const along = dx * eq.x + dy * eq.y;
+    const across = dx * pole.x + dy * pole.y;
+    const ring = Math.hypot(ringA2 * along, ringB2 * across);
+    const globe = Math.hypot(req * along, rpol * across);
+    return Math.max(ring, globe) + 2;
+  });
   const tenArcsec = 10 * s;
   if (tenArcsec > 8) scaleBar(f, 12, f.height - 10, tenArcsec, '10″');
 }
