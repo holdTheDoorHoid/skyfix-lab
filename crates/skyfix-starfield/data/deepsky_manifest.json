@@ -235,6 +235,55 @@
     },
     "sha256": "ede5a41853ae3390dae8538025959593e15ea643938a84229a68cfd6b32cfcdc"
   },
+  "names": {
+    "bytes": 7401,
+    "differences_from_the_2022_file": [],
+    "existing_agreeing_with_wgsn": 237,
+    "existing_names": 252,
+    "generator": "tools/starfield/wgsn.py",
+    "hr_not_in_display_catalogue": [
+      "Blaze Star (HR 5958)"
+    ],
+    "inputs": {
+      "wgsn_exopla.html": {
+        "retrieved_utc": "2026-09-25T03:22:42Z",
+        "sha256": "8a5be8fb41a408f745782fbc52d2f5e43cd2210de84460a529d5b4e4ea628008",
+        "size_bytes": 661844,
+        "url": "https://exopla.net/star-names/modern-iau-star-names/"
+      },
+      "wgsn_iau_csn_2022.txt": {
+        "retrieved_utc": "2026-09-25T03:22:42Z",
+        "sha256": "84fac0c90f1b19abc491c2793469e0caa7b003ad1bc93a790ca41147010d0eb0",
+        "size_bytes": 71800,
+        "url": "https://www.pas.rochester.edu/~emamajek/WGSN/IAU-CSN.txt"
+      }
+    },
+    "joined": 458,
+    "joined_by_a_check_other_than_the_live_position": [
+      "Bodu (HR 6730): designation",
+      "Alsephina (HR 3485): 2022 file position",
+      "Nganurganity (HR 2646): 2022 file position",
+      "Tegmine (HR 3208): 2022 file position",
+      "Alkalurops (HR 5733): 2022 file position",
+      "Copernicus (HR 3522): 2022 file position",
+      "Tonatiuh (HR 4609): 2022 file position",
+      "Mira (HR 681): 2022 file position",
+      "Mizar (HR 5054): 2022 file position",
+      "Chalawan (HR 4277): 2022 file position",
+      "Errai (HR 8974): 2022 file position",
+      "Veritate (HR 8930): 2022 file position"
+    ],
+    "names_added": 220,
+    "position_or_duplicate_rejections": [],
+    "sha256": "ce56e3c8088d61833a7e36ce20dd3c698baf387c282aaa207094d1d0a8adab53",
+    "spelling_differences_kept_ours": [
+      "HR 264: ours 'Navi', WGSN 'Tiansi' (ours kept)",
+      "HR 8425: ours \"Al Na'ir\", WGSN 'Alnair' (same name; ours kept)"
+    ],
+    "wgsn_names": 641,
+    "wgsn_names_ours_uses_for_another_star": [],
+    "with_hr_designation": 459
+  },
   "showers": {
     "bytes": 2835,
     "exceptions": {
