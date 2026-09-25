@@ -246,3 +246,23 @@ This file is the single list; the completion report links here.
 | "Coming up" opening Events on the right tab | waiting (events2) | an item sets the time, selects its body and opens Events, which shows its remembered tab; Events has no tab for conjunctions, occultations, apsides or meteor showers yet, and no way to be asked for one |
 | The sky's darkness (Bortle class) kept between visits | open | kept while the page is open (per explorer); a setting in `state.ts` would keep it, shared with the Sky view's magnitude limit when sky2 adds one |
 | Tides beyond the night | open | the card lists the high and low water from an hour before sunset to an hour after sunrise; "next high and low" after the explorer's time is the Place section's tides line (photo) |
+
+<!-- cli3 agent (expansion programme, command-line parity), 2026-09-25 -->
+## Expansion programme — the command line (cli3 agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Every expansion-programme engine on the command line | completed | 56 subcommands, 26 to 82 (`docs/CLI.md`, "The expansion programme's engines" and the chapters after it): the sun tools, the magnetic field, sailings and star identification, time scales, packs, the Moon, deep sky, the planets, tides, the lunar limb and the almanac's tables. Each calls the WASM adapter's native layer, so `--format json` is the export's document; `crates/skyfix-cli/tests/parity.rs` holds each to its library call and most to their export, to 1e-9 |
+| "CLI `skyfix variation` / `skyfix compass-error`" (geomag rows above) | completed | with `magnetic-grid` |
+| "Command line for the sailings exports" | completed | `sailing`, `dr-advance`, `route-positions`, `star-id`, `star-finder`; the shore horizon (`--shore NM`) and the index-error log (`--ic-log UTC,ARCMIN`) on `predict`, `plan-sights` and `star-id`; `reduce` names the value a log gave |
+| "CLI access to deep sky" | completed | `dso-catalog`, `dso-list`, `dso`, `showers`, `milky-way`, `search`, `tonight`, `extinction` |
+| "No `skyfix eclipse --limb` yet" | completed | with `--pack`; the eye-safety line quotes the real limb's totality when the pack is loaded (the mean limb's can be seconds longer) |
+| "The CLI's help text" (1990-2060 in cli.rs) | completed | `almanac --date` and `seasons --year` name the coverage `explorer_coverage` reports |
+| "CLI polish for far dates" | completed | Delta-T with its standard uncertainty in the eclipse text, `delta_t_sigma_s` in the GeoJSON, every date flag takes a leading minus without `=` (`--date -0584-05-28`), the almanac's `--date` follows the CLI's calendar rule, table headings say `UT` over UT times |
+| "The daily pages' first note" | completed | `pages::NOTES[0]` now says the pages' UT is UT1, entered with UTC + DUT1 (CONVENTIONS 15.2), and `crates/skyfix-cli/tests/almanac.rs` pins it. Still quoting the old sentence: the mock almanac's note (`web/src/next/engine/mock/almanac.ts`) and the `almanac_opening` example in `docs/EXPLORER_API.md` (not the cli3 agent's to rewrite) |
+| `sky` and `events` on the site's DUT1 | completed | They used DUT1 = 0; they now take the IERS history (or `--dut1`, the site's field) as their exports do. No printed digit of their goldens moved |
+| Deep time on the command line (a date's tier, the tiered coverage) | waiting (deeptime) | added when the deeptime branch is merged |
+| `ARCHITECTURE.md` on the CLI | open (docs) | it says the CLI calls the engine crates directly; the expansion commands call the WASM adapter's native layer (`skyfix-wasm` is now a dependency of `skyfix-cli`) |
+| Request documents from a file | unstarted | the commands build the export's document from flags; a `--request FILE` passing a saved document through unchanged would reproduce any call the site makes, including options the flags do not reach |
+<!-- end cli3 -->
+
