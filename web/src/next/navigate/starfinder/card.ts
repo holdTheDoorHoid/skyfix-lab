@@ -55,8 +55,7 @@ export function starFinderSheets(g: StarFinderGeometry, kind: 'simulated' | 'rea
       h(
         'p',
         { class: 'sfn-sheet__note' },
-        'Altitude circles every 5° (figured every 10°) from the horizon to the zenith (+); azimuth lines every 10° (figured every 30°, true). Like the printed 2102-D, the grid is geometric: no refraction and no dip, good to a few degrees within the band. ' +
-          g.notes.join(' '),
+        'Altitude circles every 5° (figured every 10°) from the horizon to the zenith (+); azimuth lines every 10° (figured every 30°, true). ' + g.notes.join(' '),
       ),
     ),
   ];
@@ -85,8 +84,8 @@ export function starFinderCard(nc: NavCtx): Mounted & { el: HTMLElement } {
   const manual = h('input', { type: 'range', min: 0, max: 360, step: 0.5, value: 0, class: 'sfn-sf__slider', 'aria-label': 'LHA of Aries, degrees', disabled: true });
   const printButton = btn('Print the base and template', () => {
     if (!geom) return;
-    const w = nc.working.store.get();
-    openPrintPreview('Star finder', starFinderSheets(geom.g, w.session.meta.kind, geom.dateText), 'Two sheets: the base plate, and the template for your latitude band (print it on transparency). Print both at 100 %.');
+    // The star finder is the sky's, not the session's: no SIMULATED or REAL badge.
+    openPrintPreview('Star finder', starFinderSheets(geom.g, null, geom.dateText), 'Two sheets: the base plate, and the template for your latitude band (print it on transparency). Print both at 100 %.');
   }, { variant: 'outline' });
   const notes = h('ul', { class: 'sfn-list sfn-muted' });
   c.body.append(figure, readout, h('div', { class: 'sfn-sf__controls' }, follow.el, manual, printButton), notes);

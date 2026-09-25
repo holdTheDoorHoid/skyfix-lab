@@ -154,6 +154,31 @@
   font-size: var(--text-sm);
 }
 
+/* The worksheet: fixed columns, so the plain words get the room and a sheet fits a page. */
+.sfn-ws--sheet {
+  table-layout: fixed;
+}
+
+.sfn-ws__c-step {
+  width: 42%;
+}
+
+.sfn-ws__c-term {
+  width: 13%;
+}
+
+.sfn-ws__c-value {
+  width: 25%;
+}
+
+.sfn-ws__c-yours {
+  width: 20%;
+}
+
+.sfn-ws--sheet td.sfn-ws__value {
+  white-space: normal;
+}
+
 .sfn-ws th,
 .sfn-ws td {
   padding: 3px 6px;
@@ -558,6 +583,17 @@
 
   html[data-print-view='navigate-sheet'] .sfn-sheet:last-child {
     break-after: auto;
+  }
+
+  html[data-print-view='navigate-sheet'] .sfn-ws th,
+  html[data-print-view='navigate-sheet'] .sfn-ws td {
+    padding: 1.5px 5px;
+    font-size: 8.6pt;
+    line-height: 1.25;
+  }
+
+  html[data-print-view='navigate-sheet'] .sfn-ws__step th {
+    padding-top: 5px;
   }
 
   html[data-print-view='navigate-sheet'] .sfn-sf__plate {

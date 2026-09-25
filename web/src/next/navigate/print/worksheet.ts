@@ -166,8 +166,9 @@ export function worksheetSheet(input: WorksheetInput): HTMLElement {
   const { session, obs, sight } = input;
   const table = h(
     'table',
-    { class: 'sfn-ws' },
+    { class: 'sfn-ws sfn-ws--sheet' },
     h('caption', { class: 'sf-sr' }, `Sight reduction worksheet for ${sight.id}, ${sight.body}`),
+    h('colgroup', {}, h('col', { class: 'sfn-ws__c-step' }), h('col', { class: 'sfn-ws__c-term' }), h('col', { class: 'sfn-ws__c-value' }), h('col', { class: 'sfn-ws__c-yours' })),
     h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Step'), h('th', { scope: 'col' }, 'Term'), h('th', { scope: 'col' }, 'SkyFix Lab'), h('th', { scope: 'col' }, 'Yours'))),
     body,
   );

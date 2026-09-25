@@ -19,7 +19,7 @@ import { watchCorrectionAt } from '../logs.js';
 import { fixSession, patchSession, type DrForm, type LegKind, type PassageForm, type RouteWaypoint, type Working } from '../model.js';
 import { parseOptionalNumber, parsePosition, type Parsed } from '../parse.js';
 import { fitRoute, publishRoute } from '../passage/overlay.js';
-import { installPassage, newWaypointId, planFor, routeData } from '../passage/page.js';
+import { installPassage, newWaypointId, planFor, routeData, tickLabel } from '../passage/page.js';
 import { legAt, legKindText, positionsAt, routeGpx, runningFixLegs, waypointName, type LegPlan, type PassagePlan } from '../passage/route.js';
 import { btn, card, checkbox, download, errorText, facts, field, kids, notice, para, parsedField, selectInput, textInput } from '../ui.js';
 import { autoRun, methodFrame, optionalUtcField } from './common.js';
@@ -408,7 +408,7 @@ export function passageMethod(host: HTMLElement, nc: NavCtx): Mounted {
         gpx.disabled = plan.legs.length === 0;
         const show = btn('Show on the map', () => {
           set({ showOnMap: true });
-          const data = routeData(sail, passage(), planFor(sail, passage()), nc.ctx.store.get().time.jd_utc, (t) => fmtInstant(t, z));
+          const data = routeData(sail, passage(), planFor(sail, passage()), nc.ctx.store.get().time.jd_utc, (t) => tickLabel(t, z));
           publishRoute(nc.overlays, data);
           fitRoute(nc.overlays);
           nc.ctx.store.patch({ view: 'map' });
