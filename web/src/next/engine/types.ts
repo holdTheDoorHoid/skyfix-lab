@@ -1681,6 +1681,447 @@ export interface PackService {
 }
 
 // ---------------------------------------------------------------------------------
+// Expansion programme — sun tools (suntools agent, P7). Rust: crates/skyfix-wasm/src/
+// suntools.rs over skyfix_almanac::sun_tools. Wire format: docs/EXPLORER_API.md,
+// "Expansion programme — sun tools"; definitions: CONVENTIONS 13.10. Every altitude is
+// the topocentric one of CONVENTIONS 13.2 (`alt_deg` geometric, `alt_apparent_deg` with
+// the display refraction) and agrees with `skyState` at the same instant.
+// ---------------------------------------------------------------------------------
+
+/** Golden hour: the Sun's centre between -4° and +6° (geometric); blue hour: -6° to -4°. */
+export type SunLightKind = 'golden' | 'blue';
+/**
+ * `morning`/`evening`: the Sun climbs/sinks through the band; `midday`: it culminates
+ * inside it (high-latitude winter); `midnight`: its lower culmination is inside it
+ * (high-latitude summer); `all_day`: it stays in the band for the whole window.
+ */
+export type SunLightPeriod = 'morning' | 'evening' | 'midday' | 'midnight' | 'all_day';
+
+export interface SunLightWindow {
+  kind: SunLightKind;
+  period: SunLightPeriod;
+  jd_start: number;
+  utc_start: string;
+  jd_end: number;
+  utc_end: string;
+  duration_min: number;
+  /** The Sun was already in the band when the requested window began (not a crossing). */
+  open_start: boolean;
+  /** The Sun was still in the band when the requested window ended. */
+  open_end: boolean;
+}
+
+/** One threshold (-6, -4 or +6 degrees), with the twilight vocabulary for none. */
+export interface SunHourBoundary {
+  altitude_deg: number;
+  /** `alt_deg` of each is the threshold (geometric). */
+  crossings: AltitudeCrossing[];
+  always_above: boolean;
+  always_below: boolean;
+}
+
+export interface SunHours {
+  jd_start: number;
+  jd_end: number;
+  /** Golden and blue hours, time-ordered. */
+  windows: SunLightWindow[];
+  /** The -6, -4 and +6 degree thresholds, in that order. */
+  boundaries: SunHourBoundary[];
+  /** The Sun's rise, set, transits and twilight: `dayEvents` for the Sun. */
+  sun: BodyEvents;
+  phases: PhaseSegment[];
+}
+
+/**
+ * Apparent altitude limits of a bearing crossing, degrees. `min_deg` absent or null:
+ * "above the horizon" exactly as `above_horizon` says (upper limb above the sea-level
+ * horizon); `max_deg` absent or null: no upper limit.
+ */
+export interface AzimuthAltitudeBand {
+  min_deg?: number | null;
+  max_deg?: number | null;
+}
+
+export interface AzimuthCrossing {
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  /** The altitude is increasing. */
+  rising: boolean;
+  /** The azimuth is increasing (east to south to west, seen from above). */
+  clockwise: boolean;
+}
+
+/** Rise and set are the event finder's (upper limb on the sea-level horizon); `at_altitude` is the centre's apparent altitude. */
+export type AlignmentEvent = { kind: 'rise' } | { kind: 'set' } | { kind: 'at_altitude'; altitude_deg: number };
+
+export interface AlignmentRequest {
+  /** Default `Sun`. */
+  body?: string;
+  year: number;
+  azimuth_deg: number;
+  /** Default 0.5. */
+  tolerance_deg?: number;
+  event: AlignmentEvent;
+  /** The clock the dates are written on; absent or null: local mean time. */
+  utc_offset_hours?: number | null;
+  /** Rise and set only. */
+  options?: EventOptions | null;
+}
+
+export type AlignmentKind = 'rise' | 'set' | 'rising' | 'setting';
+
+export interface AlignmentMatch {
+  /** Local date on the request's clock. */
+  date: string;
+  kind: AlignmentKind;
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  /** `az_deg - azimuth_deg`, wrapped into (-180, 180]. */
+  offset_deg: number;
+  alt_deg: number;
+  /** The closest day of its run of consecutive matching days. */
+  best: boolean;
+}
+
+export interface AlignmentResult {
+  body: string;
+  year: number;
+  azimuth_deg: number;
+  tolerance_deg: number;
+  event: AlignmentEvent;
+  utc_offset_hours: number;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  events_considered: number;
+  matches: AlignmentMatch[];
+  /** The year's event nearest the bearing, matching or not; null when there is none. */
+  closest: AlignmentMatch | null;
+}
+
+/** `lmt`: local mean time at the observer's longitude; `zone`: a fixed offset all year (no daylight saving). */
+export type AnalemmaClock = 'lmt' | 'zone';
+
+export interface AnalemmaRequest {
+  year: number;
+  /** Clock time of day, hours in [0, 24). */
+  time_h: number;
+  clock: AnalemmaClock;
+  /** Required for `zone`, refused for `lmt`. */
+  utc_offset_hours?: number | null;
+}
+
+export interface AnalemmaPoint {
+  date: string;
+  jd_utc: number;
+  utc: string;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+  dec_deg: number;
+  /** Equation of time, seconds (CONVENTIONS 13.9). */
+  eot_s: number;
+}
+
+export interface Analemma {
+  year: number;
+  time_h: number;
+  clock: AnalemmaClock;
+  utc_offset_hours: number;
+  points: AnalemmaPoint[];
+  errors: BodyError[];
+}
+
+export type SunPathDayKind = 'day' | 'march_equinox' | 'june_solstice' | 'september_equinox' | 'december_solstice';
+
+export interface SunPathPoint {
+  jd_utc: number;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+}
+
+export interface SunPathDay {
+  day: SunPathDayKind;
+  jd_start: number;
+  jd_end: number;
+  /** The equinox or solstice instant; null for the requested day. */
+  season_jd_utc: number | null;
+  points: SunPathPoint[];
+}
+
+export interface SunPath {
+  step_minutes: number;
+  path: SunPathDay;
+  /** The same local day on the year's equinoxes and solstices, in calendar order. */
+  envelope: SunPathDay[];
+  errors: BodyError[];
+}
+
+export interface RiseSetAzimuthRequest {
+  /** Default `Sun`. */
+  body?: string;
+  year: number;
+  utc_offset_hours?: number | null;
+  options?: EventOptions | null;
+}
+
+export interface RiseSetEventRef {
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  alt_deg: number;
+}
+
+export interface RiseSetDay {
+  date: string;
+  jd_start: number;
+  jd_end: number;
+  rises: RiseSetEventRef[];
+  sets: RiseSetEventRef[];
+  transit: RiseSetEventRef | null;
+  always_above: boolean;
+  always_below: boolean;
+}
+
+export interface RiseSetAzimuths {
+  body: string;
+  year: number;
+  utc_offset_hours: number;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  days: RiseSetDay[];
+}
+
+export interface EotPoint {
+  /** UTC date. */
+  date: string;
+  jd_utc: number;
+  utc: string;
+  /** Apparent minus mean solar time, seconds (positive: the sundial is fast). */
+  eot_s: number;
+  dec_deg: number;
+}
+
+export interface EotExtreme {
+  kind: 'minimum' | 'maximum';
+  date: string;
+  jd_utc: number;
+  eot_s: number;
+}
+
+export interface EquationOfTime {
+  year: number;
+  utc_hour: number;
+  points: EotPoint[];
+  extremes: EotExtreme[];
+  errors: BodyError[];
+}
+
+export interface SolarPanel {
+  /** Degrees from horizontal, 0 to 90; default 0. */
+  tilt_deg?: number;
+  /** The direction the panel faces; default toward the equator. */
+  azimuth_deg?: number | null;
+  /** Ground reflectance; default 0.2. */
+  albedo?: number | null;
+}
+
+export interface SolarPanelUsed {
+  tilt_deg: number;
+  azimuth_deg: number;
+  albedo: number;
+}
+
+/** What the solar model is and how far to trust it: show `label` and `typical_error` with every number. */
+export interface SolarModel {
+  label: string;
+  clear_sky: string;
+  diffuse_split: string;
+  transposition: string;
+  typical_error: string;
+  not_modelled: string;
+}
+
+export interface SolarSample {
+  jd_utc: number;
+  sun_alt_apparent_deg: number;
+  sun_az_deg: number;
+  ghi_w_m2: number;
+  dni_w_m2: number;
+  dhi_w_m2: number;
+  poa_w_m2: number;
+  /** Null with the Sun down. */
+  incidence_deg: number | null;
+}
+
+export interface SolarDay {
+  jd_start: number;
+  jd_end: number;
+  step_minutes: number;
+  panel: SolarPanelUsed;
+  samples: SolarSample[];
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+  dni_kwh_m2: number;
+  peak_poa_w_m2: number;
+  model: SolarModel;
+}
+
+export interface SolarYearRequest {
+  year: number;
+  panel?: SolarPanel;
+  utc_offset_hours?: number | null;
+  /** Default 10. */
+  step_minutes?: number | null;
+  optimise_tilt?: boolean;
+}
+
+export interface SolarDayTotal {
+  date: string;
+  jd_start: number;
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+}
+
+export interface SolarMonth {
+  month: number;
+  days: number;
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+}
+
+export interface SolarOptimalTilt {
+  tilt_deg: number;
+  azimuth_deg: number;
+  poa_kwh_m2: number;
+}
+
+export interface SolarYear {
+  year: number;
+  utc_offset_hours: number;
+  step_minutes: number;
+  panel: SolarPanelUsed;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  days: SolarDayTotal[];
+  months: SolarMonth[];
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+  optimal: SolarOptimalTilt | null;
+  model: SolarModel;
+}
+
+export interface GalacticOptions {
+  /** Default 10 (apparent altitude of the galactic centre). */
+  min_altitude_deg?: number | null;
+  /** Default -18 (geometric altitude of the Sun). */
+  sun_max_altitude_deg?: number | null;
+}
+
+export interface GalacticMoment {
+  jd_utc: number;
+  utc: string;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+  /** The galactic equator's highest point above the horizon. */
+  arch_top_alt_deg: number;
+  arch_top_az_deg: number;
+  /** Where the galactic equator meets the horizon, the smaller first. */
+  arch_ends_az_deg: [number, number];
+}
+
+export interface GalacticWindow {
+  jd_start: number;
+  utc_start: string;
+  jd_end: number;
+  utc_end: string;
+  duration_h: number;
+  moon_up: boolean;
+  moon_illuminated_fraction: number;
+  /** The galactic centre at its highest in the window. */
+  best: GalacticMoment;
+}
+
+export interface J2000Direction {
+  ra_j2000_deg: number;
+  dec_j2000_deg: number;
+}
+
+export interface GalacticCentreWindows {
+  jd_start: number;
+  jd_end: number;
+  min_altitude_deg: number;
+  sun_max_altitude_deg: number;
+  galactic_centre: J2000Direction;
+  galactic_pole: J2000Direction;
+  windows: GalacticWindow[];
+}
+
+/** Sun tools (suntools agent). Each method throws a string-derived Error on malformed input or outside the coverage. */
+export interface SunToolsEngine {
+  /** Golden and blue hours over a window (one local day), with the Sun's events. About 1 ms. */
+  sunHours(observer: Observer, jdStart: number, jdEnd: number): SunHours;
+  /** When a body crosses a bearing inside an altitude band (window at most 400 days). */
+  findAzimuth(
+    observer: Observer,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    band?: AzimuthAltitudeBand,
+  ): AzimuthCrossing[];
+  /** The days of a year a body rises, sets or stands at an altitude on a bearing. About 60 ms (the Moon 0.3 s). */
+  alignmentDays(observer: Observer, request: AlignmentRequest): AlignmentResult;
+  /** The Sun at one clock time on every day of a year. About 10 ms. */
+  analemma(observer: Observer, request: AnalemmaRequest): Analemma;
+  /** A day's sun path (default 10-minute steps) and the equinox and solstice envelope. */
+  sunPath(observer: Observer, jdStart: number, jdEnd: number, stepMinutes?: number): SunPath;
+  /** Daily rise and set azimuths over a local year. About 60 ms (the Moon 0.3 s). */
+  riseSetAzimuths(observer: Observer, request: RiseSetAzimuthRequest): RiseSetAzimuths;
+  /** The equation of time and the Sun's declination each UTC day of a year, at `utcHour` (default 12). */
+  equationOfTime(year: number, utcHour?: number): EquationOfTime;
+  /** Clear-sky irradiance on a panel through a window (at most two days), and its energy. */
+  solarDay(observer: Observer, jdStart: number, jdEnd: number, panel?: SolarPanel, stepMinutes?: number): SolarDay;
+  /** Clear-sky energy for every local day of a year, and optionally the best tilt. About 60 ms. */
+  solarYear(observer: Observer, request: SolarYearRequest): SolarYear;
+  /** The galactic centre's dark-sky windows over a span of nights (at most 400 days). */
+  galacticCentreWindows(
+    observer: Observer,
+    jdStart: number,
+    jdEnd: number,
+    options?: GalacticOptions,
+  ): GalacticCentreWindows;
+}
+
+const SUN_TOOLS_METHODS = [
+  'sunHours',
+  'findAzimuth',
+  'alignmentDays',
+  'analemma',
+  'sunPath',
+  'riseSetAzimuths',
+  'equationOfTime',
+  'solarDay',
+  'solarYear',
+  'galacticCentreWindows',
+] as const;
+
+/** True when `engine` has the sun tools (the WASM engine of a new enough build, or the mock). */
+export function isSunToolsEngine(engine: unknown): engine is SunToolsEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Record<string, unknown>;
+  return SUN_TOOLS_METHODS.every((m) => typeof e[m] === 'function');
+}
+
+// ---------------------------------------------------------------------------------
 // Expansion programme — magnetic field and compass error (geomag agent). Rust:
 // crates/skyfix-wasm/src/geomag.rs over skyfix_geomag (WMM2025, IGRF-14) and
 // skyfix_core::methods::compass. Wire format: EXPLORER_API.md, "Expansion programme —

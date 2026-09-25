@@ -52,11 +52,22 @@ This file is the single list; the completion report links here.
 | The Earth's shape in Moon sight reduction | unstarted | Sight reduction, predicted readings and the sight planner all use the spherical Earth of CONVENTIONS section 1; on the real (WGS84) Earth the Moon's parallax differs by up to 0.22′ (median 0.09′), a few tens of metres in a fix (`docs/ACCURACY.md` section 10, `docs/NAVIGATION_SKY.md` section 6). Lunar distance already makes this exception (WGS84, CONVENTIONS section 1 records it) because a lunar's timing needs the Moon's parallax to 0.03′; extending it to ordinary Moon sights would need the observer's position inside the reduction itself, and the Skyfield WGS84 fixtures already in `crates/skyfix-ephemeris/tests/moon_planet_sights.rs` are in place to validate it. |
 | The lunar limb profile in eclipse contacts | unstarted | The eclipse engine (`skyfix_almanac::eclipses`) treats the Moon's limb as a perfect circle; NASA's own canon notes this moves an eclipse's limits by 1-3 km and totality by 1-3 seconds (`docs/ACCURACY.md` section 12, "Conventions, stated because they move numbers"). A real limb profile (Watts' data or similar) would need its own source and licence entry in `docs/THIRD_PARTY.md`. |
 
+## Expansion programme — sun tools (suntools agent, 2026-09-24)
+
+| item | status | notes |
+|---|---|---|
+| Sun tools engine: golden/blue hour, azimuth search, alignments, analemma, sun path, rise/set azimuths, equation of time, clear-sky energy, Milky Way windows | completed (engine, WASM, TypeScript, mock) | `skyfix_almanac::sun_tools`; validated in `docs/ACCURACY.md` section 14. The interface is wave 2 (`photo`, `charts2`); the CLI is `cli3` |
+| Forward the sun tools through the memoising engine | unstarted | `memoEngine` in `web/src/next/component.ts` copies only the methods it knows, so `isSunToolsEngine(ctx.engine)` is false until it forwards the ten methods (as it does `planetEvents`); not the suntools agent's file |
+| A raised horizon for alignments | unstarted | rise and set are on the sea-level horizon; a street, a ridge or a skyline raises it. `at_altitude` covers a single known horizon altitude today; a horizon profile (altitude by azimuth) would be the full answer |
+| An elevation term in the clear-sky estimate | unstarted | Haurwitz has none and underestimates at high sites (Reno, Hansen & Stein 2012). Ineichen-Perez needs a Linke-turbidity climatology whose licence would have to be checked; the Bird model (a U.S. Government work) needs aerosol and water-vapour defaults |
+| Faster Moon year series | unstarted | a year of the Moon's rise and set (or moonrise alignments) costs about 0.3 s natively, almost all of it the event finder's 2900 exact ELP evaluations |
+| `events::roots` visible to the crate | unstarted | `sun_tools` compiles the event finder's Brent routines from the same file (`#[path]`, with a lint allowance) because `events::roots` is private; making it `pub(crate)` lets `sun_tools` use it directly |
+
 ## Expansion programme: magnetic variation and compass error (geomag agent, 2026-09-24)
 
 | item | status | notes |
 |---|---|---|
-| Magnetic variation anywhere, 1900-2030 (WMM2025, IGRF-14), with the model's uncertainty, zones and a grid for isogonic lines | completed (engine) | `crates/skyfix-geomag`, exports `magnetic_field`, `magnetic_grid` (`crates/skyfix-wasm/src/geomag.rs`); validated against NCEI's, IAGA's, BGS's and NOAA's values (`docs/ACCURACY.md` section 14). The interface (Selected card, Navigate → Compass, map layer) is wave 2 |
+| Magnetic variation anywhere, 1900-2030 (WMM2025, IGRF-14), with the model's uncertainty, zones and a grid for isogonic lines | completed (engine) | `crates/skyfix-geomag`, exports `magnetic_field`, `magnetic_grid` (`crates/skyfix-wasm/src/geomag.rs`); validated against NCEI's, IAGA's, BGS's and NOAA's values (`docs/ACCURACY.md` section 15). The interface (Selected card, Navigate → Compass, map layer) is wave 2 |
 | Compass error by azimuth and by amplitude, with variation and deviation | completed (engine) | `skyfix_core::methods::compass`, export `compass_error`; Bowditch ch. 15 reproduced (`docs/NAVIGATION_METHODS.md` section 9). CLI `skyfix variation` / `skyfix compass-error` left to the `cli3` agent |
 | A deviation card (swinging the compass) | unstarted | Collect compass errors on many headings into a deviation table and curve; each `compass_error` result is one heading's deviation already |
 | WMMHR2025 (degree 133, crustal field) | unstarted | NCEI recommends it where systems can take the coefficients; about 18 000 of them (a pack, not the core). WMM2025 meets the navigation specification, and its uncertainty is stated beside every value |

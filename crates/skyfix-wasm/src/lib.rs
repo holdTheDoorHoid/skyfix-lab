@@ -699,3 +699,8 @@ mod tests {
         );
     }
 }
+
+// Expansion programme, suntools agent (P7): golden and blue hour, azimuth search,
+// alignments, analemma, sun path, equation of time, clear-sky energy, Milky Way windows.
+// Wire format: docs/EXPLORER_API.md, "Expansion programme — sun tools".
+pub mod suntools;

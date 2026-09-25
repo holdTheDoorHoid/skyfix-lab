@@ -31,8 +31,6 @@ import {
   type Observer,
   type PlanetEventsEngine,
 } from './engine/types.js';
-// Expansion programme, geomag agent: the memoised engine forwards the magnetic tools.
-import { isGeomagEngine } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
 
@@ -321,15 +319,6 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
             cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
         }
       : {}),
-    // Magnetic field and compass error (expansion programme, geomag agent): present exactly
-    // when the engine has them (`isGeomagEngine`); unmemoised, they are cheap and on demand.
-    ...(isGeomagEngine(engine)
-      ? {
-          magneticField: engine.magneticField.bind(engine),
-          magneticGrid: engine.magneticGrid.bind(engine),
-          compassError: engine.compassError.bind(engine),
-        }
-      : {}),
     kind: engine.kind,
     description: engine.description,
     // Navigation tools pass through unmemoised: they run on demand, never per frame.
@@ -388,7 +377,30 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     // The residual heat map passes through unmemoised: it runs on demand, never per frame.
     ...(engine.misfit ? { misfit: engine.misfit } : {}),
   };
+  // Every other capability of the engine (the expansion programme's engines: sun tools,
+  // geomagnetism, tides, time scales, packs, …) passes through unmemoised, bound to the
+  // engine, so a view's type guard (`isSunToolsEngine(ctx.engine)` and the like) sees it
+  // on the wrapper without this file naming each one. Methods named above keep their memo.
+  const out = memo as unknown as Record<string, unknown>;
+  for (const name of methodNames(engine)) {
+    if (name in out) continue;
+    const fn = (engine as unknown as Record<string, unknown>)[name];
+    if (typeof fn === 'function') out[name] = (fn as (...args: unknown[]) => unknown).bind(engine);
+  }
   return memo;
+}
+
+/** Names of every function-valued property of `obj`, own or inherited (class methods live on the prototype). */
+function methodNames(obj: object): string[] {
+  const names = new Set<string>();
+  for (let p: object | null = obj; p && p !== Object.prototype; p = Object.getPrototypeOf(p) as object | null) {
+    for (const name of Object.getOwnPropertyNames(p)) {
+      if (name === 'constructor') continue;
+      const desc = Object.getOwnPropertyDescriptor(p, name);
+      if (desc && typeof desc.value === 'function') names.add(name);
+    }
+  }
+  return [...names];
 }
 
 /** A small value-keyed memo for a component's own derived computations. */
