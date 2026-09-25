@@ -201,5 +201,6 @@ This file is the single list; the completion report links here.
 | Bead-level detail | unstarted | 1.9 km terrain resolves the main valleys only. Per-eclipse profiles from LDEM_64 (474 m) or LDEM_128, precomputed for the band of libration one eclipse spans (a few tens of kB each, data audit section 9), would give real beads |
 | Limb-corrected path limits on the map | unstarted | The limits of totality move by 1-3 km with the limb; the same outline solved for the grazing site along the path's normals would draw them (`eclipse_path` is the mean limb's) |
 | Occultation grazes with the real limb | unstarted | `lunar_limb_profile` gives the outline at any instant; star occultation contacts (P8, mean limb) and graze predictions could use it |
+| The core module's size budget | decision | The lunar limb adds 45.3 KB raw / 20.7 KB gzipped to the core module; main alone (ab8f55c) is 2 997 407 bytes, 2.6 KB under the 3 MB budget, so the module is 42.7 KB over it (and 2.3 KB over 1.25 MB gzipped). Options: raise the budget, `opt-level = "z"` (about 5 %), or load the limb engine as a second module with its pack |
 | A smaller pack | unstarted | 1.66 MB gzipped; 10 m quanta would save about 0.4 MB gzipped (at most 5 m, 0.003", of rounding), a ±10° ring about a sixth |
 | Command line | unstarted | No `skyfix eclipse --limb` yet (cli3) |

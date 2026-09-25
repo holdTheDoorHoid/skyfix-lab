@@ -2698,8 +2698,11 @@ view asks for the corrected eclipse once per place (the memoised engine keeps it
 **Size.** The pack: 2 212 290 bytes (2.21 MB), 1 659 278 gzipped (1.66 MB; the target
 was 3 MB gzipped, and the brief's estimate of 4.4 MB raw for int16 heights came down with
 the byte code); decoded, 4.4 MB of heights and 1.1 MB of block maxima in memory. The
-core module: +59.9 KB raw, +24.2 KB gzipped against main at the tides merge (2.87 MB /
-1.18 MB, inside the 3 MB / 1.25 MB budget).
+core module (`npm run wasm`): +45.3 KB raw, +20.7 KB gzipped against main at ab8f55c
+(2 997 407 → 3 042 660 bytes, 1 231 646 → 1 252 306 gzipped). Main alone is 2.6 KB under
+the 3 MB raw budget, so with the lunar limb the module is **42.7 KB over it, and 2.3 KB
+over the 1.25 MB gzipped one**: a decision for the planner (EXPANSION_PLAN §3 lists the
+measured levers; `opt-level = "z"` alone saves about 5 %).
 
 ### Reproduce
 
