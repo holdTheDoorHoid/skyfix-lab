@@ -1435,3 +1435,36 @@ the Events view builds its entries in `web/src/next/events/items.ts`).
 - **Cards beside a list** open level with their row (the card column is padded down to it),
   so a row picked far down a long list never opens its card out of sight; on a narrow stage
   the card goes under its row.
+
+### 15.9 Shared settings and channels across views (polish2, expansion programme)
+
+The integration pass gave several views one shared setting or channel where each view had
+kept its own:
+
+- **How dark the sky is:** there is one setting, `settings.skyQuality` (`auto`, `bortle` or
+  `nelm`) with `skyBortle` and `skyNelm` (`state.ts`). Settings → Sky, the Sky view's Layers,
+  Tonight's "Your sky" and the Events view's meteor showers all read and write it through
+  `skyChoiceSelect` (`sky/sky-choice.ts`). The engine calls take `skyConditions(settings)`,
+  so the star limit, tonight's ranking and the meteor rates always assume the same sky. It is
+  remembered between visits like the other settings.
+- **The air:** `settings.pressure_hpa` (800–1100 hPa, default 1010) and
+  `settings.temperature_c` (−60 to 60 °C, default 10), set in Settings → Sights.
+  `engineObserver` passes them in every call that takes an observer, but only when they
+  differ from the defaults, so a default call's input is unchanged. The predicted sextant
+  reading, the sights Navigate plans for tonight and a new Navigate session all take them.
+- **Raising the panel:** `revealPanel(store, 'peek' | 'full')` (`panel/reveal.ts`) asks the
+  explorer's shell to bring the panel into view. On a phone it raises the bottom sheet from
+  its lowest position to peek, or from peek to full; on a laptop it opens a closed panel. A
+  view whose link opens something in the panel calls it (the Milky Way planner does).
+- **Notices:** the notice strip takes its own band at the top of the stage. It publishes its
+  height, plus 8 px, as `--stage-notice-inset`, and the view begins below it
+  (`.sf-stage__fill`), so a notice never covers a view's controls. On a phone every notice
+  starts folded to one line.
+- **A far date's limits in words:** an engine's refusal of an instant outside its years
+  ("… outside … <ISO> .. <ISO>") is shown through `rangeWords` (`time/tier.ts`) as "1550 to
+  2650". Each view says in one sentence what it cannot show and for which years; it never
+  shows the engine's raw message. A test scans the interface's source to hold the wording:
+  no fixed 1990/2060, no "(UTC)" beside a time that may be UT, no `Date.UTC`, and no Deep
+  time pack (`polish-strings.test.ts`).
+- **The time bar's rise, transit and set labels:** a label that would print over another is
+  hidden (`clashingLabels`, `timebar/ribbon.ts`). Its mark on the bar stays.
