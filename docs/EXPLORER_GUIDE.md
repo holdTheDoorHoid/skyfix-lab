@@ -555,6 +555,19 @@ the printed book's own formulas differ, an entry can differ from the book's by 0
 three-day pages"). The daily pages are the same computation as `skyfix almanac` on the
 command line ([Command line](CLI.md)).
 
+<!-- verify2 -->
+**One star differs from the printed book on purpose: Rigil Kentaurus.** It is α Centauri A,
+which circles its companion every 80 years. The printed Nautical Almanac and USNO's online
+almanac carry A along the straight line of its 1991 motion; the explorer follows the orbit.
+Radio positions of A measured by ALMA in 2018 and 2019 agree with the explorer's to 0.1″ and
+are 4.6″ from the straight line. So Rigil Kentaurus's SHA and declination here differ from
+the book's by about 0.1′ in 2026, growing to about 0.3′ by 2060: that much on a line of
+position if you work the same sight both ways. The difference is the book's, and it is the
+only star where the two disagree by more than a few hundredths of an arcminute. Neither
+models what a sextant sees, the combined light of A and B, about 2″ from A in 2026
+([Accuracy and limitations](ACCURACY.md), "Rigil Kentaurus").
+<!-- /verify2 -->
+
 ![A daily almanac page: GHA and declination for Aries, the four navigational planets and every navigational star, at every hour of the day.](design/almanac-screen.png)
 
 ### Navigate

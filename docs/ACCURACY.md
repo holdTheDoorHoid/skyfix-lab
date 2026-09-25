@@ -3254,6 +3254,15 @@ formal errors, the uncertainty of its barycentre's proper motion (next).
   with the orbit, so Rigil Kentaurus meets the 0.05′ fixture tolerance there (worst
   0.0003′); against the previous, straight-line fixture it would differ by up to 15.4″
   (2055).
+- **Against measured positions** (verify2, 2026-09-25). ALMA measured alpha Cen A's
+  absolute ICRS position nine times in 2018-2019, referred to quasars (Akeson et al. 2021,
+  Table 2; 0.4-7 mas). With annual parallax added, the orbit model is **0.10-0.12″** from
+  every one of them; the straight line the Almanac and USNO extrapolate is **4.4-4.6″**
+  off (`crates/skyfix-ephemeris/tests/acen_alma.rs`, which holds the orbit within 0.25″
+  and the line beyond 4″). Against Akeson et al.'s own barycentre and orbit, the provider
+  is 0.15″ off in 2026 and 0.39″ in 2060 (the barycentric proper motions differ by 5 mas
+  a year); the straight line is 5.9″ and 16.4″ off. So the provider is the closer to the
+  sky by a factor of about 40 today, and the "1-2″ by 2060" above is a generous bound.
 
 ### What changed inside 1990–2060
 
