@@ -477,3 +477,63 @@ the rest of this file:
 - A vessel's motion over a noon or averaging run is a constant course and speed along the
   great circle through the method's reference position; the running fix keeps
   `docs/MOTION.md`'s leg model.
+
+## 15. Deep time: coverage tiers, time scales and calendars (expansion programme, 2026-09-24)
+
+Normative for every crate. Decisions from `EXPANSION_PLAN.md` §4; agents refine the
+subsections they own and say so in their reports.
+
+### 15.1 Tiers
+
+- **validated**: 1550-01-01 to 2650-01-22 (the span of JPL DE440). The accuracy figures in
+  `ACCURACY.md` hold; bodies are offered for sights as today.
+- **labelled**: −2000-01-01 to 3000-12-31, only with the `deep-time` pack loaded. Accuracy
+  is measured per century against DE441 and tabulated; every displayed time carries the ΔT
+  uncertainty when it exceeds the display precision; no sights, no predicted readings, no
+  planner (`outside_validated_tier`).
+- **outside**: refused, with the same wording as today.
+
+### 15.2 Time scales
+
+- The app's clock (`jd_utc` on the wire) is **UTC from 1972-01-01 to 2035-12-31** and
+  **UT (≈ UT1) outside** that span. TT − UTC = 32.184 s + ΔAT inside; TT − UT = ΔT(model)
+  outside. UT1 = UTC + DUT1 inside; UT1 = UT outside.
+- **ΔT model**: Stephenson, Morrison & Hohenkerk 2016 splines (−720 to 2016), IERS observed
+  values (1962 on, monthly), the long-term parabola −320 + 32.5 ((y − 1825)/100)² s beyond
+  both, joined smoothly. Its standard uncertainty is part of the model: the published
+  historical values where the splines apply, the Huber/NASA growth law for the future.
+- **DUT1**: the IERS history (weekly samples, 1973 to the build date) inside the UTC span;
+  a user value when given (explorer-wide `set_dut1`, or a session's `clock.dut1_s`);
+  otherwise 0 with σ = 0.9 s, shown as ±0.23′ of longitude. Never assumed silently after
+  2035.
+- The words: "UTC" inside the span, "UT" outside, "TT" only in developer output.
+
+### 15.3 Calendars and years
+
+- Internal scale: JD, as today. Astronomical year numbering everywhere in code and on the
+  wire (year 0 = 1 BC); ISO expanded years outside 0000–9999.
+- Display and input: the **Julian calendar before 1582-10-15**, Gregorian from that day,
+  each labelled; a proleptic-Gregorian (ISO) option in Settings for people who want it.
+  Years before 1 AD are shown as "585 BC" with the astronomical number in the tooltip.
+- Local time before 1850: local mean time at the observer's longitude ("LMT"), because
+  civil zones did not exist; nautical zones and IANA zones stay selectable.
+- The Saros series number is computed from the epoch's expected series, not from
+  `lunation mod 223` alone (which misnumbers series below 28 solar / 12 lunar).
+
+### 15.4 The Moon's Earth-shape term (exception to §1 and §5)
+
+Sight reduction stays on the sphere (1′ = 1 NM, geocentric `Ho`) **except** that the model
+altitude `Hc` of the Moon includes the exact WGS84 term
+`OB = HP·f·(sin 2φ·sin h·cos Z − sin²φ·cos h)` (computed as the difference between the
+WGS84 topocentric geometry at the trial position and the spherical one, f = 1/298.257),
+in the solver, the intercept, predicted readings, the noon and Polaris methods, the
+planner and the misfit grid. `Ho` and the six-step correction chain are unchanged. The
+term is under 0.002′ for Venus and Mars and is not applied to them.
+
+### 15.5 Packs
+
+A pack changes what the engine can answer, never how it answers: the `deep-time` pack
+installs wider series tables and the long-term precession; the `tides-us` pack installs
+station constants; the `lunar-limb` pack installs a limb profile. `explorer_coverage()`
+reflects loaded packs. A pack is loaded per page session from the app's own cache; the
+core module never depends on one.

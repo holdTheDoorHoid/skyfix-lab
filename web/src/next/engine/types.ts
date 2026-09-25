@@ -1530,3 +1530,152 @@ export function isPlanetEventsEngine(engine: unknown): engine is PlanetEventsEng
     typeof (engine as Partial<PlanetEventsEngine>).planetEvents === 'function'
   );
 }
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — shared contract (planner, 2026-09-24). See EXPLORER_API.md,
+// "Expansion programme". Contract only until the wave-1 agents implement it; every
+// engine method is behind a type guard, as the almanac and eclipse engines are.
+// ---------------------------------------------------------------------------------
+
+/** Coverage tier of an instant (CONVENTIONS §15.1). */
+export type CoverageTier = 'validated' | 'labelled' | 'outside';
+
+export interface CoverageTierSpan {
+  tier: Exclude<CoverageTier, 'outside'>;
+  start_utc: string;
+  end_utc: string;
+  /** Worst error over the span, or null when not measured. */
+  accuracy_arcmin: number | null;
+  notes?: string;
+}
+
+/** Additive fields (declaration merging with the original block above). */
+export interface ExplorerCoverage {
+  validated_start_utc?: string;
+  validated_end_utc?: string;
+  /** Names of the packs loaded in this page session. */
+  packs_loaded?: string[];
+}
+
+export interface CoverageGroup {
+  tiers?: CoverageTierSpan[];
+}
+
+/** Coverage tiers (deeptime agent). */
+export interface CoverageTierEngine {
+  tierAt(jdUtc: number): CoverageTier;
+}
+
+export function isCoverageTierEngine(engine: unknown): engine is CoverageTierEngine {
+  return (
+    typeof engine === 'object' &&
+    engine !== null &&
+    typeof (engine as Partial<CoverageTierEngine>).tierAt === 'function'
+  );
+}
+
+export type TimeScale = 'utc' | 'ut';
+export type DeltaTSource = 'iers' | 'smh2016' | 'parabola' | 'prediction';
+export type Dut1Source = 'iers' | 'user' | 'model' | 'assumed';
+export type CalendarKind = 'julian' | 'gregorian';
+
+export interface CivilDate {
+  calendar: CalendarKind;
+  /** Astronomical year (0 = 1 BC). */
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  /** Year as people write it, with `era`: 585 BC is era_year 585, year −584. */
+  era_year: number;
+  era: 'BC' | 'AD';
+}
+
+export interface TimeInfo {
+  jd_utc: number;
+  utc: string;
+  scale: TimeScale;
+  tier: CoverageTier;
+  delta_t_s: number;
+  delta_t_sigma_s: number;
+  delta_t_source: DeltaTSource;
+  /** TT minus the app's clock: 32.184 + ΔAT on the UTC scale, ΔT on the UT scale. */
+  tt_minus_clock_s: number;
+  dut1_s: number;
+  dut1_sigma_s: number;
+  dut1_source: Dut1Source;
+  /** The calendar the UI should show for this date. */
+  calendar: CalendarKind;
+  civil: CivilDate;
+  julian_civil: CivilDate;
+  notes: string[];
+}
+
+export interface CalendarConvertRequest {
+  jd_utc?: number;
+  civil?: Partial<CivilDate> & { calendar: CalendarKind; year: number; month: number; day: number };
+}
+
+export interface CalendarConversion {
+  jd_utc: number;
+  gregorian: CivilDate;
+  julian: CivilDate;
+}
+
+/** Time scales, ΔT, DUT1 and calendars (timescales agent). */
+export interface TimeEngine {
+  timeInfo(jdUtc: number): TimeInfo;
+  /** Explorer-wide user DUT1 in seconds; null returns to the history or model. */
+  setDut1(seconds: number | null): void;
+  calendarConvert(request: CalendarConvertRequest): CalendarConversion;
+}
+
+export function isTimeEngine(engine: unknown): engine is TimeEngine {
+  return (
+    typeof engine === 'object' &&
+    engine !== null &&
+    typeof (engine as Partial<TimeEngine>).timeInfo === 'function'
+  );
+}
+
+export interface PackStatus {
+  name: string;
+  version: string;
+  label: string;
+  description: string;
+  bytes: number;
+  provides: string[];
+  loaded: boolean;
+}
+
+export interface PackInfo {
+  name: string;
+  version: string;
+  bytes: number;
+  provides: string[];
+}
+
+/** Optional data packs (packs agent). */
+export interface PackEngine {
+  packs(): PackStatus[];
+  /** Parses, verifies and installs a pack; throws a string on a bad file. Idempotent. */
+  loadPack(name: string, bytes: Uint8Array): PackInfo;
+}
+
+export function isPackEngine(engine: unknown): engine is PackEngine {
+  return (
+    typeof engine === 'object' &&
+    engine !== null &&
+    typeof (engine as Partial<PackEngine>).loadPack === 'function'
+  );
+}
+
+/** The pack service every component reaches through `Ctx.packs` (packs agent). */
+export interface PackService {
+  /** Makes sure a pack is loaded, prompting once with `reason`; false when declined or offline without a copy. */
+  ensure(name: string, reason: string): Promise<boolean>;
+  status(): PackStatus[];
+  remove(name: string): Promise<void>;
+}

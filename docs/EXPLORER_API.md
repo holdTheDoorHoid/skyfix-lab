@@ -1035,3 +1035,110 @@ Several kinds can fall close together: an outer planet's closest approach is wit
 day or two of its opposition (Mars: up to 8.4 days in 1990-2060), and Mercury's and
 Venus's within 3.4 and 1 days of their inferior conjunctions. They are separate events
 with separate instants.
+
+## Expansion programme — shared contract (planner, 2026-09-24)
+
+Read `EXPANSION_PLAN.md` first. This section fixes the shapes every wave-1 agent builds
+against; each agent appends its own section below it, as before. Status: **contract only,
+not yet implemented**; the TypeScript mirror is `web/src/next/engine/types.ts` (search for
+"Expansion programme"). Owners are named per item; a change to a shape here is made in
+the owner's branch and reported prominently.
+
+### Dates and years on the wire (timescales agent)
+
+- Every instant is still `jd_utc` (f64) plus an RFC 3339-style string. Years outside
+  0000–9999 use ISO 8601 expanded years, a sign and at least four digits
+  (`-0584-05-28T12:00:00Z`, `+12345-01-01T00:00:00Z`); years 0000–9999 stay four digits
+  without a sign. Astronomical numbering: year 0 = 1 BC, −584 = 585 BC.
+- Wire strings are always **proleptic Gregorian** and always in the app's clock scale named
+  by `time_info` (`utc` inside 1972–2035, `ut` outside); the suffix stays `Z`. The Julian
+  calendar is a display and input convention of the UI and CLI (`calendar_convert`), never
+  the wire format.
+- `parse_utc` and `format_utc` in `skyfix_core::time` are the single implementation and
+  accept both forms for any year; every other crate calls them. `jd_utc` keeps its name
+  even when the scale is UT: it is the instant on the app's clock.
+
+### `explorer_coverage()` — tiers (deeptime agent)
+
+Additive fields; the existing `accuracy_arcmin` and `validated` keep describing the
+validated tier, so today's UI keeps working.
+
+```json
+{"start_utc": "-2000-01-01T00:00:00Z", "end_utc": "3000-12-31T23:59:59Z",
+ "validated_start_utc": "1550-01-01T00:00:00Z", "validated_end_utc": "2650-01-22T00:00:00Z",
+ "packs_loaded": ["deep-time"],
+ "groups": [{"name": "Moon", "provider": "…", "accuracy_arcmin": 0.05, "validated": true,
+             "notes": "…", "bodies": ["Moon"],
+             "tiers": [{"tier": "validated", "start_utc": "1550-01-01T00:00:00Z",
+                        "end_utc": "2650-01-22T00:00:00Z", "accuracy_arcmin": 0.05},
+                       {"tier": "labelled", "start_utc": "-2000-01-01T00:00:00Z",
+                        "end_utc": "3000-12-31T23:59:59Z", "accuracy_arcmin": 0.5,
+                        "notes": "with the deep-time pack; ΔT uncertainty applies"}]}]}
+```
+
+- `start_utc`/`end_utc` are the outermost instants any provider answers **with the packs
+  currently loaded** (without `deep-time` they equal the validated band).
+- `tier_at(jd_utc) -> "validated" | "labelled" | "outside"` is a cheap query for the UI.
+- Sights, the planner and predicted readings refuse the labelled tier with the warning
+  `outside_validated_tier` (CONVENTIONS §12 vocabulary).
+
+### `time_info(jd_utc) -> TimeInfo` (timescales agent)
+
+```json
+{"jd_utc": 2461308.0, "utc": "2026-09-24T12:00:00.000Z",
+ "scale": "utc",
+ "tier": "validated",
+ "delta_t_s": 69.18, "delta_t_sigma_s": 0.0, "delta_t_source": "iers",
+ "tt_minus_clock_s": 69.184,
+ "dut1_s": -0.009, "dut1_sigma_s": 0.001, "dut1_source": "iers",
+ "calendar": "gregorian",
+ "civil": {"calendar": "gregorian", "year": 2026, "month": 9, "day": 24,
+           "hour": 12, "minute": 0, "second": 0.0, "era_year": 2026, "era": "AD"},
+ "julian_civil": {"calendar": "julian", "year": 2026, "month": 9, "day": 11,
+                  "hour": 12, "minute": 0, "second": 0.0, "era_year": 2026, "era": "AD"},
+ "notes": []}
+```
+
+- `scale`: `"utc"` (1972-01-01 to 2035-12-31) or `"ut"` (outside; UT ≈ UT1).
+- `delta_t_source`: `"iers"` (observed), `"smh2016"` (historical splines), `"parabola"`
+  (long-term), `"prediction"` (near future). `delta_t_sigma_s` is the standard uncertainty;
+  the UI shows "±m min" beside any time when it exceeds 30 s.
+- `dut1_source`: `"iers"` (history table), `"user"` (set with `set_dut1`), `"model"` (scale
+  `ut`: DUT1 is by definition 0 and UT comes from ΔT), `"assumed"` (0, unknown future).
+- `calendar`: the calendar the UI should display for this date (`julian` before
+  1582-10-15). `civil` is in that calendar; `julian_civil` is always given so the UI can
+  offer both.
+- `set_dut1(seconds | null)`: the explorer-wide user value (a session's `clock.dut1_s`
+  overrides it for that session). `calendar_convert(request_json) -> CalendarConversion`
+  converts between JD and civil dates in either calendar for any year.
+
+### Packs (packs agent owns the mechanism; each producer appends its pack's payload format)
+
+- `packs() -> PackStatus[]`: the registry compiled into the module, e.g.
+  `[{"name": "deep-time", "version": "2026-09-24", "label": "Deep time", "description":
+  "Positions from 2000 BC to AD 3000", "bytes": 412000, "provides": ["ephemeris:-2000..3000"],
+  "loaded": false}]`. `loaded` flips after `load_pack`.
+- `load_pack(name, bytes: Uint8Array) -> PackInfo` parses, verifies and installs; throws a
+  string when the magic, version, name or checksum is wrong. Idempotent.
+- Files: `web/public/data/packs/<name>-<rev>.bin` (content hash in the name), listed in the
+  precached `web/public/data/packs/manifest.json` with `{name, version, rev, bytes, label,
+  description}`. The app stores a fetched pack in its own cache
+  (`skyfix-lab-packs-<schema>@<site>`), never in the precache or the runtime cache, and
+  reloads every stored pack into the engine at start-up.
+- Binary layout, common header, little-endian: magic `SKYFIXPK` (8 bytes), u16 format
+  version (1), u16 name length, name (UTF-8), u32 payload length, payload, u32 CRC-32 of the
+  payload. Payload formats are per pack and documented by the producer in its own section.
+  No alignment assumptions: readers use byte slices.
+- Rust: `skyfix_wasm::packs::install(name, payload) -> Result<PackInfo, String>` dispatches
+  to one `install_<pack>` function per producer crate; each producer adds one match arm.
+- Mock engine: `packs()` lists the same registry; `load_pack` accepts any bytes.
+- Component context: `Ctx` gains `packs: PackService` with `ensure(name, reason) ->
+  Promise<boolean>` (prompts once, fetches, stores, loads), `status()`, `remove(name)`.
+
+### Session schema (moonshape agent)
+
+`skyfix.session/1` `clock` gains `dut1_s: number | null` (serde default `null` = the
+engine's history or model). Additive; older files still load. Rust:
+`skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
+(moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
+the IERS history and the model).
