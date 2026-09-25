@@ -64,6 +64,7 @@ import {
   type ChartComponent,
 } from './frame.js';
 import { bodyClass, PHASE_LABELS, phaseClass } from './palette.js';
+import { attachExport } from './export-menu.js';
 import { clamp, linearScale, pickStep, type LinearScale } from './scale.js';
 import { clockChangeIn, localDayAt, wallHours, zoneKey, type LocalDay } from './windows.js';
 
@@ -872,6 +873,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
         ),
       );
     }
+    // time-ui: the tier chip belongs beside each table's caption (the ±ΔT band outside the validated tier).
     c.tableWrap.replaceChildren(ev.table, ph.table, hourly.table);
     c.root.dataset.ready = '1';
   }
@@ -973,6 +975,19 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
   d.add(bindTimeButtons(c.tableWrap, ctx));
   d.add(() => ctx.scheduler.cancel(hoverTask));
   d.add(() => ctx.scheduler.cancel(frame));
+  // Save: picture, table, print, share (charts2 agent).
+  d.add(
+    attachExport(c, {
+      fileParts: () => ['day', currentDay(store.get()).day.key],
+      picture: () => svg,
+      tables: () => {
+        if (!data) return [];
+        renderTable();
+        return [...c.tableWrap.querySelectorAll('table')];
+      },
+      labels: () => ['Heights are what the eye sees (apparent altitude, refraction included); bearings from true north.'],
+    }),
+  );
 
   return { destroy: () => d.dispose() };
 };
