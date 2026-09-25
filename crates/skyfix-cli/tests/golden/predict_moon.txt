@@ -14,13 +14,13 @@ Ha  +20 24.0   the apparent altitude after the index correction and the horizon 
 
 Corrections, from the reading forward to Hc
   step                        applied   before deg   after deg  delta '  note
-  index_correction            yes        20.479944   20.446611    -2.00  index correction -2.000' added to the sextant reading
-  dip                         yes        20.446611   20.400231    -2.78  sea horizon, height of eye 2.500 m: dip 2.783' subtracted
-  artificial_horizon_halving  no         20.400231   20.400231     0.00  not applicable: the sea horizon reading is a single angle
-  refraction                  yes        20.400231   20.356112    -2.65  Bennett 1982 at Ha 20.4002 deg, 1010.0 hPa, 10.0 C: 2.647' subtracted
-  semidiameter                yes        20.356112   20.627301    16.27  Moon lower limb: semidiameter 16.170' augmented by 0.101' to 16.271' (topocentric, centre at 20.6273 deg) added
-  parallax                    yes        20.627301   21.552913    55.54  Moon: asin(sin HP 59.341' x cos h), h = 20.6273 deg topocentric: 55.537' added
-  Ho 21.552913 deg = Hc 21.552913 deg
+  index_correction            yes        20.479876   20.446543    -2.00  index correction -2.000' added to the sextant reading
+  dip                         yes        20.446543   20.400163    -2.78  sea horizon, height of eye 2.500 m: dip 2.783' subtracted
+  artificial_horizon_halving  no         20.400163   20.400163     0.00  not applicable: the sea horizon reading is a single angle
+  refraction                  yes        20.400163   20.356044    -2.65  Bennett 1982 at Ha 20.4002 deg, 1010.0 hPa, 10.0 C: 2.647' subtracted
+  semidiameter                yes        20.356044   20.627232    16.27  Moon lower limb: semidiameter 16.170' augmented by 0.101' to 16.271' (topocentric, centre at 20.6272 deg) added
+  parallax                    yes        20.627232   21.552845    55.54  Moon: asin(sin HP 59.341' x cos h), h = 20.6272 deg topocentric: 55.537' added
+  Ho 21.552845 deg = Hc 21.552845 deg
 
 Hc is the spherical Earth's computed altitude (CONVENTIONS section 3) plus the Moon's
 Earth-shape term, the part of its parallax the sphere leaves out (up to 0.24'): Hs is

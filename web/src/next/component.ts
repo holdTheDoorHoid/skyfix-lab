@@ -24,6 +24,8 @@ import {
   isEclipseEngine,
   isPackEngine,
   isPlanetEventsEngine,
+  isSailingsEngine,
+  isTidesEngine,
   type AlmanacEngine,
   type BodySelection,
   type EclipseEngine,
@@ -33,6 +35,9 @@ import {
   type PackEngine,
   type PackService,
   type PlanetEventsEngine,
+  type SailingsEngine,
+  type TideDatum,
+  type TidesEngine,
 } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
@@ -341,7 +346,12 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): M
     return value;
   }
 
-  const memo: MemoEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> & Partial<PackEngine> = {
+  const memo: MemoEngine &
+    Partial<AlmanacEngine> &
+    Partial<EclipseEngine> &
+    Partial<PlanetEventsEngine> &
+    Partial<PackEngine> &
+    Partial<TidesEngine> = {
     invalidate: () => caches.clear(),
     // Data packs pass through unmemoised (packs/ loads them; `packs()` changes when one does).
     ...(isPackEngine(engine)
@@ -374,6 +384,42 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): M
             cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
         }
       : {}),
+    // Optional (sailings agent): passage planning and sight extras run on demand, so they
+    // pass through; the star finder's geometry is a table per latitude band and date.
+    ...(isSailingsEngine(engine)
+      ? {
+          sailing: (request) => engine.sailing(request),
+          drAdvance: (request) => engine.drAdvance(request),
+          routePositions: (request) => engine.routePositions(request),
+          starIdentify: (request) => engine.starIdentify(request),
+          starFinderGeometry: (latBand: number, jdUtc?: number) =>
+            cached('starFinderGeometry', `${latBand}|${jdUtc ?? ''}`, 4, () => engine.starFinderGeometry(latBand, jdUtc)),
+        } satisfies SailingsEngine
+      : {}),
+    // Tides (tides agent): present exactly when the engine predicts tides
+    // (`isTidesEngine`). Station lists and tables are kept a few at a time; the state
+    // now and the pack summary change from call to call and pass through. Errors, such
+    // as pack_not_loaded before the pack is installed, are never cached.
+    ...(isTidesEngine(engine)
+      ? {
+          tideStationsNear: (latDeg: number, lonDeg: number, n: number) =>
+            cached('tideStationsNear', `${latDeg}|${lonDeg}|${n}`, 4, () =>
+              engine.tideStationsNear(latDeg, lonDeg, n),
+            ),
+          tideStation: (id: string) => cached('tideStation', id, 8, () => engine.tideStation(id)),
+          tidePredict: (id: string, jdStart: number, jdEnd: number, stepMin: number, datum?: TideDatum | '') =>
+            cached('tidePredict', `${id}|${jdStart}|${jdEnd}|${stepMin}|${datum ?? ''}`, 4, () =>
+              engine.tidePredict(id, jdStart, jdEnd, stepMin, datum),
+            ),
+          tideExtremes: (id: string, jdStart: number, jdEnd: number, datum?: TideDatum | '') =>
+            cached('tideExtremes', `${id}|${jdStart}|${jdEnd}|${datum ?? ''}`, 8, () =>
+              engine.tideExtremes(id, jdStart, jdEnd, datum),
+            ),
+          tideNow: (id: string, jdUtc: number, datum?: TideDatum | '') => engine.tideNow(id, jdUtc, datum),
+          tidePackInfo: () => engine.tidePackInfo(),
+        }
+      : {}),
+    // --- end tides
     kind: engine.kind,
     description: engine.description,
     // Navigation tools pass through unmemoised: they run on demand, never per frame.
@@ -440,9 +486,36 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): M
   for (const name of methodNames(engine)) {
     if (name in out) continue;
     const fn = (engine as unknown as Record<string, unknown>)[name];
-    if (typeof fn === 'function') out[name] = (fn as (...args: unknown[]) => unknown).bind(engine);
+    if (typeof fn !== 'function') continue;
+    const call = fn as (...args: unknown[]) => unknown;
+    if (/^(set|load|install|remove|clear|reset)/.test(name)) {
+      // A mutation (`setDut1`, `loadPack`, …): pass it through, then forget every cached
+      // result, since any of them may now be stale.
+      out[name] = (...args: unknown[]): unknown => {
+        try {
+          return call.apply(engine, args);
+        } finally {
+          caches.clear();
+        }
+      };
+    } else {
+      // A query: memoised like the named methods, keyed by its arguments' JSON.
+      out[name] = (...args: unknown[]): unknown => cached(name, argsKey(args), capacity, () => call.apply(engine, args));
+    }
   }
   return memo;
+}
+
+/** A cache key for a pass-through call: the arguments as JSON (typed arrays by their bytes' length and a hash). */
+function argsKey(args: unknown[]): string {
+  return JSON.stringify(args, (_key, value: unknown) => {
+    if (value instanceof Uint8Array || value instanceof Float64Array || value instanceof Float32Array) {
+      let h = 0;
+      for (let i = 0; i < value.length; i += 1) h = (h * 31 + Number(value[i])) | 0;
+      return `${value.constructor.name}:${value.length}:${h}`;
+    }
+    return value;
+  });
 }
 
 /** Names of every function-valued property of `obj`, own or inherited (class methods live on the prototype). */

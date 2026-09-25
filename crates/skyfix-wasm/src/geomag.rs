@@ -23,7 +23,7 @@ use skyfix_core::methods::compass::{CompassErrorResult, CompassRequest, Variatio
 use skyfix_ephemeris::ProviderSource;
 use skyfix_geomag::{FieldError, MagneticField, ModelChoice};
 
-use crate::{auto_provider, err, to_js};
+use crate::{err, to_js};
 
 /// `magnetic_field` when a model answers: every field of [`MagneticField`] plus the
 /// instant and the sentences.
@@ -263,7 +263,19 @@ pub fn compass_error_impl(request_json: &str) -> Result<CompassErrorResult, Stri
             notes: f.notes.clone(),
         })
     };
-    let source = ProviderSource(auto_provider());
+    // The explorer's own Earth rotation (DUT1 at the instant: the explorer-wide user
+    // value, else the IERS history, else 0; CONVENTIONS 15.2), so a bearing and the Sky
+    // view never disagree about where a body is.
+    let jd_utc = match (req.jd_utc, req.utc.as_deref()) {
+        (Some(jd), _) => jd,
+        (None, Some(utc)) => {
+            skyfix_core::time::parse_utc(utc).map_err(|e| format!("compass_error: utc: {e}"))?
+        }
+        (None, None) => return Err("compass_error: give utc or jd_utc".to_string()),
+    };
+    let source = ProviderSource(crate::nav::auto_provider_with_dut1(
+        crate::explorer::native::dut1_at(jd_utc),
+    ));
     skyfix_core::methods::compass::compass_error(&req, &source, Some(&model))
         .map_err(|e| format!("compass_error: {e}"))
 }

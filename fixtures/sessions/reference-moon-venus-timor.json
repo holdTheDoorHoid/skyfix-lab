@@ -1,5 +1,6 @@
 {
   "clock": {
+    "dut1_s": 0,
     "correction_s": 0.000000,
     "uncertainty_s": 0.000000
   },

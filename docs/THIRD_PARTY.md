@@ -37,6 +37,8 @@ a fact you expect is not where you thought, it has moved, not gone.
 | Constellation boundaries (IAU, Delporte 1930) | "Which constellation is this body in" | Public domain by age | None |
 | Natural Earth vector data | Offline world map (basemap) | Public domain | None |
 | Natural Earth populated places + IANA tzdata | Place search and time-zone guess (gazetteer) | Public domain | None |
+| USGS/IAU Gazetteer of Planetary Nomenclature, 150 named lunar features | The Moon in detail: features on the terminator, Apollo sites (display only) | U.S. Public Domain (USGS); names are IAU facts; selection and descriptions this project's own | None (USGS asks for credit; given in this document) |
+| Meeus, *Astronomical Algorithms*, chapters 47 and 53 (Eckhardt's physical libration) | The Moon's libration and orientation | Published formulas (facts); book not reproduced | None |
 | Inter, JetBrains Mono (Fontsource) | Interface and figures typefaces | SIL Open Font License 1.1 | None (licence ships with the files) |
 | `maplibre-gl` | Map and globe rendering | BSD-3-Clause | None |
 | Service worker, web app manifest, icons | Offline reload and install; written for this project, no library copied | This project's own work | None |
@@ -45,6 +47,9 @@ a fact you expect is not where you thought, it has moved, not gone.
 | World Magnetic Model WMM2025 (NOAA NCEI and BGS), 90 coefficient rows | Magnetic variation, dip and field 2025-2030; compass error | U.S. Government work, public domain ("not licensed or under copyright", NCEI) | None |
 | International Geomagnetic Reference Field IGRF-14 (IAGA), 195 coefficient rows × 27 columns | Magnetic variation 1900-2024 | **CC BY 4.0** (IAGA's Zenodo record); credited in this document — [see the licence note](#igrf-14-is-cc-by-40-credited-in-the-documentation) | None on screen; credited here |
 | WMM2025 official test values and technical report (NCEI), IAGA's pyIGRF14 test values, the BGS IGRF-14 calculator, NOAA's Geomag 7.0 sample output, Bowditch ch. 15 | Development-time checks of the magnetic models and the compass-error method | U.S. Government works; MIT (pyIGRF14); BGS web-service outputs as test data; **never shipped** | None |
+| NAIF lunar orientation kernels (DE440), published occultation predictions (BAA; IOTA via EarthSky and Astronomy) | Development-time truth for the Moon in detail (`docs/ACCURACY.md` section 14) | US Government works; published times are facts, transcribed; **never shipped** | None (not in the runtime at all) |
+| NOAA CO-OPS tide stations, harmonic constants, datums and subordinate offsets (3 499 stations) | Tide predictions, the optional `tides-us` pack (downloaded when turned on) | U.S. Government work (public domain); NOS *requests* attribution, a docs line here | None |
+| Schureman (1958), *Manual of Harmonic Analysis and Prediction of Tides* (USC&GS Special Publication 98) | Node factors, equilibrium arguments, constituent definitions of the tides engine | U.S. Government work (public domain); formulas transcribed | None |
 
 ## Runtime data
 
@@ -961,6 +966,96 @@ a test re-parses both files and compares every number.
   converted to integers without changing any value (CC BY's "indicate if changes were
   made": only the storage format changed). See the licence note below for why this is a
   documentation credit and not an on-screen one.
+### Tides (optional `tides-us` pack)
+
+Owner: tides agent (expansion programme; `crates/skyfix-tides`, `tools/tides/`,
+`crates/skyfix-wasm/src/tides.rs`). Added 2026-09-25. No new crate or npm dependency.
+The data ships as an **optional pack**, `web/public/data/packs/tides-us-<rev>.bin`,
+downloaded only when the person turns tides on (EXPANSION_PLAN §3); the core module
+never contains it.
+
+#### NOAA CO-OPS — tide stations, harmonic constants, datums, subordinate offsets
+
+| | |
+|---|---|
+| Publisher | NOAA National Ocean Service, Center for Operational Oceanographic Products and Services (CO-OPS), tidesandcurrents.noaa.gov |
+| Endpoints | `https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type=tidepredictions&expand=tidepredoffsets` (the station list with the subordinate offsets) and `.../mdapi/prod/webapi/stations/<id>.json?expand=harcon,datums,disclaimers,notices&units=metric` (each harmonic station) |
+| Retrieved | 2026-09-25 (UTC), 1 258 requests; URL, time, size and SHA-256 of every response in the git-ignored cache manifest (`tools/tides/cache/manifest.json`) |
+| Licence basis | U.S. Government work. NOAA's disclaimer (tidesandcurrents.noaa.gov/disclaimers.html): "The information on government servers are in the public domain, unless specifically annotated otherwise, and may be used freely by the public." None of the records used is annotated otherwise (the 52 station disclaimers are about the observations' provenance and leveling). |
+| Attribution | "NOS requests that attribution be given whenever NOS material is reproduced and re-disseminated" — a request, met by this entry and the pack's sidecar `source` field; no on-screen credit (the owner's no-credit preference is kept). The disclaimer also asks that the information not "be modified in content and then presented as official government material": the app presents its own predictions, labelled "predictions, not observations", never as NOAA's. |
+| Used for | 1 256 harmonic stations' constants (37 constituents, Anchorage 120), their datums (MHHW, MHW, MTL, MSL, MLW, MLLW, LAT, HAT, NAVD88) and 2 243 subordinate stations' reference, time and height differences |
+| Processing | `tools/tides/build.py`: amplitudes kept to the millimetre and Greenwich phases to 0.01° (NOAA publishes 1 mm and 0.1°: nothing lost); zero-amplitude constituents dropped; datums re-expressed relative to MSL in millimetres; additive height differences converted from feet; names as NOAA's list gives them, words set entirely in capitals (the old tide tables' mark of a reference station) put in title case, acronyms kept; stations sorted by id; five flags (`noaa_differs`, `no_datums`, `no_constants`, `reference_unusable`, `non_navigational`). The payload format is in EXPLORER_API "Expansion programme — tides". |
+| Coverage | Every station NOAA predicts tides for: the U.S. coasts, territories and possessions, and the foreign ports NOAA's former tide tables covered (Mexico, Central America, the Caribbean, the Pacific islands, British Columbia), as NOAA publishes them; NOAA's list has no country field (its state code is empty for 431 stations, many of them U.S.). The on-screen label says "US stations (NOAA)". |
+
+Non-U.S. constants (UKHO, SHOM, CHS, BoM) are licensed and not used; TICON-4 (CC BY 4.0,
+mixed provenance) was not used (the data audit, section 6).
+
+#### Schureman (1958) — the prediction method
+
+P. Schureman, *Manual of Harmonic Analysis and Prediction of Tides*, U.S. Coast and
+Geodetic Survey Special Publication 98, revised edition 1940, reprinted 1958 (a U.S.
+Government work, public domain), as scanned by NOAA:
+`https://tidesandcurrents.noaa.gov/publications/SpecialPubNo98.pdf` (25 449 366 bytes,
+retrieved 2026-09-25, read by the agent for the formulas; not stored in the repository).
+Transcribed into `crates/skyfix-tides/src/schureman.rs`: the astronomical elements of
+Table 1; I, ν, ξ (p. 156), ν′ and 2ν″ (formulas 224, 232); the node factors of formulas
+73-78, 149, 197/207 (M1), 213-215 (L2), 227 (K1), 235 (K2); the arguments V and angles u of
+Tables 2 and 2a. `crates/skyfix-tides/tests/schureman_tables.rs` carries printed values
+of Tables 6, 14 and 15 (1990-1999) typed from the scan, as test data.
+
+### The Moon in detail: named lunar features and the Moon's orientation (expansion programme P8)
+
+Owner: moondetail agent (2026-09-25). What ships: `crates/skyfix-almanac/data/
+lunar_features.tsv` (150 rows, 14.4 KB, 5.9 KB gzipped) and the formulas of
+`skyfix_almanac::libration`.
+
+#### Named lunar features — USGS/IAU Gazetteer of Planetary Nomenclature
+
+- **Source**: the Gazetteer of Planetary Nomenclature, https://planetarynames.wr.usgs.gov/,
+  maintained by the USGS Astrogeology Science Center for the IAU Working Group for
+  Planetary System Nomenclature: approved Moon features (target `16_Moon`, approval status
+  "Adopted by IAU"), searched by feature type (maria, oceanus, lacus, sinus, palus, montes,
+  rupes, rimae, valles, promontoria, dorsa, albedo features, stations, astronaut-named
+  features, craters; 2 002 named features read).
+- **Retrieved**: 2026-09-25 by `tools/moon/fetch.py` (HTTP POST of the site's own search
+  form; each saved page's size and SHA-256 are in `crates/skyfix-almanac/data/
+  lunar_features.manifest.json`). The site has no server-side CSV: its "CSV" button
+  exports the page's HTML table in the browser, and `tools/moon/gazetteer.py` reads the same
+  cells.
+- **Terms**: USGS, https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+  (checked by `fetch.py` on every run): "USGS-authored or produced data and information
+  are considered to be in the U.S. Public Domain." Credit is requested, not required; it
+  is given here and in the `source` field of every `moon_features` result. The names
+  themselves are IAU decisions (facts).
+- **Processing**: `tools/moon/build.py` joins the gazetteer's rows with
+  `tools/moon/picks.txt` — this project's own choice of 150 features (21 maria and the
+  ocean, bays, lakes and marshes, 21 ranges and peaks, scarps, rilles, valleys, a ridge,
+  capes, Reiner Gamma, 79 craters, the six Apollo sites), their ranks and their one-line
+  descriptions, written for this project and not copied from any list (the data audit's
+  caution about curated lists such as the "Lunar 100" was followed) — and writes name,
+  kind, latitude, longitude and diameter exactly as the gazetteer gives them
+  (planetocentric, east-positive, the LOLA 2011 control network's mean Earth/polar axis
+  frame, 0.01° precision). The six Apollo landing sites are not gazetteer names: each takes
+  the coordinates of the approved feature at its landing point (Apollo 11 "Statio
+  Tranquillitatis"; 12 "Surveyor"; 14 "Triplet"; 15 "Last"; 16 "Spot"; 17 "Trident", all
+  within 0.01° of the landers), recorded per row in the manifest.
+
+#### The Moon's orientation — published formulas
+
+- Meeus, J., *Astronomical Algorithms*, 2nd ed., Willmann-Bell, 1998, chapter 47 (the
+  Moon's fundamental arguments `D, M, M′, F, Ω`) and chapter 53 (optical libration, the
+  physical-libration series `ρ, σ, τ`, the position angle of the axis, the Sun's
+  selenographic position), which condense Eckhardt, D. H. (1981), *The Moon and the
+  Planets* 25, 3-49, as the *Astronomical Almanac* uses it (*Explanatory Supplement to the
+  Astronomical Almanac*, 1992, section 7.3, which also gives the IAU inclination
+  `I = 1°32′32.7″` and the definitions of colongitude and the librations' signs).
+  Formulas and coefficients are facts; nothing of the book is reproduced beyond them.
+- The 78.6944″ tilt from the principal-axis pole to the mean rotation pole: the DE440
+  `MOON_PA_DE440` to `MOON_ME_DE440_ME421` rotation, published in NAIF's frame kernel
+  `moon_de440_250416.tf` (a US Government work) after Park, R. S., et al. (2021), "The JPL
+  Planetary and Lunar Ephemerides DE440 and DE441", *AJ* 161, 105. One number, transcribed.
+- The Moon's radius for occultations, `k = 0.2725076` of `a = 6378.14 km`, is the
+  ephemeris's own (section "Moon model").
 
 ## Development-time references
 
@@ -1418,6 +1513,103 @@ registration, so it was not used; the BGS calculator is the other official IGRF-
 calculator NCEI's IGRF page names. The IGRF-14 paper itself (Earth Planets Space 78, 127)
 could not be fetched (the publisher's site challenges automated clients); it is cited from
 the Zenodo record, which is the release.
+### Tides: NOAA's own predictions (reference fixtures)
+
+Owner: tides agent. Development-time only; never shipped.
+
+| Fixture | Source | Retrieved |
+|---|---|---|
+| `fixtures/reference/tides_noaa.json` | NOAA CO-OPS predictions API, `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=skyfix-lab-tides&time_zone=gmt&units=metric&datum=MLLW&interval=hilo` and `interval=h`: 20 harmonic stations × 30 days (high/low and hourly) and 6 subordinate stations × 30 days (high/low); each harmonic station's (and each subordinate station's reference's) constants and datums as NOAA served them | 2026-09-25 (UTC), 46 prediction requests |
+| `fixtures/reference/tides_noaa_sweep.json` | the same API, `interval=hilo`, 2026-02-01 to 2026-02-03, every station of the list (3 492 answered, 7 refused, recorded) | 2026-09-25 (UTC), 3 499 requests |
+
+Same licence basis as the pack's data above (U.S. Government work, public domain).
+`tools/tides/fixtures.py` writes them; `fixtures/README.md`'s rule holds: never
+regenerated from Rust output.
+
+### Sailings, dip short of the horizon, star finder (sailings agent, expansion programme)
+
+Owner: sailings agent (`crates/skyfix-core/src/sailings/`, `corrections.rs` dip short,
+`methods/{starid,starfinder}.rs`; fixtures `bowditch_sailings.json`,
+`bowditch_dip_short.json`). No data is shipped: the runtime uses published formulas only.
+
+#### The American Practical Navigator (Bowditch), NGA Pub. No. 9, 2019 — sailings and Table 14
+
+- **What is used at runtime:** published formulas (facts), implemented here — the sailings of
+  volume 1, chapter 12 (great-circle, Mercator with meridional parts, mid-latitude, parallel,
+  plane, traverse and composite sailing) and the dip of the sea short of the horizon of
+  volume 2, chapter 4, section 402 (`Ds = 60 tan^-1(h/(6076.1 d) + d/8268)`), with its two
+  constants.
+- **What is used as test data:** the numbers of every worked example of volume 1, chapter 12
+  (sections 1207–1220), typed with the book's rounding and two errata recorded into
+  `fixtures/reference/bowditch_sailings.json`; 28 entries of volume 2, Table 14 (the 2002
+  edition's Table 22) into `fixtures/reference/bowditch_dip_short.json`. No text or figure
+  is reproduced.
+- **URL:** <https://msi.nga.mil/Publications/APN>; read from the copies at
+  <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/04-%20Part%202-%20Piloting/Chapter%2012-%20The%20Sailings.pdf>,
+  `.../Volume-_2/06-%20Piloting%20Tables/Table%2014-%20Dip%20of%20the%20Sea%20Short%20of%20the%20Horizon.pdf`
+  and `.../Volume-_2/09-%20Mathematics%20For%20Navigation/Chapter%204-%20Calculations%20and%20Conversion.pdf`.
+- **Retrieved:** 2026-09-24.
+- **Licence:** a work of the U.S. Government (National Geospatial-Intelligence Agency), not
+  subject to copyright in the United States (17 U.S.C. 105). No credit required; cited as a
+  source.
+
+#### Geodesy checks in `crates/skyfix-core/tests/sailings_wgs84.rs` (test code only)
+
+- **Vincenty's inverse formula** (T. Vincenty, *Survey Review* 23 (176), 1975): a published
+  method, implemented in the test to measure the sphere against WGS84; nothing shipped.
+- **The WGS84 quarter meridian, 10 001 965.729 m**: follows from WGS84's defining
+  constants (NIMA TR8350.2, a U.S. Government work); used as a check.
+- **The Geocentric Datum of Australia technical manual's worked example** (Intergovernmental
+  Committee on Surveying and Mapping: Flinders Peak to Buninyong, 54 972.271 m): four
+  coordinates and one distance, facts used only to check the test's Vincenty implementation,
+  which reproduces them to 1 mm. The figures are the widely reproduced published example;
+  the manual itself was not fetched for this work. Acknowledged here; nothing shipped.
+
+#### Star Finder and Identifier No. 2102-D (consulted, nothing used)
+
+The Weems & Plath instruction sheet for the 2102-D
+(<https://www.weems-plath.com/core/media/media.nl/id.1497/c.449809/.f?h=Y9xhAiPAr8xkc_7y46E7w1Ivopn1hkA7o3ADM6G_wmgRW8L8>,
+read 2026-09-24) and Bowditch 2019 volume 1 chapter 18 were consulted for how the instrument
+is built and set (a base with a north and a south side, blue templates every 10° of
+latitude, the arrow set on LHA Aries). No text, figure or data from them is used: the
+geometry (`methods/starfinder.rs`) is derived here from the sight-reduction formulas and
+tested against them.
+
+### The Moon in detail: reference data (development-time only, moondetail agent)
+
+Read only by `tools/moon/gen_reference.py` (and, for the published times, transcribed by
+hand) to write `fixtures/reference/moon_{libration,apsides,occultations}.json` and
+`moon_occultations_published.json`. Never shipped. Retrieved 2026-09-25.
+
+| File (in `tools/reference/data/`, git-ignored) | URL | Size (bytes) | SHA-256 | Publisher / licence |
+|---|---|---|---|---|
+| `moon_pa_de440_200625.bpc` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/moon_pa_de440_200625.bpc` | 12 863 488 | `60cd55aa401ea2ea97360636f567554bfe4e37bb829f901b4460a455dfaf783f` | NASA JPL / NAIF: DE440's integrated lunar orientation (principal axes), 1549-12-31 to 2650-01-25. US Government work, unrestricted. |
+| `moon_de440_250416.tf` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_de440_250416.tf` | 19 478 | `a47c71e9c9f33796bdafb2c9d69a7ee447b6016ecad80f71cd6f3e479f9cf768` | NASA JPL / NAIF: the lunar frame definitions (PA and ME). Same terms. |
+
+With Skyfield's `PlanetaryConstants` these reproduce the frame kernel's own worked example
+(Earth relative to the Moon at 2022 SEP 30 TDB) to 1 mm in both frames; the generator
+builds one Skyfield frame per PCK segment, since `read_binary` keeps only the last segment
+per body. The ephemerides (`de440s.bsp`, `de440.bsp`) and `hip_main.dat` are those listed
+above.
+
+**Published occultation predictions** (times only, facts; transcribed by hand into
+`moon_occultations_published.json`, which records each page and what it printed):
+
+- British Astronomical Association, M. Foulkes, "Observers' challenge: a lunar
+  occultation of Saturn on 2024 August 21",
+  https://britastro.org/2024/observers-challenge-a-lunar-occultation-of-saturn-on-2024-august-21
+  (Greenwich and Edinburgh, UT to 0.1 min).
+- EarthSky, B. McClure, "Moon occults Aldebaran on December 30",
+  https://earthsky.org/sky-archive/moon-occults-aldebaran-on-december-30/ (London and
+  Reykjavik, UT to the second, from IOTA's prediction).
+- Astronomy magazine, M. E. Bakich, "Watch the full Moon cover Mars",
+  https://www.astronomy.com/observing/watch-the-full-moon-cover-mars/, and J. L. Hunt,
+  https://www.whenthecurveslineup.com/2024/12/30/2025-january-13-wolf-moon-occults-mars/
+  (New York and Chicago, local times to the minute, from IOTA's prediction).
+
+IOTA's own prediction pages (lunar-occultations.com) could not be reached on the
+retrieval date (TLS errors), and in-the-sky.org refused automated reading, so the IOTA
+figures are the ones these articles quote.
 
 ## Licence decisions
 
@@ -1591,10 +1783,13 @@ line there; if the owner prefers no CC BY data at all, variation before 2025 has
 
 Owner: timescales agent (`crates/skyfix-core/src/{time, deltat, calendar}.rs`,
 `crates/skyfix-core/src/deltat/data.rs` generated by `tools/timescales/gen_timescales.py`,
-`fixtures/reference/timescales.json`). Added 2026-09-24. **Nothing was downloaded for this
-work:** the sources below were already on disk (the planner's data audit fetched the three
-text files on 2026-09-24; Skyfield came with the reference virtualenv). The three text
-files are kept in `tools/timescales/sources/` so the tables can be regenerated.
+`fixtures/reference/timescales.json`). Added 2026-09-24; UT1 − UTC refreshed 2026-09-25
+from IERS `finals2000A.all`, which the planner downloaded with the owner's approval (the
+agent downloaded nothing). The planner's data audit fetched the three other text files on
+2026-09-24; Skyfield came with the reference virtualenv. Everything the generator reads is
+in `tools/timescales/sources/`, except the full `finals2000A.all`, which is git-ignored
+and replaced by a committed extract of the columns used (below), so the tables can be
+regenerated from the repository alone.
 
 Suggested row for "At a glance" (planner): *Delta-T splines and errors (Stephenson,
 Morrison, Hohenkerk & Zawilski, 2020 revision); IERS UT1 − UTC (Bulletin A / finals2000A)
@@ -1628,20 +1823,30 @@ document); IERS / USNO open data, U.S. Government work | None.*
   last-year slope): Skyfield 1.55's `build_delta_t` (`skyfield/timelib.py`, MIT licence,
   Brandon Rhodes), reimplemented in Rust from its description and code; no code copied
   verbatim.
-- **UT1 − UTC, 1973-01-02 to 2026-01-23** (and, corrected, to 2026-09-17): the IERS Rapid
-  Service/Prediction Center's `finals2000A` series (IERS Bulletin A, USNO) as bundled in
-  Skyfield 1.55's `skyfield/data/iers.npz` (daily ΔT 1973-01-02 to 2027-01-23; the file's
-  sha256 is recorded in the fixture). IERS products are open access, citation customary;
-  USNO's are U.S. Government works. Processing: DUT1 = 32.184 s + (TAI − UTC) − ΔT per day,
-  the January-2026 prediction corrected smoothly to the observations below, sampled every
-  7 days, stored as i16 in units of 0.1 ms (2 856 samples, 5.6 KB).
-- **UT1 − UTC, 2026-09-18 to 2027-09-24**: *IERS Bulletin A*, Vol. XXXIX No. 039, 24
-  September 2026 (IERS Rapid Service/Prediction Center, U.S. Naval Observatory),
-  <https://maia.usno.navy.mil/ser7/ser7.dat>, 35 614 bytes, sha256
-  `2ba7392d1f52fd664396d3595d4ec6b33124f866a43faa3dd122e2cd03499584`: the observed week
-  and the one-year daily prediction, and its prediction-error formula
-  `S t = 0.00025 (MJD − MJD0)^0.75` s. The bulletin states "Distribution statement A:
-  Approved for public release: distribution unlimited" (a U.S. Government work).
+- **UT1 − UTC, 1973-01-02 to 2027-09-28: IERS `finals2000A.all`** (IERS Rapid Service/
+  Prediction Center, U.S. Naval Observatory), <https://maia.usno.navy.mil/ser7/finals2000A.all>,
+  retrieved 2026-09-25 by the planner, 3 768 836 bytes, sha256
+  `cc80680ec05c91b65e7d02c6068fe0d44dd0998dc880551975092d2d14aa8e18`: daily values from
+  1973-01-02, observed (flag `I`) to 2026-09-24 and IERS Bulletin A of 2026-09-24's
+  prediction (flag `P`) to 2027-10-02. The Bulletin A UT1 − UTC column (59-68) is used,
+  as Skyfield reads it. USNO's products are U.S. Government works; IERS data are open with
+  citation customary. The file itself is **not committed** (`.gitignore`): it is re-issued
+  every week and old copies are not kept upstream, so the columns used are committed as
+  **`tools/timescales/sources/finals2000A-ut1-2026-09-25.txt`** (MJD, flag, UT1 − UTC,
+  verbatim; 19 997 rows, 370 853 bytes, sha256
+  `173cc2a1aae8cd56497b2b919a75b793aff1eb101349863a7fa6dfd40d29eaaa`; its header repeats
+  the original's URL, size and hash). The generator reads the full file when it is present
+  (and rewrites the extract from it) and the extract otherwise; the outputs are
+  byte-identical either way. Processing: sampled every 7 days from 1973-01-02, stored as
+  i16 in units of 0.1 ms (2 857 samples to 2027-09-28, 5.6 KB).
+- **IERS Bulletin A**, Vol. XXXIX No. 039, 24 September 2026 (IERS Rapid Service/Prediction
+  Center, U.S. Naval Observatory), <https://maia.usno.navy.mil/ser7/ser7.dat>, 35 614
+  bytes, sha256 `2ba7392d1f52fd664396d3595d4ec6b33124f866a43faa3dd122e2cd03499584`: the
+  bulletin the finals file carries. Used for its prediction-error formula
+  `S t = 0.00025 (MJD − MJD0)^0.75` s, and as a cross-check (its observed week agrees
+  with the finals file to 0.4 µs and its predictions to 5 µs, the printed rounding). The
+  bulletin states "Distribution statement A: Approved for public release: distribution
+  unlimited" (a U.S. Government work).
 - **Leap seconds (TAI − UTC)**: IERS Bulletin C, as tabulated in `skyfix_core::time`
   since the first release (facts); Bulletin A of 2026-09-24 confirms 37 s and no leap
   second at the end of 2026.
@@ -1660,9 +1865,179 @@ document); IERS / USNO open data, U.S. Government work | None.*
 
 - **Skyfield 1.55** (MIT): `build_delta_t` run on this project's table is the Python twin
   of the Rust model (`tools/timescales/skyfield_timescale.py`, also the timescale the
-  fixture generators should use); `compute_calendar_date` and `julian_day` check the
+  fixture generators should use); `skyfield.data.iers.build_timescale_arrays` builds
+  Skyfield's own timescale from the same finals data, the like-for-like reference;
+  Skyfield's bundled `iers.npz` (an earlier finals2000A.all, observed to about 2026-01-23)
+  is compared with, never used; `compute_calendar_date` and `julian_day` check the
   calendars. Pinned in `tools/reference/requirements.txt`.
-- **Refresh.** A current `finals2000A.all` (<https://maia.usno.navy.mil/ser7/finals2000A.all>,
-  about 3.8 MB) or IERS EOP 20 C04 (<https://hpiers.obspm.fr/iers/eop/eopc04/eopc04.1962-now>,
-  about 5.2 MB) would give observed values to the build date and 1962-1972; fetching them
-  needs the owner's approval.
+- **Regenerating.** `tools/reference/.venv/bin/python tools/timescales/gen_timescales.py`
+  rebuilds `crates/skyfix-core/src/deltat/data.rs` and `fixtures/reference/timescales.json`
+  from the committed sources (byte-identical). **Refreshing** UT1 − UTC: download a current
+  <https://maia.usno.navy.mil/ser7/finals2000A.all> to `tools/timescales/sources/` (the
+  owner's approval first), set `FINALS_RETRIEVED` in the generator, run it (it writes a new
+  `finals2000A-ut1-<date>.txt`), review the diff and `docs/ACCURACY.md` section 14, record
+  the new file here and commit the extract, never the full file. 1962-1972 would need IERS
+  EOP 20 C04 (<https://hpiers.obspm.fr/iers/eop/eopc04/eopc04.1962-now>, about 5.2 MB).
+
+## Expansion programme — deep sky (deepsky agent, 2026-09-24)
+
+Owner: deepsky agent (`tools/starfield/{deepsky_fetch,dso,showers,milkyway,wgsn}.py`,
+`tools/starfield/{dso_objects,showers_table}.txt`, `crates/skyfix-starfield/data/{dso.txt,
+showers.txt,milkyway.bin,names_wgsn.txt,deepsky_manifest.json}`,
+`fixtures/reference/{dso_positions,showers_reference}.json`). Everything here is
+**display-only** (CONVENTIONS 13.6) and ships in the core module (32 KB of embedded data).
+
+**Nothing below needs on-screen credit.** The shipped values are CC0 (Wikidata), U.S.
+Government works (NASA HEASARC tables, NASA COBE/DIRBE maps) or facts compiled by this
+project (object selection, types, sizes, names and descriptions; the shower table; star
+names). The acknowledgements asked for as a courtesy are made here, in the documentation.
+The raw downloads are git-ignored (`tools/starfield/data/deepsky/`, with
+`provenance.json`: URL, query, retrieval time, size, SHA-256);
+`python3 -m tools.starfield.deepsky_fetch` repeats them, and `deepsky_manifest.json`
+records every input's hash and every check the builds made.
+
+#### Deep-sky objects: our selection, Wikidata's positions (`data/dso.txt`)
+
+- **Ours** (MIT OR Apache-2.0, like the rest of the project): the selection (all 110
+  Messier objects and 103 others by the rule written at the top of
+  `tools/starfield/dso_objects.txt`), the types, the common names as facts, the one-line
+  descriptions (written for this project; 29 left to the engine's "Open cluster in
+  Cassiopeia" pattern), 57 sizes and 20 magnitudes written in where the sources below
+  give none or the wrong kind. No Caldwell list, SEDS page, OpenNGC (CC BY-SA), SAC
+  database, NGC 2000.0 or Wikipedia table was used (data audit §8).
+- **Wikidata** (<https://query.wikidata.org/sparql>), three SPARQL queries kept in
+  `tools/starfield/deepsky_fetch.py` (the 110 items with a Messier code; the NGC/IC
+  codes of the list; six items without one, such as the Magellanic Clouds), retrieved
+  2026-09-25T03:29:32Z to 03:29:33Z (105 884, 61 192 and 6 577 bytes; SHA-256
+  `34a330a7…`, `d2f9771b…`, `8f08928d…`, full values in `provenance.json`). Used: right
+  ascension (P6257), declination (P6258) and apparent magnitude (P1215) with its band.
+  **Licence: CC0** (<https://www.wikidata.org/wiki/Wikidata:Licensing>: structured data
+  in the main namespace is CC0). Processing (`tools/starfield/dso.py`): positions to
+  10⁻⁴°; where an item carries two positions, the one nearer SIMBAD's (listed per object
+  in the manifest); magnitudes only when Wikidata's is an integrated V.
+- **NASA HEASARC, `globclust`** ("Milky Way Globular Clusters Catalog (December 2010
+  Version)", Harris 1996, 2010 edition): integrated V of the 43 globular clusters.
+  HEASARC TAP (<https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync>), ADQL `SELECT name,
+  alt_name, ra, dec, vmag FROM globclust ORDER BY name`, retrieved 2026-09-25T03:33:38Z,
+  8 578 bytes, SHA-256 `b4e4ecbb8f9193663e71cf3003bb24e93bf03a6790b29e58feafa0c21e815bf8`.
+  **Licence evidence:** data.gov lists the table
+  (<https://catalog.data.gov/dataset/milky-way-globular-clusters-catalog-december-2010-version>);
+  its harvest record
+  (<https://catalog.data.gov/harvest_record/02f2cc06-eb8f-4c28-9e41-ac6ee1802510/raw>,
+  checked 2026-09-25, 3 040 bytes, SHA-256
+  `97981f1ff1db01d096d816e8d2106f77849a3fe8276a474020bf1fd67f07aa2c`) reads
+  `"identifier": "ivo://nasa.heasarc/globclust"`, `"accessLevel": "public"`,
+  `"license": "https://www.usa.gov/government-works"`, publisher HEASARC.
+- **NASA HEASARC, `rc3`** ("Third Reference Catalog of Bright Galaxies", de Vaucouleurs
+  et al. 1991): V_T for 61 galaxies, and B_T less the median B−V (0.81) of those for five
+  without a colour. ADQL `SELECT name, alt_name_1, alt_name_2, pgc_name, ra, dec, bt_mag,
+  bv_color_tot, log_d25, log_r25 FROM rc3 WHERE bt_mag < 12.5 ORDER BY name`, retrieved
+  2026-09-25T03:33:40Z, 91 475 bytes, SHA-256
+  `3cba0768ccba83b694ebfa34054f8bde91d4843680ae2232ff63d21b57d39bb0`. **Licence
+  evidence:** <https://catalog.data.gov/dataset/third-reference-catalog-of-bright-galaxies>,
+  harvest record
+  <https://catalog.data.gov/harvest_record/026023ce-dca4-4906-8ef3-6a768eded064/raw>
+  (checked 2026-09-25, 1 889 bytes, SHA-256
+  `95800277f4ace6dfbd226b68f54f63ed84f00571328e104ffb3185fe28c4f29c`):
+  `"identifier": "ivo://nasa.heasarc/rc3"`, `"accessLevel": "public"`,
+  `"license": "https://www.usa.gov/government-works"`. The same caveats as for BSC5P
+  above apply (USAGov's note on works outside the United States; the values are
+  measurements in any case). *This product uses data from NASA's High Energy
+  Astrophysics Science Archive Research Center (HEASARC).*
+- **SIMBAD** (CDS, Strasbourg), TAP <https://simbad.u-strasbg.fr/simbad/sim-tap/sync>
+  (query in `provenance.json`), retrieved 2026-09-25T03:26:56Z, 25 201 bytes, SHA-256
+  `1774b51702fc2f2920462b0247b8f187c18b01a98a540da483e1af89d7d07dce`: the independent
+  position check, and the apparent sizes of 156 objects, rounded by us (dimension facts),
+  and one magnitude (IC 418). A handful of measurements re-keyed and rounded, as the
+  data audit (§8) allows with a documentation line: *This research has made use of the
+  SIMBAD database, operated at CDS, Strasbourg, France.*
+- **Corwin (2004), NGC/IC positions** (VizieR VII/239A, table `icpos`),
+  <https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=VII%2F239A%2Ficpos&-out.max=unlimited&-out=Cat%2CNGC%2FIC%2Cn_NGC%2FIC%2CRAJ2000%2CDEJ2000%2CqPos%2CN%2Ce_RAJ2000%2Ce_DEJ2000>,
+  retrieved 2026-09-25T03:27:00Z, 1 053 860 bytes, SHA-256
+  `ea0845ccdbdb6f5566dc332b17a90329e56ea8b7caec233eb9584a319a7a5466`. **Development-time
+  only**: the second reference for positions. Its values for our 203 NGC/IC objects sit in
+  the committed test fixture `fixtures/reference/dso_positions.json` beside SIMBAD's; none
+  ships in the module. No licence is stated (measurement facts); *this research has made
+  use of the VizieR catalogue access tool, CDS, Strasbourg, France.*
+
+#### Meteor showers: our own table (`data/showers.txt`, 32 showers)
+
+**Compiled from IAU MDC and IMO published values.** `tools/starfield/showers_table.txt`
+holds this project's own row per shower (IAU number, code, name, activity as J2000 solar
+longitude, radiant and drift, V∞, r, ZHR, a variable flag, parent body), chosen from the
+two sources below and checked against both by `tools/starfield/showers.py` (tolerances
+and the three recorded disagreements in the manifest). Neither source's table, layout or
+prose is copied; the values are facts.
+
+- **IAU Meteor Data Center**, established showers
+  (<https://www.ta3.sk/IAUC22DB/MDC2022/Etc/streamestablisheddata2026.txt>), retrieved
+  2026-09-25T03:22:36Z, 426 134 bytes, SHA-256
+  `61c2be3ff17e0d3e5db54512b8d164e0343e484261f7861a8c29ae1a356e7344`. No licence stated;
+  its header asks users to cite Jenniskens, P. et al. (2020), *Planet. Space Sci.* 182,
+  104821, and Jopek, T.J. & Kaňuchová, Z. (2017), *Planet. Space Sci.* 143, 3, which is done
+  here.
+- **International Meteor Organization, Meteor Shower Calendars** (editor J. Rendtel),
+  Table 5 ("Working list of visual meteor showers"): 2027,
+  <https://www.imo.net/ShCal27s.pdf>, retrieved 2026-09-25T03:22:36Z, 837 985 bytes,
+  SHA-256 `9e6b9a1609fb89ebb8571756b15670b2ccf22e64ed22ae999ff604705d773eec`; 2026, from the
+  Internet Archive's copy of <https://imo.net/files/meteor-shower/cal2026.pdf> (the IMO
+  site is being rebuilt), <http://web.archive.org/web/20260308033848id_/https://imo.net/files/meteor-shower/cal2026.pdf>,
+  retrieved 2026-09-25T03:22:37Z, 988 146 bytes, SHA-256
+  `fde5388889ebda9fe13436d793da5e9935ae46b99edf20e0b19f7fe32ce1ed9f`. The PDFs carry no
+  licence statement, so their text and layout are the IMO's; only numbers are used: in our
+  table, and the calendars' dates in the test fixture
+  `fixtures/reference/showers_reference.json`. Read at development time with
+  `pdftotext -layout` (Poppler).
+
+#### The Milky Way outline: our own isophotes from COBE/DIRBE (`data/milkyway.bin`)
+
+- **NASA COBE/DIRBE Zodi-Subtracted Mission Average maps**, from NASA's Legacy Archive
+  for Microwave Background Data Analysis (LAMBDA,
+  <https://lambda.gsfc.nasa.gov/product/cobe/dirbe_zsma_data_get.html>): band 1A, 1.25 µm
+  (<https://lambda.gsfc.nasa.gov/data/cobe/dirbe/zsma/DIRBE_BAND1A_ZSMA.FITS>, retrieved
+  2026-09-25T03:22:45Z, 6 701 760 bytes, SHA-256
+  `5686cf768467fa595aea2e1fad9cfc1b0231d5c5736073fde05333bfcd895a76`), band 8, 100 µm
+  (`…/DIRBE_BAND08_ZSMA.FITS`, 03:22:48Z, 6 701 760 bytes,
+  `907a62a76f1347141affd2124af27c071ead27a0629689b578a3d0a1c1943eaa`), and the pixel
+  coordinates, <https://lambda.gsfc.nasa.gov/data/cobe/dirbe/ancil/skyinfo/DIRBE_SKYMAP_INFO.FITS>
+  (03:22:53Z, 12 620 160 bytes,
+  `391a2f839e67c8b074c1666eeb29928c7dcfcaab5b12a10be1dedae75bb67cc4`). **Basis:** NASA
+  mission data, a U.S. Government work; LAMBDA asks for an acknowledgement in
+  publications: *This product uses COBE/DIRBE data from NASA's Legacy Archive for
+  Microwave Background Data Analysis (LAMBDA).*
+- **Processing** (`tools/starfield/milkyway.py`, numpy only): pixels to galactic
+  coordinates (checked against the file's own to 0.0006°) on a 0.5° grid; single stars
+  masked (4 robust σ above a 3.5° box's median; 18 444 pixels); both maps smoothed with a
+  1.5° Gaussian; the starlight dimmed by a dust screen, `exp(−0.5 (τ_V − τ_J))`,
+  `A_V = 0.05 mag per MJy/sr` of 100 µm emission (Schlegel, Finkbeiner & Davis 1998),
+  `τ_J = 0.28 τ_V`, τ_V capped at 30; the Magellanic Clouds masked; four contour levels
+  (0.32, 0.50, 0.80, 1.30 MJy/sr; the faintest on the undimmed map) by oriented marching
+  squares; to J2000; Douglas–Peucker on the sphere to 0.2°; rings under 3° dropped.
+  Result: 24 rings, 856 points, 3 236 bytes (format in `milkyway.rs`). The isophotes are
+  this project's own work. Not used: d3-celestial's `mw.json` (its upstream source is
+  gone), Gaia maps (CC BY-SA), and any panorama (data audit §12).
+
+#### Star names: IAU WGSN (`data/names_wgsn.txt`)
+
+**Star names: IAU WGSN.** The IAU Working Group on Star Names' catalogue as kept current
+at <https://exopla.net/star-names/modern-iau-star-names/> (retrieved
+2026-09-25T03:22:42Z, 661 844 bytes, SHA-256
+`8a5be8fb41a408f745782fbc52d2f5e43cd2210de84460a529d5b4e4ea628008`; 641 names), checked
+against the 2022 text edition <https://www.pas.rochester.edu/~emamajek/WGSN/IAU-CSN.txt>
+(71 800 bytes, SHA-256 `84fac0c90f1b19abc491c2793469e0caa7b003ad1bc93a790ca41147010d0eb0`).
+A name and the star it belongs to are facts, so no credit is needed on screen; the
+IAU-CSN header releases IAU products under Creative Commons Attribution and asks users to
+cite the IAU version, which this line does. Used: the name, the HR number (the join to the
+display catalogue) and the HIP number (for search). `tools/starfield/wgsn.py` accepts a
+join only when the position or the designation agrees, keeps the star field's own 252
+names (the Almanac's spellings), and writes the 220 names it adds with the HIP numbers of
+all 458 joined stars (`hr|hip|name`, 7 169 bytes).
+
+#### Models (published formulas; no code copied)
+
+Air mass: Pickering, K.A. (2002), *DIO* 12, 3. Sky brightness and naked-eye limiting
+magnitude: Schaefer, B.E. (1990), *PASP* 102, 212. Moonlight: Krisciunas, K. & Schaefer,
+B.E. (1991), *PASP* 103, 1033. Sky classes: Bortle, J.E. (2001), *Sky & Telescope*,
+February, 126 (the limiting-magnitude range of each class, a fact). Meteor rates: the
+standard ZHR conversion (IMO). Each is written from the publication's equations and
+checked by hand evaluation (`docs/ACCURACY.md`, "Deep sky").

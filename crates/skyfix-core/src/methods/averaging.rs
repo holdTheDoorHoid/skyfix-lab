@@ -333,7 +333,7 @@ pub fn average_sights(
         &sights,
         &used,
         t_ref,
-        session.clock.correction_s,
+        crate::error_logs::clock_correction_for_corrected(&session.clock, t_ref),
         ho_avg / 60.0,
         sigma,
         slope,

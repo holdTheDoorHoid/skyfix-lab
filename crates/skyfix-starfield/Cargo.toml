@@ -11,6 +11,14 @@ rust-version.workspace = true
 skyfix-core = { path = "../skyfix-core" }
 skyfix-ephemeris = { path = "../skyfix-ephemeris" }
 thiserror = { workspace = true }
+# --- deepsky agent (expansion programme, 2026-09-24) ---
+# The "tonight" ranking takes the darkness window and the Moon's and planets' tracks
+# from the events crate (the dependency runs this way only: skyfix-almanac must never
+# depend on the star field, CONVENTIONS 13.6). serde: the deep-sky results are the
+# WASM adapter's wire types.
+skyfix-almanac = { path = "../skyfix-almanac" }
+serde = { workspace = true }
+# --- end deepsky ---
 
 [dev-dependencies]
 # The reference fixtures and the build manifest are JSON; only the tests read them.

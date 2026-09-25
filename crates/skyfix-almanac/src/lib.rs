@@ -12,3 +12,9 @@ pub mod sky;
 // Expansion programme, suntools agent (P7): golden and blue hour, azimuth search,
 // alignments, analemma, sun path, equation of time, clear-sky energy, Milky Way windows.
 pub mod sun_tools;
+
+// Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod apsides;
+pub mod libration;
+pub mod lunar_features;
+pub mod occultations;

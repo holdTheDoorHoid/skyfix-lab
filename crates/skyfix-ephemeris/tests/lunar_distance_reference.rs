@@ -99,6 +99,7 @@ fn input(c: &Case, observed: bool) -> LunarDistanceInput {
             name: String::new(),
             index_correction_arcmin: c.index_correction_arcmin,
             horizon: HorizonMode::Sea,
+            index_error_log: Vec::new(),
         },
         body: c.body.clone(),
         utc_estimate: c.watch_utc.clone(),

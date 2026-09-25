@@ -128,16 +128,29 @@ fn dut1_moves_every_hour_angle_by_the_earths_rotation() {
             a.extend_from_slice(extra);
             json(&skyfix(a).expect_code(0))
         };
-        let none = args(&[]);
+        let zero = args(&["--dut1", "0"]);
         let plus = args(&["--dut1", "0.5"]);
-        let shift = gha_shift_arcsec(&none, &plus, "/gha_deg");
+        let shift = gha_shift_arcsec(&zero, &plus, "/gha_deg");
         println!("{body}: --dut1 0.5 moves GHA by {shift:.4}\"");
         assert!(
             (shift - 0.5 * EARTH_RATE_ARCSEC_PER_S).abs() < 0.01,
             "{body}: {shift}\""
         );
         // The declination does not move.
-        assert_eq!(none["dec_deg"], plus["dec_deg"]);
+        assert_eq!(zero["dec_deg"], plus["dec_deg"]);
+        // Without the flag the engine's own value applies (the IERS history, CONVENTIONS
+        // 15.2): the same output as naming that value.
+        let automatic = skyfix_core::time::dut1_s(
+            skyfix_core::time::parse_utc("2026-10-01T03:00:00Z").unwrap(),
+            None,
+        );
+        let none = args(&[]);
+        let named = args(&["--dut1", &format!("{automatic}")]);
+        let drift = gha_shift_arcsec(&none, &named, "/gha_deg");
+        assert!(
+            drift.abs() < 1e-6,
+            "{body}: automatic {automatic} s vs named: {drift}\""
+        );
     }
 }
 
@@ -156,7 +169,9 @@ fn the_flag_wins_over_the_session_and_the_session_over_the_default() {
         a.extend_from_slice(extra);
         json(&skyfix(a).expect_code(0))
     };
-    let plain = reduce(&fixture("average_vega.session.json"), &[]);
+    // The baseline names DUT1 = 0: without a flag or a file value the engine's own
+    // history applies, which is what the last assertion checks.
+    let plain = reduce(&fixture("average_vega.session.json"), &["--dut1", "0"]);
     let from_file = reduce(&with_file, &[]);
     let from_flag = reduce(&fixture("average_vega.session.json"), &["--dut1", "0.4"]);
     let flag_over_file = reduce(&with_file, &["--dut1", "-0.2"]);

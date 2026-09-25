@@ -88,7 +88,52 @@ This file is the single list; the completion report links here.
 | item | status | notes |
 |---|---|---|
 | ΔT model with uncertainty, UTC/UT clock, IERS DUT1 history, Julian/Gregorian calendars, expanded years, `time_info`, `set_dut1`, `calendar_convert`, `skyfix calendar`, saros for any epoch | completed | CONVENTIONS 15.2-15.3; `docs/ACCURACY.md` section 14; `docs/EXPLORER_API.md`, "Time scales, Delta-T and calendars" |
-| Refresh the IERS UT1 − UTC table from a current `finals2000A.all` or EOP 20 C04 | unstarted | The table uses what was on disk: observed to 2026-01-23 (Skyfield 1.55's bundle) and 2026-09-18..24 (Bulletin A), a corrected prediction between (σ up to 0.05 s), and no 1962-1972 values (the splines stand there, σ 0.11 s). Needs the owner's approval to download (`tools/timescales/gen_timescales.py` docstring) |
+| Refresh the IERS UT1 − UTC table from a current `finals2000A.all` | completed | 2026-09-25: observed to 2026-09-24, IERS Bulletin A's prediction to 2027-09-28; the columns used are committed as `tools/timescales/sources/finals2000A-ut1-2026-09-25.txt`. Refresh again (download, `gen_timescales.py`, review) before 2027-09-28, when DUT1 becomes unknown (0 ± 0.9 s) again |
+| UT1 − UTC for 1962-1972 | unstarted | `finals2000A.all` starts in 1973; the splines stand there (σ 0.11 s, 1972 DUT1 `assumed`). IERS EOP 20 C04 (from 1962) would fill it, and needs the owner's approval to download |
 | Regenerate the Moon, planet, topocentric and almanac-page fixtures on the CONVENTIONS 15.2 scale | unstarted | Generated with TT = UTC + 69.184 s after 2035; their tests evaluate the fixtures' own TT and UT1 through `time::legacy_fixture_instant` and leave out the four almanac pages after 2035. Regenerate with `tools/timescales/skyfield_timescale.py`, then drop the shim (deeptime agent's generators) |
 | Almanac page exactly at UT1 hours | considered | The page keeps DUT1 = 0 so each row's instant is its UT1, as printed; TT is then off by DUT1 (≤ 0.5″ of the Moon). Exact would need `pages.rs` to evaluate at UTC = hour − DUT1 |
 | CLI polish for far dates | unstarted | The eclipse text prints ΔT without its σ; `--format geojson` lacks `delta_t_sigma_s`; `skyfix almanac --date` takes four-digit years only (its parser is `pages::UtDate`); table headers still say "UTC" where rows now say "UT" (cli3) |
+
+## Expansion programme — sailings agent (wave 1, 2026-09-24)
+
+| item | status | notes |
+|---|---|---|
+| Sailings: great-circle, rhumb-line (sphere or WGS84 meridional parts), mid-latitude, plane, traverse, parallel and composite sailing; waypoints; ETA | completed (engine) | `skyfix_core::sailings`, WASM `sailing`; every Bowditch 2019 ch. 12 worked example reproduces (`docs/NAVIGATION_METHODS.md` section 9.9); the Navigate → Passage tab and the map drawing are wave 2 (navigate2) |
+| Forward dead reckoning and routes (legs in the running fix's shape) | completed (engine) | `dr_advance`, `route_positions`; a great-circle route equals the running fix's DR to 1 mm; feeding a drawn DR track into the running fix is navigate2's |
+| Dip short of the horizon (`shore` horizon) | completed (engine) | Bowditch Table 14 to 0.046′; the TS types, CSV, autosave, the classic and Navigate horizon selects keep a shore horizon, but no form can yet *set* its distance (navigate2: a distance field beside the horizon select) |
+| Star identification from altitude and bearing | completed (engine) | `star_identify`; 58/58 stars recovered; the UI is navigate2's. Variation is not looked up: it is the caller's (the geomag agent's WMM value can be passed as `variation_deg`) |
+| Star finder (2102-D equivalent) geometry | completed (engine) | `star_finder_geometry`; drawing it is almanac2's or navigate2's |
+| Index-error and watch logs | completed (engine) | session schema, interpolation, the reduced sight's record; the Navigate view's `instrumentJson` (web/src/next/engine/wasm-nav.ts) still sends only the single index correction to `predict_sextant` and `plan_sights`, so a UI with a log must pass the log too (navigate2); no form edits the logs yet |
+| Command line for the sailings exports | unstarted | cli3 (wave 2) |
+
+## Expansion programme P8 — the Moon in detail (moondetail agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Libration, axis position angle, terminator, sub-solar point, disc geometry | completed (engine) | `skyfix_almanac::libration`, WASM `moon_orientation`; within 0.006° of JPL's DE440 lunar orientation 1550–2650 (`docs/ACCURACY.md` section 14). The Sky inset that draws it is wave 2 (Q3) |
+| Named features on the terminator | completed (engine) | 150 features from the USGS/IAU gazetteer (public domain), `moon_features`; the list and the inset are wave 2 (Q3, Q2) |
+| Perigee, apogee, supermoons, the year's largest and smallest full Moon | completed (engine) | `moon_apsides`, within 11 s and 0.22 km of DE440s; the Events list is wave 2 (Q4) |
+| Lunar occultations of bright stars and planets with local times | completed (engine), mean limb | `occultations`, within 1.4 s of Skyfield's geometry; the Events list and Selected card are wave 2 (Q4). Contacts are for the mean limb, labelled; correcting them (and deciding grazes) with the real limb profile waits on the lunar-limb pack (P12) |
+| Occultations of fainter stars and the Pleiades beyond Alcyone | available, not default | `max_magnitude` up to 6.5 (about 0.5 s a year natively); the default is 3.5 |
+
+## Expansion programme: deep sky (deepsky agent, 2026-09-24)
+
+| item | status | notes |
+|---|---|---|
+| Deep-sky objects (110 Messier + 103 by a stated rule), meteor showers (32, dates from our Sun), Milky Way outline (COBE/DIRBE isophotes), IAU WGSN star names (+220), search, extinction and limiting magnitude, the "tonight" ranking | completed (engine) | `skyfix-starfield` (`dso`, `showers`, `milkyway`, `names`, `search`, `extinction`, `tonight`, `observe`), exports in `crates/skyfix-wasm/src/deepsky.rs`, `DeepSkyEngine` in types.ts with the mock; display-only (CONVENTIONS 13.6); checks in `docs/ACCURACY.md`, "Deep sky". The views that show them belong to the Sky and Tonight packages |
+| Core-module size | partial | The package adds 164 734 bytes raw (73 118 gzipped) against an 80 KB budget; the module stays inside its 2.5 MB / 1 MB limits. About 32 KB is data, the rest code (search, showers, tonight, the night machinery, serialisation) |
+| Double stars tonight (a curated 50-100 pairs from the USNO Washington Double Star and Sixth Orbit catalogues) | unstarted | The brief's optional bonus. U.S. Government works; position angle and separation from ORB6 orbits |
+| `meteor_showers(year, observer)` speed | unstarted | 0.2 s natively (one night per shower, 32 nights); computing a shower's night only when the view asks for it would make the year view instant |
+| Milky Way outline: windows in the dust | unstarted | The 100 µm dust screen darkens the whole plane, so the Sagittarius Star Cloud (M24) and similar windows come out darker than the eye sees them; a visual-band dust model or hand-set windows would fix it |
+| Visibility from surface brightness | unstarted | The instrument guide uses integrated magnitude with a size term; a surface-brightness model (with the sky's brightness) would rank faint large galaxies and nebulae better |
+| CLI access to deep sky | unstarted | No `skyfix` subcommand yet (`tonight`, `showers`, `dso`); the engine calls are ready |
+
+## Expansion programme — tides (tides agent)
+
+| item | status | notes |
+|---|---|---|
+| Tide predictions engine and the `tides-us` pack | completed (engine) | `skyfix-tides` + `skyfix-wasm::tides`: NOAA's 3 499 stations, harmonic prediction with Schureman node factors in NOAA's conventions, high and low water with NOAA's tide-table rule, subordinate stations, datums, nearest stations; within 1.36 min and 1.08 cm of NOAA's own predictions at every station tested (`docs/ACCURACY.md` section 16). The interface (Charts → Tides, map layer, Tonight line) is wave 2 |
+| Tide pack loading through the pack mechanism | completed | `tides-us` is an entry of `packs::PRODUCERS`; `load_pack("tides-us", bytes)` installs it (the temporary loader of the first draft is gone) |
+| Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
+| Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
+| Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |

@@ -35,11 +35,21 @@ pub mod navsky;
 // Optional data packs: header, registry and dispatcher (packs agent; EXPLORER_API "Packs").
 pub mod packs;
 pub mod planet_events;
+// Expansion programme, sailings agent: sailings, DR, routes, star identification, star finder.
+pub mod sailings;
 pub mod starfield;
 // Expansion programme, wave 1 (docs/EXPANSION_PLAN.md section 5): one module per agent.
 pub mod timescale;
 // Expansion programme (deeptime agent): coverage tiers, `explorer_coverage` and `tier_at`.
 pub mod coverage;
+// Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod moondetail;
+// --- deepsky agent (expansion programme, 2026-09-24): deep-sky objects, meteor
+// showers, the Milky Way, search, extinction, tonight. EXPLORER_API.md, "Deep sky".
+pub mod deepsky;
+// --- end deepsky ---
+// Expansion programme (tides agent): tide predictions from the optional tides-us pack.
+pub mod tides;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;

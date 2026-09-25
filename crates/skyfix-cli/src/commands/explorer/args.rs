@@ -260,6 +260,7 @@ impl SightOpticsArgs {
             name: String::new(),
             index_correction_arcmin: self.ic,
             horizon: self.horizon.into(),
+            index_error_log: Vec::new(),
         }
     }
 }
@@ -868,6 +869,10 @@ mod tests {
         Dut1Args { dut1: Some(-0.3) }.apply(&mut session);
         assert_eq!(session.clock.dut1_s, Some(-0.3));
         assert_eq!(Dut1Args { dut1: Some(0.4) }.at(2.46e6), 0.4);
-        assert_eq!(Dut1Args { dut1: None }.at(2.46e6), 0.0);
+        // Without a value the engine's own lookup answers: the IERS history inside its
+        // span (CONVENTIONS 15.2), which is within the 0.9 s the IERS keeps UT1 - UTC to.
+        let automatic = Dut1Args { dut1: None }.at(2.46e6);
+        assert_eq!(automatic, skyfix_core::time::dut1_s(2.46e6, None));
+        assert!(automatic.abs() <= 0.9, "{automatic}");
     }
 }

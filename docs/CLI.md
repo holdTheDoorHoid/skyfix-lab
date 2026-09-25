@@ -1395,10 +1395,10 @@ Window     2026-10-01T12:00:00Z to 2026-10-02T12:00:00Z
 EVENING NAUTICAL TWILIGHT  2026-10-01T23:09:48Z to 2026-10-01T23:41:08Z
   predicted for 2026-10-01T23:09:48Z, the Sun at -6 00.0; limiting magnitude 1.5
   #   body                mag  limb          Hs        Zn        Hc
-  1   Deneb              1.25  centre  +69 09.1   65 51.0  +69 06.0
-  2   Altair             0.76  centre  +56 16.3  152 32.5  +56 12.8
-  3   Antares            1.06  centre  +16 00.6  212 27.5  +15 54.4
-  4   Arcturus          -0.05  centre  +28 14.6  271 58.0  +28 10.0
+  1   Deneb              1.25  centre  +69 09.2   65 50.9  +69 06.0
+  2   Altair             0.76  centre  +56 16.3  152 32.6  +56 12.8
+  3   Antares            1.06  centre  +16 00.5  212 27.6  +15 54.4
+  4   Arcturus          -0.05  centre  +28 14.5  271 58.1  +28 09.9
 ...
 ```
 

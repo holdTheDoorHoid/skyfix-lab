@@ -9,7 +9,8 @@
  * - the four result kinds are named unique, ambiguous, underdetermined and failed.
  */
 
-import type { AltitudeKind, CorrectionKind, HorizonMode, Limb } from '../../types.js';
+import type { AltitudeKind, CorrectionKind, HorizonMode, HorizonName, Limb, SimpleHorizon } from '../../types.js';
+import { horizonName, isShoreHorizon, SIMPLE_HORIZONS } from '../../types.js';
 import type { LunarClearingStep } from '../engine/types.js';
 
 export const HONESTY = 'Simulation and analysis workbench. Not a navigation instrument.';
@@ -72,7 +73,7 @@ export const LIMB_TEXT: Record<Limb, string> = {
   upper: 'Upper edge',
 };
 
-export const HORIZON_TEXT: Record<HorizonMode, { label: string; explain: string }> = {
+export const HORIZON_TEXT: Record<HorizonName, { label: string; explain: string }> = {
   sea: {
     label: 'Sea horizon',
     explain: 'Dip applies: the visible horizon is below true level by 1.76′ × √(height of eye in metres).',
@@ -85,7 +86,41 @@ export const HORIZON_TEXT: Record<HorizonMode, { label: string; explain: string 
     label: 'Electronic vertical',
     explain: 'An inclinometer or camera attitude supplies level directly. No dip; the index correction is the instrument zero offset.',
   },
+  shore: {
+    label: 'Shoreline nearer than the horizon',
+    explain:
+      'The altitude is measured from a waterline nearer than the sea horizon, so the dip short of the horizon applies (Bowditch Table 14): larger than the sea dip. Beyond the sea horizon the sea dip applies.',
+  },
 };
+
+/** A horizon in running text: its label in lower case, with a shore horizon's distance. */
+export function horizonSummary(h: HorizonMode): string {
+  const label = HORIZON_TEXT[horizonName(h)].label.toLowerCase();
+  return isShoreHorizon(h) ? `${label} (${h.shore.distance_nm} NM)` : label;
+}
+
+/** The words for a horizon, with a shore horizon's distance in its label. */
+export function horizonText(h: HorizonMode): { label: string; explain: string } {
+  const t = HORIZON_TEXT[horizonName(h)];
+  return isShoreHorizon(h) ? { label: `${t.label} (${h.shore.distance_nm} NM)`, explain: t.explain } : t;
+}
+
+/**
+ * Options for a horizon select: the three named horizons, and the current shore horizon
+ * when there is one. (Its distance comes from a session file for now; choosing it here
+ * keeps the one already set.)
+ */
+export function horizonOptions(current: HorizonMode | null): { value: HorizonName; label: string }[] {
+  const out: { value: HorizonName; label: string }[] = SIMPLE_HORIZONS.map((k) => ({ value: k, label: HORIZON_TEXT[k].label }));
+  if (current && isShoreHorizon(current)) out.push({ value: 'shore', label: horizonText(current).label });
+  return out;
+}
+
+/** The horizon a select's value stands for: `shore` keeps the current shore horizon. */
+export function horizonFromSelect(value: string, current: HorizonMode | null): HorizonMode | null {
+  if (value === 'shore') return current && isShoreHorizon(current) ? current : null;
+  return (SIMPLE_HORIZONS as readonly string[]).includes(value) ? (value as SimpleHorizon) : null;
+}
 
 export const ROLE_TEXT = {
   initializer: {

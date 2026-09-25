@@ -330,8 +330,9 @@ mod tests {
         let plain = predict_sextant_impl(PHL, "", "Moon", "lower", t).unwrap();
         let null = predict_sextant_impl(&with("null"), "", "Moon", "lower", t).unwrap();
         assert_eq!(plain, null);
+        let zero = predict_sextant_impl(&with("0"), "", "Moon", "lower", t).unwrap();
         let moved = predict_sextant_impl(&with("0.5"), "", "Moon", "lower", t).unwrap();
-        let shift = (moved.gha_deg - plain.gha_deg) * 3600.0;
+        let shift = (moved.gha_deg - zero.gha_deg) * 3600.0;
         assert!((shift - 7.5205).abs() < 0.01, "{shift}");
         // The Moon's prediction carries its Earth-shape term (CONVENTIONS 15.4).
         assert!(

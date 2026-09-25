@@ -25,6 +25,35 @@ import { createMockMisfit } from './mock-misfit.js';
 import { MockPacks } from './mock/packs.js';
 import { mockTierAt, mockTiers, type MockWindow } from './mock/coverage.js';
 import type { MisfitEngine, PackEngine, PackInfo, PackStatus } from './types.js';
+import { createMockSailings } from './mock-sailings.js';
+import type {
+  DrReport,
+  DrRequest,
+  PassageReport,
+  PassageRequest,
+  RouteReport,
+  RouteRequest,
+  SailingsEngine,
+  StarFinderGeometry,
+  StarIdRequest,
+  StarIdResult,
+} from './types.js';
+// Deep sky (deepsky agent).
+import { createMockDeepSky } from './mock/deepsky.js';
+import type {
+  DeepSkyEngine,
+  DsoCatalog,
+  DsoListOptions,
+  DsoPositions,
+  DsoVisibility,
+  ExtinctionTable,
+  MilkyWayOutline,
+  SearchResult,
+  ShowerYear,
+  SkyConditionsInput,
+  Tonight,
+  TonightOptions,
+} from './types.js';
 import {
   buildStarfield,
   mockConstellationAt,
@@ -78,6 +107,25 @@ import type {
   SunPath,
   SunToolsEngine,
 } from './types.js';
+import { mockMoonApsides, mockMoonFeatures, mockMoonOrientation, mockOccultations } from './mock/moondetail.js';
+import type {
+  MoonApsides,
+  MoonDetailEngine,
+  MoonFeatures,
+  MoonOrientation,
+  OccultationList,
+  OccultationOptions,
+} from './types.js';
+import { MockTides } from './mock/tides.js';
+import type {
+  TideCurve,
+  TideDatum,
+  TideExtremes,
+  TideNow,
+  TidesPackInfo,
+  TideStation,
+  TideStationNear,
+} from './types.js';
 
 export const MOCK_DESCRIPTION =
   'MOCK ENGINE for developing the interface. Every number on this page is illustrative: positions come from ' +
@@ -117,6 +165,8 @@ export interface MockEngineOptions {
    * of the interface. Default false: the mock is not validated against anything.
    */
   validated?: boolean;
+  /** Tides (tides agent): answer as if the tides-us pack were loaded (default true). */
+  tidesLoaded?: boolean;
 }
 
 interface BodyDef {
@@ -241,7 +291,17 @@ const MOCK_WINDOW: MockWindow = {
   endJd: COVERAGE_END,
 };
 
-export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine, CoverageTierEngine {
+export class MockEngine
+  implements
+    ExplorerEngine,
+    AlmanacEngine,
+    PackEngine,
+    TimeEngine,
+    SailingsEngine,
+    MoonDetailEngine,
+    DeepSkyEngine,
+    CoverageTierEngine
+{
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
   /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
@@ -263,11 +323,39 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, Ti
   }
 
   loadPack(name: string, bytes: Uint8Array): PackInfo {
-    return this.packRegistry.loadPack(name, bytes);
+    const info = this.packRegistry.loadPack(name, bytes);
+    if (name === 'tides-us') this.tides.install(); // tides agent: the synthetic station answers once loaded
+    return info;
   }
+
+  /** Sailings, DR, routes, star identification, star finder (mock-sailings.ts): illustrative. */
+  private readonly sailings: SailingsEngine = createMockSailings((o, jd) => this.skyState(o, jd, 'all'));
+
+  sailing(request: PassageRequest): PassageReport {
+    return this.sailings.sailing(request);
+  }
+
+  drAdvance(request: DrRequest): DrReport {
+    return this.sailings.drAdvance(request);
+  }
+
+  routePositions(request: RouteRequest): RouteReport {
+    return this.sailings.routePositions(request);
+  }
+
+  starIdentify(request: StarIdRequest): StarIdResult {
+    return this.sailings.starIdentify(request);
+  }
+
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry {
+    return this.sailings.starFinderGeometry(latBand, jdUtc);
+  }
+  /** Deep sky (mock/deepsky.ts): illustrative, like everything here. */
+  private readonly deep: DeepSkyEngine = createMockDeepSky(this);
 
   constructor(options: MockEngineOptions = {}) {
     this.validated = options.validated ?? false;
+    this.tides = new MockTides({ loaded: options.tidesLoaded ?? true });
     this.field = buildStarfield({ synthetic: options.syntheticStars ?? 2000 });
     this.defs = [
       { name: 'Sun', kind: 'sun', navigational: true },
@@ -571,9 +659,73 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, Ti
   // Almanac pages (illustrative; see mock/almanac.ts)
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // Deep sky (mock/deepsky.ts)
+  // -------------------------------------------------------------------------
+
+  dsoCatalog(): DsoCatalog {
+    return this.deep.dsoCatalog();
+  }
+
+  dsoList(observer: Observer | null, jdUtc: number, options?: DsoListOptions): DsoPositions {
+    return this.deep.dsoList(observer, jdUtc, options);
+  }
+
+  dsoVisibility(id: string, observer: Observer, jdUtc: number, conditions?: SkyConditionsInput): DsoVisibility {
+    return this.deep.dsoVisibility(id, observer, jdUtc, conditions);
+  }
+
+  meteorShowers(year: number, observer?: Observer | null, conditions?: SkyConditionsInput): ShowerYear {
+    return this.deep.meteorShowers(year, observer, conditions);
+  }
+
+  milkyWayOutline(): MilkyWayOutline {
+    return this.deep.milkyWayOutline();
+  }
+
+  skySearch(query: string, observer?: Observer | null, jdUtc?: number | null, limit?: number): SearchResult {
+    return this.deep.skySearch(query, observer, jdUtc, limit);
+  }
+
+  tonight(observer: Observer, jdUtc: number, options?: TonightOptions): Tonight {
+    return this.deep.tonight(observer, jdUtc, options);
+  }
+
+  extinction(conditions?: SkyConditionsInput): ExtinctionTable {
+    return this.deep.extinction(conditions);
+  }
+
   almanacDay(date: string): AlmanacDay {
     return mockAlmanacDay(this, date);
   }
+
+  // --- Tides (tides agent): one synthetic station (mock/tides.ts), illustrative only.
+  private readonly tides: MockTides;
+
+  tideStationsNear(latDeg: number, lonDeg: number, n: number): TideStationNear[] {
+    return this.tides.tideStationsNear(latDeg, lonDeg, n);
+  }
+
+  tideStation(stationId: string): TideStation {
+    return this.tides.tideStation(stationId);
+  }
+
+  tidePredict(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum: TideDatum | '' = ''): TideCurve {
+    return this.tides.tidePredict(stationId, jdStart, jdEnd, stepMin, datum);
+  }
+
+  tideExtremes(stationId: string, jdStart: number, jdEnd: number, datum: TideDatum | '' = ''): TideExtremes {
+    return this.tides.tideExtremes(stationId, jdStart, jdEnd, datum);
+  }
+
+  tideNow(stationId: string, jdUtc: number, datum: TideDatum | '' = ''): TideNow {
+    return this.tides.tideNow(stationId, jdUtc, datum);
+  }
+
+  tidePackInfo(): TidesPackInfo | null {
+    return this.tides.tidePackInfo();
+  }
+  // --- end tides
 
   // -------------------------------------------------------------------------
   // Magnetic field and compass error (expansion programme, geomag agent;
@@ -987,4 +1139,28 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, Ti
   galacticCentreWindows(...args: Parameters<SunToolsEngine['galacticCentreWindows']>): GalacticCentreWindows {
     return this.sunTools.galacticCentreWindows(...args);
   }
+
+  // Expansion programme P8 (moondetail agent): the Moon in detail, low precision
+  // (mock/moondetail.ts), illustrative like everything here.
+
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation {
+    return mockMoonOrientation(observer, jdUtc);
+  }
+
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures {
+    return mockMoonFeatures(observer, jdUtc);
+  }
+
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides {
+    return mockMoonApsides(this, jdStart, jdEnd);
+  }
+
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList {
+    return mockOccultations(observer, jdStart, jdEnd, options);
+  }
 }
+
+// The mock is a Moon-detail engine (checked here rather than in its `implements` list,
+// so parallel additions to that line do not collide).
+const _mockIsMoonDetail: (e: MockEngine) => MoonDetailEngine = (e) => e;
+void _mockIsMoonDetail;
