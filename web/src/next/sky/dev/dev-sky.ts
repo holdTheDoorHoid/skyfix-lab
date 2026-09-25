@@ -30,6 +30,7 @@ import { bindTimeKeys, goNow, setPlaying, setSpeed, startPlayback, stepTime } fr
 import { createExplorerStore, displayZone, type Layers, type Theme } from '../../state.js';
 import { formatWithUtc, isValidIanaZone, jdFromIso, jdFromWallClock, resolveZone } from '../../time.js';
 import { highlightBodies, mountSky, type SkyMounted } from '../index.js';
+import { NO_PACKS } from '../../packs/service.js';
 
 const BANNER = 'Simulation and analysis workbench. Not a navigation instrument.';
 
@@ -112,7 +113,7 @@ async function boot(root: HTMLElement): Promise<void> {
 
   const scheduler = createScheduler();
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
-  const ctx: Ctx = { store, engine, notices, scheduler };
+  const ctx: Ctx = { store, engine, notices, scheduler, packs: NO_PACKS };
   startPlayback(store, scheduler);
   bindTimeKeys(window, store);
 

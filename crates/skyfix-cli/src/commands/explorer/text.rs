@@ -6,10 +6,13 @@
 //! cannot be read as one above it. Rounding happens once, on the total arcminutes, so
 //! 59.96' carries into the degrees instead of printing an impossible `60.0`.
 //!
-//! Times are UTC with a trailing `Z` (CONVENTIONS section 6), to the second; the JSON
-//! output keeps the engine's milliseconds.
+//! Times are to the second, on the app's clock (CONVENTIONS 15.2): UTC with a trailing
+//! `Z` from 1972 to 2035, `UT` outside it; dates are Julian before 1582-10-15, labelled
+//! `(Julian)`, unless `--calendar` says otherwise (15.3). The JSON output keeps the
+//! engine's milliseconds and the wire's proleptic Gregorian dates.
 
-use skyfix_core::time::{JD_UNIX_EPOCH, format_utc};
+use skyfix_core::calendar::{self, Calendar, CivilDateTime};
+use skyfix_core::time::{self, ClockScale, JD_UNIX_EPOCH};
 
 /// `(whole degrees, arcminutes)` of `|deg|`, rounded once to tenths of an arcminute.
 fn split(deg_abs: f64) -> (i64, f64) {
@@ -92,31 +95,49 @@ pub fn round_to_second(jd_utc: f64) -> f64 {
     JD_UNIX_EPOCH + s / 86_400.0
 }
 
-/// `2026-10-01T01:30:00Z`: RFC 3339 UTC, to the nearest second.
+/// The calendar text output shows a date in: `--calendar`, else Julian before
+/// 1582-10-15 (CONVENTIONS 15.3).
+pub fn display_calendar(jd: f64) -> Calendar {
+    super::args::calendar_choice().unwrap_or_else(|| calendar::calendar_for_jd(jd))
+}
+
+/// `2026-10-01T01:30:00Z`: RFC 3339 UTC, to the nearest second. Outside 1972-2035 the
+/// clock is UT: `1900-01-01T00:00:00 UT`; before 1582-10-15 the date is Julian and says
+/// so, `-0584-05-28T12:00:00 UT (Julian)`.
 pub fn utc(jd_utc: f64) -> String {
-    let s = format_utc(round_to_second(jd_utc));
-    // format_utc always writes milliseconds: ".000" after rounding to the second.
-    match s.find('.') {
-        Some(dot) => format!("{}Z", &s[..dot]),
-        None => s,
+    let jd = round_to_second(jd_utc);
+    let cal = display_calendar(jd);
+    let Some(c) = CivilDateTime::from_jd(jd, cal) else {
+        return format!("JD {jd_utc}");
+    };
+    let mut s = format!("{}T{}", c.date_string(), c.time_string());
+    s.push_str(match time::scale_at(jd) {
+        ClockScale::Utc => "Z",
+        ClockScale::Ut => " UT",
+    });
+    if cal == Calendar::Julian {
+        s.push_str(" (Julian)");
     }
+    s
 }
 
 /// The time of day `HH:MM:SS` at `offset_minutes` from UTC (0 for UTC itself), to the
 /// nearest second.
 pub fn clock(jd_utc: f64, offset_minutes: i32) -> String {
-    let s = format_utc(round_to_second(jd_utc) + f64::from(offset_minutes) / 1440.0);
-    s.get(11..19).unwrap_or(&s).to_string()
+    let jd = round_to_second(jd_utc) + f64::from(offset_minutes) / 1440.0;
+    CivilDateTime::from_jd(jd, Calendar::Gregorian)
+        .map_or_else(|| format!("JD {jd}"), |c| c.time_string())
 }
 
 /// The date and time of day `YYYY-MM-DD HH:MM:SS` at `offset_minutes` from UTC, to the
-/// nearest second: a local time for a list that runs over several days.
+/// nearest second: a local time for a list that runs over several days. The date is in
+/// the display calendar ([`display_calendar`]).
 pub fn local_datetime(jd_utc: f64, offset_minutes: i32) -> String {
-    let s = format_utc(round_to_second(jd_utc) + f64::from(offset_minutes) / 1440.0);
-    match (s.get(..10), s.get(11..19)) {
-        (Some(date), Some(time)) => format!("{date} {time}"),
-        _ => s,
-    }
+    let jd = round_to_second(jd_utc) + f64::from(offset_minutes) / 1440.0;
+    CivilDateTime::from_jd(jd, display_calendar(jd)).map_or_else(
+        || format!("JD {jd}"),
+        |c| format!("{} {}", c.date_string(), c.time_string()),
+    )
 }
 
 /// A duration in seconds as `58 s`, `3 min 51 s` or `2 h 39 min 22 s`, to the nearest
@@ -230,6 +251,28 @@ mod tests {
         assert_eq!(duration_s(231.2), "3 min 51 s");
         assert_eq!(duration_s(9562.5), "2 h 39 min 23 s");
         assert_eq!(duration_s(3600.0), "1 h 00 min 00 s");
+    }
+
+    #[test]
+    fn far_dates_say_ut_and_julian() {
+        let t = |s: &str| skyfix_core::time::parse_utc(s).unwrap();
+        // UTC 1972-2035, UT outside; the Julian calendar before 1582-10-15.
+        assert_eq!(utc(t("1971-12-31T23:59:59.6Z")), "1972-01-01T00:00:00Z");
+        assert_eq!(utc(t("1971-12-31T12:00:00Z")), "1971-12-31T12:00:00 UT");
+        assert_eq!(utc(t("2036-01-01T00:00:00Z")), "2036-01-01T00:00:00 UT");
+        assert_eq!(utc(t("1582-10-15T00:00:00Z")), "1582-10-15T00:00:00 UT");
+        assert_eq!(
+            utc(t("1582-10-14T23:59:59Z")),
+            "1582-10-04T23:59:59 UT (Julian)"
+        );
+        let thales = t("-0584-05-22T12:00:00Z");
+        assert_eq!(utc(thales), "-0584-05-28T12:00:00 UT (Julian)");
+        assert_eq!(clock(thales, 0), "12:00:00");
+        assert_eq!(local_datetime(thales, -60), "-0584-05-28 11:00:00");
+        assert_eq!(
+            local_datetime(t("+12345-01-01T00:00:00Z"), 0),
+            "+12345-01-01 00:00:00"
+        );
     }
 
     #[test]

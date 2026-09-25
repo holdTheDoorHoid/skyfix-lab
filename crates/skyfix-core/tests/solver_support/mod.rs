@@ -69,6 +69,7 @@ pub fn sight_at(
         ho_rad: alt_deg.to_radians(),
         sigma_rad: arcmin_to_rad(sigma_arcmin),
         gha_rate_rad_per_s: sidereal_rate_rad_per_s(),
+        moon_hp_arcmin: None,
     }
 }
 

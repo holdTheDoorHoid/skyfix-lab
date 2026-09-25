@@ -16,7 +16,7 @@ import { disposer, watch, type Ctx } from '../component.js';
 import type { SkyEvent } from '../engine/types.js';
 import { MONTH_S, PLAYBACK_SPEEDS, goNow, setPlaying, setSpeed, setTime, stepTime, timeKeyAction, togglePlay } from '../playback.js';
 import { aroundToday, dayOf, setAttr, setText, sunToday } from '../shell/derived.js';
-import { bearing3, clock, clockSeconds, compassPoint, dateLong, dateShort, eventTime, formatAngle } from '../shell/format.js';
+import { bearing3, clock, clockParts, clockSeconds, compassPoint, dateLong, dateShort, endOfDay, eventTime, formatAngle, parseClock } from '../shell/format.js';
 import { PHASE_LABEL, PHASE_MEANING, clipPhases, segmentAt } from '../shell/sky.js';
 import { displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
 import { icon } from '../theme/icons.js';
@@ -68,12 +68,14 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   );
   const local = h('span', {});
   const seconds = h('span', { class: 'sf-tb-clock__sec' });
+  // AM or PM on the 12-hour clock: its own element, so it stays when phones hide the seconds.
+  const ampm = h('span', { class: 'sf-tb-clock__ampm' });
   const zoneName = h('span', { class: 'sf-tb-clock__zone' });
   const other = h('output', { class: 'sf-tb-clock__utc' });
   const clockButton = h(
     'button',
     { type: 'button', class: 'sf-tb-clock', 'data-tip': 'Type a time' },
-    h('output', { class: 'sf-tb-clock__local' }, local, seconds),
+    h('output', { class: 'sf-tb-clock__local' }, local, seconds, ampm),
     h('span', { class: 'sf-tb-clock__row' }, zoneName, other),
   );
   prevDay.addEventListener('click', () => stepTime(store, { unit: 'day', count: -1 }));
@@ -150,7 +152,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       bubbleText: `${clock(jd, zone)} ${zoneShortName(jd, zone)}`,
       nowJd: jdNow(),
       phaseTip: (p) =>
-        `${PHASE_LABEL[p.phase]}, ${eventTime(p.jd_start, zone)}–${p.jd_end >= b ? '24:00' : eventTime(p.jd_end, zone)}. ${PHASE_MEANING[p.phase]}`,
+        `${PHASE_LABEL[p.phase]}, ${eventTime(p.jd_start, zone)}–${p.jd_end >= b ? endOfDay(zone) : eventTime(p.jd_end, zone)}. ${PHASE_MEANING[p.phase]}`,
     });
     el.classList.toggle('sf-timebar--nodata', !day);
   };
@@ -173,8 +175,11 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     setText(yearText, ` ${w.year}`);
     setAttr(dateButton, 'aria-label', `Date: ${dateLong(jd, zone)}. Choose a date`);
     const full = clockSeconds(jd, zone);
-    setText(local, full.slice(0, 5));
-    setText(seconds, full.slice(5));
+    // Big hours and minutes, small seconds (and AM/PM on the 12-hour clock).
+    const partsNow = clockParts(jd, zone);
+    setText(local, partsNow.hm);
+    setText(seconds, partsNow.seconds);
+    setText(ampm, partsNow.suffix);
     setText(zoneName, zoneShortName(jd, zone));
     // UTC beside the display zone; when UTC is the display zone, the place's own clock.
     const placeZ = placeZone(s);
@@ -331,12 +336,13 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   });
   timeForm.addEventListener('submit', (e) => {
     e.preventDefault();
-    const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?/.exec(timeInput.value);
+    // Either clock: 18:40, 18:40:05, 6:40 pm (shell/format.ts `parseClock`).
+    const m = parseClock(timeInput.value);
     if (!m) return;
     const s = store.get();
     const zone = displayZone(s);
     const w = wallClock(s.time.jd_utc, zone);
-    setTime(store, jdFromWallClock({ year: w.year, month: w.month, day: w.day, hour: Number(m[1]), minute: Number(m[2]), second: Number(m[3] ?? 0) }, zone));
+    setTime(store, jdFromWallClock({ year: w.year, month: w.month, day: w.day, hour: m.hour, minute: m.minute, second: m.second }, zone));
     timePop.close();
   });
   const timePop = popover(clockButton, timeForm, {

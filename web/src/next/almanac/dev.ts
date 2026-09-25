@@ -21,6 +21,7 @@ import { createExplorerStore } from '../state.js';
 import { applyTheme, badge, button, installTooltips, setPressed, type ThemeName } from '../theme/index.js';
 import { almanacView } from './almanac.js';
 import { jdOfUtDate } from './layout.js';
+import { NO_PACKS } from '../packs/service.js';
 
 const THEMES: readonly ThemeName[] = ['light', 'dark', 'night'];
 
@@ -94,7 +95,7 @@ async function main(): Promise<void> {
   }
   const scheduler = createScheduler();
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
-  const ctx: Ctx = { store, engine, notices, scheduler };
+  const ctx: Ctx = { store, engine, notices, scheduler, packs: NO_PACKS };
   const page = almanacView(host, ctx);
   if (import.meta.env.DEV) (globalThis as { __almanac?: unknown }).__almanac = { ctx, page };
 }

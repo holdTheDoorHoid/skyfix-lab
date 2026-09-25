@@ -634,6 +634,13 @@ export interface SightObserver {
   height_of_eye_m?: number;
   pressure_hpa?: number;
   temperature_c?: number;
+  /**
+   * UT1 − UTC in seconds for the directions (expansion programme, moonshape): read by
+   * the WASM boundary of `predict_sextant`, `plan_sights` and `lunar_distance` to build
+   * the providers, as a session's `clock.dut1_s` is for the methods. Absent or null:
+   * automatic. Not part of the Rust `SightObserver`.
+   */
+  dut1_s?: number | null;
 }
 
 export type SightHorizon = 'sea' | 'artificial_reflected' | 'electronic_vertical';
@@ -699,7 +706,7 @@ export interface PredictedSight {
   dec_deg: number;
   semidiameter_arcmin: number;
   horizontal_parallax_arcmin: number;
-  /** Computed altitude and azimuth at the observer (CONVENTIONS §3). */
+  /** Computed altitude and azimuth at the observer (CONVENTIONS §3; the Moon's altitude includes `earth_shape_arcmin`, §15.4). */
   hc_deg: number;
   zn_deg: number;
   /** The sextant reading (the double angle with a reflected artificial horizon). */
@@ -709,6 +716,12 @@ export interface PredictedSight {
   /** The forward chain from `hs_deg`, landing on `hc_deg`. */
   corrections: SightCorrectionBreakdown;
   warnings: SightWarning[];
+  /**
+   * The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4); 0
+   * for every other body. The reading is then the real (WGS84) Earth's. Expansion
+   * programme.
+   */
+  earth_shape_arcmin: number;
 }
 
 export type LunarLimb = 'near' | 'far' | 'center';
@@ -872,7 +885,8 @@ export interface TwilightPlan {
 }
 
 export interface SightPlan {
-  observer: Required<SightObserver>;
+  /** The observer as the plan used it (`dut1_s` is read at the boundary and not echoed). */
+  observer: Required<Omit<SightObserver, 'dut1_s'>>;
   jd_start: number;
   utc_start: string;
   jd_end: number;
@@ -1642,9 +1656,11 @@ export function isTimeEngine(engine: unknown): engine is TimeEngine {
 
 export interface PackStatus {
   name: string;
+  /** The loaded pack's data version; '' until one is loaded (the manifest has the offered file's). */
   version: string;
   label: string;
   description: string;
+  /** The loaded pack file's size; 0 until one is loaded. */
   bytes: number;
   provides: string[];
   loaded: boolean;
@@ -1653,6 +1669,7 @@ export interface PackStatus {
 export interface PackInfo {
   name: string;
   version: string;
+  /** The whole pack file's size, header included. */
   bytes: number;
   provides: string[];
 }
@@ -1672,10 +1689,746 @@ export function isPackEngine(engine: unknown): engine is PackEngine {
   );
 }
 
+/**
+ * One pack as the page sees it (packs agent, 2026-09-24): what the engine says
+ * (`PackStatus`), what the site offers (its manifest) and what this device has saved.
+ * `version`, `bytes`, `label` and `description` are the offered file's when the site
+ * offers it, else the saved or loaded copy's.
+ */
+export interface PackState extends PackStatus {
+  /** Listed in the site's `data/packs/manifest.json`: it can be downloaded. */
+  offered: boolean;
+  /** This build of the core can install it (its name is in `packs()`). */
+  supported: boolean;
+  /** A copy is saved on this device. */
+  saved: boolean;
+  savedBytes: number;
+  /** The saved copy is an older revision than the site's; it is replaced on next use. */
+  stale: boolean;
+  /** Removed from this device while loaded: still in use until the page is reloaded. */
+  removedInUse: boolean;
+  /** A download in progress. */
+  progress: { received: number; total: number } | null;
+  /** The last thing that went wrong with this pack, in a sentence. */
+  error: string | null;
+}
+
 /** The pack service every component reaches through `Ctx.packs` (packs agent). */
 export interface PackService {
-  /** Makes sure a pack is loaded, prompting once with `reason`; false when declined or offline without a copy. */
+  /**
+   * Makes sure a pack is loaded: at once when it is loaded or saved, otherwise after one
+   * prompt that starts with `reason` (a sentence: "Positions before 1550 need the Deep time
+   * pack.") and gives the size. False when declined (remembered for the page session), when
+   * offline without a saved copy, or when the site does not offer it.
+   */
   ensure(name: string, reason: string): Promise<boolean>;
-  status(): PackStatus[];
+  /** Every pack the site offers, and any other saved or loaded one. */
+  status(): PackState[];
+  /** Deletes the saved copy (a loaded pack stays in use until the page is reloaded). */
   remove(name: string): Promise<void>;
+  /** Downloads, saves and loads a pack with no prompt (Settings → Data packs: Get). */
+  get(name: string): Promise<boolean>;
+  /** Called after every change: loaded, saved, removed, download progress. Returns the stop function. */
+  subscribe(listener: () => void): () => void;
+  /** Reads the site's pack list and this device's saved packs again. */
+  refresh(): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — sun tools (suntools agent, P7). Rust: crates/skyfix-wasm/src/
+// suntools.rs over skyfix_almanac::sun_tools. Wire format: docs/EXPLORER_API.md,
+// "Expansion programme — sun tools"; definitions: CONVENTIONS 13.10. Every altitude is
+// the topocentric one of CONVENTIONS 13.2 (`alt_deg` geometric, `alt_apparent_deg` with
+// the display refraction) and agrees with `skyState` at the same instant.
+// ---------------------------------------------------------------------------------
+
+/** Golden hour: the Sun's centre between -4° and +6° (geometric); blue hour: -6° to -4°. */
+export type SunLightKind = 'golden' | 'blue';
+/**
+ * `morning`/`evening`: the Sun climbs/sinks through the band; `midday`: it culminates
+ * inside it (high-latitude winter); `midnight`: its lower culmination is inside it
+ * (high-latitude summer); `all_day`: it stays in the band for the whole window.
+ */
+export type SunLightPeriod = 'morning' | 'evening' | 'midday' | 'midnight' | 'all_day';
+
+export interface SunLightWindow {
+  kind: SunLightKind;
+  period: SunLightPeriod;
+  jd_start: number;
+  utc_start: string;
+  jd_end: number;
+  utc_end: string;
+  duration_min: number;
+  /** The Sun was already in the band when the requested window began (not a crossing). */
+  open_start: boolean;
+  /** The Sun was still in the band when the requested window ended. */
+  open_end: boolean;
+}
+
+/** One threshold (-6, -4 or +6 degrees), with the twilight vocabulary for none. */
+export interface SunHourBoundary {
+  altitude_deg: number;
+  /** `alt_deg` of each is the threshold (geometric). */
+  crossings: AltitudeCrossing[];
+  always_above: boolean;
+  always_below: boolean;
+}
+
+export interface SunHours {
+  jd_start: number;
+  jd_end: number;
+  /** Golden and blue hours, time-ordered. */
+  windows: SunLightWindow[];
+  /** The -6, -4 and +6 degree thresholds, in that order. */
+  boundaries: SunHourBoundary[];
+  /** The Sun's rise, set, transits and twilight: `dayEvents` for the Sun. */
+  sun: BodyEvents;
+  phases: PhaseSegment[];
+}
+
+/**
+ * Apparent altitude limits of a bearing crossing, degrees. `min_deg` absent or null:
+ * "above the horizon" exactly as `above_horizon` says (upper limb above the sea-level
+ * horizon); `max_deg` absent or null: no upper limit.
+ */
+export interface AzimuthAltitudeBand {
+  min_deg?: number | null;
+  max_deg?: number | null;
+}
+
+export interface AzimuthCrossing {
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  /** The altitude is increasing. */
+  rising: boolean;
+  /** The azimuth is increasing (east to south to west, seen from above). */
+  clockwise: boolean;
+}
+
+/** Rise and set are the event finder's (upper limb on the sea-level horizon); `at_altitude` is the centre's apparent altitude. */
+export type AlignmentEvent = { kind: 'rise' } | { kind: 'set' } | { kind: 'at_altitude'; altitude_deg: number };
+
+export interface AlignmentRequest {
+  /** Default `Sun`. */
+  body?: string;
+  year: number;
+  azimuth_deg: number;
+  /** Default 0.5. */
+  tolerance_deg?: number;
+  event: AlignmentEvent;
+  /** The clock the dates are written on; absent or null: local mean time. */
+  utc_offset_hours?: number | null;
+  /** Rise and set only. */
+  options?: EventOptions | null;
+}
+
+export type AlignmentKind = 'rise' | 'set' | 'rising' | 'setting';
+
+export interface AlignmentMatch {
+  /** Local date on the request's clock. */
+  date: string;
+  kind: AlignmentKind;
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  /** `az_deg - azimuth_deg`, wrapped into (-180, 180]. */
+  offset_deg: number;
+  alt_deg: number;
+  /** The closest day of its run of consecutive matching days. */
+  best: boolean;
+}
+
+export interface AlignmentResult {
+  body: string;
+  year: number;
+  azimuth_deg: number;
+  tolerance_deg: number;
+  event: AlignmentEvent;
+  utc_offset_hours: number;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  events_considered: number;
+  matches: AlignmentMatch[];
+  /** The year's event nearest the bearing, matching or not; null when there is none. */
+  closest: AlignmentMatch | null;
+}
+
+/** `lmt`: local mean time at the observer's longitude; `zone`: a fixed offset all year (no daylight saving). */
+export type AnalemmaClock = 'lmt' | 'zone';
+
+export interface AnalemmaRequest {
+  year: number;
+  /** Clock time of day, hours in [0, 24). */
+  time_h: number;
+  clock: AnalemmaClock;
+  /** Required for `zone`, refused for `lmt`. */
+  utc_offset_hours?: number | null;
+}
+
+export interface AnalemmaPoint {
+  date: string;
+  jd_utc: number;
+  utc: string;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+  dec_deg: number;
+  /** Equation of time, seconds (CONVENTIONS 13.9). */
+  eot_s: number;
+}
+
+export interface Analemma {
+  year: number;
+  time_h: number;
+  clock: AnalemmaClock;
+  utc_offset_hours: number;
+  points: AnalemmaPoint[];
+  errors: BodyError[];
+}
+
+export type SunPathDayKind = 'day' | 'march_equinox' | 'june_solstice' | 'september_equinox' | 'december_solstice';
+
+export interface SunPathPoint {
+  jd_utc: number;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+}
+
+export interface SunPathDay {
+  day: SunPathDayKind;
+  jd_start: number;
+  jd_end: number;
+  /** The equinox or solstice instant; null for the requested day. */
+  season_jd_utc: number | null;
+  points: SunPathPoint[];
+}
+
+export interface SunPath {
+  step_minutes: number;
+  path: SunPathDay;
+  /** The same local day on the year's equinoxes and solstices, in calendar order. */
+  envelope: SunPathDay[];
+  errors: BodyError[];
+}
+
+export interface RiseSetAzimuthRequest {
+  /** Default `Sun`. */
+  body?: string;
+  year: number;
+  utc_offset_hours?: number | null;
+  options?: EventOptions | null;
+}
+
+export interface RiseSetEventRef {
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  alt_deg: number;
+}
+
+export interface RiseSetDay {
+  date: string;
+  jd_start: number;
+  jd_end: number;
+  rises: RiseSetEventRef[];
+  sets: RiseSetEventRef[];
+  transit: RiseSetEventRef | null;
+  always_above: boolean;
+  always_below: boolean;
+}
+
+export interface RiseSetAzimuths {
+  body: string;
+  year: number;
+  utc_offset_hours: number;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  days: RiseSetDay[];
+}
+
+export interface EotPoint {
+  /** UTC date. */
+  date: string;
+  jd_utc: number;
+  utc: string;
+  /** Apparent minus mean solar time, seconds (positive: the sundial is fast). */
+  eot_s: number;
+  dec_deg: number;
+}
+
+export interface EotExtreme {
+  kind: 'minimum' | 'maximum';
+  date: string;
+  jd_utc: number;
+  eot_s: number;
+}
+
+export interface EquationOfTime {
+  year: number;
+  utc_hour: number;
+  points: EotPoint[];
+  extremes: EotExtreme[];
+  errors: BodyError[];
+}
+
+export interface SolarPanel {
+  /** Degrees from horizontal, 0 to 90; default 0. */
+  tilt_deg?: number;
+  /** The direction the panel faces; default toward the equator. */
+  azimuth_deg?: number | null;
+  /** Ground reflectance; default 0.2. */
+  albedo?: number | null;
+}
+
+export interface SolarPanelUsed {
+  tilt_deg: number;
+  azimuth_deg: number;
+  albedo: number;
+}
+
+/** What the solar model is and how far to trust it: show `label` and `typical_error` with every number. */
+export interface SolarModel {
+  label: string;
+  clear_sky: string;
+  diffuse_split: string;
+  transposition: string;
+  typical_error: string;
+  not_modelled: string;
+}
+
+export interface SolarSample {
+  jd_utc: number;
+  sun_alt_apparent_deg: number;
+  sun_az_deg: number;
+  ghi_w_m2: number;
+  dni_w_m2: number;
+  dhi_w_m2: number;
+  poa_w_m2: number;
+  /** Null with the Sun down. */
+  incidence_deg: number | null;
+}
+
+export interface SolarDay {
+  jd_start: number;
+  jd_end: number;
+  step_minutes: number;
+  panel: SolarPanelUsed;
+  samples: SolarSample[];
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+  dni_kwh_m2: number;
+  peak_poa_w_m2: number;
+  model: SolarModel;
+}
+
+export interface SolarYearRequest {
+  year: number;
+  panel?: SolarPanel;
+  utc_offset_hours?: number | null;
+  /** Default 10. */
+  step_minutes?: number | null;
+  optimise_tilt?: boolean;
+}
+
+export interface SolarDayTotal {
+  date: string;
+  jd_start: number;
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+}
+
+export interface SolarMonth {
+  month: number;
+  days: number;
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+}
+
+export interface SolarOptimalTilt {
+  tilt_deg: number;
+  azimuth_deg: number;
+  poa_kwh_m2: number;
+}
+
+export interface SolarYear {
+  year: number;
+  utc_offset_hours: number;
+  step_minutes: number;
+  panel: SolarPanelUsed;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  days: SolarDayTotal[];
+  months: SolarMonth[];
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+  optimal: SolarOptimalTilt | null;
+  model: SolarModel;
+}
+
+export interface GalacticOptions {
+  /** Default 10 (apparent altitude of the galactic centre). */
+  min_altitude_deg?: number | null;
+  /** Default -18 (geometric altitude of the Sun). */
+  sun_max_altitude_deg?: number | null;
+}
+
+export interface GalacticMoment {
+  jd_utc: number;
+  utc: string;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+  /** The galactic equator's highest point above the horizon. */
+  arch_top_alt_deg: number;
+  arch_top_az_deg: number;
+  /** Where the galactic equator meets the horizon, the smaller first. */
+  arch_ends_az_deg: [number, number];
+}
+
+export interface GalacticWindow {
+  jd_start: number;
+  utc_start: string;
+  jd_end: number;
+  utc_end: string;
+  duration_h: number;
+  moon_up: boolean;
+  moon_illuminated_fraction: number;
+  /** The galactic centre at its highest in the window. */
+  best: GalacticMoment;
+}
+
+export interface J2000Direction {
+  ra_j2000_deg: number;
+  dec_j2000_deg: number;
+}
+
+export interface GalacticCentreWindows {
+  jd_start: number;
+  jd_end: number;
+  min_altitude_deg: number;
+  sun_max_altitude_deg: number;
+  galactic_centre: J2000Direction;
+  galactic_pole: J2000Direction;
+  windows: GalacticWindow[];
+}
+
+/** Sun tools (suntools agent). Each method throws a string-derived Error on malformed input or outside the coverage. */
+export interface SunToolsEngine {
+  /** Golden and blue hours over a window (one local day), with the Sun's events. About 1 ms. */
+  sunHours(observer: Observer, jdStart: number, jdEnd: number): SunHours;
+  /** When a body crosses a bearing inside an altitude band (window at most 400 days). */
+  findAzimuth(
+    observer: Observer,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    band?: AzimuthAltitudeBand,
+  ): AzimuthCrossing[];
+  /** The days of a year a body rises, sets or stands at an altitude on a bearing. About 60 ms (the Moon 0.3 s). */
+  alignmentDays(observer: Observer, request: AlignmentRequest): AlignmentResult;
+  /** The Sun at one clock time on every day of a year. About 10 ms. */
+  analemma(observer: Observer, request: AnalemmaRequest): Analemma;
+  /** A day's sun path (default 10-minute steps) and the equinox and solstice envelope. */
+  sunPath(observer: Observer, jdStart: number, jdEnd: number, stepMinutes?: number): SunPath;
+  /** Daily rise and set azimuths over a local year. About 60 ms (the Moon 0.3 s). */
+  riseSetAzimuths(observer: Observer, request: RiseSetAzimuthRequest): RiseSetAzimuths;
+  /** The equation of time and the Sun's declination each UTC day of a year, at `utcHour` (default 12). */
+  equationOfTime(year: number, utcHour?: number): EquationOfTime;
+  /** Clear-sky irradiance on a panel through a window (at most two days), and its energy. */
+  solarDay(observer: Observer, jdStart: number, jdEnd: number, panel?: SolarPanel, stepMinutes?: number): SolarDay;
+  /** Clear-sky energy for every local day of a year, and optionally the best tilt. About 60 ms. */
+  solarYear(observer: Observer, request: SolarYearRequest): SolarYear;
+  /** The galactic centre's dark-sky windows over a span of nights (at most 400 days). */
+  galacticCentreWindows(
+    observer: Observer,
+    jdStart: number,
+    jdEnd: number,
+    options?: GalacticOptions,
+  ): GalacticCentreWindows;
+}
+
+const SUN_TOOLS_METHODS = [
+  'sunHours',
+  'findAzimuth',
+  'alignmentDays',
+  'analemma',
+  'sunPath',
+  'riseSetAzimuths',
+  'equationOfTime',
+  'solarDay',
+  'solarYear',
+  'galacticCentreWindows',
+] as const;
+
+/** True when `engine` has the sun tools (the WASM engine of a new enough build, or the mock). */
+export function isSunToolsEngine(engine: unknown): engine is SunToolsEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Record<string, unknown>;
+  return SUN_TOOLS_METHODS.every((m) => typeof e[m] === 'function');
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — magnetic field and compass error (geomag agent). Rust:
+// crates/skyfix-wasm/src/geomag.rs over skyfix_geomag (WMM2025, IGRF-14) and
+// skyfix_core::methods::compass. Wire format: EXPLORER_API.md, "Expansion programme —
+// magnetic field and compass error"; CONVENTIONS 14.1-14.2; NAVIGATION_METHODS §9.
+// ---------------------------------------------------------------------------------
+
+export type MagneticModelName = 'WMM2025' | 'IGRF-14';
+/** Which model answers: WMM2025 in 2025.0–2030.0 and IGRF-14 before (`auto`), or one of them. */
+export type MagneticModelChoice = 'auto' | 'wmm2025' | 'igrf14';
+/** By the horizontal intensity: `blackout` < 2000 nT (compass unreliable), `caution` < 6000 nT. */
+export type MagneticZone = 'normal' | 'caution' | 'blackout';
+
+/** Annual rate of change of each element. */
+export interface MagneticAnnualChange {
+  declination_deg_per_year: number;
+  inclination_deg_per_year: number;
+  horizontal_nt_per_year: number;
+  north_nt_per_year: number;
+  east_nt_per_year: number;
+  down_nt_per_year: number;
+  total_nt_per_year: number;
+}
+
+/** One standard deviation of each element, and where the numbers come from (CONVENTIONS 14.1). */
+export interface MagneticUncertainty {
+  declination_deg: number;
+  inclination_deg: number;
+  horizontal_nt: number;
+  north_nt: number;
+  east_nt: number;
+  down_nt: number;
+  total_nt: number;
+  basis: string;
+}
+
+/** `magnetic_field` when a model answers. */
+export interface MagneticFieldValue {
+  available: true;
+  jd_utc: number;
+  utc: string;
+  model: MagneticModelName;
+  decimal_year: number;
+  lat_deg: number;
+  /** Normalised to (−180, 180]. */
+  lon_deg: number;
+  height_m: number;
+  /** Magnetic variation: true north to magnetic north, east positive. */
+  declination_deg: number;
+  /** Dip below the horizontal, down positive. */
+  inclination_deg: number;
+  horizontal_nt: number;
+  /** X, Y, Z in the geodetic frame. */
+  north_nt: number;
+  east_nt: number;
+  down_nt: number;
+  total_nt: number;
+  annual_change: MagneticAnnualChange;
+  uncertainty: MagneticUncertainty;
+  zone: MagneticZone;
+  /** After 2025.0 the value extrapolates a forecast rate of change. */
+  forecast: boolean;
+  /** Plain sentences (zones, less certain eras, forecasts). */
+  notes: string[];
+  /** `11.8° W`. */
+  variation_text: string;
+  /** `1.6′ E a year`. */
+  annual_change_text: string;
+  /** `Variation 11.8° W ±0.4° (WMM2025), changing 1.6′ E a year.` */
+  sentence: string;
+}
+
+/** `magnetic_field` when no model covers the date (before 1900, after 2030) or height. */
+export interface MagneticFieldUnavailable {
+  available: false;
+  jd_utc: number;
+  utc: string;
+  decimal_year: number;
+  lat_deg: number;
+  lon_deg: number;
+  height_m: number;
+  reason: string;
+}
+
+export type MagneticField = MagneticFieldValue | MagneticFieldUnavailable;
+
+/** `magnetic_grid`: row by row from the first latitude, west to east. */
+export interface MagneticGrid {
+  model: MagneticModelName;
+  decimal_year: number;
+  lat_deg: Float64Array;
+  lon_deg: Float64Array;
+  declination_deg: Float64Array;
+  horizontal_nt: Float64Array;
+}
+
+export type CompassMethod = 'azimuth' | 'amplitude';
+export type CompassKind = 'magnetic' | 'gyro';
+export type AmplitudeHorizon = 'visible' | 'celestial';
+export type RiseSet = 'rising' | 'setting';
+
+/** `compass_error` request (EXPLORER_API.md). Give `utc` or `jd_utc`. */
+export interface CompassRequest {
+  method?: CompassMethod;
+  body: string;
+  utc?: string;
+  jd_utc?: number;
+  observer: { lat_deg: number; lon_deg: number; height_m?: number };
+  /** What the compass read, [0, 360). */
+  compass_bearing_deg: number;
+  compass?: CompassKind;
+  /** A chart's variation, east positive; null: the model's. */
+  variation_deg?: number | null;
+  variation_sigma_deg?: number | null;
+  bearing_sigma_deg?: number | null;
+  magnetic_model?: MagneticModelChoice;
+  horizon?: AmplitudeHorizon;
+  height_of_eye_m?: number;
+  limb?: SightLimb;
+  event?: RiseSet | null;
+  pressure_hpa?: number;
+  temperature_c?: number;
+}
+
+export interface CompassVariation {
+  /** East positive. */
+  deg: number;
+  sigma_deg: number | null;
+  source: MagneticModelName | 'given';
+  text: string;
+  notes: string[];
+}
+
+export interface CompassAzimuthDetails {
+  gha_deg: number;
+  dec_deg: number;
+  /** Topocentric geometric altitude of the centre. */
+  altitude_deg: number;
+  /** CONVENTIONS 3 Zn, what the sight-reduction tables give. */
+  zn_spherical_deg: number;
+  azimuth_rate_deg_per_min: number;
+}
+
+export interface CompassAmplitudeDetails {
+  event: RiseSet;
+  horizon: AmplitudeHorizon;
+  dec_deg: number;
+  /** On the celestial horizon, north positive; null when the body never reaches it. */
+  amplitude_deg: number | null;
+  /** `W 1.0° S`. */
+  amplitude_text: string | null;
+  celestial_bearing_deg: number | null;
+  /** Geocentric altitude of the centre when the bearing was taken. */
+  altitude_deg: number;
+  /** Visible minus celestial bearing; Bowditch's Table 23 correction is its negative. */
+  visible_horizon_correction_deg: number;
+  dip_arcmin: number;
+  refraction_arcmin: number;
+  semidiameter_arcmin: number;
+  parallax_arcmin: number;
+  /** Degrees of bearing per degree of misjudged altitude. */
+  bearing_per_altitude: number;
+  minutes_from_given_time: number;
+}
+
+/** `compass_error` result (EXPLORER_API.md; CONVENTIONS 14.2). */
+export interface CompassError {
+  method: CompassMethod;
+  body: string;
+  compass: CompassKind;
+  jd_utc: number;
+  utc: string;
+  true_bearing_deg: number;
+  compass_bearing_deg: number;
+  /** True minus compass, (−180, 180], east positive. */
+  compass_error_deg: number;
+  compass_error_text: string;
+  compass_error_sigma_deg: number | null;
+  variation: CompassVariation | null;
+  /** Compass error minus variation, east positive. */
+  deviation_deg: number | null;
+  deviation_sigma_deg: number | null;
+  deviation_text: string | null;
+  /** `Compass error 14.4° W; variation 11.8° W; deviation 2.6° W.` */
+  sentence: string;
+  explanation: string;
+  azimuth: CompassAzimuthDetails | null;
+  amplitude: CompassAmplitudeDetails | null;
+  direction_source: string;
+  notes: string[];
+}
+
+/** Magnetic variation and compass error (geomag agent). */
+export interface GeomagEngine {
+  /** Never throws for a date or height no model covers: `available: false` with the reason. */
+  magneticField(
+    latDeg: number,
+    lonDeg: number,
+    heightM: number,
+    jdUtc: number,
+    model?: MagneticModelChoice,
+  ): MagneticField;
+  /** Declination on a grid for isogonic lines (≤ 70 000 points); null when no model covers the date. */
+  magneticGrid(
+    jdUtc: number,
+    latMin: number,
+    latMax: number,
+    nLat: number,
+    lonMin: number,
+    lonMax: number,
+    nLon: number,
+    heightM?: number,
+  ): MagneticGrid | null;
+  /** Throws a string for malformed input or a body the engine cannot place. */
+  compassError(request: CompassRequest): CompassError;
+}
+
+/** True when `engine` has the magnetic field and compass error (the memoised engine forwards them). */
+export function isGeomagEngine(engine: unknown): engine is GeomagEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<GeomagEngine>;
+  return (
+    typeof e.magneticField === 'function' &&
+    typeof e.magneticGrid === 'function' &&
+    typeof e.compassError === 'function'
+  );
+}
+
+// ---------------------------------------------------------------------------------
+// Timescales agent (expansion wave 1): additive fields by declaration merging. See
+// EXPLORER_API.md, "Time scales, Delta-T and calendars (timescales agent)".
+// ---------------------------------------------------------------------------------
+
+/**
+ * Standard uncertainty of `delta_t_s`, seconds (CONVENTIONS 15.2): DUT1's on the UTC
+ * scale (0.001 s from the IERS table, 0.05 s for a value the user set, 0.9 s when
+ * unknown), the Delta-T model's on the UT scale. Every eclipse output from this core
+ * on carries it; an older build does not, hence optional.
+ */
+export interface SolarEclipse {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipse {
+  delta_t_sigma_s?: number;
+}
+export interface SolarEclipseLocal {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipseLocal {
+  delta_t_sigma_s?: number;
+}
+export interface SolarEclipsePath {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipsePath {
+  delta_t_sigma_s?: number;
 }

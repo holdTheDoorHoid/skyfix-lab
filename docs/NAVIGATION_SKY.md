@@ -75,15 +75,22 @@ Decisions, and why:
 - **Mercury, Uranus and Neptune are not offered for sights** (CONVENTIONS 13.1); the
   sight provider refuses them with a sentence saying so. With a supplied direction any
   name still works, reduced by its class.
-- **Not modelled: the Earth's shape.** The project reduces sights on a sphere
-  (CONVENTIONS section 1). On the real Earth the observer is a little nearer the Earth's
-  centre than the equatorial radius and the plumb line does not point exactly at the
-  centre, so the Moon's true parallax differs from the sphere's by up to **0.22′**
-  (median 0.09′). USNO's online service applies that term at its assumed position (its
-  values agree with the WGS84 computation to 0.004′). The term depends on the
-  observer's latitude and the Moon's bearing, which a reduction does not know, so it is
-  left out and stated in the error budget. For a fix it is worth a few tens of metres
-  (below). For the planets it is under 0.005′.
+- **The Earth's shape is in the Moon's computed altitude** (expansion programme,
+  CONVENTIONS 15.4). On the real Earth the observer is a little nearer the Earth's centre
+  than the equatorial radius and the plumb line does not point exactly at the centre, so
+  the Moon's true parallax differs from the sphere's by up to **0.24′** (median 0.09′
+  over the Skyfield sights below). The difference depends on the observer's latitude and
+  the Moon's bearing, which a reduction does not know, so the correction chain keeps the
+  sphere and its `Ho`; instead the Moon's *computed* altitude `Hc` carries the
+  difference, evaluated at every position the solver tries, at the assumed position for
+  the intercept, and wherever else an `Hc` is computed. In plain words: the chain turns
+  the sextant reading into "the Moon's height above the horizon as seen from the Earth's
+  centre, on a round Earth", and the computed altitude it is compared with now says what
+  that same quantity is on the real Earth, where you stand. The Nautical Almanac's
+  direct-computation method applies the same correction, with the Moon's parallax taken
+  at its mean, to the observed altitude; USNO's online service applies it at its assumed
+  position. For the planets it is at most 0.0021′ (Venus at its nearest) and is not
+  applied, as the Almanac does not apply it.
 
 ### Validation
 
@@ -103,19 +110,23 @@ all three horizon modes, with heights of eye from 0 to 25 m and non-standard air
 | Rust chain against the chain transcribed in Python from the text | 1.1e-10′ |
 | sphere Earth: reduced Ho against the geocentric altitude, Moon / planets / stars / Sun | 0.0059′ / 0.0048′ / 0.0038′ / 0.0039′ (the diurnal aberration Skyfield includes) |
 | the same with the providers' own directions instead of DE440s | 0.0063′ / 0.0053′ / 0.0041′ / 0.0035′ |
-| WGS84 Earth: Moon | **0.22′** (median 0.09′): the Earth's-shape term above |
+| WGS84 Earth: Moon, against the sphere's geocentric altitude | 0.22′ (median 0.09′): the Earth's-shape term above |
+| **WGS84 Earth: Moon, against its model altitude** (with the term) | **0.0064′** |
 | WGS84 Earth: planets / stars / Sun | 0.0048′ / 0.0023′ / 0.0045′ |
 
 End to end, four sessions (`fixtures/sessions/reference-moon-*.json`, ephemeris `auto`,
-no supplied direction, raw sextant readings, sea horizon), solved with the unchanged
-solver:
+no supplied direction, raw sextant readings, sea horizon):
 
 | session | bodies | fix from truth |
 |---|---|---|
-| `reference-moon-planets-atlantic-sphere` | Moon, Venus, Mars, Jupiter, Saturn, Polaris, Capella | 2.7 m |
-| `reference-moon-venus-timor-sphere` | Moon, crescent Venus, Mars, Jupiter, Canopus, Acrux | 5.2 m |
-| `reference-moon-planets-atlantic` (WGS84) | as above | 17.9 m |
-| `reference-moon-venus-timor` (WGS84) | as above | 34.9 m |
+| `reference-moon-planets-atlantic` (WGS84) | Moon, Venus, Mars, Jupiter, Saturn, Polaris, Capella | **2.6 m** (17.9 m before the Earth-shape term was modelled) |
+| `reference-moon-venus-timor` (WGS84) | Moon, crescent Venus, Mars, Jupiter, Canopus, Acrux | **5.1 m** (34.9 m before) |
+| `reference-moon-planets-atlantic-sphere` | as above, built on a sphere of radius 6378.14 km | 2.7 m with the term switched off (the model it was built for), 22.7 m with it |
+| `reference-moon-venus-timor-sphere` | as above, on the same sphere | 5.2 m with the term switched off, 30.4 m with it |
+
+The `*-sphere` sessions describe an Earth that does not exist; they are kept, solved
+with the term switched off, as the check of the spherical chain on the Earth it is
+exact for. The Navigate view's Timor example uses the WGS84 readings.
 
 Against USNO (`fixtures/reference/usno_celnav_venus_phase.json`,
 `tools/reference/gen_usno_sights.py`, `tests/usno_venus_phase.rs`), allowing for the
@@ -127,7 +138,7 @@ Against USNO (`fixtures/reference/usno_celnav_venus_phase.json`,
 | fitted centre-of-light coefficient | 0.4403 (the uniform disc's 0.4244 is 4 % smaller) |
 | Mars, 5 epochs | worst 0.0007′; USNO applies no phase |
 | Moon semidiameter, 8 positions | ours 0.006′ larger (k = 0.2725076 against USNO's 0.2724) |
-| Moon parallax in altitude | WGS84 computation within 0.004′ of USNO; the sphere up to 0.22′ away |
+| Moon parallax in altitude | the sight model (the sphere's parallax less the Earth-shape term) within **0.0004′** of USNO; the WGS84 display computation within 0.004′; the sphere alone up to 0.22′ away |
 
 ## 2. The clock term
 
@@ -159,9 +170,9 @@ chain would show them. For the Moon the reading is typically 30′ to 60′ *bel
 parallax beats refraction and the semidiameter, which is exactly why presetting `Hc`
 would not find the Moon in the telescope.
 
-Like reduction, prediction uses the spherical Earth; for the Moon it can be up to 0.22′
-from what a perfect sextant on the real Earth would read. That is far below what
-matters for finding a body with a preset sextant.
+For the Moon, `Hc` includes the Earth-shape term (section 1) and the result reports it
+(`earth_shape_arcmin`), so the predicted reading is what a perfect sextant reads on the
+real Earth at sea level, and reducing it still lands on `Hc`.
 
 ## 4. Lunar distance
 
@@ -276,10 +287,9 @@ nights when the Sun never reaches −12° (`fixtures/reference/nautical_twilight
 
 ## 6. Known gaps
 
-- **The Earth's shape in sight reduction** (section 1): up to 0.22′ for the Moon, a few
-  tens of metres in the fixes above. Removing it would need the observer's position
-  inside the reduction; the planning session may decide to add it, with the Skyfield
-  WGS84 sights already in place to validate it.
+- **The Earth's shape in sight reduction** is modelled for the Moon (section 1,
+  CONVENTIONS 15.4) and not for the planets (at most 0.0021′). The observer's height
+  above the sea is left out of it (30 m changes the Moon's parallax by 0.0003′).
 - **Venus's centre of light** follows USNO's convention to 0.003′; how the eye really
   judges a crescent's light (irradiation) is not modelled beyond that.
 - **The Moon's semidiameter** uses the IAU k = 0.2725076; the Almanac's tables use

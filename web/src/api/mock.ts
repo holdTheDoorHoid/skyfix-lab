@@ -235,6 +235,9 @@ function reduceEntries(session: Session, mode: EphemerisMode): ReduceEntry[] {
       zn_deg: zn,
       intercept_nm: intercept,
       warnings,
+      horizontal_parallax_arcmin: obs.geocentric.horizontal_parallax_arcmin,
+      // The classic mock reduces stars and the Sun only: no Moon Earth-shape term.
+      earth_shape_arcmin: null,
     };
     return { status: 'ok', sight };
   });

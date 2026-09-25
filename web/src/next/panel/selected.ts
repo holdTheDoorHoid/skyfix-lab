@@ -433,7 +433,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
 
     // Extras
     const [a] = dayOf(s);
-    const key = `${name}|${b.kind}|${a}|${s.settings.timeDisplay}|${s.settings.units}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.settings.horizon}|${s.settings.height_of_eye_m}`;
+    const key = `${name}|${b.kind}|${a}|${s.settings.timeDisplay}|${s.settings.hourCycle}|${s.settings.units}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.settings.horizon}|${s.settings.height_of_eye_m}`;
     if (key !== extrasKey) {
       extrasKey = key;
       if (b.kind === 'sun') buildSunExtras(s);

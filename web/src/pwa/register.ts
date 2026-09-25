@@ -1,7 +1,7 @@
 /**
  * Registering the service worker and noticing new versions. OWNER: release agent.
- * Shared by both pages (the explorer at `/`, the original workbench at `/classic/`); each page draws
- * its own prompt through the hooks. The worker is src/sw/sw.ts.
+ * The explorer (`src/next/pwa/`) draws its own prompt through the hooks. The worker is
+ * src/sw/sw.ts.
  *
  * The rules:
  * - Production builds only: the development server has no sw.js, and a worker there

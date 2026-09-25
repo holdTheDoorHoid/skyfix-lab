@@ -29,6 +29,11 @@ use cli::{Cli, Command};
 use commands::reduce::Output;
 
 fn main() -> ExitCode {
+    // `--calendar` decides how the date flags read their values, and clap parses them in
+    // order: read it first (timescales agent, CONVENTIONS 15.3).
+    commands::explorer::args::set_calendar(commands::explorer::args::scan_calendar(
+        std::env::args_os(),
+    ));
     let parsed = match Cli::try_parse() {
         Ok(c) => c,
         Err(e) => {
@@ -63,6 +68,7 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
             ephemeris,
             json,
             csv,
+            dut1,
         } => {
             let output = if json {
                 Output::Json
@@ -71,7 +77,7 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
             } else {
                 Output::Text
             };
-            commands::reduce::run(&file, ephemeris, output)
+            commands::reduce::run(&file, ephemeris, output, dut1)
         }
 
         Command::Solve {
@@ -79,7 +85,14 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
             options,
             json,
             require_unique,
-        } => commands::solve::run(&file, &options.to_flags(json, require_unique)),
+            dut1,
+        } => commands::solve::run(
+            &file,
+            &commands::solve::Flags {
+                dut1: dut1.dut1,
+                ..options.to_flags(json, require_unique)
+            },
+        ),
 
         Command::Catalog { json } => commands::catalog::run_catalog(json),
         Command::Coverage { json } => commands::catalog::run_coverage(json),
@@ -124,6 +137,7 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
             objective,
             taken,
             json,
+            dut1,
         } => commands::plan::run(&commands::plan::Args {
             position,
             utc,
@@ -133,6 +147,7 @@ fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
             objective,
             taken,
             json,
+            dut1,
         }),
         Command::Almanac { date, format } => commands::almanac::run(&date, format),
     }

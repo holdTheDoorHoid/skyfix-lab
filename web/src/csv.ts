@@ -79,6 +79,8 @@ export function toCsv(session: Session): string {
     ['instrument.horizon', session.instrument.horizon],
     ['clock.uncertainty_s', String(session.clock.uncertainty_s)],
     ['clock.correction_s', String(session.clock.correction_s)],
+    // UT1 − UTC (expansion programme): written only when given, as the core does.
+    ...(typeof session.clock.dut1_s === 'number' ? [['clock.dut1_s', String(session.clock.dut1_s)]] : []),
   ]
     .map(([k, v]) => `# ${quote(k!)},${quote(v!)}`)
     .join('\n');
@@ -109,6 +111,15 @@ export function toCsv(session: Session): string {
 const ALTITUDE_KINDS: AltitudeKind[] = ['sextant_hs', 'apparent_ha', 'observed_ho'];
 const LIMBS: Limb[] = ['center', 'lower', 'upper'];
 const HORIZONS: HorizonMode[] = ['sea', 'artificial_reflected', 'electronic_vertical'];
+
+/** `clock.dut1_s`: a number, or absent/empty for "automatic" (the base's value, if any). */
+function dut1Of(value: string | undefined, base: number | null | undefined): { dut1_s?: number | null } {
+  if (value === undefined) return base === undefined ? {} : { dut1_s: base };
+  const t = value.trim();
+  if (t === '') return { dut1_s: null };
+  const v = Number(t);
+  return Number.isFinite(v) ? { dut1_s: v } : { dut1_s: null };
+}
 
 function num(value: string | undefined, fallback: number): number {
   if (value === undefined || value.trim() === '') return fallback;
@@ -231,6 +242,7 @@ export function fromCsv(text: string, base: Session): CsvParseResult {
     clock: {
       uncertainty_s: num(meta.get('clock.uncertainty_s'), base.clock.uncertainty_s),
       correction_s: num(meta.get('clock.correction_s'), base.clock.correction_s),
+      ...dut1Of(meta.get('clock.dut1_s'), base.clock.dut1_s),
     },
     observations,
   };

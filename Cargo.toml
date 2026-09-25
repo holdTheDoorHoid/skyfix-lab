@@ -11,6 +11,8 @@ members = [
     "crates/skyfix-motion",
     "crates/skyfix-almanac",
     "crates/skyfix-starfield",
+    # Expansion programme (geomag agent): WMM2025 and IGRF-14.
+    "crates/skyfix-geomag",
 ]
 
 [workspace.package]

@@ -8,6 +8,7 @@
 import './about.css';
 import { h } from '../../dom.js';
 import type { Component } from '../component.js';
+import { installControl, manualLink, repositoryLink } from '../shell/links.js';
 import { hasTour, openTour } from '../shell/tour.js';
 import { badge, button } from '../theme/primitives.js';
 
@@ -32,6 +33,7 @@ const view: Component = (host, ctx) => {
     coverageRows = [h('tr', {}, h('td', { colspan: 4 }, `The engine did not say: ${error instanceof Error ? error.message : String(error)}`))];
   }
 
+  const install = installControl();
   const el = h(
     'article',
     { class: 'sf-about sf-on-stage' },
@@ -82,19 +84,26 @@ const view: Component = (host, ctx) => {
       h(
         'p',
         {},
-        'The place you choose is never saved and never sent anywhere. It goes into a link only when you press Share, and then only into the link you are shown. Your settings (theme, units, angle format, the map’s layers) and whether you have seen the tour are remembered on this device. Sights you enter in Navigate are kept on this device, with their assumed position, only while its “Keep my sights in this browser” is on.',
+        'The place you choose is never saved and never sent anywhere. It goes into a link only when you press Share, and then only into the link you are shown. Your settings (theme, units, angle format, the map’s layers) and whether you have seen the tour are remembered on this device. Sights you enter in Navigate are kept on this device, with their assumed position, only while its “Keep my sights in this browser” is on. Data packs you choose to get (Settings → Data packs) are saved in this browser until you remove them; getting one sends nothing about you.',
       ),
       h('h2', {}, 'Also here'),
       h(
         'ul',
         {},
-        h('li', {}, h('a', { href: 'classic/' }, 'The original workbench'), ', kept for reference for a while: Navigate and Learn now do everything it did (sights, corrections, the fix with its uncertainty, the simulator and the planner).'),
+        h('li', {}, manualLink(), ': how to use every view, how far each number can be trusted, the command-line tool, and where every piece of data comes from. Pages you have read stay readable offline.'),
+        h('li', {}, repositoryLink(), ' (MIT or Apache-2.0): the Rust core that does every calculation, this page, and the command-line tool.'),
         h('li', {}, 'Map data: Natural Earth (public domain). Stars: the Yale Bright Star Catalogue from NASA HEASARC. Fonts: Inter and JetBrains Mono (SIL Open Font License).'),
       ),
+      install.el,
     ),
   );
   host.replaceChildren(el);
-  return { destroy: () => el.remove() };
+  return {
+    destroy: () => {
+      install.destroy();
+      el.remove();
+    },
+  };
 };
 
 export default view;

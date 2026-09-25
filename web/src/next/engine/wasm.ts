@@ -16,6 +16,8 @@ import type {
   AlmanacEngine,
   AltitudeCrossing,
   BodyInfo,
+  CalendarConversion,
+  CalendarConvertRequest,
   BodySelection,
   ConstellationBoundary,
   DayEvents,
@@ -27,6 +29,9 @@ import type {
   ExplorerCoverage,
   ExplorerEngine,
   Observer,
+  PackEngine,
+  PackInfo,
+  PackStatus,
   PhaseEvent,
   PlanetEventList,
   PlanetEventsEngine,
@@ -34,9 +39,34 @@ import type {
   SeasonEvent,
   SkyState,
   StarfieldCatalog,
+  TimeEngine,
+  TimeInfo,
 } from './types.js';
 import type { MisfitEngine } from './types.js';
 import { createWasmMisfit } from './wasm-misfit.js';
+// Expansion programme — sun tools (suntools agent).
+import type {
+  AlignmentRequest,
+  AlignmentResult,
+  Analemma,
+  AnalemmaRequest,
+  AzimuthAltitudeBand,
+  AzimuthCrossing,
+  EquationOfTime,
+  GalacticCentreWindows,
+  GalacticOptions,
+  RiseSetAzimuthRequest,
+  RiseSetAzimuths,
+  SolarDay,
+  SolarPanel,
+  SolarYear,
+  SolarYearRequest,
+  SunHours,
+  SunPath,
+} from './types.js';
+// Expansion programme, geomag agent: magnetic field and compass error (wasm-geomag.ts).
+import type { CompassError, CompassRequest, MagneticField, MagneticGrid, MagneticModelChoice } from './types.js';
+import { wasmCompassError, wasmMagneticField, wasmMagneticGrid, type GeomagWasmExports } from './wasm-geomag.js';
 
 /** Exports the explorer cannot run without. */
 export const REQUIRED_EXPORTS = [
@@ -98,7 +128,37 @@ export interface ExplorerWasmExports {
   eclipse_path?(id: string): unknown;
   /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
   planet_events?(jdStart: number, jdEnd: number): unknown;
+  /** Expansion programme, magnetic field and compass error (wasm-geomag.ts); absent in older builds. */
+  magnetic_field?: GeomagWasmExports['magnetic_field'];
+  magnetic_grid?: GeomagWasmExports['magnetic_grid'];
+  compass_error?: GeomagWasmExports['compass_error'];
+  /** Expansion programme, data packs (EXPLORER_API "Packs"); absent in older builds. */
+  packs?(): unknown;
+  load_pack?(name: string, bytes: Uint8Array): unknown;
+  /** Expansion wave 1, time scales (EXPLORER_API "time_info"); absent in older builds. */
+  time_info?(jdUtc: number): unknown;
+  set_dut1?(seconds: number | null | undefined): unknown;
+  calendar_convert?(requestJson: string): unknown;
   version?(): string;
+  // Expansion programme — sun tools (suntools agent; EXPLORER_API "Expansion programme —
+  // sun tools"); absent in older builds.
+  sun_hours?(observerJson: string, jdStart: number, jdEnd: number): unknown;
+  find_azimuth?(
+    observerJson: string,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    bandJson: string,
+  ): unknown;
+  alignment_days?(observerJson: string, requestJson: string): unknown;
+  analemma?(observerJson: string, requestJson: string): unknown;
+  sun_path?(observerJson: string, jdStart: number, jdEnd: number, stepMinutes: number): unknown;
+  rise_set_azimuths?(observerJson: string, requestJson: string): unknown;
+  equation_of_time?(year: number, utcHour: number): unknown;
+  solar_day?(observerJson: string, jdStart: number, jdEnd: number, panelJson: string, stepMinutes: number): unknown;
+  solar_year?(observerJson: string, requestJson: string): unknown;
+  galactic_centre_windows?(observerJson: string, jdStart: number, jdEnd: number, optionsJson: string): unknown;
 }
 
 export function missingExports(module: object): { required: string[]; optional: string[] } {
@@ -148,7 +208,9 @@ function rebuildError(name: string, what: string): Error {
   );
 }
 
-export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine {
+export class WasmEngine
+  implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine, PackEngine, TimeEngine
+{
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -340,6 +402,169 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
     const fn = this.x.planet_events;
     if (typeof fn !== 'function') throw rebuildError('planet_events', 'planet events');
     return this.call('planet_events', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  // -------------------------------------------------------------------------
+  // Expansion programme — sun tools (suntools agent). `SunToolsEngine` in types.ts; each
+  // throws "rebuild" when this build of the core predates the export.
+  // -------------------------------------------------------------------------
+
+  private sunTool<K extends keyof ExplorerWasmExports>(name: K): NonNullable<ExplorerWasmExports[K]> {
+    const fn = this.x[name];
+    if (typeof fn !== 'function') throw rebuildError(String(name), 'sun tools');
+    return fn as NonNullable<ExplorerWasmExports[K]>;
+  }
+
+  /** Golden and blue hours over one local day, with the Sun's events (`sun_hours`). */
+  sunHours(observer: Observer, jdStart: number, jdEnd: number): SunHours {
+    const fn = this.sunTool('sun_hours');
+    return this.call('sun_hours', () => fn.call(this.x, observerJson(observer), jdStart, jdEnd));
+  }
+
+  /** When a body crosses a bearing inside an altitude band (`find_azimuth`). */
+  findAzimuth(
+    observer: Observer,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    band?: AzimuthAltitudeBand,
+  ): AzimuthCrossing[] {
+    const fn = this.sunTool('find_azimuth');
+    return this.call('find_azimuth', () =>
+      fn.call(this.x, observerJson(observer), body, jdStart, jdEnd, azimuthDeg, band ? JSON.stringify(band) : ''),
+    );
+  }
+
+  /** The days of a year a body rises, sets or stands at an altitude on a bearing (`alignment_days`). */
+  alignmentDays(observer: Observer, request: AlignmentRequest): AlignmentResult {
+    const fn = this.sunTool('alignment_days');
+    return this.call('alignment_days', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The Sun at one clock time on every day of a year (`analemma`). */
+  analemma(observer: Observer, request: AnalemmaRequest): Analemma {
+    const fn = this.sunTool('analemma');
+    return this.call('analemma', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** A day's sun path and the equinox and solstice envelope (`sun_path`). */
+  sunPath(observer: Observer, jdStart: number, jdEnd: number, stepMinutes = 10): SunPath {
+    const fn = this.sunTool('sun_path');
+    return this.call('sun_path', () => fn.call(this.x, observerJson(observer), jdStart, jdEnd, stepMinutes));
+  }
+
+  /** Daily rise and set azimuths over a local year (`rise_set_azimuths`). */
+  riseSetAzimuths(observer: Observer, request: RiseSetAzimuthRequest): RiseSetAzimuths {
+    const fn = this.sunTool('rise_set_azimuths');
+    return this.call('rise_set_azimuths', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The equation of time and the Sun's declination on every UTC date of a year (`equation_of_time`). */
+  equationOfTime(year: number, utcHour = 12): EquationOfTime {
+    const fn = this.sunTool('equation_of_time');
+    return this.call('equation_of_time', () => fn.call(this.x, year, utcHour));
+  }
+
+  /** Clear-sky irradiance on a panel through a day, and the energy (`solar_day`). */
+  solarDay(observer: Observer, jdStart: number, jdEnd: number, panel?: SolarPanel, stepMinutes = 10): SolarDay {
+    const fn = this.sunTool('solar_day');
+    return this.call('solar_day', () =>
+      fn.call(this.x, observerJson(observer), jdStart, jdEnd, panel ? JSON.stringify(panel) : '', stepMinutes),
+    );
+  }
+
+  /** Clear-sky energy for every local day of a year, and optionally the best tilt (`solar_year`). */
+  solarYear(observer: Observer, request: SolarYearRequest): SolarYear {
+    const fn = this.sunTool('solar_year');
+    return this.call('solar_year', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The galactic centre's dark-sky windows over a span of nights (`galactic_centre_windows`). */
+  galacticCentreWindows(
+    observer: Observer,
+    jdStart: number,
+    jdEnd: number,
+    options?: GalacticOptions,
+  ): GalacticCentreWindows {
+    const fn = this.sunTool('galactic_centre_windows');
+    return this.call('galactic_centre_windows', () =>
+      fn.call(this.x, observerJson(observer), jdStart, jdEnd, options ? JSON.stringify(options) : ''),
+    );
+  }
+
+  // --- Expansion programme: magnetic field and compass error (geomag agent) -----------
+  // `GeomagEngine` (types.ts), delegated to wasm-geomag.ts; each throws "rebuild" when this
+  // build of the core predates the export.
+
+  /** The field at a place and instant, or `available: false` with the reason (`magnetic_field`). */
+  magneticField(
+    latDeg: number,
+    lonDeg: number,
+    heightM: number,
+    jdUtc: number,
+    model?: MagneticModelChoice,
+  ): MagneticField {
+    return wasmMagneticField(this.x, latDeg, lonDeg, heightM, jdUtc, model);
+  }
+
+  /** Declination and horizontal intensity on a grid (`magnetic_grid`); null outside 1900–2030. */
+  magneticGrid(
+    jdUtc: number,
+    latMin: number,
+    latMax: number,
+    nLat: number,
+    lonMin: number,
+    lonMax: number,
+    nLon: number,
+    heightM = 0,
+  ): MagneticGrid | null {
+    return wasmMagneticGrid(this.x, jdUtc, latMin, latMax, nLat, lonMin, lonMax, nLon, heightM);
+  }
+
+  /** Compass error by azimuth or amplitude (`compass_error`). */
+  compassError(request: CompassRequest): CompassError {
+    return wasmCompassError(this.x, request);
+  }
+
+  /** The data packs this build can install, and which are loaded (`packs`); none in older builds. */
+  packs(): PackStatus[] {
+    const fn = this.x.packs;
+    if (typeof fn !== 'function') return [];
+    return this.call('packs', () => fn.call(this.x));
+  }
+
+  /**
+   * Parse, verify and install a data pack (`load_pack`). Throws with the core's sentence
+   * when the file is wrong. The coverage it reports changes, so it is asked again.
+   */
+  loadPack(name: string, bytes: Uint8Array): PackInfo {
+    const fn = this.x.load_pack;
+    if (typeof fn !== 'function') throw rebuildError('load_pack', 'data packs');
+    const info = this.call<PackInfo>('load_pack', () => fn.call(this.x, name, bytes));
+    this.coverageCache = null;
+    return info;
+  }
+
+  /** Scale, tier, Delta-T, DUT1 and the civil dates of an instant (`time_info`). */
+  timeInfo(jdUtc: number): TimeInfo {
+    const fn = this.x.time_info;
+    if (typeof fn !== 'function') throw rebuildError('time_info', 'time scales');
+    return this.call('time_info', () => fn.call(this.x, jdUtc));
+  }
+
+  /** The explorer-wide UT1 - UTC in seconds, or null for the IERS history (`set_dut1`). */
+  setDut1(seconds: number | null): void {
+    const fn = this.x.set_dut1;
+    if (typeof fn !== 'function') throw rebuildError('set_dut1', 'time scales');
+    this.call('set_dut1', () => fn.call(this.x, seconds));
+  }
+
+  /** A JD or a civil date in either calendar, converted both ways (`calendar_convert`). */
+  calendarConvert(request: CalendarConvertRequest): CalendarConversion {
+    const fn = this.x.calendar_convert;
+    if (typeof fn !== 'function') throw rebuildError('calendar_convert', 'time scales');
+    return this.call('calendar_convert', () => fn.call(this.x, JSON.stringify(request)));
   }
 }
 

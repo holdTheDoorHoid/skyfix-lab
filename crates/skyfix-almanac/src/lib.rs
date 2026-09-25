@@ -9,3 +9,6 @@ pub mod events;
 pub mod pages;
 pub mod planet_events;
 pub mod sky;
+// Expansion programme, suntools agent (P7): golden and blue hour, azimuth search,
+// alignments, analemma, sun path, equation of time, clear-sky energy, Milky Way windows.
+pub mod sun_tools;

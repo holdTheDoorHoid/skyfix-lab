@@ -2,8 +2,12 @@
 //!
 //! Every angle on the command line is degrees and every longitude is east-positive,
 //! exactly as in the session files (CONVENTIONS sections 1-2); every instant is RFC 3339
-//! UTC with a trailing `Z` (section 6). A value that is not what its flag needs is a
-//! usage error (exit 1) naming the value, never a silent default.
+//! with a trailing `Z` (section 6), years outside 0000-9999 in ISO 8601 expanded form
+//! with a sign (`-0584-05-28T12:00:00Z`, section 15.3). A typed date is in the Julian
+//! calendar up to 1582-10-04 and the Gregorian from 1582-10-15 unless `--calendar`
+//! names one; the wire (JSON output, session files) is always proleptic Gregorian. A
+//! value that is not what its flag needs is a usage error (exit 1) naming the value,
+//! never a silent default.
 //!
 //! Southern latitudes and western longitudes start with a minus sign, which clap would
 //! read as the start of another flag. `--lat`/`--lon` therefore allow negative numbers,
@@ -11,8 +15,12 @@
 //! parsers below still refuse anything that is not what they expect, so a mistyped flag
 //! fails with a message about the value.
 
+use std::ffi::OsString;
+use std::sync::atomic::{AtomicU8, Ordering};
+
 use skyfix_almanac::sky;
-use skyfix_core::time::{civil_to_jd, parse_utc};
+use skyfix_core::calendar::{self, Calendar};
+use skyfix_core::time::{format_utc, parse_date_in, parse_instant_in};
 use skyfix_core::types::{DrPosition, HorizonMode, Limb, VesselMotion};
 use skyfix_motion::request::RunningFixLeg;
 
@@ -39,6 +47,109 @@ impl FormatArgs {
     pub fn is_json(&self) -> bool {
         self.json || self.format == OutputFormat::Json
     }
+}
+
+// ---------------------------------------------------------------------------
+// --calendar (CONVENTIONS 15.3)
+// ---------------------------------------------------------------------------
+
+/// `--calendar` values: the calendar of the dates typed and printed in this run.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+pub enum CalendarArg {
+    /// The Julian calendar, for every date.
+    Julian,
+    /// The Gregorian calendar, proleptic before 1582-10-15 (ISO 8601).
+    Gregorian,
+}
+
+impl From<CalendarArg> for Calendar {
+    fn from(c: CalendarArg) -> Self {
+        match c {
+            CalendarArg::Julian => Calendar::Julian,
+            CalendarArg::Gregorian => Calendar::Gregorian,
+        }
+    }
+}
+
+/// The run's `--calendar`: 0 none (the display rule), 1 Julian, 2 Gregorian.
+static CALENDAR: AtomicU8 = AtomicU8::new(0);
+
+/// Set the run's calendar (`None`: Julian before 1582-10-15, Gregorian from it).
+pub fn set_calendar(choice: Option<Calendar>) {
+    let v = match choice {
+        None => 0,
+        Some(Calendar::Julian) => 1,
+        Some(Calendar::Gregorian) => 2,
+    };
+    CALENDAR.store(v, Ordering::Relaxed);
+}
+
+/// The run's `--calendar`, or `None` for the display rule.
+pub fn calendar_choice() -> Option<Calendar> {
+    match CALENDAR.load(Ordering::Relaxed) {
+        1 => Some(Calendar::Julian),
+        2 => Some(Calendar::Gregorian),
+        _ => None,
+    }
+}
+
+/// `--calendar VALUE` or `--calendar=VALUE` in the raw arguments: `main` reads it before
+/// clap parses them (the date flags' value parsers need it, and clap runs them in
+/// order) and passes it to [`set_calendar`]. A value clap will refuse is ignored here.
+pub fn scan_calendar<I: IntoIterator<Item = OsString>>(args: I) -> Option<Calendar> {
+    let mut it = args.into_iter().map(|a| a.to_string_lossy().into_owned());
+    let mut choice = None;
+    while let Some(a) = it.next() {
+        if a == "--" {
+            break;
+        }
+        let value = if a == "--calendar" {
+            it.next()
+        } else {
+            a.strip_prefix("--calendar=").map(str::to_string)
+        };
+        if let Some(c) = value.and_then(|v| v.parse::<Calendar>().ok()) {
+            choice = Some(c);
+        }
+    }
+    choice
+}
+
+/// The calendar a typed civil date is in: `choice`, else Julian up to 1582-10-04 and
+/// Gregorian from 1582-10-15. The ten days between were in neither calendar where the
+/// reform took effect, so without `--calendar` they are refused.
+pub fn calendar_of_typed(
+    choice: Option<Calendar>,
+    year: i64,
+    month: u32,
+    day: u32,
+) -> Result<Calendar, String> {
+    if let Some(c) = choice {
+        return Ok(c);
+    }
+    let key = (year, month, day);
+    if key >= (1582, 10, 15) {
+        Ok(Calendar::Gregorian)
+    } else if key <= (1582, 10, 4) {
+        Ok(Calendar::Julian)
+    } else {
+        Err(format!(
+            "{} is in neither calendar as used: the Julian calendar ended on 1582-10-04 and \
+             the Gregorian began on 1582-10-15; say which you mean with --calendar julian or \
+             --calendar gregorian",
+            ymd(year, month, day)
+        ))
+    }
+}
+
+fn ymd(year: i64, month: u32, day: u32) -> String {
+    format!("{}-{month:02}-{day:02}", calendar::format_year(year))
+}
+
+/// `(year, month, day)` of `YYYY-MM-DD` (or its expanded form), checked only for shape
+/// and for a day that exists in one calendar or the other.
+fn raw_date(s: &str) -> Option<(i64, u32, u32)> {
+    parse_date_in(s, Calendar::Julian).or_else(|| parse_date_in(s, Calendar::Gregorian))
 }
 
 // ---------------------------------------------------------------------------
@@ -238,54 +349,98 @@ pub fn parse_lon(s: &str) -> Result<f64, String> {
     Ok(if v == -180.0 { 180.0 } else { v })
 }
 
-/// An RFC 3339 UTC instant with a trailing `Z`, as a `jd_utc`.
+/// An RFC 3339 instant with a trailing `Z`, as a `jd_utc`, its date in the run's
+/// calendar (`--calendar`, else Julian before 1582-10-15).
 pub fn parse_instant(s: &str) -> Result<f64, String> {
-    parse_utc(s).map_err(|_| {
-        format!("{s:?} is not an RFC 3339 UTC instant with a trailing Z, e.g. 2026-10-01T01:30:00Z")
+    parse_instant_with(s, calendar_choice())
+}
+
+/// [`parse_instant`] with the calendar given (`None`: the display rule).
+pub fn parse_instant_with(s: &str, choice: Option<Calendar>) -> Result<f64, String> {
+    let bad = || {
+        format!(
+            "{s:?} is not an RFC 3339 instant with a trailing Z, e.g. 2026-10-01T01:30:00Z \
+             (years outside 0000-9999 with a sign: -0584-05-28T12:00:00Z)"
+        )
+    };
+    let t = s.trim();
+    let date_part = t.split('T').next().unwrap_or_default();
+    let (y, m, d) = raw_date(date_part).ok_or_else(bad)?;
+    let cal = calendar_of_typed(choice, y, m, d)?;
+    parse_instant_in(t, cal).map_err(|_| {
+        if parse_date_in(date_part, cal).is_none() {
+            format!(
+                "{s:?}: {} is not a date in the {cal} calendar",
+                ymd(y, m, d)
+            )
+        } else {
+            bad()
+        }
     })
 }
 
-/// A calendar date, `YYYY-MM-DD`.
+/// A typed instant as the engine's wire string (proleptic Gregorian, `Z`): what a flag
+/// that is passed on to the engine as text must carry, whatever `--calendar` says.
+pub fn wire_instant(s: &str) -> Result<String, String> {
+    parse_instant(s).map(format_utc)
+}
+
+/// A calendar date, `YYYY-MM-DD` or `-0584-05-28`, in its calendar.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Date {
+    /// Astronomical year (0 is 1 BC).
     pub year: i32,
     pub month: u32,
     pub day: u32,
+    pub calendar: Calendar,
 }
 
 impl Date {
-    /// `jd_utc` of 00:00 UTC on this date.
+    /// `jd_utc` of 00:00 on this date (the app's clock: UTC 1972-2035, UT outside).
     pub fn jd0(self) -> f64 {
-        civil_to_jd(self.year, self.month, self.day)
+        calendar::jdn_from_civil(self.calendar, i64::from(self.year), self.month, self.day) as f64
+            - 0.5
     }
 }
 
 impl std::fmt::Display for Date {
+    /// The date as typed, in its calendar; a Julian date says so.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
+        write!(f, "{}", ymd(i64::from(self.year), self.month, self.day))?;
+        if self.calendar == Calendar::Julian {
+            write!(f, " (Julian)")?;
+        }
+        Ok(())
     }
 }
 
-/// `YYYY-MM-DD`, a real calendar date (2026-02-30 is refused).
+/// `YYYY-MM-DD` (or `-0584-05-28`, `+12345-01-01`), a real date in the run's calendar
+/// (2026-02-30 is refused; 1500-02-29 is a Julian date only).
 pub fn parse_date(s: &str) -> Result<Date, String> {
+    parse_date_with(s, calendar_choice())
+}
+
+/// [`parse_date`] with the calendar given (`None`: the display rule).
+pub fn parse_date_with(s: &str, choice: Option<Calendar>) -> Result<Date, String> {
     let t = s.trim();
-    let bad = || format!("{s:?} is not a date in the form YYYY-MM-DD");
-    let parts: Vec<&str> = t.split('-').collect();
-    if parts.len() != 3
-        || parts[0].len() != 4
-        || parts[1].len() != 2
-        || parts[2].len() != 2
-        || !parts.iter().all(|p| p.bytes().all(|b| b.is_ascii_digit()))
-    {
-        return Err(bad());
+    let bad = || {
+        format!(
+            "{s:?} is not a date in the form YYYY-MM-DD (years outside 0000-9999 with a sign: \
+             -0584-05-28)"
+        )
+    };
+    let (y, m, d) = raw_date(t).ok_or_else(bad)?;
+    let cal = calendar_of_typed(choice, y, m, d)?;
+    if parse_date_in(t, cal).is_none() {
+        return Err(format!("{s:?} is not a date in the {cal} calendar"));
     }
-    let year: i32 = parts[0].parse().map_err(|_| bad())?;
-    let month: u32 = parts[1].parse().map_err(|_| bad())?;
-    let day: u32 = parts[2].parse().map_err(|_| bad())?;
-    // The core's own RFC 3339 parser knows the calendar (month lengths, leap years).
-    parse_utc(&format!("{t}T00:00:00Z"))
-        .map_err(|_| format!("{s:?} is not a real calendar date"))?;
-    Ok(Date { year, month, day })
+    let year = i32::try_from(y).map_err(|_| bad())?;
+    Ok(Date {
+        year,
+        month: m,
+        day: d,
+        calendar: cal,
+    })
 }
 
 /// One end of a time window: a whole date, or an instant.
@@ -418,10 +573,7 @@ pub fn parse_leg(s: &str) -> Result<RunningFixLeg, String> {
     let parts: Vec<&str> = s.split(',').map(str::trim).collect();
     let (start_utc, course, speed) = match parts.as_slice() {
         [course, speed] => (None, *course, *speed),
-        [start, course, speed] => {
-            parse_instant(start)?;
-            (Some(start.to_string()), *course, *speed)
-        }
+        [start, course, speed] => (Some(wire_instant(start)?), *course, *speed),
         _ => {
             return Err(format!(
                 "expected [START_UTC,]COURSE,SPEED, e.g. 2026-10-01T00:00:00Z,45,12, got {s:?}"
@@ -472,6 +624,57 @@ pub fn parse_bodies(s: &str) -> Result<BodyList, String> {
     Ok(BodyList(out))
 }
 
+// ---------------------------------------------------------------------------
+// --dut1 (moonshape, expansion programme): UT1 - UTC from the time signal
+// ---------------------------------------------------------------------------
+
+/// `--dut1 SECONDS`, on every command that reduces, predicts or plans.
+#[derive(clap::Args, Debug, Clone, Copy, Default)]
+pub struct Dut1Args {
+    /// UT1 - UTC in seconds, from the time signal or IERS Bulletin A (|DUT1| is at most
+    /// 0.9 s). Overrides a session's clock.dut1_s. Without either the engine's own
+    /// value is used (0 s for now): unknown by up to 0.9 s, 0.23' of longitude.
+    #[arg(long, value_name = "SECONDS", allow_negative_numbers = true, value_parser = parse_dut1)]
+    pub dut1: Option<f64>,
+}
+
+impl Dut1Args {
+    /// Put the flag into a session: the command line wins over the file.
+    pub fn apply(&self, session: &mut skyfix_core::types::Session) {
+        if let Some(d) = self.dut1 {
+            session.clock.dut1_s = Some(d);
+        }
+    }
+
+    /// DUT1 for an instant when there is no session: the flag, else the engine's value
+    /// (`skyfix_core::time::dut1_s`).
+    pub fn at(&self, jd_utc: f64) -> f64 {
+        skyfix_core::time::dut1_s(jd_utc, self.dut1)
+    }
+}
+
+/// A DUT1 in seconds: finite and at most `skyfix_core::session::DUT1_LIMIT_S`, the
+/// session's own rule. Beyond 0.9 s it is accepted and warned about on standard error.
+pub fn parse_dut1(s: &str) -> Result<f64, String> {
+    let v: f64 = s
+        .trim()
+        .parse()
+        .map_err(|_| format!("--dut1 {s:?} is not a number of seconds"))?;
+    if !v.is_finite() || v.abs() > skyfix_core::session::DUT1_LIMIT_S {
+        return Err(format!(
+            "--dut1 {s}: UT1 - UTC is within 0.9 s (IERS); give it in seconds, at most {} s",
+            skyfix_core::session::DUT1_LIMIT_S
+        ));
+    }
+    if v.abs() > 0.9 {
+        eprintln!(
+            "warning: --dut1 {v} s is outside the 0.9 s the IERS keeps UT1 - UTC within; used \
+             as given"
+        );
+    }
+    Ok(v)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -489,23 +692,98 @@ mod tests {
     #[test]
     fn dates_must_be_real_and_in_one_form() {
         assert_eq!(
-            parse_date("2026-09-24").unwrap(),
+            parse_date_with("2026-09-24", None).unwrap(),
             Date {
                 year: 2026,
                 month: 9,
-                day: 24
+                day: 24,
+                calendar: Calendar::Gregorian
             }
         );
-        assert_eq!(parse_date("2026-09-24").unwrap().to_string(), "2026-09-24");
+        assert_eq!(
+            parse_date_with("2026-09-24", None).unwrap().to_string(),
+            "2026-09-24"
+        );
         for bad in [
             "2026-02-30",
             "2026-9-24",
             "24/09/2026",
             "2026-09-24T00:00:00Z",
+            "584-05-28",
+            "12345-01-01",
             "",
         ] {
-            assert!(parse_date(bad).is_err(), "{bad}");
+            assert!(parse_date_with(bad, None).is_err(), "{bad}");
         }
+    }
+
+    #[test]
+    fn dates_before_the_reform_are_julian_unless_told_otherwise() {
+        let d = parse_date_with("-0584-05-28", None).unwrap();
+        assert_eq!(
+            (d.year, d.month, d.day, d.calendar),
+            (-584, 5, 28, Calendar::Julian)
+        );
+        assert_eq!(d.jd0(), 1_507_899.5);
+        assert_eq!(d.to_string(), "-0584-05-28 (Julian)");
+        let g = parse_date_with("-0584-05-22", Some(Calendar::Gregorian)).unwrap();
+        assert_eq!(g.jd0(), d.jd0());
+        // 1500-02-29 exists only in the Julian calendar; 1582-10-10 in neither as used.
+        assert!(parse_date_with("1500-02-29", None).is_ok());
+        let e = parse_date_with("1500-02-29", Some(Calendar::Gregorian)).unwrap_err();
+        assert!(e.contains("Gregorian"), "{e}");
+        let e = parse_date_with("1582-10-10", None).unwrap_err();
+        assert!(e.contains("--calendar"), "{e}");
+        assert!(parse_date_with("1582-10-10", Some(Calendar::Julian)).is_ok());
+        assert_eq!(parse_date_with("+12345-01-01", None).unwrap().year, 12_345);
+        // The reform itself: Julian 1582-10-04 is followed by Gregorian 1582-10-15.
+        let a = parse_date_with("1582-10-04", None).unwrap().jd0();
+        let b = parse_date_with("1582-10-15", None).unwrap().jd0();
+        assert_eq!(b - a, 1.0);
+    }
+
+    #[test]
+    fn instants_take_expanded_years_and_the_calendar() {
+        let j = parse_instant_with("-0584-05-28T12:00:00Z", None).unwrap();
+        assert_eq!(j, 1_507_900.0);
+        assert_eq!(
+            parse_instant_with("-0584-05-22T12:00:00Z", Some(Calendar::Gregorian)).unwrap(),
+            j
+        );
+        assert_eq!(
+            parse_instant_with("2026-10-01T01:30:00Z", Some(Calendar::Gregorian)).unwrap(),
+            parse_instant_with("2026-10-01T01:30:00Z", None).unwrap()
+        );
+        // Julian 2026-09-11 is Gregorian 2026-09-24.
+        assert_eq!(
+            parse_instant_with("2026-09-11T12:00:00Z", Some(Calendar::Julian)).unwrap(),
+            2_461_308.0
+        );
+        assert!(parse_instant_with("1582-10-10T00:00:00Z", None).is_err());
+        assert!(parse_instant_with("2026-10-01T01:30:00+00:00", None).is_err());
+        assert!(parse_instant_with("1500-02-29T00:00:00Z", Some(Calendar::Gregorian)).is_err());
+    }
+
+    #[test]
+    fn the_calendar_flag_is_read_before_clap() {
+        let os = |v: &[&str]| v.iter().map(OsString::from).collect::<Vec<_>>();
+        assert_eq!(
+            scan_calendar(os(&["skyfix", "sky", "--calendar", "julian"])),
+            Some(Calendar::Julian)
+        );
+        assert_eq!(
+            scan_calendar(os(&["skyfix", "--calendar=gregorian", "sky"])),
+            Some(Calendar::Gregorian)
+        );
+        assert_eq!(
+            scan_calendar(os(&["skyfix", "sky", "--", "--calendar", "julian"])),
+            None
+        );
+        assert_eq!(
+            scan_calendar(os(&["skyfix", "sky", "--calendar", "mayan"])),
+            None
+        );
+        assert_eq!(scan_calendar(os(&["skyfix", "sky"])), None);
     }
 
     #[test]
@@ -552,8 +830,9 @@ mod tests {
     fn legs_take_an_optional_start() {
         let l = parse_leg("45,12").unwrap();
         assert_eq!((l.start_utc, l.course_deg, l.speed_kn), (None, 45.0, 12.0));
+        // The start goes to the engine as its wire string, whatever --calendar says.
         let l = parse_leg("2026-10-01T02:00:00Z, 90, 10").unwrap();
-        assert_eq!(l.start_utc.as_deref(), Some("2026-10-01T02:00:00Z"));
+        assert_eq!(l.start_utc.as_deref(), Some("2026-10-01T02:00:00.000Z"));
         assert!(parse_leg("yesterday,90,10").is_err());
         assert!(parse_leg("90").is_err());
     }
@@ -570,5 +849,25 @@ mod tests {
         let e = parse_bodies("Sun,Vulcan").unwrap_err();
         assert!(e.contains("Vulcan") && e.contains("skyfix catalog"), "{e}");
         assert!(parse_bodies("Sun,,Moon").is_err());
+    }
+
+    #[test]
+    fn dut1_is_seconds_within_the_sessions_limit() {
+        assert_eq!(parse_dut1("-0.2").unwrap(), -0.2);
+        assert_eq!(parse_dut1(" 0.35 ").unwrap(), 0.35);
+        assert_eq!(parse_dut1("1.5").unwrap(), 1.5);
+        for bad in ["", "fast", "NaN", "inf", "300", "-61"] {
+            assert!(parse_dut1(bad).is_err(), "{bad}");
+        }
+        let mut session: skyfix_core::types::Session = serde_json::from_str(
+            r#"{"schema": "skyfix.session/1", "clock": {"dut1_s": 0.1}, "observations": []}"#,
+        )
+        .unwrap();
+        Dut1Args { dut1: None }.apply(&mut session);
+        assert_eq!(session.clock.dut1_s, Some(0.1));
+        Dut1Args { dut1: Some(-0.3) }.apply(&mut session);
+        assert_eq!(session.clock.dut1_s, Some(-0.3));
+        assert_eq!(Dut1Args { dut1: Some(0.4) }.at(2.46e6), 0.4);
+        assert_eq!(Dut1Args { dut1: None }.at(2.46e6), 0.0);
     }
 }

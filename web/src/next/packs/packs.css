@@ -1,0 +1,187 @@
+/*
+ * Data packs: the prompt a view's `ctx.packs.ensure()` shows (prompt.ts), and Settings →
+ * Data packs (settings-section.ts). OWNER: packs agent. Tokens only.
+ *
+ * The prompt sits in the shell's stage, bottom centre, above the connection and update dock
+ * (pwa/dock.css) so the two never cover each other, and above the phone's bottom sheet
+ * (`--stage-view-inset`, set by panel/sheet.ts).
+ */
+
+.sf-packs-prompt {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--space-4) + 56px + env(safe-area-inset-bottom, 0px));
+  z-index: calc(var(--z-sheet) + 5);
+  width: min(460px, calc(100% - 2 * var(--space-4)));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.sf-packs-prompt[data-home='stage'] {
+  position: absolute;
+  bottom: calc(var(--stage-view-inset, 0px) + 116px);
+  z-index: calc(var(--z-stage-overlay) + 1);
+}
+
+@media (max-width: 767px) {
+  .sf-packs-prompt[data-home='stage'] {
+    bottom: calc(var(--stage-view-inset, 0px) + 60px);
+  }
+}
+
+.sf-packs-prompt__card {
+  pointer-events: auto;
+  align-items: start;
+  padding: 10px 6px 10px 12px;
+  border: 1px solid var(--ui-line-strong);
+  box-shadow: var(--shadow-2), inset 3px 0 0 var(--info);
+  font-size: var(--text-md);
+  animation: sf-packs-in var(--dur-slow) var(--ease-out);
+}
+
+.sf-packs-prompt__card.sf-notice--caution {
+  box-shadow: var(--shadow-2), inset 3px 0 0 var(--caution);
+}
+
+.sf-packs-prompt__card > .sf-icon {
+  margin-top: 2px;
+}
+
+.sf-packs-prompt__body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sf-packs-prompt__lead {
+  margin: 0;
+  font-weight: var(--weight-medium);
+}
+
+.sf-packs-prompt__detail {
+  margin: 0;
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sf-packs-prompt__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-1);
+  margin-top: 4px;
+}
+
+.sf-packs-prompt__actions:empty {
+  display: none;
+}
+
+.sf-packs-prompt__close {
+  align-self: start;
+}
+
+.sf-packs-prompt__bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--ui-line);
+}
+
+.sf-packs-prompt__bar[hidden] {
+  display: none;
+}
+
+.sf-packs-prompt__bar-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--accent);
+  transition: width var(--dur-fast) linear;
+}
+
+@keyframes sf-packs-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-packs-prompt__card {
+    animation: none;
+  }
+
+  .sf-packs-prompt__bar-fill {
+    transition: none;
+  }
+}
+
+/* --- Settings → Data packs --------------------------------------------------------------- */
+
+.sf-packs {
+  display: grid;
+  gap: 2px;
+}
+
+.sf-packs[hidden] {
+  display: none;
+}
+
+.sf-packs-list {
+  display: grid;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+.sf-packs-row {
+  display: grid;
+  gap: 2px;
+  padding: 6px 8px;
+  border: 1px solid var(--ui-line);
+  border-radius: var(--radius-md);
+}
+
+.sf-packs-row:focus {
+  outline: none;
+}
+
+.sf-packs-row__head,
+.sf-packs-row__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sf-packs-row__label {
+  font-weight: var(--weight-medium);
+}
+
+.sf-packs-row__size {
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sf-packs-row__description {
+  margin: 0;
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sf-packs-row__state {
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sf-packs-row__actions {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.sf-packs-row__error {
+  margin: 0;
+  color: var(--caution);
+  font-size: var(--text-xs);
+}

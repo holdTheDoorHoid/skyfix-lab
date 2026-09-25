@@ -9,6 +9,7 @@
 
 use serde::Deserialize;
 use skyfix_core::corrections::{limb_to_centre, rigorous_parallax_in_altitude_arcmin};
+use skyfix_core::sights::wgs84::earth_shape_arcmin;
 use skyfix_core::time::{jd_tt, parse_utc};
 use skyfix_ephemeris::AstroProvider;
 use skyfix_ephemeris::body::{ApparentState, BodyKind};
@@ -139,6 +140,7 @@ fn the_moons_semidiameter_and_parallax_beside_usnos() {
     // parallaxes are compared.
     let f = load();
     let moon = MoonProvider::new();
+    let (mut worst_model, mut worst_wgs84) = (0.0f64, 0.0f64);
     for case in &f.moon {
         let jd = parse_utc(&case.utc).unwrap() + LAG_S / 86_400.0;
         let p = moon.position(jd).unwrap();
@@ -189,8 +191,19 @@ fn the_moons_semidiameter_and_parallax_beside_usnos() {
         };
         let topo = horizontal(&state, &Site::new(case.site.lat_deg, case.site.lon_deg));
         let pa_wgs84 = (case.usno.hc_deg - topo.alt_deg) * 60.0;
+        // The sight model (CONVENTIONS 15.4): the chain's spherical parallax with the
+        // Moon's Earth-shape term moved into Hc. A perfect sight reduces to
+        // Hc_sphere + E, so the parallax the model implies is PA_sphere - E.
+        let term = earth_shape_arcmin(
+            case.site.lat_deg,
+            case.site.lon_deg,
+            state.gha_deg,
+            p.dec_deg,
+            p.horizontal_parallax_arcmin,
+        );
+        let pa_model = pa_sphere - term;
         println!(
-            "{}: PA sphere {pa_sphere:.4}', WGS84 {pa_wgs84:.4}', USNO {pa_usno:.4}'; SD ours {sd_ours:.4}', USNO {sd_usno:.4}'",
+            "{}: PA sphere {pa_sphere:.4}', model {pa_model:.4}' (term {term:+.4}'), WGS84 {pa_wgs84:.4}', USNO {pa_usno:.4}'; SD ours {sd_ours:.4}', USNO {sd_usno:.4}'",
             case.utc
         );
         assert!(
@@ -198,5 +211,16 @@ fn the_moons_semidiameter_and_parallax_beside_usnos() {
             "{}: WGS84 {pa_wgs84:.4}' vs USNO {pa_usno:.4}'",
             case.utc
         );
+        // The sight model now agrees with USNO as the topocentric display does.
+        assert!(
+            (pa_model - pa_usno).abs() < 0.001,
+            "{}: model {pa_model:.4}' vs USNO {pa_usno:.4}'",
+            case.utc
+        );
+        worst_model = worst_model.max((pa_model - pa_usno).abs());
+        worst_wgs84 = worst_wgs84.max((pa_wgs84 - pa_usno).abs());
     }
+    println!(
+        "Moon parallax against USNO, worst: sight model {worst_model:.4}', topocentric display {worst_wgs84:.4}'"
+    );
 }
