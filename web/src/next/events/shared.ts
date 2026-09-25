@@ -24,16 +24,26 @@ export class SharedSearches {
    */
   search<T>(name: string, key: string, make: (pace: () => number) => SearchOptions<T>): BackgroundSearch<T> {
     const slot = this.slots.get(name);
-    if (slot && slot.key === key) return slot.search as BackgroundSearch<T>;
+    if (slot && slot.key === key) {
+      const kept = slot.search as BackgroundSearch<T>;
+      // Kept from a view that closed: its results, with this view's callbacks.
+      if (kept.detached) kept.attach(make(() => this.pace()));
+      return kept;
+    }
     slot?.search.destroy();
     const search = new BackgroundSearch<T>(make(() => this.pace()));
     this.slots.set(name, { key, search: search as BackgroundSearch<unknown> });
     return search;
   }
 
-  /** Stop every search's pending work (the view is closed); results are kept. */
+  /**
+   * The view is closed: every search stops and lets go of the view's callbacks (so the page
+   * it drew can be collected); results are kept for the next view. The pace goes back to
+   * "at once" until a view sets its own.
+   */
   pause(): void {
-    for (const slot of this.slots.values()) slot.search.pause();
+    for (const slot of this.slots.values()) slot.search.detach();
+    this.pace = () => 0;
   }
 
   /** Forget every result (a data pack was loaded: the engine now answers more). */

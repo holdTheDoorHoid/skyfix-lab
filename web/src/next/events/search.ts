@@ -116,11 +116,14 @@ export class BackgroundSearch<T> {
   private running: Entry<T> | null = null;
   private handle: unknown = null;
   private destroyed = false;
-  private readonly timer: Timer;
+  private timer: Timer;
   private readonly listeners = new Set<() => void>();
+  /** The caller's callbacks; null once detached (the view closed), until `attach`. */
+  private o: SearchOptions<T> | null;
 
-  constructor(private readonly o: SearchOptions<T>) {
-    this.timer = o.timer ?? REAL_TIMER;
+  constructor(options: SearchOptions<T>) {
+    this.o = options;
+    this.timer = options.timer ?? REAL_TIMER;
   }
 
   /**
@@ -129,6 +132,7 @@ export class BackgroundSearch<T> {
    * window's start, `backward` from its end).
    */
   get(window: Span, order: Order = 'forward'): SearchState<T> {
+    if (!this.o) return { items: [], done: true, progress: 1, span: null, searched: null, truncated: false, error: 'the search is detached' };
     let entry = this.entries.find((e) => contains(e.asked, window));
     if (!entry) {
       entry = this.create(window, order);
@@ -157,6 +161,26 @@ export class BackgroundSearch<T> {
     this.stop();
   }
 
+  /**
+   * The view closed: stop, and let go of its callbacks (they hold the view's closures, and
+   * through them its page), keeping what was found. `attach` gives the next view's.
+   */
+  detach(): void {
+    this.stop();
+    this.listeners.clear();
+    this.o = null;
+  }
+
+  attach(options: SearchOptions<T>): void {
+    this.o = options;
+    if (options.timer) this.timer = options.timer;
+  }
+
+  /** True between `detach` and `attach`. */
+  get detached(): boolean {
+    return this.o === null;
+  }
+
   /** Forget everything (the observer or the options changed; a pack widened the coverage). */
   clear(): void {
     this.stop();
@@ -175,7 +199,8 @@ export class BackgroundSearch<T> {
   }
 
   private create(window: Span, order: Order): Entry<T> {
-    const coverage = this.o.coverage?.() ?? null;
+    const o = this.o!;
+    const coverage = o.coverage?.() ?? null;
     let span: Span | null = window;
     let truncated = false;
     if (coverage) {
@@ -184,13 +209,14 @@ export class BackgroundSearch<T> {
       truncated = start > window.start || end < window.end;
       span = start <= end ? { start, end } : null;
     }
-    const chunks = span ? chunksOf(span, this.o.chunkDays) : [];
+    const chunks = span ? chunksOf(span, o.chunkDays) : [];
     if (order === 'backward') chunks.reverse();
     return { asked: window, span, order, chunks, next: 0, found: new Map(), sorted: [], error: null, truncated };
   }
 
   private state(e: Entry<T>): SearchState<T> {
-    if (!e.sorted) e.sorted = [...e.found.values()].sort((a, b) => this.o.time(a) - this.o.time(b));
+    const o = this.o!;
+    if (!e.sorted) e.sorted = [...e.found.values()].sort((a, b) => o.time(a) - o.time(b));
     const total = e.chunks.length;
     const done = e.next >= total || e.error !== null;
     let searched: Span | null = null;
@@ -227,8 +253,9 @@ export class BackgroundSearch<T> {
   private step(): void {
     this.handle = null;
     const e = this.running;
-    if (!e || this.destroyed) return;
-    const wait = this.o.pace?.() ?? 0;
+    const o = this.o;
+    if (!e || this.destroyed || !o) return;
+    const wait = o.pace?.() ?? 0;
     if (wait > 0) {
       this.handle = this.timer.set(() => this.step(), wait);
       return;
@@ -239,10 +266,10 @@ export class BackgroundSearch<T> {
       return;
     }
     try {
-      for (const item of this.o.compute(chunk)) {
-        const k = this.o.key(item);
+      for (const item of o.compute(chunk)) {
+        const k = o.key(item);
         const had = e.found.get(k);
-        if (had === undefined || this.o.better?.(had, item)) e.found.set(k, item);
+        if (had === undefined || o.better?.(had, item)) e.found.set(k, item);
       }
       e.next += 1;
     } catch (error) {
@@ -251,7 +278,7 @@ export class BackgroundSearch<T> {
     e.sorted = null;
     if (e.next < e.chunks.length && !e.error) this.handle = this.timer.set(() => this.step(), 0);
     else this.running = null;
-    this.o.onUpdate?.();
+    o.onUpdate?.();
     for (const listener of [...this.listeners]) listener();
   }
 }

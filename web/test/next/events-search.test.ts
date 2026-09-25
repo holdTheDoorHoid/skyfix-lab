@@ -305,6 +305,53 @@ describe('the view’s searches', () => {
     shared.pace = () => 42;
     expect(seen!()).toBe(42);
   });
+
+  it('let go of a closed view’s callbacks, keep what they found, and take the next view’s', () => {
+    const t = new FakeTimers();
+    const shared = new SharedSearches();
+    const first = engine();
+    const second = engine();
+    const made: string[] = [];
+    const make = (name: string, e: ReturnType<typeof engine>) => (pace: () => number) => {
+      made.push(name);
+      return { compute: e.compute, chunkDays: 30, key: (f: Found) => f.id, time: (f: Found) => f.jd, timer: timerOf(t), pace };
+    };
+    const a = shared.search('x', 'k', make('first view', first));
+    let heard = 0;
+    a.subscribe(() => {
+      heard += 1;
+    });
+    shared.pace = () => 0;
+    a.get({ start: 0, end: 90 });
+    t.advance(0);
+    expect(first.calls).toHaveLength(1);
+    // The view closes: nothing more runs, no subscriber is called, nothing of the view is held.
+    shared.pause();
+    expect(a.detached).toBe(true);
+    expect(shared.pace()).toBe(0);
+    t.advance(100);
+    expect(first.calls).toHaveLength(1);
+    expect(heard).toBe(1);
+    // The next view: the same search, its own callbacks, the first chunk's finds kept.
+    const b = shared.search('x', 'k', make('second view', second));
+    expect(b).toBe(a);
+    expect(made).toEqual(['first view', 'second view']);
+    expect(b.detached).toBe(false);
+    const st = b.get({ start: 0, end: 90 });
+    expect(st.items.map((f) => f.jd)).toEqual([5, 15, 25]);
+    t.advance(0);
+    t.advance(0);
+    expect(second.calls).toEqual([
+      [30, 60],
+      [60, 90],
+    ]);
+    expect(first.calls).toHaveLength(1);
+    expect(b.get({ start: 0, end: 90 }).items).toHaveLength(9);
+    expect(heard).toBe(1);
+    // A search asked for while detached answers nothing rather than calling a closed view.
+    shared.pause();
+    expect(a.get({ start: 0, end: 90 })).toMatchObject({ items: [], done: true });
+  });
 });
 
 describe('which events a list shows', () => {
