@@ -764,8 +764,9 @@ which are validated for real sights, and a short table of how far a clock time c
 trusted in each age (the uncertainty in the Earth's rotation, from an hour at 2000 BC to
 under a second today). It also explains, in one
 place, what happens to your chosen place (nothing, unless you press Share), links this
-manual and the source code, and credits the map, star and font data. The **?** Help menu
-has the same two links. About has no tab of its own: **About SkyFix Lab** in the **?** Help
+manual and the source code, and credits the map, star and font data. It also links the
+manual's page of every data source and its licence. The **?** Help menu has the same links
+to the manual and the source code. About has no tab of its own: **About SkyFix Lab** in the **?** Help
 menu opens it, and so does the address `#about`.
 
 ## Themes, including night vision
