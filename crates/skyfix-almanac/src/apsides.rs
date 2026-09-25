@@ -308,23 +308,42 @@ pub fn moon_apsides(
         }
     }
 
-    // Full Moons over every calendar year the window touches (for the year's largest and
-    // smallest), new Moons over the window.
-    let (y0, y1) = (year_of(lo), year_of(hi));
-    let (plo, phi) = (
-        civil_to_jd(y0, 1, 1).max(c0),
-        civil_to_jd(y1 + 1, 1, 1).min(c1),
-    );
-    let phases = moon_phases(eph, plo, phi)?;
+    // New and full Moons in the window; then, for the year's largest and smallest, the
+    // full Moons of the rest of every calendar year that has one in the window.
+    let mut phases = moon_phases(eph, lo, hi)?;
+    let years: std::collections::BTreeSet<i32> = phases
+        .iter()
+        .filter(|p| p.kind == MoonPhaseKind::FullMoon)
+        .map(|p| year_of(p.jd_utc))
+        .collect();
     let mut full_by_year: std::collections::BTreeMap<i32, Vec<(f64, f64)>> = Default::default();
-    for p in &phases {
-        if p.kind == MoonPhaseKind::FullMoon {
-            full_by_year
-                .entry(year_of(p.jd_utc))
-                .or_default()
-                .push((p.jd_utc, dist(p.jd_utc)?));
+    for &y in &years {
+        let (y0, y1) = (
+            civil_to_jd(y, 1, 1).max(c0),
+            civil_to_jd(y + 1, 1, 1).min(c1),
+        );
+        let mut year_phases: Vec<_> = phases
+            .iter()
+            .filter(|p| p.jd_utc >= y0 && p.jd_utc < y1)
+            .cloned()
+            .collect();
+        if y0 < lo {
+            year_phases.extend(moon_phases(eph, y0, lo)?);
+        }
+        if y1 > hi {
+            year_phases.extend(moon_phases(eph, hi, y1)?);
+        }
+        let list = full_by_year.entry(y).or_default();
+        for p in year_phases {
+            if p.kind == MoonPhaseKind::FullMoon
+                && year_of(p.jd_utc) == y
+                && !list.iter().any(|x| (x.0 - p.jd_utc).abs() < 1.0)
+            {
+                list.push((p.jd_utc, dist(p.jd_utc)?));
+            }
         }
     }
+    phases.sort_by(|a, b| a.jd_utc.total_cmp(&b.jd_utc));
     // The perigee and the apogee on either side of an instant: the last extreme before
     // it and the first after it (they alternate).
     let bracket = |jd: f64| -> Option<((f64, f64), (f64, f64))> {

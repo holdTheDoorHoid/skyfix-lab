@@ -524,8 +524,259 @@ def build_apsides():
           % (len(apsides), len(rows), n_super, meeus["skyfield_utc"], float(da[0])))
 
 
+# ---------------------------------------------------------------------------
+# Occultations
+# ---------------------------------------------------------------------------
+
+#: Observing places, worldwide: name, lat, lon, height above the ellipsoid (m).
+OCC_SITES = [
+    ("philadelphia", 39.9526, -75.1652, 10.0),
+    ("los_angeles", 34.0522, -118.2437, 90.0),
+    ("london", 51.5074, -0.1278, 20.0),
+    ("sydney", -33.8688, 151.2093, 40.0),
+    ("tokyo", 35.6762, 139.6503, 40.0),
+    ("johannesburg", -26.2041, 28.0473, 1750.0),
+    ("buenos_aires", -34.6037, -58.3816, 25.0),
+    ("mumbai", 19.0760, 72.8777, 10.0),
+    ("honolulu", 21.3069, -157.8583, 5.0),
+    ("reykjavik", 64.1466, -21.9426, 30.0),
+    ("cairo", 30.0444, 31.2357, 23.0),
+    ("santiago", -33.4489, -70.6693, 570.0),
+]
+#: Stars: name, Hipparcos number, one of the 58 navigational stars.
+OCC_STARS = [
+    ("Aldebaran", 21421, True),
+    ("Regulus", 49669, True),
+    ("Spica", 65474, True),
+    ("Antares", 80763, True),
+    ("Alcyone", 17702, False),
+]
+OCC_PLANETS = [
+    ("Venus", "venus"),
+    ("Mars", "mars barycenter"),
+    ("Jupiter", "jupiter barycenter"),
+    ("Saturn", "saturn barycenter"),
+]
+#: Events kept per body: the first ones in time, in different years and at different
+#: places, seen with the Moon at least 5 degrees up at both contacts.
+OCC_PER_BODY = 3
+
+
+def position_angle_radec(ra1, dec1, ra2, dec2):
+    """Position angle of (ra2, dec2) from (ra1, dec1), north through east, degrees."""
+    a1, d1, a2, d2 = map(math.radians, (ra1, dec1, ra2, dec2))
+    da = a2 - a1
+    pa = math.atan2(
+        math.sin(da) * math.cos(d2),
+        math.cos(d1) * math.sin(d2) - math.sin(d1) * math.cos(d2) * math.cos(da),
+    )
+    return c.norm360(math.degrees(pa))
+
+
 def build_occultations():
-    raise NotImplementedError
+    from skyfield.api import Star, load, load_file, wgs84
+
+    ts_builtin = c.load_timescale()
+    eph = load_file(c.EPHEMERIS_CROSSCHECK_FILE)
+    earth, moon, sun = eph["earth"], eph["moon"], eph["sun"]
+    df = c.load_hipparcos_frame()
+    bodies = []
+    for name, hip, nav in OCC_STARS:
+        row = df.loc[hip]
+        bodies.append(
+            {
+                "name": name,
+                "kind": "star",
+                "target": Star.from_dataframe(row),
+                "navigational": nav,
+                "hip": hip,
+                "catalogue": {
+                    "ra_j2000_deg": float(row.ra_degrees),
+                    "dec_j2000_deg": float(row.dec_degrees),
+                    "pm_ra_cosdec_mas_yr": float(row.ra_mas_per_year),
+                    "pm_dec_mas_yr": float(row.dec_mas_per_year),
+                    "parallax_mas": float(row.parallax_mas),
+                    "magnitude": float(row.magnitude),
+                },
+            }
+        )
+    for name, key in OCC_PLANETS:
+        bodies.append({"name": name, "kind": "planet", "target": eph[key], "navigational": True})
+
+    # UT1 = UTC exactly from 2017 on (TAI - UTC = 37 s), as the explorer assumes; the
+    # events are chosen from 2017-2060 so one timescale serves.
+    ts = load.timescale(delta_t=32.184 + 37.0)
+
+    def t_of(jd_utc):
+        return ts.tt_jd(np.asarray(jd_utc, dtype=float) + 69.184 / 86400.0)
+
+    jd0 = c.jd_utc_of(ts_builtin.utc(2017, 1, 2))
+    jd1 = c.jd_utc_of(ts_builtin.utc(2060, 12, 30))
+
+    def geo_sep(target, jd):
+        t = t_of(jd)
+        e = earth.at(t)
+        return e.observe(moon).apparent().separation_from(e.observe(target).apparent()).degrees
+
+    def topo(site, target, jd):
+        """(limb distance deg, moon alt, sun alt, pa) at UTC Julian date(s) jd."""
+        t = t_of(jd)
+        o = site.at(t)
+        m = o.observe(moon).apparent()
+        b = o.observe(target).apparent()
+        mg = np.asarray(moon.at(t).position.km) - np.asarray(o.position.km)
+        dist = np.sqrt(np.sum(mg * mg, axis=0))
+        sd = np.degrees(np.arcsin(MOON_RADIUS_KM / dist))
+        f = m.separation_from(b).degrees - sd
+        return f, m, b, o
+
+    events = []
+    for body in bodies:
+        target = body["target"]
+        # Geocentric close approaches, 3-hourly samples then golden-section refinement.
+        jd = np.arange(jd0, jd1, 0.125)
+        sep = geo_sep(target, jd)
+        kept = []
+        for i in range(1, len(jd) - 1):
+            if sep[i] < sep[i - 1] and sep[i] <= sep[i + 1] and sep[i] < 1.6:
+                g = (math.sqrt(5.0) - 1.0) / 2.0
+                a, b_ = jd[i - 1], jd[i + 1]
+                x1, x2 = b_ - g * (b_ - a), a + g * (b_ - a)
+                f1, f2 = float(geo_sep(target, x1)), float(geo_sep(target, x2))
+                while b_ - a > 1e-5:
+                    if f1 < f2:
+                        b_, x2, f2 = x2, x1, f1
+                        x1 = b_ - g * (b_ - a)
+                        f1 = float(geo_sep(target, x1))
+                    else:
+                        a, x1, f1 = x1, x2, f2
+                        x2 = a + g * (b_ - a)
+                        f2 = float(geo_sep(target, x2))
+                kept.append(0.5 * (a + b_))
+        chosen = []
+        years = set()
+        for jm in kept:
+            if len(chosen) >= OCC_PER_BODY:
+                break
+            year = int(ts_builtin.tt_jd(jm).utc.year)
+            if year in years:
+                continue
+            for name, lat, lon, h in OCC_SITES:
+                if any(ch["site"] == name for ch in chosen):
+                    continue
+                site = earth + wgs84.latlon(lat, lon, elevation_m=h)
+                grid = jm + np.arange(-5.0, 5.0 + 1e-9, 2.0 / 60.0) / 24.0
+                f, m, _b, o = topo(site, target, grid)
+                alt = m.altaz()[0].degrees
+                sign = f < 0
+                idx = np.nonzero(sign[1:] != sign[:-1])[0]
+                if len(idx) != 2 or not sign[idx[0] + 1]:
+                    continue
+                # Contacts by bisection to 1e-8 day (1 ms).
+                contacts = []
+                for i in idx:
+                    lo_, hi_ = grid[i], grid[i + 1]
+                    flo = float(topo(site, target, lo_)[0])
+                    while hi_ - lo_ > 1e-8:
+                        mid = 0.5 * (lo_ + hi_)
+                        fm = float(topo(site, target, mid)[0])
+                        if (fm < 0) == (flo < 0):
+                            lo_, flo = mid, fm
+                        else:
+                            hi_ = mid
+                    contacts.append(0.5 * (lo_ + hi_))
+                recs = []
+                for kind, jc in zip(("disappearance", "reappearance"), contacts):
+                    _f, mc, bc, oc = topo(site, target, jc)
+                    ma = float(mc.altaz()[0].degrees)
+                    mz = float(mc.altaz()[1].degrees)
+                    sa = float(oc.observe(sun).apparent().altaz()[0].degrees)
+                    mra, mdec, _ = mc.radec(epoch="date")
+                    bra, bdec, _ = bc.radec(epoch="date")
+                    pa = position_angle_radec(
+                        float(mra._degrees), float(mdec.degrees),
+                        float(bra._degrees), float(bdec.degrees),
+                    )
+                    recs.append((kind, jc, pa, ma, mz, sa))
+                if min(r[3] for r in recs) < 5.0:
+                    continue
+                fmin = float(np.min(f))
+                chosen.append(
+                    {
+                        "body": body["name"],
+                        "kind": body["kind"],
+                        "navigational": body["navigational"],
+                        "site": name,
+                        "observer": c.Inline(
+                            {"lat_deg": c.deg(lat), "lon_deg": c.deg(lon), "height_m": c.metres(h)}
+                        ),
+                        "least_limb_distance_arcmin_sampled": c.arcmin(fmin * 60.0),
+                        "contacts": [
+                            c.Inline(
+                                {
+                                    "kind": k,
+                                    "jd_utc": c.jd(jc),
+                                    "utc": ts.tt_jd(jc + 69.184 / 86400.0).utc_strftime(
+                                        "%Y-%m-%dT%H:%M:%S.%fZ"
+                                    )[:23] + "Z",
+                                    "position_angle_deg": c.Num(pa, 4),
+                                    "moon_alt_deg": c.Num(ma, 4),
+                                    "moon_az_deg": c.Num(mz, 4),
+                                    "sun_alt_deg": c.Num(sa, 4),
+                                }
+                            )
+                            for (k, jc, pa, ma, mz, sa) in recs
+                        ],
+                    }
+                )
+                if body["kind"] == "star":
+                    chosen[-1]["hip"] = body["hip"]
+                    chosen[-1]["catalogue"] = c.Inline(
+                        {k: c.Num(v, 9) for k, v in body["catalogue"].items()}
+                    )
+                years.add(year)
+                break
+        print("  %-9s %d close approaches, %d events kept" % (body["name"], len(kept), len(chosen)))
+        events.extend(chosen)
+
+    obj = {
+        "schema": "skyfix.reference/1",
+        "generator": c.generator_block(
+            "tools/moon/gen_reference.py occultations",
+            "Lunar occultations for observers on the WGS84 ellipsoid: disappearance and "
+            "reappearance at the Moon's mean limb from Skyfield's topocentric apparent "
+            "places (JPL DE440s, Hipparcos), UT1 = UTC.",
+            c.arcmin(0.0),
+            "EXPANSION_PLAN P8: occultation contacts within 30 s of Skyfield's "
+            "topocentric geometry (mean limb).",
+            extra={
+                "contact": (
+                    "A contact is where the topocentric apparent separation of the Moon's "
+                    "centre and the body equals the Moon's topocentric semidiameter "
+                    "asin(R / d), R = 0.2725076 x 6378.14 km = %.3f km, d the geometric "
+                    "observer-Moon distance; found on a 2-minute grid over +/-5 h of the "
+                    "geocentric closest approach and refined by bisection to 1 ms." % MOON_RADIUS_KM
+                ),
+                "selection": (
+                    "Bodies: Aldebaran, Regulus, Spica, Antares (navigational), Alcyone "
+                    "(eta Tauri, from the Bright Star Catalogue's range), Venus, Mars, "
+                    "Jupiter, Saturn. For each, the first geocentric close approaches "
+                    "(< 1.6 deg) from 2017 on, at most one per calendar year, each at the "
+                    "first place of OCC_SITES that sees a disappearance and a reappearance "
+                    "with the Moon at least 5 degrees up; %d per body." % OCC_PER_BODY
+                ),
+                "position_angle": (
+                    "Of the body from the Moon's centre, topocentric apparent RA/Dec of "
+                    "date, north through east."
+                ),
+                "ut1": "load.timescale(delta_t = 69.184): UT1 = UTC exactly for 2017 on.",
+                "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+                "stars": c.file_facts(c.HIPPARCOS_FILE, c.HIPPARCOS_URL),
+            },
+        ),
+        "events": events,
+    }
+    c.write_json(os.path.join(c.FIX_REFERENCE, "moon_occultations.json"), obj)
 
 
 if __name__ == "__main__":

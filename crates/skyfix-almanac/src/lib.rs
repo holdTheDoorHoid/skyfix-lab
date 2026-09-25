@@ -14,3 +14,4 @@ pub mod sky;
 pub mod apsides;
 pub mod libration;
 pub mod lunar_features;
+pub mod occultations;
