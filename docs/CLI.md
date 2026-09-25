@@ -936,7 +936,7 @@ carries an eye-safety line, fitted to what the place sees.
 ```console
 $ skyfix eclipse 2024-04-08-solar --lat 32.78 --lon -96.80
 TOTAL SOLAR ECLIPSE  2024-04-08-solar
-Greatest   2024-04-08T18:17:20Z at 25 17.33' N, 104 08.78' W (25.288760, -104.146323),
+Greatest   2024-04-08T18:17:20Z at 25 17.33' N, 104 08.78' W (25.288760, -104.146253),
            the Sun at altitude +69 47.6, azimuth 149 23.3 there
 Magnitude  1.0566: the Moon's apparent diameter over the Sun's at greatest eclipse
 ...
@@ -953,7 +953,7 @@ Eclipse    2024-04-08T17:23:19Z to 2024-04-08T20:02:41Z, 2 h 39 min 22 s from fi
 
   UTC                   event                           Sun alt        Az     P     V
   2024-04-08T17:23:19Z  c1   partial eclipse begins    +60 34.2  145 18.9   226   255
-  2024-04-08T18:40:43Z  c2   totality begins           +64 39.9  186 54.1    19    13
+  2024-04-08T18:40:43Z  c2   totality begins           +64 40.0  186 54.1    19    13
   2024-04-08T18:42:39Z  max  greatest eclipse          +64 36.8  188 00.5     -     -
   2024-04-08T18:44:34Z  c3   totality ends             +64 33.3  189 06.5   256   248
   2024-04-08T20:02:41Z  c4   partial eclipse ends      +56 44.3  226 01.8    49    12
@@ -967,7 +967,8 @@ eye; the glasses go back on as the first bright point reappears.
 
 Dallas is inside the path, with 3 min 51 s of totality. USNO's Solar Eclipse Computer
 gives 3 min 52.5 s for Dallas at 32.7767 N, 96.797 W and 150 m (with USNO's own Delta-T
-of 72.8 s against the 69.184 s here), and every contact of that case agrees with USNO's
+of 72.8 s against the 69.201 s here: TT - UTC 69.184 s less the IERS UT1 - UTC of
+-0.017 s that day), and every contact of that case agrees with USNO's
 within 2 s once the Delta-T is the same (docs/ACCURACY.md section 12). `alt` and `Az`
 are the Sun's centre, geometric, from the WGS84 site (CONVENTIONS 13.2); a contact with
 the Sun below its rise and set altitude, -50', is marked `Sun down`, and a sunrise or

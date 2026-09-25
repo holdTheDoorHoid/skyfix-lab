@@ -9,7 +9,9 @@
 //! - **Ephemeris**: the apparent geocentric Sun (`SunProvider`, VSOP87D) and Moon
 //!   (`MoonProvider`, ELP 2000-82B) of CONVENTIONS section 7, the same two theories
 //!   NASA's *Five Millennium Canon* (Espenak & Meeus) was computed with. Earth rotation
-//!   is GAST with UT1 = UTC + DUT1, DUT1 = 0 unless supplied (CONVENTIONS section 6).
+//!   is GAST with UT1 from `skyfix_core::time` (CONVENTIONS 15.2): on the UTC scale
+//!   (1972-2035) UT1 = UTC + DUT1, DUT1 from the IERS history, a user value, or 0
+//!   (+-0.9 s) when unknown; on the UT scale the clock is UT1.
 //! - **Solar eclipses** are reduced to Besselian elements (`bessel.rs`), interpolated
 //!   at Chebyshev nodes over twelve hours around each eclipse; everything else —
 //!   greatest eclipse, type, contacts, paths, local circumstances — is geometry on those
@@ -22,11 +24,13 @@
 //! - **Lunar eclipses** (`lunar.rs`): the Moon against the shadow cast opposite the
 //!   apparent Sun, shadow radii by **Danjon's rule** (`1.01 x` the Moon's parallax,
 //!   [`DANJON_FACTOR`]), the convention of NASA's lunar canon.
-//! - **Time**: every instant in and out is UTC (`jd_utc`, `utc`). Greatest eclipse also
-//!   carries `jd_tt`, and each eclipse its `delta_t_s`, the TT minus UT1 its ground track
-//!   assumed (32.184 s plus TAI minus UTC, less DUT1). Global quantities (gamma,
-//!   magnitude, type, instants in TT) do not depend on it; geographic positions and local
-//!   UTC times do.
+//! - **Time**: every instant in and out is on the app's clock (`jd_utc`, `utc`: UTC
+//!   1972-2035, UT outside). Greatest eclipse also carries `jd_tt`, and each eclipse its
+//!   `delta_t_s`, the TT minus UT1 its ground track assumed (32.184 s plus TAI minus UTC,
+//!   less DUT1, on the UTC scale; the Delta-T model on the UT scale), with its standard
+//!   uncertainty `delta_t_sigma_s`. Global quantities (gamma, magnitude, type, instants
+//!   in TT) do not depend on it; geographic positions and local clock times do (15" of
+//!   longitude per second).
 //! - **Identity**: `"YYYY-MM-DD-solar"` or `"YYYY-MM-DD-lunar"`, the UTC date of
 //!   greatest eclipse. **Saros** and **lunation** numbers as NASA numbers them
 //!   (`search.rs`).
@@ -42,7 +46,8 @@ mod search;
 mod solar;
 
 use serde::{Deserialize, Serialize};
-use skyfix_core::time::{civil_to_jd, format_utc, jd_tt};
+use skyfix_core::deltat;
+use skyfix_core::time::{self, ClockScale, Dut1, Dut1Source, civil_to_jd, format_utc, jd_tt};
 use skyfix_ephemeris::EphemerisError;
 use skyfix_ephemeris::moon::MoonProvider;
 use skyfix_ephemeris::sun::SunProvider;
@@ -167,6 +172,9 @@ pub struct SolarEclipse {
     pub central_duration_s: Option<f64>,
     /// TT - UT1 the geographic quantities assume.
     pub delta_t_s: f64,
+    /// Its standard uncertainty: DUT1's on the UTC scale, the Delta-T model's on the UT
+    /// scale (CONVENTIONS 15.2).
+    pub delta_t_sigma_s: f64,
 }
 
 /// Greatest eclipse of a lunar eclipse and where the Moon is overhead.
@@ -198,6 +206,7 @@ pub struct LunarEclipse {
     pub partial_duration_s: Option<f64>,
     pub total_duration_s: Option<f64>,
     pub delta_t_s: f64,
+    pub delta_t_sigma_s: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -242,8 +251,11 @@ impl EclipseConventions {
                            s_sun + pi_sun (NASA's lunar canon; the Astronomical Almanac's 1/50 \
                            rule gives magnitudes about 0.006 and 0.026 larger)"
                 .to_string(),
-            delta_t: "TT - UT1 = 32.184 s + (TAI - UTC) - DUT1 with DUT1 = 0: exact to 0.9 s \
-                      for the past, the leap-second table's value for the future"
+            delta_t: "TT - UT1 = 32.184 s + (TAI - UTC) - DUT1 on the UTC scale (1972-2035), \
+                      DUT1 from the IERS history (1973 to 2027), else 0 +-0.9 s; the Delta-T \
+                      model outside (Stephenson, Morrison & Hohenkerk 2016 splines, IERS, \
+                      the long-term parabola), with its standard uncertainty \
+                      (delta_t_sigma_s)"
                 .to_string(),
             sources: "VSOP87D Sun and ELP 2000-82B Moon (the theories of NASA's Five Millennium \
                       Canon); validated against the canon, USNO local circumstances and \
@@ -296,6 +308,7 @@ pub struct SolarLocal {
     /// else the sunrise or sunset nearest to it; `null` when nothing is visible.
     pub visible_max: Option<LocalEvent>,
     pub delta_t_s: f64,
+    pub delta_t_sigma_s: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -306,6 +319,7 @@ pub struct LunarLocal {
     /// `p1`, `u1`, `u2`, `max`, `u3`, `u4`, `p4`, `moonrise`, `moonset`, sorted.
     pub events: Vec<LocalEvent>,
     pub delta_t_s: f64,
+    pub delta_t_sigma_s: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -338,6 +352,7 @@ pub struct SolarPath {
     /// loops that, with the penumbral limits, bound the region that sees any eclipse.
     pub penumbra_horizon: Polyline,
     pub delta_t_s: f64,
+    pub delta_t_sigma_s: f64,
 }
 
 /// A point under the Moon at one contact of a lunar eclipse: the Moon is overhead
@@ -359,6 +374,7 @@ pub struct LunarPath {
     /// The sub-lunar point at each contact and at greatest eclipse.
     pub sublunar: Vec<SublunarPoint>,
     pub delta_t_s: f64,
+    pub delta_t_sigma_s: f64,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -372,12 +388,19 @@ pub enum EclipsePath {
 // The engine
 // ---------------------------------------------------------------------------
 
+/// How the engine takes DUT1 = UT1 - UTC.
+#[derive(Debug, Clone, Copy, PartialEq)]
+enum Dut1Mode {
+    /// One value for every eclipse (a validation adopting another source's Delta-T).
+    Fixed(f64),
+    /// `skyfix_core::time::dut1_info` at each eclipse, with an optional user value.
+    Auto(Option<f64>),
+}
+
 /// Eclipse computations on the project's own Sun and Moon.
 #[derive(Debug, Clone)]
 pub struct Eclipses {
-    sun: SunProvider,
-    moon: MoonProvider,
-    dut1_s: f64,
+    dut1: Dut1Mode,
 }
 
 impl Default for Eclipses {
@@ -390,12 +413,14 @@ struct SolarModel {
     el: bessel::SolarElements,
     g: solar::SolarGlobal,
     summary: SolarEclipse,
+    sun: SunProvider,
 }
 
 struct LunarModel {
     el: lunar::LunarElements,
     g: lunar::LunarGlobal,
     summary: LunarEclipse,
+    moon: MoonProvider,
 }
 
 enum Model {
@@ -415,13 +440,9 @@ fn date_of(jd_utc: f64) -> String {
     format_utc(jd_utc).chars().take(10).collect()
 }
 
-/// UTC Julian date of a TT Julian date (inverting the leap-second table).
+/// The clock instant (UTC 1972-2035, UT outside) of a TT Julian date.
 fn utc_of_tt(jd_tt_v: f64) -> f64 {
-    let mut jd = jd_tt_v - 69.184 / 86_400.0;
-    for _ in 0..3 {
-        jd = jd_tt_v - (jd_tt(jd) - jd);
-    }
-    jd
+    time::clock_from_tt(jd_tt_v)
 }
 
 fn check_site(site: &Site) -> Result<(), EclipseError> {
@@ -442,23 +463,49 @@ fn check_site(site: &Site) -> Result<(), EclipseError> {
 }
 
 impl Eclipses {
-    /// DUT1 = 0 (CONVENTIONS section 6).
+    /// DUT1 from the IERS history where it is known, 0 (+-0.9 s) elsewhere on the UTC
+    /// scale, and none on the UT scale (CONVENTIONS 15.2).
     pub fn new() -> Self {
-        Self::with_dut1_s(0.0)
+        Self::with_user_dut1(None)
     }
 
-    /// With a known DUT1 = UT1 - UTC, seconds. A validation can also use it to adopt
-    /// another source's Delta-T: `DUT1 = 32.184 + (TAI - UTC) - Delta-T`.
+    /// With a known DUT1 = UT1 - UTC, seconds, for every eclipse. A validation can also
+    /// use it to adopt another source's Delta-T: `DUT1 = 32.184 + (TAI - UTC) - Delta-T`.
     pub fn with_dut1_s(dut1_s: f64) -> Self {
         Eclipses {
-            sun: SunProvider::with_dut1_s(dut1_s),
-            moon: MoonProvider::with_dut1_s(dut1_s),
-            dut1_s,
+            dut1: Dut1Mode::Fixed(dut1_s),
         }
     }
 
-    fn delta_t_s(&self, jd_utc: f64) -> f64 {
-        skyfix_core::time::TT_MINUS_TAI_S + skyfix_core::time::delta_at(jd_utc) - self.dut1_s
+    /// With the explorer-wide user DUT1 (`set_dut1`), which applies on the UTC scale;
+    /// `None` is [`Eclipses::new`].
+    pub fn with_user_dut1(user_dut1_s: Option<f64>) -> Self {
+        Eclipses {
+            dut1: Dut1Mode::Auto(user_dut1_s),
+        }
+    }
+
+    /// DUT1 at an eclipse's instant.
+    fn dut1_at(&self, jd_utc: f64) -> Dut1 {
+        match self.dut1 {
+            Dut1Mode::Fixed(value_s) => Dut1 {
+                value_s,
+                sigma_s: 0.0,
+                source: Dut1Source::User,
+            },
+            Dut1Mode::Auto(user) => time::dut1_info(jd_utc, user),
+        }
+    }
+
+    /// `(delta_t_s, delta_t_sigma_s)`: TT - UT1 as the engine uses it at `jd_utc` with
+    /// this DUT1, and its standard uncertainty.
+    fn delta_t_s(jd_utc: f64, dut1: &Dut1) -> (f64, f64) {
+        let value = time::tt_minus_clock_s(jd_utc) - dut1.value_s;
+        let sigma = match time::scale_at(jd_utc) {
+            ClockScale::Utc => dut1.sigma_s,
+            ClockScale::Ut => deltat::delta_t(time::tt_from_clock(jd_utc)).sigma_s,
+        };
+        (value, sigma)
     }
 
     fn window(&self, jd_guess: f64) -> (f64, f64) {
@@ -473,14 +520,18 @@ impl Eclipses {
         if hi - lo < 1.0 {
             return Ok(None);
         }
-        let el = bessel::SolarElements::build(&self.sun, &self.moon, jd_guess, lo, hi)?;
+        let dut1 = self.dut1_at(jd_guess);
+        let sun = SunProvider::with_dut1_s(dut1.value_s);
+        let moon = MoonProvider::with_dut1_s(dut1.value_s);
+        let el = bessel::SolarElements::build(&sun, &moon, jd_guess, lo, hi)?;
         let Some(g) = solar::solar_global(&el) else {
             return Ok(None);
         };
         let jd = el.jd(g.t_ge);
         let tt = jd_tt(jd);
         let site = Site::new(g.ge_lat_deg, g.ge_lon_deg);
-        let hz = local::sun_horizontal(&self.sun, &site, jd)?;
+        let hz = local::sun_horizontal(&sun, &site, jd)?;
+        let (delta_t_s, delta_t_sigma_s) = Self::delta_t_s(jd, &dut1);
         let lunation = search::lunation_number(tt, true);
         let mut contacts = Vec::new();
         for (kind, t) in [
@@ -521,9 +572,15 @@ impl Eclipses {
             contacts,
             path_width_km: width,
             central_duration_s: duration,
-            delta_t_s: self.delta_t_s(jd),
+            delta_t_s,
+            delta_t_sigma_s,
         };
-        Ok(Some(SolarModel { el, g, summary }))
+        Ok(Some(SolarModel {
+            el,
+            g,
+            summary,
+            sun,
+        }))
     }
 
     fn lunar_model(&self, c: &search::Candidate) -> Result<Option<LunarModel>, EclipseError> {
@@ -532,13 +589,17 @@ impl Eclipses {
         if hi - lo < 1.0 {
             return Ok(None);
         }
-        let el = lunar::LunarElements::build(&self.sun, &self.moon, jd_guess, lo, hi)?;
+        let dut1 = self.dut1_at(jd_guess);
+        let sun = SunProvider::with_dut1_s(dut1.value_s);
+        let moon_provider = MoonProvider::with_dut1_s(dut1.value_s);
+        let el = lunar::LunarElements::build(&sun, &moon_provider, jd_guess, lo, hi)?;
         let Some(g) = lunar::lunar_global(&el) else {
             return Ok(None);
         };
         let jd = el.jd(g.t_ge);
         let tt = jd_tt(jd);
-        let moon = self.moon.position(jd)?;
+        let moon = moon_provider.position(jd)?;
+        let (delta_t_s, delta_t_sigma_s) = Self::delta_t_s(jd, &dut1);
         let lunation = search::lunation_number(tt, false);
         let mut contacts = Vec::new();
         for (kind, t) in [
@@ -576,9 +637,15 @@ impl Eclipses {
             penumbral_duration_s: span(g.p1, g.p4),
             partial_duration_s: span(g.u1, g.u4),
             total_duration_s: span(g.u2, g.u3),
-            delta_t_s: self.delta_t_s(jd),
+            delta_t_s,
+            delta_t_sigma_s,
         };
-        Ok(Some(LunarModel { el, g, summary }))
+        Ok(Some(LunarModel {
+            el,
+            g,
+            summary,
+            moon: moon_provider,
+        }))
     }
 
     /// Every eclipse whose greatest eclipse falls in `[jd_start, jd_end]` (UTC), in
@@ -692,7 +759,7 @@ impl Eclipses {
         };
         Ok(match self.model(id)? {
             Model::Solar(m) => {
-                let r = local::solar_local(&m.el, &self.sun, site)?;
+                let r = local::solar_local(&m.el, &m.sun, site)?;
                 EclipseLocal::Solar(SolarLocal {
                     id: m.summary.id.clone(),
                     observer,
@@ -705,16 +772,18 @@ impl Eclipses {
                     events: r.events,
                     visible_max: r.visible_max,
                     delta_t_s: m.summary.delta_t_s,
+                    delta_t_sigma_s: m.summary.delta_t_sigma_s,
                 })
             }
             Model::Lunar(m) => {
-                let r = local::lunar_local(&m.el, &m.g, &self.moon, site)?;
+                let r = local::lunar_local(&m.el, &m.g, &m.moon, site)?;
                 EclipseLocal::Lunar(LunarLocal {
                     id: m.summary.id.clone(),
                     observer,
                     visibility: r.visibility,
                     events: r.events,
                     delta_t_s: m.summary.delta_t_s,
+                    delta_t_sigma_s: m.summary.delta_t_sigma_s,
                 })
             }
         })
@@ -738,6 +807,7 @@ impl Eclipses {
                     penumbra_south: path::limit_line(el, g, path::Cone::Penumbra, false),
                     penumbra_horizon: path::horizon_curves(el, g, path::Cone::Penumbra),
                     delta_t_s: m.summary.delta_t_s,
+                    delta_t_sigma_s: m.summary.delta_t_sigma_s,
                 }))
             }
             Model::Lunar(m) => {
@@ -753,7 +823,7 @@ impl Eclipses {
                 ] {
                     let Some(t) = t else { continue };
                     let jd = m.el.jd(t);
-                    let p = self.moon.position(jd)?;
+                    let p = m.moon.position(jd)?;
                     sublunar.push(SublunarPoint {
                         kind,
                         jd_utc: jd,
@@ -767,6 +837,7 @@ impl Eclipses {
                     eclipse_type: m.summary.eclipse_type,
                     sublunar,
                     delta_t_s: m.summary.delta_t_s,
+                    delta_t_sigma_s: m.summary.delta_t_sigma_s,
                 })
             }
         })

@@ -23,13 +23,13 @@ Observer  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84
       -26 09.1, Az 66 31.5
   2025-09-07-lunar  total      2025-09-07T18:11:49Z   1.3619   2.3440  -0.2752    128
       here: not seen: the Moon is below the horizon throughout; greatest eclipse
-      2025-09-07T18:11:49Z, Moon alt -63 28.2, Az 352 26.2
+      2025-09-07T18:11:49Z, Moon alt -63 28.2, Az 352 26.3
   2025-09-21-solar  partial    2025-09-21T19:41:55Z   0.8550        -  -1.0651    154
       here: no eclipse: the Moon's shadow misses this place
   2026-02-17-solar  annular    2026-02-17T12:11:56Z   0.9630        -  -0.9743    121
       here: no eclipse: the Moon's shadow misses this place
   2026-03-03-lunar  total      2026-03-03T11:33:42Z   1.1507   2.1839  -0.3765    133
-      here: partly seen: the Moon sets at 2026-03-03T12:55:56Z during it; greatest
+      here: partly seen: the Moon sets at 2026-03-03T12:55:55Z during it; greatest
       eclipse 2026-03-03T11:33:42Z, Moon alt +16 07.7, Az 266 38.2
   2026-08-12-solar  total      2026-08-12T17:45:56Z   1.0386        -  +0.8977    126
       here: no eclipse: the Moon's shadow misses this place
