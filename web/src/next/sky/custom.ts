@@ -17,8 +17,10 @@ import type { OrbitalElements } from '../engine/types.js';
 
 export interface CustomBodies {
   get(): readonly OrbitalElements[];
-  /** Add or replace (by name) these bodies. */
-  add(bodies: readonly OrbitalElements[]): void;
+  /** Add or replace (by name) these bodies; `credit` is shown wherever they are described. */
+  add(bodies: readonly OrbitalElements[], credit?: string): void;
+  /** The credit line for a body: its own, or the MPC's for a body read from an MPC format. */
+  creditOf(body: OrbitalElements): string;
   remove(name: string): void;
   clear(): void;
   subscribe(listener: (bodies: readonly OrbitalElements[]) => void): () => void;
@@ -31,6 +33,7 @@ export const MAX_CUSTOM_BODIES = 20;
 
 function createChannel(): CustomBodies {
   let list: readonly OrbitalElements[] = [];
+  const credits = new Map<string, string>();
   const listeners = new Set<(bodies: readonly OrbitalElements[]) => void>();
   const emit = (next: readonly OrbitalElements[]): void => {
     list = Object.freeze([...next]);
@@ -44,9 +47,16 @@ function createChannel(): CustomBodies {
   };
   return {
     get: () => list,
-    add(bodies) {
+    add(bodies, credit) {
       const names = new Set(bodies.map((b) => b.name));
+      for (const b of bodies) {
+        if (credit) credits.set(b.name, credit);
+        else credits.delete(b.name);
+      }
       emit([...list.filter((b) => !names.has(b.name)), ...bodies].slice(-MAX_CUSTOM_BODIES));
+    },
+    creditOf(body) {
+      return credits.get(body.name) ?? (fromMpc(body) ? MPC_CREDIT : '');
     },
     remove(name) {
       if (list.some((b) => b.name === name)) emit(list.filter((b) => b.name !== name));
@@ -73,15 +83,14 @@ export function customBodies(ctx: Pick<Ctx, 'store'>): CustomBodies {
   return channel;
 }
 
+/** The line the Minor Planet Center asks to accompany its data. */
+export const MPC_CREDIT = 'Source: Minor Planet Center';
+
 /** True when the elements came from one of the Minor Planet Center's formats. */
 export function fromMpc(body: Pick<OrbitalElements, 'source'>): boolean {
   return body.source === 'mpcorb' || body.source === 'mpc_comet';
 }
 
-/** "Source: Minor Planet Center" when any body needs it, else ''. */
-export function mpcCredit(bodies: readonly Pick<OrbitalElements, 'source'>[]): string {
-  return bodies.some(fromMpc) ? 'Source: Minor Planet Center' : '';
-}
 
 /**
  * A worked example for the add dialog: (1) Ceres as typed-in elements (the values of the
