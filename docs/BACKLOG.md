@@ -192,3 +192,15 @@ This file is the single list; the completion report links here.
 | Alignment dates across a daylight-saving change | known limit | `alignment_days` lays a year on one fixed UTC offset (the one at the time shown); the list writes each day in the real zone, so only the grouping into runs of an event within an hour of local midnight could differ |
 | Offering the tides pack from the Place section | decided against | the line appears only when the pack is on the device; offering it everywhere would put a US-only download in front of every visitor, and knowing that a place is near a US station needs the pack itself |
 
+## Expansion programme P12 — the lunar limb (eclipselimb agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| The `lunar-limb` pack and limb-corrected solar-eclipse contacts, the drawn limb, approximate Baily's beads | completed (engine) | `skyfix_almanac::eclipses::limb`, WASM `eclipse_local_limb`, `lunar_limb_profile`, `lunar_limb_info`, the `lunar-limb` producer; TypeScript `eclipseLocal(id, observer, { limb: true })` and `LimbEngine`; `docs/ACCURACY.md` section 19. Showing the corrected times, the limb drawing with the Sun's disc and the beads, and the pack prompt in the eclipse card is wave 2 (Q4 events2) |
+| Third contact against NASA SVS | open question | Second contact agrees within 1.2 s, third is 1.4 s early on average in both eclipses and in the independent implementation: SVS's central phases are 1.0-1.6 s longer than the geometric ones for the total and the annular eclipse alike, which no change in the Moon's or the Sun's size can produce. SVS's definition of "100 % coverage" and its Delta-T are not published; an SVS or NASA source that states them would settle it |
+| Bead-level detail | unstarted | 1.9 km terrain resolves the main valleys only. Per-eclipse profiles from LDEM_64 (474 m) or LDEM_128, precomputed for the band of libration one eclipse spans (a few tens of kB each, data audit section 9), would give real beads |
+| Limb-corrected path limits on the map | unstarted | The limits of totality move by 1-3 km with the limb; the same outline solved for the grazing site along the path's normals would draw them (`eclipse_path` is the mean limb's) |
+| Occultation grazes with the real limb | unstarted | `lunar_limb_profile` gives the outline at any instant; star occultation contacts (P8, mean limb) and graze predictions could use it |
+| The core module's size budget | decision | The lunar limb adds 45.3 KB raw / 20.7 KB gzipped to the core module; main alone (ab8f55c) is 2 997 407 bytes, 2.6 KB under the 3 MB budget, so the module is 42.7 KB over it (and 2.3 KB over 1.25 MB gzipped). Options: raise the budget, `opt-level = "z"` (about 5 %), or load the limb engine as a second module with its pack |
+| A smaller pack | unstarted | 1.66 MB gzipped; 10 m quanta would save about 0.4 MB gzipped (at most 5 m, 0.003", of rounding), a ±10° ring about a sixth |
+| Command line | unstarted | No `skyfix eclipse --limb` yet (cli3) |
