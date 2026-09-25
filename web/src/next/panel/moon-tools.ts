@@ -274,7 +274,7 @@ export function moonTools(ctx: Ctx): MoonTools {
     const zone = displayZone(s);
     const jd = s.time.jd_utc;
     const next = apsides ? nextApsides(apsides, jd) : { perigee: null, apogee: null, full: null };
-    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
+    // The ±ΔT chip's text after each time (time-ui's uncertaintyText, through deltaTNote).
     const dt = deltaTNote(ctx, jd);
     const line = (x: MoonApsis | null, row: HTMLElement, value: HTMLElement): void => {
       row.hidden = !x;

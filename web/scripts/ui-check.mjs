@@ -782,6 +782,14 @@ async function photoChecks({ send, evaluate, waitFor, messages, open, shot, view
   check('photo: the tides line appears in Place once the tides pack is got, labelled a prediction', before === true && shown && /predicted, not observed/.test(tide?.[0] ?? '') && /NOAA/.test(tide?.[1] ?? ''), js({ before, got, tide: tide?.[0] }));
   await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  // Its link opens the Charts view on the Tides tab (charts2's showCharts).
+  await evaluate(`[...document.querySelectorAll('.sf-photo-tide .sf-link')].find((b) => /Tides chart/.test(b.textContent))?.click(); true`);
+  const tidesTab = await waitFor(`location.hash === '#charts' && document.querySelector('.sfc-tabs [data-tab="tides"]')?.getAttribute('aria-selected') === 'true'`, 15000);
+  check('photo: "Tides chart" opens Charts on its Tides tab', tidesTab, await evaluate(`location.hash + ' ' + (document.querySelector('.sfc-tabs [aria-selected="true"]')?.textContent ?? '')`));
+  // A planet's size in the sky (planetdetail's planet_disc).
+  await open(MOONLIT.replace('body=Moon', 'body=Jupiter'), { theme: 'dark' });
+  const jupiter = await waitFor(`[...document.querySelectorAll('.sf-selected .sf-kv')].some((r) => /Size in the sky/.test(r.textContent) && /\\d+\\.\\d″$/.test(r.querySelector('.sf-kv__v')?.textContent ?? ''))`, 10000);
+  check('photo: a planet’s size in the sky', jupiter, await evaluate(`[...document.querySelectorAll('.sf-selected .sf-kv')].find((r) => /Size in the sky/.test(r.textContent))?.textContent ?? 'no row'`));
   check('photo: getting the tides pack: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
 
   // --- Phone, dark: the Sun card with the finder --------------------------------------------------

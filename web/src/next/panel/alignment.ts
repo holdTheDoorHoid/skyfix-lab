@@ -29,8 +29,9 @@ import { dateShort, eventTime, formatAngle } from '../shell/format.js';
 import { displayZone, engineObserver, type AngleFormat, type ExplorerState } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { segmented } from '../theme/primitives.js';
-import { wallClock, type Zone } from '../time.js';
-import { bearingSourceText, deltaTNote, photoBearing, type BearingValue } from './photo.js';
+import { msFromJd, wallClock, type Zone } from '../time.js';
+import { formatYear, gregorianDateOfMs } from '../time/index.js';
+import { bearingSourceText, deltaTNote, photoBearing, toolChip, type BearingValue } from './photo.js';
 import { magneticFromTrue, parseAltitude, parseBearing, parseTolerance, TOLERANCE_MAX, TOLERANCE_MIN } from './sun-tools.js';
 
 export type AlignmentEventKind = 'set' | 'rise' | 'at_altitude';
@@ -234,8 +235,15 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
   const prevYear = h('button', { type: 'button', class: 'sf-btn sf-btn--ghost sf-btn--sm sf-btn--icon', 'aria-label': 'The year before' }, icon('chevron-left'));
   const nextYear = h('button', { type: 'button', class: 'sf-btn sf-btn--ghost sf-btn--sm sf-btn--icon', 'aria-label': 'The year after' }, icon('chevron-right'));
   const find = h('button', { type: 'button', class: 'sf-btn sf-btn--primary sf-btn--sm sf-photo__find' }, h('span', { class: 'sf-btn__label' }, 'Find the days'));
-  const status = h('p', { class: 'sf-photo__status', role: 'status', 'aria-live': 'polite' });
+  const statusText = h('span', {});
+  const chip = toolChip();
+  const status = h('p', { class: 'sf-photo__status', role: 'status', 'aria-live': 'polite' }, statusText, ' ', chip.el);
   const list = h('ul', { class: 'sf-photo__list', 'aria-label': 'Days on the line' });
+  // The Sun's rising and setting bearings through the year (charts2's Sun tab), on demand.
+  const bearingsChart = h('button', { type: 'button', class: 'sf-link sf-photo__chartlink' }, 'The Sun’s bearings through the year (Charts)');
+  bearingsChart.addEventListener('click', () => {
+    void import('../charts/index.js').then((m) => m.showCharts(store, 'sun', 'bearings'));
+  });
 
   const el = h(
     'details',
@@ -267,6 +275,7 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
       find,
       status,
       list,
+      bearingsChart,
     ),
   ) as HTMLDetailsElement;
 
@@ -281,7 +290,11 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
   };
   syncHeight();
 
-  const yearOf = (s: ExplorerState): number => wallClock(s.time.jd_utc, displayZone(s)).year + c.yearOffset;
+  /** The year the engine lays out (the wire's proleptic Gregorian year of the local time). */
+  const yearOf = (s: ExplorerState): number => {
+    const w = wallClock(s.time.jd_utc, displayZone(s));
+    return gregorianDateOfMs(msFromJd(s.time.jd_utc) + w.offsetMs).year + c.yearOffset;
+  };
 
   /** The request as the inputs stand, or a sentence saying what is wrong. */
   const request = (
@@ -310,13 +323,14 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
 
   const describe = (s: ExplorerState, body: string): void => {
     setText(summaryText, body === 'Moon' ? 'Moonrise or moonset along a line' : 'Sunrise or sunset along a line');
+    bearingsChart.hidden = body !== 'Sun';
     setText(
       intro,
       body === 'Moon'
         ? 'The days of a year when the Moon rises or sets along a line: over a landmark, down a valley. Type the bearing or pick it on the map.'
         : 'The days of a year when the Sun sets or rises along a line: down a street (Manhattanhenge), through a window, over a landmark. Type the bearing or pick it on the map.',
     );
-    setText(yearValue, String(yearOf(s)));
+    setText(yearValue, formatYear(yearOf(s)));
     const v = bearing.get();
     if (document.activeElement !== bearingInput && bearingInput.value !== v.text) bearingInput.value = v.text;
     bearingInput.toggleAttribute('aria-invalid', bearingInput.value.trim() !== '' && v.azimuth === null);
@@ -330,7 +344,7 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
     const r = request(last.s, last.body);
     const stale = typeof r === 'string' || r.key !== shownKey;
     list.toggleAttribute('data-stale', stale && list.childElementCount > 0);
-    if (stale && list.childElementCount > 0) setText(status, 'The line, the moment or the place changed: press Find the days again.');
+    if (stale && list.childElementCount > 0) setText(statusText, 'The line, the moment or the place changed: press Find the days again.');
   };
 
   const run = (): void => {
@@ -339,19 +353,19 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
     const s = last?.s ?? store.get();
     const body = last?.body ?? (s.selection.body === 'Moon' ? 'Moon' : 'Sun');
     if (!sunEngine) {
-      setText(status, 'The alignment finder is not available in this engine: rebuild the WebAssembly package.');
+      setText(statusText, 'The alignment finder is not available in this engine: rebuild the WebAssembly package.');
       return;
     }
     const r = request(s, body);
     if (typeof r === 'string') {
-      setText(status, r);
+      setText(statusText, r);
       list.replaceChildren();
       return;
     }
     busy = true;
     find.setAttribute('aria-busy', 'true');
     find.disabled = true;
-    setText(status, `Searching ${r.req.year}${body === 'Moon' ? ' (about a second for the Moon)' : ''}…`);
+    setText(statusText, `Searching ${r.req.year}${body === 'Moon' ? ' (about a second for the Moon)' : ''}…`);
     // Let the words paint before the search takes the page's time.
     requestAnimationFrame(() =>
       setTimeout(() => {
@@ -369,14 +383,14 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
         list.removeAttribute('data-stale');
         if (!result) {
           list.replaceChildren();
-          setText(status, `Not found: ${error}.`);
+          setText(statusText, `Not found: ${error}.`);
           return;
         }
         shownKey = r.key;
         const zone = displayZone(st);
-        // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
-        const model = alignmentRows(result, zone, st.settings.angleFormat, deltaTNote(ctx, st.time.jd_utc));
-        setText(status, model.summary);
+        chip.set(ctx, result.jd_start, result.jd_end);
+        const model = alignmentRows(result, zone, st.settings.angleFormat, deltaTNote(ctx, (result.jd_start + result.jd_end) / 2));
+        setText(statusText, model.summary);
         list.replaceChildren(
           ...model.rows.map((row) => {
             const b = h(
@@ -426,7 +440,7 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
   });
   const stepYear = (n: number): void => {
     c.yearOffset += n;
-    if (last) setText(yearValue, String(yearOf(last.s)));
+    if (last) setText(yearValue, formatYear(yearOf(last.s)));
     markChanged();
   };
   prevYear.addEventListener('click', () => stepYear(-1));

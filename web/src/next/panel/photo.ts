@@ -25,7 +25,6 @@ import {
   isSunToolsEngine,
   isTidePackNotLoaded,
   isTidesEngine,
-  isTimeEngine,
   TIDE_LABEL,
   type BodyState,
   type GalacticCentreWindows,
@@ -48,6 +47,7 @@ import { createStore, displayZone, engineObserver, shallowEqual, type ExplorerSt
 import { icon } from '../theme/icons.js';
 import { swatch } from '../theme/primitives.js';
 import { dayWindow, jdFromWallClock, wallClock, type Zone } from '../time.js';
+import { coverageBounds, setUncertaintyChip, timeInfoAt, timeInfoForSpan, uncertaintyChip, uncertaintyText, wireDateText } from '../time/index.js';
 import {
   formatDecSigned,
   formatRa,
@@ -182,40 +182,35 @@ function reducedMotion(): boolean {
 }
 
 // ---------------------------------------------------------------------------------
-// Uncertainty of a time: until the time-ui helpers land
+// The uncertainty of a time, and the years the core covers (time-ui's helpers)
 // ---------------------------------------------------------------------------------
 
 /**
- * ` ±12 min` when the engine says the Earth's rotation at `jd` is uncertain by more than
- * 30 s (`time_info.delta_t_sigma_s`, CONVENTIONS 15.2), else ''. The labelled tier's rule:
- * no time without its uncertainty.
+ * ` ±12 min` after a clock time when the Earth's rotation at `jd` is uncertain by more than
+ * 30 s, or always in the labelled tier (time-ui's `uncertaintyText`, CONVENTIONS 15.1-15.2),
+ * else ''. The text form of the ±ΔT chip, for times inside sentences and lists; each tool
+ * also shows the chip itself, with its explanation, beside its heading (`toolChip`).
  */
-// time-ui: replace with the shared ±ΔT chip (web/src/next/time/, uncertaintyChip(timeInfo)).
 export function deltaTNote(ctx: Pick<Ctx, 'engine'>, jd: number): string {
-  const engine = ctx.engine;
-  if (!isTimeEngine(engine)) return '';
-  try {
-    const sigma = engine.timeInfo(jd).delta_t_sigma_s;
-    if (!(sigma > 30)) return '';
-    return sigma >= 5400 ? ` ±${(sigma / 3600).toFixed(1)} h` : ` ±${Math.max(1, Math.round(sigma / 60))} min`;
-  } catch {
-    return '';
-  }
+  const u = uncertaintyText(timeInfoAt(ctx, jd));
+  return u ? ` ${u}` : '';
 }
 
-/**
- * Whether `jd` is in the validated tier (CONVENTIONS 15.1), where sights and predicted
- * readings are offered. Engines without `time_info` answer only inside it.
- */
-// time-ui: use the shared tierAt(jd) helper when it lands.
-export function inValidatedTier(ctx: Pick<Ctx, 'engine'>, jd: number): boolean {
-  const engine = ctx.engine;
-  if (!isTimeEngine(engine)) return true;
-  try {
-    return engine.timeInfo(jd).tier === 'validated';
-  } catch {
-    return true;
-  }
+/** The ±ΔT chip for a tool's heading: hidden unless its times carry an uncertainty. */
+export function toolChip(): { el: HTMLElement; set(ctx: Pick<Ctx, 'engine'>, jdStart: number, jdEnd?: number): void } {
+  const el = uncertaintyChip(null);
+  return {
+    el,
+    set(ctx, jdStart, jdEnd = jdStart) {
+      setUncertaintyChip(el, timeInfoForSpan(ctx, jdStart, jdEnd));
+    },
+  };
+}
+
+/** "Sat 1 Jun is outside the years the core covers (1 January 1990 to 31 December 2060)." */
+export function outsideWords(ctx: Pick<Ctx, 'engine'>, what: string): string {
+  const b = coverageBounds(ctx);
+  return b ? `${what} is outside the years the core covers (${wireDateText(b.startUtc)} to ${wireDateText(b.endUtc)}).` : `${what} is outside the years the core covers.`;
 }
 
 // ---------------------------------------------------------------------------------
@@ -320,10 +315,11 @@ export function lightTableView(ctx: Ctx): LightTableView {
   const { store, engine } = ctx;
   const body = h('tbody', {});
   const note = h('p', { class: 'sf-photo__note', hidden: true });
+  const chip = toolChip();
   const table = h(
     'table',
     { class: 'sf-table sf-photo-light__table', 'aria-label': 'Golden and blue hour' },
-    h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Light for photos'), h('th', { scope: 'col', class: 'sf-num-r' }, 'Morning'), h('th', { scope: 'col', class: 'sf-num-r' }, 'Evening'))),
+    h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'Light for photos ', chip.el), h('th', { scope: 'col', class: 'sf-num-r' }, 'Morning'), h('th', { scope: 'col', class: 'sf-num-r' }, 'Evening'))),
     body,
   );
   const el = h('div', { class: 'sf-twilight sf-photo-light', 'data-tip': `${LIGHT_TIPS.golden} ${LIGHT_TIPS.blue}` }, table, note);
@@ -365,11 +361,11 @@ export function lightTableView(ctx: Ctx): LightTableView {
     if (!hours) {
       body.replaceChildren();
       note.hidden = false;
-      setText(note, span ? `Golden and blue hour: not computed (${error}).` : 'Golden and blue hour: this day is outside the years the core covers.');
+      setText(note, span ? `Golden and blue hour: not computed (${error}).` : `Golden and blue hour: ${outsideWords(ctx, 'this day')}`);
       return;
     }
-    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
-    const model = lightTable(hours, zone, deltaTNote(ctx, s.time.jd_utc));
+    chip.set(ctx, a, b);
+    const model = lightTable(hours, zone, deltaTNote(ctx, (a + b) / 2));
     body.replaceChildren(
       ...model.rows.map((r) =>
         h(
@@ -576,12 +572,12 @@ export function bearingSourceText(v: BearingValue, here: LatLonDeg): string {
  */
 export function nightWindow(jd: number, zone: Zone, sunUp: boolean | (() => boolean)): [number, number] {
   const w = wallClock(jd, zone);
-  const noon = jdFromWallClock({ year: w.year, month: w.month, day: w.day, hour: 12 }, zone);
+  const noon = jdFromWallClock({ year: w.year, month: w.month, day: w.day, hour: 12, calendar: w.calendar }, zone);
   const up = (): boolean => (typeof sunUp === 'function' ? sunUp() : sunUp);
   // After noon: tonight. In the morning: last night while it is still dark, else tonight.
-  const start = jd >= noon ? noon : up() ? noon : jdFromWallClock({ year: w.year, month: w.month, day: w.day - 1, hour: 12 }, zone);
+  const start = jd >= noon ? noon : up() ? noon : jdFromWallClock({ year: w.year, month: w.month, day: w.day - 1, hour: 12, calendar: w.calendar }, zone);
   const w2 = wallClock(start, zone);
-  return [start, jdFromWallClock({ year: w2.year, month: w2.month, day: w2.day + 1, hour: 12 }, zone)];
+  return [start, jdFromWallClock({ year: w2.year, month: w2.month, day: w2.day + 1, hour: 12, calendar: w2.calendar }, zone)];
 }
 
 function dirText(az: number): string {
@@ -705,9 +701,11 @@ export interface MilkyWayTool {
 export function milkyWayTool(ctx: Ctx): MilkyWayTool {
   const { store, engine } = ctx;
   const status = h('div', { class: 'sf-photo__lines', 'aria-live': 'polite' });
+  const nightChip = toolChip();
+  const monthChip = toolChip();
   const arch = h('p', { class: 'sf-photo__note' });
   const actions = h('div', { class: 'sf-photo__actions' });
-  const monthHead = h('p', { class: 'sf-photo__subhead' }, 'The best nights in the next 30 (Moon-free)');
+  const monthHead = h('p', { class: 'sf-photo__subhead' }, 'The best nights in the next 30 (Moon-free) ', monthChip.el);
   const month = h('ul', { class: 'sf-photo__list', 'aria-label': 'The best nights for the Milky Way' });
   const monthStatus = h('p', { class: 'sf-photo__note', role: 'status' });
   const el = h(
@@ -767,14 +765,14 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
     }
     actions.replaceChildren();
     if (!result) {
-      status.replaceChildren(h('p', { class: 'sf-photo__note' }, span ? `Not computed: ${error}.` : 'This night is outside the years the core covers.'));
+      status.replaceChildren(h('p', { class: 'sf-photo__note' }, span ? `Not computed: ${error}.` : outsideWords(ctx, 'This night')));
       setText(arch, '');
       return;
     }
-    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
-    const model = galacticNight(result, zone, s.settings.angleFormat, deltaTNote(ctx, a));
+    nightChip.set(ctx, a, b);
+    const model = galacticNight(result, zone, s.settings.angleFormat, deltaTNote(ctx, (a + b) / 2));
     status.replaceChildren(
-      h('p', { class: 'sf-photo__head' }, `The night of ${dateShort(a, zone)}`),
+      h('p', { class: 'sf-photo__head' }, `The night of ${dateShort(a, zone)} `, nightChip.el),
       ...model.sentences.map((t) => h('p', { class: 'sf-photo__line' }, t)),
     );
     setText(arch, model.arch ?? '');
@@ -813,12 +811,12 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
     }
     if (!result) {
       month.replaceChildren();
-      setText(monthStatus, span ? `Not computed: ${error}.` : 'Outside the years the core covers.');
+      setText(monthStatus, span ? `Not computed: ${error}.` : outsideWords(ctx, 'This month'));
       return;
     }
     const nights = bestNights(result, a);
-    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
-    const dt = deltaTNote(ctx, a);
+    monthChip.set(ctx, a, a + 30);
+    const dt = deltaTNote(ctx, a + 15);
     setText(
       monthStatus,
       nights.length
@@ -1051,8 +1049,8 @@ export function tidesLine(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const where = h('span', {});
   const chart = h('button', { type: 'button', class: 'sf-link' }, 'Tides chart');
   chart.addEventListener('click', () => {
-    // charts2: open the Charts view on its Tides tab once it has one (a per-store tab request).
-    store.patch({ view: 'charts' });
+    // The Charts view loads on demand; its module opens a tab (charts2's showCharts).
+    void import('../charts/index.js').then((m) => m.showCharts(store, 'tides'));
   });
   const el = h(
     'div',

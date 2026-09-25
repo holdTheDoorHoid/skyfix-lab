@@ -20,7 +20,7 @@ import { bearing3, compassPoint, dateShort, eventTime, formatAngle } from '../sh
 import { displayZone, engineObserver, type ExplorerState } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { segmented } from '../theme/primitives.js';
-import { deltaTNote, photoBearing, Settler } from './photo.js';
+import { deltaTNote, outsideWords, photoBearing, Settler, toolChip } from './photo.js';
 import { FIND_ALT_MAX, FIND_ALT_MIN, parseAltitude, parseBearing } from './sun-tools.js';
 
 export type WhenMode = 'height' | 'bearing';
@@ -108,7 +108,9 @@ export function whenTool(ctx: Ctx): WhenTool {
   });
 
   const hint = h('p', { class: 'sf-when__hint', id: `${id}-hint` });
-  const status = h('p', { class: 'sf-when__status', role: 'status', 'aria-live': 'polite' });
+  const statusText = h('span', {});
+  const chip = toolChip();
+  const status = h('p', { class: 'sf-when__status', role: 'status', 'aria-live': 'polite' }, statusText, ' ', chip.el);
   const list = h('ul', { class: 'sf-when__list', 'aria-label': 'Times' });
   const el = h(
     'details',
@@ -159,7 +161,7 @@ export function whenTool(ctx: Ctx): WhenTool {
     if (altitude === null) {
       list.replaceChildren();
       input.setAttribute('aria-invalid', 'true');
-      setText(status, `Type a height from ${FIND_ALT_MIN}° to ${FIND_ALT_MAX}°.`);
+      setText(statusText, `Type a height from ${FIND_ALT_MIN}° to ${FIND_ALT_MAX}°.`);
       return;
     }
     input.removeAttribute('aria-invalid');
@@ -170,7 +172,7 @@ export function whenTool(ctx: Ctx): WhenTool {
     const at = formatAngle(altitude, s.settings.angleFormat, 'coarse');
     if (!found) {
       list.replaceChildren();
-      setText(status, span ? `Not computed for ${day}.` : `${day} is outside the years the core covers.`);
+      setText(statusText, span ? `Not computed for ${day}.` : outsideWords(ctx, day));
       return;
     }
     setText(
@@ -179,8 +181,8 @@ export function whenTool(ctx: Ctx): WhenTool {
         ? `${body} is never at ${at} on ${day}.`
         : `${body} at ${at} on ${day}: ${found.length === 1 ? 'once' : `${found.length} times`}. Press a time to show it.`,
     );
-    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
-    const dt = deltaTNote(ctx, s.time.jd_utc);
+    chip.set(ctx, a, b);
+    const dt = deltaTNote(ctx, (a + b) / 2);
     list.replaceChildren(
       ...found.map((c) => {
         const time = `${eventTime(c.jd_utc, zone)}${dt}`;
@@ -205,12 +207,12 @@ export function whenTool(ctx: Ctx): WhenTool {
     azInput.toggleAttribute('aria-invalid', azInput.value.trim() !== '' && az === null);
     if (!isSunToolsEngine(engine)) {
       list.replaceChildren();
-      setText(status, 'Bearings are not available in this engine: rebuild the WebAssembly package.');
+      setText(statusText, 'Bearings are not available in this engine: rebuild the WebAssembly package.');
       return;
     }
     if (az === null) {
       list.replaceChildren();
-      setText(status, 'Type a bearing, or pick one on the map.');
+      setText(statusText, 'Type a bearing, or pick one on the map.');
       return;
     }
     const span = clampToCoverage(ctx, a, b);
@@ -220,7 +222,7 @@ export function whenTool(ctx: Ctx): WhenTool {
     const on = `${az.toFixed(1)}°`;
     if (!found) {
       list.replaceChildren();
-      setText(status, span ? `Not computed for ${day}.` : `${day} is outside the years the core covers.`);
+      setText(statusText, span ? `Not computed for ${day}.` : outsideWords(ctx, day));
       return;
     }
     setText(
@@ -229,8 +231,8 @@ export function whenTool(ctx: Ctx): WhenTool {
         ? `${body} does not pass ${on} ${compassPoint(az)} above the horizon on ${day}.`
         : `${body} on ${on} on ${day}: ${found.length === 1 ? 'once' : `${found.length} times`}. Press a time to show it.`,
     );
-    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
-    const dt = deltaTNote(ctx, s.time.jd_utc);
+    chip.set(ctx, a, b);
+    const dt = deltaTNote(ctx, (a + b) / 2);
     const f = s.settings.angleFormat;
     list.replaceChildren(
       ...found.map((c) => {

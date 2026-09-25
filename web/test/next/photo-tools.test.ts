@@ -25,6 +25,8 @@ import { axisWords, distanceWords, librationValue, librationWords, nextApsides, 
 import {
   bestNights,
   coordText,
+  deltaTNote,
+  outsideWords,
   galacticNight,
   lightTable,
   magneticText,
@@ -154,6 +156,19 @@ describe('the direction to a picked point (Vincenty on WGS84)', () => {
 // ---------------------------------------------------------------------------------
 // Words and numbers
 // ---------------------------------------------------------------------------------
+
+describe('the uncertainty of a time and the years the core covers (time-ui helpers)', () => {
+  it('adds the ±ΔT text only where the Earth’s rotation is uncertain by more than 30 s', () => {
+    const ctx = { engine: mock };
+    expect(deltaTNote(ctx, jd('2026-09-24T12:00:00Z'))).toBe('');
+    expect(deltaTNote(ctx, jd('2500-06-01T12:00:00Z'))).toMatch(/^ ±\d+ min$/);
+    expect(deltaTNote({ engine: {} as never }, jd('2500-06-01T12:00:00Z'))).toBe('');
+  });
+
+  it('names the covered years when a day is outside them', () => {
+    expect(outsideWords({ engine: mock }, 'Sat 1 Jun')).toBe('Sat 1 Jun is outside the years the core covers (1 January 1990 to 31 December 2060).');
+  });
+});
 
 describe('coordinates and times as the card writes them', () => {
   it('writes right ascension in hours and declination with its sign', () => {

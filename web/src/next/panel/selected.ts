@@ -12,7 +12,7 @@
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import { coverageGroupFor, offeredForSights } from '../engine/bodies.js';
-import type { BodyInfo, BodyState, PhaseEvent, PredictedSight, SightLimb, SkyEvent } from '../engine/types.js';
+import { isPlanetDetailEngine, type BodyInfo, type BodyState, type PhaseEvent, type PredictedSight, type SightLimb, type SkyEvent } from '../engine/types.js';
 import { bodyError, bodyIn, covered, dayOf, passNow, setAttr, setText, skyNow, skySelected, sunToday } from '../shell/derived.js';
 import {
   bearing3,
@@ -37,9 +37,10 @@ import { bodyGlyph, moonPhaseName, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { kv, popover, section, swatch } from '../theme/primitives.js';
 import { UTC_ZONE, formatHours, wallClock, zoneShortName, type Zone } from '../time.js';
+import { scaleLabel, sightsOffered, sightsOnlyText } from '../time/index.js';
 import { alignmentTool } from './alignment.js';
 import { distanceWords, moonTools } from './moon-tools.js';
-import { coordRow, inValidatedTier, lightTableView, magneticLine, milkyWayTool, Motion } from './photo.js';
+import { coordRow, lightTableView, magneticLine, milkyWayTool, Motion, outsideWords, Settler } from './photo.js';
 import { shadowOf } from './sun-tools.js';
 import { whenTool } from './when.js';
 
@@ -86,12 +87,13 @@ function fillCard(c: Card, title: string, e: SkyEvent | null, jd: number, zone: 
   setText(c.title, title);
   setText(c.time, e ? eventTime(e.jd_utc, zone) : '—');
   setText(c.day, e ? otherDay(e.jd_utc, jd, zone) : '');
-  // The second clock: UTC, or the place's own when UTC is already the first. Its day is
-  // named when it differs (Tokyo's 05:31 is 20:31 UTC the day before).
+  // The second clock: UTC (UT outside 1972-2035, time-ui's scaleLabel), or the place's own
+  // when UTC is already the first. Its day is named when it differs (Tokyo's 05:31 is 20:31
+  // UTC the day before).
   const utcFirst = zone.kind === 'fixed' && zone.offsetMs === 0;
   const second = utcFirst ? place : UTC_ZONE;
   const secondDay = e ? otherDayOf(e.jd_utc, zone, second) : '';
-  const secondName = utcFirst ? zoneShortName(e?.jd_utc ?? jd, place) : 'UTC';
+  const secondName = utcFirst ? zoneShortName(e?.jd_utc ?? jd, place) : scaleLabel(e?.jd_utc ?? jd);
   setText(c.utc, e ? `${eventTime(e.jd_utc, second)} ${secondName}${secondDay ? ` ${secondDay}` : ''}` : none);
   setText(c.where, e ? where : '');
   setAttr(c.el, 'data-tip', tip);
@@ -206,6 +208,8 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
   const light = lightTableView(ctx);
   const moon = moonTools(ctx);
   const motion = new Motion();
+  /** The last render's `moving`, for the extras' own settlers. */
+  let currentMoving = false;
   for (const tool of [when, align, milky, light, moon]) d.add(() => tool.destroy());
   sec.body.append(status, readouts, cardRow, extras, magRow, coords.el, sights, when.el, align.el, milky.el, details);
 
@@ -329,24 +333,55 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     };
   };
 
+  // A planet's disc (planetdetail's planet_disc, under a millisecond): asked a quarter-hour
+  // at a time, and while the time is dragged only once it settles (photo agent).
+  const discSettler = new Settler();
+  d.add(() => discSettler.cancel());
+
   const buildOtherExtras = (b0: BodyState): void => {
-    const rows: [string, HTMLElement][] = [];
+    const rows: [string, HTMLElement, string?][] = [];
     const cell = (): HTMLElement => h('span', {});
     const lit = cell();
     const elong = cell();
     const dist = cell();
     const con = cell();
+    const size = cell();
+    const sizeTip = 'How wide the planet looks: its apparent diameter across the equator, in seconds of arc (3600″ make a degree). The Moon is about 1 900″ across.';
+    const planetDisc = b0.kind === 'planet' && isPlanetDetailEngine(engine);
     if (b0.kind === 'planet') {
       rows.push(['Lit', lit], ['Angle from the Sun', elong], ['Distance', dist]);
-      // planetdetail: the apparent size (planet_disc(body, jd).diameter) goes here once that engine is merged.
+      if (planetDisc) rows.push(['Size in the sky', size, sizeTip]);
     }
     rows.push(['Constellation', con]);
-    extras.replaceChildren(...rows.map(([k, v]) => kv(null, k, v)));
+    const els = rows.map(([k, v, tip]) => kv(null, k, v, tip ? { tip } : {}));
+    extras.replaceChildren(...els);
+    const sizeRow = planetDisc ? els[3] : undefined;
     updateExtras = (b, st) => {
       setText(lit, b.illuminated_fraction === null ? '—' : `${Math.round(b.illuminated_fraction * 100)}%`);
       setText(elong, b.elongation_deg === null ? '—' : `${Math.round(b.elongation_deg)}°`);
       setText(dist, formatDistance(b.distance_km, st.settings.units));
       setText(con, b.constellation ?? '—');
+      if (!planetDisc || !sizeRow || !isPlanetDetailEngine(engine)) return;
+      const q = Math.floor(st.time.jd_utc * 96) / 96;
+      discSettler.request(
+        `${b.body}|${q}`,
+        currentMoving,
+        () => {
+          sizeRow.removeAttribute('data-stale');
+          try {
+            const disc = engine.planetDisc(b.body, q);
+            setText(size, `${disc.equatorial_diameter_arcsec.toFixed(1)}″`);
+            setAttr(
+              sizeRow,
+              'data-tip',
+              `${sizeTip} Now ${disc.equatorial_diameter_arcsec.toFixed(1)}″ across the equator and ${disc.polar_diameter_arcsec.toFixed(1)}″ pole to pole, ${disc.distance_au.toFixed(3)} AU away (light takes ${Math.round(disc.light_time_s / 60)} min).`,
+            );
+          } catch {
+            setText(size, '—');
+          }
+        },
+        () => sizeRow.setAttribute('data-stale', ''),
+      );
     };
   };
 
@@ -387,7 +422,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     if (!info || !offeredForSights(info, coverage)) {
       return say('—', info && !info.navigational ? `Not offered for sights: navigators do not use ${b.body}.` : 'Not offered for sights: its positions are not validated.');
     }
-    if (!inValidatedTier(ctx, s.time.jd_utc)) return say('—', 'Sights and predicted readings are offered only in the validated years (CONVENTIONS 15.1).');
+    if (!sightsOffered(ctx, s.time.jd_utc)) return say('—', sightsOnlyText(ctx));
     // The Sun's lower limb; the Moon's lit limb (its bright side up or down, seen from here); the centre otherwise.
     const fromZenith = b.bright_limb_angle_deg === null ? 180 : b.bright_limb_angle_deg - b.parallactic_angle_deg;
     const limb: SightLimb = b.kind === 'sun' ? 'lower' : b.kind === 'moon' ? (Math.cos((fromZenith * Math.PI) / 180) > 0 ? 'upper' : 'lower') : 'center';
@@ -428,6 +463,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     const f = s.settings.angleFormat;
     // The time bar being dragged, or playing: the heavier rows wait for it to settle.
     const moving = motion.note(jd);
+    currentMoving = moving;
 
     // Head
     const leadKey = `${name}`;
@@ -446,7 +482,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       status.hidden = false;
       setText(
         status,
-        !covered(ctx, jd) ? 'Not computed: this moment is outside the years the core covers.' : missing ? `Not computed: ${missing}.` : 'Not computed at this time.',
+        !covered(ctx, jd) ? `Not computed: ${outsideWords(ctx, 'this moment')}` : missing ? `Not computed: ${missing}.` : 'Not computed at this time.',
       );
       readouts.hidden = true;
       cardRow.hidden = true;

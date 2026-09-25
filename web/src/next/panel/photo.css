@@ -146,6 +146,15 @@
   justify-self: start;
 }
 
+.sf-photo__chartlink {
+  justify-self: start;
+  font-size: var(--text-sm);
+}
+
+.sf-photo__chartlink[hidden] {
+  display: none;
+}
+
 .sf-photo__actions {
   display: flex;
   flex-wrap: wrap;
