@@ -26,8 +26,8 @@
 //!
 //! Against the printed 2016 page (LHA 120°–239°, as Bowditch reproduces it): every a1 and
 //! every azimuth is identical. The printed page's adopted mean position, recovered from
-//! its a0 column (no other position reproduces all 132 entries), is SHA 316° 47′,
-//! Dec N 89° 20.0′, rounded values; this module's differs by 1.7′ of SHA and 0.09′ of Dec,
+//! its a0 column (with it the formula prints all 132 entries), is SHA 316° 47′,
+//! Dec N 89° 20.0′, rounded values; this module's differs by 1.9′ of SHA and 0.09′ of Dec,
 //! so a0 and a2 split the same total differently and the sum a0 + a2 agrees with the
 //! printed page within 0.1′ everywhere.
 //!

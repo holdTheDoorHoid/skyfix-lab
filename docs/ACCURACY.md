@@ -2634,8 +2634,8 @@ temperature and pressure does not depend on them.
 **The 2016 Polaris page** (Bowditch 2019 Figure 1912c, LHA Aries 120°–239°; test
 `the_printed_2016_polaris_page`): every a1 (156) and every azimuth (84) identical; a0 42 of
 132 and a2 45 of 144 identical, because the printed page adopted a different mean position
-(SHA 316° 47′, Dec N 89° 20.0′, recovered from its a0 column: no other position reproduces
-all 132 entries) from the one defined here (the mean of 73 apparent places, SHA
+(SHA 316° 47′, Dec N 89° 20.0′, recovered from its a0 column: with it the formula prints
+all 132 of the page's a0 entries) from the one defined here (the mean of 73 apparent places, SHA
 316° 48.9′, Dec N 89° 19.9′). That moves value between a0 and a2 only: **a0 + a2 agrees
 with the printed sum within 0.1′ in all 1 584 combinations** of row and month, and both
 worked latitudes (§1912 and the figure's illustration) agree within 0.1′.

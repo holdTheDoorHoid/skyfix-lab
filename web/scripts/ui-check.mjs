@@ -780,6 +780,10 @@ async function main() {
               const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
               check(`${tag}: drawn`, drawn);
               check(`${tag}: no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+              // A label wider than its button spills into the next one without either box
+              // overlapping (the layout check above cannot see it).
+              const spill = JSON.parse(await evaluate(`JSON.stringify([...document.querySelectorAll('.almanac button, .almanac select')].filter((b) => b.getClientRects().length > 0 && b.scrollWidth > b.clientWidth + 1).map((b) => b.textContent.trim().slice(0, 30)))`));
+              check(`${tag}: every button's label fits it`, spill.length === 0, spill.join('; '));
               if (mobile) check(`${tag}: the view ends where the sheet begins`, L.underSheet <= 0, `${L.underSheet}px under the sheet`);
               check(`${tag}: console clean`, noise.length === 0, noise.slice(0, 3).join(' | '));
               if (theme === 'night') {

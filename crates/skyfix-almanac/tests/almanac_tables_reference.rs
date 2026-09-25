@@ -24,9 +24,10 @@ use skyfix_almanac::tables::altitude::{
     density_factor, zone_of_factor,
 };
 use skyfix_almanac::tables::planets::{PlanetCorrections, jd_of};
+use skyfix_almanac::tables::polaris::a0_arcmin;
 use skyfix_almanac::tables::{
-    CriticalTable, PolarisTable, arc_to_time, increments, planet_corrections, polaris_table,
-    tenths_half_up,
+    CriticalTable, PolarisTable, arc_to_time, fmt_deg_min_tenths, increments, planet_corrections,
+    polaris_table, tenths_half_up,
 };
 use skyfix_core::calendar::Calendar;
 use skyfix_ephemeris::body::Sky;
@@ -555,6 +556,11 @@ fn the_printed_2016_polaris_page() {
     let (mut a1_same, mut az_same, mut a1_n, mut az_n) = (0, 0, 0, 0);
     let (mut a0_same, mut a2_same, mut a0_n, mut a2_n) = (0, 0, 0, 0);
     let mut worst_sum: f64 = 0.0;
+    // The printed page's own adopted mean position, recovered from its a0 column (rounded
+    // to the minute of SHA and the tenth of a minute of Dec): the formula with it prints
+    // every a0 entry of the page.
+    let (sha_printed, dec_printed) = (316.0 + 47.0 / 60.0, 89.0 + 20.0 / 60.0);
+    let mut a0_adopted_same = 0;
     for from in page["columns_from_deg"].as_array().unwrap() {
         let from = from.as_u64().unwrap();
         let key = from.to_string();
@@ -576,9 +582,11 @@ fn the_printed_2016_polaris_page() {
             az_same += usize::from(o.printed == w);
         }
         let (a0p, a2p) = (text("a0"), text("a2"));
-        for (o, w) in c.a0.iter().zip(&a0p) {
+        for (r, (o, w)) in c.a0.iter().zip(&a0p).enumerate() {
             a0_n += 1;
             a0_same += usize::from(&o.printed == w);
+            let adopted = a0_arcmin(from as f64 + r as f64, sha_printed, dec_printed);
+            a0_adopted_same += usize::from(&fmt_deg_min_tenths(tenths_half_up(adopted)) == w);
         }
         for (o, w) in c.a2.iter().zip(&a2p) {
             a2_n += 1;
@@ -596,9 +604,11 @@ fn the_printed_2016_polaris_page() {
         "Polaris 2016 page 275 (Bowditch fig. 1912c): a1 {a1_same}/{a1_n} and azimuth \
          {az_same}/{az_n} identical; a0 {a0_same}/{a0_n} and a2 {a2_same}/{a2_n} identical \
          (another adopted mean position); a0 + a2 within {worst_sum:.2}' of the printed sum \
-         in all {} combinations",
+         in all {} combinations; with the page's own mean position (SHA 316 47, Dec N 89 20.0) \
+         the formula prints {a0_adopted_same}/{a0_n} of its a0",
         a0_n * 12
     );
+    assert_eq!(a0_adopted_same, a0_n);
     assert_eq!(a1_same, a1_n);
     assert_eq!(az_same, az_n);
     assert!(worst_sum <= 0.1 + 1e-9);

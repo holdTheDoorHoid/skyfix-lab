@@ -107,6 +107,16 @@ interface TabMounted extends Mounted {
   print?: () => void;
 }
 
+/**
+ * Offer the pack a date needs (the Deep time pack, when this build and site have it) and
+ * redraw once it is loaded. The pack service asks once and remembers a "Not now".
+ */
+async function offerPack(env: Env, jd: number, redraw: () => void): Promise<void> {
+  const pack = packForDate(env.ctx.packs, jd);
+  if (!pack) return;
+  if (await env.ctx.packs.ensure(pack.name, packReason(jd, env.ctx))) redraw();
+}
+
 function message(text: string, role: 'alert' | 'status' = 'alert'): HTMLElement {
   return h('p', { class: 'alm-message', role }, text);
 }
@@ -242,15 +252,11 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
     highlight();
   };
 
-  const coverageHelp = async (jd: number): Promise<void> => {
-    const pack = packForDate(ctx.packs, jd);
-    if (!pack) return;
-    const ok = await ctx.packs.ensure(pack.name, packReason(jd, ctx));
-    if (ok) {
+  const coverageHelp = (jd: number): Promise<void> =>
+    offerPack(env, jd, () => {
       shownWire = [];
       render.now();
-    }
-  };
+    });
 
   const draw = (): void => {
     const jd = ctx.store.get().time.jd_utc;
@@ -508,6 +514,12 @@ function mountAltitude(panel: HTMLElement, env: Env): TabMounted {
       } catch {
         planets = null;
       }
+      if (!planets || planets.errors.length) {
+        void offerPack(env, env.ctx.store.get().time.jd_utc, () => {
+          planetsYear = null;
+          draw();
+        });
+      }
     }
     sheets.replaceChildren(...altitudeSheets(tablesData, planets, env.mock));
     const c = tablesData.additional.conditions;
@@ -609,6 +621,7 @@ function mountPolaris(panel: HTMLElement, env: Env): TabMounted {
       table = null;
       shownYear = null;
       sheets.replaceChildren(message(`No Polaris tables for ${label}: ${errorText(error)}`));
+      void offerPack(env, env.ctx.store.get().time.jd_utc, draw);
     }
   };
   for (const el of [lhaDeg, lhaMin, lat, month]) el.addEventListener('change', lookup);

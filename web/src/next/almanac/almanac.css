@@ -83,11 +83,16 @@
   flex: 1 1 auto;
 }
 
-/* The tabs look like the design system's segmented control (they are WAI-ARIA tabs). */
+/* The tabs look like the design system's segmented control (they are WAI-ARIA tabs). They
+   wrap onto a second row on a phone rather than shrink (a segment's own min-width would
+   let its label run into the next one). */
 .alm-tabs {
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-wrap: wrap;
+}
+
+.alm-tabs .sf-seg__opt {
+  flex: 0 0 auto;
 }
 
 .alm-tabs .sf-seg__opt[aria-selected='true'] {
