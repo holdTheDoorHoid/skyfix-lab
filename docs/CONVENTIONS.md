@@ -543,8 +543,8 @@ planet 0.02 (Mercury and Venus 0.005, Uranus 0.03), stars 0.03 (model plus the
 catalogue's formal 1-sigma at the
 tier's edges; Rigil Kentaurus's barycentric motion apart). In the **labelled tier** the
 figures are measured and published but carry no target (display only, no sights): Sun
-0.02, Moon 0.05, Mercury 0.02, Venus 0.05, Mars 0.1, Jupiter 0.25, Saturn 0.7, Uranus 0.2,
-Neptune 0.05, stars 0.2. `docs/ACCURACY.md` section 20 has the table per half-century and
+0.02, Moon 0.05, Mercury 0.02, Venus 0.06, Mars 0.15, Jupiter 0.25, Saturn 0.7, Uranus 0.2,
+Neptune 0.06, stars 0.2. `docs/ACCURACY.md` section 20 has the table per half-century and
 per century they come from, and `crates/skyfix-ephemeris/tests/deeptime_reference.rs`
 asserts every case against them.
 

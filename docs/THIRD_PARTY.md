@@ -2266,7 +2266,7 @@ What the Sun, Moon, planet and star providers are built from since the coverage 
 data first; development-time references after. No new runtime crate, npm package or
 network access.
 
-### Runtime: `crates/skyfix-ephemeris/data/series.bin` (162 507 bytes, embedded)
+### Runtime: `crates/skyfix-ephemeris/data/series.bin` (127 958 bytes, embedded)
 
 Written by `tools/reference/build_series.py`; its `META` section records every source
 file's SHA-256.
@@ -2277,8 +2277,9 @@ file's SHA-256.
   `tools/reference/vsop87.py`), retrieved 2026-09-24. Truncated separately for each tier
   by measured error (the Earth to 0.05" of the Sun's direction, each planet to 1" of
   geocentric direction at its closest approach; in the validated tier the Earth to 0.01",
-  Mercury to 0.1" and Venus to 0.2"). Licence: CDS/VizieR, free with acknowledgement
-  (acknowledged here, as before).
+  Mercury to 0.1" and Venus to 0.2", in the labelled tier the Earth to 0.3" and each
+  planet to 5"). Licence: CDS/VizieR, free with acknowledgement (acknowledged here, as
+  before).
 - **Corrections to VSOP87A**: coefficients of a small linear model per body (longitude,
   latitude, log-radius) fitted by this project to JPL DE440 (1500-2700) and DE441
   (2000 BC to AD 3000). They are this project's own numbers, derived from JPL's kernels

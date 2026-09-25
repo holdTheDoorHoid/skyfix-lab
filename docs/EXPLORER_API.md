@@ -3159,9 +3159,9 @@ Additive; no export changed.
 
 **Both tiers ship in the core module; there is no `deep-time` pack.** The planner's rule
 was to keep both tiers in the core if the module stayed inside its budget: the two-tier
-series file is 162 507 bytes (125 716 gzipped), smaller than the three one-tier JSON
-files it replaced (477 494 bytes), and the module ends smaller than before: 2 733 512
-bytes raw and 1 232 714 gzipped, against main's 3 042 660 and 1 252 306 at 52ebc77
+series file is 127 958 bytes (99 276 gzipped), smaller than the three one-tier JSON
+files it replaced (477 494 bytes), and the module ends smaller than before: 2 781 402
+bytes raw and 1 238 604 gzipped, against main's 3 124 878 and 1 284 157 at f2a1a07
 (ACCURACY.md section 20). The packs mechanism is unchanged and serves `tides-us` (and later
 `lunar-limb`); no `deep-time` producer is registered, so `packs_loaded` never lists it.
 
@@ -3192,7 +3192,7 @@ The shape of "`explorer_coverage()` — tiers" above, with these values:
   |---|---|---|
   | Sun | 0.01 | 0.02 |
   | Moon | 0.02 | 0.05 |
-  | Planets | 0.03 (group); per planet 0.02, Mercury and Venus 0.005, Uranus 0.03 | 0.7 (group); Mercury 0.02, Venus 0.05, Mars 0.1, Jupiter 0.25, Saturn 0.7, Uranus 0.2, Neptune 0.05 |
+  | Planets | 0.03 (group); per planet 0.02, Mercury and Venus 0.005, Uranus 0.03 | 0.7 (group); Mercury 0.02, Venus 0.06, Mars 0.15, Jupiter 0.25, Saturn 0.7, Uranus 0.2, Neptune 0.06 |
   | Stars | 0.03 | 0.2 (the catalogue's own proper-motion errors; Rigil Kentaurus apart, see its notes) |
 
 - The Sun, Moon, planet and star groups report their own tiers

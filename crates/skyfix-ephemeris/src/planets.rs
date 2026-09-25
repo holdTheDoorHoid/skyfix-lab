@@ -80,10 +80,10 @@
 //! [`LABELLED_ACCURACY_BY_PLANET_ARCMIN`]; `docs/ACCURACY.md`, "Planets" and
 //! "Historical accuracy", has the tables. What is left is VSOP87's own error after
 //! the corrections (under 1" everywhere in the validated tier; beyond VSOP87's stated
-//! span for Jupiter and Saturn before about AD 0) plus the truncation (1" at a
-//! planet's closest approach, by construction; in the validated tier 0.1" for Mercury,
-//! 0.2" for Venus and 0.01" of the Sun's direction for the Earth, which the transits,
-//! planet discs and the Earth's apsides need).
+//! span for Jupiter and Saturn before about AD 0) plus the truncation, by construction
+//! at a planet's closest approach: in the validated tier 1" (0.1" for Mercury, 0.2" for
+//! Venus, and 0.01" of the Sun's direction for the Earth, which the transits, planet
+//! discs and the Earth's apsides need), in the labelled tier 5" (the Earth 0.3").
 //!
 //! # Tiers
 //!
@@ -649,17 +649,18 @@ pub const ACCURACY_BY_PLANET_ARCMIN: [(Planet, f64); 7] = [
 ];
 
 /// The accuracy each planet reaches over the **labelled tier** (2000 BC to AD 3000),
-/// arcminutes, against JPL DE441 (`tests/deeptime_reference.rs`, per century). Jupiter
-/// and Saturn are beyond VSOP87's stated span before about AD 0, which is where their
-/// figures come from.
+/// arcminutes, against JPL DE441 (`tests/deeptime_reference.rs`, per century, and the
+/// series generator's denser grid), rounded up. Jupiter and Saturn are beyond VSOP87's
+/// stated span before about AD 0, which is where their figures come from; the others
+/// include the tier's 5" truncation (display only).
 pub const LABELLED_ACCURACY_BY_PLANET_ARCMIN: [(Planet, f64); 7] = [
     (Planet::Mercury, 0.02),
-    (Planet::Venus, 0.05),
-    (Planet::Mars, 0.1),
+    (Planet::Venus, 0.06),
+    (Planet::Mars, 0.15),
     (Planet::Jupiter, 0.25),
     (Planet::Saturn, 0.7),
     (Planet::Uranus, 0.2),
-    (Planet::Neptune, 0.05),
+    (Planet::Neptune, 0.06),
 ];
 
 /// The accuracy this provider reports in its coverage (validated tier), arcminutes:

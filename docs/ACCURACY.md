@@ -26,7 +26,7 @@ reproduce each row are in the numbered section named.
 | Stars, 58 navigational (vs Skyfield, 3364 cases; radial velocities, Rigil Kentaurus on its orbit) | worst 0.0003′ separation | 0.05′ | 2 |
 | Moon (geocentric, vs Skyfield + DE440s, 1757 instants) | worst GHA 0.0022′ (0.13″), Dec 0.0017′, HP 0.00012′ | 0.1′ GHA/Dec, 0.05′ HP | 7 |
 | Planets, all seven (vs Skyfield + DE440s) | worst GHA 0.0122′ (Saturn); every planet inside target by 8× or more | 0.1′ | 2, "Planets" |
-| Coverage tiers (vs JPL DE440 per half-century of 1550–2650, DE441 per century of 2000 BC–AD 3000; 1240 epochs) | validated: Sun 0.01″, Moon 0.36″, planets 0.04″ (Mercury) to 0.91″ (Uranus), stars 0.02″ (model; the catalogue's own 1σ reaches 1.7″ at the edges); labelled: Sun 0.43″, Moon 1.5″, planets 0.65″ (Mercury) to 34″ (Saturn), stars 0.06″ + the catalogue's 11″ | validated 0.01′ Sun, 0.02′ Moon and planets (Mercury and Venus 0.005′, Uranus 0.03′), 0.03′ stars; labelled measured and published, display only | 20 |
+| Coverage tiers (vs JPL DE440 per half-century of 1550–2650, DE441 per century of 2000 BC–AD 3000; 1240 epochs) | validated: Sun 0.01″, Moon 0.36″, planets 0.04″ (Mercury) to 0.91″ (Uranus), stars 0.02″ (model; the catalogue's own 1σ reaches 1.7″ at the edges); labelled: Sun 0.48″, Moon 1.4″, planets 0.78″ (Mercury) to 35″ (Saturn), stars 0.06″ + the catalogue's 11″ | validated 0.01′ Sun, 0.02′ Moon and planets (Mercury and Venus 0.005′, Uranus 0.03′), 0.03′ stars; labelled measured and published, display only | 20 |
 | Topocentric altitude/azimuth (any body, WGS84 site) | stars worst 0.0052′; the Sun's larger figure is the parallax itself being restored, residual 0.0034′ | 0.1′ | 2, "Spherical model…" |
 | Events: rise, set, twilight, transits (vs Skyfield, same threshold / vs USNO) | worst 0.420 s vs Skyfield; worst 29.4 s vs USNO's own 1-minute rounding | 10 s / 1 min | 9 |
 | Star field, display only (9,095 stars, apparent places vs Skyfield) | worst 0.307″ = 0.0051′; separately, BSC5P vs Hipparcos catalogue positions can disagree by up to 9.6″ = 0.16′ (Rigil Kentaurus: the BSC's straight line against alpha Cen A's orbit, at the edges of 1990-2060) | 0.1′ (exceeded for this one star; display only, never reaches a sight) | 8 |
@@ -2956,8 +2956,9 @@ module (there is no `deep-time` pack: see "Size" below). The models:
   parts of W1, W2 and W3 refitted by this project to DE441 and DE440 (13 coefficients).
   The complete theory with the note's own corrections is already within 1.2" of DE440
   over 1550-2650, but drifts to 220" from DE441 by 2000 BC; after the refit the stored
-  series are within 0.4" (validated) and 1.5" (labelled). ELP 2000-82B, which it
-  replaces, was fitted to DE200 and drifted 18" by 1550 and 43" by 2650.
+  series are within 0.4" (validated) and 1.9" (labelled, with its looser cut). ELP
+  2000-82B, which it replaces, was fitted to DE200 and drifted 18" by 1550 and 43" by
+  2650.
 - **Frame**: IAU 2006/2000B inside the validated tier with the full nutation arguments,
   the Vondrák-Capitaine-Wallace long-term precession outside (CONVENTIONS 7).
 - **Stars**: rigorous space motion with SIMBAD radial velocities; Rigil Kentaurus on
@@ -3005,61 +3006,61 @@ geometric to geometric; the others at their light-time distance):
 | 2500–2550 | 0.01 | 0.10 | 0.02 | 0.04 | 0.35 | 0.31 | 0.38 | 0.85 | 0.35 |
 | 2550–2600 | 0.01 | 0.09 | 0.03 | 0.07 | 0.31 | 0.24 | 0.32 | 0.71 | 0.26 |
 | 2600–2650 | 0.01 | 0.17 | 0.03 | 0.05 | 0.35 | 0.47 | 0.26 | 0.76 | 0.40 |
-| -2000–-1900 | 0.41 | 1.46 | 0.65 | 0.77 | 1.64 | 9.45 | 19.88 | 6.40 | 1.61 |
-| -1900–-1800 | 0.43 | 1.22 | 0.44 | 1.17 | 1.23 | 9.51 | 21.34 | 2.67 | 1.23 |
-| -1800–-1700 | 0.23 | 0.96 | 0.51 | 0.86 | 3.61 | 6.52 | 14.82 | 0.95 | 0.70 |
-| -1700–-1600 | 0.34 | 1.13 | 0.27 | 0.28 | 1.58 | 8.56 | 24.04 | 1.98 | 0.89 |
-| -1600–-1500 | 0.29 | 0.73 | 0.46 | 1.53 | 1.11 | 8.71 | 34.34 | 2.65 | 0.91 |
-| -1500–-1400 | 0.35 | 0.90 | 0.24 | 1.24 | 1.27 | 4.70 | 21.04 | 3.43 | 1.59 |
-| -1400–-1300 | 0.20 | 1.06 | 0.42 | 0.25 | 1.58 | 5.86 | 5.32 | 3.84 | 1.11 |
-| -1300–-1200 | 0.40 | 0.74 | 0.52 | 0.95 | 0.59 | 4.61 | 4.34 | 3.86 | 1.22 |
-| -1200–-1100 | 0.31 | 0.76 | 0.38 | 1.10 | 1.88 | 2.41 | 4.03 | 4.05 | 0.86 |
-| -1100–-1000 | 0.16 | 0.74 | 0.21 | 0.14 | 1.69 | 3.55 | 10.50 | 3.81 | 0.93 |
-| -1000–-900 | 0.27 | 0.67 | 0.43 | 0.41 | 1.16 | 5.37 | 13.05 | 3.02 | 0.45 |
-| -900–-800 | 0.14 | 0.66 | 0.12 | 0.36 | 1.74 | 3.64 | 7.85 | 2.01 | 0.71 |
-| -800–-700 | 0.18 | 0.50 | 0.21 | 1.05 | 2.45 | 6.62 | 12.92 | 1.89 | 0.67 |
-| -700–-600 | 0.11 | 0.48 | 0.21 | 0.20 | 1.30 | 5.02 | 15.82 | 2.41 | 0.70 |
-| -600–-500 | 0.15 | 0.47 | 0.27 | 0.55 | 1.21 | 3.06 | 4.82 | 2.01 | 1.00 |
-| -500–-400 | 0.13 | 0.46 | 0.16 | 0.16 | 0.52 | 4.21 | 4.56 | 2.24 | 0.88 |
-| -400–-300 | 0.11 | 0.53 | 0.13 | 0.18 | 0.91 | 3.19 | 3.36 | 2.10 | 0.85 |
-| -300–-200 | 0.13 | 0.58 | 0.13 | 0.13 | 1.45 | 1.81 | 3.51 | 2.69 | 0.83 |
-| -200–-100 | 0.19 | 0.43 | 0.23 | 0.38 | 2.74 | 1.05 | 3.53 | 2.85 | 0.75 |
-| -100–0 | 0.15 | 0.35 | 0.22 | 0.16 | 4.14 | 1.06 | 3.72 | 3.09 | 0.83 |
-| 0–100 | 0.22 | 0.34 | 0.21 | 0.55 | 3.29 | 3.27 | 5.84 | 3.09 | 0.62 |
-| 100–200 | 0.24 | 0.27 | 0.32 | 0.56 | 3.26 | 3.44 | 5.46 | 3.14 | 0.62 |
-| 200–300 | 0.22 | 0.26 | 0.32 | 0.46 | 3.73 | 3.07 | 4.69 | 2.87 | 0.71 |
-| 300–400 | 0.19 | 0.22 | 0.21 | 0.30 | 1.92 | 1.96 | 2.61 | 2.53 | 0.26 |
-| 400–500 | 0.10 | 0.15 | 0.13 | 0.10 | 1.66 | 1.30 | 2.79 | 1.85 | 0.32 |
-| 500–600 | 0.06 | 0.19 | 0.09 | 0.04 | 0.88 | 0.73 | 2.44 | 2.01 | 0.33 |
-| 600–700 | 0.07 | 0.17 | 0.13 | 0.14 | 1.00 | 0.92 | 1.89 | 2.09 | 0.35 |
-| 700–800 | 0.10 | 0.13 | 0.10 | 0.15 | 1.79 | 1.35 | 2.98 | 2.41 | 0.39 |
-| 800–900 | 0.10 | 0.16 | 0.16 | 0.25 | 1.77 | 1.67 | 2.27 | 2.62 | 0.44 |
-| 900–1000 | 0.12 | 0.19 | 0.19 | 0.46 | 4.20 | 3.51 | 6.08 | 2.46 | 0.68 |
-| 1000–1100 | 0.13 | 0.27 | 0.18 | 0.31 | 2.16 | 4.71 | 8.59 | 2.55 | 0.53 |
-| 1100–1200 | 0.13 | 0.24 | 0.18 | 0.29 | 4.03 | 3.34 | 8.52 | 2.54 | 0.86 |
-| 1200–1300 | 0.13 | 0.26 | 0.20 | 0.46 | 2.94 | 0.92 | 3.25 | 2.24 | 0.67 |
-| 1300–1400 | 0.13 | 0.26 | 0.15 | 0.17 | 2.04 | 1.02 | 1.46 | 2.27 | 0.68 |
-| 1400–1500 | 0.11 | 0.18 | 0.17 | 0.24 | 2.63 | 0.49 | 1.74 | 1.92 | 0.69 |
-| 1500–1550 | 0.07 | 0.12 | 0.09 | 0.10 | 1.20 | 0.30 | 1.76 | 1.98 | 0.45 |
-| 2650–2700 | 0.02 | 0.18 | 0.04 | 0.05 | 0.37 | 0.36 | 1.03 | 1.69 | 0.69 |
-| 2700–2800 | 0.05 | 0.14 | 0.08 | 0.12 | 1.27 | 1.93 | 4.23 | 1.76 | 0.69 |
-| 2800–2900 | 0.07 | 0.28 | 0.12 | 0.18 | 2.33 | 3.39 | 5.97 | 3.04 | 0.49 |
-| 2900–3000 | 0.08 | 0.36 | 0.11 | 0.10 | 2.61 | 1.97 | 4.94 | 8.06 | 1.29 |
+| -2000–-1900 | 0.38 | 1.43 | 0.78 | 0.59 | 1.69 | 9.20 | 19.79 | 6.71 | 2.51 |
+| -1900–-1800 | 0.48 | 1.24 | 0.48 | 1.18 | 1.74 | 8.98 | 21.29 | 2.20 | 1.46 |
+| -1800–-1700 | 0.25 | 0.92 | 0.47 | 0.67 | 4.05 | 5.48 | 14.54 | 1.17 | 1.24 |
+| -1700–-1600 | 0.35 | 1.13 | 0.36 | 0.34 | 1.36 | 8.60 | 24.70 | 2.62 | 1.66 |
+| -1600–-1500 | 0.27 | 0.79 | 0.65 | 1.36 | 0.91 | 9.66 | 35.49 | 3.03 | 1.78 |
+| -1500–-1400 | 0.37 | 0.92 | 0.28 | 1.63 | 2.05 | 4.69 | 20.92 | 3.87 | 2.74 |
+| -1400–-1300 | 0.21 | 1.04 | 0.34 | 0.33 | 2.98 | 6.82 | 6.03 | 4.37 | 1.88 |
+| -1300–-1200 | 0.42 | 0.74 | 0.58 | 1.15 | 0.68 | 4.29 | 4.40 | 3.87 | 2.69 |
+| -1200–-1100 | 0.32 | 0.78 | 0.35 | 1.36 | 1.78 | 2.29 | 4.11 | 4.08 | 1.46 |
+| -1100–-1000 | 0.16 | 0.80 | 0.18 | 0.19 | 1.26 | 3.34 | 10.93 | 3.88 | 2.07 |
+| -1000–-900 | 0.27 | 0.64 | 0.49 | 0.30 | 0.76 | 5.47 | 13.03 | 3.52 | 1.28 |
+| -900–-800 | 0.15 | 0.65 | 0.17 | 0.29 | 1.70 | 3.76 | 6.94 | 3.14 | 2.34 |
+| -800–-700 | 0.19 | 0.52 | 0.31 | 1.52 | 2.41 | 7.61 | 13.36 | 2.51 | 2.25 |
+| -700–-600 | 0.13 | 0.49 | 0.17 | 0.33 | 1.69 | 5.59 | 15.58 | 3.13 | 1.79 |
+| -600–-500 | 0.15 | 0.49 | 0.27 | 0.67 | 1.78 | 3.09 | 4.85 | 1.80 | 1.84 |
+| -500–-400 | 0.13 | 0.38 | 0.21 | 0.11 | 0.64 | 4.88 | 4.67 | 1.85 | 1.55 |
+| -400–-300 | 0.12 | 0.54 | 0.14 | 0.10 | 0.75 | 3.87 | 3.42 | 2.33 | 1.43 |
+| -300–-200 | 0.14 | 0.56 | 0.10 | 0.08 | 1.41 | 2.58 | 3.29 | 2.88 | 1.49 |
+| -200–-100 | 0.20 | 0.48 | 0.25 | 0.22 | 3.15 | 1.24 | 3.61 | 2.72 | 0.54 |
+| -100–0 | 0.16 | 0.37 | 0.18 | 0.22 | 3.69 | 1.21 | 4.19 | 3.21 | 0.76 |
+| 0–100 | 0.23 | 0.32 | 0.20 | 0.63 | 3.76 | 3.63 | 5.88 | 3.59 | 0.52 |
+| 100–200 | 0.24 | 0.30 | 0.32 | 0.60 | 3.36 | 3.44 | 5.14 | 3.31 | 0.88 |
+| 200–300 | 0.21 | 0.27 | 0.29 | 0.44 | 4.19 | 2.92 | 4.42 | 3.25 | 0.96 |
+| 300–400 | 0.20 | 0.22 | 0.23 | 0.33 | 1.89 | 2.21 | 2.54 | 2.35 | 0.93 |
+| 400–500 | 0.10 | 0.15 | 0.13 | 0.10 | 1.37 | 1.22 | 2.74 | 1.97 | 0.62 |
+| 500–600 | 0.05 | 0.22 | 0.09 | 0.06 | 0.80 | 0.77 | 2.54 | 2.00 | 0.59 |
+| 600–700 | 0.07 | 0.18 | 0.14 | 0.11 | 0.98 | 1.47 | 1.91 | 2.34 | 0.45 |
+| 700–800 | 0.10 | 0.13 | 0.10 | 0.13 | 1.66 | 1.80 | 3.00 | 2.43 | 0.45 |
+| 800–900 | 0.10 | 0.18 | 0.16 | 0.28 | 1.70 | 1.78 | 2.64 | 2.68 | 0.25 |
+| 900–1000 | 0.12 | 0.17 | 0.20 | 0.48 | 4.33 | 3.73 | 5.94 | 2.35 | 0.37 |
+| 1000–1100 | 0.13 | 0.29 | 0.18 | 0.31 | 2.35 | 4.98 | 9.12 | 2.55 | 0.43 |
+| 1100–1200 | 0.13 | 0.25 | 0.18 | 0.27 | 4.14 | 3.55 | 8.68 | 2.51 | 0.72 |
+| 1200–1300 | 0.13 | 0.26 | 0.20 | 0.49 | 2.80 | 0.94 | 3.23 | 2.19 | 0.85 |
+| 1300–1400 | 0.13 | 0.28 | 0.15 | 0.17 | 2.02 | 0.95 | 1.71 | 2.27 | 0.68 |
+| 1400–1500 | 0.11 | 0.16 | 0.17 | 0.24 | 2.76 | 0.45 | 1.69 | 2.32 | 0.77 |
+| 1500–1550 | 0.07 | 0.12 | 0.09 | 0.10 | 1.08 | 0.33 | 1.57 | 1.93 | 0.52 |
+| 2650–2700 | 0.02 | 0.18 | 0.04 | 0.06 | 0.37 | 0.49 | 0.94 | 1.93 | 0.79 |
+| 2700–2800 | 0.05 | 0.15 | 0.08 | 0.16 | 1.28 | 2.05 | 4.12 | 1.87 | 0.79 |
+| 2800–2900 | 0.07 | 0.28 | 0.12 | 0.18 | 2.25 | 3.52 | 6.15 | 3.08 | 0.39 |
+| 2900–3000 | 0.08 | 0.37 | 0.12 | 0.10 | 2.65 | 2.24 | 4.86 | 8.20 | 1.89 |
 
 Worst of GHA and Dec over each tier, arcminutes (arcseconds on the sky), against the
 figure each provider publishes for that tier (`explorer_coverage` → `tiers`):
 
 | body | validated 1550–2650 | published | labelled 2000 BC–AD 3000 | published |
 |---|---|---|---|---|
-| Sun | 0.0002′ (0.01″) | 0.01′ | 0.0074′ (0.43″) | 0.02′ |
-| Moon | 0.0064′ (0.36″) | 0.02′ | 0.0234′ (1.46″) | 0.05′ |
-| Mercury | 0.0007′ (0.04″) | 0.005′ | 0.0114′ (0.65″) | 0.02′ |
-| Venus | 0.0014′ (0.08″) | 0.005′ | 0.0265′ (1.53″) | 0.05′ |
-| Mars | 0.0116′ (0.71″) | 0.02′ | 0.0798′ (4.20″) | 0.1′ |
-| Jupiter | 0.0084′ (0.48″) | 0.02′ | 0.1733′ (9.51″) | 0.25′ |
-| Saturn | 0.0107′ (0.61″) | 0.02′ | 0.5328′ (34.3″) | 0.7′ |
-| Uranus | 0.0158′ (0.91″) | 0.03′ | 0.1449′ (8.06″) | 0.2′ |
-| Neptune | 0.0073′ (0.45″) | 0.02′ | 0.0254′ (1.61″) | 0.05′ |
+| Sun | 0.0002′ (0.01″) | 0.01′ | 0.0079′ (0.48″) | 0.02′ |
+| Moon | 0.0064′ (0.36″) | 0.02′ | 0.0229′ (1.43″) | 0.05′ |
+| Mercury | 0.0007′ (0.04″) | 0.005′ | 0.0127′ (0.78″) | 0.02′ |
+| Venus | 0.0014′ (0.08″) | 0.005′ | 0.0281′ (1.63″) | 0.06′ |
+| Mars | 0.0116′ (0.71″) | 0.02′ | 0.0824′ (4.33″) | 0.15′ |
+| Jupiter | 0.0084′ (0.48″) | 0.02′ | 0.1635′ (9.66″) | 0.25′ |
+| Saturn | 0.0107′ (0.61″) | 0.02′ | 0.5638′ (35.5″) | 0.7′ |
+| Uranus | 0.0158′ (0.91″) | 0.03′ | 0.1470′ (8.20″) | 0.2′ |
+| Neptune | 0.0073′ (0.45″) | 0.02′ | 0.0469′ (2.74″) | 0.06′ |
 | stars (model) | 0.019″ | | 0.057″ | |
 | stars (model + catalogue 1σ, Rigil Kentaurus apart) | 1.67″ (0.028′) | 0.03′ | 10.9″ (0.18′) | 0.2′ |
 
@@ -3068,10 +3069,14 @@ stars ≤ 1″ from the model) are met with room. Distances agree to 3e-6 (valid
 1e-4 (labelled, Saturn) relative. In the labelled tier the planets' errors are
 VSOP87's own far from its fitting span, less what the fitted corrections (a polynomial,
 three harmonics of the orbital longitude, and for Jupiter and Saturn their great
-inequality, all with time-dependent amplitudes) take out; the largest, Saturn's 34″
-(1600–1500 BC), is what they do not. These figures are the ephemeris against DE441;
-in practice every time shown there carries Delta T's uncertainty (CONVENTIONS 15.2: an
-hour at 2000 BC), which moves the sky by far more than any of them.
+inequality, all with time-dependent amplitudes) take out; the largest, Saturn's 35″
+(1600–1500 BC), is what they do not. The labelled tier's series are also cut looser than
+the validated tier's (each planet to 5″ at closest approach, the Earth to 0.3″, the
+Moon's terms to 0.01″), to keep the module inside its budget ("Size"): against a 1″ cut
+that adds about 1″ to Venus and Neptune (2.7″ at worst) and a few tenths elsewhere. These
+figures are the ephemeris against DE441; in practice every time shown there carries Delta
+T's uncertainty (CONVENTIONS 15.2: an hour at 2000 BC), which moves the sky by far more
+than any of them.
 
 ### The stars across the tiers
 
@@ -3172,27 +3177,32 @@ as a position error.
 ### Size
 
 The whole two-tier series set is one file, `crates/skyfix-ephemeris/data/series.bin`:
-**162 507 bytes** (125 716 gzipped), against 477 494 bytes (148 260 gzipped, each file on
+**127 958 bytes** (99 276 gzipped), against 477 494 bytes (148 260 gzipped, each file on
 its own) for the three one-tier JSON files it replaced (VSOP87D Sun, VSOP87A planets, ELP
 2000-82B Moon, all cut for 1990–2060). The encoding (EXPLORER_API "Series payload")
 stores each body's VSOP87 frequencies once, amplitudes and phases in 32 or 16 bits where
 the budget allows, and keeps the generator's checkpoints out of the shipped bytes
-(`series_checks.json`, read by the tests). The tighter validated cut of the Earth, Mercury
-and Venus (above) is 10 882 bytes of it (9 420 gzipped).
+(`series_checks.json`, read by the tests). Of the cuts: the tighter validated cut of the
+Earth, Mercury and Venus (above) costs 10 882 bytes (9 420 gzipped); the looser labelled
+cut (5″ per planet, 0.3″ for the Earth, the Moon's terms to 0.01″; display only) saves
+34 549 (26 440 gzipped) against cutting it like the validated tier.
 
 The core WASM module (`npm run wasm`, `gzip -9`), both built on the same machine on
 2026-09-25:
 
 | build | raw | gzipped |
 |---|---|---|
-| main at 52ebc77 (one tier; planet detail, photo and the lunar limb merged) | 3 042 660 | 1 252 306 |
-| this branch (that main merged, both tiers) | 2 733 512 | 1 232 714 |
-| change | −309 148 (−10.2 %) | −19 592 (−1.6 %) |
+| main at f2a1a07 (one tier; everything merged by then) | 3 124 878 | 1 284 157 |
+| this branch (that main merged, both tiers) | 2 781 402 | 1 238 604 |
+| change | −343 476 (−11.0 %) | −45 553 (−3.5 %) |
 
 Main is over the budget of EXPANSION_PLAN §3 (3 MB raw, 1.25 MB gzipped) on both counts;
-with both tiers in the core the module is inside it, with 266 488 bytes raw and 17 286
-gzipped to spare. The `deep-time` pack of the plan was not built (the planner's rule: both
-tiers in the core if the module stays within budget).
+with both tiers in the core the module is inside it, with 218 598 bytes raw and 11 396
+gzipped to spare. (At 52ebc77, before the almanac tables, Navigate's tools and the
+Tonight view were merged, the same comparison was 3 042 660 / 1 252 306 against 2 733 512 /
+1 232 714 with the labelled tier cut like the validated one.) The `deep-time` pack of the
+plan was not built (the planner's rule: both tiers in the core if the module stays within
+budget).
 
 ### Speed
 

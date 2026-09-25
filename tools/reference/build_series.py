@@ -14,7 +14,8 @@ choice are in docs/ACCURACY.md, "Historical accuracy"):
   direction, each planet to 1" of geocentric direction at its closest approach to the
   Earth, separately for the validated tier (1550-2650) and the labelled tier
   (-2000..3000); in the validated tier the Earth to 0.01", Mercury to 0.1" and Venus to
-  0.2" (`VALIDATED_BUDGET_ARCSEC`: the Earth's apsides, transits and planet discs). Within
+  0.2" (`VALIDATED_BUDGET_ARCSEC`: the Earth's apsides, transits and planet discs), in the
+  labelled tier (display only) the Earth to 0.3" and each planet to 5". Within
   each (body, coordinate, power) group the terms are sorted by amplitude, so each tier's
   set is a prefix: the file stores the union and, per group, how many terms the
   validated tier uses.
@@ -94,9 +95,17 @@ SELECT_MARGIN = 0.9
 #: conjunction (0.2" left 0.14" at 1960), Venus's and the planets' sub-solar points
 #: about 0.2" (the budget of the one-tier series before, for 1990-2060).
 VALIDATED_BUDGET_ARCSEC = {"Earth": 0.01, "Mercury": 0.1, "Venus": 0.2}
+#: Looser budgets for the labelled tier (display only, no target; CONVENTIONS 15.1): the
+#: Earth 0.3" and each planet 5", which there is under VSOP87's own error for Mars to
+#: Uranus and far under what Delta T's uncertainty moves the sky by (an hour at 2000 BC).
+#: They keep the core module inside its download budget (ACCURACY 20, "Size").
+LABELLED_BUDGET_ARCSEC = {"Earth": 0.3}
+LABELLED_PLANET_BUDGET_ARCSEC = 5.0
 #: ELP/MPP02 amplitude thresholds for longitude and latitude (arcsec) and distance
 #: (km), applied to |A| * tau^n with tau the tier's largest |t| in centuries.
 ELP_THRESHOLDS = (0.002, 0.002, 0.02)
+#: The labelled tier's, five times looser (display only).
+LABELLED_ELP_THRESHOLDS = (0.01, 0.01, 0.1)
 
 #: Correction basis per tier: (polynomial degree, degree of the time factor on the
 #: orbital harmonics, number of harmonics of the heliocentric longitude, great
@@ -212,9 +221,9 @@ def keep_by_budget(terms, T, budget_au, tabs):
     return keep
 
 
-def truncate_vsop(series, tier_jd, n_grid, overrides=None):
+def truncate_vsop(series, tier_jd, n_grid, overrides=None, planet_budget=None):
     """{body: keep mask} for one tier, and the budgets used (`overrides`: arcseconds
-    per body instead of the default budget)."""
+    per body instead of the default budget; `planet_budget`: the planets' default)."""
     j0, j1 = tier_jd[0] - MARGIN_DAYS, tier_jd[1] + MARGIN_DAYS
     jd = epochs(j0, j1, n_grid, 11)
     T = V.tjy(jd)
@@ -225,7 +234,7 @@ def truncate_vsop(series, tier_jd, n_grid, overrides=None):
     closest["Earth"] = float(np.linalg.norm(E_, axis=0).min())
     keep, budget = {}, {}
     for name, s in series.items():
-        arc = SUN_BUDGET_ARCSEC if name == "Earth" else PLANET_BUDGET_ARCSEC
+        arc = SUN_BUDGET_ARCSEC if name == "Earth" else (planet_budget or PLANET_BUDGET_ARCSEC)
         arc = (overrides or {}).get(name, arc)
         budget[name] = arc * ARC * closest[name]
         keep[name] = keep_by_budget(s, T, SELECT_MARGIN * budget[name], tabs)
@@ -451,8 +460,8 @@ def elp_args(S, dl, zeta):
     return fk
 
 
-def elp_keep(S, tabs):
-    thr = np.array(ELP_THRESHOLDS)[S.coord]
+def elp_keep(S, tabs, thresholds=ELP_THRESHOLDS):
+    thr = np.array(thresholds)[S.coord]
     return np.abs(S.amp) * tabs ** S.power > thr
 
 
@@ -732,7 +741,8 @@ def main(argv=None):
     print("-- VSOP87A truncation, validated tier", flush=True)
     keep_v, budget_v, closest_v = truncate_vsop(series, val, n_grid, VALIDATED_BUDGET_ARCSEC)
     print("-- VSOP87A truncation, labelled tier", flush=True)
-    keep_l, budget_l, closest_l = truncate_vsop(series, lab, n_grid)
+    keep_l, budget_l, closest_l = truncate_vsop(
+        series, lab, n_grid, LABELLED_BUDGET_ARCSEC, LABELLED_PLANET_BUDGET_ARCSEC)
     tabs_l = float(np.abs(V.tjy(np.array([lab[0] - MARGIN_DAYS, lab[1] + MARGIN_DAYS]))).max())
     groups = vsop_groups(series, keep_v, keep_l, tabs_l)
     deq = dequantized(series, groups)
@@ -766,7 +776,8 @@ def main(argv=None):
     tabs_v_cy = float(np.abs((np.array(val) - 2451545.0) / 36525.0).max())
     tabs_l_cy = float(np.abs((np.array(lab) - 2451545.0) / 36525.0).max())
     elp_keep_v = elp_keep(S, tabs_v_cy)
-    elp_keep_l = elp_keep(S, tabs_l_cy)
+    # The validated tier's terms are a prefix of each group, so the labelled set holds them.
+    elp_keep_l = elp_keep(S, tabs_l_cy, LABELLED_ELP_THRESHOLDS) | elp_keep_v
     M405 = E.ecliptic_to_equator("JPL405")
 
     print("-- measuring", flush=True)
@@ -801,10 +812,12 @@ def main(argv=None):
             "rule": ("per body, keep the terms whose peak |A| tau^n exceeds a threshold chosen "
                      "so the dropped terms' vector sum stays inside %.0f%% of the budget on a "
                      "%d-epoch grid: the Earth %.2f\" of the Sun's direction, each planet %.1f\" "
-                     "at its closest approach, and in the validated tier %s; separately per tier, "
-                     "stored as the union, each group sorted by |A|, the validated count first"
+                     "at its closest approach, and in the validated tier %s; in the labelled tier "
+                     "the Earth %g\" and each planet %g\"; separately per tier, stored as the "
+                     "union, each group sorted by |A|, the validated count first"
                      % (SELECT_MARGIN * 100, n_grid, SUN_BUDGET_ARCSEC, PLANET_BUDGET_ARCSEC,
-                        ", ".join("%s %g\"" % kv for kv in sorted(VALIDATED_BUDGET_ARCSEC.items())))),
+                        ", ".join("%s %g\"" % kv for kv in sorted(VALIDATED_BUDGET_ARCSEC.items())),
+                        LABELLED_BUDGET_ARCSEC["Earth"], LABELLED_PLANET_BUDGET_ARCSEC)),
             "terms_total": int(sum(len(s) for s in series.values())),
             "terms_stored": int(sum(len(deq[n][0]) for n in series)),
             "terms_validated": int(sum(deq[n][1].sum() for n in series)),
@@ -831,6 +844,9 @@ def main(argv=None):
             "secular_corrections_arcsec_per_cy_k": {"W1": list(dW[0]), "W2": list(dW[1]), "W3": list(dW[2])},
             "thresholds": {"longitude_arcsec": ELP_THRESHOLDS[0], "latitude_arcsec": ELP_THRESHOLDS[1],
                            "distance_km": ELP_THRESHOLDS[2]},
+            "labelled_thresholds": {"longitude_arcsec": LABELLED_ELP_THRESHOLDS[0],
+                                    "latitude_arcsec": LABELLED_ELP_THRESHOLDS[1],
+                                    "distance_km": LABELLED_ELP_THRESHOLDS[2]},
             "terms_total": int(len(S)),
             "terms_stored": int(sum(len(g[3]) for g in elp_groups)),
             "terms_validated": int(sum(g[4] for g in elp_groups)),
