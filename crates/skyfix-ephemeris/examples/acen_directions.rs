@@ -1,5 +1,8 @@
-//! verify2 scratch (not committed): Rigil Kentaurus's barycentric direction from the
-//! engine's own catalogue entry, on its orbit and on the catalogue's straight line.
+//! Rigil Kentaurus's barycentric (ICRS) unit vector from the engine's own catalogue entry
+//! at each TT Julian date given, on its orbit and on the catalogue's straight line (the
+//! Nautical Almanac's model), for `tools/verify2/acen_alma.py` (verify2, development time).
+//!
+//!     cargo run --release -p skyfix-ephemeris --example acen_directions -- 2461041.5
 use skyfix_ephemeris::catalog;
 fn main() {
     let s = catalog::find("Rigil Kentaurus").expect("star");

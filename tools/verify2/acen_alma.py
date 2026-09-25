@@ -5,7 +5,7 @@ import math, os, subprocess
 import numpy as np
 from v2 import ts, kernel
 from v2 import WT
-EX = os.path.join(WT, "target/release/examples/v2_acen")  # a scratch example printing the engine's directions (see VERIFICATION_2.md); the committed check is crates/skyfix-ephemeris/tests/acen_alma.rs
+EX = os.path.join(WT, "target/release/examples/acen_directions")  # cargo build --release -p skyfix-ephemeris --example acen_directions; the committed check is crates/skyfix-ephemeris/tests/acen_alma.rs
 ALMA = [  # UTC start, RA, Dec of A (deg), sigma RA cos dec, sigma Dec (arcsec)
     ((2018,10,14,13,38,19.0), 219.860763250, -60.832171539, 0.0039, 0.0035),
     ((2019,7,15,23,14,41.3), 219.858859933, -60.832264944, 0.0007, 0.0010),
