@@ -633,8 +633,11 @@ Rules every one of them keeps:
 - **`--format text|json`**, and `--json` as the older commands spell it. Text prints
   angles in navigator style — whole degrees and decimal minutes to 0.1' (185 m), `183 12.4`
   for an hour angle or a bearing, `N 38 47.1` for a declination, and a sign on every
-  altitude so a body below the horizon cannot be read as one above it — and instants as
-  RFC 3339 UTC with `Z`, to the second. A value that rounds to zero never carries a sign.
+  altitude so a body below the horizon cannot be read as one above it — and instants to
+  the second: RFC 3339 UTC with `Z` from 1972 to 2035, `UT` outside those years (the
+  clock is Universal Time there), and a date before 1582-10-15 in the Julian calendar,
+  labelled `(Julian)` (CONVENTIONS 15.2-15.3; see *Dates, years and calendars* below).
+  A value that rounds to zero never carries a sign.
   JSON is the engine's own result exactly as serde emits it, milliseconds included: the
   wire shapes of `docs/EXPLORER_API.md`. A test calls each engine function directly and
   compares its result with the command's JSON, number by number. `skyfix almanac` takes
@@ -648,6 +651,17 @@ Rules every one of them keeps:
 - **A time window** takes a date or an instant at each end. As a start, `2026-10-01`
   means 00:00 UTC that day; as an end it means the END of that day, so `--from 2026-10-01
   --to 2026-10-31` is the whole of October.
+- **Dates, years and calendars.** Every date and instant takes any year: four digits for
+  0000-9999, else ISO 8601's expanded form with a sign, `-0584-05-28` or
+  `+12345-01-01T00:00:00Z`. Years are astronomical: year 0 is 1 BC, -584 is 585 BC. A
+  typed date is in the Julian calendar up to 1582-10-04 and the Gregorian from
+  1582-10-15, as the explorer shows dates; the ten days between existed in neither where
+  the reform was made, and are refused with a sentence saying so. `--calendar julian` or
+  `--calendar gregorian` (proleptic, as ISO 8601; accepted by every command) makes every
+  typed and printed date use that one calendar. JSON output is always the wire's
+  proleptic Gregorian (`docs/EXPLORER_API.md`, "Dates and years on the wire"), so a
+  `utc` string from JSON goes back in with `--calendar gregorian`. The engine itself
+  covers 1990-2060 today; `skyfix calendar` works for any year.
 - **The navigation methods read sessions exactly as `solve` does** — JSON or CSV,
   validated against the body list — and take `--ephemeris auto|supplied`. A sight the
   reducer rejects becomes a warning that names it, and the exit code is 2, as for
@@ -1362,6 +1376,44 @@ The evening's four run from 66 to 272 degrees of azimuth and the morning's five 
 round the horizon: the spread that cancels an unknown shared altitude error (dip, index
 error, refraction) as well as fixing the position. The brightness limit is a stated rule
 of thumb, not a model of the twilight sky, and the plan says so in its notes.
+
+### `skyfix calendar <DATE> | --jd JD [--calendar julian|gregorian]`
+
+A date or an instant in both calendars, with its Julian date, weekday, and what the clock
+is then: UTC from 1972 to 2035 and UT (UT1) outside, TT minus the clock, Delta-T with its
+standard uncertainty and source, and UT1 - UTC (CONVENTIONS 15.2-15.3). The engine
+functions are `skyfix_core::calendar::calendar_convert` and `skyfix_core::time::time_info`;
+`--format json` prints the first's `CalendarConversion` with `weekday` and `time_info`
+beside it (`docs/EXPLORER_API.md`). A date means 00:00 that day.
+
+| flag | meaning |
+|---|---|
+| `DATE` | `2026-09-24`, `-0584-05-28`, or an instant `2026-09-24T12:00:00Z`; Julian up to 1582-10-04 and Gregorian from 1582-10-15 unless `--calendar` says otherwise |
+| `--jd JD` | a Julian date on the app's clock instead |
+
+```console
+$ skyfix calendar -0584-05-28T12:00:00Z
+CALENDAR
+Julian date  1507900.000000  (MJD -892100.500000); a Wednesday
+Julian       -0584-05-28  28 May 585 BC, astronomical year -0584  12:00:00.000
+Gregorian    -0584-05-22  22 May 585 BC, astronomical year -0584  12:00:00.000 (proleptic)
+Shown as     Julian: the Julian calendar before 1582-10-15, the Gregorian from it
+Wire         -0584-05-22T12:00:00.000Z (proleptic Gregorian)
+Clock        UT (Universal Time, UT1: outside the UTC years 1972-2035)
+TT - clock   18213.2 s (5 h 03 min 33 s)
+Delta-T      18213.2 s (5 h 03 min 33 s), standard uncertainty 3 min: Stephenson, Morrison & Hohenkerk 2016, 2020 revision
+UT1 - UTC    none: the clock is UT1
+...
+```
+
+The eclipse Thales is said to have foretold fell on this day. Delta-T, five hours then,
+comes from the historical record of eclipses and occultations, and its three minutes of
+standard uncertainty are 45' of longitude on the ground: why an ancient eclipse path is
+drawn as a band (docs/ACCURACY.md, "Delta-T"). Britain and its colonies kept the Julian
+calendar until 1752, so dates in their records before then need `--calendar julian`:
+there Wednesday 2 September 1752 (Julian) was followed by Thursday 14 September
+(Gregorian), and `skyfix calendar 1752-09-03 --calendar julian` shows that the two name
+the same day.
 
 ---
 

@@ -13,7 +13,7 @@ use anyhow::{Result, anyhow};
 use skyfix_core::methods::averaging;
 use skyfix_core::types::{AveragedSight, AveragingOptions, DrPosition, VesselMotion};
 
-use super::args::{FormatArgs, parse_dr, parse_instant, parse_vessel};
+use super::args::{FormatArgs, parse_dr, parse_vessel, wire_instant};
 use super::methods::{self, labelled};
 use super::text;
 use crate::provider::EphemerisChoice;
@@ -53,11 +53,13 @@ pub struct Args {
 
 impl Args {
     pub fn options(&self) -> Result<AveragingOptions> {
-        if let Some(u) = &self.reference_utc {
-            parse_instant(u).map_err(|e| anyhow!("--reference-utc: {e}"))?;
-        }
+        // As the engine's wire string: the flag may be typed in the Julian calendar.
+        let reference_utc = match &self.reference_utc {
+            Some(u) => Some(wire_instant(u).map_err(|e| anyhow!("--reference-utc: {e}"))?),
+            None => None,
+        };
         Ok(AveragingOptions {
-            reference_utc: self.reference_utc.clone(),
+            reference_utc,
             dr: self.dr,
             vessel: self.vessel,
             reject_outliers: !self.keep_outliers,

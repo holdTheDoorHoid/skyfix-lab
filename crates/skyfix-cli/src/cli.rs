@@ -30,6 +30,13 @@ use crate::provider::EphemerisChoice;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
+
+    /// The calendar of the dates you type and of the dates printed: `julian`, or
+    /// `gregorian` (proleptic before 1582-10-15, as ISO 8601). Default: Julian up to
+    /// 1582-10-04 and Gregorian from 1582-10-15, as the explorer shows them. JSON output
+    /// is always proleptic Gregorian.
+    #[arg(long, global = true, value_enum, value_name = "CALENDAR")]
+    pub calendar: Option<crate::commands::explorer::args::CalendarArg>,
 }
 
 #[derive(Subcommand, Debug)]

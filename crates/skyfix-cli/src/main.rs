@@ -29,6 +29,11 @@ use cli::{Cli, Command};
 use commands::reduce::Output;
 
 fn main() -> ExitCode {
+    // `--calendar` decides how the date flags read their values, and clap parses them in
+    // order: read it first (timescales agent, CONVENTIONS 15.3).
+    commands::explorer::args::set_calendar(commands::explorer::args::scan_calendar(
+        std::env::args_os(),
+    ));
     let parsed = match Cli::try_parse() {
         Ok(c) => c,
         Err(e) => {

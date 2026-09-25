@@ -28,6 +28,7 @@
 
 pub mod args;
 pub mod average;
+pub mod calendar;
 pub mod eclipse;
 pub mod eclipses;
 pub mod events;
@@ -96,6 +97,10 @@ pub enum ExplorerCommand {
     /// Tonight's sights: the next evening and morning nautical twilight and the bodies
     /// to shoot in each, with their predicted readings.
     PlanSights(plan_sights::Args),
+
+    /// A date in both calendars, with its Julian date, weekday, time scale (UTC or UT)
+    /// and Delta-T.
+    Calendar(calendar::Args),
 }
 
 /// Run one explorer command, returning the exit code it earned.
@@ -115,5 +120,6 @@ pub fn run(command: ExplorerCommand) -> Result<u8> {
         ExplorerCommand::Predict(a) => predict::run(&a),
         ExplorerCommand::Lunar(a) => lunar::run(&a),
         ExplorerCommand::PlanSights(a) => plan_sights::run(&a),
+        ExplorerCommand::Calendar(a) => calendar::run(&a),
     }
 }
