@@ -239,6 +239,11 @@
   transform: translateX(-6px);
 }
 
+/* A label that would print over another (ribbon.ts, `clashingLabels`): its mark stays. */
+.sf-ribbon__label[data-clash] {
+  visibility: hidden;
+}
+
 .sf-ribbon__label .sf-icon {
   width: 12px;
   height: 12px;

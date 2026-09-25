@@ -13,6 +13,7 @@ import { formatDistance } from '../shell/format.js';
 import type { Units } from '../state.js';
 import { clockAt, offsetOn } from './format.js';
 import { jdFromWallClock, type Zone } from '../time.js';
+import { weekdayOf } from '../time/civil.js';
 import { coverageRange, covers, OutsideCoverageError } from './coverage.js';
 import { daysOfMonth, localDateOf, sameDate, type LocalDate, type LocalDay } from './windows.js';
 
@@ -194,7 +195,9 @@ export function computeMoonMonth(engine: ExplorerEngine, input: MoonInput): Moon
 export function monthGrid<T extends { readonly day: LocalDay }>(days: readonly T[], firstWeekday: number): (T | null)[][] {
   if (days.length === 0) return [];
   const d0 = days[0]!.day.date;
-  const lead = (new Date(Date.UTC(d0.year, d0.month - 1, d0.day)).getUTCDay() - firstWeekday + 7) % 7;
+  // The weekday in the display calendar (polish2: `Date.UTC` read the years 0-99 as 1900-1999
+  // and knew only the Gregorian calendar).
+  const lead = (weekdayOf(d0) - firstWeekday + 7) % 7;
   const cells: (T | null)[] = [...Array<null>(lead).fill(null), ...days];
   while (cells.length % 7) cells.push(null);
   const rows: (T | null)[][] = [];

@@ -1,8 +1,9 @@
 /**
  * What the shell runs for deep time (time-ui agent): the display calendar and the year
  * style kept equal to the settings, the tier notice (a historical or far-future estimate,
- * or outside the years the core covers), and the Deep time pack asked for when the time
- * leaves the covered years and a pack would reach them (CONVENTIONS 15.1, 15.5).
+ * or outside the years the core covers), and a pack asked for when the time leaves the
+ * covered years and a pack the site offers would reach them (CONVENTIONS 15.1, 15.5; none
+ * does today: both tiers are in the core).
  *
  * The notice changes only when the tier, the side of the validated band or the coverage
  * report does (the notice bar redraws on every change and is read aloud), so it names the
@@ -57,7 +58,7 @@ export function startTimeServices(ctx: Ctx): () => void {
     const want = pack ? `${pack.name}|${notice.side}` : '';
     if (pack && asked !== want) {
       asked = want;
-      void ctx.packs.ensure(pack.name, packReason(jd, ctx)).catch(() => false);
+      void ctx.packs.ensure(pack.name, packReason(jd, ctx, pack)).catch(() => false);
     }
   };
   // `${settings.yearStyle}` joins the key: the notice writes years ("2000 BC").

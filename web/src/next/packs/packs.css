@@ -170,6 +170,12 @@
   font-size: var(--text-sm);
 }
 
+/* Where the page uses the pack (polish2). */
+.sf-packs-row__description.sf-packs-row__uses {
+  color: var(--ui-ink-3);
+  font-size: var(--text-xs);
+}
+
 .sf-packs-row__state {
   color: var(--ui-ink-3);
   font-size: var(--text-xs);

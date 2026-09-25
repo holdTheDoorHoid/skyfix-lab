@@ -28,7 +28,8 @@ import { basemapUrl } from '../geo/basemap.js';
 import { formatLatLon } from '../geo/coords.js';
 import { describeLocation, loadGazetteer, placesGeoJson, type Gazetteer } from '../geo/gazetteer.js';
 import { loadRegionIndex, type RegionIndex } from '../geo/regions.js';
-import { passNow, type PassNow } from '../shell/derived.js';
+import { covered, passNow, type PassNow } from '../shell/derived.js';
+import { fastPlayback } from '../playback.js';
 import { currentDayWindow, displayZone, engineObserver, eventOptions, type ExplorerState, type Layers, type ObserverState } from '../state.js';
 import { dayWindow, wallClock, type Zone } from '../time.js';
 import { CompassDial, type DialDay, type DialEvent } from './compass.js';
@@ -59,6 +60,11 @@ export const GLOBE_ZOOM = 1.55;
 const LONG_PRESS_MS = 550;
 /** Samples per hour of `sample_bodies` at the path's step. */
 const SAMPLES_PER_HOUR = 60 / PATH_STEP_MIN;
+/**
+ * During fast playback (`fastPlayback`: faster than eight days a second) the world layers and
+ * the dial are drawn at most this often, ms: four times a second, instead of every frame.
+ */
+const FAST_REDRAW_MS = 250;
 
 export interface MapViewOptions {
   /** The map's own controls (projection, layers, zoom, your place, measuring, legend). Default true. */
@@ -744,13 +750,18 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     const info = body ? sky?.bodies.find((b) => b.body === body) : undefined;
     const [start, end] = dayWindowOf(s);
     const opts = eventOptions(s);
-    // Cheap: the events are memoised per day; only picking the pass runs each frame.
-    const pass = body && info ? passNow(ctx, s, body, info.above_horizon) : null;
+    // Cheap: the events are memoised per day; only picking the pass runs each frame. During
+    // fast playback there are no events (shell/derived.ts `aroundToday`), and the path, the
+    // solstice band and the hours (a `sample_bodies` a day, `seasons` a year) wait too.
+    const fast = fastPlayback(s);
+    const pass = body && info && !fast ? passNow(ctx, s, body, info.above_horizon) : null;
     const p = pass?.passage;
     const key =
       body && pass
         ? `${observerKey(engineObserver(s))}|${start}|${end}|${body}|${opts.horizon}|${opts.height_of_eye_m}|${zoneKeyOf(displayZone(s))}|${L.paths}|${s.settings.angleFormat}|${s.settings.hourCycle}|${p?.kind}|${p?.rise?.jd_utc}|${p?.transit?.jd_utc}|${p?.set?.jd_utc}`
-        : 'none';
+        : fast
+          ? 'fast'
+          : 'none';
     if (key !== dayKey) {
       dayKey = key;
       summaryText = '';
@@ -795,6 +806,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   }
 
   // --- The frame ----------------------------------------------------------------------------
+  /** When the world layers were last drawn during fast playback (0 otherwise), ms. */
+  let lastFastDraw = 0;
   let lastMarker = '';
   let controlsLayers: Layers | null = null;
   let controlsState = '';
@@ -813,7 +826,23 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       marker.setLngLat([o.lon_deg, o.lat_deg]);
     }
     followObserver(o);
-    const sky = attempt('map-sky', 'positions could not be computed', () => engine.skyState(engineObserver(s), s.time.jd_utc, 'all'));
+    // Outside the years the core covers nothing is computed and the shell's notice says so
+    // (time/services.ts): the map raises no error of its own there (polish2; on a phone the
+    // two notices covered the Layers button).
+    const inside = covered(ctx, s.time.jd_utc);
+    if (!inside) notices.dismissKey('map-sky');
+    // Faster than eight days a second (playback.ts `fastPlayback`) the Sun's ground point
+    // circles the Earth many times a frame: the world layers and the dial are refreshed a
+    // few times a second, not every frame, and the per-day path waits for time to slow
+    // (polish2, list item 18); the frame after time slows draws everything again.
+    const fast = fastPlayback(s);
+    const now = performance.now();
+    if (fast && now - lastFastDraw < FAST_REDRAW_MS) {
+      requestRender();
+      return;
+    }
+    lastFastDraw = fast ? now : 0;
+    const sky = inside ? attempt('map-sky', 'positions could not be computed', () => engine.skyState(engineObserver(s), s.time.jd_utc, 'all')) : null;
     syncWorld(s, sky);
     syncDial(s, sky);
     const drawn = drawnGroups(service.overlays().map((e) => e.id));

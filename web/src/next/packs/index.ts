@@ -11,7 +11,7 @@
  *
  * A view that needs a pack asks for it in plain words and carries on either way:
  *
- *   if (await ctx.packs.ensure('deep-time', 'Positions before 1550 need the Deep time pack')) redraw();
+ *   if (await ctx.packs.ensure('tides-us', 'Tide predictions need the US tides pack.')) redraw();
  */
 
 import { revision } from '../../sw/policy.js';

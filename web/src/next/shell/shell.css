@@ -176,6 +176,16 @@
   padding-left: 6px;
 }
 
+/* A select in a settings row ("Your sky", polish2): as wide as the row allows, a size
+   smaller so "Automatic · a dark site (to 6.5)" fits the popover's 360 px. */
+.sf-settings__select {
+  justify-self: stretch;
+  min-width: 0;
+  height: var(--control-h-sm);
+  padding-left: 8px;
+  font-size: var(--text-sm);
+}
+
 .sf-settings__note {
   margin: 6px 6px 0;
   color: var(--ui-ink-3);
@@ -277,6 +287,11 @@
 .sf-editor__unit {
   color: var(--ui-ink-2);
   font-size: var(--text-md);
+}
+
+/* Settings → Sights, Air: pressure and temperature on one row (polish2). */
+.sf-settings__air .sf-input {
+  width: 72px;
 }
 
 .sf-editor__actions {

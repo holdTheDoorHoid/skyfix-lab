@@ -80,7 +80,7 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
     read: () => store.get().planner.position,
     commit: (p) => set({ position: p }),
   });
-  const utc = optionalUtcField(nc, 'For the moment (UTC)', 'the time on the time bar', () => store.get().planner.utc, (v) => set({ utc: v }));
+  const utc = optionalUtcField(nc, 'For the moment', 'the time on the time bar', () => store.get().planner.utc, (v) => set({ utc: v }));
   const count = numberField('How many sights to plan', { min: 1, max: 12 }, () => store.get().planner.select, (v) => set({ select: Math.round(v) }));
   const objective = selectInput<Objective>(OBJECTIVES.map((o) => ({ value: o.value, label: o.label })), store.get().planner.objective);
   const objectiveField = field('What to make smallest', objective, { help: OBJECTIVES.find((o) => o.value === store.get().planner.objective)?.note ?? null });

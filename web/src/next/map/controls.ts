@@ -37,6 +37,10 @@ export const OVERLAY_OWNERS: readonly { prefix: string; label: string; note: str
   { prefix: 'learn-', label: 'Learn’s last run', note: 'The fix and the answer key' },
   // photo agent (expansion Q8): the Selected card's bearing (panel/photo.ts).
   { prefix: 'photo-', label: 'The bearing from the Selected card', note: 'A direction from your place, for sunsets and moonrises' },
+  // polish2 (expansion programme): Navigate's passage (navigate/passage/overlay.ts `ROUTE_PREFIX`)
+  // and the tide station from Charts (charts/tides.ts), named instead of "Other drawings".
+  { prefix: 'passage-', label: 'The passage from Navigate', note: 'The route, its waypoints and the dead-reckoning marks' },
+  { prefix: 'charts-', label: 'The tide station from Charts', note: 'Where the tide predictions are for' },
 ];
 
 export interface DrawnGroup {

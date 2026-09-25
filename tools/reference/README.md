@@ -203,3 +203,13 @@ Test Rust output against `gha_deg_dut1_zero`.
 
 See `docs/ACCURACY.md`, "Reference data and tolerances", for the measured
 numbers and the tolerance justifications.
+
+## A Skyfield caveat: binary PCK segments (polish2)
+
+`skyfield.planetarylib.PlanetaryConstants.read_binary` keeps, for each body, only the
+**last** segment of a binary PCK: a frame built with `build_frame(code)` is that segment's
+alone, and an instant outside it is answered with the wrong one or refused. The Moon's
+DE440 mean-Earth kernel (`moon_pa_de440_200625.bpc`) has several segments, so
+`tools/moon/gen_reference.py` (`LunarFrames`) builds one frame per entry of
+`pc._segment_list` and picks, at each instant, the segment that covers it. Any new
+generator reading a multi-segment binary PCK must do the same.

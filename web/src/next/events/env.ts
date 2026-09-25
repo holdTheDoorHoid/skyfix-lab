@@ -23,8 +23,6 @@ export type PlanetSub = 'events' | 'conjunctions' | 'retrograde' | 'transits' | 
 /** How far the eclipse list reaches, in years. */
 export type EclipseYears = 10 | 100 | 1000;
 
-/** How dark the observer's sky is, for meteor rates (a Bortle class; EXPLORER_API "deep sky"). */
-export type SkyDarkness = 2 | 4 | 5 | 8;
 
 /** The view's own state (not shared, not persisted; kept per explorer while the page lives). */
 export interface EventsUi {
@@ -63,7 +61,6 @@ export interface EventsUi {
   showerYear: number | null;
   /** The shower whose card is open (its code). */
   shower: string | null;
-  skyDarkness: SkyDarkness;
   /** Files name the place their local times are for (the Save menu's check box). */
   namePlace: boolean;
 }

@@ -318,7 +318,8 @@ impl Finder<'_> {
 
 /// Every opposition, conjunction with the Sun, greatest elongation and closest
 /// approach of Mercury to Neptune in `[jd_start, jd_end]` (UTC Julian dates), in time
-/// order. The window is clipped to the coverage (1990-2060).
+/// order. The window is clipped to the coverage ([`COVERAGE_START_UTC`] to
+/// [`COVERAGE_END_UTC`]).
 pub fn planet_events(
     provider: &PlanetProvider,
     jd_start: f64,
@@ -361,6 +362,16 @@ pub fn planet_events(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The span searched is the one the constants (and every list's `coverage_*_utc`) name,
+    /// so the Events view's "Planet events are computed for …" is the truth (polish2).
+    #[test]
+    fn the_coverage_constants_are_the_searched_span() {
+        let (a, b) = coverage();
+        let pa = skyfix_core::time::parse_utc(COVERAGE_START_UTC).unwrap();
+        let pb = skyfix_core::time::parse_utc(COVERAGE_END_UTC).unwrap();
+        assert!((a - pa).abs() < 1e-9 && (b - pb).abs() < 1e-9, "{a} {b}");
+    }
 
     #[test]
     fn a_year_of_events_has_the_expected_shape() {

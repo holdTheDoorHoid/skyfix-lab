@@ -177,6 +177,8 @@
 .sf-stage__fill {
   position: absolute;
   inset: 0;
+  /* The view begins under the messages (shell/noticebar.ts), never beneath them. */
+  top: var(--stage-notice-inset, 0px);
 }
 
 .sf-stage__fill > * {

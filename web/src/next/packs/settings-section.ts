@@ -16,6 +16,16 @@ import type { PackService, PackState } from '../engine/types.js';
 import { button } from '../theme/primitives.js';
 import { formatBytes } from './manifest.js';
 
+/**
+ * Where the page uses each pack the core has (polish2, list item 15): a line under its
+ * description, so the person knows what getting or removing it changes. The tides line in
+ * the Place section appears only while the tides pack is on the device.
+ */
+export const PACK_USES: Readonly<Record<string, string>> = {
+  'tides-us': 'Used by Charts → Tides, Tonight’s tides card and the next high and low water in the panel’s Place section, which appears only while this pack is on the device.',
+  'lunar-limb': 'Used by the Events view’s solar-eclipse card: contact times corrected for the Moon’s mountains and valleys, and where Baily’s beads show.',
+};
+
 /** The state line of one pack, in words. */
 export function packStateText(p: PackState): string {
   if (p.progress) return `Downloading… ${formatBytes(p.progress.received)} of ${formatBytes(p.progress.total)}`;
@@ -67,6 +77,7 @@ export function packsSettings(packs: PackService): { el: HTMLElement; refresh():
       { class: 'sf-packs-row', role: 'listitem', 'data-pack': p.name, 'data-state': busy ? 'loading' : p.saved ? 'saved' : 'absent' },
       h('div', { class: 'sf-packs-row__head' }, h('span', { class: 'sf-packs-row__label' }, p.label), h('span', { class: 'sf-packs-row__size sf-num' }, formatBytes(p.bytes))),
       p.description ? h('p', { class: 'sf-packs-row__description' }, p.description) : null,
+      PACK_USES[p.name] ? h('p', { class: 'sf-packs-row__description sf-packs-row__uses' }, PACK_USES[p.name]) : null,
       h('div', { class: 'sf-packs-row__foot' }, h('span', { class: 'sf-packs-row__state', role: 'status' }, packStateText(p)), h('span', { class: 'sf-packs-row__actions' }, remove, act)),
       meter,
       p.error ? h('p', { class: 'sf-packs-row__error' }, p.error) : null,

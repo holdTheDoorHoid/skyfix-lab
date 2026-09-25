@@ -20,13 +20,14 @@ use crate::{err, to_js};
 /// The native layer: plain arguments in, serde types out, `String` errors.
 pub mod native {
     use skyfix_almanac::pages::{self, AlmanacDay};
-    use skyfix_ephemeris::body::Sky;
 
     /// The daily page for one UT date, `YYYY-MM-DD`. Errors: a malformed date, a date
-    /// outside the ephemeris coverage (1990-01-01 to 2060-12-31), or no Sun. DUT1 = 0 on
-    /// purpose: the argument is UT1 (module docs).
+    /// outside the display sky's coverage (the labelled tier's 2001 BC to AD 3000: a page
+    /// is for display, never a sight; polish2, after the deeptime merge), or no Sun.
+    /// DUT1 = 0 on purpose: the argument is UT1 (module docs). The provider is the tables'
+    /// (`almanac_tables::native::sky`), so the pages and the tables always agree.
     pub fn almanac_day(date: &str) -> Result<AlmanacDay, String> {
-        pages::almanac_day(&Sky::new(), date).map_err(|e| e.to_string())
+        pages::almanac_day(&crate::almanac_tables::native::sky(), date).map_err(|e| e.to_string())
     }
 }
 
@@ -118,11 +119,16 @@ mod tests {
     fn bad_dates_are_refused_with_the_reason() {
         let e = almanac_day("24/09/2026").unwrap_err();
         assert!(e.contains("YYYY-MM-DD"), "{e}");
-        // Outside the validated tier (1550-01-01 to 2650-01-22, deeptime agent).
-        let e = almanac_day("1549-12-31").unwrap_err();
+        // Outside the display sky's coverage, the labelled tier (2001 BC to AD 3000;
+        // polish2: a page is for display, so the labelled tier makes pages too).
+        let e = almanac_day("-2001-12-31").unwrap_err();
         assert!(e.contains("coverage"), "{e}");
-        let e = almanac_day("2650-01-23").unwrap_err();
+        let e = almanac_day("3001-01-01").unwrap_err();
         assert!(e.contains("coverage"), "{e}");
+        // Inside the labelled tier, either side of the validated one.
+        assert_eq!(almanac_day("1549-12-31").unwrap().hours.len(), 24);
+        assert_eq!(almanac_day("-0584-05-22").unwrap().hours.len(), 24);
+        assert_eq!(almanac_day("2650-01-23").unwrap().hours.len(), 24);
         assert!(almanac_day("2026-02-29").is_err());
     }
 
@@ -130,13 +136,13 @@ mod tests {
     /// outside it is `n/a`, and the page says why.
     #[test]
     fn the_coverage_edges_make_pages_with_honest_gaps() {
-        // deeptime agent: the validated tier, 1550-01-01T00:00Z to 2650-01-22T00:00Z;
-        // 2650-01-21 is the last date with all its hours.
-        let first = almanac_day("1550-01-01").unwrap();
+        // The display sky's coverage, the labelled tier: -2000-01-01T00:00Z to
+        // 3000-12-31T23:59:59Z (polish2; it was the validated tier's 1550 to 2650).
+        let first = almanac_day("-2000-01-01").unwrap();
         assert!(first.moon.as_ref().unwrap().age_days.is_none());
         assert_eq!(first.moon.as_ref().unwrap().printed.age, "--");
         assert!(!first.errors.is_empty());
-        let last = almanac_day("2650-01-21").unwrap();
+        let last = almanac_day("3000-12-31").unwrap();
         assert_eq!(last.hours.len(), 24);
         for row in &last.rise_set.rows {
             assert_eq!(row.moonrise[1].printed, "n/a", "{}", row.label);

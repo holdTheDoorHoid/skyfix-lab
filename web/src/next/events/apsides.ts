@@ -15,6 +15,7 @@ import { listTab } from './listtab.js';
 import { YEAR_DAYS, type Direction } from './model.js';
 import { apsidesItems, apsidesLead, syzygyItem } from './moon-model.js';
 import type { Badge } from './rows.js';
+import { listCoverage } from './deeptime.js';
 
 type Found = { apsis: MoonApsis } | { syzygy: MoonSyzygy };
 
@@ -35,6 +36,7 @@ export const apsidesTab: TabComponent = (host, env) => {
     className: 'sfe-aps',
     unavailable: md ? null : 'This build of the numerical core has no Moon perigee search. Rebuild it with: npm run wasm --prefix web',
     what: 'Perigees and apogees',
+    coverage: () => (md ? listCoverage(engine, 'moon-apsides', (t) => md.moonApsides(t, t + 1 / 24)) : null),
     search: {
       name: 'moon-apsides',
       key: () => '',

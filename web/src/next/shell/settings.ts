@@ -10,6 +10,7 @@
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import { packsSettings } from '../packs/settings-section.js';
+import { skyChoiceSelect } from '../sky/sky-choice.js';
 import { lengthToMetres, metresToUnits } from './format.js';
 import { shallowEqual, type AngleFormat, type HorizonOption, type HourCycle, type Theme, type TimeDisplay, type Units } from '../state.js';
 import type { CalendarMode } from '../time/civil.js';
@@ -122,6 +123,9 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
     checked: s0.navigatorTerms,
     onChange: (v) => set('navigatorTerms', v),
   });
+  // How dark the sky is (polish2, list items 37 and 45): the one setting the Sky view's
+  // magnitude limit, Tonight's ranking and the meteor rates share.
+  const skyChoice = skyChoiceSelect(store, { class: 'sf-input sf-settings__select' });
   const packs = packsSettings(ctx.packs);
   d.add(packs.destroy);
   const eye = h('input', { class: 'sf-input sf-num', type: 'number', min: 0, max: 500, step: 'any', inputmode: 'decimal', id: 'sf-set-eye' });
@@ -137,6 +141,21 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
     const v = Number(ic.value);
     if (ic.value.trim() !== '' && Number.isFinite(v) && v >= -60 && v <= 60) set('index_correction_arcmin', Number(v.toFixed(2)));
     else ic.value = String(store.get().settings.index_correction_arcmin);
+  });
+
+  // The air (polish2, list item 24): one pressure and temperature for every refraction the
+  // page works out (the heights shown, the predicted reading, tonight's sights, a new session).
+  const pressure = h('input', { class: 'sf-input sf-num', type: 'number', min: 800, max: 1100, step: 1, inputmode: 'decimal', id: 'sf-set-hpa' });
+  const temperature = h('input', { class: 'sf-input sf-num', type: 'number', min: -60, max: 60, step: 1, inputmode: 'decimal', id: 'sf-set-temp' });
+  pressure.addEventListener('change', () => {
+    const v = Number(pressure.value);
+    if (pressure.value.trim() !== '' && Number.isFinite(v) && v >= 800 && v <= 1100) set('pressure_hpa', Math.round(v * 10) / 10);
+    else pressure.value = String(store.get().settings.pressure_hpa);
+  });
+  temperature.addEventListener('change', () => {
+    const v = Number(temperature.value);
+    if (temperature.value.trim() !== '' && Number.isFinite(v) && v >= -60 && v <= 60) set('temperature_c', Math.round(v * 10) / 10);
+    else temperature.value = String(store.get().settings.temperature_c);
   });
 
   const row = (label: string, control: HTMLElement, hint?: string): HTMLElement =>
@@ -167,7 +186,25 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
       h('label', { class: 'sf-settings__label', for: 'sf-set-ic' }, 'Index correction'),
       h('div', { class: 'sf-editor__with-unit' }, ic, h('span', { class: 'sf-editor__unit' }, '′ added')),
     ),
+    h(
+      'div',
+      { class: 'sf-settings__row' },
+      h('label', { class: 'sf-settings__label', for: 'sf-set-hpa' }, 'Air'),
+      h(
+        'div',
+        { class: 'sf-editor__with-unit sf-settings__air' },
+        pressure,
+        h('span', { class: 'sf-editor__unit' }, 'hPa'),
+        h('label', { class: 'sf-sr', for: 'sf-set-temp' }, 'Air temperature'),
+        temperature,
+        h('span', { class: 'sf-editor__unit' }, '°C'),
+      ),
+    ),
     h('p', { class: 'sf-settings__note' }, 'Index correction: on the arc 1.5′ → −1.5. Used by tonight’s sights and new sessions in Navigate.'),
+    h('p', { class: 'sf-settings__note' }, 'Air: pressure and temperature scale the refraction in every height shown, the predicted sextant reading, tonight’s sights and new sessions; the almanac’s 1010 hPa and 10 °C unless you change them.'),
+    h('div', { class: 'sf-popover__title' }, 'Sky'),
+    row('Your sky', skyChoice.el),
+    h('p', { class: 'sf-settings__note' }, 'How dark your sky is: the Sky view draws the stars you could see, and Tonight and the meteor showers rank and estimate for it. The Sky view’s Layers can also take the faintest star you see.'),
     h('p', { class: 'sf-settings__note' }, 'Settings are remembered on this device. Your place is not.'),
     packs.el,
   );
@@ -191,7 +228,10 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
         terms.setAttribute('aria-checked', String(s.navigatorTerms));
         if (document.activeElement !== eye) eye.value = String(Number(metresToUnits(s.height_of_eye_m, s.units).toFixed(2)));
         if (document.activeElement !== ic) ic.value = String(s.index_correction_arcmin);
+        if (document.activeElement !== pressure) pressure.value = String(s.pressure_hpa);
+        if (document.activeElement !== temperature) temperature.value = String(s.temperature_c);
         eyeUnit.textContent = s.units === 'imperial' ? 'ft' : 'm';
+        skyChoice.sync(store.get());
       },
       { equals: shallowEqual },
     ),

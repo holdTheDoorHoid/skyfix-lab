@@ -19,6 +19,9 @@ import { stepTime } from '../playback.js';
 import { displayZone, engineObserver, type ExplorerState } from '../state.js';
 import { segmented } from '../theme/primitives.js';
 import { zoneLabel } from '../time.js';
+import { dateFromJdn, jdnFromCivil } from '../time/civil.js';
+import { formatYear } from '../time/format.js';
+import { scaleLabel } from '../time/scale.js';
 import { localDayCache, mountChart, NotAvailableError, placeName, type Shell } from './chart-shell.js';
 import { altitude, bearing, dateShort, dayMonth, MONTHS_LONG } from './format.js';
 import { errorText, glyph, overlaps, pill, round, stepperNav, svgText, table, timeButton, type Box, type ChartComponent } from './frame.js';
@@ -44,12 +47,15 @@ function timeText(hours: number): string {
   return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
 }
 
-/** The clock in words: `12:00 local mean time (UTC−5:00:39)` or `12:00 zone time, UTC−5 all year`. */
-export function clockWords(input: Pick<AnalemmaInput, 'clock' | 'timeH' | 'zoneOffsetH' | 'observer'>): string {
+/**
+ * The clock in words: `12:00 local mean time (UTC−5:00:39)` or `12:00 zone time, UTC−5 all
+ * year`; `UT−5:00:39` when `jd` lies outside 1972-2035 (time-ui's `scaleLabel`).
+ */
+export function clockWords(input: Pick<AnalemmaInput, 'clock' | 'timeH' | 'zoneOffsetH' | 'observer'>, jd?: number): string {
   const t = timeText(input.timeH);
   return input.clock === 'lmt'
-    ? `${t} local mean time (${offsetText(lmtOffsetHours(input.observer.lon_deg))})`
-    : `${t} zone time, ${offsetText(input.zoneOffsetH)} all year (no daylight saving)`;
+    ? `${t} local mean time (${offsetText(lmtOffsetHours(input.observer.lon_deg), jd)})`
+    : `${t} zone time, ${offsetText(input.zoneOffsetH, jd)} all year (no daylight saving)`;
 }
 
 export const analemmaChart: ChartComponent = (host, ctx, ui) => {
@@ -78,7 +84,7 @@ export const analemmaChart: ChartComponent = (host, ctx, ui) => {
       if (!isSunToolsEngine(engine)) throw new NotAvailableError('The Sun charts');
       return computeAnalemma(engine, input);
     },
-    failureText: (error, input) => `The engine could not compute the analemma for ${input.year}: ${errorText(error)}`,
+    failureText: (error, input) => `The engine could not compute the analemma for ${formatYear(input.year)}: ${errorText(error)}`,
     setup(shell) {
       const { c } = shell;
       stepperNav(c.nav, 'Previous year', 'Next year', (dir) => stepTime(ctx.store, { unit: 'year', count: dir }));
@@ -123,18 +129,18 @@ export const analemmaChart: ChartComponent = (host, ctx, ui) => {
     header(shell) {
       const st = ctx.store.get();
       const i = shell.input;
-      shell.c.title.replaceChildren(`The analemma · ${i.year}`);
+      shell.c.title.replaceChildren(`The analemma · ${formatYear(i.year)}`);
       if (st.settings.navigatorTerms) shell.c.title.append(h('span', { class: 'sfc-term', 'data-term': '' }, ' · the Sun at a fixed mean time'));
-      shell.c.subtitle.textContent = `${placeName(st)} · the Sun at ${clockWords(i)}`;
+      shell.c.subtitle.textContent = `${placeName(st)} · the Sun at ${clockWords(i, st.time.jd_utc)}`;
       const label = shell.c.nav.querySelector('.sfc-nav-label');
-      if (label) label.textContent = String(i.year);
+      if (label) label.textContent = formatYear(i.year);
     },
     draw: (shell) => draw(shell),
     table: (shell) => tables(shell),
     displayKey: (st) => `${st.settings.angleFormat}|${st.settings.navigatorTerms}|${todayKey(st)}`,
     fileParts: (shell) => ['analemma', shell.input.year, timeText(shell.input.timeH).replace(':', ''), shell.input.clock === 'lmt' ? 'lmt' : 'zone'],
     labels: (shell) => [
-      `The Sun at ${clockWords(shell.input)} each day; heights are what the eye sees (refraction included), bearings from true north.`,
+      `The Sun at ${clockWords(shell.input, ctx.store.get().time.jd_utc)} each day; heights are what the eye sees (refraction included), bearings from true north.`,
     ],
   });
 
@@ -291,7 +297,7 @@ export const analemmaChart: ChartComponent = (host, ctx, ui) => {
     }
     // The app's date.
     const today = todayKey(ctx.store.get());
-    const ti = pts.findIndex((p) => p.date === today);
+    const ti = pts.findIndex((p) => displayDateKey(p.date) === today);
     if (ti >= 0) {
       const p = pts[ti]!;
       const q = screen(p.az_deg, p.alt_apparent_deg);
@@ -343,7 +349,7 @@ export const analemmaChart: ChartComponent = (host, ctx, ui) => {
     }
     const where = (p: AnalemmaPoint): string => `${dayMonth(parseDate(p.date))} (${altitude(p.alt_apparent_deg, fmt)}, ${bearing(p.az_deg)})`;
     const parts = [
-      `At ${clockWords(shell.input)} the Sun stands highest on ${where(hi)} and lowest on ${where(lo)}.`,
+      `At ${clockWords(shell.input, ctx.store.get().time.jd_utc)} the Sun stands highest on ${where(hi)} and lowest on ${where(lo)}.`,
       `The loops’ far ends are the days a sundial is furthest behind the clock (${dayMonth(parseDate(behind.date))}, ${eotText(behind.eot_s)}) and furthest ahead (${dayMonth(parseDate(ahead.date))}, ${eotText(ahead.eot_s)}).`,
     ];
     if (lo.alt_apparent_deg < 0) parts.push('Part of the figure is below the horizon: the Sun is down at this time on those days.');
@@ -356,21 +362,21 @@ export const analemmaChart: ChartComponent = (host, ctx, ui) => {
     const zone = displayZone(st);
     const fmt = st.settings.angleFormat;
     const t = table(
-      `The Sun at ${clockWords(shell.input)}, every day of ${shell.input.year} (the instant in local time, ${zoneLabel(data.raw.points[0]?.jd_utc ?? st.time.jd_utc, zone)}; UTC on hover)`,
+      `The Sun at ${clockWords(shell.input, st.time.jd_utc)}, every day of ${formatYear(shell.input.year)} (the instant in local time, ${zoneLabel(data.raw.points[0]?.jd_utc ?? st.time.jd_utc, zone)}; ${scaleLabel(st.time.jd_utc)} on hover)`,
       ['Date', 'Instant', 'Height above the horizon', 'Bearing', 'Declination', 'Equation of time'],
     );
     const today = todayKey(st);
     let month = '';
     for (const p of data.raw.points) {
-      const m = p.date.slice(0, 7);
+      const m = monthHeading(p.date);
       if (m !== month) {
         month = m;
-        t.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 6 }, `${MONTHS_LONG[Number(p.date.slice(5, 7)) - 1]} ${p.date.slice(0, 4)}`)));
+        t.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 6 }, m)));
       }
       t.body.append(
         h(
           'tr',
-          { class: p.date === today ? 'sfc-row-current' : '' },
+          { class: displayDateKey(p.date) === today ? 'sfc-row-current' : '' },
           h('th', { scope: 'row' }, dateShort(parseDate(p.date))),
           h('td', {}, timeButton(p.jd_utc, zone)),
           h('td', { 'data-csv': p.alt_apparent_deg.toFixed(3) }, altitude(p.alt_apparent_deg, fmt)),
@@ -384,8 +390,26 @@ export const analemmaChart: ChartComponent = (host, ctx, ui) => {
   }
 };
 
-/** `2026-03-15` → a local date. */
+/**
+ * `2026-03-15` → a local date in the display calendar. The engines write their dates in the
+ * wire's proleptic Gregorian calendar; before 15 October 1582 the page shows the Julian one
+ * (time/civil.ts), so a date is carried across by its day number (polish2: the Sun charts'
+ * tables, labels and clicks were in the Gregorian calendar before 1582, days off the time bar).
+ */
 export function parseDate(date: string): { year: number; month: number; day: number } {
   const m = /^([+-]?\d{4,6})-(\d{2})-(\d{2})$/.exec(date);
-  return m ? { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) } : { year: 1970, month: 1, day: 1 };
+  if (!m) return { year: 1970, month: 1, day: 1 };
+  const d = dateFromJdn(jdnFromCivil('gregorian', Number(m[1]), Number(m[2]), Number(m[3])));
+  return { year: d.year, month: d.month, day: d.day };
+}
+
+/** The display calendar's key of an engine date (`dateKey` of `parseDate`), to compare with the explorer's day. */
+export function displayDateKey(date: string): string {
+  return dateKey(parseDate(date));
+}
+
+/** `March 1066`: a month heading for a table of engine dates, in the display calendar and year style. */
+export function monthHeading(date: string): string {
+  const d = parseDate(date);
+  return `${MONTHS_LONG[d.month - 1]} ${formatYear(d.year)}`;
 }

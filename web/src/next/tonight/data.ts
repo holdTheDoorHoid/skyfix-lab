@@ -43,6 +43,7 @@ import {
 import { covered } from '../shell/derived.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { addCalendar } from '../time.js';
+import { rangeWords } from '../time/tier.js';
 import { darkRun, MINUTE, nightProbe, nightStartFor, type SunWindow } from './night.js';
 
 export function errorText(error: unknown): string {
@@ -50,23 +51,28 @@ export function errorText(error: unknown): string {
   return text.replace(/^[a-z_]+: /, '');
 }
 
-/** Run an engine call; a failure becomes a sentence in `errors` and `null`. */
+/**
+ * Run an engine call; a failure becomes a sentence in `errors` and `null`. An engine that
+ * answers fewer years than the explorer (the deep-sky and planet-detail calls keep the
+ * validated tier) is said in plain words, not its raw message (polish2).
+ */
 export function tryCall<T>(errors: string[], what: string, fn: () => T): T | null {
   try {
     return fn();
   } catch (error) {
-    errors.push(`${what}: ${errorText(error)}`);
+    const text = errorText(error);
+    const years = rangeWords(text);
+    errors.push(years ? `${what}: worked out only for ${years}.` : `${what}: ${text}`);
     return null;
   }
 }
 
-/** The view's own choice of sky (the deep-sky engine's conditions). */
-export interface SkyChoice {
-  /** Bortle class, 1 (darkest) to 9. */
-  bortle: number;
-}
-
-export const DEFAULT_SKY: SkyChoice = { bortle: 5 };
+/**
+ * The sky the night is ranked for: the deep-sky engine's conditions, from the stored
+ * settings every view shares (sky/sky-choice.ts `skyConditions`; polish2, list items 37 and
+ * 45: it was the page's own Bortle class, lost on reload).
+ */
+export type SkyChoice = SkyConditionsInput;
 
 /** Everything that decides one night's numbers. */
 export interface NightQuery {
@@ -83,7 +89,7 @@ export interface NightQuery {
 /** A key that changes exactly when the numbers of the night would. */
 export function queryKey(q: NightQuery): string {
   const o = q.observer;
-  return [o.lat_deg, o.lon_deg, o.height_m ?? 0, q.n, q.options.horizon, q.options.height_of_eye_m, q.conditions.bortle ?? '', q.limit].join('|');
+  return [o.lat_deg, o.lon_deg, o.height_m ?? 0, q.n, q.options.horizon, q.options.height_of_eye_m, q.conditions.bortle ?? '', q.conditions.nelm ?? '', q.limit].join('|');
 }
 
 /** Deep-sky objects the view asks for (it lists 8 at first, more on request). */
@@ -126,7 +132,7 @@ export function stepNightTime(ctx: Pick<Ctx, 'engine'>, s: ExplorerState, dir: -
 }
 
 export function nightQuery(s: ExplorerState, n: number, sky: SkyChoice): NightQuery {
-  return { observer: engineObserver(s), n, options: eventOptions(s), conditions: { bortle: sky.bortle }, limit: DSO_LIMIT };
+  return { observer: engineObserver(s), n, options: eventOptions(s), conditions: { ...sky }, limit: DSO_LIMIT };
 }
 
 // -------------------------------------------------------------------------------------
@@ -159,7 +165,7 @@ export function loadCore(ctx: Pick<Ctx, 'engine'>, q: NightQuery): NightCore {
   if (!inside) return core;
   core.day = tryCall(errors, 'Rising and setting', () => engine.dayEvents(q.observer, q.n, q.n + 1, 'solar_system', q.options));
   if (isDeepSkyEngine(engine)) {
-    core.tonight = tryCall(errors, 'Tonight’s sky', () => engine.tonight(q.observer, nightProbe(q.n), { ...q.conditions, limit: q.limit }));
+    core.tonight = tryCall(errors, 'Planets, deep sky and meteor showers', () => engine.tonight(q.observer, nightProbe(q.n), { ...q.conditions, limit: q.limit }));
   } else missing.push('deep sky');
   if (isSunToolsEngine(engine)) {
     core.sunHours = tryCall(errors, 'Golden and blue hours', () => engine.sunHours(q.observer, q.n, q.n + 1));

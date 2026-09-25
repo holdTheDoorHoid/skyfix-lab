@@ -14,13 +14,15 @@ import { stepTime } from '../playback.js';
 import { formatDeclination } from '../shell/format.js';
 import { displayZone, type ExplorerState } from '../state.js';
 import { localDayCache, mountChart, NotAvailableError, type Shell } from './chart-shell.js';
-import { dateShort, dayMonth, MONTHS_LONG } from './format.js';
+import { dateShort, dayMonth } from './format.js';
 import { errorText, pill, round, stepperNav, svgText, table, uid, type ChartComponent } from './frame.js';
-import { parseDate } from './analemma.js';
+import { displayDateKey, monthHeading, parseDate } from './analemma.js';
+import { scaleLabel } from '../time/scale.js';
 import { frameRect, linePath, monthGrid, monthLabels, panelTitle, svgRoot, todayOnAxis, yearAxis, type MonthLabel, type YearAxis } from './plot.js';
 import { clamp, linearScale } from './scale.js';
 import { computeEot, dayOfYearOf, EOT_UTC_HOUR, eotText, type EotData } from './sun-data.js';
 import { dateKey, localDateOf } from './windows.js';
+import { formatYear } from '../time/format.js';
 
 interface EotChartData {
   readonly eot: EotData;
@@ -59,7 +61,7 @@ export const eotChart: ChartComponent = (host, ctx, ui) => {
       }
       return { eot, seasons };
     },
-    failureText: (error, input) => `The engine could not compute the equation of time for ${input.year}: ${errorText(error)}`,
+    failureText: (error, input) => `The engine could not compute the equation of time for ${formatYear(input.year)}: ${errorText(error)}`,
     setup(shell) {
       stepperNav(shell.c.nav, 'Previous year', 'Next year', (dir) => stepTime(ctx.store, { unit: 'year', count: dir }));
       shell.c.figure.insertBefore(readout, shell.c.caption);
@@ -72,11 +74,11 @@ export const eotChart: ChartComponent = (host, ctx, ui) => {
     },
     header(shell) {
       const st = ctx.store.get();
-      shell.c.title.replaceChildren(`Sundial and clock · ${shell.input.year}`);
+      shell.c.title.replaceChildren(`Sundial and clock · ${formatYear(shell.input.year)}`);
       if (st.settings.navigatorTerms) shell.c.title.append(h('span', { class: 'sfc-term', 'data-term': '' }, ' · equation of time and declination'));
-      shell.c.subtitle.textContent = `The same everywhere · each day at ${String(EOT_UTC_HOUR).padStart(2, '0')}:00 UTC`;
+      shell.c.subtitle.textContent = `The same everywhere · each day at ${String(EOT_UTC_HOUR).padStart(2, '0')}:00 ${scaleLabel(st.time.jd_utc)}`;
       const label = shell.c.nav.querySelector('.sfc-nav-label');
-      if (label) label.textContent = String(shell.input.year);
+      if (label) label.textContent = formatYear(shell.input.year);
     },
     draw: (shell) => draw(shell),
     cursor: (shell) => placeToday(shell),
@@ -84,7 +86,7 @@ export const eotChart: ChartComponent = (host, ctx, ui) => {
     displayKey: (st) => `${st.settings.angleFormat}|${st.settings.navigatorTerms}`,
     fileParts: (shell) => ['equation-of-time', shell.input.year],
     labels: () => [
-      'Equation of time: apparent minus mean solar time at 12:00 UTC (CONVENTIONS 13.9); positive when a sundial is ahead of the clock. Declination: the Sun’s apparent declination.',
+      `Equation of time: apparent minus mean solar time at 12:00 ${scaleLabel(ctx.store.get().time.jd_utc)} (CONVENTIONS 13.9); positive when a sundial is ahead of the clock. Declination: the Sun’s apparent declination.`,
     ],
   });
 
@@ -220,7 +222,7 @@ export const eotChart: ChartComponent = (host, ctx, ui) => {
     const fmt = st.settings.angleFormat;
     readout.textContent = p
       ? `${dateShort(date)}: a sundial is ${Math.abs(p.eot_s) < 30 ? 'within half a minute of' : `${eotText(Math.abs(p.eot_s)).replace('+', '')} ${p.eot_s > 0 ? 'ahead of' : 'behind'}`} the clock; the Sun is overhead at ${decText(p.dec_deg, fmt)}.`
-      : `${dateShort(date)} is not in ${shell.input.year}.`;
+      : `${dateShort(date)} is not in ${formatYear(shell.input.year)}.`;
   }
 
   function summary(shell: Shell<EotInput, EotChartData>): string {
@@ -243,7 +245,7 @@ export const eotChart: ChartComponent = (host, ctx, ui) => {
     const { eot } = shell.data!;
     const st = ctx.store.get();
     const fmt = st.settings.angleFormat;
-    const ext = table(`The year’s turning points, ${eot.year}`, ['Date', 'Sundial against the clock', 'Kind']);
+    const ext = table(`The year’s turning points, ${formatYear(eot.year)}`, ['Date', 'Sundial against the clock', 'Kind']);
     for (const e of eot.raw.extremes) {
       ext.body.append(
         h(
@@ -255,8 +257,9 @@ export const eotChart: ChartComponent = (host, ctx, ui) => {
         ),
       );
     }
-    const t = table(`Equation of time and declination, every day of ${eot.year} at 12:00 UTC (positive: the sundial is ahead)`, [
-      'Date (UTC)',
+    const word = scaleLabel(st.time.jd_utc);
+    const t = table(`Equation of time and declination, every day of ${formatYear(eot.year)} at 12:00 ${word} (positive: the sundial is ahead)`, [
+      `Date (${word})`,
       'Equation of time',
       'Seconds',
       'Declination',
@@ -264,15 +267,15 @@ export const eotChart: ChartComponent = (host, ctx, ui) => {
     const today = dateKey(localDateOf(st.time.jd_utc, displayZone(st)));
     let month = '';
     for (const p of eot.raw.points) {
-      const m = p.date.slice(0, 7);
+      const m = monthHeading(p.date);
       if (m !== month) {
         month = m;
-        t.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 4 }, `${MONTHS_LONG[Number(p.date.slice(5, 7)) - 1]} ${p.date.slice(0, 4)}`)));
+        t.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 4 }, m)));
       }
       t.body.append(
         h(
           'tr',
-          { class: p.date === today ? 'sfc-row-current' : '' },
+          { class: displayDateKey(p.date) === today ? 'sfc-row-current' : '' },
           h('th', { scope: 'row' }, dateShort(parseDate(p.date))),
           h('td', { 'data-csv': (p.eot_s / 60).toFixed(3) }, eotText(p.eot_s)),
           h('td', { 'data-csv': p.eot_s.toFixed(1) }, p.eot_s.toFixed(1)),

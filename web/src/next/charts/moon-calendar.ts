@@ -63,6 +63,8 @@ import { attachExport } from './export-menu.js';
 import { settler } from './settle.js';
 import { calendarPicture } from './moon-picture.js';
 import { formatDistance } from '../shell/format.js';
+import { scaleLabel } from '../time/scale.js';
+import { formatYear } from '../time/format.js';
 
 const moonMemo = memoize(
   (ctx: Ctx, input: MoonInput) => computeMoonMonth(ctx.engine, input),
@@ -171,13 +173,13 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
   function renderHeader(): void {
     const st = store.get();
     const input = moonInputFor(st);
-    c.title.replaceChildren(`Moon phases · ${MONTHS_LONG[input.month - 1]} ${input.year}`);
+    c.title.replaceChildren(`Moon phases · ${MONTHS_LONG[input.month - 1]} ${formatYear(input.year)}`);
     if (ctx.engine.kind === 'mock') c.title.append(mockBadge(ctx.engine.description));
     const place = st.observer.label || `${st.observer.lat_deg.toFixed(3)}°, ${st.observer.lon_deg.toFixed(3)}°`;
     c.subtitle.textContent = `${place} · ${zoneLabel(st.time.jd_utc, input.zone)} · ${
       st.observer.lat_deg < 0 ? 'discs drawn south up, as seen from the southern hemisphere' : 'discs drawn north up'
     }`;
-    nav.textContent = `${MONTHS_SHORT[input.month - 1]} ${input.year}`;
+    nav.textContent = `${MONTHS_SHORT[input.month - 1]} ${formatYear(input.year)}`;
   }
 
   function eventText(ev: Pick<PhaseEvent, 'jd_utc'>, zone: Zone): { local: string; utc: string; date: string } {
@@ -241,7 +243,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     const cellW = width > 0 ? (width - 6 * 4) / 7 : 120;
     const size = Math.round(clamp(cellW * 0.36, 22, 58));
 
-    const grid = h('div', { class: 'sfc-cal', role: 'grid', 'aria-label': `Moon phases, ${MONTHS_LONG[data.input.month - 1]} ${data.input.year}`, 'data-own-keys': '' });
+    const grid = h('div', { class: 'sfc-cal', role: 'grid', 'aria-label': `Moon phases, ${MONTHS_LONG[data.input.month - 1]} ${formatYear(data.input.year)}`, 'data-own-keys': '' });
     const head = h('div', { role: 'row', style: 'display: contents' });
     for (let i = 0; i < 7; i += 1) {
       head.append(h('div', { class: 'sfc-cal-wd', role: 'columnheader' }, WEEKDAYS_SHORT[(first + i) % 7]!));
@@ -372,7 +374,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
       h(
         'span',
         { class: 'sfc-muted' },
-        'Each disc is the Moon at local noon; the percentage is how much of it is lit. ↑ moonrise, ↓ moonset, local times (hover for UTC). Choose a day to go to it; choose a time to go to that moment.',
+        `Each disc is the Moon at local noon; the percentage is how much of it is lit. ↑ moonrise, ↓ moonset, local times (hover for ${scaleLabel(ctx.store.get().time.jd_utc)}). Choose a day to go to it; choose a time to go to that moment.`,
       ),
     );
     c.notes.replaceChildren(...(data?.errors ?? []).map((e) => h('p', { class: 'sfc-note' }, e)));
@@ -384,7 +386,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
       return;
     }
     const zone = data.input.zone;
-    const t = table(`The Moon, ${MONTHS_LONG[data.input.month - 1]} ${data.input.year} (local times, ${zoneLabel(data.days[0]!.day.jd_start + 0.5, zone)}; UTC on hover)`, [
+    const t = table(`The Moon, ${MONTHS_LONG[data.input.month - 1]} ${formatYear(data.input.year)} (local times, ${zoneLabel(data.days[0]!.day.jd_start + 0.5, zone)}; ${scaleLabel(data.days[0]!.day.jd_start + 0.5)} on hover)`, [
       'Date',
       'Phase at noon',
       'Lit (%)',
@@ -430,7 +432,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     const tables: HTMLElement[] = [t.table];
     if (apsides && (apsides.apsides.length || apsides.syzygies.length)) {
       const units = store.get().settings.units;
-      const at = table(`Nearest and farthest: perigee and apogee, ${MONTHS_LONG[data.input.month - 1]} ${data.input.year} (centre to centre)`, [
+      const at = table(`Nearest and farthest: perigee and apogee, ${MONTHS_LONG[data.input.month - 1]} ${formatYear(data.input.year)} (centre to centre)`, [
         'Date',
         'Time',
         'Event',
@@ -548,7 +550,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
               south: store.get().observer.lat_deg < 0,
               firstWeekday: firstWeekday(),
               units: store.get().settings.units,
-              title: `Moon phases, ${MONTHS_LONG[data.input.month - 1]} ${data.input.year}`,
+              title: `Moon phases, ${MONTHS_LONG[data.input.month - 1]} ${formatYear(data.input.year)}`,
             })
           : null,
       tables: () => {

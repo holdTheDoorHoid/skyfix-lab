@@ -3359,3 +3359,134 @@ cargo test --release -p skyfix-ephemeris --test deeptime_reference -- --nocaptur
 ```
 
 The last prints both tables above.
+
+## 22. Module size and speed (polish2, expansion programme, 2026-09-25)
+
+The last engineering pass of the expansion programme measured what the core module costs a
+visitor, and whether the smallest build is fast enough. The module is now built at
+`opt-level = "z"`: `[profile.wasm-release]` in `Cargo.toml`, and `npm run wasm`, which sets
+`CARGO_PROFILE_RELEASE_OPT_LEVEL` (the Pages workflow runs the same script). The brief's
+rule was to apply it if `sky_state` stays within 2 ms, the star field within 5 ms and the
+Sky view's draw within 10 ms.
+
+Everything below was measured on 2026-09-25 on the shared 8-core machine, with Node 24.20
+and headless Chrome drawing in software. The two builds come from the same source, and
+they were run alternately so the other agents' load fell on both. `opt-level` changes only
+how the Rust is compiled, so every number either build computes is the same.
+
+### Size
+
+`web/src/wasm-pkg/skyfix_wasm_bg.wasm`, measured with `stat`, `gzip -c` and `gzip -9 -c`:
+
+| build | raw | gzip | gzip -9 |
+|---|---:|---:|---:|
+| main at 5992df3 (one tier), "s" | 3 124 878 | 1 288 790 | 1 284 157 |
+| main at 1bff16e with this pass, "s" | 2 781 449 | 1 240 253 | 1 238 566 |
+| the same at "z" (what ships) | 2 549 965 | 1 152 112 | 1 150 351 |
+| "z" against "s" | −231 484 (−8.3 %) | −88 141 (−7.1 %) | −88 215 (−7.1 %) |
+
+The budget (EXPANSION_PLAN §3) is 3 000 000 bytes raw and 1 250 000 gzipped, so there are
+450 035 bytes raw and 97 888 gzipped to spare. "z" shrinks only the code; the 714 KB of
+embedded data is the same in both builds.
+
+### What the module is made of
+
+`twiggy` 0.8 (`top`, `dominators`, `monos`) was run on cargo's own output for the module at
+"z", before wasm-bindgen and wasm-opt, because that output still has its function names. It
+is 5 018 854 bytes. It includes 1 715 208 bytes of names and wasm-bindgen's 210 659-byte
+description section, neither of which ships, and wasm-opt later shrinks its code: the
+shipped module has about 1.84 MB besides its data. The rest:
+
+| part | bytes (cargo's output) |
+|---|---:|
+| embedded data (`.rodata`: catalogues, series and model coefficients) | 714 074 |
+| code | 2 378 582 |
+| … the engines' own functions (`skyfix_almanac` 400 091, `skyfix_core` 276 727, `skyfix_wasm` 118 153, `skyfix_ephemeris` 76 538, `skyfix_starfield` 64 562, then sim, tides, geomag and motion) | about 1 035 000 |
+| … functions whose names mention serde (reading each call's JSON input, writing its result) | 738 104 in 3 113 functions |
+| … the standard library's sorts, one copy per element type and comparator | 193 720 in 750 functions, about 115 000 of them repeated copies (`twiggy monos`) |
+
+The three rows under "code" overlap. For example, the serde code written for an engine's own
+types counts both in that engine and in the serde row.
+
+What this pass did with those findings:
+
+* `chrono` was a dependency of `skyfix-core` that no code used, so it was removed. It was
+  never linked, so the module's size did not change.
+* All 104 of the module's exported functions are called by the explorer, so none were dead.
+* Only 7 types are serialised by both serde_json and serde-wasm-bindgen, 2.8 KB in all.
+  Moving every call onto one serialiser would change the wire contract for little, so it
+  was not done.
+* The sort copies (about 115 KB) were not touched. Sharing one sort would change how the
+  engines order their events, and this pass does not touch numbers or algorithms.
+
+### Speed of the core calls
+
+`web/scripts/core-bench.mjs` times each call 100 times after 30 warm-up calls, each a minute
+of sky after the last, at Philadelphia, and gives the fastest and the median. The two
+packages ran one after the other at a load average of 9.2–9.7:
+
+| call | "s": fastest / median (ms) | "z": fastest / median (ms) | budget |
+|---|---:|---:|---:|
+| `sky_state`, every body, 2026 | 0.95 / 1.08 | 1.06 / 1.22 | 2 ms |
+| `sky_state`, every body, 585 BC | 1.02 / 1.08 | 1.09 / 1.26 | |
+| `sky_state`, every body, AD 2999 | 0.96 / 1.02 | 1.02 / 1.20 | |
+| `starfield_apparent` (every catalogue star) | 0.97 / 1.04 | 1.08 / 1.10 | 5 ms |
+| `day_events`, every body, one day | 9.3 / 9.7 | 10.2 / 10.6 | |
+| `sample_bodies`, navigational bodies, one day | 10.8 / 11.7 | 11.9 / 12.8 | |
+| the Moon's year of rising and setting bearings | 465 / 481 | 497 / 511 | |
+| a year of meteor showers at a place | 157 / 160 | 159 / 161 | |
+
+"z" costs 5–12 % on these calls. Two earlier pairs, at load averages of 5.1–5.8, gave the
+same picture: `sky_state` took 0.93–0.95 / 1.11–1.12 ms with "s" and 0.99–1.06 / 1.15–1.38 ms
+with "z". Both builds are far inside both budgets.
+
+### Speed of the Sky view's draw
+
+`dev-sky.html?syncbench=200` makes 200 draws at an hour a second: Philadelphia, 2026-09-24
+02:00 UTC, the default layers, a 1 440 × 839 canvas. The table gives each run's median draw
+in ms, with the load average during the run:
+
+| round | "s" | "z" |
+|---|---|---|
+| 1 (load 10.3–12.5) | 12.4, 11.9, 9.9 | 12.5, 11.4, 10.2 |
+| 2 (load 5.4–9.7) | 9.1, 9.6, 9.7 | 10.2, 9.9, 9.8 |
+| 3 (load 7.2–10.3, "z" first) | 9.9, 11.8 | 9.2, 9.8 |
+| mean of the eight runs | 10.5 | 10.4 |
+
+The load, not the build, moves the median, by up to 3 ms. The difference between the
+builds is within that noise, and it is about the 0.1–0.2 ms that "z" adds to the draw's two
+core calls. At load averages under about 9, both builds drew in 9.1–10.2 ms. The 95th
+percentile was 17–25 ms in both builds, apart from one "s" run at the highest load (60 ms). The slowest single draw took several seconds in both: in
+a run that shows no frames, the canvas holds every draw's commands until the Milky Way's
+next picture makes it carry them all out at once (`dev-sky.ts`). The machine never became
+quiet enough to measure without load; sky2's figures ("20. The Sky view's astronomy
+layers", Speed) are the comparison. If the draw needs more margin, the backlog's first
+remedy is to leave out the Milky Way and grid layers at low zoom.
+
+### What a first visit downloads
+
+This was measured with the built site (`web/dist`) served locally with GitHub Pages' caching
+headers, a first visit in a fresh browser profile to the Map view, and Node's zlib (level
+6) standing in for the server's compression:
+
+| | files | raw | gzipped |
+|---|---:|---:|---:|
+| the page's own requests until the Map is drawn with its detail (service worker refused) | 66 | 11 627 065 | 4 099 741 |
+| everything the service worker saves for offline use (it runs alongside the first visit) | 113 | 12 948 812 | 4 644 331 |
+| of which the core module | 1 | 2 549 965 | 1 156 475 |
+
+The other large items are the map's four detailed Natural Earth layers (about 1.15 MB
+gzipped together), the map's code (295 KB), the gazetteer (271 KB) and MapLibre's worker
+(145 KB). The Inter font files that the map registers under two family names are fetched
+once with Pages' headers. Without cache headers, a local test server makes the browser
+fetch three of them twice.
+
+### Reproduce
+
+```console
+npm run wasm --prefix web
+stat -c %s web/src/wasm-pkg/skyfix_wasm_bg.wasm; gzip -c web/src/wasm-pkg/skyfix_wasm_bg.wasm | wc -c
+node web/scripts/core-bench.mjs                     # this build's core calls (JSON; exit 1 on a quiet machine over budget)
+PKG=/path/to/another/wasm-pkg node web/scripts/core-bench.mjs
+SKYFIX_DEV_PAGES=1 npm run build --prefix web       # then open next/dev-sky.html?syncbench=200 in headless Chrome and read the title
+```

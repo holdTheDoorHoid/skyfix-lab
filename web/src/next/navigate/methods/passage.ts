@@ -204,7 +204,7 @@ export function passageMethod(host: HTMLElement, nc: NavCtx): Mounted {
     read: () => passage().speedKn,
     commit: (v) => set({ speedKn: v }),
   });
-  const departure = optionalUtcField(nc, 'Departure (UTC)', 'no times, only hours under way', () => passage().departureUtc, (v) => set({ departureUtc: v }));
+  const departure = optionalUtcField(nc, 'Departure', 'no times, only hours under way', () => passage().departureUtc, (v) => set({ departureUtc: v }));
   const fromBar = btn('Time bar', () => set({ departureUtc: isoUtc(nc.ctx.store.get().time.jd_utc).replace(/\.\d+Z$/, 'Z') }), { variant: 'ghost', tip: 'Depart at the time on the time bar' });
   const parts = selectInput<MeridionalParts>(
     [
@@ -505,7 +505,7 @@ function drCalculator(nc: NavCtx, sail: SailingsEngine): { el: HTMLElement; dest
     read: () => dr().hours,
     commit: (v) => set({ hours: v }),
   });
-  const start = optionalUtcField(nc, 'Starting at (UTC, optional)', 'no arrival time', () => dr().startUtc, (v) => set({ startUtc: v }));
+  const start = optionalUtcField(nc, 'Starting at', 'no arrival time', () => dr().startUtc, (v) => set({ startUtc: v }), 'optional');
   const method = selectInput<DrMethod>(
     [
       { value: 'rhumb', label: 'Rhumb line: a steered course (Mercator sailing)' },

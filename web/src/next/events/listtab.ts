@@ -16,7 +16,8 @@ import { disposer, observerKey, watch, type Mounted } from '../component.js';
 import { engineObserver, displayZone, type ExplorerState } from '../state.js';
 import { segmented } from '../theme/primitives.js';
 import { coverageBounds } from '../time/index.js';
-import { calendarNote, chipsIn, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { rangeWords } from '../time/tier.js';
+import { calendarNote, chipsIn, listUncertaintySentence, ownSpanJd, rowTimeInfo, truncatedNote, wireYear, yearText, type OwnSpan } from './deeptime.js';
 import { errorText, type EventsUi, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu, type ExportMenu } from './export-ui.js';
 import { fileWords, screenWords, utcDate, type EventItem, type Words } from './items.js';
@@ -32,6 +33,12 @@ export interface ListTabConfig<T> {
   unavailable: string | null;
   /** Plural words for notes: "Close approaches" ("… are computed for 1990 to 2060"). */
   what: string;
+  /**
+   * The span the list's own engine answers (`listCoverage`, from a result's
+   * `coverage_*_utc`), when narrower than the explorer's: searches are clipped to it and a
+   * list cut short says those years (polish2: at 585 BC the lists were empty, unexplained).
+   */
+  coverage?: (env: TabEnv) => OwnSpan | null;
   /** The search: a slot name, what else its answers depend on, and the call per chunk. */
   search: {
     name: string;
@@ -102,10 +109,13 @@ export function inRange(items: readonly EventItem[], anchor: number, dir: Direct
   return out.sort((a, b) => (dir === 'upcoming' ? a.start - b.start : b.start - a.start));
 }
 
-/** The coverage as a span of Julian dates (for searches to clip to), or null. */
-export function coverageSpan(env: TabEnv): Span | null {
+/** The coverage as a span of Julian dates (for searches to clip to), or null; with `own`, the part of it a list's own engine answers. */
+export function coverageSpan(env: TabEnv, own?: OwnSpan | null): Span | null {
   const c = coverageBounds(env.ctx.engine);
-  return c ? { start: c.start, end: c.end } : null;
+  const o = ownSpanJd(own);
+  if (!c) return o;
+  if (!o) return { start: c.start, end: c.end };
+  return { start: Math.max(c.start, o.start), end: Math.min(c.end, o.end) };
 }
 
 /** A key for what a search's answers depend on besides the window: the coverage (a pack widens it). */
@@ -217,7 +227,7 @@ export function listTab<T>(host: HTMLElement, env: TabEnv, cfg: ListTabConfig<T>
     const search = env.shared.search<T>(cfg.search.name, `${cfg.search.key(s, u)}|${coverageKey(env)}`, (pace) => ({
       ...cfg.search.spec(s, u),
       pace,
-      coverage: () => coverageSpan(env),
+      coverage: () => coverageSpan(env, cfg.coverage?.(env)),
     }));
     if (search !== subscribed) {
       stopSub?.();
@@ -266,6 +276,11 @@ export function listTab<T>(host: HTMLElement, env: TabEnv, cfg: ListTabConfig<T>
       s.settings.hourCycle,
       chips,
       extra,
+      // A search that ends with nothing, cut short or failed changes no row: without these
+      // the empty list's sentence and the coverage note never appeared (polish2).
+      state.done,
+      state.truncated,
+      state.error,
       cfg.card?.selected(u) ?? null,
       auxState ? auxState.items.length : -1,
       shown.map((i) => `${i.id}|${i.start}|${i.sentence}`),
@@ -304,7 +319,10 @@ export function listTab<T>(host: HTMLElement, env: TabEnv, cfg: ListTabConfig<T>
       figureHost.replaceChildren(...(figure ? [figure.el] : []));
       figureHost.hidden = !figure;
       if (!rows.length && state.done && !state.error) listHost.append(h('p', { class: 'sfe-message' }, cfg.empty(dirNow)));
-      if (state.error) listHost.append(h('p', { class: 'sfe-message', role: 'alert' }, `${cfg.what} could not be computed: ${state.error}`));
+      if (state.error) {
+        const years = rangeWords(state.error);
+        listHost.append(h('p', { class: 'sfe-message', role: 'alert' }, years ? `${cfg.what} are worked out only for ${years}.` : `${cfg.what} could not be computed: ${state.error}`));
+      }
       // Notes: the model's labels, the uncertainty of far dates, and a cut-short list.
       const noteEls: HTMLElement[] = (cfg.notes?.(state.items, s) ?? []).map((t) => h('p', { class: 'sfe-note' }, t));
       const unc = chips ? listUncertaintySentence(ctx.engine, shown.map((i) => i.start)) : '';
@@ -313,7 +331,7 @@ export function listTab<T>(host: HTMLElement, env: TabEnv, cfg: ListTabConfig<T>
       if (cal) noteEls.push(h('p', { class: 'sfe-note' }, cal));
       if (state.truncated && state.done) {
         const edge = dirNow === 'upcoming' ? need.end : need.start;
-        noteEls.push(truncatedNote(ctx, cfg.what, edge));
+        noteEls.push(truncatedNote(ctx, cfg.what, edge, cfg.coverage?.(env)));
       }
       notes.replaceChildren(...noteEls);
       saveMenu.refresh();

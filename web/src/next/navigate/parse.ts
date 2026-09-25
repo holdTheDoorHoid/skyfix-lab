@@ -101,9 +101,9 @@ const pad2 = (n: number): string => String(n).padStart(2, '0');
  */
 export function parseUtcInput(text: string): Parsed<string> {
   const raw = text.trim();
-  if (!raw) return fail('The time is empty. Type the UTC date and time, for example 2026-10-01 01:30:05.');
+  if (!raw) return fail('The time is empty. Type the date and time on the app’s clock, UTC from 1972 to 2035 and UT outside, for example 2026-10-01 01:30:05.');
   if (/[+-]\d{2}:?\d{2}$/.test(raw) && !/^[+\-−]?\d{1,6}-\d{2}-\d{2}$/.test(raw)) {
-    return fail('This field is UTC: remove the zone offset and give the time in UTC, for example 2026-10-01 01:30:05.');
+    return fail('This field takes the app’s clock, UTC from 1972 to 2035 and UT outside, not a zone: remove the zone offset, for example 2026-10-01 01:30:05.');
   }
   const m = UTC_PATTERN.exec(raw);
   if (!m) return fail('Type the UTC date and time as year-month-day hours:minutes:seconds, for example 2026-10-01 01:30:05.');

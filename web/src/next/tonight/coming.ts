@@ -25,6 +25,7 @@ import {
   type PlanetEvent,
   type PlanetStation,
 } from '../engine/types.js';
+import { eventIds } from '../events/link.js';
 import { formatMagnitude } from '../shell/format.js';
 import { wallClock } from '../time.js';
 import type { NightQuery } from './data.js';
@@ -56,6 +57,12 @@ export interface ComingItem {
   body: string | null;
   /** False when it happens but cannot be seen from here (shown dimmed). */
   seen: boolean;
+  /**
+   * The event's id in the Events view (events/link.ts `eventIds`: an eclipse, an
+   * occultation, a transit, a meteor shower), so choosing the item opens its card; absent
+   * for the lists without cards (polish2, list item 41).
+   */
+  ref?: string;
 }
 
 /** What one source gives: its items, and (the apsides source) notes for the phases' titles. */
@@ -194,6 +201,7 @@ const eclipses: ComingSource = {
         detail: `${cap(words)}.${e.kind === 'solar' ? ' Never look at the Sun without proper eye protection.' : ''}`,
         body: e.kind === 'solar' ? 'Sun' : 'Moon',
         seen,
+        ref: eventIds.eclipse(e.id),
       };
     });
     return { items };
@@ -260,6 +268,7 @@ export function occultationItem(o: Occultation, f: Fmt): ComingItem {
     detail: `${cap(parts.join(', '))}. Times at the Moon’s mean edge: the real edge can shift them by seconds, up to a minute.`,
     body: o.kind === 'planet' ? o.body : 'Moon',
     seen: o.visible,
+    ref: eventIds.occultation(o.body, o.closest.jd_utc),
   };
 }
 
@@ -298,6 +307,7 @@ const showers: ComingSource = {
           detail: `Up to ${Math.round(s.shower.zhr)} an hour under a perfect sky (ZHR${s.shower.variable ? ', variable' : ''}); the Moon ${percentLit(moon)} lit.`,
           body: null,
           seen: true,
+          ref: eventIds.shower(s.shower.code, s.peak.jd_utc),
         });
       }
     }
@@ -439,6 +449,7 @@ const transits: ComingSource = {
         detail: `${cap(words)}. Never look at the Sun without proper eye protection.`,
         body: t.planet,
         seen,
+        ref: eventIds.transit(t.id),
       };
     });
     return { items };

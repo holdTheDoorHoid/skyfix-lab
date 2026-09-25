@@ -1,7 +1,7 @@
 /**
  * The coverage table of About / Help (time-ui agent; CONVENTIONS 15.1): for each group of
  * bodies, the years whose positions are validated against JPL's DE440 and the years shown
- * as estimates (with the Deep time pack), each with how closely it is checked; a banner
+ * as estimates (both in the core since the deeptime merge), each with how closely it is checked; a banner
  * when the time shown lies outside the validated years; and how far a clock time can be
  * trusted in each age (the uncertainty in the Earth's rotation, ΔT), from the engine.
  *
@@ -19,9 +19,14 @@ import { jdFromWallClock, UTC_ZONE } from '../time.js';
 import { sigmaText, timeInfoAt } from './chip.js';
 import { formatYear } from './format.js';
 import { coverageBounds, engineOf, packForDate, tierAt, tierNotice, wireDateText, type EngineSource } from './tier.js';
+import { TIER_NOTICE_KEY } from './services.js';
 
-/** Years at which the ΔT uncertainty is listed (astronomical), from 2000 BC to AD 3000. */
-export const SIGMA_YEARS: readonly number[] = [-1999, -999, -499, 1, 500, 1000, 1500, 1700, 1900, 2026, 2100, 2200, 2500, 3000];
+/**
+ * Years at which the ΔT uncertainty is listed (astronomical), from the first year of the
+ * labelled tier, −2000 (2001 BC; polish2, list item 55: the table's first row said 2000 BC
+ * while the coverage starts a year earlier), to AD 3000.
+ */
+export const SIGMA_YEARS: readonly number[] = [-2000, -999, -499, 1, 500, 1000, 1500, 1700, 1900, 2026, 2100, 2200, 2500, 3000];
 
 export interface SigmaRow {
   year: number;
@@ -145,21 +150,30 @@ export function coverageTable(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     );
   };
 
+  // The banner says what the shell's notice says (time/services.ts): shown only where that
+  // notice is not on screen (a page without the shell), never the same sentence twice
+  // (polish2: About showed the Historical-estimate notice twice).
+  const showBanner = (): void => {
+    const n = tierNotice(ctx, ctx.store.get().time.jd_utc, { dateText: 'The time shown' });
+    const said = ctx.notices.list().some((x) => x.key === TIER_NOTICE_KEY);
+    banner.hidden = !n || said;
+    banner.textContent = n && !said ? n.text : '';
+  };
   const stop = watch(
     ctx,
     (s) => `${tierAt(ctx, s.time.jd_utc)}|${s.settings.yearStyle}`,
     () => {
       const engine = engineOf(ctx);
       build(engine);
-      const n = tierNotice(ctx, ctx.store.get().time.jd_utc, { dateText: 'The time shown' });
-      banner.hidden = !n;
-      banner.textContent = n ? n.text : '';
+      showBanner();
     },
   );
+  const stopNotices = ctx.notices.subscribe(() => showBanner());
   return {
     el,
     destroy() {
       stop();
+      stopNotices();
       el.remove();
     },
   };

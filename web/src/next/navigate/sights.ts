@@ -33,6 +33,7 @@ import {
   fmtSigma,
   fmtZoneClock,
   utcInputText,
+  utcText,
 } from './format.js';
 import { nextObservationId, patchSession, sortedByTime, withObservation, withoutObservation, type PlannedSight } from './model.js';
 import { parseAngle, parseNumber, parseUtcInput } from './parse.js';
@@ -127,7 +128,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   // navigate2 (time-ui helpers): the ±ΔT chip beside the time, shown when the Earth's rotation
   // then is uncertain by more than 30 s; the label's clock word follows the typed time.
   const timeChip = uncertaintyChip(null);
-  const timeField = field('Time of the sight (UTC)', timeInput, { help: null, aside: timeChip });
+  const timeField = field(`Time of the sight (${scaleLabel(nc.ctx.store.get().time.jd_utc)})`, timeInput, { help: null, aside: timeChip });
   const nowBtn = btn('Now', () => setTime(isoUtc(jdNow())), { tip: 'The time on this computer’s clock, now', variant: 'outline' });
   const barBtn = btn('Time bar', () => setTime(isoUtc(nc.ctx.store.get().time.jd_utc)), { tip: 'The time shown on the explorer’s time bar', variant: 'ghost' });
   const timeRow = h('div', { class: 'sfn-entry__time' }, timeField.el, h('div', { class: 'sfn-entry__time-buttons' }, nowBtn, barBtn));
@@ -289,14 +290,16 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     tierBox.replaceChildren(...(blocked ? [notice('caution', t0!.sentence ?? 'No sights for this date.')] : caution ? [notice('caution', caution)] : []));
     submit.disabled = blocked;
     setUncertaintyChip(timeChip, t0?.info ?? null);
-    timeField.setLabel(`Time of the sight (${jd === null ? 'UTC' : scaleLabel(jd)})`);
+    // Empty, the label speaks for the time bar's instant, which "Time bar" would fill in
+    // (polish2: it said UTC at 585 BC).
+    timeField.setLabel(`Time of the sight (${scaleLabel(jd ?? nc.ctx.store.get().time.jd_utc)})`);
   }
 
   function updateTimeHelp(): void {
     const parsed = parseUtcInput(timeInput.value);
     if (!parsed.ok) {
       updateTier(null);
-      timeField.setHelp(timeInput.value.trim() ? null : 'Year-month-day hours:minutes:seconds, in UTC. “Now” fills in this computer’s clock.');
+      timeField.setHelp(timeInput.value.trim() ? null : `Year-month-day hours:minutes:seconds, in ${scaleLabel(nc.ctx.store.get().time.jd_utc)}. “Now” fills in this computer’s clock.`);
       return;
     }
     const jd = jdFromIso(parsed.value)!;
@@ -448,7 +451,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     limbSeg.set(p.limb);
     timeInput.value = utcInputText(p.utc.replace(/\.\d+Z$/, 'Z'));
     formTitle.textContent = `Add your sight of ${p.kind === 'sun' || p.kind === 'moon' ? 'the ' : ''}${p.body}`;
-    hsField.setHelp(`Predicted about ${fmtAngle(p.hs_deg, 'dm')} at ${utcInputText(p.utc.replace(/\.\d+Z$/, 'Z'))} UTC, bearing ${fmtBearing(p.zn_deg)}. Type what YOUR sextant reads; the time too.`);
+    hsField.setHelp(`Predicted about ${fmtAngle(p.hs_deg, 'dm')} at ${utcText(p.utc.replace(/\.\d+Z$/, 'Z'))}, bearing ${fmtBearing(p.zn_deg)}. Type what YOUR sextant reads; the time too.`);
     updateTimeHelp();
     syncBodyUi();
     preview.run();
@@ -816,6 +819,8 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   d.add(store.select((w) => w.planned, renderPlanned));
   d.add(store.select((w) => [w.session.instrument, w.session.observer, w.mode] as const, syncInstrument, { equals: (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] }));
   d.add(store.select((w) => w.session, () => preview.run()));
+  // The empty time field's label and help follow the time bar's clock scale (UTC or UT).
+  d.add(nc.ctx.store.select((st) => scaleLabel(st.time.jd_utc), () => updateTimeHelp()));
   // The calendar and the way years are written (time-ui settings) change the dates shown too.
   d.add(nc.ctx.store.select((s) => [s.settings.angleFormat, s.settings.timeDisplay, s.observer.zone, s.settings.calendar, s.settings.yearStyle] as const, () => {
     renderList();

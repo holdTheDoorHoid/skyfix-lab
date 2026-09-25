@@ -39,7 +39,8 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 
 const NOTES = [
   'MOCK ENGINE: every number on these pages is illustrative, from low-precision formulas; nothing here comes from the SkyFix Lab numerical core.',
-  'UT is UTC with DUT1 = 0. v: excess of the hourly increase of GHA over 15° (planets) or 14° 19.0′ (Moon); d: hourly change of declination, printed without sign.',
+  // pages::NOTES[0] and [1] (CONVENTIONS 15.2; polish2, list item 54).
+  'UT is UT1, as in the printed almanac: enter the tables with UTC + DUT1, the time signal’s correction (CONVENTIONS 15.2). Outside 1972-2035 the clock is UT itself. v: excess of the hourly increase of GHA over 15° (planets) or 14° 19.0′ (Moon); d: hourly change of declination, printed without sign.',
   'Stars, planets’ SHA and magnitudes, SD, the Moon’s age and percentage illuminated are for 12h UT.',
   'Twilight, sunrise, sunset, moonrise and moonset: LMT at the Greenwich meridian (= UT), sea level.',
   '□ above the horizon all day; ■ below all day; //// twilight all night; 24 hh mm: the following date; --: not on the date nor the next.',

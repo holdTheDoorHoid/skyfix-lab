@@ -32,7 +32,7 @@ export function lunarMethod(host: HTMLElement, nc: NavCtx): Mounted {
   );
   body.addEventListener('change', () => set({ body: body.value }));
   const glyph = h('span', { class: 'sfn-entry__glyph', 'aria-hidden': 'true' });
-  const watch = optionalUtcField(nc, 'Your watch when you measured (UTC)', 'enter it', () => lunar().watchUtc, (v) => set({ watchUtc: v }));
+  const watch = optionalUtcField(nc, 'Your watch when you measured', 'enter it', () => lunar().watchUtc, (v) => set({ watchUtc: v }));
   const distance = parsedField<number | null>('Measured distance', {
     term: 'sextant reading, degrees and minutes',
     placeholder: '74 14.4',

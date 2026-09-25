@@ -50,6 +50,8 @@ export function seedFromExplorer(explorer: ExplorerStore): Working {
     position: { lat_deg: s.observer.lat_deg, lon_deg: s.observer.lon_deg },
     heightOfEyeM: s.settings.height_of_eye_m,
     indexCorrectionArcmin: s.settings.index_correction_arcmin,
+    pressureHpa: s.settings.pressure_hpa,
+    temperatureC: s.settings.temperature_c,
   });
 }
 

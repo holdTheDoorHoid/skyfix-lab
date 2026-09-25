@@ -46,7 +46,7 @@ import { jdFromIso, roundToMinute, UTC_ZONE, zoneShortName, type Zone } from '..
 import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { button, readout, segmented, switchRow } from '../theme/primitives.js';
-import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, listCoverage, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
 import { formatBytes } from '../packs/manifest.js';
 import { clockPosition } from './moon-model.js';
 import { errorText, watchAll, type EclipseYears, type TabComponent, type TabEnv } from './env.js';
@@ -793,6 +793,8 @@ export const eclipsesTab: TabComponent = (host, env) => {
   let subscribed: object | null = null;
   let stopSub: (() => void) | null = null;
   d.add(() => stopSub?.());
+  /** The years the eclipse engine answers (its lists' `coverage_*_utc`). */
+  const eclipseSpan = () => listCoverage(ctx.engine, 'eclipses', (t) => engine.eclipses(t, t + 1 / 24));
   const eclipseSearch = () => {
     const search = env.shared.search<Eclipse>('eclipses', coverageKey(env), (pace) => ({
       chunkDays: ECLIPSE_CHUNK_DAYS,
@@ -800,7 +802,8 @@ export const eclipsesTab: TabComponent = (host, env) => {
       key: (e) => e.id,
       time: (e) => e.greatest.jd_utc,
       pace,
-      coverage: () => coverageSpan(env),
+      // The eclipse engine's own span (1990-2060), narrower than the explorer's (polish2).
+      coverage: () => coverageSpan(env, eclipseSpan()),
     }));
     if (search !== subscribed) {
       stopSub?.();
@@ -966,20 +969,21 @@ export const eclipsesTab: TabComponent = (host, env) => {
         h(
           'p',
           { class: 'sfe-message' },
-          `No eclipses in these years. ${coveredSentence(ctx.engine, 'Eclipses')}: move the explorer’s time inside that span.`,
+          `No eclipses in these years. ${coveredSentence(ctx.engine, 'Eclipses', eclipseSpan())}: move the explorer’s time inside that span.`,
         ),
       );
-    } else if (!items.length && !pending.length) {
+    } else if (!items.length && !pending.length && searchState?.done !== false) {
       notes.push(
         h('p', { class: 'sfe-message' }, `None of these eclipses can be seen from ${st.place}. Turn off “Seen from here” to list them all.`),
       );
     }
     const cal = calendarNote(items.map((e) => e.greatest.jd_utc).slice(0, 1).concat(items.map((e) => e.greatest.jd_utc).slice(-1)), st.zone);
     if (cal) notes.push(h('p', { class: 'sfe-note' }, cal));
-    if (truncated) {
+    // The empty list's sentence already names the years: no second one (polish2).
+    if (truncated && shown.length) {
       const a = ui.get().anchor;
       const days = ui.get().eclipseYears * YEAR_DAYS;
-      notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + days : a - days));
+      notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + days : a - days, eclipseSpan()));
     }
     list.replaceChildren(...groups, ...notes);
     placeCard();
@@ -989,6 +993,9 @@ export const eclipsesTab: TabComponent = (host, env) => {
     buildList();
     const now = ctx.store.get().time.jd_utc;
     const selected = ui.get().selected;
+    // With the Lunar limb pack the card's contacts are corrected, the list's are the smooth
+    // Moon's (60-75 ms an eclipse): a row's central duration says so (polish2, list item 42).
+    const meanLimbRows = isLimbEngine(engine) && engine.lunarLimbInfo() !== null;
     let seenCount = 0;
     let known = 0;
     for (const e of shown) {
@@ -1008,7 +1015,11 @@ export const eclipsesTab: TabComponent = (host, env) => {
           : r
             ? { text: 'Could not be computed here', tone: 'none' }
             : { text: 'Checking…', tone: 'pending' };
-      if (row.here.textContent !== label.text) row.here.textContent = label.text;
+      const hereText = meanLimbRows && label.tone === 'central' ? `${label.text} (mean limb)` : label.text;
+      if (row.here.textContent !== hereText) row.here.textContent = hereText;
+      const tip = meanLimbRows && label.tone === 'central' ? 'For the Moon’s smooth edge; the card corrects the times for its mountains and valleys (Lunar limb pack).' : null;
+      if (tip === null) row.here.removeAttribute('data-tip');
+      else if (row.here.dataset.tip !== tip) row.here.dataset.tip = tip;
       // The date the place sees it on (its local maximum), else that of greatest eclipse.
       const day = dateMedium(roundToMinute(r && 'ok' in r && seenHere(r.ok) ? jumpTarget(e, r.ok) : e.greatest.jd_utc), st.zone);
       if (row.date.textContent !== day) row.date.textContent = day;

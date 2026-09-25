@@ -3,9 +3,9 @@
  * of the view (above the connection and update dock), never over the page and never taking
  * the keyboard away from what the person was doing. OWNER: packs agent.
  *
- *   Positions before 1550 need the Deep time pack.
- *   Deep time: Positions from 2000 BC to AD 3000.
- *   0.4 MB, downloaded once and saved on this device.           [Not now] [Get]
+ *   The times on this card can be corrected for the Moon's mountains and valleys.
+ *   Lunar limb: The mountains and valleys at the Moon's edge, for eclipse contact times …
+ *   2.2 MB, downloaded once and saved on this device.           [Not now] [Get]
  *
  * then the download's progress with Stop, then "saved" for a moment. Offline, the second
  * line says the pack is not saved on this device yet, and Get reads "Try again". Esc, ×
