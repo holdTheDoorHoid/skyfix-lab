@@ -25,10 +25,13 @@ export function noticeBar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const folded = new Set<number>();
 
   const item = (n: Notice): HTMLElement => {
-    const isFolded = n.persistent && folded.has(n.id);
+    const isFolded = folded.has(n.id);
     const text = h('span', { class: 'sf-notice__text' }, n.text);
     const actions: HTMLElement[] = [];
-    if (n.persistent) {
+    // A persistent message can be folded to one line; on a phone every message starts folded
+    // and can be unfolded (polish2), since the view begins under them.
+    if (n.persistent || isFolded || foldable.has(n.id)) {
+      foldable.add(n.id);
       const fold = iconButton(isFolded ? 'chevron-down' : 'chevron-up', isFolded ? 'Show the whole message' : 'Fold the message to one line', { size: 'sm' });
       fold.addEventListener('click', () => {
         if (folded.has(n.id)) folded.delete(n.id);
@@ -36,7 +39,8 @@ export function noticeBar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
         render(notices.list());
       });
       actions.push(fold);
-    } else {
+    }
+    if (!n.persistent) {
       const close = iconButton('close', 'Dismiss this message', { size: 'sm' });
       close.addEventListener('click', () => notices.dismiss(n.id));
       actions.push(close);
@@ -64,18 +68,20 @@ export function noticeBar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(() => publish()) : null;
   resize?.observe(el);
 
-  // On a phone a persistent message starts folded to its first line (it would take half the
+  // On a phone a message starts folded to its first line (the notices would take half the
   // stage otherwise); its chevron shows the rest. Each is folded once, when it first appears.
   const seen = new Set<number>();
+  const foldable = new Set<number>();
   const narrow = (): boolean => typeof matchMedia === 'function' && matchMedia('(max-width: 767px)').matches;
 
   const render = (list: readonly Notice[]): void => {
     for (const id of [...folded]) if (!list.some((n) => n.id === id)) folded.delete(id);
     for (const id of [...seen]) if (!list.some((n) => n.id === id)) seen.delete(id);
+    for (const id of [...foldable]) if (!list.some((n) => n.id === id)) foldable.delete(id);
     for (const n of list) {
       if (seen.has(n.id)) continue;
       seen.add(n.id);
-      if (n.persistent && narrow()) folded.add(n.id);
+      if (narrow()) folded.add(n.id);
     }
     el.replaceChildren(...list.map(item));
     el.hidden = list.length === 0;

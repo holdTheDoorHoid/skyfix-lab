@@ -1093,7 +1093,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
         // tier only), and pushed once, not every frame (polish2).
         const years = rangeWords(scene.error);
         const text = years
-          ? `The stars are drawn only for ${years}, the years their catalogue places are checked for; the Sun, the Moon and the planets are shown.`
+          ? `Stars are drawn only for ${years}; the Sun, the Moon and the planets are shown.`
           : `Star field: ${scene.error}`;
         const level = years ? 'info' : 'caution';
         if (!covered(ctx, displayJd)) notices.dismissKey('sky-stars');
