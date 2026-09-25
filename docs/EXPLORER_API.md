@@ -2923,10 +2923,9 @@ max_height_m: 6905}` for the installed ring, `null` before. In TypeScript:
 CRC-32 and calls the producer `skyfix_wasm::limb::install_lunar_limb(payload)` (the
 `lunar-limb` entry of `packs::PRODUCERS`: label "Lunar limb", description "The mountains
 and valleys at the Moon's edge, for eclipse contact times and Baily's beads", provides
-`["eclipses:lunar-limb"]`), which decodes the payload (10-25 ms natively, 45-110 ms in WebAssembly the first time)
-and keeps it
-for the page session; a malformed payload changes nothing, a second install replaces
-the first. The mock engine's synthetic limb answers from the start
+`["eclipses:lunar-limb"]`), which decodes the payload (10-25 ms natively, 45-110 ms in
+WebAssembly the first time) and keeps it for the page session; a malformed payload
+changes nothing, a second install replaces the first. The mock engine's synthetic limb answers from the start
 (`MockEngineOptions.limbLoaded: false` makes it wait for `loadPack("lunar-limb", …)`); the
 mock has no eclipses, so `eclipseLocal` with the option exists only in the WASM engine.
 
