@@ -186,7 +186,10 @@ fn harmonic_stations_match_noaa_within_2_minutes_and_5_cm() {
     );
     assert!(n > 2000);
     // NOAA's predictions follow the mid-year convention, not instantaneous node factors.
-    assert!(inst_curve > 5.0 * curve_worst_all, "{inst_curve} vs {curve_worst_all}");
+    assert!(
+        inst_curve > 5.0 * curve_worst_all,
+        "{inst_curve} vs {curve_worst_all}"
+    );
 }
 
 #[test]

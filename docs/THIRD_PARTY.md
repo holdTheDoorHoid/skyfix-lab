@@ -42,6 +42,8 @@ a fact you expect is not where you thought, it has moved, not gone.
 | Service worker, web app manifest, icons | Offline reload and install; written for this project, no library copied | This project's own work | None |
 | OpenStreetMap standard tiles (optional street layer, off by default) | Online street map, only while switched on | ODbL 1.0 | **Yes — "© OpenStreetMap contributors", shown only while the layer is on** |
 | JPL DE421 / DE440s, Skyfield, the USNO API, NASA's eclipse canon, Bowditch | Development-time-only independent truth for every accuracy check in `docs/ACCURACY.md` | Various (US Government works, MIT, or public domain); **never shipped** | None (not in the runtime at all) |
+| NOAA CO-OPS tide stations, harmonic constants, datums and subordinate offsets (3 499 stations) | Tide predictions, the optional `tides-us` pack (downloaded when turned on) | U.S. Government work (public domain); NOS *requests* attribution, a docs line here | None |
+| Schureman (1958), *Manual of Harmonic Analysis and Prediction of Tides* (USC&GS Special Publication 98) | Node factors, equilibrium arguments, constituent definitions of the tides engine | U.S. Government work (public domain); formulas transcribed | None |
 
 ## Runtime data
 
@@ -897,6 +899,43 @@ a zone border elsewhere (Mexico, Kazakhstan, DR Congo) takes the nearest town's 
 guess never looks at the date (a position's zone is today's, while the browser's Intl data
 supply each zone's historical rules for the date shown).
 
+### Tides (optional `tides-us` pack)
+
+Owner: tides agent (expansion programme; `crates/skyfix-tides`, `tools/tides/`,
+`crates/skyfix-wasm/src/tides.rs`). Added 2026-09-25. No new crate or npm dependency.
+The data ships as an **optional pack**, `web/public/data/packs/tides-us-<rev>.bin`,
+downloaded only when the person turns tides on (EXPANSION_PLAN §3); the core module
+never contains it.
+
+#### NOAA CO-OPS — tide stations, harmonic constants, datums, subordinate offsets
+
+| | |
+|---|---|
+| Publisher | NOAA National Ocean Service, Center for Operational Oceanographic Products and Services (CO-OPS), tidesandcurrents.noaa.gov |
+| Endpoints | `https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type=tidepredictions&expand=tidepredoffsets` (the station list with the subordinate offsets) and `.../mdapi/prod/webapi/stations/<id>.json?expand=harcon,datums,disclaimers,notices&units=metric` (each harmonic station) |
+| Retrieved | 2026-09-25 (UTC), 1 258 requests; URL, time, size and SHA-256 of every response in the git-ignored cache manifest (`tools/tides/cache/manifest.json`) |
+| Licence basis | U.S. Government work. NOAA's disclaimer (tidesandcurrents.noaa.gov/disclaimers.html): "The information on government servers are in the public domain, unless specifically annotated otherwise, and may be used freely by the public." None of the records used is annotated otherwise (the 52 station disclaimers are about the observations' provenance and leveling). |
+| Attribution | "NOS requests that attribution be given whenever NOS material is reproduced and re-disseminated" — a request, met by this entry and the pack's sidecar `source` field; no on-screen credit (the owner's no-credit preference is kept). The disclaimer also asks that the information not "be modified in content and then presented as official government material": the app presents its own predictions, labelled "predictions, not observations", never as NOAA's. |
+| Used for | 1 256 harmonic stations' constants (37 constituents, Anchorage 120), their datums (MHHW, MHW, MTL, MSL, MLW, MLLW, LAT, HAT, NAVD88) and 2 243 subordinate stations' reference, time and height differences |
+| Processing | `tools/tides/build.py`: amplitudes kept to the millimetre and Greenwich phases to 0.01° (NOAA publishes 1 mm and 0.1°: nothing lost); zero-amplitude constituents dropped; datums re-expressed relative to MSL in millimetres; additive height differences converted from feet; names as NOAA's list gives them, words set entirely in capitals (the old tide tables' mark of a reference station) put in title case, acronyms kept; stations sorted by id; five flags (`noaa_differs`, `no_datums`, `no_constants`, `reference_unusable`, `non_navigational`). The payload format is in EXPLORER_API "Expansion programme — tides". |
+| Coverage | Every station NOAA predicts tides for: the U.S. coasts, territories and possessions, and the foreign ports NOAA's former tide tables covered (Mexico, Central America, the Caribbean, the Pacific islands, British Columbia), as NOAA publishes them; NOAA's list has no country field (its state code is empty for 431 stations, many of them U.S.). The on-screen label says "US stations (NOAA)". |
+
+Non-U.S. constants (UKHO, SHOM, CHS, BoM) are licensed and not used; TICON-4 (CC BY 4.0,
+mixed provenance) was not used (the data audit, section 6).
+
+#### Schureman (1958) — the prediction method
+
+P. Schureman, *Manual of Harmonic Analysis and Prediction of Tides*, U.S. Coast and
+Geodetic Survey Special Publication 98, revised edition 1940, reprinted 1958 (a U.S.
+Government work, public domain), as scanned by NOAA:
+`https://tidesandcurrents.noaa.gov/publications/SpecialPubNo98.pdf` (25 449 366 bytes,
+retrieved 2026-09-25, read by the agent for the formulas; not stored in the repository).
+Transcribed into `crates/skyfix-tides/src/schureman.rs`: the astronomical elements of
+Table 1; I, ν, ξ (p. 156), ν′ and 2ν″ (formulas 224, 232); the node factors of formulas
+73-78, 149, 197/207 (M1), 213-215 (L2), 227 (K1), 235 (K2); the arguments V and angles u of
+Tables 2 and 2a. `crates/skyfix-tides/tests/schureman_tables.rs` carries printed values
+of Tables 6, 14 and 15 (1990-1999) typed from the scan, as test data.
+
 ## Development-time references
 
 Everything below is read only by the Python tools under `tools/reference/`, `tools/starfield/`
@@ -1330,6 +1369,19 @@ in the test.
 listed under "Reference data" above: the 2266 events of 1990-2060 with Skyfield's own
 `almanac.oppositions_conjunctions`, `find_maxima` and `find_minima`, and whether each
 inferior conjunction is a transit.
+
+### Tides: NOAA's own predictions (reference fixtures)
+
+Owner: tides agent. Development-time only; never shipped.
+
+| Fixture | Source | Retrieved |
+|---|---|---|
+| `fixtures/reference/tides_noaa.json` | NOAA CO-OPS predictions API, `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=skyfix-lab-tides&time_zone=gmt&units=metric&datum=MLLW&interval=hilo` and `interval=h`: 20 harmonic stations × 30 days (high/low and hourly) and 6 subordinate stations × 30 days (high/low); each harmonic station's (and each subordinate station's reference's) constants and datums as NOAA served them | 2026-09-25 (UTC), 46 prediction requests |
+| `fixtures/reference/tides_noaa_sweep.json` | the same API, `interval=hilo`, 2026-02-01 to 2026-02-03, every station of the list (3 492 answered, 7 refused, recorded) | 2026-09-25 (UTC), 3 499 requests |
+
+Same licence basis as the pack's data above (U.S. Government work, public domain).
+`tools/tides/fixtures.py` writes them; `fixtures/README.md`'s rule holds: never
+regenerated from Rust output.
 
 ## Licence decisions
 

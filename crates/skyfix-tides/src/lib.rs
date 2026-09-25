@@ -1,7 +1,8 @@
 //! Tide predictions for NOAA's tide stations: the optional `tides-us` pack.
 //!
 //! - [`schureman`]: the astronomical elements, node factors `f`, nodal angles `u` and
-//!   equilibrium arguments `V` of NOAA's 37 standard constituents (Schureman 1958).
+//!   equilibrium arguments `V` of NOAA's 37 standard constituents and the 83 of its
+//!   extended set (Schureman 1958, with NOAA's own usage where it differs).
 //! - [`predict`]: harmonic synthesis with NOAA's convention (`V0` at the start of each
 //!   year, `f` and `u` at its middle), sampled curves, and the search for high and low
 //!   water.

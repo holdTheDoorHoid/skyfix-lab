@@ -1142,3 +1142,153 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+## Expansion programme — tides (`tides.rs`, tides agent)
+
+Tide predictions for NOAA's 3 499 tide stations, from the optional **`tides-us`** pack
+(CONVENTIONS 13.10 for the definitions, `docs/ACCURACY.md` section 14 for the measured
+agreement with NOAA's own predictions). The engine is `skyfix_tides`; the exports are in
+`crates/skyfix-wasm/src/tides.rs`; the TypeScript mirror is `TidesEngine` and
+`isTidesEngine` in `web/src/next/engine/types.ts` ("Expansion programme — tides"); the
+memoised engine forwards the methods (`component.ts`). Every result carries
+`label: "US stations (NOAA); predictions, not observations; weather and surge not
+included"` and `notes`, plain sentences for the interface.
+
+**Errors** are strings beginning with a code and a colon: `pack_not_loaded` (every call
+until the pack is installed; `isTidePackNotLoaded(error)` in `types.ts`),
+`unknown_station`, `datum_unavailable` (lists the datums the station has),
+`no_prediction` (a station NOAA lists but gives no constants for, or a subordinate one
+whose reference cannot be predicted), `outside_range` (instants from 1900-01-01 to
+2100-12-31 only), `bad_request`. The WASM wrapper prefixes the export's name
+(`tide_extremes: pack_not_loaded: …`).
+
+**`datum`** arguments are `"MLLW"`, `"MLW"`, `"MSL"`, `"MTL"`, `"MHW"`, `"MHHW"`,
+`"LAT"`, `"HAT"` or `"NAVD88"` (case-insensitive; `"NAVD"` accepted), or `""` for the
+station's `default_datum` (MLLW; MSL at the two stations without datums). Subordinate
+stations have MLLW only, as NOAA predicts them.
+
+### `tide_stations_near(lat_deg, lon_deg, n) -> TideStationNear[]`
+
+The `n` stations nearest to a place (`n` clamped to 1..100), nearest first, harmonic and
+subordinate alike: each `TideStation` below plus `distance_km`, `distance_nm` (1852 m)
+and `bearing_deg` (initial great-circle bearing from the place, degrees true), on the
+sphere of mean radius 6371.0088 km. 1-3 ms natively.
+
+### `tide_station(station_id) -> TideStation`
+
+```ts
+{ id: "9414290", name: "San Francisco (Golden Gate)", state: "CA" | null,
+  lat_deg: 37.806305, lon_deg: -122.46589,
+  kind: "harmonic" | "subordinate",
+  reference_id: null | "8518750", reference_name: null | "New York (The Battery)",
+  tide_type: "semidiurnal" | "mixed_semidiurnal" | "mixed_diurnal" | "diurnal" | null,
+  form_number: 0.84 | null,            // (K1 + O1)/(M2 + S2); a subordinate station's is its reference's
+  datums: ["HAT", "MHHW", "MHW", "MTL", "MSL", "MLW", "MLLW", "LAT", "NAVD88"],
+  default_datum: "MLLW",
+  curve: "harmonic" | "interpolated" | "none",
+  flags: ("noaa_differs" | "no_datums" | "no_constants" | "reference_unusable" | "non_navigational")[],
+  notes: string[] }
+```
+
+`state` is NOAA's two-letter code; NOAA leaves it empty for foreign ports and for many
+U.S. stations too, so `null` does not mean "outside the United States". `curve` says
+what `tide_predict` can give: `harmonic` a true curve, `interpolated` (subordinate
+stations) the cosine curve between high and low water, an estimate, `none` nothing.
+
+### `tide_extremes(station_id, jd_start, jd_end, datum) -> TideExtremes`
+
+High and low water with instants in `[jd_start, jd_end]` (at most 400 days), sorted:
+
+```ts
+{ station: TideStation, datum: "MLLW", method: "harmonic" | "subordinate_offsets",
+  jd_start: number, jd_end: number,
+  extremes: [{ kind: "high" | "low", jd_utc: number, utc: "2026-09-24T05:07:12.345Z", height_m: number }],
+  label: string, notes: string[] }
+```
+
+The tide table's rule applies: a high and a low less than 2 hours apart and less than
+0.1 ft apart in height are left out, as in NOAA's tables (CONVENTIONS 13.10). A month
+takes 4-11 ms natively.
+
+### `tide_predict(station_id, jd_start, jd_end, step_min, datum) -> TideCurve`
+
+Heights at `jd_start + k·step_min` for `k = 0, 1, …` while not after `jd_end`;
+`step_min` from 0.5 to 1440, at most 20 000 samples:
+
+```ts
+{ station: TideStation, datum: "MLLW", method: "harmonic" | "interpolated",
+  jd_start: number, jd_end: number, step_min: number,
+  jd_utc: Float64Array, height_m: Float64Array,
+  label: string, notes: string[] }
+```
+
+For a subordinate station (`method: "interpolated"`) the curve is the cosine
+interpolation between its high and low waters (NOAA Tide Tables, Table 3) and the notes
+say so; samples before its first or after its last extreme in reach are left out, so the
+arrays can be shorter than the step implies.
+
+### `tide_now(station_id, jd_utc, datum) -> TideNow`
+
+```ts
+{ station: TideStation, datum: "MLLW", method: "harmonic" | "interpolated",
+  jd_utc: number, utc: string, height_m: number,
+  rate_m_per_h: number,                // negative when falling
+  state: "rising" | "falling",
+  previous: TideEvent | null, next: TideEvent | null,
+  next_high: TideEvent | null, next_low: TideEvent | null,
+  label: string, notes: string[] }
+```
+
+The extremes are the tide table's (above), searched 1.5 days back and 3 days ahead.
+About 1.5 ms.
+
+### Loading the pack
+
+- `install_tides_us(payload)` (Rust only, `skyfix_wasm::tides`) is the producer function
+  the pack dispatcher calls with the payload the common header wraps (EXPLORER_API
+  "Packs"); it returns `TidesPackInfo`: `{name: "tides-us", version, bytes, provides:
+  ["tides:us-noaa"], stations, harmonic, subordinate}` (the contract's `PackInfo`
+  fields and the station counts). Idempotent: a second install replaces the first.
+- **Temporary** `load_pack_tides_us(bytes: Uint8Array) -> TidesPackInfo` takes a whole
+  pack file (header, payload, CRC-32) while `load_pack` is not on main; the TypeScript
+  engines expose it as the optional `loadTidesPack(bytes)`.
+- `tide_pack_info() -> TidesPackInfo | null`: the installed pack's summary.
+
+### The `tides-us` pack: file and payload
+
+File `web/public/data/packs/tides-us-<rev>.bin` (rev = the first 16 hex digits of the
+file's SHA-256), with the sidecar `web/public/data/packs/tides-us.json` (`name`,
+`version`, `rev`, `file`, `bytes`, `sha256`, `label`, `description`, `provides`, station
+counts, source). The file is the common pack header with name `tides-us`; 344 543 bytes
+(0.34 MB), 234 KB deflated. Built by `tools/tides/build.py`; decoded (and re-encoded, in
+the tests) by `skyfix_tides::pack`. The payload, little-endian and byte-packed (`str8`
+is a u8 length then bytes):
+
+```text
+"TIDE"                      4 bytes
+u16                         payload format (1)
+str8                        data version: the NOAA retrieval date, YYYY-MM-DD
+u8 K, K × str8              constituent names: NOAA's 37 standard ones in NOAA's order,
+                            then NOAA's extended set (120 in all)
+u8 B                        how many leading names the per-station bitmap covers (37)
+u32 S                       station count, then S records sorted by id:
+  str8 id, str8 name (UTF-8), str8 state (may be empty)
+  i32 latitude, i32 longitude          microdegrees, east positive
+  u8 kind                              0 harmonic, 1 subordinate
+  u8 flags                             1 noaa_differs, 2 no_datums, 4 no_constants,
+                                       8 reference_unusable, 16 non_navigational
+  harmonic:
+    8 × i16                            MHHW, MHW, MTL, MLW, MLLW, LAT, HAT, NAVD88 in mm
+                                       relative to MSL; -32768 = not published
+    ceil(B/8) bytes                    bitmap of names 0..B (name k: bit k%8 of byte k/8)
+    per set bit, in order:             u16 amplitude (mm), u16 Greenwich phase (0.01°)
+    u8 E, then E × (u8 name index ≥ B, u16 amplitude, u16 phase)
+  subordinate:
+    u16 reference                      index of the reference station in this list
+    i16 high, i16 low                  time differences, minutes
+    u8 height type                     0 ratio, 1 additive
+    i16 high, i16 low                  ratio × 1000, or additive difference in mm
+```
+
+A reader maps constituent names to its own table and refuses an unknown one; nothing
+may follow the last station.

@@ -456,6 +456,59 @@ facing daily pages give (wire format: EXPLORER_API.md "Wave 2 — almanac pages"
   HP and SD to 0.1′, magnitudes to 0.1, times to the nearest minute (Aries' meridian
   passage to 0.1 minute), the equation of time to the second.
 
+### 13.10 Tides (tides agent, expansion programme)
+
+`skyfix_tides` (wire format: EXPLORER_API.md, "Expansion programme — tides"). Tide
+heights are **predictions of the astronomical tide at NOAA's stations**, never
+observations: weather, surge and river flow are not included, and every result says so.
+
+- **Stations.** NOAA's tide-prediction list, as the optional `tides-us` pack carries it
+  (section 15.5): *harmonic* stations (NOAA "R", a full curve from harmonic constants)
+  and *subordinate* ones (NOAA "S", high and low water only, from a reference station).
+- **Time.** Instants are `jd_utc`, as everywhere; NOAA's "GMT" is taken as UTC (the
+  difference from UT1 moves a tide by under a millimetre). Instants from 1900-01-01 to
+  2100-12-31 only (`outside_range`): the constants describe today's harbours.
+- **Harmonic sum.** `h(t) = Σ f·H·cos(V0 + u + ω·τ − G)` about the station's mean sea
+  level, with NOAA's amplitude `H` and Greenwich phase `G` (`phase_GMT`), the
+  constituent's speed `ω`, `τ` the hours since 0 h UTC on 1 January of the year of `t`,
+  `V0` the equilibrium argument at that instant and `f`, `u` Schureman's node factor
+  and nodal angle **for the middle of the same year** (Greenwich noon on 2 July, or the
+  preceding midnight in a leap year): NOAA's convention (Schureman 1958, p. 157), which
+  NOAA's own predictions follow. The sum therefore steps by a few millimetres at each new
+  year, as NOAA's does. Schureman's elements (his Table 1) are evaluated in UT.
+- **Constituents.** NOAA's 37 standard constituents and the 83 of its extended set, with
+  `V`, `u` and `f` from Schureman's Tables 2 and 2a; compounds `V = Σ n·V`, `u = Σ n·u`,
+  `f = Π f^|n|`. Where NOAA's usage differs from the textbook, NOAA's is followed, each
+  pinned by NOAA's predictions (`tools/tides/README.md`): MSf = S2 − M2; M1 takes
+  formula 201's `V0 + u` advanced at formula 194's speed; TK1, RP1, KP1 are π1, ψ1, φ1;
+  MP1 = M2 − P1; SO1 = S2 − O1.
+- **Datums.** `height(datum) = h − (datum − MSL)`, with NOAA's datums for the station's
+  tidal datum epoch (1983-2001 at most stations). MLLW is the default (the chart datum of
+  U.S. charts); MLW, MSL, MTL, MHW, MHHW, LAT, HAT and NAVD88 where NOAA publishes them.
+  Sea-level change since the epoch is not included.
+- **High and low water.** Zeros of the rate of rise, found on a 6-minute grid and refined
+  by Newton's method to under 0.1 s; heights at those instants. The **tide table** then
+  applies NOAA's rule: scanning from the earliest, a high and the next low (or low and
+  next high) less than 2 hours apart, with both instants rounded to the minute, and less
+  than 0.1 ft (0.03048 m) apart in height are both left out — a ripple or a stand, not a
+  tide. The table is searched 6 hours beyond each end of the window so that a ripple
+  across an edge is judged whole; the window's edges never create an extreme.
+- **Subordinate stations.** From the reference station's extremes on its MLLW: each
+  high (low) water moved by the high (low) water time difference, its height multiplied
+  by the ratio or increased by the additive difference (NOAA serves those in feet); the
+  tide-table rule is then applied to the subordinate list. MLLW only. Between high and
+  low water the height is NOAA's cosine interpolation (Tide Tables, Table 3),
+  `h = h1 + (h2 − h1)·(1 − cos(π·(t − t1)/(t2 − t1)))/2`, labelled `interpolated`: an
+  estimate, not a prediction.
+- **The tide now.** Height and rate (m/h) at the instant; `rising` when the rate is
+  positive (at a zero rate, when the next extreme is a high); `previous`, `next`,
+  `next_high` and `next_low` from the tide table.
+- **Tide type.** By the form number `F = (K1 + O1)/(M2 + S2)` of the amplitudes: under
+  0.25 semidiurnal, to 1.5 mixed mainly semidiurnal, to 3 mixed mainly diurnal, 3 and
+  over diurnal.
+- **Nearest stations.** Great-circle distance on the sphere of radius 6371.0088 km
+  (under 0.5 % from the ellipsoid's), and the initial bearing from the place.
+
 ## 14. Navigation methods: noon sight, Polaris, averaging, running fix
 
 `docs/NAVIGATION_METHODS.md` is normative for these methods (`skyfix_core::methods`,
