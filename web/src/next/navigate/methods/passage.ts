@@ -245,7 +245,7 @@ export function passageMethod(host: HTMLElement, nc: NavCtx): Mounted {
 
   // --- Results --------------------------------------------------------------------------------
   const legRow = (leg: LegPlan, plan: PassagePlan): HTMLElement => {
-    const z = zone(nc);
+    const z = zone(nc, plan.departureJd);
     const eta = plan.departureJd !== null && leg.endHours !== null ? fmtInstant(plan.departureJd + leg.endHours / 24, z) : leg.endHours !== null ? `${hoursText(leg.endHours)} after leaving` : '—';
     const other = leg.otherNm - leg.distanceNm;
     return h(

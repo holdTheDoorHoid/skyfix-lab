@@ -59,7 +59,7 @@ export interface StarIdBearing {
 /** The DR the identification works from, and where it came from. */
 export function starIdPlace(w: Working, explorer: ExplorerState): LatLon & { label: string } {
   const ap = w.session.observer.assumed_position;
-  if (ap) return { ...ap, label: 'the DR (the session’s assumed position)' };
+  if (ap) return { ...ap, label: 'the DR, the session’s assumed position' };
   return { lat_deg: explorer.observer.lat_deg, lon_deg: explorer.observer.lon_deg, label: explorer.observer.label || 'the map’s place' };
 }
 

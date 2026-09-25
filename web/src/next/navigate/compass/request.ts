@@ -25,7 +25,7 @@ export interface CompassPlace extends LatLon {
 
 export function compassPlace(w: Working, explorer: ExplorerState): CompassPlace {
   const ap = w.session.observer.assumed_position;
-  if (ap) return { lat_deg: ap.lat_deg, lon_deg: ap.lon_deg, height_m: 0, label: 'the DR (the session’s assumed position)', source: 'dr' };
+  if (ap) return { lat_deg: ap.lat_deg, lon_deg: ap.lon_deg, height_m: 0, label: 'the DR, the session’s assumed position', source: 'dr' };
   const o = explorer.observer;
   return { lat_deg: o.lat_deg, lon_deg: o.lon_deg, height_m: o.height_m, label: o.label || 'the place on the map', source: 'place' };
 }

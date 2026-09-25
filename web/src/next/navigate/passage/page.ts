@@ -13,6 +13,7 @@ import { greatCircleDistanceNm } from '../../geo/greatcircle.js';
 import { registerMeasureAction } from '../../map/measure.js';
 import { mapServiceFor } from '../../map/overlays.js';
 import { roundToMinute, wallClock, zoneShortName, type Zone } from '../../time.js';
+import { dayMonth } from '../../time/format.js';
 import { displayZone } from '../../state.js';
 import type { PassageForm, RouteWaypoint } from '../model.js';
 import { workingFor, type WorkingStore } from '../working.js';
@@ -52,13 +53,14 @@ export function addMeasuredLeg(form: PassageForm, a: { lat_deg: number; lon_deg:
   return { form: { ...form, waypoints: route }, added: route.length - form.waypoints.length, connecting };
 }
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** A dead-reckoning mark's label on the map: `24 Sep 20:00 EDT`, short enough to sit by a dot. */
+/**
+ * A dead-reckoning mark's label on the map: `24 Sep 20:00 EDT`, short enough to sit by a dot.
+ * The date is the display calendar's (time-ui `dayMonth` of the wall clock).
+ */
 export function tickLabel(jd: number, zone: Zone): string {
   const t = roundToMinute(jd);
   const w = wallClock(t, zone);
-  return `${w.day} ${MONTHS[w.month - 1]} ${String(w.hour).padStart(2, '0')}:${String(w.minute).padStart(2, '0')} ${zoneShortName(t, zone)}`;
+  return `${dayMonth(w)} ${String(w.hour).padStart(2, '0')}:${String(w.minute).padStart(2, '0')} ${zoneShortName(t, zone)}`;
 }
 
 // --- The plan, shared by the tab and the map (one per passage object) -----------------------

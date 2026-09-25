@@ -15,6 +15,7 @@ import { fmtAngle, fmtBearing, fmtInstant, fmtMagnitude, fmtMetres, fmtPosition,
 import { plannerOptionsFor, type PlannedSight, type PlannerForm, type Working } from '../model.js';
 import { parsePosition, type Parsed } from '../parse.js';
 import { PLANNER_DISCLOSURES } from '../text.js';
+import { sightTierAt } from '../tier.js';
 import { tonightSights } from '../tonight.js';
 import { btn, card, errorText, field, kids, notice, para, parsedField, selectInput } from '../ui.js';
 import { starFinderCard } from '../starfinder/card.js';
@@ -143,6 +144,13 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
       objective.value = store.get().planner.objective;
       const w = store.get();
       const { position: p, utc: when, source } = inputs(w);
+      // navigate2: no plan outside the validated tier (tier.ts, time-ui's `tierAt` and `sightsOnlyText`).
+      const tier = sightTierAt(nc.ctx, jdFromIso(when) ?? nc.ctx.store.get().time.jd_utc);
+      if (!tier.offered) {
+        rankStatus.replaceChildren(notice('caution', tier.sentence ?? 'No sights for this date.'));
+        rankResults.replaceChildren();
+        return;
+      }
       rankStatus.replaceChildren(h('span', { class: 'sfn-busy' }, 'Ranking…'));
       let plan: Plan;
       try {
@@ -156,8 +164,8 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
       if (!isCurrent()) return;
       rankStatus.replaceChildren();
       const format = angleFormat(nc);
-      const z = zone(nc);
       const jd = jdFromIso(plan.utc);
+      const z = zone(nc, jd);
       const metrics = h('table', { class: 'sf-table sfn-table' });
       metrics.appendChild(h('thead', {}, h('tr', {}, ...['Stage', 'Sights', 'North / east 1 sigma', 'Ellipse axes 1 sigma', 'Condition number', 'Largest bearing gap'].map((t) => h('th', { scope: 'col' }, t)))));
       const tb = h('tbody', {}, metricsRow('Before (what you already have)', plan.baseline));

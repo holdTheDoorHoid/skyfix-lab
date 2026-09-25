@@ -20,7 +20,9 @@
 import { h } from '../../../dom.js';
 import type { CorrectionKind, Observation, ReducedSight, Session } from '../../../types.js';
 import type { AngleFormat } from '../../state.js';
-import { isoUtc } from '../../time.js';
+import { isoUtc, jdFromIso } from '../../time.js';
+import { uncertaintyText, type ChipInfo } from '../../time/chip.js';
+import { scaleLabel } from '../../time/scale.js';
 import { fmtAngle, fmtArcmin, fmtLatitude, fmtLongitude, fmtNm, utcInputText } from '../format.js';
 import { horizonSummary, KIND_TEXT, LIMB_TEXT, STEP_TEXT } from '../text.js';
 import { sheet } from './preview.js';
@@ -32,6 +34,11 @@ export interface WorksheetInput {
   /** GHA of Aries at the sight's instant on the sight's UT1 (stars only), or null. */
   ghaAriesDeg: number | null;
   format?: AngleFormat;
+  /**
+   * The engine's time information at the sight (time-ui `timeInfoAt`), for the ±ΔT the time
+   * carries when the Earth's rotation then is uncertain by more than 30 s; null or absent: none.
+   */
+  timeInfo?: ChipInfo | null;
 }
 
 export interface WorksheetRow {
@@ -69,13 +76,16 @@ export function worksheetRows(input: WorksheetInput): WorksheetRow[] {
     rows.push({ step, plain, term, value, ...(note ? { note } : {}) });
   };
 
-  // 1. Time.
+  // 1. Time, on the app's clock: UTC in 1972-2035, UT outside (time-ui `scaleLabel`), the date
+  // in the display calendar (`utcInputText`), with the ±ΔT the time carries when it is large.
   const corrected = utcInputText(isoUtc(sight.jd_utc).replace(/\.000Z$/, 'Z'));
-  push(1, 'Watch time, as written down', 'W', `${utcInputText(obs.utc)} UTC`);
+  const scale = scaleLabel(sight.jd_utc);
+  push(1, 'Watch time, as written down', 'W', `${utcInputText(obs.utc)} ${scaleLabel(jdFromIso(obs.utc) ?? sight.jd_utc)}`);
   const clockLog = sight.clock_correction_from_log;
   const watchAdded = clockLog ? clockLog.value : session.clock.correction_s;
   push(1, 'Watch correction, added', 'WE', `${watchAdded >= 0 ? '+' : '−'}${Math.abs(watchAdded).toFixed(1)} s`, clockLog ? 'from the watch log' : 'the known correction');
-  push(1, 'Time of the sight', 'UTC', `${corrected} UTC`);
+  const u = uncertaintyText(input.timeInfo);
+  push(1, 'Time of the sight', scale, u ? `${corrected} ${scale} ${u}` : `${corrected} ${scale}`, u ? `the Earth’s rotation then is known only to ${u} (ΔT)` : undefined);
 
   // 2. Altitude.
   const kind = KIND_TEXT[obs.altitude_kind];
@@ -177,7 +187,7 @@ export function worksheetSheet(input: WorksheetInput): HTMLElement {
   );
   return sheet(
     `Sight reduction: ${sight.body}`,
-    `${session.meta.name || 'Untitled session'} · sight ${sight.id} · ${utcInputText(obs.utc)} UTC`,
+    `${session.meta.name || 'Untitled session'} · sight ${sight.id} · ${utcInputText(obs.utc)} ${scaleLabel(jdFromIso(obs.utc) ?? sight.jd_utc)}`,
     session.meta.kind,
     table,
     h('p', { class: 'sfn-sheet__note' }, 'The assumed position is the DR itself: the core computes Hc exactly, so no rounding is needed. With Pub. 229, choose the assumed latitude and longitude to make them and the LHA whole degrees, and the intercept changes with them; the line of position does not. Figures are carried to 0.01′ so the sheet’s sums close; a navigator writes 0.1′.'),

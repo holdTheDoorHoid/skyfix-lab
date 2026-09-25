@@ -1,17 +1,24 @@
 /**
  * Whether an instant is one Navigate offers sights for (CONVENTIONS 15.1): sights,
  * predicted readings and plans only in the **validated** tier, where the accuracy figures
- * hold; in the labelled tier (the deep-time pack's 2000 BC to 1549 and 2651 to AD 3000) the
+ * hold; in the labelled tier (the Deep time pack's estimates before 1550 and after 2650) the
  * view says why not, with the uncertainty of the Earth's rotation that makes it so; outside
  * the engine's coverage it says what the engine covers. OWNER: navigate2 agent.
  *
- * The tier comes from the engine's `time_info` (timescales agent); a build without it falls
- * back to the coverage span. time-ui: the shared `tierAt` helper and its chip replace
- * `sightTierAt`'s lookup here once web/src/next/time/ is on main.
+ * Built on the shared helpers of web/src/next/time/ (time-ui agent): the tier is `tierAt`
+ * (so Navigate, the time bar and the notices always agree), σ(ΔT) comes from the cached
+ * `timeInfoAt`, the date is written through the display calendar (`formatCivilDate`: Julian
+ * before 1582-10-15, years BC as the settings write them), and the closing words are the
+ * shared `sightsOnlyText`. That sentence names the validated years the engine reports; a build
+ * whose engine reports no tiers (every year it covers is validated) is told by the years it
+ * covers instead, since the shared sentence would then fall back to the contract's years.
  */
 
-import { isTimeEngine, type CoverageTier, type ExplorerEngine, type TimeInfo } from '../engine/types.js';
-import { formatDate, jdFromIso, UTC_ZONE } from '../time.js';
+import type { CoverageTier, TimeInfo } from '../engine/types.js';
+import { UTC_ZONE } from '../time.js';
+import { chipNeeded, sigmaText, timeInfoAt } from '../time/chip.js';
+import { formatCivilDate } from '../time/format.js';
+import { coverageBounds, sightsOnlyText, tierAt, wireDateText, type EngineSource } from '../time/tier.js';
 
 export interface SightTier {
   tier: CoverageTier;
@@ -21,90 +28,58 @@ export interface SightTier {
   sentence: string | null;
   /** The Earth-rotation (ΔT) standard uncertainty then, seconds, when the engine says. */
   deltaTSigmaS: number | null;
+  /** The engine's time information at the instant (for the ±ΔT chip), or null. */
+  info: TimeInfo | null;
 }
 
-function year(utc: string | undefined): string | null {
-  if (!utc) return null;
-  const jd = jdFromIso(utc);
-  if (jd !== null) return formatDate(jd, UTC_ZONE).slice(0, 4).replace(/^-/, '−');
-  const m = /^([+-]?\d{4,})-/.exec(utc);
-  return m ? m[1]!.replace(/^\+/, '') : null;
+/** A sight's date in words, in the display calendar with its name before the reform: `28 May 585 BC (Julian)`. */
+export function dateWords(jd: number): string {
+  return formatCivilDate(jd, UTC_ZONE, 'day-month-year', { calendar: true });
 }
 
-/** The validated span as the engine reports it ("1550 to 2650"), or its whole coverage. */
-export function validatedSpan(engine: ExplorerEngine): string {
-  try {
-    const c = engine.coverage();
-    const a = year(c.validated_start_utc ?? c.start_utc);
-    const b = year(c.validated_end_utc ?? c.end_utc);
-    return a && b ? `${a} to ${b}` : 'the validated span';
-  } catch {
-    return 'the validated span';
-  }
-}
-
-/** A duration for the sentence: ±12 s, ±3 min, ±1.5 h. */
-function sigmaWords(s: number): string {
-  if (s < 90) return `±${Math.round(s)} s`;
-  if (s < 5400) return `±${Math.round(s / 60)} min`;
-  return `±${(s / 3600).toFixed(1)} h`;
-}
-
-/**
- * A date in words that is right for any year: from the engine's civil date (Julian before
- * 1582-10-15, years BC as such) when it gives one, else the ISO date. time-ui: its calendar
- * formatter replaces this once web/src/next/time/ is on main.
- */
-export function dateWords(info: TimeInfo | null, jd: number): string {
-  if (!info) return formatDate(jd, UTC_ZONE);
-  const c = info.civil;
-  const month = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][c.month - 1] ?? String(c.month);
-  return `${c.day} ${month} ${c.era_year}${c.era === 'BC' ? ' BC' : ''}${c.calendar === 'julian' ? ' (Julian)' : ''}`;
+/** Arcminutes of longitude for a σ of the Earth's rotation, as words: `45.1° of longitude`, `7.5′ of longitude`. */
+function longitudeWords(sigmaS: number): string {
+  const arcmin = (sigmaS * 15.041) / 60;
+  return arcmin >= 120 ? `${(arcmin / 60).toFixed(1)}° of longitude` : `${arcmin.toFixed(1)}′ of longitude`;
 }
 
 /** The tier at `jd` and, outside the validated one, the sentence that says why no sights. */
-export function sightTierAt(engine: ExplorerEngine, jd: number): SightTier {
-  let tier: CoverageTier = 'validated';
-  let sigma: number | null = null;
-  let info: TimeInfo | null = null;
-  if (isTimeEngine(engine)) {
-    try {
-      info = engine.timeInfo(jd);
-      tier = info.tier;
-      sigma = info.delta_t_sigma_s;
-    } catch {
-      tier = 'outside';
-    }
-  } else {
-    try {
-      const c = engine.coverage();
-      const a = jdFromIso(c.start_utc);
-      const b = jdFromIso(c.end_utc);
-      tier = a !== null && b !== null && (jd < a || jd > b) ? 'outside' : 'validated';
-    } catch {
-      tier = 'validated';
-    }
-  }
-  if (tier === 'validated') return { tier, offered: true, sentence: null, deltaTSigmaS: sigma };
-  const when = dateWords(info, jd);
-  const span = validatedSpan(engine);
+export function sightTierAt(source: EngineSource, jd: number): SightTier {
+  const tier = tierAt(source, jd);
+  const info = timeInfoAt(source, jd);
+  const sigma = info && Number.isFinite(info.delta_t_sigma_s) ? info.delta_t_sigma_s : null;
+  if (tier === 'validated') return { tier, offered: true, sentence: null, deltaTSigmaS: sigma, info };
+  const when = dateWords(jd);
   if (tier === 'labelled') {
-    const arcmin = sigma !== null ? (sigma * 15.041) / 60 : 0;
-    const lonText = arcmin >= 120 ? `${(arcmin / 60).toFixed(1)}° of longitude` : `${arcmin.toFixed(1)}′ of longitude`;
-    const lon = sigma !== null ? ` (${sigmaWords(sigma)} of time, ${lonText})` : '';
+    const lon = sigma !== null ? ` (${sigmaText(sigma)} of time, ${longitudeWords(sigma)})` : '';
     return {
       tier,
       offered: false,
-      sentence:
-        `No sights for ${when}: positions then are labelled estimates, because the Earth’s rotation is known only roughly${lon}. ` +
-        `Sights, predicted readings and plans are offered only from ${span}, where the accuracy figures hold.`,
+      sentence: `No sights for ${when}: positions then are estimates, because the Earth’s rotation is known only roughly${lon}. ${sightsOnlyText(source)}`,
       deltaTSigmaS: sigma,
+      info,
     };
   }
+  const b = coverageBounds(source);
+  // The span as the shared notice writes it (time/tier.ts `tierNotice`): the wire's calendar, named.
+  const span = b ? ` (${wireDateText(b.startUtc)} to ${wireDateText(b.endUtc)}, Gregorian calendar)` : '';
   return {
     tier,
     offered: false,
-    sentence: `No sights for ${when}: this build’s almanac places the Sun, the Moon, the planets and the stars from ${span} only.`,
+    sentence: `No sights for ${when}: it is outside the years the SkyFix Lab core covers${span}, so nothing can be computed for it.${b?.tiered ? ` ${sightsOnlyText(source)}` : ''}`,
     deltaTSigmaS: sigma,
+    info,
   };
+}
+
+/**
+ * A caution for the validated tier when clock times there carry the ±ΔT chip (σ over 30 s:
+ * the far future, CONVENTIONS 15.1): the bodies' places are right, but every sight's clock
+ * time, and so every fix's longitude, inherits the Earth's rotation's uncertainty (15″ of
+ * longitude a second). Null when no chip is due.
+ */
+export function rotationCaution(t: SightTier): string | null {
+  if (!t.offered || t.deltaTSigmaS === null || !chipNeeded(t.info)) return null;
+  const lon = longitudeWords(t.deltaTSigmaS).replace(' of longitude', '');
+  return `The Earth’s rotation then is known only to ${sigmaText(t.deltaTSigmaS)} (ΔT), so every fix’s longitude is uncertain by ±${lon}. The bodies’ places are not affected.`;
 }

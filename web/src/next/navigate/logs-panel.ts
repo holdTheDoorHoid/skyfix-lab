@@ -8,7 +8,7 @@
 import { h } from '../../dom.js';
 import { isoUtc, jdNow } from '../time.js';
 import type { NavCtx } from './context.js';
-import { fmtArcmin, utcInputText } from './format.js';
+import { fmtArcmin, utcInputText, utcText } from './format.js';
 import { checkLogRow, LOG_LIMITS, logRows, withLogRow, withoutLogRow, type LogKind, type LogRow } from './logs.js';
 import { parseNumber, parseUtcInput } from './parse.js';
 import { LOG_TEXT } from './text.js';
@@ -58,8 +58,8 @@ export function logEditor(nc: NavCtx, kind: LogKind, track: (fn: () => void) => 
     const out = withLogRow(store.get().session, kind, row.value);
     store.patch({ session: out.session });
     status.textContent = out.replaced
-      ? `Replaced the entry at ${utcInputText(row.value.utc)} UTC (one value per instant).`
-      : `Logged ${fmtLogValue(kind, row.value.value)} at ${utcInputText(row.value.utc)} UTC.`;
+      ? `Replaced the entry at ${utcText(row.value.utc)} (one value per instant).`
+      : `Logged ${fmtLogValue(kind, row.value.value)} at ${utcText(row.value.utc)}.`;
     value.value = '';
     note.value = '';
   }, { icon: 'plus', variant: 'outline' });
@@ -90,7 +90,7 @@ export function logEditor(nc: NavCtx, kind: LogKind, track: (fn: () => void) => 
       store.patch({ session: withLogRow(store.get().session, kind, row).session });
       status.textContent = 'Restored.';
     }, { variant: 'outline' });
-    status.replaceChildren(`Removed the entry at ${utcInputText(row.utc)} UTC. `, undo);
+    status.replaceChildren(`Removed the entry at ${utcText(row.utc)}. `, undo);
   };
 
   const refresh = (): void => {
@@ -112,7 +112,7 @@ export function logEditor(nc: NavCtx, kind: LogKind, track: (fn: () => void) => 
             h('td', { class: 'sfn-num' }, utcInputText(r.utc)),
             h('td', { class: 'sfn-num' }, fmtLogValue(kind, r.value)),
             h('td', {}, r.note || '—'),
-            h('td', {}, btn('', () => remove(r), { icon: 'close', variant: 'ghost', ariaLabel: `Remove the entry at ${utcInputText(r.utc)} UTC` })),
+            h('td', {}, btn('', () => remove(r), { icon: 'close', variant: 'ghost', ariaLabel: `Remove the entry at ${utcText(r.utc)}` })),
           ),
         ),
       ),

@@ -6,6 +6,7 @@
 
 import type { FixResult, Observation, ReducedSight, Session } from '../../../types.js';
 import { isTimeEngine, type ExplorerEngine } from '../../engine/types.js';
+import { timeInfoAt } from '../../time/chip.js';
 import { angleFormat, kindOf, type NavCtx } from '../context.js';
 import { plottingSheet } from './plotting.js';
 import { openPrintPreview } from './preview.js';
@@ -36,7 +37,14 @@ export function ghaAriesFor(engine: ExplorerEngine, session: Session, sight: Red
 }
 
 function inputFor(nc: NavCtx, session: Session, obs: Observation, sight: ReducedSight): WorksheetInput {
-  return { session, obs, sight, ghaAriesDeg: ghaAriesFor(nc.ctx.engine, session, sight, kindOf(nc, sight.body) === 'star'), format: angleFormat(nc) };
+  return {
+    session,
+    obs,
+    sight,
+    ghaAriesDeg: ghaAriesFor(nc.ctx.engine, session, sight, kindOf(nc, sight.body) === 'star'),
+    format: angleFormat(nc),
+    timeInfo: timeInfoAt(nc.ctx, sight.jd_utc),
+  };
 }
 
 /** The reduced sights of these observations, from the live reductions (those the core could reduce). */

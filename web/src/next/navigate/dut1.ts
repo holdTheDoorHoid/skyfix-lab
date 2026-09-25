@@ -3,11 +3,11 @@
  * core builds a session's providers once, at its earliest sight, with the session's
  * `clock.dut1_s` when given and otherwise the engine's own value (`time_info`): the IERS
  * history, IERS Bulletin A's prediction, 0 assumed with ±0.9 s, or no DUT1 at all on the UT
- * scale (after 2035 and before 1972, where the clock is UT1 itself). OWNER: navigate2 agent.
+ * scale (after 2035 and before 1972, where the clock is UT1 itself). The view reads `time_info`
+ * through the time-ui agent's cached `timeInfoAt` (time/chip.ts). OWNER: navigate2 agent.
  */
 
-import type { ExplorerEngine, TimeInfo } from '../engine/types.js';
-import { isTimeEngine } from '../engine/types.js';
+import type { TimeInfo } from '../engine/types.js';
 import { jdFromIso } from '../time.js';
 import type { Session } from '../../types.js';
 
@@ -29,16 +29,6 @@ export function dut1Instant(session: Session, fallbackJd: number): { jd: number;
     if (jd !== null && (best === null || jd < best)) best = jd;
   }
   return best === null ? { jd: fallbackJd, from: 'time bar' } : { jd: best, from: 'sights' };
-}
-
-/** The engine's time information, or null when this build has none (older package). */
-export function timeInfoAt(engine: ExplorerEngine, jd: number): TimeInfo | null {
-  if (!isTimeEngine(engine)) return null;
-  try {
-    return engine.timeInfo(jd);
-  } catch {
-    return null;
-  }
 }
 
 /**

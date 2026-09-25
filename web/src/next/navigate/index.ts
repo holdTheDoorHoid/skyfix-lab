@@ -59,7 +59,7 @@ import { sightsPanel } from './sights.js';
 import { AUTOSAVE_TEXT, HONESTY, METHODS, type MethodId } from './text.js';
 import { btn, download, errorText, kids, notice, para, pickFile, uid, warningList } from './ui.js';
 import { installPassage } from './passage/page.js';
-import { sightTierAt } from './tier.js';
+import { dateWords, rotationCaution, sightTierAt } from './tier.js';
 import { seedFromExplorer, workingFor, type WorkingOptions } from './working.js';
 
 export interface NavigateOptions {
@@ -277,15 +277,33 @@ export function navigateView(options: NavigateOptions = {}): Component {
       const left = h('div', { class: 'sfn-col sfn-col--sights' });
       const right = h('div', { class: 'sfn-col sfn-col--method', role: 'tabpanel', id: panelId, tabindex: '-1' });
       const nav404 = nc.navMissing ? notice('caution', nc.navMissing) : null;
-      // navigate2: the time bar outside the validated tier: say so once, at the top (tier.ts).
+      // navigate2: the time bar outside the validated tier: say so once, at the top (tier.ts, on
+      // the shared `tierAt`). The page's own notice (time-ui) says why the date is an estimate or
+      // not covered, so this line says only what it means here; the sight form, Tonight's sights
+      // and the planner give the whole sentence where they refuse. Inside the tier, when the
+      // Earth's rotation then is uncertain by more than the ±ΔT chip's 30 s, it says what that
+      // does to a fix.
       const tierLine = h('div', { class: 'sfn-tierline', role: 'status' });
       const renderTierLine = (): void => {
-        const t = sightTierAt(ctx.engine, ctx.store.get().time.jd_utc);
+        const jd = ctx.store.get().time.jd_utc;
+        const t = sightTierAt(ctx, jd);
+        const caution = rotationCaution(t);
         tierLine.replaceChildren(
-          ...(t.offered ? [] : [notice('caution', h('strong', {}, 'The time bar is outside the validated span. '), t.sentence ?? '', ' Sights you have entered are still worked at their own times.')]),
+          ...(t.offered
+            ? caution
+              ? [notice('caution', h('strong', {}, 'Clock times here carry the Earth’s rotation’s uncertainty. '), caution)]
+              : []
+            : [
+                notice(
+                  'caution',
+                  h('strong', {}, 'The time bar is outside the validated span. '),
+                  `Navigate offers no sights, predicted readings or plans for ${dateWords(jd)}; sights you have entered are still worked at their own times.`,
+                ),
+              ]),
         );
       };
-      d.add(ctx.store.select((s) => Math.floor(s.time.jd_utc * 24), renderTierLine));
+      // Hourly, and again when the calendar or the way years are written changes (the sentence writes a date).
+      d.add(ctx.store.select((s) => `${Math.floor(s.time.jd_utc * 24)}|${s.settings.calendar}|${s.settings.yearStyle}`, renderTierLine));
       renderTierLine();
       const autosave = h('div', { class: 'sfn-autosave' });
       root.append(

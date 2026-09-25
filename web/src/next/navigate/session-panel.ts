@@ -10,9 +10,11 @@ import type { AssumedPositionRole, HorizonName, Session, SessionKind } from '../
 import { horizonName } from '../../types.js';
 import { disposer, type Mounted } from '../component.js';
 import { badge } from '../theme/primitives.js';
-import { formatDate, UTC_ZONE } from '../time.js';
+import { UTC_ZONE } from '../time.js';
+import { setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../time/chip.js';
+import { formatCivilDate } from '../time/format.js';
 import { angleFormat, type NavCtx } from './context.js';
-import { dut1Instant, dut1Line, timeInfoAt } from './dut1.js';
+import { dut1Instant, dut1Line } from './dut1.js';
 import { fmtArcmin, fmtPosition, positionInputText } from './format.js';
 import { logSummary } from './logs.js';
 import { logEditor } from './logs-panel.js';
@@ -140,6 +142,11 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
   // navigate2: blank = automatic, and the field says what automatic means for these sights
   // (the IERS history, a prediction, or 0 assumed with its ±0.9 s), from the engine.
   const dut1Auto = h('p', { class: 'sfn-note sfn-dut1-auto', 'aria-live': 'polite' });
+  // The ±ΔT chip beside the sentence's date (time-ui): shown when the Earth's rotation then is
+  // uncertain by more than 30 s, which UT1 − UTC cannot help with.
+  const dut1Words = document.createTextNode('');
+  const dut1Chip = uncertaintyChip(null);
+  dut1Auto.append(dut1Words, ' ', dut1Chip);
 
   // navigate2: the index-error log and the watch log (CONVENTIONS section 10).
   const indexLog = logEditor(nc, 'index', d.add);
@@ -223,13 +230,14 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
   function renderDut1(): void {
     const s = session();
     const at = dut1Instant(s, nc.ctx.store.get().time.jd_utc);
-    const info = timeInfoAt(nc.ctx.engine, at.jd);
-    const when = `${formatDate(at.jd, UTC_ZONE)}${at.from === 'sights' ? ' (the first sight)' : ' (the time bar)'}`;
+    const info = timeInfoAt(nc.ctx, at.jd);
+    // The date through the display calendar (Julian before 1582-10-15, years as the settings write them).
+    const when = `${formatCivilDate(at.jd, UTC_ZONE, 'day-month-year', { calendar: true })}${at.from === 'sights' ? ' (the first sight)' : ' (the time bar)'}`;
     const line = dut1Line(typeof s.clock.dut1_s === 'number' ? s.clock.dut1_s : null, info, when);
     dut1.parts.setHelp(null);
-    dut1Auto.textContent = line.text;
+    if (dut1Words.data !== line.text) dut1Words.data = line.text;
+    setUncertaintyChip(dut1Chip, info);
     dut1Auto.classList.toggle('sfn-dut1-auto--caution', line.level === 'caution');
-    // time-ui: a ±ΔT chip belongs beside a UT-scale date here once web/src/next/time/ lands.
   }
 
   d.add(onChange(store, (w) => w.session, render));
@@ -237,6 +245,7 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
   d.add(onChange(nc.ctx.store, (s) => s.settings.angleFormat, render));
   // With no sights, "automatic" is read at the time bar's date: once a day is enough.
   d.add(onChange(nc.ctx.store, (s) => Math.floor(s.time.jd_utc + 0.5), renderDut1));
+  d.add(onChange(nc.ctx.store, (s) => `${s.settings.calendar}|${s.settings.yearStyle}`, renderDut1));
   render();
   if (!session().observer.assumed_position) details.open = true;
   body.append(para('Nothing here leaves this browser. The assumed position is used as the method says above, and never written into the address bar.', 'sfn-note sfn-muted'));

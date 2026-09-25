@@ -11,7 +11,7 @@ import { offeredForSights } from '../engine/bodies.js';
 import type { SightBodyInfo } from '../engine/types.js';
 import type { NavTools } from '../engine/wasm-nav.js';
 import type { MapService } from '../map/overlays.js';
-import { displayZone, type AngleFormat } from '../state.js';
+import { displayZone, displayZoneAt, type AngleFormat } from '../state.js';
 import type { Store } from '../state.js';
 import type { Zone } from '../time.js';
 import type { Reductions } from './reductions.js';
@@ -39,8 +39,12 @@ export function angleFormat(nc: NavCtx): AngleFormat {
   return nc.ctx.store.get().settings.angleFormat;
 }
 
-export function zone(nc: NavCtx): Zone {
-  return displayZone(nc.ctx.store.get());
+export function zone(nc: NavCtx, jd?: number | null): Zone {
+  // navigate2 (time-ui, CONVENTIONS 15.3): with an instant, the zone of that instant, so a
+  // sight's time is shown in the zone of its own date: before 1850 a zone that follows the
+  // place is local mean time at its longitude, whatever the time bar shows.
+  const s = nc.ctx.store.get();
+  return typeof jd === 'number' && Number.isFinite(jd) ? displayZoneAt(s, jd) : displayZone(s);
 }
 
 /** The bodies the view offers for sights (EXPLORER_PLAN 3.3: validated or labelled). */

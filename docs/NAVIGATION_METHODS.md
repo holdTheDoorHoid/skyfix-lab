@@ -1128,7 +1128,23 @@ arithmetic of its own it is listed here with its test.*
   where a typed value would not apply.
 - **The tier.** A sight whose time is outside the validated tier is not added; the form says
   why (outside the engine's coverage, or in the labelled band with its ΔT uncertainty in time
-  and longitude), and the view says so when the time bar is there.
+  and longitude), and the view says so when the time bar is there. The tier is the time-ui
+  agent's `tierAt` (so Navigate, the time bar and the page's notice agree) and the closing
+  words its `sightsOnlyText`; an engine that reports no tiers (every year it covers is
+  validated, as in the build of 2026-09-25) is described by the years it covers instead.
+  Tonight's sights, the planner and the Compass tab's body bearings are gated the same way.
+  Inside the validated tier, when σ(ΔT) exceeds 30 s (the far future), the ±ΔT chip stands
+  beside the sight's time and the view says what it does to a fix: every longitude uncertain
+  by 15″ a second of it.
+- **Dates and the clock's word.** A time is typed and shown in the display calendar
+  (time-ui's civil helpers): before 1582-10-15 it is Julian in the default calendar (the ten
+  dates the reform skipped are refused, with the reason) and proleptic Gregorian in the ISO
+  setting, and it is stored on the wire's proleptic Gregorian calendar, so Julian 1550-03-01
+  12:00 is `1550-03-11T12:00:00Z` and reads back as typed. Years may have any width and a
+  sign (`-0584` is 585 BC). Times are labelled with the clock's own word, UTC in 1972-2035
+  and UT outside (`scaleLabel`), in the sight list, the workings, the logs and the worksheet,
+  and each local time is in the zone of its own date, not the time bar's: before 1850 a zone
+  that follows the place is local mean time at its longitude.
 
 ### 14.4 Printables and the star finder (section 11)
 

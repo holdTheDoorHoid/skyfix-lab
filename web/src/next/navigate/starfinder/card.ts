@@ -12,7 +12,9 @@
 import { h } from '../../../dom.js';
 import { disposer, watch, type Mounted } from '../../component.js';
 import { isSailingsEngine, type StarFinderGeometry } from '../../engine/types.js';
-import { formatDate, UTC_ZONE } from '../../time.js';
+import { UTC_ZONE } from '../../time.js';
+import { calendarMode } from '../../time/civil.js';
+import { formatCivilDate, yearStyle } from '../../time/format.js';
 import { angleFormat, zone, type NavCtx } from '../context.js';
 import { fmtInstant, fmtLatitude } from '../format.js';
 import { openPrintPreview, sheet } from '../print/preview.js';
@@ -99,10 +101,12 @@ export function starFinderCard(nc: NavCtx): Mounted & { el: HTMLElement } {
     const day = Math.round(jd); // noon UT of the day: the stars' apparent places change far less in a day than a drawing shows
     // The engine snaps a latitude to its 10° band's template (5° to 85°, signed): one key per band.
     const band = (w.lat >= 0 ? 1 : -1) * Math.min(85, Math.floor(Math.abs(w.lat) / 10) * 10 + 5);
-    const key = `${band}|${day}`;
+    // The calendar and the way years are written are in the key: the date text follows them.
+    const key = `${band}|${day}|${calendarMode()}|${yearStyle()}`;
     if (geom && geom.key === key) return;
     let g: StarFinderGeometry;
-    let dateText = formatDate(day, UTC_ZONE);
+    // The date through the display calendar (time-ui): Julian before 1582-10-15, named so.
+    let dateText = formatCivilDate(day, UTC_ZONE, 'day-month-year', { calendar: true });
     let placesNote = `Star places of ${dateText} (apparent).`;
     try {
       g = engine.starFinderGeometry(band, day);
@@ -139,7 +143,7 @@ export function starFinderCard(nc: NavCtx): Mounted & { el: HTMLElement } {
     lha = lhaAries(engine.sidereal(jd).gha_aries_deg, w.lon);
     manual.value = String(lha);
     geom.setLha(lha);
-    say(`at ${fmtInstant(jd, zone(nc))}`);
+    say(`at ${fmtInstant(jd, zone(nc, jd))}`);
   };
 
   manual.addEventListener('input', () => {

@@ -327,3 +327,25 @@
 .sfn-legs-table td.sfn-num {
   white-space: nowrap;
 }
+
+/* A field's label with something beside it (the ±ΔT chip beside a time, time-ui): the chip
+   sits outside the label, so it is not read as part of the control's name. */
+.sfn-field__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sfn-field__head > label {
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.sfn-sight__time .sf-dt-chip,
+.sfn-dut1-auto .sf-dt-chip,
+.sfn-note .sf-dt-chip {
+  vertical-align: 1px;
+}

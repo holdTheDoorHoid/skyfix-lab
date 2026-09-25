@@ -15,7 +15,7 @@
 import { h, s } from '../../../dom.js';
 import type { LatLon, ReducedSight, Session } from '../../../types.js';
 import type { AngleFormat } from '../../state.js';
-import { fmtBearing, fmtLatitude, fmtLongitude, fmtNm, fmtPosition, utcInputText } from '../format.js';
+import { fmtBearing, fmtLatitude, fmtLongitude, fmtNm, fmtPosition, utcTimeText } from '../format.js';
 import { sheet } from './preview.js';
 
 const D = Math.PI / 180;
@@ -195,7 +195,7 @@ export function plottingSvg(input: PlottingInput): SVGSVGElement {
     const away = fix ?? { x: 0, y: 0 };
     const lp = Math.hypot(ends[0]!.x - away.x, ends[0]!.y - away.y) >= Math.hypot(ends[1]!.x - away.x, ends[1]!.y - away.y) ? ends[0]! : ends[1]!;
     const label = s('text', { x: n2(X(lp)), y: n2(Y(lp) - 4), class: 'sfn-ps__label', 'text-anchor': 'middle' });
-    label.textContent = `${l.body} ${utcInputText(l.utc).slice(11, 16)}`;
+    label.textContent = `${l.body} ${utcTimeText(l.utc).slice(0, 5)}`;
     layer.append(label);
   });
   svg.append(layer);
@@ -239,7 +239,7 @@ export function plottingSheet(input: PlottingInput): HTMLElement {
       'tr',
       {},
       h('th', { scope: 'row' }, l.body),
-      h('td', {}, `${utcInputText(l.utc).slice(11)} UTC`),
+      h('td', {}, utcTimeText(l.utc)),
       h('td', {}, fmtBearing(l.znDeg)),
       h('td', {}, `${fmtNm(Math.abs(l.aNm), 1)} ${l.aNm >= 0 ? 'Toward' : 'Away'}`),
     ),

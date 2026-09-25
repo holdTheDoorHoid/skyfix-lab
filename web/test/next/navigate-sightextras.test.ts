@@ -7,7 +7,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { ReducedSight, Session } from '../../src/types.js';
 import { MockEngine } from '../../src/next/engine/mock.js';
 import type { ExplorerEngine, TimeInfo } from '../../src/next/engine/types.js';
@@ -17,7 +17,10 @@ import { defaultState } from '../../src/next/state.js';
 import { logRows, logValueAt, watchCorrectionAt } from '../../src/next/navigate/logs.js';
 import { defaultWorking, type Working } from '../../src/next/navigate/model.js';
 import { starIdPlace, starIdRequestFor } from '../../src/next/navigate/starid.js';
-import { dateWords, sightTierAt } from '../../src/next/navigate/tier.js';
+import { dateWords, rotationCaution, sightTierAt } from '../../src/next/navigate/tier.js';
+import { parseUtcInput } from '../../src/next/navigate/parse.js';
+import { fmtUtcClock, utcInputText, utcText, utcTimeText } from '../../src/next/navigate/format.js';
+import { jdnFromCivil, setCalendarMode } from '../../src/next/time/civil.js';
 
 const LOGGED: Session = {
   schema: 'skyfix.session/1',
@@ -151,21 +154,92 @@ describe('the tier gate: sights only in the validated span', () => {
       },
     }) as unknown as ExplorerEngine;
 
-  it('offers sights in the validated tier and says why not in the labelled one, with ΔT', () => {
-    expect(sightTierAt(fake(info('validated', 0.1)), 0)).toMatchObject({ offered: true, sentence: null });
-    const t = sightTierAt(fake(info('labelled', 3 * 3600)), 0);
+  // Instants on the app's clock: 585 BC May 28 (Julian) at noon, and 2026-09-24.
+  const BC585 = jdnFromCivil('julian', -584, 5, 28);
+  const Y2026 = 2461307.5;
+
+  it('offers sights in the validated tier and says why not in the labelled one, with ΔT (time-ui tierAt, sightsOnlyText)', () => {
+    expect(sightTierAt(fake(info('validated', 0.1)), Y2026)).toMatchObject({ tier: 'validated', offered: true, sentence: null });
+    const t = sightTierAt(fake(info('labelled', 3 * 3600)), BC585);
+    expect(t.tier).toBe('labelled');
     expect(t.offered).toBe(false);
     expect(t.sentence).toBe(
-      'No sights for 28 May 585 BC (Julian): positions then are labelled estimates, because the Earth’s rotation is known only roughly (±3.0 h of time, 45.1° of longitude). ' +
-        'Sights, predicted readings and plans are offered only from 1550 to 2650, where the accuracy figures hold.',
+      'No sights for 28 May 585 BC (Julian): positions then are estimates, because the Earth’s rotation is known only roughly (±3 h of time, 45.1° of longitude). ' +
+        'Sights are offered only between 1550 and 2650, the years whose positions are checked against JPL’s DE440 ephemeris.',
     );
-    expect(dateWords(info('labelled', 1, { calendar: 'gregorian', year: 2026, month: 9, day: 24, era_year: 2026, era: 'AD' }), 0)).toBe('24 Sep 2026');
+    // The chip's information travels with the answer.
+    expect(t.info?.delta_t_sigma_s).toBe(3 * 3600);
+    expect(dateWords(Y2026)).toBe('24 September 2026');
   });
 
-  it('with the mock engine: outside its coverage, no sights', () => {
-    const t = sightTierAt(new MockEngine(), 2415020.5); // 1900
+  it('outside the engine’s coverage: the years it covers, and the shared sentence when it reports tiers', () => {
+    const t = sightTierAt(fake(info('outside', 0)), jdnFromCivil('julian', -2500, 1, 1));
+    expect(t.tier).toBe('outside');
+    expect(t.sentence).toBe(
+      'No sights for 1 January 2501 BC (Julian): it is outside the years the SkyFix Lab core covers (1 January 2001 BC to 31 December 3000, Gregorian calendar), so nothing can be computed for it. ' +
+        'Sights are offered only between 1550 and 2650, the years whose positions are checked against JPL’s DE440 ephemeris.',
+    );
+  });
+
+  it('with the mock engine (no tiers reported): outside its coverage, no sights, and its own years named', () => {
+    const t = sightTierAt(new MockEngine(), 2415020.5); // 1900-01-01
     expect(t.offered).toBe(false);
-    expect(t.sentence).toMatch(/No sights for/);
+    expect(t.sentence).toBe('No sights for 1 January 1900: it is outside the years the SkyFix Lab core covers (1 January 1990 to 31 December 2060, Gregorian calendar), so nothing can be computed for it.');
+  });
+
+  it('far-future sights inside the validated tier carry the Earth’s rotation’s uncertainty', () => {
+    const quiet = sightTierAt(fake(info('validated', 12)), Y2026);
+    expect(rotationCaution(quiet)).toBeNull();
+    const loud = sightTierAt(fake(info('validated', 120)), Y2026);
+    expect(loud.offered).toBe(true);
+    expect(rotationCaution(loud)).toBe('The Earth’s rotation then is known only to ±2 min (ΔT), so every fix’s longitude is uncertain by ±30.1′. The bodies’ places are not affected.');
+  });
+});
+
+describe('dates typed in the display calendar (time-ui civil helpers)', () => {
+  afterEach(() => setCalendarMode('historical'));
+
+  it('reads a date before 1582-10-15 as Julian and writes it back the same way', () => {
+    const r = parseUtcInput('1550-03-01 12:00:00');
+    expect(r).toEqual({ ok: true, value: '1550-03-11T12:00:00Z' });
+    expect(utcInputText('1550-03-11T12:00:00Z')).toBe('1550-03-01 12:00:00');
+    // The reform: Julian 4 October 1582 is followed by Gregorian 15 October.
+    expect(parseUtcInput('1582-10-04 12:00:00')).toEqual({ ok: true, value: '1582-10-14T12:00:00Z' });
+    expect(parseUtcInput('1582-10-15 12:00:00')).toEqual({ ok: true, value: '1582-10-15T12:00:00Z' });
+    const gap = parseUtcInput('1582-10-10 12:00:00');
+    expect(gap.ok).toBe(false);
+    if (!gap.ok) expect(gap.error).toMatch(/ten dates the 1582 reform skipped/);
+    // Julian 1500 is a leap year; Gregorian 1500 is not.
+    expect(parseUtcInput('1500-02-29 00:00:00').ok).toBe(true);
+    // Modern dates are unchanged.
+    expect(parseUtcInput('2026-10-01 01:30:05')).toEqual({ ok: true, value: '2026-10-01T01:30:05Z' });
+  });
+
+  it('takes years of any width, BC as ISO 8601 writes them, and round-trips them', () => {
+    expect(parseUtcInput('-0584-05-28 12:00:00')).toEqual({ ok: true, value: '-0584-05-22T12:00:00Z' });
+    expect(parseUtcInput('−584-05-28 12:00:00')).toEqual({ ok: true, value: '-0584-05-22T12:00:00Z' });
+    expect(parseUtcInput('79-08-24 12:00:00')).toEqual({ ok: true, value: '0079-08-22T12:00:00Z' });
+    expect(parseUtcInput('+12345-01-01 00:00:00').ok).toBe(true);
+    expect(parseUtcInput('123456-01-01 00:00:00').ok).toBe(false);
+    for (const utc of ['-0584-05-22T12:00:00Z', '0079-08-22T12:00:00Z', '1066-10-20T09:00:00Z', '1582-10-14T00:00:00Z', '1582-10-15T00:00:00Z', '2026-10-01T01:30:05.5Z']) {
+      const back = parseUtcInput(utcInputText(utc));
+      expect(back.ok && back.value).toBe(utc);
+    }
+    expect(utcInputText('-0584-05-22T12:00:00Z')).toBe('-0584-05-28 12:00:00');
+  });
+
+  it('in the ISO setting reads every date as proleptic Gregorian', () => {
+    setCalendarMode('iso');
+    expect(parseUtcInput('1550-03-01 12:00:00')).toEqual({ ok: true, value: '1550-03-01T12:00:00Z' });
+    expect(parseUtcInput('1582-10-10 12:00:00').ok).toBe(true);
+    expect(utcInputText('1550-03-11T12:00:00Z')).toBe('1550-03-11 12:00:00');
+  });
+
+  it('writes the clock’s word: UTC in 1972-2035, UT outside', () => {
+    expect(utcText('2026-10-01T01:30:05Z')).toBe('2026-10-01 01:30:05 UTC');
+    expect(utcText('2040-01-01T00:00:00Z')).toBe('2040-01-01 00:00:00 UT');
+    expect(utcTimeText('1950-06-01T12:00:00Z')).toBe('12:00:00 UT');
+    expect(fmtUtcClock(2466155.0)).toBe('12:00:00 UT'); // 2040-01-01
   });
 });
 

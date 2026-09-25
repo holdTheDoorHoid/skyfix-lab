@@ -20,7 +20,10 @@ import type { SightBodyInfo, SightLimb } from '../engine/types.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { segmented, type Segmented } from '../theme/primitives.js';
-import { formatDate, isoUtc, jdFromIso, jdNow, zoneShortName } from '../time.js';
+import { isoUtc, jdFromIso, jdNow, wallClock, zoneShortName } from '../time.js';
+import { setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../time/chip.js';
+import { calendarName, calendarTag, formatCivilDate } from '../time/format.js';
+import { scaleLabel } from '../time/scale.js';
 import { angleFormat, hasDisc, kindOf, zone, type NavCtx } from './context.js';
 import {
   angleInputText,
@@ -36,11 +39,18 @@ import { parseAngle, parseNumber, parseUtcInput } from './parse.js';
 import { shoreDistanceField } from './shore.js';
 import { starIdPanel } from './starid.js';
 import { DEFAULT_SHORE_NM, horizonFromSelect, horizonOptions, horizonText, KIND_TEXT, LIMB_TEXT } from './text.js';
-import { sightTierAt } from './tier.js';
+import { rotationCaution, sightTierAt } from './tier.js';
 import { btn, card, checkbox, debounce, errorText, field, notice, para, selectInput, textInput, uid, warningList, type FieldParts } from './ui.js';
 import { sightWorkings } from './workings.js';
 
 const OTHER = '__other__';
+
+/** The clock part of a sight's time as the field shows it: `01:30:05` (any year's width). */
+function clockPart(utc: string): string {
+  const text = utcInputText(utc);
+  const i = text.lastIndexOf(' ');
+  return i >= 0 ? text.slice(i + 1) : text;
+}
 
 function bodyOptions(bodies: readonly SightBodyInfo[]) {
   const group = (k: SightBodyInfo['kind']) => (k === 'sun' || k === 'moon' ? 'Sun and Moon' : k === 'planet' ? 'Planets' : 'Stars (A–Z)');
@@ -114,7 +124,10 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   limbSeg.el.setAttribute('aria-labelledby', limbWrap.firstElementChild!.id);
 
   const timeInput = textInput({ placeholder: 'yyyy-mm-dd hh:mm:ss', inputmode: 'numeric', size: 20 });
-  const timeField = field('Time of the sight (UTC)', timeInput, { help: null });
+  // navigate2 (time-ui helpers): the ±ΔT chip beside the time, shown when the Earth's rotation
+  // then is uncertain by more than 30 s; the label's clock word follows the typed time.
+  const timeChip = uncertaintyChip(null);
+  const timeField = field('Time of the sight (UTC)', timeInput, { help: null, aside: timeChip });
   const nowBtn = btn('Now', () => setTime(isoUtc(jdNow())), { tip: 'The time on this computer’s clock, now', variant: 'outline' });
   const barBtn = btn('Time bar', () => setTime(isoUtc(nc.ctx.store.get().time.jd_utc)), { tip: 'The time shown on the explorer’s time bar', variant: 'ghost' });
   const timeRow = h('div', { class: 'sfn-entry__time' }, timeField.el, h('div', { class: 'sfn-entry__time-buttons' }, nowBtn, barBtn));
@@ -263,13 +276,20 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     updateTimeHelp();
   }
 
-  /** navigate2: no sight outside the validated tier; the form says why (tier.ts). */
+  /**
+   * navigate2: no sight outside the validated tier, and the form says why (tier.ts, on the
+   * shared `tierAt` and `sightsOnlyText`); inside it, a caution when the Earth's rotation then
+   * is uncertain by more than the chip's 30 s. The chip beside the time and the label's clock
+   * word (UTC in 1972-2035, UT outside: `scaleLabel`) follow the typed time.
+   */
   function updateTier(jd: number | null): void {
-    const t0 = jd === null ? null : sightTierAt(nc.ctx.engine, jd);
+    const t0 = jd === null ? null : sightTierAt(nc.ctx, jd);
     const blocked = t0 !== null && !t0.offered;
-    tierBox.replaceChildren(...(blocked ? [notice('caution', t0!.sentence ?? 'No sights for this date.')] : []));
+    const caution = t0 ? rotationCaution(t0) : null;
+    tierBox.replaceChildren(...(blocked ? [notice('caution', t0!.sentence ?? 'No sights for this date.')] : caution ? [notice('caution', caution)] : []));
     submit.disabled = blocked;
-    // time-ui: the labelled-tier chip (±ΔT) belongs beside the time here once web/src/next/time/ lands.
+    setUncertaintyChip(timeChip, t0?.info ?? null);
+    timeField.setLabel(`Time of the sight (${jd === null ? 'UTC' : scaleLabel(jd)})`);
   }
 
   function updateTimeHelp(): void {
@@ -281,10 +301,13 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     }
     const jd = jdFromIso(parsed.value)!;
     updateTier(jd);
-    const z = zone(nc);
+    const z = zone(nc, jd);
     // A time typed without seconds is taken, not refused, and the help says what that
     // assumed (parse.ts, SECONDS_OMITTED_WARNING).
-    timeField.setHelp(`= ${fmtZoneClock(jd, z)} on ${formatDate(jd, z)} (${z.kind === 'iana' ? z.zone : z.name})${parsed.warning ? `. ${parsed.warning}` : ''}`);
+    // The date in the display calendar (Julian before 1582-10-15), named when it is not the Gregorian.
+    const wall = wallClock(jd, z);
+    const calendar = calendarTag(wall) ? `, ${calendarName(wall)}` : '';
+    timeField.setHelp(`= ${fmtZoneClock(jd, z)} on ${formatCivilDate(jd, z, 'medium')}${z.kind === 'iana' ? ` (${z.zone})` : ''}${calendar}${parsed.warning ? `. ${parsed.warning}` : ''}`);
   }
 
   function hsRule(): { min: number; max: number } {
@@ -558,7 +581,6 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     planned.replaceChildren();
     planned.hidden = items.length === 0;
     if (!items.length) return;
-    const z = zone(nc);
     planned.append(
       h('h3', { class: 'sfn-planned__title' }, 'To shoot ', h('span', { class: 'sfn-muted' }, `· ${items.length} from the planner (predictions, not sights)`)),
       h(
@@ -575,7 +597,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
               { class: 'sfn-planned__text' },
               h('strong', {}, p.body),
               p.kind === 'moon' || p.kind === 'sun' ? ` (${LIMB_TEXT[p.limb].toLowerCase()})` : '',
-              h('span', { class: 'sfn-muted' }, ` · expect Hs ≈ ${fmtAngle(p.hs_deg, fmt())}, bearing ${fmtBearing(p.zn_deg)}${jd ? ` at ${fmtZoneClock(jd, z)}` : ''}`),
+              h('span', { class: 'sfn-muted' }, ` · expect Hs ≈ ${fmtAngle(p.hs_deg, fmt())}, bearing ${fmtBearing(p.zn_deg)}${jd ? ` at ${fmtZoneClock(jd, zone(nc, jd))}` : ''}`),
             ),
             btn('Enter reading', () => enterPlanned(p), { variant: 'outline', tip: `Open the form for ${p.body}` }),
             btn('', () => store.patch({ planned: store.get().planned.filter((x) => x !== p) }), {
@@ -609,7 +631,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     const entry: ReduceEntry | undefined = red.session === w.session ? red.byId.get(o.id) : undefined;
     const kind = kindOf(nc, o.body);
     const jd = jdFromIso(o.utc);
-    const z = zone(nc);
+    const z = zone(nc, jd);
     const f = fmt();
     const used = !w.excluded.includes(o.id);
     const useBox = h('input', { type: 'checkbox', checked: used, 'aria-label': `Use ${o.id} (${o.body}) in the fix` });
@@ -667,7 +689,15 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
           h('strong', {}, o.body || '(no body)'),
           h('span', { class: 'sfn-sight__id' }, o.id),
           jd
-            ? h('span', { class: 'sfn-sight__time' }, h('span', { class: 'sfn-num' }, `${utcInputText(o.utc).slice(11)} UTC`), h('span', { class: 'sfn-muted' }, ` ${fmtZoneClock(jd, z)}`))
+            ? h(
+                'span',
+                { class: 'sfn-sight__time' },
+                h('span', { class: 'sfn-num' }, `${clockPart(o.utc)} ${scaleLabel(jd)}`),
+                h('span', { class: 'sfn-muted' }, ` ${fmtZoneClock(jd, z)}`),
+                // navigate2: the ±ΔT chip (hidden unless the Earth's rotation then is uncertain by over 30 s).
+                ' ',
+                uncertaintyChip(timeInfoAt(nc.ctx, jd)),
+              )
             : h('span', { class: 'sfn-sight__rejected' }, o.utc || 'no time'),
         ),
         h('span', { class: 'sfn-sight__actions' }, toggle, edit, del),
@@ -723,7 +753,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
           'span',
           { class: 'sfn-sight__body' },
           h('strong', {}, `${first.body} · a run of ${run.length}`),
-          h('span', { class: 'sfn-sight__time sfn-num' }, `${utcInputText(first.utc).slice(11)}–${utcInputText(last.utc).slice(11)} UTC`),
+          h('span', { class: 'sfn-sight__time sfn-num' }, `${clockPart(first.utc)}–${clockPart(last.utc)} ${scaleLabel(jdFromIso(first.utc) ?? 0)}`),
         ),
         h('span', { class: 'sfn-sight__actions' }, toggle),
       ),
@@ -743,7 +773,6 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     const sights = sortedByTime(w.session.observations);
     count.textContent = ` ${sights.length}`;
     empty.hidden = sights.length > 0;
-    const z = zone(nc);
     const items: HTMLElement[] = [];
     let lastDate = '';
     for (let i = 0; i < sights.length; ) {
@@ -751,7 +780,8 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
       let j = i + 1;
       while (j < sights.length && sights[j]!.body.trim().toLowerCase() === o.body.trim().toLowerCase()) j += 1;
       const jd = jdFromIso(o.utc);
-      const date = jd !== null ? formatDate(jd, z) : '';
+      const z = zone(nc, jd);
+      const date = jd !== null ? formatCivilDate(jd, z, 'medium', { calendar: true }) : '';
       if (date && date !== lastDate) {
         items.push(h('li', { class: 'sfn-sight-date', 'aria-hidden': 'true' }, `${date} (${z.kind === 'iana' ? zoneShortName(jd!, z) : z.name})`));
         lastDate = date;
@@ -786,11 +816,12 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   d.add(store.select((w) => w.planned, renderPlanned));
   d.add(store.select((w) => [w.session.instrument, w.session.observer, w.mode] as const, syncInstrument, { equals: (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] }));
   d.add(store.select((w) => w.session, () => preview.run()));
-  d.add(nc.ctx.store.select((s) => [s.settings.angleFormat, s.settings.timeDisplay, s.observer.zone] as const, () => {
+  // The calendar and the way years are written (time-ui settings) change the dates shown too.
+  d.add(nc.ctx.store.select((s) => [s.settings.angleFormat, s.settings.timeDisplay, s.observer.zone, s.settings.calendar, s.settings.yearStyle] as const, () => {
     renderList();
     renderPlanned(store.get().planned);
     updateTimeHelp();
-  }, { equals: (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] }));
+  }, { equals: (a, b) => a.every((v, i) => v === b[i]) }));
 
   syncInstrument();
   renderPlanned(store.get().planned);

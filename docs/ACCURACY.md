@@ -2539,6 +2539,7 @@ places where the interface does arithmetic of its own, each with its test in
 | The deviation curve (A–E by least squares) recovers a curve exactly, and on a swing gives the textbook's A, D, E (and B, C when the swing follows the curve) | 1e-9° | `navigate-compass.test.ts` |
 | The Compass tab's request reproduces the documented Philadelphia bearing | compass error −14.448°, variation −11.805°, deviation −2.642°, the engine's sentence | `navigate-compass.test.ts`, "against the built core" |
 | The shoreline horizon's sentence: Bowditch Table 14 at 100 ft and 0.2 NM | 282.3′ (as printed) | `navigate-compass.test.ts`, "the shore horizon’s sentence" |
+| A sight's time typed in the display calendar lands on the wire's proleptic Gregorian date (time-ui's civil helpers): Julian 1550-03-01 is 1550-03-11, Julian 1582-10-04 is 1582-10-14, 585 BC May 28 is `-0584-05-22`, AD 79 Aug 24 is `0079-08-22`; the ten skipped dates are refused; typed text and the stored time round-trip | exact (whole days, the clock time as typed) | `navigate-sightextras.test.ts`, "dates typed in the display calendar" |
 
 **Labelled, not validated:** the plotting sheet is a plane (as on paper; over its span the
 sphere departs by far less than a pencil line), and its lines are at their own times; the

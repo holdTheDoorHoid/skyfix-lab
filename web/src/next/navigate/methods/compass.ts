@@ -22,6 +22,7 @@ import {
 } from '../../engine/types.js';
 import { segmented } from '../../theme/primitives.js';
 import { isoUtc, jdFromIso, jdNow } from '../../time.js';
+import { uncertaintyChip } from '../../time/chip.js';
 import { compassPlace, compassRequest, compassUtc } from '../compass/request.js';
 import { deviationTableCard } from '../compass/table.js';
 import { eastWest, parseEastWest } from '../compass/deviation.js';
@@ -29,6 +30,7 @@ import { angleFormat, zone, type NavCtx } from '../context.js';
 import { fmtAngle, fmtInstant, fmtPosition, fmtSeconds } from '../format.js';
 import type { CompassForm, DeviationEntry, Working } from '../model.js';
 import { parseOptionalNumber, type Parsed } from '../parse.js';
+import { sightTierAt } from '../tier.js';
 import { btn, errorText, facts, field, kids, notice, para, parsedField, selectInput } from '../ui.js';
 import { autoRun, methodFrame, optionalUtcField } from './common.js';
 
@@ -257,6 +259,16 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
     h('div', { class: 'sfn-field sfn-compass__limb' }, h('span', { class: 'sfn-label' }, 'On the horizon ', h('span', { class: 'sfn-term' }, '· limb')), limb.el),
     field('Rising or setting', event).el,
     para('Height of eye, pressure and temperature come from the session settings (dip and refraction at the horizon).', 'sfn-note sfn-muted'),
+    // The charts2 agent's Sun bearings chart, opened on demand (the Charts module loads then).
+    h(
+      'div',
+      { class: 'sfn-export' },
+      btn('The Sun’s rising and setting bearings through the year', () => void import('../../charts/index.js').then((m) => m.showCharts(nc.ctx.store, 'sun', 'bearings')), {
+        variant: 'ghost',
+        icon: 'charts',
+        tip: 'Charts → Sun → Bearings, for the place on the map',
+      }),
+    ),
   );
 
   const advanced = h(
@@ -337,9 +349,15 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
         const when = compassUtc(w.compass, explorer);
         const jd = jdFromIso(when.utc) ?? explorer.time.jd_utc;
         const format = angleFormat(nc);
-        const z = zone(nc);
-        whereLine.textContent = `At ${fmtPosition(place, format)} (${place.label}), ${when.fromForm ? 'at the time you gave' : 'at the time on the time bar'}: ${fmtInstant(jd, z)}.`;
-        // time-ui: a ±ΔT chip belongs beside this time when it is outside the validated band.
+        const z = zone(nc, jd);
+        // The ±ΔT chip beside the time (time-ui): shown when the Earth's rotation then is uncertain
+        // by more than 30 s, and always outside the validated tier.
+        const tier = sightTierAt(nc.ctx, jd);
+        whereLine.replaceChildren(
+          `At ${fmtPosition(place, format)} (${place.label}), ${when.fromForm ? 'at the time you gave' : 'at the time on the time bar'}: ${fmtInstant(jd, z)}.`,
+          ' ',
+          uncertaintyChip(tier.info),
+        );
 
         // Variation at the place and date.
         let mf: MagneticField | null = null;
@@ -350,6 +368,15 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
           variationHost.replaceChildren(h('h3', {}, 'Magnetic variation here'), notice('error', errorText(error)));
         }
         if (!isCurrent()) return;
+
+        // A bearing of a body is a sight: none outside the validated tier (tier.ts, time-ui's
+        // `tierAt` and `sightsOnlyText`). The variation above has its own model years.
+        if (!tier.offered) {
+          lastResult = null;
+          f.setStatus('idle');
+          f.results.replaceChildren(notice('caution', tier.sentence ?? 'No sights for this date.'));
+          return;
+        }
 
         const req = compassRequest(w, explorer);
         if ('missing' in req) {

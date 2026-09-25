@@ -328,7 +328,11 @@ transparency). Everything prints black on white; on screen the night theme stays
 
 Sights are offered only between 1990 and 2060 today, the span the almanac is validated for
 (1550–2650 once the deep-time work is merged); outside it the sight form says why and does
-not add the sight.
+not add the sight, and Tonight's sights, the planner and the Compass tab's bearings say the
+same. Type a sight's date in the calendar the page shows: before 15 October 1582 that is the
+Julian calendar (unless Settings → Calendar says ISO). Times read **UTC** from 1972 to 2035
+and **UT** outside, and a **± chip** beside a sight's time means the Earth's rotation then is
+known only that well: every fix's longitude moves with it, 15″ for each second.
 
 The fix (and the circles of position behind it) draws directly on the Map view, and so does
 a passage. Sessions save automatically **in this browser only** — nothing is kept until you
