@@ -96,6 +96,40 @@ export function withoutLogRow(session: Session, kind: LogKind, utc: string): Ses
   );
 }
 
+/**
+ * The value a log gives at an instant, by the core's rule (`skyfix_core::error_logs`):
+ * linear between the entries either side, an entry's own value at its instant, a one-entry
+ * log as a constant, and the nearest entry held outside the span. Null for an empty log or
+ * an unreadable time. (The watch log is read at a sight's recorded time.)
+ */
+export function logValueAt(rows: readonly LogRow[], utc: string): { value: number; hoursOutside: number } | null {
+  const jd = jdFromIso(utc);
+  const pts = sortRows([...rows])
+    .map((r) => ({ jd: jdFromIso(r.utc), value: r.value }))
+    .filter((p): p is { jd: number; value: number } => p.jd !== null);
+  if (jd === null || pts.length === 0) return null;
+  if (pts.length === 1) return { value: pts[0]!.value, hoursOutside: 0 };
+  const first = pts[0]!;
+  const last = pts[pts.length - 1]!;
+  if (jd <= first.jd) return { value: first.value, hoursOutside: (first.jd - jd) * 24 };
+  if (jd >= last.jd) return { value: last.value, hoursOutside: (jd - last.jd) * 24 };
+  for (let i = 1; i < pts.length; i += 1) {
+    const a = pts[i - 1]!;
+    const b = pts[i]!;
+    if (jd <= b.jd) return { value: a.value + ((jd - a.jd) / (b.jd - a.jd)) * (b.value - a.value), hoursOutside: 0 };
+  }
+  return { value: last.value, hoursOutside: 0 };
+}
+
+/**
+ * The watch correction the core adds to a sight recorded at `utc`: the watch log's value
+ * there, else the session's single known correction (seconds).
+ */
+export function watchCorrectionAt(session: Session, utc: string): number {
+  const rows = logRows(session, 'watch');
+  return rows.length ? (logValueAt(rows, utc)?.value ?? 0) : session.clock.correction_s;
+}
+
 /** A one-line summary for the session's header ("IC log 3 entries"). */
 export function logSummary(session: Session): string {
   const parts: string[] = [];

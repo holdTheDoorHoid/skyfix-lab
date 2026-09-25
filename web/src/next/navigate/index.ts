@@ -57,6 +57,7 @@ import { sessionPanel } from './session-panel.js';
 import { sightsPanel } from './sights.js';
 import { AUTOSAVE_TEXT, HONESTY, METHODS, type MethodId } from './text.js';
 import { btn, download, errorText, kids, notice, para, pickFile, uid, warningList } from './ui.js';
+import { sightTierAt } from './tier.js';
 import { seedFromExplorer, workingFor, type WorkingOptions } from './working.js';
 
 export interface NavigateOptions {
@@ -267,12 +268,23 @@ export function navigateView(options: NavigateOptions = {}): Component {
       const left = h('div', { class: 'sfn-col sfn-col--sights' });
       const right = h('div', { class: 'sfn-col sfn-col--method', role: 'tabpanel', id: panelId, tabindex: '-1' });
       const nav404 = nc.navMissing ? notice('caution', nc.navMissing) : null;
+      // navigate2: the time bar outside the validated tier: say so once, at the top (tier.ts).
+      const tierLine = h('div', { class: 'sfn-tierline', role: 'status' });
+      const renderTierLine = (): void => {
+        const t = sightTierAt(ctx.engine, ctx.store.get().time.jd_utc);
+        tierLine.replaceChildren(
+          ...(t.offered ? [] : [notice('caution', h('strong', {}, 'The time bar is outside the validated span. '), t.sentence ?? '', ' Sights you have entered are still worked at their own times.')]),
+        );
+      };
+      d.add(ctx.store.select((s) => Math.floor(s.time.jd_utc * 24), renderTierLine));
+      renderTierLine();
       const autosave = h('div', { class: 'sfn-autosave' });
       root.append(
         ...kids(
           header,
           ctx.engine.kind === 'mock' ? notice('caution', h('strong', {}, 'Mock engine. '), 'Every number here is illustrative, from low-precision formulas; nothing comes from the SkyFix Lab core.') : null,
           nav404,
+          tierLine,
           h('nav', { class: 'sfn-methods', 'aria-label': 'Method' }, tablist),
           statusLine,
           h('div', { class: 'sfn-grid' }, left, right),

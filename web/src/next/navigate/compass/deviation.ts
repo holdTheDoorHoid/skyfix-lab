@@ -182,9 +182,9 @@ export function parseEastWest(text: string): number | null {
 
 /** Plain words for the fitted coefficients (what each one usually means). */
 export const COEFFICIENT_TEXT = {
-  a: 'A, constant on every heading: a lubber line not on the keel line, or a misread card',
-  b: 'B, most on east and west headings: the ship’s permanent magnetism fore and aft',
-  c: 'C, most on north and south headings: the ship’s permanent magnetism athwartships',
-  d: 'D, most on the intercardinal headings: magnetism the Earth’s field induces in her steel',
-  e: 'E, most on the cardinal headings: induced magnetism, when her steel is not symmetrical',
+  a: 'the same on every heading: a lubber line not on the keel line, or a misread card',
+  b: 'most on east and west headings: the ship’s permanent magnetism fore and aft',
+  c: 'most on north and south headings: the ship’s permanent magnetism athwartships',
+  d: 'most on the intercardinal headings: magnetism the Earth’s field induces in her steel',
+  e: 'most on the cardinal headings: induced magnetism, when her steel is not symmetrical',
 } as const;

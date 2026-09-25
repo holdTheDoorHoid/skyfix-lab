@@ -54,7 +54,7 @@ export function deviationChart(entries: readonly DeviationEntry[], fit: Deviatio
   for (const hdg of [0, 45, 90, 135, 180, 225, 270, 315, 360]) {
     g.appendChild(s('line', { x1: x(hdg === 360 ? 359.999 : hdg), y1: top, x2: x(hdg === 360 ? 359.999 : hdg), y2: top + hgt }));
     const t = s('text', { x: x(hdg === 360 ? 359.999 : hdg), y: height - 10, 'text-anchor': 'middle', class: 'sfn-devchart__tick' });
-    t.textContent = hdg === 360 ? '360' : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][hdg / 45]!;
+    t.textContent = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N'][hdg / 45]!;
     g.appendChild(t);
   }
   for (const v of [-max, 0, max]) {
@@ -116,7 +116,7 @@ export function deviationTableCard(nc: NavCtx): { el: HTMLElement; destroy(): vo
 
   // Reading the table on any heading.
   const lookup = textInput({ inputmode: 'decimal', size: 6, placeholder: '100' });
-  const lookupField = field('Deviation on heading (°)', lookup);
+  const lookupField = field('Deviation on heading (°)', lookup, { class: 'sfn-devlookup' });
   const lookupOut = h('p', { class: 'sfn-note', 'aria-live': 'polite' });
   const readLookup = (): void => {
     const hd = parseNumber(lookup.value, { what: 'The heading', min: 0, max: 360, unit: '°' });

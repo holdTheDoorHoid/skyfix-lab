@@ -26,7 +26,7 @@ import { compassPlace, compassRequest, compassUtc } from '../compass/request.js'
 import { deviationTableCard } from '../compass/table.js';
 import { eastWest, parseEastWest } from '../compass/deviation.js';
 import { angleFormat, zone, type NavCtx } from '../context.js';
-import { fmtInstant, fmtPosition, fmtSeconds } from '../format.js';
+import { fmtAngle, fmtInstant, fmtPosition, fmtSeconds } from '../format.js';
 import type { CompassForm, DeviationEntry, Working } from '../model.js';
 import { parseOptionalNumber, type Parsed } from '../parse.js';
 import { btn, errorText, facts, field, kids, notice, para, parsedField, selectInput } from '../ui.js';
@@ -71,7 +71,7 @@ export function variationBlock(field0: MagneticField, where: string, format: Ret
       ['Model', `${f.model}, for ${f.decimal_year.toFixed(2)}${f.forecast ? ' (a forecast: the model extrapolates its rate of change)' : ''}`],
       ['How sure', `±${f.uncertainty.declination_deg.toFixed(2)}° (1 sigma), the model’s published error: more near the magnetic poles; local magnetic anomalies can add degrees and are in no model`],
       ['Changing', `${f.annual_change_text} (${f.annual_change.declination_deg_per_year >= 0 ? '+' : '−'}${Math.abs(f.annual_change.declination_deg_per_year * 60).toFixed(1)}′ a year)`],
-      ['Dip of the field', `${deg1(f.inclination_deg)} ${f.inclination_deg >= 0 ? 'down' : 'up'} · inclination`],
+      ['Dip of the field', `${deg1(Math.abs(f.inclination_deg))} ${f.inclination_deg >= 0 ? 'down' : 'up'} · inclination`],
       ['Strength', `${Math.round(f.total_nt).toLocaleString('en-US')} nT total, ${Math.round(f.horizontal_nt).toLocaleString('en-US')} nT horizontal (what turns a compass)`],
     ]),
     f.notes.length ? h('ul', { class: 'sfn-list sfn-muted' }, ...f.notes.map((n) => h('li', {}, n))) : null,
@@ -80,7 +80,8 @@ export function variationBlock(field0: MagneticField, where: string, format: Ret
 }
 
 /** The result's facts, by azimuth or by amplitude. */
-function resultFacts(r: CompassError, z: ReturnType<typeof zone>): HTMLElement {
+function resultFacts(r: CompassError, z: ReturnType<typeof zone>, format: ReturnType<typeof angleFormat>): HTMLElement {
+  const ang = (v: number): string => fmtAngle(v, format);
   const jd = r.jd_utc;
   const rows: (readonly [string, string] | null)[] = [
     ['True bearing', `${bearing1(r.true_bearing_deg)} (${r.method === 'azimuth' ? 'the body’s azimuth then' : 'its bearing as it crossed the horizon'})`],
@@ -99,7 +100,7 @@ function resultFacts(r: CompassError, z: ReturnType<typeof zone>): HTMLElement {
   if (r.azimuth) {
     const a = r.azimuth;
     rows.push(
-      ['Body', `GHA ${deg1(a.gha_deg)}, declination ${deg1(a.dec_deg)}, ${deg1(a.altitude_deg)} above the horizon (geometric)`],
+      ['Body', `GHA ${ang(a.gha_deg)}, declination ${ang(a.dec_deg)}, ${ang(a.altitude_deg)} above the horizon (geometric)`],
       ['From the tables', `Zn ${bearing1(a.zn_spherical_deg)} (the sphere’s azimuth, as Pub. 229 gives it)`],
       ['Turning', `${Math.abs(a.azimuth_rate_deg_per_min).toFixed(2)}° a minute: ${fmtSeconds(Math.abs(0.1 / (a.azimuth_rate_deg_per_min || 1e-9)) * 60)} of time moves the bearing 0.1°`],
     );
@@ -114,7 +115,7 @@ function resultFacts(r: CompassError, z: ReturnType<typeof zone>): HTMLElement {
           ? `${a.visible_horizon_correction_deg >= 0 ? '+' : '−'}${Math.abs(a.visible_horizon_correction_deg).toFixed(2)}° from the celestial-horizon bearing (Bowditch’s Table 23 corrects the observed bearing by ${a.visible_horizon_correction_deg >= 0 ? '−' : '+'}${Math.abs(a.visible_horizon_correction_deg).toFixed(2)}°), for dip ${a.dip_arcmin.toFixed(1)}′, refraction ${a.refraction_arcmin.toFixed(1)}′, semidiameter ${a.semidiameter_arcmin.toFixed(1)}′ and parallax ${a.parallax_arcmin.toFixed(1)}′`
           : 'not used: the centre on the celestial horizon (geocentric altitude 0)',
       ],
-      ['At the crossing', `declination ${deg1(a.dec_deg)}; the centre ${deg1(a.altitude_deg)} (geocentric); ${a.minutes_from_given_time >= 0 ? '' : '−'}${fmtSeconds(Math.abs(a.minutes_from_given_time) * 60)} from the time you gave`],
+      ['At the crossing', `declination ${ang(a.dec_deg)}; the centre ${ang(a.altitude_deg)} (geocentric); ${a.minutes_from_given_time >= 0 ? '' : '−'}${fmtSeconds(Math.abs(a.minutes_from_given_time) * 60)} from the time you gave`],
       ['Judging the horizon', `${a.bearing_per_altitude.toFixed(2)}° of bearing per degree of misjudged altitude`],
     );
   }
@@ -362,7 +363,7 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
                 notice(
                   'info',
                   h('strong', {}, `${req.missing} `),
-                  `${r.body} ${r.method === 'amplitude' ? `${r.amplitude?.event === 'rising' ? 'rises' : 'sets'} bearing ${bearing1(r.true_bearing_deg)} true at ${fmtInstant(r.jd_utc, z)}` : `bears ${bearing1(r.true_bearing_deg)} true${r.azimuth ? `, ${deg1(r.azimuth.altitude_deg)} high` : ''}`}.` +
+                  `${r.body} ${r.method === 'amplitude' ? `${r.amplitude?.event === 'rising' ? 'rises' : 'sets'} bearing ${bearing1(r.true_bearing_deg)} true at ${fmtInstant(r.jd_utc, z)}` : `bears ${bearing1(r.true_bearing_deg)} true${r.azimuth ? `, ${r.azimuth.altitude_deg >= 0 ? `${fmtAngle(r.azimuth.altitude_deg, format)} high` : `${fmtAngle(-r.azimuth.altitude_deg, format)} below the horizon`}` : ''}`}.` +
                     (w.compass.compass === 'magnetic' && variation !== null
                       ? ` With the variation (${eastWest(variation, 1)}), a magnetic compass with no deviation would read ${bearing1(r.true_bearing_deg - variation)}.`
                       : ''),
@@ -396,7 +397,7 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
           ...kids(
           h('div', { class: 'sfn-readout-line' }, h('p', { class: 'sfn-compass__sentence' }, r.sentence)),
           para(r.explanation, 'sfn-plain'),
-          resultFacts(r, z),
+          resultFacts(r, z, format),
           r.notes.length ? h('ul', { class: 'sfn-list sfn-muted' }, ...r.notes.map((n) => h('li', {}, n))) : null,
           h(
             'div',

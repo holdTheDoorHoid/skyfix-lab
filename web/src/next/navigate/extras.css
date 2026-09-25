@@ -165,3 +165,53 @@
 .sfn-devcard th {
   padding: 2px 10px;
 }
+
+.sfn-devlookup {
+  flex: 0 1 14rem !important;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Sight form: the shore distance, the tier gate, "What did I shoot?"                     */
+
+.sfn-entry__instrument > .sfn-entry__shore {
+  grid-column: 1 / -1;
+}
+
+.sfn-entry__tier:empty {
+  display: none;
+}
+
+.sfn-starid__message {
+  font-size: var(--text-md);
+}
+
+.sfn-starid__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.sfn-starid__cand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--stage-line);
+}
+
+.sfn-starid__cand--out .sfn-starid__text {
+  opacity: 0.72;
+}
+
+.sfn-starid__text {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.sfn-tierline:empty {
+  display: none;
+}
