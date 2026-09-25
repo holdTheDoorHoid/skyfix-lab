@@ -1142,3 +1142,248 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+## Expansion programme — sun tools (`suntools.rs`, suntools agent)
+
+Work package P7 (EXPANSION_PLAN §5), 2026-09-24. Engine: `skyfix_almanac::sun_tools`;
+definitions CONVENTIONS 13.10; validation `docs/ACCURACY.md` section 14. TypeScript: the
+`SunToolsEngine` interface, `isSunToolsEngine` and the `Sun*`, `Alignment*`, `Analemma*`,
+`RiseSet*`, `Eot*`, `Solar*` and `Galactic*` types at the end of `types.ts`; the mock is
+`web/src/next/engine/mock-suntools.ts`. Every export throws a string for malformed input
+and when the Sun (or the body asked about) cannot be computed; the window rules are the
+event finder's (finite, ordered, at most 400 days). Every altitude and azimuth is the
+topocentric one of CONVENTIONS 13.2 and equals `sky_state`'s at the same instant.
+Timings are native release builds on a shared machine; WebAssembly runs about four times
+slower.
+
+### `sun_hours(observer_json, jd_start, jd_end) -> SunHours`
+
+Golden and blue hours over a window (the UI passes one local day), with the Sun's
+`day_events` (rise, set, transits, twilight) and the sky phases of the same window, in
+one object. About 1 ms.
+
+```json
+{"jd_start": 2461307.6667, "jd_end": 2461308.6667,
+ "windows": [
+   {"kind": "blue", "period": "morning", "jd_start": 2461307.932812, "utc_start": "2026-09-24T10:23:14.924Z",
+    "jd_end": 2461307.940077, "utc_end": "2026-09-24T10:33:42.679Z", "duration_min": 10.5,
+    "open_start": false, "open_end": false},
+   {"kind": "golden", "period": "morning", "utc_start": "2026-09-24T10:33:42.679Z", "utc_end": "2026-09-24T11:25:59.592Z", …},
+   {"kind": "golden", "period": "evening", "utc_start": "2026-09-24T22:18:37.868Z", "utc_end": "2026-09-24T23:10:49.475Z", …},
+   {"kind": "blue", "period": "evening", "utc_start": "2026-09-24T23:10:49.475Z", "utc_end": "2026-09-24T23:21:15.916Z", …}],
+ "boundaries": [
+   {"altitude_deg": -6, "crossings": [AltitudeCrossing], "always_above": false, "always_below": false},
+   {"altitude_deg": -4, …},
+   {"altitude_deg": 6, "crossings": [{"jd_utc": 2461307.976384, "utc": "2026-09-24T11:25:59.592Z",
+                                      "alt_deg": 6, "az_deg": 95.81, "rising": true}, …], …}],
+ "sun": BodyEvents, "phases": [PhaseSegment]}
+```
+
+- `kind`: `golden` (Sun's centre above −4° and not above +6°, geometric) or `blue` (above
+  −6°, not above −4°). Blue hour ends exactly at civil dusk.
+- `period`: `morning` / `evening` (the Sun climbs / sinks through the band), `midday` (it
+  culminates inside it: high-latitude winter), `midnight` (its lower culmination is inside
+  it: high-latitude summer), `all_day` (in the band the whole window).
+- `open_start` / `open_end`: the band was entered before / left after the window; the
+  instant is the window's edge, not a crossing.
+- `boundaries`: every crossing of −6, −4 and +6 degrees (in that order) with twilight's
+  polar vocabulary: a threshold never crossed is `always_above` or `always_below`.
+
+### `find_azimuth(observer_json, body, jd_start, jd_end, azimuth_deg, band_json) -> AzimuthCrossing[]`
+
+The sibling of `find_altitude`: every instant the body's topocentric azimuth crosses
+`azimuth_deg` while the body is inside an altitude band, time-ordered. `band_json` is
+`{"min_deg": 10, "max_deg": 30}` on the **apparent** altitude of the centre; empty,
+`null` or a missing `min_deg` means "above the horizon" exactly as `above_horizon` says
+(upper limb above the sea-level horizon); a missing `max_deg` means no upper limit.
+Under 1 ms a day; a year for the Sun about 50 ms.
+
+```json
+[{"jd_utc": 2461310.594616, "utc": "2026-09-27T02:16:14.844Z", "az_deg": 120,
+  "alt_deg": 38.914, "alt_apparent_deg": 38.935, "rising": true, "clockwise": true}]
+```
+
+`rising`: the altitude is increasing; `clockwise`: the azimuth is increasing. A body
+passing exactly through the zenith has no azimuth there and crosses no bearing.
+
+### `alignment_days(observer_json, request_json) -> AlignmentResult`
+
+The days of a year a body rises or sets along a bearing, or stands at an apparent
+altitude on it (Manhattanhenge, a window, a stone row). One search over the local year
+(about 60 ms for the Sun, 0.3 s for the Moon).
+
+```json
+{"body": "Sun", "year": 2026, "azimuth_deg": 299.0, "tolerance_deg": 0.3,
+ "event": {"kind": "set"}, "utc_offset_hours": -4}
+```
+
+- `body` (default `Sun`), `tolerance_deg` (default 0.5, at most 90), `utc_offset_hours`
+  (the clock the dates are on; default local mean time), `options` (`EventOptions`, rise
+  and set only).
+- `event`: `{"kind": "rise"}` or `{"kind": "set"}` — the event finder's rise and set
+  (upper limb on the sea-level horizon, CONVENTIONS 13.3); or
+  `{"kind": "at_altitude", "altitude_deg": h}` — the centre at apparent altitude `h`,
+  rising and setting.
+
+```json
+{"body": "Sun", "year": 2026, "azimuth_deg": 299, "tolerance_deg": 0.3, "event": {"kind": "set"},
+ "utc_offset_hours": -4, "jd_start": 2461041.666667, "jd_end": 2461406.666667, "truncated": false,
+ "events_considered": 365,
+ "matches": [
+   {"date": "2026-05-24", "kind": "set", "jd_utc": 2461185.510246, "utc": "2026-05-25T00:14:45.243Z",
+    "az_deg": 298.936, "offset_deg": -0.064, "alt_deg": -0.833, "best": true},
+   {"date": "2026-05-25", "kind": "set", "utc": "2026-05-26T00:15:36.741Z", "az_deg": 299.187, "offset_deg": 0.187, "best": false, …},
+   {"date": "2026-07-17", …, "best": false}, {"date": "2026-07-18", …, "best": true}],
+ "closest": AlignmentMatch}
+```
+
+`kind` is `rise`, `set`, `rising` or `setting`; `date` is the local date on the request's
+clock; `best` marks the closest day of each run of consecutive matches; `closest` is the
+year's nearest event whether or not it matches (`null` when the body never has one), so
+"never" can say by how much. A local year reaching outside the coverage is clipped
+(`truncated`).
+
+### `analemma(observer_json, request_json) -> Analemma`
+
+The Sun at one clock time on every day of a year. `{"year": 2026, "time_h": 12, "clock":
+"lmt"}` (local mean time at the observer's longitude) or `{"clock": "zone",
+"utc_offset_hours": -5}` (a fixed offset all year, no daylight saving). About 10 ms.
+
+```json
+{"year": 2026, "time_h": 12, "clock": "lmt", "utc_offset_hours": -5.011013,
+ "points": [{"date": "2026-01-01", "jd_utc": 2461042.208792, "utc": "2026-01-01T17:00:39.648Z",
+             "alt_deg": 27.081, "alt_apparent_deg": 27.114, "az_deg": 179.053, "dec_deg": -22.958,
+             "eot_s": -219.8}, …],
+ "errors": []}
+```
+
+`dec_deg` and `eot_s` are the analemma's own axes (declination against the equation of
+time). Days outside the coverage are left out and counted in `errors`.
+
+### `sun_path(observer_json, jd_start, jd_end, step_minutes) -> SunPath`
+
+The Sun's path over a window (at most two days; the UI passes one local day) every
+`step_minutes` (1 to 60; the TypeScript default is 10), and the envelope: the same local
+day shifted by whole days to the year's March equinox, June solstice, September equinox
+and December solstice. About 4 ms.
+
+```json
+{"step_minutes": 10,
+ "path": {"day": "day", "jd_start": 2461307.6667, "jd_end": 2461308.6667, "season_jd_utc": null,
+          "points": [{"jd_utc": 2461308.2222, "alt_deg": 48.898, "alt_apparent_deg": 48.913, "az_deg": 190.451}, …]},
+ "envelope": [{"day": "march_equinox", "jd_start": 2461119.6667, "season_jd_utc": 2461120.115231, "points": […], …},
+              {"day": "june_solstice", …}, {"day": "september_equinox", …}, {"day": "december_solstice", …}],
+ "errors": []}
+```
+
+### `rise_set_azimuths(observer_json, request_json) -> RiseSetAzimuths`
+
+Azimuth through the year: `{"body": "Sun", "year": 2026, "utc_offset_hours": -5,
+"options": EventOptions}` (body default `Sun`, clock default local mean time). One
+`day_events` over the local year, split into local days. About 60 ms for the Sun, 0.3 s
+for the Moon.
+
+```json
+{"body": "Sun", "year": 2026, "utc_offset_hours": -5, "jd_start": 2461041.7083, "jd_end": 2461406.7083,
+ "truncated": false,
+ "days": [{"date": "2026-06-21", "jd_start": 2461212.7083, "jd_end": 2461213.7083,
+           "rises": [{"jd_utc": 2461212.89735, "utc": "2026-06-21T09:32:11.038Z", "az_deg": 57.922, "alt_deg": -0.833}],
+           "sets": [{"utc": "2026-06-22T00:32:51.423Z", "az_deg": 302.076, …}],
+           "transit": {"utc": "2026-06-21T17:02:31.439Z", "az_deg": 180.0, "alt_deg": 73.484, …},
+           "always_above": false, "always_below": false}, …]}
+```
+
+`rises` and `sets` are usually one each; none when the body does not cross its rise/set
+altitude that day (`always_above` / `always_below` then say which), two on rare days for
+the Moon at high latitude.
+
+### `equation_of_time(year, utc_hour) -> EquationOfTime`
+
+Apparent minus mean solar time (seconds; positive: the sundial is fast) and the Sun's
+apparent declination on every UTC date of `year`, evaluated at `utc_hour` (the TypeScript
+default is 12, the almanac page's `eot_12h`). The same for every observer. About 12 ms.
+
+```json
+{"year": 2026, "utc_hour": 12,
+ "points": [{"date": "2026-01-01", "jd_utc": 2461042.0, "utc": "2026-01-01T12:00:00.000Z",
+             "eot_s": -213.9, "dec_deg": -22.976}, …],
+ "extremes": [{"kind": "minimum", "date": "2026-02-11", "jd_utc": 2461083.0, "eot_s": -850.5},
+              {"kind": "maximum", "date": "2026-05-13", "eot_s": 220.5, …},
+              {"kind": "minimum", "date": "2026-07-26", "eot_s": -393.9, …},
+              {"kind": "maximum", "date": "2026-11-03", "eot_s": 986.8, …}],
+ "errors": []}
+```
+
+`extremes` are to the day (the day of the largest or smallest value).
+
+### `solar_day(observer_json, jd_start, jd_end, panel_json, step_minutes) -> SolarDay`
+
+A **clear-sky estimate** of the irradiance on a panel through a window (at most two
+days) every `step_minutes` (1 to 60; TypeScript default 10), and the window's energy.
+`panel_json`: `{"tilt_deg": 30, "azimuth_deg": 180, "albedo": 0.2}`; empty or `null` is a
+flat panel; `azimuth_deg` defaults to facing the equator, `albedo` to 0.2. Under 1 ms.
+
+```json
+{"jd_start": 2461307.6667, "jd_end": 2461308.6667, "step_minutes": 10,
+ "panel": {"tilt_deg": 30, "azimuth_deg": 180, "albedo": 0.2},
+ "samples": [{"jd_utc": 2461308.292, "sun_alt_apparent_deg": 40.055, "sun_az_deg": 223.572,
+              "ghi_w_m2": 646.7, "dni_w_m2": 836.2, "dhi_w_m2": 108.5, "poa_w_m2": 807.9,
+              "incidence_deg": 33.43}, …],
+ "poa_kwh_m2": 7.032, "ghi_kwh_m2": 5.668, "dni_kwh_m2": 8.181, "peak_poa_w_m2": 973.4,
+ "model": SolarModel}
+```
+
+`incidence_deg` is `null` with the Sun down (then every irradiance is 0). `model` says
+what the numbers are, always to be shown with them: `{"label": "clear-sky estimate",
+"clear_sky", "diffuse_split", "transposition", "typical_error", "not_modelled"}` (plain
+sentences; CONVENTIONS 13.10).
+
+### `solar_year(observer_json, request_json) -> SolarYear`
+
+Clear-sky energy for every local day of a year, by month and in total, and optionally
+the tilt that collects the most for the panel's azimuth.
+`{"year": 2026, "panel": {"tilt_deg": 30}, "utc_offset_hours": -5, "step_minutes": 10,
+"optimise_tilt": true}` (defaults: flat panel, local mean time, 10 minutes, no search).
+About 60 ms with the search.
+
+```json
+{"year": 2026, "utc_offset_hours": -5, "step_minutes": 10,
+ "panel": {"tilt_deg": 30, "azimuth_deg": 180, "albedo": 0.2},
+ "jd_start": 2461041.7083, "jd_end": 2461406.7083, "truncated": false,
+ "days": [{"date": "2026-01-01", "jd_start": 2461041.7083, "poa_kwh_m2": 4.362, "ghi_kwh_m2": 2.513}, …],
+ "months": [{"month": 1, "days": 31, "poa_kwh_m2": 146.5, "ghi_kwh_m2": 88.1}, …],
+ "poa_kwh_m2": 2448.2, "ghi_kwh_m2": 2098.8,
+ "optimal": {"tilt_deg": 34.7, "azimuth_deg": 180, "poa_kwh_m2": 2454.9},
+ "model": SolarModel}
+```
+
+`optimal` is `null` unless asked for. Days outside the coverage are left out
+(`truncated`).
+
+### `galactic_centre_windows(observer_json, jd_start, jd_end, options_json) -> GalacticCentreWindows`
+
+For the Milky Way planner: the stretches of a window (the UI passes a night, noon to
+noon, or a month of them; at most 400 days) during which the galactic centre's apparent
+altitude is at least `min_altitude_deg` (default 10) and the Sun's geometric altitude at
+most `sun_max_altitude_deg` (default −18, astronomical night), split where the Moon rises
+or sets. `options_json`: `{"min_altitude_deg": 15, "sun_max_altitude_deg": -15}`, or
+empty / `null` for the defaults. About 1 ms a night, 40 ms a month.
+
+```json
+{"jd_start": 2461206.5833, "jd_end": 2461207.5833, "min_altitude_deg": 10, "sun_max_altitude_deg": -18,
+ "galactic_centre": {"ra_j2000_deg": 266.416833, "dec_j2000_deg": -29.007806},
+ "galactic_pole": {"ra_j2000_deg": 192.8595, "dec_j2000_deg": 27.128333},
+ "windows": [{"jd_start": 2461206.857322, "utc_start": "2026-06-15T08:34:32.610Z",
+              "jd_end": 2461207.315313, "utc_end": "2026-06-15T19:34:03.068Z", "duration_h": 10.99,
+              "moon_up": false, "moon_illuminated_fraction": 0.005,
+              "best": {"jd_utc": 2461207.09, "utc": "2026-06-15T14:15:36.979Z",
+                       "alt_deg": 87.75, "alt_apparent_deg": 87.75, "az_deg": 359.99,
+                       "arch_top_alt_deg": 88.78, "arch_top_az_deg": 301.21,
+                       "arch_ends_az_deg": [31.21, 211.21]}}]}
+```
+
+- `moon_up`: the Moon is above its rise/set altitude throughout the window;
+  `moon_illuminated_fraction` is at the window's middle, given either way.
+- `best`: the galactic centre at its highest in the window; there, `arch_top_*` is the
+  highest point of the galactic equator (the Milky Way's arch) and `arch_ends_az_deg`
+  where the galactic equator meets the horizon. Geometric directions (no refraction).
