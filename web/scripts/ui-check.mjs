@@ -401,7 +401,10 @@ async function main() {
         const dom = JSON.parse(await evaluate(`JSON.stringify({ canvases: document.querySelectorAll('canvas').length, maps: document.querySelectorAll('.maplibregl-map').length, popovers: document.querySelectorAll('.sf-popover').length })`));
         return { listeners: m.JSEventListeners, nodes: m.Nodes, heapMB: +(m.JSHeapUsedSize / 1e6).toFixed(1), ...dom };
       };
-      await cycle(order.length);
+      // Two rounds first: a view's first visit loads its code and may read data once (the
+      // Tonight view reads the site's pack list, which fills Settings → Data packs); on a slow
+      // machine a view can be left before it has mounted, so one round may not be enough.
+      await cycle(order.length * 2);
       const a = await measure();
       messages.length = 0;
       await cycle(SWITCHES);
