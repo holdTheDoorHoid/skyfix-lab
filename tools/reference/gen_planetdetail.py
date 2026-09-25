@@ -58,10 +58,17 @@ C_KM_S = 299_792.458
 D2R = math.pi / 180.0
 
 
-def fetch(url, timeout=120):
-    return subprocess.run(
-        ["curl", "-sS", "-f", "-m", str(timeout), "-L", url], check=True, capture_output=True
-    ).stdout
+def fetch(url, timeout=120, attempts=4):
+    for k in range(attempts):
+        try:
+            return subprocess.run(
+                ["curl", "-sS", "-f", "-m", str(timeout), "-L", url], check=True,
+                capture_output=True,
+            ).stdout
+        except subprocess.CalledProcessError:
+            if k == attempts - 1:
+                raise
+            time.sleep(2.0 * (k + 1))
 
 
 def sha256(b):
@@ -1051,6 +1058,379 @@ def city_row(transit_id, name, lat, lon, page, date, pairs, offset_h, geo=None):
         events.append(c.Inline({"kind": kinds[k], "jd_ut": c.jd(jd), "sun_alt_deg": alt}))
     out["contacts"] = events
     return out
+
+
+# ---------------------------------------------------------------------------
+# Part 4: conjunctions and stations (Skyfield + DE440s)
+# ---------------------------------------------------------------------------
+
+PLANET_KEYS = [
+    ("Mercury", "mercury"), ("Venus", "venus"), ("Mars", "mars barycenter"),
+    ("Jupiter", "jupiter barycenter"), ("Saturn", "saturn barycenter"),
+    ("Uranus", "uranus barycenter"), ("Neptune", "neptune barycenter"),
+]
+CONJ_STARS = ["Aldebaran", "Regulus", "Spica", "Antares"]
+CONJ_MAX_SEP_DEG = 6.0
+
+
+def build_conjunctions(offline):
+    from skyfield.api import Star, load_file
+    from skyfield.framelib import ecliptic_frame
+    from skyfield.searchlib import find_discrete, find_minima
+
+    path = os.path.join(FIXTURES, "planetdetail_conjunctions.json")
+    ts = c.load_timescale()
+    eph = load_file(c.EPHEMERIS_CROSSCHECK_FILE)
+    earth, sun, moon = eph["earth"], eph["sun"], eph["moon"]
+    hip = c.load_hipparcos_frame()
+    stars = {}
+    for name, hipno, *_ in c.NAV_STARS:
+        if name in CONJ_STARS:
+            stars[name] = Star.from_dataframe(hip.loc[hipno])
+    bodies = {name: eph[key] for name, key in PLANET_KEYS}
+
+    def pos(t, obj):
+        return earth.at(t).observe(obj).apparent()
+
+    rows = []
+
+    def search(name_a, a, name_b, b, t0, t1, step, kind):
+        def sep(t):
+            return pos(t, a).separation_from(pos(t, b)).degrees
+
+        sep.step_days = step
+        times, values = find_minima(t0, t1, sep, epsilon=1.0 / 86400.0)
+        # find_minima can return one flat minimum several times, a few seconds apart
+        # (Uranus against Aldebaran): keep the lowest of any within half a day.
+        keep = []
+        for t, v in zip(times, values):
+            if keep and t.tt - keep[-1][0].tt < 0.5:
+                if v < keep[-1][1]:
+                    keep[-1] = (t, v)
+                continue
+            keep.append((t, v))
+        for t, v in keep:
+            if v > CONJ_MAX_SEP_DEG or t.tt - t0.tt < 2 * step or t1.tt - t.tt < 2 * step:
+                continue
+            pa_ = pos(t, a)
+            pb_ = pos(t, b)
+            ra_a, dec_a, _ = pa_.radec(epoch="date")
+            ra_b, dec_b, _ = pb_.radec(epoch="date")
+            # Position angle of A seen from B, north through east (of date).
+            da = ra_a.radians - ra_b.radians
+            pa = math.degrees(math.atan2(
+                math.sin(da) * math.cos(dec_a.radians),
+                math.cos(dec_b.radians) * math.sin(dec_a.radians)
+                - math.sin(dec_b.radians) * math.cos(dec_a.radians) * math.cos(da))) % 360.0
+            rows.append(c.Inline([name_a, name_b, c.jd(t.tt), c.Num(float(v), 6), c.Num(pa, 3)]))
+
+    # Planet-planet and planet-star over 1990-2060; the Moon over 2020-2030.
+    t0, t1 = ts.utc(1990, 1, 1), ts.utc(2061, 1, 1)
+    names = [n for n, _ in PLANET_KEYS]
+    for i, na in enumerate(names):
+        for nb in names[i + 1:]:
+            step = 0.5 if "Mercury" in (na, nb) else 1.0
+            search(na, bodies[na], nb, bodies[nb], t0, t1, step, "planet_planet")
+        for ns in CONJ_STARS:
+            search(na, bodies[na], ns, stars[ns], t0, t1, 0.5 if na == "Mercury" else 1.0, "planet_star")
+        print("  planet", na, len(rows))
+    m0, m1 = ts.utc(2020, 1, 1), ts.utc(2031, 1, 1)
+    for na in names:
+        search("Moon", moon, na, bodies[na], m0, m1, 0.1, "moon_planet")
+    for ns in CONJ_STARS:
+        search("Moon", moon, ns, stars[ns], m0, m1, 0.1, "moon_star")
+    print("  moon", len(rows))
+    rows.sort(key=lambda r: r.o[2].v)
+
+    stations = []
+    for name, key in PLANET_KEYS:
+        target = eph[key]
+        step = {"Mercury": 2.0, "Venus": 5.0, "Mars": 5.0}.get(name, 10.0)
+        h = 0.01
+        for coord in ("ecliptic_longitude", "right_ascension"):
+            def angle_of(t):
+                p = pos(t, target)
+                if coord == "ecliptic_longitude":
+                    return p.frame_latlon(ecliptic_frame)[1].degrees
+                return p.radec(epoch="date")[0]._degrees
+
+            def direct(t):
+                a = angle_of(ts.tt_jd(t.tt - h))
+                b = angle_of(ts.tt_jd(t.tt + h))
+                return (((b - a + 540.0) % 360.0) - 180.0 > 0).astype(int)
+
+            direct.step_days = step
+            times, values = find_discrete(t0, t1, direct, epsilon=1.0 / 86400.0)
+            for t, v in zip(times, values):
+                stations.append(c.Inline([
+                    name, coord, "retrograde_ends" if v == 1 else "retrograde_begins",
+                    c.jd(t.tt), c.Num(float(angle_of(t)) % 360.0, 6),
+                ]))
+        print("  stations", name, len(stations))
+    stations.sort(key=lambda r: r.o[3].v)
+    doc = {
+        "schema": "skyfix.reference/1",
+        "generator": {
+            "tool": TOOL,
+            "description": (
+                "Closest approaches in apparent geocentric separation (every local minimum "
+                "under %.0f degrees) of planet pairs and of the planets with Aldebaran, "
+                "Regulus, Spica and Antares over 1990-2060, of the Moon with the planets and "
+                "those stars over 2020-2030; and the stations of Mercury to Neptune in "
+                "apparent ecliptic longitude (true ecliptic and equinox of date) and in "
+                "right ascension of date over 1990-2060. Skyfield + JPL DE440s; the stars "
+                "from Hipparcos." % CONJ_MAX_SEP_DEG
+            ),
+            "generated_utc": c.generated_utc(),
+            "versions": c.versions(),
+            "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+            "definitions": {
+                "separation": "earth.at(t).observe(X).apparent() for both bodies, separation_from",
+                "position_angle": "of `body` seen from `other`, from north through east, true equator of date",
+                "stations": (
+                    "the sign change of the rate of the apparent longitude (or RA) of date, "
+                    "the rate a central difference over +/-0.01 day; retrograde_begins when "
+                    "the rate turns negative"
+                ),
+                "time": "jd_tt: TT",
+            },
+            "never_a_runtime_dependency": NEVER,
+        },
+        "conjunction_columns": ["body", "other", "jd_tt", "separation_deg", "position_angle_deg"],
+        "conjunctions": rows,
+        "station_columns": ["body", "coordinate", "kind", "jd_tt", "angle_deg"],
+        "stations": stations,
+    }
+    c.write_json(path, doc)
+
+
+# ---------------------------------------------------------------------------
+# Part 5: the Earth's perihelion and aphelion
+# ---------------------------------------------------------------------------
+
+USNO_SEASONS = "https://aa.usno.navy.mil/api/seasons?year=%d"
+
+# Meeus, Astronomical Algorithms (2nd ed.), table 38.C: the Earth's (not the Earth-Moon
+# barycentre's) passages through perihelion and aphelion computed with the complete
+# VSOP87, 1991-2010, TD hours and radius vector (as transcribed and tested in the MIT
+# licensed soniakeys/meeus, perihelion/pp_test.go).
+MEEUS_38C_PERIHELION = [
+    (1991, 1, 3, 3.00, .983281), (1992, 1, 3, 15.06, .983324), (1993, 1, 4, 3.08, .983283),
+    (1994, 1, 2, 5.92, .983301), (1995, 1, 4, 11.10, .983302), (1996, 1, 4, 7.43, .983223),
+    (1997, 1, 1, 23.29, .983267), (1998, 1, 4, 21.27, .983300), (1999, 1, 3, 13.02, .983281),
+    (2000, 1, 3, 5.31, .983321), (2001, 1, 4, 8.89, .983286), (2002, 1, 2, 14.17, .983290),
+    (2003, 1, 4, 5.04, .983320), (2004, 1, 4, 17.72, .983265), (2005, 1, 2, 0.61, .983297),
+    (2006, 1, 4, 15.52, .983327), (2007, 1, 3, 19.74, .983260), (2008, 1, 2, 23.87, .983280),
+    (2009, 1, 4, 15.51, .983273), (2010, 1, 3, 0.18, .983290),
+]
+MEEUS_38C_APHELION = [
+    (1991, 7, 6, 15.46, 1.016703), (1992, 7, 3, 12.14, 1.016740), (1993, 7, 4, 22.37, 1.016666),
+    (1994, 7, 5, 19.30, 1.016724), (1995, 7, 4, 2.29, 1.016742), (1996, 7, 5, 19.02, 1.016717),
+    (1997, 7, 4, 19.34, 1.016754), (1998, 7, 3, 23.86, 1.016696), (1999, 7, 6, 22.86, 1.016718),
+    (2000, 7, 3, 23.84, 1.016741), (2001, 7, 4, 13.65, 1.016643), (2002, 7, 6, 3.80, 1.016688),
+    (2003, 7, 4, 5.67, 1.016728), (2004, 7, 5, 10.90, 1.016694), (2005, 7, 5, 4.98, 1.016742),
+    (2006, 7, 3, 23.18, 1.016697), (2007, 7, 6, 23.89, 1.016706), (2008, 7, 4, 7.71, 1.016754),
+    (2009, 7, 4, 1.69, 1.016666), (2010, 7, 6, 11.52, 1.016702),
+]
+
+
+def build_apsides(offline):
+    from skyfield.api import load_file
+    from skyfield.searchlib import find_maxima, find_minima
+
+    path = os.path.join(FIXTURES, "planetdetail_apsides.json")
+    usno = []
+    sources = []
+    if offline and os.path.exists(path):
+        old = json.load(open(path))
+        usno = [c.Inline({k: (c.jd(v) if k == "jd_ut" else v) for k, v in r.items()}) for r in old["usno"]]
+        sources = old["generator"]["sources"]
+    else:
+        for year in range(1990, 2061):
+            raw = fetch(USNO_SEASONS % year)
+            sources.append({"url": USNO_SEASONS % year, "sha256": sha256(raw), "bytes": len(raw)})
+            for d in json.loads(raw)["data"]:
+                if d["phenom"] not in ("Perihelion", "Aphelion"):
+                    continue
+                hh, mm = (int(v) for v in d["time"].split(":"))
+                jd = calendar_to_jd(d["year"], d["month"], d["day"], hh + mm / 60.0)
+                usno.append(c.Inline({"kind": d["phenom"].lower(), "year": d["year"],
+                                      "jd_ut": c.jd(jd), "time": "%04d-%02d-%02dT%s" % (
+                                          d["year"], d["month"], d["day"], d["time"])}))
+            time.sleep(0.2)
+    ts = c.load_timescale()
+    eph = load_file(c.EPHEMERIS_CROSSCHECK_FILE)
+    earth, sun = eph["earth"], eph["sun"]
+
+    def dist(t):
+        return (earth.at(t) - sun.at(t)).distance().au
+
+    dist.step_days = 5.0
+    t0, t1 = ts.utc(1989, 12, 1), ts.utc(2061, 2, 1)
+    sky = []
+    for kind, fn in (("perihelion", find_minima), ("aphelion", find_maxima)):
+        times, values = fn(t0, t1, dist, epsilon=1.0 / 86400.0)
+        for t, v in zip(times, values):
+            sky.append(c.Inline({"kind": kind, "jd_tt": c.jd(t.tt), "jd_utc": c.jd(c.jd_utc_of(t)),
+                                 "distance_au": c.Num(float(v), 10)}))
+    sky.sort(key=lambda r: r.o["jd_tt"].v)
+    meeus = []
+    for kind, table in (("perihelion", MEEUS_38C_PERIHELION), ("aphelion", MEEUS_38C_APHELION)):
+        for y, mo, d, h, r in table:
+            meeus.append(c.Inline({"kind": kind, "jd_tt": c.jd(calendar_to_jd(y, mo, d, h)),
+                                   "td_hours": c.Num(h, 2), "distance_au": c.Num(r, 6)}))
+    doc = {
+        "schema": "skyfix.reference/1",
+        "generator": {
+            "tool": TOOL,
+            "description": (
+                "The Earth's perihelion and aphelion: USNO's seasons API 1990-2060 (UT to the "
+                "minute), Meeus's table 38.C 1991-2010 (TD to 0.01 h, radius vector to 1e-6 "
+                "au; computed by Meeus with the complete VSOP87) and Skyfield + DE440s "
+                "(distance of the Earth's centre from the Sun's, 1990-2060)."
+            ),
+            "generated_utc": c.generated_utc(),
+            "versions": c.versions(),
+            "sources": sources,
+            "meeus": "J. Meeus, Astronomical Algorithms, 2nd ed. (1998), table 38.C; values as transcribed in soniakeys/meeus (MIT)",
+            "licence": "USNO API: U.S. Government work. Meeus: facts from a published table. DE440s: development-time reference.",
+            "never_a_runtime_dependency": NEVER,
+        },
+        "usno": usno,
+        "meeus_38c": meeus,
+        "skyfield": sky,
+    }
+    c.write_json(path, doc)
+
+
+# ---------------------------------------------------------------------------
+# Part 6: orbits from MPC elements
+# ---------------------------------------------------------------------------
+
+MPCORB_URL = "https://minorplanetcenter.net/iau/MPCORB/MPCORB.DAT"
+COMETELS_URL = "https://minorplanetcenter.net/iau/MPCORB/CometEls.txt"
+ORBIT_ASTEROIDS = ["00001", "00004", "00433", "01566", "99942", "A1955"]
+ORBIT_COMETS = ["2P/Encke", "12P/Pons-Brooks", "29P/Schwassmann-Wachmann", "C/2023 A3",
+                "C/2024 G3", "C/1995 O1"]
+ORBIT_OFFSETS_DAYS = [-60.0, 0.0, 30.0, 200.0]
+
+
+def _mpcorb_line(number):
+    """One numbered minor planet's MPCORB line, fetched by byte range (the file is 318
+    MB; its numbered lines are 203 bytes each after a 43-line header)."""
+    head = fetch_range(MPCORB_URL, 0, 4000)
+    header_len = len(b"\n".join(head.split(b"\n")[:43])) + 1
+    n = unpack_number(number)
+    off = header_len + (n - 1) * 203
+    chunk = fetch_range(MPCORB_URL, max(0, off - 2030), off + 2030)
+    for ln in chunk.split(b"\n"):
+        if ln.startswith(number.encode() + b" "):
+            return ln.decode("ascii")
+    raise RuntimeError("no MPCORB line for %s" % number)
+
+
+def fetch_range(url, a, b):
+    return subprocess.run(["curl", "-sS", "-f", "-m", "120", "-r", "%d-%d" % (a, b), url],
+                          check=True, capture_output=True).stdout
+
+
+def unpack_number(packed):
+    first = packed[0]
+    if first.isdigit():
+        return int(packed)
+    base = ord(first) - (ord("A") - 10) if first.isupper() else ord(first) - (ord("a") - 36)
+    return base * 10000 + int(packed[1:])
+
+
+def build_orbits(offline):
+    from skyfield.api import load_file
+    from skyfield.constants import GM_SUN_Pitjeva_2005_km3_s2 as GM_SUN
+    from skyfield.data import mpc
+    import io
+
+    path = os.path.join(FIXTURES, "planetdetail_orbits.json")
+    if offline and os.path.exists(path):
+        old = json.load(open(path))
+        asteroid_lines = old["mpcorb_lines"]
+        comet_lines = old["comet_lines"]
+        sources = old["generator"]["sources"]
+    else:
+        asteroid_lines = [_mpcorb_line(n) for n in ORBIT_ASTEROIDS]
+        raw = fetch(COMETELS_URL)
+        text = raw.decode("ascii", "replace")
+        comet_lines = []
+        for name in ORBIT_COMETS:
+            ln = next(l for l in text.splitlines() if name in l[102:160])
+            comet_lines.append(ln.rstrip())
+        sources = [{"url": MPCORB_URL, "note": "six lines by HTTP byte range"},
+                   {"url": COMETELS_URL, "sha256": sha256(raw), "bytes": len(raw)}]
+    ts = c.load_timescale()
+    eph = load_file(c.EPHEMERIS_CROSSCHECK_FILE)
+    earth, sun = eph["earth"], eph["sun"]
+    cases = []
+    adf = mpc.load_mpcorb_dataframe(io.BytesIO(("\n".join(asteroid_lines) + "\n").encode()))
+    for i, ln in enumerate(asteroid_lines):
+        row = adf.iloc[i]
+        body = sun + mpc.mpcorb_orbit(row, ts, GM_SUN)
+        epoch_jd = _packed_epoch_jd(row["epoch_packed"])
+        cases.append(orbit_case(ts, earth, body, "mpcorb", ln, row["designation"], epoch_jd))
+    cdf = mpc.load_comets_dataframe(io.BytesIO(("\n".join(comet_lines) + "\n").encode()))
+    for i, ln in enumerate(comet_lines):
+        row = cdf.iloc[i]
+        body = sun + mpc.comet_orbit(row, ts, GM_SUN)
+        # Comet lines carry an epoch (YYYYMMDD, columns 82-89) the two-body orbit ignores.
+        e = ln[81:89]
+        epoch_jd = calendar_to_jd(int(e[:4]), int(e[4:6]), int(e[6:8]), 0.0)
+        cases.append(orbit_case(ts, earth, body, "mpc_comet", ln, row["designation"], epoch_jd))
+    doc = {
+        "schema": "skyfix.reference/1",
+        "generator": {
+            "tool": TOOL,
+            "description": (
+                "Two-body positions of six minor planets (MPCORB lines) and six comets "
+                "(CometEls.txt lines) from Skyfield's skyfield.data.mpc orbits (heliocentric "
+                "Kepler orbits, GM_sun Pitjeva 2005), observed from the Earth with DE440s "
+                "(light-time, aberration, deflection), apparent RA/Dec of date and distance, "
+                "at the elements' epoch -60, 0, +30 and +200 days."
+            ),
+            "generated_utc": c.generated_utc(),
+            "versions": c.versions(),
+            "sources": sources,
+            "licence": (
+                "Source: Minor Planet Center (MPCORB.DAT, CometEls.txt). The MPC permits "
+                "redistribution of these freely available files with the source clearly "
+                "stated; twelve lines are kept here as test input."
+            ),
+            "never_a_runtime_dependency": NEVER,
+        },
+        "mpcorb_lines": asteroid_lines,
+        "comet_lines": comet_lines,
+        "cases": cases,
+    }
+    c.write_json(path, doc)
+
+
+def _packed_epoch_jd(packed):
+    century = {"I": 18, "J": 19, "K": 20}[packed[0]]
+    year = century * 100 + int(packed[1:3])
+    code = "123456789ABCDEFGHIJKLMNOPQRSTUV"
+    month = code.index(packed[3]) + 1
+    day = code.index(packed[4]) + 1
+    return calendar_to_jd(year, month, day, 0.0)
+
+
+def orbit_case(ts, earth, body, source, line, name, epoch_jd_tt):
+    out = []
+    for dd in ORBIT_OFFSETS_DAYS:
+        t = ts.tt_jd(epoch_jd_tt + dd)
+        a = earth.at(t).observe(body)
+        ap = a.apparent()
+        ra, dec, dist = ap.radec(epoch="date")
+        out.append(c.Inline({"jd_tt": c.jd(t.tt), "ra_deg": c.deg(ra._degrees),
+                             "dec_deg": c.deg(dec.degrees), "distance_au": c.Num(dist.au, 10),
+                             "light_time_s": c.Num(float(a.light_time) * 86400.0, 4)}))
+    return {"source": source, "name": name, "line": line, "epoch_jd_tt": c.jd(epoch_jd_tt),
+            "positions": out}
 
 
 # ---------------------------------------------------------------------------

@@ -377,18 +377,30 @@ pub(crate) fn jupiter_w_deg(system: JupiterSystem, jd_tdb: f64) -> f64 {
 // Interpolated vector functions
 // ---------------------------------------------------------------------------
 
-/// A 3-vector function of time (Julian days) replaced by Chebyshev series on equal
-/// segments, sampled at each segment's Chebyshev nodes. Searches that ask for the same
-/// slowly varying positions thousands of times evaluate the provider once per node.
+/// A 3-vector function of time (Julian days) replaced by Chebyshev series on segments,
+/// sampled at each segment's Chebyshev nodes. Searches that ask for the same slowly
+/// varying positions thousands of times evaluate the provider once per node.
+///
+/// **Adaptive**: every segment is checked against the function at three points between
+/// its nodes and halved (down to a day) until the direction it gives is within 1e-5" —
+/// which matters wherever the smooth motion carries a sharp feature: the Sun's light
+/// deflection rises to 1.75" in a day or two as it passes a star or a planet, and a
+/// fixed segment would ring with it for weeks.
 #[derive(Debug, Clone)]
 pub(crate) struct VecFit {
-    a: f64,
-    seg: f64,
+    /// Segment starts, increasing; each part covers `[starts[k], starts[k + 1])`.
+    starts: Vec<f64>,
     parts: Vec<[crate::eclipses::cheb::Cheb; 3]>,
 }
 
+/// The direction tolerance of [`VecFit`], radians (1e-5").
+const FIT_TOL_RAD: f64 = 1e-5 / RAD_TO_ARCSEC;
+/// The shortest segment [`VecFit`] splits down to, days.
+const FIT_MIN_SEG_DAYS: f64 = 1.0;
+
 impl VecFit {
-    /// Fit `f` on `[a, b]` with segments of at most `seg_days` and `n` nodes each.
+    /// Fit `f` on `[a, b]` with segments of at most `seg_days` and `n` nodes each,
+    /// halved where needed.
     pub(crate) fn new<E>(
         mut f: impl FnMut(f64) -> Result<Vec3, E>,
         a: f64,
@@ -396,37 +408,69 @@ impl VecFit {
         seg_days: f64,
         n: usize,
     ) -> Result<VecFit, E> {
-        use crate::eclipses::cheb::{Cheb, nodes};
         let count = (((b - a) / seg_days).ceil() as usize).max(1);
         let seg = (b - a) / count as f64;
-        let mut parts = Vec::with_capacity(count);
+        let mut out = VecFit {
+            starts: Vec::with_capacity(count),
+            parts: Vec::with_capacity(count),
+        };
         for k in 0..count {
-            let (lo, hi) = (a + seg * k as f64, a + seg * (k + 1) as f64);
-            let ts = nodes(n, lo, hi);
-            let mut vals = [
-                Vec::with_capacity(n),
-                Vec::with_capacity(n),
-                Vec::with_capacity(n),
+            out.fit_segment(&mut f, a + seg * k as f64, a + seg * (k + 1) as f64, n)?;
+        }
+        Ok(out)
+    }
+
+    fn fit_segment<E>(
+        &mut self,
+        f: &mut impl FnMut(f64) -> Result<Vec3, E>,
+        lo: f64,
+        hi: f64,
+        n: usize,
+    ) -> Result<(), E> {
+        use crate::eclipses::cheb::{Cheb, nodes};
+        let ts = nodes(n, lo, hi);
+        let mut vals = [
+            Vec::with_capacity(n),
+            Vec::with_capacity(n),
+            Vec::with_capacity(n),
+        ];
+        for &t in &ts {
+            let v = f(t)?;
+            for (i, col) in vals.iter_mut().enumerate() {
+                col.push(v[i]);
+            }
+        }
+        let part = [
+            Cheb::fit(&vals[0], lo, hi),
+            Cheb::fit(&vals[1], lo, hi),
+            Cheb::fit(&vals[2], lo, hi),
+        ];
+        if hi - lo > 2.0 * FIT_MIN_SEG_DAYS {
+            // Check halfway between neighbouring nodes near both ends (where a Chebyshev
+            // interpolant errs most) and near the middle.
+            let checks = [
+                0.5 * (ts[0] + ts[1]),
+                0.5 * (ts[n / 2 - 1] + ts[n / 2]),
+                0.5 * (ts[n - 2] + ts[n - 1]),
             ];
-            for &t in &ts {
-                let v = f(t)?;
-                for (i, col) in vals.iter_mut().enumerate() {
-                    col.push(v[i]);
+            for t in checks {
+                let exact = f(t)?;
+                let fit = [part[0].eval(t), part[1].eval(t), part[2].eval(t)];
+                if angle(fit, exact) > FIT_TOL_RAD {
+                    let mid = 0.5 * (lo + hi);
+                    self.fit_segment(f, lo, mid, n)?;
+                    return self.fit_segment(f, mid, hi, n);
                 }
             }
-            parts.push([
-                Cheb::fit(&vals[0], lo, hi),
-                Cheb::fit(&vals[1], lo, hi),
-                Cheb::fit(&vals[2], lo, hi),
-            ]);
         }
-        Ok(VecFit { a, seg, parts })
+        self.starts.push(lo);
+        self.parts.push(part);
+        Ok(())
     }
 
     fn part(&self, t: f64) -> &[crate::eclipses::cheb::Cheb; 3] {
-        let k = ((t - self.a) / self.seg).floor();
-        let k = (k.max(0.0) as usize).min(self.parts.len() - 1);
-        &self.parts[k]
+        let k = self.starts.partition_point(|&s| s <= t).saturating_sub(1);
+        &self.parts[k.min(self.parts.len() - 1)]
     }
 
     pub(crate) fn eval(&self, t: f64) -> Vec3 {

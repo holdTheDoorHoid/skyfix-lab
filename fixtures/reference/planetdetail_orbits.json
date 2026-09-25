@@ -1,0 +1,190 @@
+{
+  "cases": [
+    {
+      "epoch_jd_tt": 2461200.500000000,
+      "line": "00001    3.34  0.15 K2669 274.41935   73.29420   80.24863   10.58803  0.0796923  0.21430445   2.7655526  0 E2026-SD4  7376 127 1801-2026 0.82 M-v 30k MPCORBFIT  4000      (1) Ceres              20260922",
+      "name": "(1) Ceres",
+      "positions": [
+        {"dec_deg": 10.607039495, "distance_au": 3.7319833956, "jd_tt": 2461140.500000000, "light_time_s": 1862.2776, "ra_deg": 39.064010100},
+        {"dec_deg": 18.245614854, "distance_au": 3.7402541519, "jd_tt": 2461200.500000000, "light_time_s": 1866.4047, "ra_deg": 63.092153423},
+        {"dec_deg": 20.694565548, "distance_au": 3.5713767573, "jd_tt": 2461230.500000000, "light_time_s": 1782.1341, "ra_deg": 75.722920462},
+        {"dec_deg": 28.601428020, "distance_au": 1.6568229951, "jd_tt": 2461400.500000000, "light_time_s": 826.7626, "ra_deg": 112.885713874}
+      ],
+      "source": "mpcorb"
+    },
+    {
+      "epoch_jd_tt": 2461200.500000000,
+      "line": "00004    3.25  0.15 K2669  81.19017  151.46861  103.70132    7.14393  0.0902037  0.27161836   2.3613660  0 MPO964264  7603 112 1821-2025 0.69 M-p 18k MPCORBFIT  4000      (4) Vesta              20250624",
+      "name": "(4) Vesta",
+      "positions": [
+        {"dec_deg": -9.594495169, "distance_au": 3.0267063189, "jd_tt": 2461140.500000000, "light_time_s": 1510.3409, "ra_deg": 347.462893527},
+        {"dec_deg": -1.222248727, "distance_au": 2.5364173432, "jd_tt": 2461200.500000000, "light_time_s": 1265.6844, "ra_deg": 12.045394332},
+        {"dec_deg": 1.269322509, "distance_au": 2.2148242779, "jd_tt": 2461230.500000000, "light_time_s": 1105.2079, "ra_deg": 21.638580470},
+        {"dec_deg": -1.102629203, "distance_au": 2.1430626060, "jd_tt": 2461400.500000000, "light_time_s": 1069.3985, "ra_deg": 17.011411467}
+      ],
+      "source": "mpcorb"
+    },
+    {
+      "epoch_jd_tt": 2461200.500000000,
+      "line": "00433   10.39  0.15 K2669  62.51145  178.91814  304.26797   10.82855  0.2228780  0.55970463   1.4582437  0 E2026-S80 18063  59 1893-2026 0.61 M-v 3Ek MPCORBFIT  1804    (433) Eros               20260919",
+      "name": "(433) Eros",
+      "positions": [
+        {"dec_deg": 8.146825763, "distance_au": 0.6500881061, "jd_tt": 2461140.500000000, "light_time_s": 324.3971, "ra_deg": 110.045631618},
+        {"dec_deg": -6.640685299, "distance_au": 1.0251039725, "jd_tt": 2461200.500000000, "light_time_s": 511.5318, "ra_deg": 158.440307154},
+        {"dec_deg": -13.109700853, "distance_au": 1.2821364258, "jd_tt": 2461230.500000000, "light_time_s": 639.7922, "ra_deg": 179.830851669},
+        {"dec_deg": -22.390757193, "distance_au": 2.7016777600, "jd_tt": 2461400.500000000, "light_time_s": 1348.1501, "ra_deg": 292.692832217}
+      ],
+      "source": "mpcorb"
+    },
+    {
+      "epoch_jd_tt": 2461200.500000000,
+      "line": "01566   16.53  0.15 K2669 329.18267   31.44439   87.94857   22.80162  0.8270188  0.88060152   1.0779942  0 E2026-R99  1842  44 1949-2026 0.76 M-v 3Ek MPCORBFIT  9803   (1566) Icarus             20260907",
+      "name": "(1566) Icarus",
+      "positions": [
+        {"dec_deg": -18.742628311, "distance_au": 2.1866599979, "jd_tt": 2461140.500000000, "light_time_s": 1091.1538, "ra_deg": 347.570883122},
+        {"dec_deg": -0.499346684, "distance_au": 1.2594317745, "jd_tt": 2461200.500000000, "light_time_s": 628.4625, "ra_deg": 39.160416847},
+        {"dec_deg": 20.520645920, "distance_au": 1.1903328237, "jd_tt": 2461230.500000000, "light_time_s": 593.9818, "ra_deg": 97.951395739},
+        {"dec_deg": -28.859854075, "distance_au": 2.8633575231, "jd_tt": 2461400.500000000, "light_time_s": 1428.8291, "ra_deg": 288.196054490}
+      ],
+      "source": "mpcorb"
+    },
+    {
+      "epoch_jd_tt": 2461200.500000000,
+      "line": "99942   19.00  0.15 K2669 175.33040  126.67957  203.89365    3.34100  0.1911492  1.11263810   0.9223592  0 E2024-JQ5  9399  13 2004-2021 0.35 M-v 3Ek MPCLINUX   8802  (99942) Apophis            20210520",
+      "name": "(99942) Apophis",
+      "positions": [
+        {"dec_deg": 17.981497594, "distance_au": 1.5567063121, "jd_tt": 2461140.500000000, "light_time_s": 776.8039, "ra_deg": 57.598033306},
+        {"dec_deg": 19.482710601, "distance_au": 1.7362518160, "jd_tt": 2461200.500000000, "light_time_s": 866.3980, "ra_deg": 116.098523028},
+        {"dec_deg": 13.736139874, "distance_au": 1.7790050621, "jd_tt": 2461230.500000000, "light_time_s": 887.7320, "ra_deg": 142.104159710},
+        {"dec_deg": -14.493136096, "distance_au": 1.0224238808, "jd_tt": 2461400.500000000, "light_time_s": 510.1944, "ra_deg": 323.515427309}
+      ],
+      "source": "mpcorb"
+    },
+    {
+      "epoch_jd_tt": 2461200.500000000,
+      "line": "A1955   20.68  0.15 K2669  72.45157   66.41056    1.96658    6.03295  0.2036822  0.82494496   1.1259508  0 MPO915124   590   7 1999-2025 0.68 M-v 3Ek MPCLINUX   8803 (101955) Bennu              20250428",
+      "name": "(101955) Bennu",
+      "positions": [
+        {"dec_deg": 23.783571728, "distance_au": 1.4389781388, "jd_tt": 2461140.500000000, "light_time_s": 718.0570, "ra_deg": 56.556124116},
+        {"dec_deg": 20.608405811, "distance_au": 1.5431930778, "jd_tt": 2461200.500000000, "light_time_s": 770.0607, "ra_deg": 126.293197269},
+        {"dec_deg": 10.623815083, "distance_au": 1.6883238986, "jd_tt": 2461230.500000000, "light_time_s": 842.4817, "ra_deg": 153.193497842},
+        {"dec_deg": -26.110449614, "distance_au": 2.2390858841, "jd_tt": 2461400.500000000, "light_time_s": 1117.3146, "ra_deg": 284.126520131}
+      ],
+      "source": "mpcorb"
+    },
+    {
+      "epoch_jd_tt": 2461307.500000000,
+      "line": "0002P         2027 02 10.2278  0.338612  0.847316  187.2869  334.0195   11.3479  20260924  14.3  4.0  2P/Encke                                                 MPC xxxxx",
+      "name": "2P/Encke",
+      "positions": [
+        {"dec_deg": 16.724240871, "distance_au": 2.4453433575, "jd_tt": 2461247.500000000, "light_time_s": 1220.2380, "ra_deg": 22.902815851},
+        {"dec_deg": 20.568864181, "distance_au": 1.2716174847, "jd_tt": 2461307.500000000, "light_time_s": 634.5432, "ra_deg": 16.310231845},
+        {"dec_deg": 16.784061824, "distance_au": 0.9746700541, "jd_tt": 2461337.500000000, "light_time_s": 486.3650, "ra_deg": 359.029818784},
+        {"dec_deg": -18.001704506, "distance_au": 1.5996057531, "jd_tt": 2461507.500000000, "light_time_s": 798.2109, "ra_deg": 333.150508293}
+      ],
+      "source": "mpc_comet"
+    },
+    {
+      "epoch_jd_tt": 2461307.500000000,
+      "line": "0012P         2024 04 21.2023  0.781885  0.954746  199.0345  255.8673   74.1494  20260924   5.0  6.0  12P/Pons-Brooks                                          MPC191593",
+      "name": "12P/Pons-Brooks",
+      "positions": [
+        {"dec_deg": -33.737879556, "distance_au": 7.8012153260, "jd_tt": 2461247.500000000, "light_time_s": 3892.8438, "ra_deg": 242.744102548},
+        {"dec_deg": -31.529602267, "distance_au": 9.1550514640, "jd_tt": 2461307.500000000, "light_time_s": 4568.4145, "ra_deg": 243.311817244},
+        {"dec_deg": -31.100430030, "distance_au": 9.7454610033, "jd_tt": 2461337.500000000, "light_time_s": 4863.0317, "ra_deg": 245.964413240},
+        {"dec_deg": -31.383268672, "distance_au": 9.4999225428, "jd_tt": 2461507.500000000, "light_time_s": 4740.5068, "ra_deg": 257.001779429}
+      ],
+      "source": "mpc_comet"
+    },
+    {
+      "epoch_jd_tt": 2461307.500000000,
+      "line": "0029P         2019 04 17.8095  5.797959  0.042912   51.2868  312.4003    9.3550  20260924   4.0  4.0  29P/Schwassmann-Wachmann                                 MPEC 2026-RA1",
+      "name": "29P/Schwassmann-Wachmann",
+      "positions": [
+        {"dec_deg": -2.782486118, "distance_au": 6.9252664210, "jd_tt": 2461247.500000000, "light_time_s": 3455.7411, "ra_deg": 170.683866771},
+        {"dec_deg": -6.907735590, "distance_au": 7.3135612674, "jd_tt": 2461307.500000000, "light_time_s": 3649.5021, "ra_deg": 180.205344918},
+        {"dec_deg": -9.339415102, "distance_au": 7.2217605272, "jd_tt": 2461337.500000000, "light_time_s": 3603.6931, "ra_deg": 185.231050192},
+        {"dec_deg": -14.720316505, "distance_au": 5.3296022817, "jd_tt": 2461507.500000000, "light_time_s": 2659.4970, "ra_deg": 189.206359321}
+      ],
+      "source": "mpc_comet"
+    },
+    {
+      "epoch_jd_tt": 2461307.500000000,
+      "line": "    CK23A030  2024 09 27.8269  0.391331  1.000178  308.5803   21.6703  139.1000  20260924   6.5  3.2  C/2023 A3 (Tsuchinshan-ATLAS)                            MPEC 2026-O98",
+      "name": "C/2023 A3 (Tsuchinshan-ATLAS)",
+      "positions": [
+        {"dec_deg": 20.535494569, "distance_au": 7.3694559468, "jd_tt": 2461247.500000000, "light_time_s": 3677.3938, "ra_deg": 269.885076079},
+        {"dec_deg": 16.007223444, "distance_au": 8.5356538082, "jd_tt": 2461307.500000000, "light_time_s": 4259.3321, "ra_deg": 266.225653201},
+        {"dec_deg": 13.994444765, "distance_au": 9.1572745797, "jd_tt": 2461337.500000000, "light_time_s": 4569.5238, "ra_deg": 267.211905527},
+        {"dec_deg": 16.868897076, "distance_au": 9.8577358898, "jd_tt": 2461507.500000000, "light_time_s": 4919.0574, "ra_deg": 276.905567767}
+      ],
+      "source": "mpc_comet"
+    },
+    {
+      "epoch_jd_tt": 2461307.500000000,
+      "line": "    CK24G030  2025 01 13.4321  0.093681  1.000009  108.2093  220.5012  116.8375  20260924   9.0  4.0  C/2024 G3 (ATLAS)                                        MPC194189",
+      "name": "C/2024 G3 (ATLAS)",
+      "positions": [
+        {"dec_deg": -79.259858799, "distance_au": 6.9632947535, "jd_tt": 2461247.500000000, "light_time_s": 3474.7174, "ra_deg": 31.718469515},
+        {"dec_deg": -84.502020039, "distance_au": 7.7443119294, "jd_tt": 2461307.500000000, "light_time_s": 3864.4487, "ra_deg": 347.740479648},
+        {"dec_deg": -82.306114791, "distance_au": 8.2319884583, "jd_tt": 2461337.500000000, "light_time_s": 4107.8016, "ra_deg": 325.252714951},
+        {"dec_deg": -72.636129321, "distance_au": 9.6207256029, "jd_tt": 2461507.500000000, "light_time_s": 4800.7881, "ra_deg": 1.133170241}
+      ],
+      "source": "mpc_comet"
+    },
+    {
+      "epoch_jd_tt": 2461307.500000000,
+      "line": "    CJ95O010  1997 03 29.0316  0.925302  0.994897  130.7255  281.8052   89.7357  20260924  -2.0  4.0  C/1995 O1 (Hale-Bopp)                                    MPC194091",
+      "name": "C/1995 O1 (Hale-Bopp)",
+      "positions": [
+        {"dec_deg": -85.179502501, "distance_au": 50.5382174821, "jd_tt": 2461247.500000000, "light_time_s": 25218.8123, "ra_deg": 341.027274239},
+        {"dec_deg": -85.268449255, "distance_au": 51.0640819889, "jd_tt": 2461307.500000000, "light_time_s": 25481.2212, "ra_deg": 328.353963181},
+        {"dec_deg": -84.863173742, "distance_au": 51.3834450160, "jd_tt": 2461337.500000000, "light_time_s": 25640.5849, "ra_deg": 324.417202569},
+        {"dec_deg": -83.405806357, "distance_au": 51.6889908775, "jd_tt": 2461507.500000000, "light_time_s": 25793.0537, "ra_deg": 340.550530937}
+      ],
+      "source": "mpc_comet"
+    }
+  ],
+  "comet_lines": [
+    "0002P         2027 02 10.2278  0.338612  0.847316  187.2869  334.0195   11.3479  20260924  14.3  4.0  2P/Encke                                                 MPC xxxxx",
+    "0012P         2024 04 21.2023  0.781885  0.954746  199.0345  255.8673   74.1494  20260924   5.0  6.0  12P/Pons-Brooks                                          MPC191593",
+    "0029P         2019 04 17.8095  5.797959  0.042912   51.2868  312.4003    9.3550  20260924   4.0  4.0  29P/Schwassmann-Wachmann                                 MPEC 2026-RA1",
+    "    CK23A030  2024 09 27.8269  0.391331  1.000178  308.5803   21.6703  139.1000  20260924   6.5  3.2  C/2023 A3 (Tsuchinshan-ATLAS)                            MPEC 2026-O98",
+    "    CK24G030  2025 01 13.4321  0.093681  1.000009  108.2093  220.5012  116.8375  20260924   9.0  4.0  C/2024 G3 (ATLAS)                                        MPC194189",
+    "    CJ95O010  1997 03 29.0316  0.925302  0.994897  130.7255  281.8052   89.7357  20260924  -2.0  4.0  C/1995 O1 (Hale-Bopp)                                    MPC194091"
+  ],
+  "generator": {
+    "description": "Two-body positions of six minor planets (MPCORB lines) and six comets (CometEls.txt lines) from Skyfield's skyfield.data.mpc orbits (heliocentric Kepler orbits, GM_sun Pitjeva 2005), observed from the Earth with DE440s (light-time, aberration, deflection), apparent RA/Dec of date and distance, at the elements' epoch -60, 0, +30 and +200 days.",
+    "generated_utc": "2026-09-25T04:23:11Z",
+    "licence": "Source: Minor Planet Center (MPCORB.DAT, CometEls.txt). The MPC permits redistribution of these freely available files with the source clearly stated; twelve lines are kept here as test input.",
+    "never_a_runtime_dependency": "Development-time reference. CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "sources": [
+      {
+        "note": "six lines by HTTP byte range",
+        "url": "https://minorplanetcenter.net/iau/MPCORB/MPCORB.DAT"
+      },
+      {
+        "bytes": 162963,
+        "sha256": "0c167c878dc8d3029cbb222319dfbf9bdebabb805151283a2bdf29666f70ecfe",
+        "url": "https://minorplanetcenter.net/iau/MPCORB/CometEls.txt"
+      }
+    ],
+    "tool": "tools/reference/gen_planetdetail.py",
+    "versions": {
+      "jplephem": "2.24",
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "python": "3.12.3",
+      "skyfield": "1.55"
+    }
+  },
+  "mpcorb_lines": [
+    "00001    3.34  0.15 K2669 274.41935   73.29420   80.24863   10.58803  0.0796923  0.21430445   2.7655526  0 E2026-SD4  7376 127 1801-2026 0.82 M-v 30k MPCORBFIT  4000      (1) Ceres              20260922",
+    "00004    3.25  0.15 K2669  81.19017  151.46861  103.70132    7.14393  0.0902037  0.27161836   2.3613660  0 MPO964264  7603 112 1821-2025 0.69 M-p 18k MPCORBFIT  4000      (4) Vesta              20250624",
+    "00433   10.39  0.15 K2669  62.51145  178.91814  304.26797   10.82855  0.2228780  0.55970463   1.4582437  0 E2026-S80 18063  59 1893-2026 0.61 M-v 3Ek MPCORBFIT  1804    (433) Eros               20260919",
+    "01566   16.53  0.15 K2669 329.18267   31.44439   87.94857   22.80162  0.8270188  0.88060152   1.0779942  0 E2026-R99  1842  44 1949-2026 0.76 M-v 3Ek MPCORBFIT  9803   (1566) Icarus             20260907",
+    "99942   19.00  0.15 K2669 175.33040  126.67957  203.89365    3.34100  0.1911492  1.11263810   0.9223592  0 E2024-JQ5  9399  13 2004-2021 0.35 M-v 3Ek MPCLINUX   8802  (99942) Apophis            20210520",
+    "A1955   20.68  0.15 K2669  72.45157   66.41056    1.96658    6.03295  0.2036822  0.82494496   1.1259508  0 MPO915124   590   7 1999-2025 0.68 M-v 3Ek MPCLINUX   8803 (101955) Bennu              20250428"
+  ],
+  "schema": "skyfix.reference/1"
+}

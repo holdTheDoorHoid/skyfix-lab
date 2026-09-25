@@ -51,8 +51,8 @@ use skyfix_ephemeris::planets::{Planet, heliocentric_position_au};
 use crate::eclipses::cheb::{minimise, root};
 use crate::planet_geometry::{
     C_AU_PER_DAY, Mat3, RAD_TO_ARCSEC, Vec3, VecFit, add, dot, icrs_to_ecliptic_of_date,
-    icrs_to_true_of_date, jd_utc_from_tt, mat_t_vec, mat_vec, norm, orientation, radec_of, scale,
-    sub, sun_planet_coverage, tangent_plane, unavailable, unit,
+    icrs_to_true_of_date, mat_t_vec, mat_vec, norm, orientation, radec_of, scale, sub,
+    sun_planet_coverage, tangent_plane, unavailable, unit,
 };
 use crate::sky::AlmanacError;
 
@@ -714,14 +714,10 @@ pub fn galilean_events(jd_start: f64, jd_end: f64) -> Result<GalileanEvents, Alm
     })
 }
 
-#[doc(hidden)]
-pub fn _jd_utc_from_tt(jd_tt: f64) -> f64 {
-    jd_utc_from_tt(jd_tt)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::planet_geometry::jd_utc_from_tt;
     use skyfix_core::time::civil_to_jd;
 
     #[test]
