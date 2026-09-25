@@ -3322,7 +3322,7 @@ The core WASM module (`npm run wasm`, `gzip -9`), both built on the same machine
 
 | build | raw | gzipped |
 |---|---|---|
-| main at f2a1a07 (one tier; everything merged by then) | 3 124 878 | 1 284 157 |
+| main at f2a1a07 (one tier; 5992df3 has the same Rust and data) | 3 124 878 | 1 284 157 |
 | this branch (that main merged, both tiers) | 2 781 402 | 1 238 604 |
 | change | −343 476 (−11.0 %) | −45 553 (−3.5 %) |
 
