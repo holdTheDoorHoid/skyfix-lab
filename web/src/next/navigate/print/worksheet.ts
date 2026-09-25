@@ -99,10 +99,10 @@ export function worksheetRows(input: WorksheetInput): WorksheetRow[] {
   // 3. Almanac.
   if (input.ghaAriesDeg !== null) {
     const sha = norm360(sight.gha_deg - input.ghaAriesDeg);
-    push(3, 'Greenwich hour angle of Aries', 'GHA ♈', ang(norm360(input.ghaAriesDeg)));
+    push(3, 'Greenwich hour angle of Aries', 'GHA ♈\uFE0E', ang(norm360(input.ghaAriesDeg)));
     push(3, `Sidereal hour angle of ${sight.body}`, 'SHA', ang(sha));
   }
-  push(3, `Greenwich hour angle of ${sight.body}`, 'GHA', ang(sight.gha_deg), input.ghaAriesDeg !== null ? 'GHA ♈ + SHA' : undefined);
+  push(3, `Greenwich hour angle of ${sight.body}`, 'GHA', ang(sight.gha_deg), input.ghaAriesDeg !== null ? 'GHA ♈\uFE0E + SHA' : undefined);
   push(3, 'Declination', 'Dec', ang(sight.dec_deg));
   if (sight.horizontal_parallax_arcmin > 0) push(3, 'Horizontal parallax', 'HP', `${sight.horizontal_parallax_arcmin.toFixed(1)}′`);
   push(3, 'From', '', sight.direction_source === 'supplied' ? 'the values typed into this sight' : sight.direction_source);

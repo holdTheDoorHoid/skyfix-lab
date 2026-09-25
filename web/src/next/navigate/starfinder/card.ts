@@ -44,7 +44,7 @@ export function starFinderSheets(g: StarFinderGeometry, kind: 'simulated' | 'rea
       h(
         'p',
         { class: 'sfn-sheet__note' },
-        'Print both sheets at the same size (no scaling). Pin the template over this plate through the two centres, turn it until its arrow points at LHA ♈ on the rim (LHA ♈ = GHA ♈ + your longitude east, − west), and read each star’s altitude and azimuth under the template’s grid.',
+        'Print both sheets at the same size (no scaling). Pin the template over this plate through the two centres, turn it until its arrow points at LHA ♈\uFE0E on the rim (LHA ♈\uFE0E = GHA ♈\uFE0E + your longitude east, − west), and read each star’s altitude and azimuth under the template’s grid.',
       ),
     ),
     sheet(
@@ -64,7 +64,7 @@ export function starFinderSheets(g: StarFinderGeometry, kind: 'simulated' | 'rea
 
 export function starFinderCard(nc: NavCtx): Mounted & { el: HTMLElement } {
   const d = disposer();
-  const c = card('Star finder', { term: '2102-D style, turned to LHA ♈', iconName: 'sky', class: 'sfn-sfcard' });
+  const c = card('Star finder', { term: '2102-D style, turned to LHA ♈\uFE0E', iconName: 'sky', class: 'sfn-sfcard' });
   const engine = nc.ctx.engine;
   if (!isSailingsEngine(engine)) {
     c.body.append(notice('caution', 'This build’s engine has no star finder (star_finder_geometry). Rebuild the WebAssembly package to use it.'));
@@ -121,7 +121,7 @@ export function starFinderCard(nc: NavCtx): Mounted & { el: HTMLElement } {
     if (!geom) return;
     const w = where(nc);
     const g = geom.g;
-    readout.textContent = `LHA ♈ ${lha.toFixed(1)}° ${source}, for ${fmtLatitude(w.lat, angleFormat(nc))} (${w.label}): the template for ${Math.abs(g.template_latitude_deg)}° ${g.side === 'north' ? 'N' : 'S'}.`;
+    readout.textContent = `LHA ♈\uFE0E ${lha.toFixed(1)}° ${source}, for ${fmtLatitude(w.lat, angleFormat(nc))} (${w.label}): the template for ${Math.abs(g.template_latitude_deg)}° ${g.side === 'north' ? 'N' : 'S'}.`;
   };
 
   const turnFromTime = (): void => {
