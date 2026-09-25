@@ -74,3 +74,19 @@ describe('on-screen credits (verify2)', () => {
     expect(hits).toEqual([]);
   });
 });
+
+// --- verify2: the fonts' licence ships with the site ------------------------------------------
+describe('the typefaces’ licence (verify2)', () => {
+  it('ships beside the fonts, as the SIL Open Font License asks (the font files carry only its URL)', () => {
+    const web = resolve(import.meta.dirname, '../..');
+    for (const [pkg, file] of [
+      ['@fontsource-variable/inter', 'inter-OFL.txt'],
+      ['@fontsource-variable/jetbrains-mono', 'jetbrains-mono-OFL.txt'],
+    ] as const) {
+      const shipped = readFileSync(join(web, 'public/licenses', file), 'utf8');
+      expect(shipped).toContain('SIL OPEN FONT LICENSE Version 1.1');
+      // The copy the package ships (an upgrade that changes it fails here: copy it again).
+      expect(shipped).toBe(readFileSync(join(web, 'node_modules', pkg, 'LICENSE'), 'utf8'));
+    }
+  });
+});
