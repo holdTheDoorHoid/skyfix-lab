@@ -1384,6 +1384,10 @@ async function main() {
           await open(`${hash}&view=about`, { theme });
           const chips = JSON.parse(await evaluate(`JSON.stringify([...document.querySelectorAll('.sf-evcard')].filter((c) => !c.classList.contains('sf-evcard--none')).map((c) => { const k = c.querySelector('.sf-dt-chip'); return k && !k.hidden ? k.textContent.trim() : ''; }))`));
           check(`far ${when}, ${size}: the Selected card's times carry the ± chip`, chips.length > 0 && chips.every((t) => /^±/.test(t)), JSON.stringify(chips));
+          // The time bar's rise, transit and set labels never print over each other (the
+          // Moon's short arcs at Tromsø put three within three hours: ribbon.ts clashingLabels).
+          const ribbon = JSON.parse(await evaluate(`JSON.stringify((() => { const all = [...document.querySelectorAll('.sf-ribbon__label')]; const r = all.filter((e) => !e.hasAttribute('data-clash')).map((e) => e.getBoundingClientRect()).sort((a, b) => a.left - b.left); const bad = []; for (let i = 1; i < r.length; i++) if (r[i].left < r[i - 1].right) bad.push([Math.round(r[i - 1].left), Math.round(r[i].left)]); return { labels: all.length, shown: r.length, bad }; })())`));
+          check(`far ${when}, ${size}: the time bar's rise, transit and set labels do not overlap`, ribbon.bad.length === 0, JSON.stringify(ribbon));
         }
       }
       await viewport(1440, 900, false);

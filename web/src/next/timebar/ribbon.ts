@@ -100,6 +100,25 @@ function pct(x: number): string {
   return `${(Math.min(1, Math.max(0, x)) * 100).toFixed(3)}%`;
 }
 
+/**
+ * Which of the rise, transit and set labels to hide so that none overlaps another (polish2):
+ * on a phone the ribbon has about 15 px an hour, so events under three hours apart (the
+ * Moon's short arcs in the Arctic) printed their times on top of each other. Left to right,
+ * a label is kept when it starts at least `gap` px after the last one kept; the marks on
+ * the bar stay, so every event is still drawn. `boxes` are the labels' client rectangles.
+ */
+export function clashingLabels(boxes: readonly { left: number; right: number }[], gap = 4): boolean[] {
+  const order = boxes.map((_, i) => i).sort((i, j) => boxes[i]!.left - boxes[j]!.left);
+  const hide = boxes.map(() => false);
+  let lastRight = -Infinity;
+  for (const i of order) {
+    const box = boxes[i]!;
+    if (box.left < lastRight + gap) hide[i] = true;
+    else lastRight = box.right;
+  }
+  return hide;
+}
+
 export function createRibbon(model: RibbonModel, options: { label?: string } = {}): Ribbon {
   let current = model;
   const bar = h('div', { class: 'sf-ribbon__bar', 'aria-hidden': 'true' });
@@ -148,6 +167,18 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
       seg.textContent = text;
       seg.dataset.fit = text === names.letter ? 'letter' : text ? 'full' : 'none';
     }
+  };
+
+  // Hide the labels that would print over another (polish2, `clashingLabels`). One forced
+  // layout, when the day, the body or the width changes (never while the handle moves).
+  const fitMarkLabels = (): void => {
+    const els = [...labels.querySelectorAll<HTMLElement>('.sf-ribbon__label')];
+    for (const e of els) delete e.dataset.clash;
+    if (els.length < 2) return;
+    const hide = clashingLabels(els.map((e) => e.getBoundingClientRect()));
+    els.forEach((e, i) => {
+      if (hide[i]) e.dataset.clash = '';
+    });
   };
 
   const draw = (): void => {
@@ -205,9 +236,16 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
     );
     api.setHandle(m.jd, m.valueText, m.bubbleText, m.glyph);
     fitLabels();
+    fitMarkLabels();
   };
 
-  const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(() => fitLabels()) : null;
+  const resize =
+    typeof ResizeObserver === 'function'
+      ? new ResizeObserver(() => {
+          fitLabels();
+          fitMarkLabels();
+        })
+      : null;
   resize?.observe(bar);
 
   const api: Ribbon = {
