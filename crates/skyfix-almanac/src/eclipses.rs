@@ -50,6 +50,7 @@ mod search;
 mod solar;
 
 use serde::{Deserialize, Serialize};
+use skyfix_core::calendar::Calendar;
 use skyfix_core::deltat;
 use skyfix_core::time::{self, ClockScale, Dut1, Dut1Source, civil_to_jd, format_utc, jd_tt};
 use skyfix_ephemeris::EphemerisError;
@@ -80,7 +81,10 @@ const HALF_WINDOW_H: f64 = 6.0;
 
 #[derive(Debug, Clone, PartialEq, thiserror::Error)]
 pub enum EclipseError {
-    #[error("malformed eclipse id {0:?}: expected \"YYYY-MM-DD-solar\" or \"YYYY-MM-DD-lunar\"")]
+    #[error(
+        "malformed eclipse id {0:?}: expected \"YYYY-MM-DD-solar\" or \"YYYY-MM-DD-lunar\" \
+         (a sign and the year outside 0000-9999: \"-0584-05-28-solar\")"
+    )]
     BadId(String),
     #[error("there is no {kind} eclipse with greatest eclipse on {date} (UTC)")]
     NotFound { kind: &'static str, date: String },
@@ -450,8 +454,15 @@ fn instant_contact(kind: GlobalContactKind, jd: f64) -> GlobalContact {
     }
 }
 
+/// The date part of the wire timestamp: `YYYY-MM-DD`, or with an ISO expanded year
+/// outside 0000-9999 (`-0584-05-28`). (verify2: this took the first ten characters,
+/// which cut a BC date to `-0584-05-2`.)
 fn date_of(jd_utc: f64) -> String {
-    format_utc(jd_utc).chars().take(10).collect()
+    let s = format_utc(jd_utc);
+    match s.split_once('T') {
+        Some((date, _)) => date.to_string(),
+        None => s,
+    }
 }
 
 /// The clock instant (UTC 1972-2035, UT outside) of a TT Julian date.
@@ -716,18 +727,12 @@ impl Eclipses {
             "lunar" => false,
             _ => return Err(bad()),
         };
-        let parts: Vec<&str> = date.split('-').collect();
-        if parts.len() != 3 || parts[0].len() != 4 || parts[1].len() != 2 || parts[2].len() != 2 {
-            return Err(bad());
-        }
-        let y: i32 = parts[0].parse().map_err(|_| bad())?;
-        let m: u32 = parts[1].parse().map_err(|_| bad())?;
-        let d: u32 = parts[2].parse().map_err(|_| bad())?;
-        if !(1..=12).contains(&m) || !(1..=31).contains(&d) {
-            return Err(bad());
-        }
+        // `[+|-]YYYY-MM-DD`, proleptic Gregorian, expanded years allowed (a BC eclipse's
+        // id starts with a minus sign); a day the month does not have is refused.
+        let (y, m, d) = time::parse_date_in(date, Calendar::Gregorian).ok_or_else(bad)?;
+        let y = i32::try_from(y).map_err(|_| bad())?;
         let jd0 = civil_to_jd(y, m, d);
-        // A date like 2024-02-31 would silently roll over: refuse it.
+        // Only the canonical spelling the ids are built with (no `+2024-…`).
         if date_of(jd0 + 0.5) != date {
             return Err(bad());
         }
@@ -886,5 +891,45 @@ impl Eclipses {
                 })
             }
         })
+    }
+}
+
+#[cfg(test)]
+mod verify2_ids {
+    use super::*;
+
+    /// verify2: ids of eclipses in expanded years keep their whole date and parse back.
+    /// Before the fix `date_of` cut `-0584-05-22` to `-0584-05-2` and the parser refused
+    /// any signed year, so a BC eclipse's local circumstances and path could not be asked
+    /// for by the id its own summary carried.
+    #[test]
+    fn ids_of_expanded_years_keep_the_whole_date() {
+        assert_eq!(date_of(civil_to_jd(-584, 5, 22) + 0.5), "-0584-05-22");
+        assert_eq!(date_of(civil_to_jd(0, 1, 1) + 0.5), "0000-01-01");
+        assert_eq!(date_of(civil_to_jd(2024, 4, 8) + 0.75), "2024-04-08");
+        let e = Eclipses::new();
+        // A well-formed BC id parses: outside this engine's coverage it is not found,
+        // which is a different error from a malformed id.
+        for id in ["-0584-05-22-solar", "-1999-06-01-lunar"] {
+            match e.by_id(id) {
+                Err(EclipseError::NotFound { date, .. }) => {
+                    assert_eq!(format!("{date}-{}", id.rsplit_once('-').unwrap().1), id)
+                }
+                other => panic!("{id}: {other:?}"),
+            }
+        }
+        // Cut, non-canonical and impossible dates stay malformed.
+        for id in [
+            "-0584-05-2-solar",
+            "-584-05-22-solar",
+            "+2024-04-08-solar",
+            "2024-02-31-solar",
+            "2024-4-08-solar",
+            "-0584-05-22-lunarx",
+        ] {
+            assert!(matches!(e.by_id(id), Err(EclipseError::BadId(_))), "{id}");
+        }
+        // An id inside the coverage still round-trips.
+        assert!(e.by_id("2024-04-08-solar").is_ok());
     }
 }

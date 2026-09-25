@@ -596,7 +596,9 @@ fn transit(
     }
     let g = greatest_view.expect("greatest transit is always listed");
     let (t1, t4) = (c[0].unwrap_or(tm), c[3].unwrap_or(tm));
-    let date = &format_utc(tm)[..10];
+    // The date part of the timestamp, whole for an expanded year too (verify2: `[..10]`
+    // would cut `-0584-05-22` to `-0584-05-2`).
+    let date = crate::sun_tools::local_date(tm, 0.0);
     let local = match site {
         Some(site) => Some(local(provider, planet, s.sun_r_au, site, (t1, t4))?),
         None => None,
