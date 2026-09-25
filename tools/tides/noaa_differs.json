@@ -1,0 +1,10 @@
+{
+  "about": "Stations whose NOAA predictions (the sweep, tools/tides/fixtures.py) the published constants do not reproduce within the validation rules of skyfix_tides::validation. Written by examples/noaa_sweep.rs; build.py flags them noaa_differs.",
+  "stations": {
+    "8661558": "NOAA serves no predictions for this station"
+  },
+  "window": [
+    "20260201",
+    "20260203"
+  ]
+}
