@@ -618,7 +618,8 @@ fn beads_come_before_second_and_after_third_contact_and_end_in_the_contact_valle
         assert!((first.limb_position_angle_deg - c3.limb_position_angle_deg).abs() < 0.2);
         // The profile for drawing: the whole limb at the maximum.
         let p = limb.profile.as_ref().unwrap();
-        assert_eq!(p.height_arcsec.len(), 5760);
+        assert_eq!(p.height_arcsec.len(), 2880);
+        assert_eq!(p.step_deg, 0.125);
         assert!(p.height_arcsec.iter().all(|h| h.is_some()));
         assert!(!p.ring_truncated);
         assert!((p.mean_limb_k2_arcsec + 0.45).abs() < 0.05);

@@ -234,9 +234,10 @@ mod tests {
             .map(|c| c["kind"].as_str().unwrap())
             .collect();
         assert_eq!(kinds, ["c1", "c2", "c3", "c4"]);
+        // The eclipse's drawing is every 1/8 degree; lunar_limb_profile every 1/16.
         assert_eq!(
             limb["profile"]["height_arcsec"].as_array().unwrap().len(),
-            5760
+            2880
         );
         // A lunar eclipse has no limb block.
         let lunar = serde_json::to_value(
