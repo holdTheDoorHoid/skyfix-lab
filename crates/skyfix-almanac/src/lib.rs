@@ -11,5 +11,6 @@ pub mod planet_events;
 pub mod sky;
 
 // Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod apsides;
 pub mod libration;
 pub mod lunar_features;

@@ -342,8 +342,186 @@ def main(argv):
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Apsides and supermoons
+# ---------------------------------------------------------------------------
+
+#: Meeus, Astronomical Algorithms (2nd ed.), example 50.a: the apogee of 1988 October,
+#: by his chapter-50 series, 1988 October 7 at 20h30m TD (JDE 2447442.3543).
+MEEUS_50A_JDE = 2447442.3543
+
+
 def build_apsides():
-    raise NotImplementedError
+    from skyfield import almanac
+    from skyfield.api import load_file
+
+    ts = c.load_timescale()
+    eph = load_file(c.EPHEMERIS_CROSSCHECK_FILE)
+    earth, moon = eph["earth"], eph["moon"]
+
+    def distance(t):
+        return (moon - earth).at(t).distance().km
+
+    def dist_tt(jd_tt):
+        return float(distance(ts.tt_jd(jd_tt)))
+
+    def golden(f, a, b, tol=1e-7):
+        g = (math.sqrt(5.0) - 1.0) / 2.0
+        x1, x2 = b - g * (b - a), a + g * (b - a)
+        f1, f2 = f(x1), f(x2)
+        while b - a > tol:
+            if f1 < f2:
+                b, x2, f2 = x2, x1, f1
+                x1 = b - g * (b - a)
+                f1 = f(x1)
+            else:
+                a, x1, f1 = x1, x2, f2
+                x2 = a + g * (b - a)
+                f2 = f(x2)
+        return 0.5 * (a + b)
+
+    def extremes(t0, t1):
+        """Every local minimum and maximum of the distance: samples every 6 hours
+        (vectorised), then golden-section refinement of each on the exact distance to
+        1e-7 day (skyfield's find_maxima reported a spurious duplicate apogee here)."""
+        step = 0.25
+        jd = np.arange(float(t0.tt), float(t1.tt), step)
+        d = distance(ts.tt_jd(jd))
+        out = []
+        for i in range(1, len(jd) - 1):
+            if d[i] <= d[i - 1] and d[i] < d[i + 1]:
+                x = golden(dist_tt, jd[i - 1], jd[i + 1])
+                out.append(("perigee", x, dist_tt(x)))
+            elif d[i] >= d[i - 1] and d[i] > d[i + 1]:
+                x = golden(lambda t: -dist_tt(t), jd[i - 1], jd[i + 1])
+                out.append(("apogee", x, dist_tt(x)))
+        return out
+
+    # The search runs a month beyond each end so every syzygy has both neighbours.
+    t0, t1 = ts.utc(1989, 12, 1), ts.utc(2061, 2, 1)
+    events = extremes(t0, t1)
+    for a, b in zip(events, events[1:]):
+        assert a[0] != b[0], "perigee and apogee must alternate: %s %s" % (a, b)
+
+    lo, hi = ts.utc(1990, 1, 1).tt, ts.utc(2061, 1, 1).tt
+    apsides = [
+        c.Inline([k, c.jd(t), c.Num(d, 4)]) for (k, t, d) in events if lo <= t <= hi
+    ]
+
+    tph, yph = almanac.find_discrete(ts.utc(1990, 1, 1), ts.utc(2061, 1, 1), almanac.moon_phases(eph))
+    syz = []
+    for t, y in zip(tph, yph):
+        if int(y) not in (0, 2):
+            continue
+        tt = float(t.tt)
+        d = float(distance(t))
+        # The perigee and the apogee on either side of the syzygy in time.
+        k = next(i for i, e in enumerate(events) if e[1] > tt)
+        pair = (events[k - 1], events[k])
+        per = next(e for e in pair if e[0] == "perigee")
+        apo = next(e for e in pair if e[0] == "apogee")
+        frac = (apo[2] - d) / (apo[2] - per[2])
+        syz.append(
+            {
+                "kind": "new_moon" if int(y) == 0 else "full_moon",
+                "jd_tt": tt,
+                "utc_year": int(t.utc.year),
+                "distance_km": d,
+                "perigee_jd_tt": per[1],
+                "perigee_km": per[2],
+                "apogee_jd_tt": apo[1],
+                "apogee_km": apo[2],
+                "fraction": frac,
+            }
+        )
+    by_year = {}
+    for s_ in syz:
+        if s_["kind"] == "full_moon":
+            by_year.setdefault(s_["utc_year"], []).append(s_["distance_km"])
+    rows = []
+    for s_ in syz:
+        full = s_["kind"] == "full_moon"
+        year = by_year.get(s_["utc_year"], [])
+        flags = ""
+        flags += "S" if s_["fraction"] >= 0.9 else ""
+        flags += "M" if s_["fraction"] <= 0.1 else ""
+        flags += "L" if full and s_["distance_km"] == min(year) else ""
+        flags += "s" if full and s_["distance_km"] == max(year) else ""
+        rows.append(
+            c.Inline(
+                [
+                    "full" if full else "new",
+                    c.jd(s_["jd_tt"]),
+                    c.Num(s_["distance_km"], 4),
+                    c.jd(s_["perigee_jd_tt"]),
+                    c.Num(s_["perigee_km"], 4),
+                    c.jd(s_["apogee_jd_tt"]),
+                    c.Num(s_["apogee_km"], 4),
+                    c.Num(s_["fraction"], 6),
+                    flags,
+                ]
+            )
+        )
+
+    # Meeus 50.a: the apogee of 1988 October, the whole search in TT around it.
+    m = [e for e in extremes(ts.tt_jd(MEEUS_50A_JDE - 5.0), ts.tt_jd(MEEUS_50A_JDE + 5.0))
+         if e[0] == "apogee"]
+    assert len(m) == 1, m
+    ta = ts.tt_jd([m[0][1]])
+    da = [m[0][2]]
+    meeus = {
+        "source": (
+            "Meeus, Astronomical Algorithms, 2nd ed. (1998), example 50.a: the apogee of "
+            "1988 October by his chapter-50 series, 1988 October 7 at 20h30m TD"
+        ),
+        "meeus_jde": c.jd(MEEUS_50A_JDE),
+        "skyfield_jd_tt": c.jd(float(ta.tt[0])),
+        "skyfield_utc": ta[0].utc_strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "skyfield_distance_km": c.Num(float(da[0]), 4),
+    }
+
+    obj = {
+        "schema": "skyfix.reference/1",
+        "generator": c.generator_block(
+            "tools/moon/gen_reference.py apsides",
+            "Perigees and apogees of the Moon 1990-2060 (least and greatest geometric "
+            "Earth-Moon centre distance), new and full Moons with their distance, and "
+            "the supermoon/micromoon classification of CONVENTIONS 13.10.",
+            c.arcmin(0.0),
+            "EXPANSION_PLAN P8: apsides within 2 minutes and 10 km of Skyfield.",
+            extra={
+                "method": (
+                    "(moon - earth).at(t).distance().km from Skyfield + DE440s, sampled "
+                    "every 6 hours in TT, each local extremum refined by golden-section "
+                    "search to 1e-7 day (skyfield.searchlib.find_maxima reported a "
+                    "spurious duplicate apogee in 2022 and was not used); phases from "
+                    "skyfield.almanac.moon_phases; instants in TT (jd_tt), so no UT1 "
+                    "assumption enters. apsides rows are [kind, jd_tt, distance_km]."
+                ),
+                "classification": (
+                    "perigee_fraction = (d_apogee - d) / (d_apogee - d_perigee) with the "
+                    "perigee and apogee on either side of the syzygy in time; supermoon "
+                    ">= 0.9, micromoon "
+                    "<= 0.1 (Nolle 1979); largest/smallest of the year among the full "
+                    "Moons of the UTC calendar year."
+                ),
+                "syzygy_columns": [
+                    "kind (new|full)", "jd_tt", "distance_km", "perigee_jd_tt",
+                    "perigee_km", "apogee_jd_tt", "apogee_km", "perigee_fraction",
+                    "flags: S supermoon, M micromoon, L largest full Moon of the year, "
+                    "s smallest",
+                ],
+                "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+            },
+        ),
+        "apsides": apsides,
+        "syzygies": rows,
+        "meeus_50a": meeus,
+    }
+    c.write_json(os.path.join(c.FIX_REFERENCE, "moon_apsides.json"), obj)
+    n_super = sum(1 for s_ in syz if s_["fraction"] >= 0.9)
+    print("  %d apsides, %d syzygies (%d supermoons); Meeus 50.a apogee %s, %.1f km"
+          % (len(apsides), len(rows), n_super, meeus["skyfield_utc"], float(da[0])))
 
 
 def build_occultations():
