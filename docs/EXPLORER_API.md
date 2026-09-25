@@ -1720,6 +1720,19 @@ they use the IERS history, and with neither 0. Not read by `almanac_day`, whose 
 is UT1 as in the printed almanac (CONVENTIONS 15.2), nor by `moon_phases` and `seasons`,
 which do not depend on the Earth's rotation. A session's `clock.dut1_s` overrides it for
 that session (the navigation exports).
+<!-- verify2 -->
+As built (verify2, 2026-09-25): also read by `compass_error`, `eclipse_local_limb` and
+`lunar_limb_profile`, and, since this agent's fix, by the session exports (`reduce`,
+`solve`, `misfit_grid`, `misfit_default_bounds`, `noon_sight`, `polaris_latitude`,
+`average_sights`, `running_fix`) for a session without `clock.dut1_s`, and by
+`predict_sextant`, `plan_sights` and `lunar_distance` for an observer without `dut1_s`:
+the order is the session's or observer's own value, then this one, then the IERS history.
+Before, those exports skipped it, so a page-wide DUT1 would have reached the worksheet's
+GHA Aries (`sidereal`) but not the reduced sights beside it. Not read by the sun tools, the
+Moon in detail, `star_identify` or the almanac tables, which turn the Earth with DUT1 = 0
+(the sun tools and the Moon in detail by up to 0.9 s of UT1, 13.5″, from `sky_state`'s
+IERS value). No view calls `set_dut1` today.
+<!-- /verify2 -->
 
 **`calendar_convert(request_json) -> CalendarConversion`**: `{"jd_utc": 2461308.0}` or
 `{"civil": {"calendar": "julian"|"gregorian", "year", "month", "day", "hour"?, "minute"?,

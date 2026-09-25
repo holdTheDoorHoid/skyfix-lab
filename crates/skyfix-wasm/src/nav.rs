@@ -177,6 +177,17 @@ pub fn source_for(mode: &str, dut1_s: f64) -> Result<Box<dyn DirectionSource>, S
 /// (`skyfix_core::reduce::session_dut1_s`). `reduce`, `solve`, the misfit grid and every
 /// method here build their source with it, so a session's DUT1 reaches every answer.
 pub fn session_source(mode: &str, session: &Session) -> Result<Box<dyn DirectionSource>, String> {
+    // verify2: a session without its own DUT1 takes the explorer-wide value (`set_dut1`)
+    // before the IERS history, as EXPLORER_API ("a session's `clock.dut1_s` overrides it
+    // for that session") and Navigate's DUT1 note say; it used to skip it, while
+    // `sidereal` (the worksheet's GHA Aries) and `sky_state` took it.
+    if session.clock.dut1_s.is_none()
+        && let Some(user) = crate::timescale::user_dut1()
+    {
+        let mut with_user = session.clone();
+        with_user.clock.dut1_s = Some(user);
+        return source_for(mode, skyfix_core::reduce::session_dut1_s(&with_user));
+    }
     source_for(mode, skyfix_core::reduce::session_dut1_s(session))
 }
 
@@ -332,6 +343,35 @@ mod tests {
             assert!((shift - 7.5205).abs() < 0.01, "{body}: {shift}");
             assert_eq!(a.dec_deg, b.dec_deg);
         }
+    }
+
+    #[test]
+    fn a_session_without_its_own_dut1_takes_the_explorer_wide_value() {
+        // verify2: `set_dut1` is the fallback for a session with no `clock.dut1_s`, and a
+        // session's own value still wins.
+        let doc = fixture();
+        let case = doc["averaging"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|c| c["name"] == "vega-run-philadelphia")
+            .unwrap();
+        let sights = case["sights"].as_array().unwrap();
+        let options = json!({"dr": case["dr"]}).to_string();
+        let plain = session_json(sights, Some("Vega"));
+        let mut own: Value = serde_json::from_str(&plain).unwrap();
+        own["clock"] = json!({"dut1_s": 0.5});
+        let mut other: Value = serde_json::from_str(&plain).unwrap();
+        other["clock"] = json!({"dut1_s": -0.3});
+        let want = average_sights_json(&own.to_string(), &options, "auto").unwrap();
+        crate::timescale::native::set_dut1(Some(0.5)).unwrap();
+        let got = average_sights_json(&plain, &options, "auto");
+        let kept = average_sights_json(&other.to_string(), &options, "auto");
+        crate::timescale::native::set_dut1(None).unwrap();
+        let (got, kept) = (got.unwrap(), kept.unwrap());
+        assert!((got.sights[0].gha_deg - want.sights[0].gha_deg).abs() < 1e-12);
+        let own_shift = (kept.sights[0].gha_deg - want.sights[0].gha_deg) * 3600.0;
+        assert!((own_shift + 12.03).abs() < 0.02, "{own_shift}");
     }
 
     #[test]

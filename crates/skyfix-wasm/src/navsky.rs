@@ -68,11 +68,15 @@ fn observer_dut1(observer: &serde_json::Value) -> Result<Option<f64>, String> {
     }
 }
 
-/// DUT1 for `jd_utc` from an observer document: its own value, else the engine's.
+/// DUT1 for `jd_utc` from an observer document: its own value, else the explorer-wide
+/// one (`set_dut1`; verify2: it was skipped), else the engine's history or model.
 fn dut1_from_observer_json(observer_json: &str, jd_utc: f64) -> Result<f64, String> {
     let v: serde_json::Value =
         serde_json::from_str(observer_json.trim()).map_err(|e| format!("observer: {e}"))?;
-    Ok(skyfix_core::time::dut1_s(jd_utc, observer_dut1(&v)?))
+    Ok(skyfix_core::time::dut1_s(
+        jd_utc,
+        observer_dut1(&v)?.or(crate::timescale::user_dut1()),
+    ))
 }
 
 // --- end moonshape ----------------------------------------------------------------
@@ -149,7 +153,7 @@ pub fn lunar_distance_impl(input_json: &str) -> Result<LunarDistanceResult, Stri
     input.body = canonical_body(&input.body)?.to_string();
     let document: serde_json::Value =
         serde_json::from_str(input_json.trim()).map_err(|e| format!("lunar distance: {e}"))?;
-    let user = observer_dut1(&document["observer"])?;
+    let user = observer_dut1(&document["observer"])?.or(crate::timescale::user_dut1());
     let jd = skyfix_core::time::parse_utc(&input.utc_estimate).map_err(|e| e.to_string())?;
     let source = ProviderSource(crate::nav::auto_provider_with_dut1(
         skyfix_core::time::dut1_s(jd, user),
@@ -344,6 +348,14 @@ mod tests {
             let e = predict_sextant_impl(&with(bad), "", "Moon", "lower", t).unwrap_err();
             assert!(e.contains("dut1_s"), "{bad}: {e}");
         }
+        // verify2: with no value of its own the observer takes the explorer-wide DUT1
+        // (`set_dut1`), and its own value still wins.
+        crate::timescale::native::set_dut1(Some(0.5)).unwrap();
+        let page = predict_sextant_impl(PHL, "", "Moon", "lower", t);
+        let own = predict_sextant_impl(&with("0"), "", "Moon", "lower", t);
+        crate::timescale::native::set_dut1(None).unwrap();
+        assert_eq!(page.unwrap(), moved);
+        assert_eq!(own.unwrap(), zero);
         // The sight plan and a lunar distance read it too.
         let start = jd("2026-10-01T12:00:00Z");
         assert!(plan_sights_impl(&with("-0.3"), start, start + 1.0, "").is_ok());
