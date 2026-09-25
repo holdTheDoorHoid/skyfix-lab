@@ -37,6 +37,26 @@ import type {
 } from './types.js';
 import type { MisfitEngine } from './types.js';
 import { createWasmMisfit } from './wasm-misfit.js';
+// Expansion programme — sun tools (suntools agent).
+import type {
+  AlignmentRequest,
+  AlignmentResult,
+  Analemma,
+  AnalemmaRequest,
+  AzimuthAltitudeBand,
+  AzimuthCrossing,
+  EquationOfTime,
+  GalacticCentreWindows,
+  GalacticOptions,
+  RiseSetAzimuthRequest,
+  RiseSetAzimuths,
+  SolarDay,
+  SolarPanel,
+  SolarYear,
+  SolarYearRequest,
+  SunHours,
+  SunPath,
+} from './types.js';
 
 /** Exports the explorer cannot run without. */
 export const REQUIRED_EXPORTS = [
@@ -99,6 +119,25 @@ export interface ExplorerWasmExports {
   /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
   planet_events?(jdStart: number, jdEnd: number): unknown;
   version?(): string;
+  // Expansion programme — sun tools (suntools agent; EXPLORER_API "Expansion programme —
+  // sun tools"); absent in older builds.
+  sun_hours?(observerJson: string, jdStart: number, jdEnd: number): unknown;
+  find_azimuth?(
+    observerJson: string,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    bandJson: string,
+  ): unknown;
+  alignment_days?(observerJson: string, requestJson: string): unknown;
+  analemma?(observerJson: string, requestJson: string): unknown;
+  sun_path?(observerJson: string, jdStart: number, jdEnd: number, stepMinutes: number): unknown;
+  rise_set_azimuths?(observerJson: string, requestJson: string): unknown;
+  equation_of_time?(year: number, utcHour: number): unknown;
+  solar_day?(observerJson: string, jdStart: number, jdEnd: number, panelJson: string, stepMinutes: number): unknown;
+  solar_year?(observerJson: string, requestJson: string): unknown;
+  galactic_centre_windows?(observerJson: string, jdStart: number, jdEnd: number, optionsJson: string): unknown;
 }
 
 export function missingExports(module: object): { required: string[]; optional: string[] } {
@@ -340,6 +379,95 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
     const fn = this.x.planet_events;
     if (typeof fn !== 'function') throw rebuildError('planet_events', 'planet events');
     return this.call('planet_events', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  // -------------------------------------------------------------------------
+  // Expansion programme — sun tools (suntools agent). `SunToolsEngine` in types.ts; each
+  // throws "rebuild" when this build of the core predates the export.
+  // -------------------------------------------------------------------------
+
+  private sunTool<K extends keyof ExplorerWasmExports>(name: K): NonNullable<ExplorerWasmExports[K]> {
+    const fn = this.x[name];
+    if (typeof fn !== 'function') throw rebuildError(String(name), 'sun tools');
+    return fn as NonNullable<ExplorerWasmExports[K]>;
+  }
+
+  /** Golden and blue hours over one local day, with the Sun's events (`sun_hours`). */
+  sunHours(observer: Observer, jdStart: number, jdEnd: number): SunHours {
+    const fn = this.sunTool('sun_hours');
+    return this.call('sun_hours', () => fn.call(this.x, observerJson(observer), jdStart, jdEnd));
+  }
+
+  /** When a body crosses a bearing inside an altitude band (`find_azimuth`). */
+  findAzimuth(
+    observer: Observer,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    band?: AzimuthAltitudeBand,
+  ): AzimuthCrossing[] {
+    const fn = this.sunTool('find_azimuth');
+    return this.call('find_azimuth', () =>
+      fn.call(this.x, observerJson(observer), body, jdStart, jdEnd, azimuthDeg, band ? JSON.stringify(band) : ''),
+    );
+  }
+
+  /** The days of a year a body rises, sets or stands at an altitude on a bearing (`alignment_days`). */
+  alignmentDays(observer: Observer, request: AlignmentRequest): AlignmentResult {
+    const fn = this.sunTool('alignment_days');
+    return this.call('alignment_days', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The Sun at one clock time on every day of a year (`analemma`). */
+  analemma(observer: Observer, request: AnalemmaRequest): Analemma {
+    const fn = this.sunTool('analemma');
+    return this.call('analemma', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** A day's sun path and the equinox and solstice envelope (`sun_path`). */
+  sunPath(observer: Observer, jdStart: number, jdEnd: number, stepMinutes = 10): SunPath {
+    const fn = this.sunTool('sun_path');
+    return this.call('sun_path', () => fn.call(this.x, observerJson(observer), jdStart, jdEnd, stepMinutes));
+  }
+
+  /** Daily rise and set azimuths over a local year (`rise_set_azimuths`). */
+  riseSetAzimuths(observer: Observer, request: RiseSetAzimuthRequest): RiseSetAzimuths {
+    const fn = this.sunTool('rise_set_azimuths');
+    return this.call('rise_set_azimuths', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The equation of time and the Sun's declination on every UTC date of a year (`equation_of_time`). */
+  equationOfTime(year: number, utcHour = 12): EquationOfTime {
+    const fn = this.sunTool('equation_of_time');
+    return this.call('equation_of_time', () => fn.call(this.x, year, utcHour));
+  }
+
+  /** Clear-sky irradiance on a panel through a day, and the energy (`solar_day`). */
+  solarDay(observer: Observer, jdStart: number, jdEnd: number, panel?: SolarPanel, stepMinutes = 10): SolarDay {
+    const fn = this.sunTool('solar_day');
+    return this.call('solar_day', () =>
+      fn.call(this.x, observerJson(observer), jdStart, jdEnd, panel ? JSON.stringify(panel) : '', stepMinutes),
+    );
+  }
+
+  /** Clear-sky energy for every local day of a year, and optionally the best tilt (`solar_year`). */
+  solarYear(observer: Observer, request: SolarYearRequest): SolarYear {
+    const fn = this.sunTool('solar_year');
+    return this.call('solar_year', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The galactic centre's dark-sky windows over a span of nights (`galactic_centre_windows`). */
+  galacticCentreWindows(
+    observer: Observer,
+    jdStart: number,
+    jdEnd: number,
+    options?: GalacticOptions,
+  ): GalacticCentreWindows {
+    const fn = this.sunTool('galactic_centre_windows');
+    return this.call('galactic_centre_windows', () =>
+      fn.call(this.x, observerJson(observer), jdStart, jdEnd, options ? JSON.stringify(options) : ''),
+    );
   }
 }
 

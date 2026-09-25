@@ -51,6 +51,21 @@ import type {
   StarfieldCatalog,
 } from './types.js';
 import type { NavTools } from './wasm-nav.js';
+// Expansion programme — sun tools (suntools agent).
+import { createMockSunTools } from './mock-suntools.js';
+import type {
+  AlignmentResult,
+  Analemma,
+  AzimuthCrossing,
+  EquationOfTime,
+  GalacticCentreWindows,
+  RiseSetAzimuths,
+  SolarDay,
+  SolarYear,
+  SunHours,
+  SunPath,
+  SunToolsEngine,
+} from './types.js';
 
 export const MOCK_DESCRIPTION =
   'MOCK ENGINE for developing the interface. Every number on this page is illustrative: positions come from ' +
@@ -829,5 +844,45 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
       else out.push({ jd_start: a, jd_end: b, phase });
     }
     return out;
+  }
+
+  // -------------------------------------------------------------------------
+  // Expansion programme — sun tools (suntools agent): illustrative, like everything
+  // here; see mock-suntools.ts. `SunToolsEngine` in types.ts.
+  // -------------------------------------------------------------------------
+
+  private sunToolsCache?: SunToolsEngine;
+  private get sunTools(): SunToolsEngine {
+    return (this.sunToolsCache ??= createMockSunTools(this));
+  }
+  sunHours(...args: Parameters<SunToolsEngine['sunHours']>): SunHours {
+    return this.sunTools.sunHours(...args);
+  }
+  findAzimuth(...args: Parameters<SunToolsEngine['findAzimuth']>): AzimuthCrossing[] {
+    return this.sunTools.findAzimuth(...args);
+  }
+  alignmentDays(...args: Parameters<SunToolsEngine['alignmentDays']>): AlignmentResult {
+    return this.sunTools.alignmentDays(...args);
+  }
+  analemma(...args: Parameters<SunToolsEngine['analemma']>): Analemma {
+    return this.sunTools.analemma(...args);
+  }
+  sunPath(...args: Parameters<SunToolsEngine['sunPath']>): SunPath {
+    return this.sunTools.sunPath(...args);
+  }
+  riseSetAzimuths(...args: Parameters<SunToolsEngine['riseSetAzimuths']>): RiseSetAzimuths {
+    return this.sunTools.riseSetAzimuths(...args);
+  }
+  equationOfTime(...args: Parameters<SunToolsEngine['equationOfTime']>): EquationOfTime {
+    return this.sunTools.equationOfTime(...args);
+  }
+  solarDay(...args: Parameters<SunToolsEngine['solarDay']>): SolarDay {
+    return this.sunTools.solarDay(...args);
+  }
+  solarYear(...args: Parameters<SunToolsEngine['solarYear']>): SolarYear {
+    return this.sunTools.solarYear(...args);
+  }
+  galacticCentreWindows(...args: Parameters<SunToolsEngine['galacticCentreWindows']>): GalacticCentreWindows {
+    return this.sunTools.galacticCentreWindows(...args);
   }
 }
