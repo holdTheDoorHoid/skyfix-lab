@@ -18,7 +18,8 @@
 import type { BodyKind, BodyState, SkyState } from '../engine/types.js';
 import type { Layers } from '../state.js';
 import { glyphShape, type GlyphName } from '../theme/glyphs.js';
-import { brightLimbScreenAngle, DEG, RAD, refractionArcmin, type HorizonBuffers } from './astro.js';
+import { azimuthOf, brightLimbScreenAngle, DEG, RAD, refractionArcmin, type HorizonBuffers } from './astro.js';
+import { drawDeepSkySymbols, type DeepSkyField, type DsoColours } from './deepsky.js';
 import { DomeProjector, PanoramaProjector, type Projector } from './projection.js';
 import {
   css,
@@ -30,7 +31,7 @@ import {
   type SkyPalette,
 } from './palette.js';
 import type { SkyScene } from './scene.js';
-import { binBv, binMagnitude, COLOUR_BINS, colourBin, starAlpha, starRadius, starTitle } from './stars.js';
+import { binBv, binMagnitude, COLOUR_BINS, colourBin, MAG_BINS, magBin, starAlpha, starRadius, starTitle } from './stars.js';
 
 const TAU = 2 * Math.PI;
 /** Figure segments shorter than this are drawn as chords (see `figures`). */
@@ -40,6 +41,58 @@ const WHITE: Rgb = { r: 255, g: 255, b: 255 };
 /** Hover, focus and selection address stars by index and bodies by name. */
 export const bodyKey = (name: string): string => `b:${name}`;
 export const starKey = (index: number): string => `s:${index}`;
+/** sky2 agent: deep-sky objects by catalogue index, radiants by shower code, added bodies by name, constellations by index. */
+export const deepSkyKey = (index: number): string => `d:${index}`;
+export const radiantKey = (code: string): string => `r:${code}`;
+export const customKey = (name: string): string => `c:${name}`;
+export const constellationKey = (index: number): string => `k:${index}`;
+
+/** A meteor radiant to draw (sky2 agent): apparent altitude and azimuth, radians. */
+export interface RadiantMark {
+  key: string;
+  code: string;
+  name: string;
+  alt: number;
+  az: number;
+  /** The label's second part: "about 40 an hour", or "" before the night's estimate. */
+  rate: string;
+  /** 0–1: the peak ZHR on a log scale (symbol size). */
+  strength: number;
+  x: number;
+  y: number;
+  drawn: boolean;
+}
+
+/** A comet or asteroid the person added (sky2 agent). */
+export interface CustomMark {
+  key: string;
+  name: string;
+  kind: 'comet' | 'asteroid';
+  alt: number;
+  az: number;
+  magnitude: number | null;
+  /** A point a degree from it toward the Sun (apparent altitude and azimuth, radians): a comet's tail points the other way. */
+  sunward: { alt: number; az: number } | null;
+  x: number;
+  y: number;
+  drawn: boolean;
+}
+
+/** The field-of-view outline (sky2 agent): horizon unit vectors, and its label. */
+export interface FovOutline {
+  points: Float64Array;
+  count: number;
+  label: string;
+}
+
+/** The Milky Way's raster, ready to be drawn scaled up (sky2 agent). */
+export interface MilkyWayImage {
+  source: CanvasImageSource;
+  /** Texels drawn, and the CSS pixels per texel. */
+  width: number;
+  height: number;
+  cell: number;
+}
 
 export interface BodyMark {
   key: string;
@@ -86,6 +139,19 @@ export interface Frame {
   focusKey: string | null;
   hoverKey: string | null;
   path: PathData | null;
+  // --- sky2 agent ---
+  /** Deep-sky objects, projected this frame (null: the layer is off or unavailable). */
+  dso?: DeepSkyField | null;
+  /** The Milky Way's glow (null: off, not visible, or unavailable). */
+  milkyWay?: MilkyWayImage | null;
+  /** Meteor radiants active now. */
+  radiants?: RadiantMark[];
+  /** Comets and asteroids the person added. */
+  custom?: CustomMark[];
+  /** The field-of-view outline, or null. */
+  fov?: FovOutline | null;
+  /** A constellation the search found (its figure is drawn brighter), or −1. */
+  constellation?: number;
 }
 
 const BODY_TOKEN: Record<string, BodyKey> = {
@@ -131,7 +197,7 @@ export class SkyRenderer {
   /** Glyph shapes as Path2D, built once. */
   private readonly glyphs = new Map<GlyphName, { fill: Path2D[]; stroke: Path2D[] }>();
   /** Labels of reference lines, placed after the bodies' (which win a collision). */
-  private readonly lineLabels: { text: string; x: number; y: number; fill: string }[] = [];
+  private readonly lineLabels: { text: string; x: number; y: number; fill: string; centred?: boolean }[] = [];
   /** Indices of stars brighter than 1.5 (glows). */
   private bright = new Int32Array(0);
   private brightFor: object | null = null;
@@ -179,15 +245,22 @@ export class SkyRenderer {
       this.panoramaSky(f, f.projector as PanoramaProjector);
     }
     this.sunGlow(f);
+    if (f.milkyWay) this.milkyWay(f, f.milkyWay);
     this.grid(f);
+    if (f.layers.raDecGrid) this.raDecGrid(f);
     if (f.layers.constellationBoundaries) this.boundaries(f);
     if (f.layers.equator) this.circle(f, f.scene.eqh, 'equator');
     if (f.layers.ecliptic) this.circle(f, f.scene.eclh, 'ecliptic');
     if (f.layers.meridian) this.meridian(f);
     if (f.layers.constellations) this.figures(f);
+    if (f.constellation !== undefined && f.constellation >= 0) this.figures(f, f.constellation);
     if (f.layers.paths && f.path) this.pathLine(f, f.path);
+    if (f.dso) this.deepSky(f, f.dso);
     this.stars(f);
+    if (f.radiants?.length) this.radiantMarks(f, f.radiants);
+    if (f.custom?.length) this.customMarks(f, f.custom);
     this.drawBodies(f);
+    if (f.fov) this.fovOutline(f, f.fov);
     if (dome) {
       ctx.restore(); // end of the sky clip
       this.domeRim(f, dome);
@@ -536,10 +609,12 @@ export class SkyRenderer {
   // Constellation figures
   // -------------------------------------------------------------------------
 
-  private figures(f: Frame): void {
+  /** Every constellation's figure, or (sky2 agent) only constellation `only`, brighter: the one the search found. */
+  private figures(f: Frame, only = -1): void {
     const s = f.scene;
     const cat = s.catalog;
     if (!cat || !s.starsOk) return;
+    if (only >= cat.constellations.length) return;
     const ctx = this.ctx;
     const p = f.projector;
     const alt = s.h.alt;
@@ -547,10 +622,10 @@ export class SkyRenderer {
     const ends = this.ends;
     const jump = f.width * 0.5;
     const step = 2.5 * DEG;
-    ctx.strokeStyle = css(f.colours.ink, f.colours.light ? 0.32 : 0.36);
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = only >= 0 ? css(f.palette.accent, 0.95) : css(f.colours.ink, f.colours.light ? 0.32 : 0.36);
+    ctx.lineWidth = only >= 0 ? 2 : 1;
     ctx.beginPath();
-    for (const c of cat.constellations) {
+    for (const c of only >= 0 ? [cat.constellations[only]!] : cat.constellations) {
       for (const [a, b] of c.lines) {
         if (alt[a]! < 0 && alt[b]! < 0) continue;
         if (Number.isNaN(xs[a]!) && Number.isNaN(xs[b]!)) continue;
@@ -665,6 +740,19 @@ export class SkyRenderer {
   // Stars
   // -------------------------------------------------------------------------
 
+  /** Per-frame grouping of the stars by (dimmed magnitude bin, colour bin): a counting sort (sky2 agent). */
+  private frameOrder = new Int32Array(0);
+  private readonly groupStart = new Int32Array(MAG_BINS * COLOUR_BINS + 1);
+  private readonly groupFill = new Int32Array(MAG_BINS * COLOUR_BINS);
+  private starBin = new Int32Array(0);
+
+  /**
+   * The stars, faint first, one path and one fill per (size, colour) group. The groups are
+   * made each frame from `scene.effMag` — the catalogue magnitude dimmed by extinction
+   * toward the horizon — so a star low in the sky is drawn smaller and fainter, and one
+   * dimmed past the limit is not drawn at all. A counting sort over the stars on screen:
+   * about 0.1 ms for 9 000, and nothing allocated.
+   */
   private stars(f: Frame): void {
     const s = f.scene;
     const data = s.stars;
@@ -673,14 +761,50 @@ export class SkyRenderer {
     const xs = s.x;
     const ys = s.y;
     const on = s.onScreen;
-    const order = data.order;
-    const groups = data.groups;
+    const eff = s.effMag;
+    const cbin = data.cbin;
     const limit = f.limitMag;
-    for (let g = 0; g < data.groupCount; g += 1) {
-      const mb = groups[4 * g]!;
-      const cb = groups[4 * g + 1]!;
-      const start = groups[4 * g + 2]!;
-      const end = groups[4 * g + 3]!;
+    const cut = limit + 0.6; // starAlpha is 0 beyond this
+    const n = s.n;
+    if (this.frameOrder.length < n) {
+      this.frameOrder = new Int32Array(n);
+      this.starBin = new Int32Array(n);
+    }
+    const nb = MAG_BINS * COLOUR_BINS;
+    const count = this.groupFill;
+    count.fill(0);
+    const bin = this.starBin;
+    for (let i = 0; i < n; i += 1) {
+      if (on[i] === 0) {
+        bin[i] = -1;
+        continue;
+      }
+      const m = eff[i]!;
+      if (m > cut) {
+        bin[i] = -1;
+        continue;
+      }
+      // Faint first: the magnitude bins run from bright (0) to faint, so reverse them.
+      const b = (MAG_BINS - 1 - magBin(m)) * COLOUR_BINS + cbin[i]!;
+      bin[i] = b;
+      count[b]! += 1;
+    }
+    const start = this.groupStart;
+    start[0] = 0;
+    for (let b = 0; b < nb; b += 1) start[b + 1] = start[b]! + count[b]!;
+    // Reuse `count` as the fill cursor.
+    for (let b = 0; b < nb; b += 1) count[b] = start[b]!;
+    const order = this.frameOrder;
+    for (let i = 0; i < n; i += 1) {
+      const b = bin[i]!;
+      if (b >= 0) order[count[b]!++] = i;
+    }
+    for (let b = 0; b < nb; b += 1) {
+      const a0 = start[b]!;
+      const a1 = start[b + 1]!;
+      if (a1 === a0) continue;
+      const mb = MAG_BINS - 1 - Math.floor(b / COLOUR_BINS);
+      const cb = b % COLOUR_BINS;
       const mag = binMagnitude(mb);
       const alpha = starAlpha(mag, limit);
       if (alpha <= 0.01) continue;
@@ -691,15 +815,13 @@ export class SkyRenderer {
       if (r < 1.1) {
         const side = r * 1.772; // same area as the disc
         const hs = side / 2;
-        for (let k = start; k < end; k += 1) {
+        for (let k = a0; k < a1; k += 1) {
           const i = order[k]!;
-          if (on[i] === 0) continue;
           ctx.rect(xs[i]! - hs, ys[i]! - hs, side, side);
         }
       } else {
-        for (let k = start; k < end; k += 1) {
+        for (let k = a0; k < a1; k += 1) {
           const i = order[k]!;
-          if (on[i] === 0) continue;
           const x = xs[i]!;
           const y = ys[i]!;
           ctx.moveTo(x + r, y);
@@ -726,7 +848,8 @@ export class SkyRenderer {
     for (let k = 0; k < this.bright.length; k += 1) {
       const i = this.bright[k]!;
       if (s.onScreen[i] === 0) continue;
-      const m = data.vmag[i]!;
+      const m = s.effMag[i]!;
+      if (m >= 1.5) continue; // dimmed by the air below a glow
       const a = starAlpha(m, f.limitMag);
       if (a <= 0.05) continue;
       const sprite = this.glowSprite(data.bv[i]!);
@@ -775,10 +898,10 @@ export class SkyRenderer {
       let any = false;
       for (const [, i] of data.navByName) {
         if (s.onScreen[i] === 0) continue;
-        const a = starAlpha(data.vmag[i]!, f.limitMag);
+        const a = starAlpha(s.effMag[i]!, f.limitMag);
         const q = a > 0.75 ? 1 : a > 0.5 ? 0.75 : a > 0.25 ? 0.5 : a > 0.05 ? 0.25 : 0;
         if (q !== level) continue;
-        const r = starRadius(data.vmag[i]!) * f.zoom + 3.2;
+        const r = starRadius(s.effMag[i]!) * f.zoom + 3.2;
         ctx.moveTo(s.x[i]! + r, s.y[i]!);
         ctx.arc(s.x[i]!, s.y[i]!, r, 0, TAU);
         any = true;
@@ -1028,7 +1151,7 @@ export class SkyRenderer {
     }
 
     // Reference lines: after the bodies, before the stars.
-    for (const l of this.lineLabels) this.tagText(f, l.text, l.x, l.y, l.fill, `600 10.5px ${f.palette.fontUi}`, 'left');
+    for (const l of this.lineLabels) this.tagText(f, l.text, l.x, l.y, l.fill, `600 10.5px ${f.palette.fontUi}`, l.centred ? 'center' : 'left');
 
     // Star names.
     const data = s.stars;
@@ -1044,7 +1167,7 @@ export class SkyRenderer {
         if (s.onScreen[i] === 0) continue;
         const key = starKey(i);
         const nav = data.isNav[i] === 1;
-        const mag = data.vmag[i]!;
+        const mag = s.effMag[i]!;
         const isForced = forced.has(key);
         if (!isForced && (!f.layers.starNames || (mag > nameLimit && !(nav && mag <= nameLimit + 1 && roomyNames)))) continue;
         const text = data.nameOf.get(i)!;
@@ -1065,7 +1188,7 @@ export class SkyRenderer {
         const i = Number(key.slice(2));
         if (!(i >= 0 && i < s.n) || s.onScreen[i] === 0 || data.nameOf.has(i)) continue;
         const text = starTitle(data, i);
-        const r = starRadius(data.vmag[i]!) * f.zoom;
+        const r = starRadius(s.effMag[i]!) * f.zoom;
         const x = s.x[i]! + r + 3;
         const y = s.y[i]! - r - 1;
         this.place(x - 1, y - 10, this.width(text, ctx.font) + 2, 13);
@@ -1155,6 +1278,220 @@ export class SkyRenderer {
   }
 
   // -------------------------------------------------------------------------
+  // sky2 agent: the Milky Way, the RA/Dec grid, deep-sky objects, radiants,
+  // added bodies and the field of view
+  // -------------------------------------------------------------------------
+
+  /** The glow's raster, drawn scaled up with smoothing (the soft edge is the point). */
+  private milkyWay(_f: Frame, img: MilkyWayImage): void {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.imageSmoothingEnabled = true;
+    if ('imageSmoothingQuality' in ctx) ctx.imageSmoothingQuality = 'medium';
+    ctx.drawImage(img.source, 0, 0, img.width, img.height, 0, 0, img.width * img.cell, img.height * img.cell);
+    ctx.restore();
+  }
+
+  /** Hour circles and parallels of date, dashed, with hours on the equator and declinations up the meridian. */
+  private raDecGrid(f: Frame): void {
+    const ctx = this.ctx;
+    const s = f.scene;
+    const g = s.raDec;
+    const hb = s.raDecH;
+    const colour = f.palette.raDec;
+    ctx.strokeStyle = css(colour, f.colours.light ? 0.5 : 0.42);
+    ctx.lineWidth = 0.9;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    for (let k = 0; k < g.count; k += 1) this.polyline(f, hb, g.start[k]!, g.start[k + 1]!, -8 * DEG);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    const p = f.projector;
+    const fill = css(colour, 0.95);
+    const at = (i: number): boolean =>
+      hb.alt[i]! > 3 * DEG &&
+      p.projectDir(hb.alt[i]!, hb.sinAlt[i]!, hb.cosAlt[i]!, hb.sinAz[i]!, hb.cosAz[i]!) &&
+      p.x > 4 &&
+      p.x < f.width - 30 &&
+      p.y > 14 &&
+      p.y < f.height - 6;
+    // Hours where each hour circle meets the equator.
+    for (let k = 0; k < g.count; k += 1) {
+      const hour = g.hourOf[k]!;
+      if (!Number.isFinite(hour)) continue;
+      const mid = g.start[k]! + Math.floor((g.start[k + 1]! - g.start[k]! - 1) / 2);
+      if (at(mid)) this.lineLabels.push({ text: `${hour}h`, x: p.x + 3, y: p.y - 3, fill });
+    }
+    // Declinations up the hour circle nearest the local meridian.
+    const hourNow = Math.round(s.lst / 15) % 24;
+    const k = hourNow;
+    const a = g.start[k]!;
+    const b = g.start[k + 1]!;
+    const reach = (b - a - 1) / 2; // points each side of the equator, 2° apart
+    for (let dec = -80; dec <= 80; dec += 10) {
+      if (dec === 0) continue;
+      const i = a + reach + dec / 2;
+      if (i < a || i >= b || !at(i)) continue;
+      this.lineLabels.push({ text: `${dec > 0 ? '+' : '−'}${Math.abs(dec)}°`, x: p.x + 3, y: p.y - 3, fill });
+    }
+  }
+
+  private dsoColours: DsoColours | null = null;
+  private dsoColoursFor: SkyPalette | null = null;
+
+  private deepSkyColours(f: Frame): DsoColours {
+    if (!this.dsoColours || this.dsoColoursFor !== f.palette) {
+      const d = f.palette.dso;
+      this.dsoColours = {
+        galaxy: css(d.galaxy),
+        nebula: css(d.nebula),
+        cluster: css(d.cluster),
+        other: css(d.other),
+        halo: css(f.palette.halo, f.palette.haloAlpha * 0.75),
+      };
+      this.dsoColoursFor = f.palette;
+    }
+    return this.dsoColours;
+  }
+
+  private deepSky(f: Frame, field: DeepSkyField): void {
+    const index = (key: string | null): number => (key?.startsWith('d:') ? Number(key.slice(2)) : -1);
+    drawDeepSkySymbols(this.ctx, field, this.deepSkyColours(f), index(f.selectedKey), index(f.hoverKey));
+  }
+
+  /** A meteor radiant: a small ring with eight rays, the stronger showers larger. */
+  private radiantMarks(f: Frame, list: RadiantMark[]): void {
+    const ctx = this.ctx;
+    const p = f.projector;
+    const colour = css(f.palette.radiant);
+    const halo = css(f.palette.halo, f.palette.haloAlpha * 0.8);
+    for (const m of list) {
+      m.drawn = m.alt >= 0 && p.project(m.alt, m.az) && p.x > -10 && p.x < f.width + 10 && p.y > -10 && p.y < f.height + 10;
+      m.x = p.x;
+      m.y = p.y;
+      if (!m.drawn) continue;
+      const r = 3 + 2.5 * m.strength;
+      const ray = r + 3 + 3 * m.strength;
+      ctx.beginPath();
+      ctx.moveTo(m.x + r, m.y);
+      ctx.arc(m.x, m.y, r, 0, TAU);
+      for (let k = 0; k < 8; k += 1) {
+        const a = (k * Math.PI) / 4;
+        const c = Math.cos(a);
+        const sn = Math.sin(a);
+        ctx.moveTo(m.x + c * (r + 2), m.y + sn * (r + 2));
+        ctx.lineTo(m.x + c * ray, m.y + sn * ray);
+      }
+      ctx.lineCap = 'round';
+      ctx.strokeStyle = halo;
+      ctx.lineWidth = 3.4;
+      ctx.stroke();
+      ctx.strokeStyle = colour;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    }
+  }
+
+  /** Added comets (a dot with a tail away from the Sun) and asteroids (a small diamond). */
+  private customMarks(f: Frame, list: CustomMark[]): void {
+    const ctx = this.ctx;
+    const p = f.projector;
+    const colour = css(f.palette.custom);
+    const halo = css(f.palette.halo, f.palette.haloAlpha);
+    for (const m of list) {
+      m.drawn = m.alt >= 0 && p.project(m.alt, m.az) && p.x > -10 && p.x < f.width + 10 && p.y > -10 && p.y < f.height + 10;
+      m.x = p.x;
+      m.y = p.y;
+      if (!m.drawn) continue;
+      ctx.lineWidth = 1.5;
+      if (m.kind === 'comet') {
+        let tail: { dx: number; dy: number } | null = null;
+        if (m.sunward && p.project(m.sunward.alt, m.sunward.az)) {
+          const dx = m.x - p.x;
+          const dy = m.y - p.y;
+          const len = Math.hypot(dx, dy);
+          if (len > 1e-6) tail = { dx: dx / len, dy: dy / len };
+        }
+        if (tail) {
+          const len = 18;
+          ctx.beginPath();
+          ctx.moveTo(m.x, m.y);
+          ctx.lineTo(m.x + tail.dx * len, m.y + tail.dy * len);
+          ctx.strokeStyle = halo;
+          ctx.lineWidth = 4;
+          ctx.stroke();
+          const g = ctx.createLinearGradient(m.x, m.y, m.x + tail.dx * len, m.y + tail.dy * len);
+          g.addColorStop(0, css(f.palette.custom, 0.95));
+          g.addColorStop(1, css(f.palette.custom, 0));
+          ctx.strokeStyle = g;
+          ctx.lineWidth = 2.2;
+          ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, 3, 0, TAU);
+        ctx.fillStyle = colour;
+        ctx.strokeStyle = halo;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+        ctx.fill();
+      } else {
+        const r = 3.6;
+        ctx.beginPath();
+        ctx.moveTo(m.x, m.y - r);
+        ctx.lineTo(m.x + r, m.y);
+        ctx.lineTo(m.x, m.y + r);
+        ctx.lineTo(m.x - r, m.y);
+        ctx.closePath();
+        ctx.fillStyle = colour;
+        ctx.strokeStyle = halo;
+        ctx.stroke();
+        ctx.fill();
+      }
+    }
+  }
+
+  /** The field-of-view outline over the shared casing, and its label above it. */
+  private fovOutline(f: Frame, fov: FovOutline): void {
+    const ctx = this.ctx;
+    const p = f.projector;
+    const pts = fov.points;
+    const jump = f.width * 0.5;
+    ctx.beginPath();
+    let pen = false;
+    let px = 0;
+    let topX = Number.NaN;
+    let topY = Infinity;
+    for (let k = 0; k < fov.count; k += 1) {
+      const e = pts[3 * k]!;
+      const n = pts[3 * k + 1]!;
+      const u = pts[3 * k + 2]!;
+      const alt = Math.asin(Math.max(-1, Math.min(1, u)));
+      if (alt < -12 * DEG || !p.project(alt, azimuthOf(e, n))) {
+        pen = false;
+        continue;
+      }
+      if (pen && Math.abs(p.x - px) > jump) pen = false;
+      if (pen) ctx.lineTo(p.x, p.y);
+      else ctx.moveTo(p.x, p.y);
+      pen = true;
+      px = p.x;
+      if (p.y < topY && alt > 0) {
+        topY = p.y;
+        topX = p.x;
+      }
+    }
+    ctx.strokeStyle = css(f.palette.halo, f.palette.haloAlpha * 0.85);
+    ctx.lineWidth = 3.6;
+    ctx.stroke();
+    ctx.strokeStyle = css(f.colours.ink, 0.92);
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    if (Number.isFinite(topX) && fov.label) {
+      this.lineLabels.unshift({ text: fov.label, x: topX, y: Math.max(14, topY - 6), fill: css(f.colours.ink, 0.95), centred: true });
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // Selection, highlight, focus and hover rings
   // -------------------------------------------------------------------------
 
@@ -1165,10 +1502,49 @@ export class SkyRenderer {
       if (!m?.state) return null;
       return { x: m.x, y: m.y, r: m.r, alt: m.alt, az: m.az };
     }
+    // sky2 agent: deep-sky objects, radiants, added bodies, constellations.
+    if (key.startsWith('d:')) {
+      const field = f.scene.dso;
+      const i = Number(key.slice(2));
+      if (!(i >= 0 && i < field.n)) return null;
+      const h = field.h;
+      const alt = h.alt[i]!;
+      const az = azimuthOf(h.sinAz[i]!, h.cosAz[i]!);
+      if (Number.isNaN(field.x[i]!)) {
+        const p = f.projector;
+        const ok = p.projectDir(alt, h.sinAlt[i]!, h.cosAlt[i]!, h.sinAz[i]!, h.cosAz[i]!);
+        return { x: ok ? p.x : Number.NaN, y: ok ? p.y : Number.NaN, r: field.radius[i]! || 6, alt, az };
+      }
+      return { x: field.x[i]!, y: field.y[i]!, r: Math.max(field.radius[i]!, 5), alt, az };
+    }
+    if (key.startsWith('r:')) {
+      const m = f.radiants?.find((r) => r.key === key);
+      if (!m) return null;
+      const p = f.projector;
+      const ok = p.project(m.alt, m.az);
+      return { x: ok ? p.x : Number.NaN, y: ok ? p.y : Number.NaN, r: 6, alt: m.alt, az: m.az };
+    }
+    if (key.startsWith('c:')) {
+      const m = f.custom?.find((c) => c.key === key);
+      if (!m) return null;
+      const p = f.projector;
+      const ok = p.project(m.alt, m.az);
+      return { x: ok ? p.x : Number.NaN, y: ok ? p.y : Number.NaN, r: 4, alt: m.alt, az: m.az };
+    }
+    if (key.startsWith('k:')) {
+      const c = Number(key.slice(2));
+      const ch = f.scene.ch;
+      if (!(c >= 0 && c < ch.alt.length)) return null;
+      const p = f.projector;
+      const alt = ch.alt[c]!;
+      const az = azimuthOf(ch.sinAz[c]!, ch.cosAz[c]!);
+      const ok = p.projectDir(alt, ch.sinAlt[c]!, ch.cosAlt[c]!, ch.sinAz[c]!, ch.cosAz[c]!);
+      return { x: ok ? p.x : Number.NaN, y: ok ? p.y : Number.NaN, r: 10, alt, az };
+    }
     const i = Number(key.slice(2));
     const s = f.scene;
     if (!(i >= 0 && i < s.n) || !s.starsOk || !s.stars) return null;
-    const r = starRadius(s.stars.vmag[i]!) * f.zoom;
+    const r = starRadius(s.effMag[i]!) * f.zoom;
     return { x: s.x[i]!, y: s.y[i]!, r, alt: s.starAlt(i), az: s.starAz(i) };
   }
 

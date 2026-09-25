@@ -104,16 +104,23 @@ const EASE_MAX_DAYS = 0.25;
 const EASE_MS = 260;
 
 /** The Sky's Layers menu (the shell has none: every layer flag is offered by the map or here). */
-export const SKY_LAYER_OPTIONS: readonly { key: keyof Layers; label: string; note?: string; group: 'sky' | 'lines' }[] = [
+export const SKY_LAYER_OPTIONS: readonly { key: keyof Layers; label: string; note?: string; group: 'sky' | 'lines' | 'dark' }[] = [
   { key: 'constellations', label: 'Constellation figures', group: 'sky' },
   { key: 'constellationNames', label: 'Constellation names', group: 'sky' },
   { key: 'constellationBoundaries', label: 'Constellation boundaries', note: 'IAU, as agreed in 1930', group: 'sky' },
   { key: 'starNames', label: 'Star names', group: 'sky' },
   { key: 'paths', label: 'Today’s path of the selected body', group: 'sky' },
+  // sky2 agent: the astronomy layers.
+  { key: 'milkyWay', label: 'Milky Way', note: 'its glow, where a dark sky shows it', group: 'sky' },
+  { key: 'deepSky', label: 'Deep-sky objects', note: 'Messier and the brightest NGC and IC objects', group: 'sky' },
+  { key: 'meteorRadiants', label: 'Meteor radiants', note: 'while a shower is active', group: 'sky' },
+  { key: 'customBodies', label: 'Comets and asteroids you added', group: 'sky' },
   { key: 'altAzGrid', label: 'Height and bearing grid', group: 'lines' },
+  { key: 'raDecGrid', label: 'Right ascension and declination grid', note: 'the sky’s own coordinates', group: 'lines' },
   { key: 'meridian', label: 'Meridian', note: 'north to south through the zenith', group: 'lines' },
   { key: 'equator', label: 'Celestial equator', group: 'lines' },
   { key: 'ecliptic', label: 'Ecliptic', note: 'the Sun’s yearly path', group: 'lines' },
+  { key: 'extinction', label: 'Dimmer toward the horizon', note: 'the air’s extinction', group: 'dark' },
 ];
 
 type Target = { key: string; kind: 'body'; name: string } | { key: string; kind: 'star'; index: number };
