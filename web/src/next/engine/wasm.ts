@@ -36,6 +36,18 @@ import type {
   StarfieldCatalog,
 } from './types.js';
 import type { MisfitEngine } from './types.js';
+import type {
+  DrReport,
+  DrRequest,
+  PassageReport,
+  PassageRequest,
+  RouteReport,
+  RouteRequest,
+  SailingsEngine,
+  StarFinderGeometry,
+  StarIdRequest,
+  StarIdResult,
+} from './types.js';
 import { createWasmMisfit } from './wasm-misfit.js';
 
 /** Exports the explorer cannot run without. */
@@ -98,6 +110,12 @@ export interface ExplorerWasmExports {
   eclipse_path?(id: string): unknown;
   /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
   planet_events?(jdStart: number, jdEnd: number): unknown;
+  /** Expansion programme, sailings agent (EXPLORER_API "Expansion programme — sailings"). */
+  sailing?(requestJson: string): unknown;
+  dr_advance?(requestJson: string): unknown;
+  route_positions?(requestJson: string): unknown;
+  star_identify?(requestJson: string): unknown;
+  star_finder_geometry?(latBand: number, jdUtc?: number): unknown;
   version?(): string;
 }
 
@@ -148,7 +166,7 @@ function rebuildError(name: string, what: string): Error {
   );
 }
 
-export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine {
+export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine, SailingsEngine {
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -340,6 +358,43 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
     const fn = this.x.planet_events;
     if (typeof fn !== 'function') throw rebuildError('planet_events', 'planet events');
     return this.call('planet_events', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  // --- Expansion programme: sailings, DR, routes, star identification, star finder ---
+
+  /** Great-circle, rhumb-line, mid-latitude and composite sailing between two points (`sailing`). */
+  sailing(request: PassageRequest): PassageReport {
+    const fn = this.x.sailing;
+    if (typeof fn !== 'function') throw rebuildError('sailing', 'sailings');
+    return this.call('sailing', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** One leg of dead reckoning (`dr_advance`). */
+  drAdvance(request: DrRequest): DrReport {
+    const fn = this.x.dr_advance;
+    if (typeof fn !== 'function') throw rebuildError('dr_advance', 'dead reckoning');
+    return this.call('dr_advance', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** Positions along a route of legs (`route_positions`). */
+  routePositions(request: RouteRequest): RouteReport {
+    const fn = this.x.route_positions;
+    if (typeof fn !== 'function') throw rebuildError('route_positions', 'routes');
+    return this.call('route_positions', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** Which body a sight was of, from its altitude and bearing (`star_identify`). */
+  starIdentify(request: StarIdRequest): StarIdResult {
+    const fn = this.x.star_identify;
+    if (typeof fn !== 'function') throw rebuildError('star_identify', 'star identification');
+    return this.call('star_identify', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** The star finder's base plate, Aries index and template (`star_finder_geometry`). */
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry {
+    const fn = this.x.star_finder_geometry;
+    if (typeof fn !== 'function') throw rebuildError('star_finder_geometry', 'star finder');
+    return this.call('star_finder_geometry', () => fn.call(this.x, latBand, jdUtc));
   }
 }
 

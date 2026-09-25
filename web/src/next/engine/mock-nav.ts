@@ -37,7 +37,8 @@ import type {
   SkyfixApi,
 } from '../../api/adapter.js';
 import { eigen2, MockApi } from '../../api/mock.js';
-import { dipArcmin, refractionArcmin } from '../../corrections.js';
+import { horizonDipArcmin, refractionArcmin } from '../../corrections.js';
+import { isShoreHorizon } from '../../types.js';
 import {
   altitudeAzimuthDeg,
   circleOfPosition,
@@ -222,10 +223,11 @@ export function mockChain(p: ChainParams): CorrectionBreakdown {
     h = after;
   } else steps.push(step('index_correction', false, h, h, skipKind));
 
-  if (raw && p.horizon === 'sea') {
-    const dip = dipArcmin(p.height_of_eye_m);
+  if (raw && (p.horizon === 'sea' || isShoreHorizon(p.horizon))) {
+    const dip = horizonDipArcmin(p.horizon, p.height_of_eye_m);
     const after = h - dip / 60;
-    steps.push(step('dip', true, h, after, `sea horizon, height of eye ${p.height_of_eye_m.toFixed(3)} m: dip ${dip.toFixed(3)}' subtracted`));
+    const what = isShoreHorizon(p.horizon) ? `shore horizon ${p.horizon.shore.distance_nm} NM away` : 'sea horizon';
+    steps.push(step('dip', true, h, after, `${what}, height of eye ${p.height_of_eye_m.toFixed(3)} m: dip ${dip.toFixed(3)}' subtracted`));
     h = after;
   } else {
     const note = !raw
@@ -1234,7 +1236,7 @@ export function createMockNav(engine: ExplorerEngine): NavTools {
       const place = { lat_deg: obsr.lat_deg, lon_deg: obsr.lon_deg };
       const pressure = obsr.pressure_hpa ?? 1010;
       const temp = obsr.temperature_c ?? 10;
-      const dip = (input.instrument?.horizon ?? 'sea') === 'sea' ? dipArcmin(obsr.height_of_eye_m ?? 0) : 0;
+      const dip = horizonDipArcmin(input.instrument?.horizon ?? 'sea', obsr.height_of_eye_m ?? 0);
       const geo = (jd: number): { m: GeocentricDirection; b: GeocentricDirection } => ({
         m: mockDirection(engine, 'Moon', jd),
         b: mockDirection(engine, body, jd),

@@ -23,11 +23,13 @@ import type { Store } from '../store.js';
 import type {
   AltitudeKind,
   HorizonMode,
+  HorizonName,
   Limb,
   Observation,
   SessionKind,
+  SimpleHorizon,
 } from '../types.js';
-import { SESSION_SCHEMA } from '../types.js';
+import { horizonName, isShoreHorizon, SESSION_SCHEMA } from '../types.js';
 import { note, panel, pickFile, downloadText, subPanel, toolbar, warningList } from './common.js';
 
 const ALTITUDE_KIND_OPTIONS: { value: AltitudeKind; label: string }[] = [
@@ -42,19 +44,28 @@ const LIMB_OPTIONS: { value: Limb; label: string }[] = [
   { value: 'upper', label: 'Upper limb' },
 ];
 
-const HORIZON_OPTIONS: { value: HorizonMode; label: string }[] = [
+const HORIZON_OPTIONS: { value: SimpleHorizon; label: string }[] = [
   { value: 'sea', label: 'Natural sea horizon' },
   { value: 'artificial_reflected', label: 'Reflected artificial horizon' },
   { value: 'electronic_vertical', label: 'Electronic local vertical' },
 ];
 
-export const HORIZON_EXPLANATION: Record<HorizonMode, string> = {
+export const HORIZON_EXPLANATION: Record<HorizonName, string> = {
   sea: 'Dip applies: the visible horizon is below true level by 1.76′ × √(height of eye in metres).',
   artificial_reflected:
     'The reading is the double angle. It is halved after the index correction, and no dip applies.',
   electronic_vertical:
     'An inclinometer or camera attitude supplies level directly. No dip; the index correction is the instrument zero offset.',
+  shore:
+    'A waterline nearer than the sea horizon: the dip short of the horizon applies (Bowditch Table 14).',
 };
+
+/** The horizon options, with a shore horizon (set in a session file) kept when present. */
+function horizonChoices(current: HorizonMode | null): { value: HorizonName; label: string }[] {
+  return isShoreHorizon(current)
+    ? [...HORIZON_OPTIONS, { value: 'shore', label: `Shoreline, ${current.shore.distance_nm} NM` }]
+    : HORIZON_OPTIONS;
+}
 
 const ROLE_OPTIONS = [
   { value: 'initializer' as const, label: 'Initializer only (does not influence the answer)' },
@@ -129,12 +140,12 @@ function observationRow(store: Store, obs: Observation, onStructuralChange: () =
   );
   tr.appendChild(
     cell(
-      select(
-        obs.horizon ?? 'inherit',
-        [{ value: 'inherit' as const, label: 'Use instrument setting' }, ...HORIZON_OPTIONS],
+      select<HorizonName | 'inherit'>(
+        obs.horizon ? horizonName(obs.horizon) : 'inherit',
+        [{ value: 'inherit' as const, label: 'Use instrument setting' }, ...horizonChoices(obs.horizon)],
         (v) =>
           store.editSession(() => {
-            obs.horizon = v === 'inherit' ? null : (v as HorizonMode);
+            if (v !== 'shore') obs.horizon = v === 'inherit' ? null : v;
           }),
       ),
       'horizon override',
@@ -410,11 +421,11 @@ export function renderObservations(store: Store, root: HTMLElement): void {
     ),
     field(
       'Horizon mode',
-      select(session.instrument.horizon, HORIZON_OPTIONS, (v) => {
-        store.editSession((s) => { s.instrument.horizon = v; });
+      select<HorizonName>(horizonName(session.instrument.horizon), horizonChoices(session.instrument.horizon), (v) => {
+        if (v !== 'shore') store.editSession((s) => { s.instrument.horizon = v; });
         rerender();
       }),
-      HORIZON_EXPLANATION[session.instrument.horizon],
+      HORIZON_EXPLANATION[horizonName(session.instrument.horizon)],
     ),
     h(
       'ul',

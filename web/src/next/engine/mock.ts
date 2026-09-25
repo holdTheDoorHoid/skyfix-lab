@@ -18,7 +18,20 @@ import { mockAlmanacDay } from './mock/almanac.js';
 import * as A from './mock/astro.js';
 import { crossings, grid, sample } from './mock/roots.js';
 import { createMockMisfit } from './mock-misfit.js';
+import { createMockSailings } from './mock-sailings.js';
 import type { MisfitEngine } from './types.js';
+import type {
+  DrReport,
+  DrRequest,
+  PassageReport,
+  PassageRequest,
+  RouteReport,
+  RouteRequest,
+  SailingsEngine,
+  StarFinderGeometry,
+  StarIdRequest,
+  StarIdResult,
+} from './types.js';
 import {
   buildStarfield,
   mockConstellationAt,
@@ -197,7 +210,7 @@ function inCoverage(jd: number): boolean {
   return jd >= COVERAGE_START && jd <= COVERAGE_END;
 }
 
-export class MockEngine implements ExplorerEngine, AlmanacEngine {
+export class MockEngine implements ExplorerEngine, AlmanacEngine, SailingsEngine {
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
   /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
@@ -211,6 +224,28 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
   private readonly validated: boolean;
   /** The residual heat map (mock-misfit.ts): illustrative, like everything here. */
   readonly misfit: MisfitEngine = createMockMisfit(this);
+  /** Sailings, DR, routes, star identification, star finder (mock-sailings.ts): illustrative. */
+  private readonly sailings: SailingsEngine = createMockSailings((o, jd) => this.skyState(o, jd, 'all'));
+
+  sailing(request: PassageRequest): PassageReport {
+    return this.sailings.sailing(request);
+  }
+
+  drAdvance(request: DrRequest): DrReport {
+    return this.sailings.drAdvance(request);
+  }
+
+  routePositions(request: RouteRequest): RouteReport {
+    return this.sailings.routePositions(request);
+  }
+
+  starIdentify(request: StarIdRequest): StarIdResult {
+    return this.sailings.starIdentify(request);
+  }
+
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry {
+    return this.sailings.starFinderGeometry(latBand, jdUtc);
+  }
 
   constructor(options: MockEngineOptions = {}) {
     this.validated = options.validated ?? false;

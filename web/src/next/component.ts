@@ -23,6 +23,7 @@ import {
   isAlmanacEngine,
   isEclipseEngine,
   isPlanetEventsEngine,
+  isSailingsEngine,
   type AlmanacEngine,
   type BodySelection,
   type EclipseEngine,
@@ -30,6 +31,7 @@ import {
   type ExplorerEngine,
   type Observer,
   type PlanetEventsEngine,
+  type SailingsEngine,
 } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
@@ -294,7 +296,11 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     return value;
   }
 
-  const memo: ExplorerEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> = {
+  const memo: ExplorerEngine &
+    Partial<AlmanacEngine> &
+    Partial<EclipseEngine> &
+    Partial<PlanetEventsEngine> &
+    Partial<SailingsEngine> = {
     // Optional: present on the wrapper exactly when the engine makes almanac pages (the
     // Almanac view checks with `isAlmanacEngine`). A page is tens of milliseconds, so a
     // few dates are kept.
@@ -318,6 +324,18 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
           planetEvents: (jdStart: number, jdEnd: number) =>
             cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
         }
+      : {}),
+    // Optional (sailings agent): passage planning and sight extras run on demand, so they
+    // pass through; the star finder's geometry is a table per latitude band and date.
+    ...(isSailingsEngine(engine)
+      ? {
+          sailing: (request) => engine.sailing(request),
+          drAdvance: (request) => engine.drAdvance(request),
+          routePositions: (request) => engine.routePositions(request),
+          starIdentify: (request) => engine.starIdentify(request),
+          starFinderGeometry: (latBand: number, jdUtc?: number) =>
+            cached('starFinderGeometry', `${latBand}|${jdUtc ?? ''}`, 4, () => engine.starFinderGeometry(latBand, jdUtc)),
+        } satisfies SailingsEngine
       : {}),
     kind: engine.kind,
     description: engine.description,
