@@ -152,7 +152,7 @@ describe('which night a moment belongs to', () => {
       const { s } = state(iso(t));
       const n = chooseNight(ctx, s)!;
       for (const dir of [-1, 1] as const) {
-        const jd = stepNightTime(ctx, s, dir)!;
+        const jd = stepNightTime(ctx, s, dir);
         const { s: after } = state(iso(jd));
         expect(chooseNight(ctx, after), `${iso(t)} ${dir}`).toBeCloseTo(n + dir, 9);
         if (Math.abs(Math.abs(jd - t) - 1) < 0.05) kept += 1;
@@ -161,6 +161,10 @@ describe('which night a moment belongs to', () => {
     }
     expect(kept).toBeGreaterThan(90);
     expect(evenings).toBeGreaterThan(0);
+    // Outside the engine's years: a plain day.
+    const far = jd('2090-06-01T12:00:00Z');
+    const { s } = state('2090-06-01T12:00:00Z');
+    expect(stepNightTime(ctx, s, 1)).toBeCloseTo(far + 1, 9);
   });
 
   it('names the night against the real one', () => {

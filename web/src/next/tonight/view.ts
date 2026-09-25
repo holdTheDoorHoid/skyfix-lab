@@ -415,22 +415,9 @@ const view: Component = (host, ctx) => {
     if (!core?.covered) return void fill(body, );
     if (!isDeepSkyEngine(engine)) return void fill(body, missingText('deep sky'));
     if (!core.tonight) return void fill(body, para(core.errors[0] ?? 'Working out the deep sky…', 'sft-p sft-muted'));
-    if (!catalog) {
-      try {
-        catalog = engine.dsoCatalog().objects;
-      } catch {
-        catalog = [];
-      }
-    }
-    if (!constellations) {
-      constellations = new Map();
-      try {
-        for (const c of engine.starfieldCatalog().constellations) constellations.set(c.abbr, c.name);
-      } catch {
-        // abbreviations stay
-      }
-    }
-    const rows = dsoRows(core, catalog, constellations, f);
+    // The objects' descriptions and the constellations' names arrive in the next task
+    // (`ensureCatalogs`): the star field's catalogue costs a first visit a noticeable moment.
+    const rows = dsoRows(core, catalog, constellations ?? new Map(), f);
     const shown = rows.slice(0, mem.shown);
     const list = h('ol', { class: 'sft-list sft-list--dso' }, ...shown.map((r) => dsoItem(r, f)));
     const more =
@@ -459,6 +446,26 @@ const view: Component = (host, ctx) => {
         'sft-p sft-muted sft-small',
       ),
     );
+  };
+
+  /** The deep-sky catalogue (descriptions) and the constellations' names, once per page. */
+  const ensureCatalogs = (): void => {
+    if (!isDeepSkyEngine(engine)) return;
+    if (!catalog) {
+      try {
+        catalog = engine.dsoCatalog().objects;
+      } catch {
+        catalog = [];
+      }
+    }
+    if (!constellations) {
+      constellations = new Map();
+      try {
+        for (const c of engine.starfieldCatalog().constellations) constellations.set(c.abbr, c.name);
+      } catch {
+        // abbreviations stay
+      }
+    }
   };
 
   const dsoItem = (r: DsoRow, f: Fmt): HTMLElement => {
@@ -835,10 +842,12 @@ const view: Component = (host, ctx) => {
     later(() => {
       if (gen !== generation || !core) return;
       detail = loadDetail(ctx, core);
+      ensureCatalogs();
       const f = fmtOf(store.get());
       drawHeader(store.get(), f);
       drawMoon(store.get(), f);
       drawPlanets(f);
+      drawDeep(f);
       drawNotes();
       root.dataset.stage = 'detail';
       later(() => runComing(gen, q, f, 0));
@@ -884,9 +893,7 @@ const view: Component = (host, ctx) => {
   });
 
   const stepNight = (dir: -1 | 1): void => {
-    const jd = stepNightTime(ctx, store.get(), dir);
-    if (jd === null) return;
-    setTime(store, jd);
+    setTime(store, stepNightTime(ctx, store.get(), dir));
     request(true);
   };
 
