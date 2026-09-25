@@ -2566,7 +2566,8 @@ that moment `observable` in `galilean_events`), Jupiter at least 15° from the S
 **Search pieces.** The longer searches run one engine call at a time between frames, and
 wait while a pointer is pressed on the page, while the time has moved in the last 300 ms,
 and (one piece every 250 ms) while the time plays. The pieces, measured in Chrome and in node
-(the same V8) on the shared machine at a load average near 30: occultations for 61 days 26 ms,
+(the same V8) on the shared machine at a load average near 30: eclipses for ten years about
+0.1 s (a millennium is a hundred pieces), occultations for 61 days 26 ms,
 close approaches for 21 days with the place 52 ms, perigees and apogees for half a year
 149 ms (most of it the engine's phase search around the window), stations for 61 days 74 ms,
 transits for two years with the place about 80 ms, Jupiter's moons for a day 15 to 60 ms,

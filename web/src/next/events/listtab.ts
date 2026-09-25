@@ -16,7 +16,7 @@ import { disposer, observerKey, watch, type Mounted } from '../component.js';
 import { engineObserver, displayZone, type ExplorerState } from '../state.js';
 import { segmented } from '../theme/primitives.js';
 import { coverageBounds } from '../time/index.js';
-import { calendarNote, chipsIn, listUncertaintySentence, rowTimeInfo, truncatedNote } from './deeptime.js';
+import { calendarNote, chipsIn, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
 import { errorText, type EventsUi, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu, type ExportMenu } from './export-ui.js';
 import { fileWords, screenWords, utcDate, type EventItem, type Words } from './items.js';
@@ -322,7 +322,14 @@ export function listTab<T>(host: HTMLElement, env: TabEnv, cfg: ListTabConfig<T>
     if (lead.textContent !== leadText) lead.textContent = leadText;
     lead.hidden = !leadText;
     const searching = !state.done ? state : auxState && !auxState.done ? auxState : state;
-    const statusText = state.error ? '' : searchStatus(searching, shown.length ? cfg.count(shown.length, dirNow) : '');
+    // A list the coverage cut short says which years it holds, not only "the next 12 months".
+    const cut =
+      state.done && state.truncated && state.span
+        ? dirNow === 'upcoming'
+          ? ` Computed up to ${yearText(wireYear(state.span.end))}.`
+          : ` Computed from ${yearText(wireYear(state.span.start))}.`
+        : '';
+    const statusText = state.error ? '' : searchStatus(searching, shown.length ? `${cfg.count(shown.length, dirNow)}${cut}` : '');
     if (status.textContent !== statusText) status.textContent = statusText;
     root.dataset.state = state.done && (!cfg.aux?.enabled(u) || auxState?.done) ? 'done' : 'searching';
     renderCard();

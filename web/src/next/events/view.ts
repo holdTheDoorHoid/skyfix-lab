@@ -62,6 +62,7 @@ const DEFAULTS: Remembered = {
   moonSub: 'phases',
   planetSub: 'events',
   eclipseDirection: 'upcoming',
+  eclipseYears: 10,
   eclipseKind: 'all',
   seenOnly: false,
   selected: null,

@@ -769,6 +769,16 @@ async function main() {
         summary.events.files.push({ spec, action, name, bytes: got ? statSync(file).size : 0 });
       }
 
+      // The eclipse list reaches a century (or a millennium) in ten-year pieces, a page of rows at a time.
+      await open(`${EV_MOMENT}&view=events`, { theme: 'light' });
+      await openEvents('eclipses');
+      await evaluate(`document.querySelector('.sfe-eclipses [role=radiogroup][aria-label="How far"] [data-value="100"]').click(); true`);
+      await sleep(300);
+      const reached = await waitFor(`document.querySelector('.sfe-eclipses')?.dataset.search === 'done' && document.querySelector('.sfe-eclipses')?.dataset.local === 'done'`, 120000);
+      const E = JSON.parse(await evaluate(`JSON.stringify({ status: document.querySelector('.sfe-eclipses .sfe-status')?.textContent ?? '', rows: document.querySelectorAll('.sfe-eclipses .sfe-row').length, more: document.querySelector('.sfe-eclipses .sfe-more')?.textContent ?? '' })`));
+      await shot('events-eclipses-century');
+      check('events: the eclipse list reaches a century, in pages of rows, and says which years it holds', reached && /\d+ eclipses (in the next 100 years|from .+ to .+ \(the years computed\))/.test(E.status) && E.rows > 0 && E.rows <= 120 && (E.rows < 120 || /^Show (the other \d+|\d+ more of \d+)$/.test(E.more)), JSON.stringify(E));
+
       // A background search waits while the time bar is dragged, and finishes once it is let go.
       await open(`${EV_MOMENT}&view=events`, { theme: 'dark' });
       await evaluate(`document.querySelector('.sfe-tabs [id$="-planets"]').click(); true`);

@@ -294,8 +294,9 @@ own. This view now does everything the original workbench did, and more.
 
 What happens in the sky and when, as lists you can click. Five tabs:
 
-- **Eclipses** — every solar and lunar eclipse of the next (or last) ten years, with a
-  switch for "seen from here". Pick one to read, in plain words, what you would see from
+- **Eclipses** — every solar and lunar eclipse of the next (or last) ten, hundred or
+  thousand years, with a switch for "seen from here"; a long list fills in as it is found
+  and shows its rows a page at a time. Pick one to read, in plain words, what you would see from
   your place: whether you are inside the path of totality, when it starts and ends, how
   much of the Sun is covered, and how high it stands. **Show on the map** draws the path
   of totality (or annularity), its central line and the limits of the partial eclipse;

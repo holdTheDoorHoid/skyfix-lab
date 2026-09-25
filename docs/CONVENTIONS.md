@@ -1164,7 +1164,7 @@ the Events view builds its entries in `web/src/next/events/items.ts`).
   least 6° below the horizon, Jupiter at least 15° from the Sun, at the phenomenon's start or
   end, that moment `observable`. A night is local noon to local noon in the display zone.
 - **Background searches** (`web/src/next/events/search.ts`): one engine call per piece between
-  frames; no piece while a pointer is pressed on the page or within 300 ms of a time change;
+  frames (eclipses ten years a piece, so the list can reach a millennium); no piece while a pointer is pressed on the page or within 300 ms of a time change;
   one piece per 250 ms while the time plays; the lists hold still during fast playback (15.6)
   and catch up once it stops. Results are kept per window and per place for the page's
   lifetime.

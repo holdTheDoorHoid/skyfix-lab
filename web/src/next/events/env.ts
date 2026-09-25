@@ -20,6 +20,9 @@ export type MoonSub = 'phases' | 'apsides' | 'occultations';
 /** The Planets tab's parts. */
 export type PlanetSub = 'events' | 'conjunctions' | 'retrograde' | 'transits' | 'jupiter';
 
+/** How far the eclipse list reaches, in years. */
+export type EclipseYears = 10 | 100 | 1000;
+
 /** How dark the observer's sky is, for meteor rates (a Bortle class; EXPLORER_API "deep sky"). */
 export type SkyDarkness = 2 | 4 | 5 | 8;
 
@@ -31,6 +34,8 @@ export interface EventsUi {
   /** The instant the lists are built around (see view.ts). */
   anchor: number;
   eclipseDirection: Direction;
+  /** How many years the eclipse list reaches: 10, 100 or 1000 (searched in ten-year pieces). */
+  eclipseYears: EclipseYears;
   eclipseKind: EclipseKindFilter;
   /** Only eclipses something of which can be seen from the place. */
   seenOnly: boolean;

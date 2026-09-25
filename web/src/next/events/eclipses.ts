@@ -16,7 +16,6 @@ import {
   isEclipseEngine,
   type Eclipse,
   type EclipseEngine,
-  type EclipseList,
   type EclipseLocal,
   type EclipseLocalEvent,
   type LunarEclipse,
@@ -43,15 +42,16 @@ import { jdFromIso, roundToMinute, UTC_ZONE, zoneShortName, type Zone } from '..
 import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { button, readout, segmented, switchRow } from '../theme/primitives.js';
-import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote } from './deeptime.js';
-import { errorText, watchAll, type TabComponent, type TabEnv } from './env.js';
+import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { errorText, watchAll, type EclipseYears, type TabComponent, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, utcDate } from './items.js';
+import { coverageKey, coverageSpan } from './listtab.js';
+import { progressText, type SearchState } from './search.js';
 import { eclipseItem } from './sky-model.js';
 import { clearEclipse, eclipseOnMap, lunarOverlays, showEclipse, solarOverlays } from './mapping.js';
 import {
   centralPhase,
-  ECLIPSE_HORIZON_DAYS,
   eclipsesAround,
   eclipseTitle,
   eclipseTypeWords,
@@ -66,7 +66,8 @@ import {
   neededSpan,
   seenHere,
   solarSummary,
-  SpanCache,
+  paddedSpan,
+  YEAR_DAYS,
   type Direction,
   type EclipseKindFilter,
   type Words,
@@ -74,6 +75,10 @@ import {
 
 /** Background work per slice, milliseconds (one `eclipse_local` is 3-5 ms in WebAssembly). */
 const SLICE_MS = 12;
+/** The eclipse search's piece: ten years (about 0.1 s of WebAssembly). */
+const ECLIPSE_CHUNK_DAYS = 10 * YEAR_DAYS;
+/** Rows drawn at a time. */
+const ROWS_PER_PAGE = 120;
 /** Below this width the card opens inside the list, under its row. */
 const INLINE_CARD_PX = 820;
 
@@ -591,10 +596,21 @@ export const eclipsesTab: TabComponent = (host, env) => {
     size: 'sm',
     value: u0.eclipseDirection,
     options: [
-      { value: 'upcoming', label: 'Upcoming', tip: 'The next ten years from the explorer’s time' },
-      { value: 'past', label: 'Past', tip: 'The last ten years before the explorer’s time' },
+      { value: 'upcoming', label: 'Upcoming', tip: 'From the explorer’s time on' },
+      { value: 'past', label: 'Past', tip: 'Before the explorer’s time' },
     ],
     onChange: (v) => ui.patch({ eclipseDirection: v }),
+  });
+  const reach = segmented<'10' | '100' | '1000'>({
+    label: 'How far',
+    size: 'sm',
+    value: String(u0.eclipseYears) as '10' | '100' | '1000',
+    options: [
+      { value: '10', label: '10 years' },
+      { value: '100', label: '100', tip: 'A century: searched ten years at a time, as the list fills in' },
+      { value: '1000', label: '1000', tip: 'A millennium, where the engine covers it: a few seconds, searched ten years at a time' },
+    ],
+    onChange: (v) => ui.patch({ eclipseYears: Number(v) as EclipseYears }),
   });
   const kind = segmented<EclipseKindFilter>({
     label: 'Kind of eclipse',
@@ -619,8 +635,8 @@ export const eclipsesTab: TabComponent = (host, env) => {
   const aside = h('div', { class: 'sfe-cardcol' });
   // The file holds the eclipses listed, with what the place sees of each when it is known.
   const save = exportMenu(ctx, ui, {
-    title: () => `Eclipses, ${ui.get().eclipseDirection === 'upcoming' ? 'next' : 'last'} ten years`,
-    fileParts: () => ['eclipses', ui.get().eclipseDirection === 'upcoming' ? 'next-10-years' : 'last-10-years', utcDate(ui.get().anchor)],
+    title: () => `Eclipses, ${ui.get().eclipseDirection === 'upcoming' ? 'next' : 'last'} ${ui.get().eclipseYears} years`,
+    fileParts: () => ['eclipses', `${ui.get().eclipseDirection === 'upcoming' ? 'next' : 'last'}-${ui.get().eclipseYears}-years`, utcDate(ui.get().anchor)],
     items: (w) =>
       visibleRows().map((e) => {
         const r = localOf(e.id);
@@ -630,14 +646,31 @@ export const eclipsesTab: TabComponent = (host, env) => {
   });
   d.add(() => save.destroy());
   root.append(
-    h('div', { class: 'sfe-controls' }, direction.el, kind.el, seen, save.el),
+    h('div', { class: 'sfe-controls' }, direction.el, reach.el, kind.el, seen, save.el),
     h('div', { class: 'sfe-split' }, h('div', { class: 'sfe-listcol' }, status, list), aside),
   );
 
   // --- Data --------------------------------------------------------------------------------
-  const caches: Record<Direction, SpanCache<EclipseList>> = {
-    upcoming: new SpanCache((s) => engine.eclipses(s.start, s.end), 120),
-    past: new SpanCache((s) => engine.eclipses(s.start, s.end), 120),
+  // Ten years a piece (about 0.1 s of WebAssembly), between frames, kept per window: a
+  // millennium is a hundred pieces and fills in as it goes (search.ts).
+  let subscribed: object | null = null;
+  let stopSub: (() => void) | null = null;
+  d.add(() => stopSub?.());
+  const eclipseSearch = () => {
+    const search = env.shared.search<Eclipse>('eclipses', coverageKey(env), (pace) => ({
+      chunkDays: ECLIPSE_CHUNK_DAYS,
+      compute: (span) => engine.eclipses(span.start, span.end).eclipses,
+      key: (e) => e.id,
+      time: (e) => e.greatest.jd_utc,
+      pace,
+      coverage: () => coverageSpan(env),
+    }));
+    if (search !== subscribed) {
+      stopSub?.();
+      subscribed = search;
+      stopSub = search.subscribe(() => ctx.scheduler.schedule(refresh));
+    }
+    return search;
   };
   const locals = new Map<string, LocalResult>();
   let localsFor = '';
@@ -694,7 +727,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
       while (pending.length && performance.now() - t0 < SLICE_MS) computeLocal(pending.shift()!);
       paint();
       if (pending.length) timer = setTimeout(slice, 0);
-      else root.dataset.local = 'done';
+      else if (searchState?.done !== false) root.dataset.local = 'done';
     };
     root.dataset.local = 'pending';
     timer = setTimeout(slice, 0);
@@ -704,6 +737,10 @@ export const eclipsesTab: TabComponent = (host, env) => {
   let shown: Eclipse[] = [];
   let truncated = false;
   let listError: string | null = null;
+  let searchState: SearchState<Eclipse> | null = null;
+  /** Rows drawn: a page at a time, so a millennium's list stays quick. */
+  let limit = ROWS_PER_PAGE;
+  let limitFor = '';
   const rows = new Map<string, Row>();
   let builtKey = '';
   let st: Settings = settingsOf(ctx.store.get());
@@ -753,8 +790,9 @@ export const eclipsesTab: TabComponent = (host, env) => {
   };
 
   const buildList = (): void => {
-    const items = visibleRows();
-    const key = [ui.get().eclipseDirection, ui.get().seenOnly, JSON.stringify(st.zone), ...items.map((e) => e.id)].join('|');
+    const all = visibleRows();
+    const items = all.slice(0, limit);
+    const key = [ui.get().eclipseDirection, ui.get().seenOnly, JSON.stringify(st.zone), limit, all.length, ...items.map((e) => e.id)].join('|');
     if (key === builtKey) return;
     builtKey = key;
     rows.clear();
@@ -762,7 +800,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
     let year = '';
     let ol: HTMLOListElement | null = null;
     for (const e of items) {
-      const y = dateMedium(roundToMinute(e.greatest.jd_utc), st.zone).slice(-4);
+      const y = dateMedium(roundToMinute(e.greatest.jd_utc), st.zone).replace(/^\S+ \S+ \S+ /, '');
       if (y !== year || !ol) {
         year = y;
         ol = h('ol', { class: 'sfe-rows', 'aria-label': `Eclipses of ${y}` });
@@ -773,8 +811,20 @@ export const eclipsesTab: TabComponent = (host, env) => {
       ol.append(row.item);
     }
     const notes: HTMLElement[] = [];
+    if (all.length > items.length) {
+      const more = h(
+        'button',
+        { type: 'button', class: 'sf-btn sf-btn--secondary sf-btn--sm sfe-more' },
+        all.length - items.length <= ROWS_PER_PAGE ? `Show the other ${all.length - items.length}` : `Show ${ROWS_PER_PAGE} more of ${all.length - items.length}`,
+      );
+      more.addEventListener('click', () => {
+        limit += ROWS_PER_PAGE;
+        paint();
+      });
+      notes.push(more);
+    }
     if (listError) notes.push(h('p', { class: 'sfe-message', role: 'alert' }, listError));
-    else if (!shown.length) {
+    else if (!shown.length && searchState?.done !== false) {
       notes.push(
         h(
           'p',
@@ -789,9 +839,10 @@ export const eclipsesTab: TabComponent = (host, env) => {
     }
     const cal = calendarNote(items.map((e) => e.greatest.jd_utc).slice(0, 1).concat(items.map((e) => e.greatest.jd_utc).slice(-1)), st.zone);
     if (cal) notes.push(h('p', { class: 'sfe-note' }, cal));
-    if (truncated && shown.length) {
+    if (truncated) {
       const a = ui.get().anchor;
-      notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + ECLIPSE_HORIZON_DAYS : a - ECLIPSE_HORIZON_DAYS));
+      const days = ui.get().eclipseYears * YEAR_DAYS;
+      notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + days : a - days));
     }
     list.replaceChildren(...groups, ...notes);
     placeCard();
@@ -830,13 +881,24 @@ export const eclipsesTab: TabComponent = (host, env) => {
       const under = !inProgress(e, now);
       if (row.now.hidden !== under) row.now.hidden = under;
     }
-    const span = ui.get().eclipseDirection === 'upcoming' ? 'in the next ten years' : 'in the last ten years';
+    const years = ui.get().eclipseYears;
+    const sp = searchState?.span ?? null;
+    const span =
+      truncated && sp
+        ? `from ${yearText(wireYear(sp.start))} to ${yearText(wireYear(sp.end))} (the years computed)`
+        : ui.get().eclipseDirection === 'upcoming'
+          ? `in the next ${years} years`
+          : `in the last ${years} years`;
     const text =
-      listError || !shown.length
+      listError
         ? ''
-        : known < shown.length
-          ? `${shown.length} eclipses ${span}. Checking which can be seen from ${st.place}…`
-          : `${shown.length} eclipses ${span}; ${seenCount} can be seen from ${st.place}.`;
+        : searchState && !searchState.done
+          ? `${progressText(searchState, 'Searching')}${shown.length ? ` · ${shown.length} eclipses so far` : ''}`
+          : !shown.length
+            ? ''
+            : known < shown.length
+              ? `${shown.length} eclipses ${span}. Checking which can be seen from ${st.place}…`
+              : `${shown.length} eclipses ${span}; ${seenCount} can be seen from ${st.place}.`;
     if (status.textContent !== text) status.textContent = text;
   };
 
@@ -899,24 +961,12 @@ export const eclipsesTab: TabComponent = (host, env) => {
   }
 
   // --- Wiring --------------------------------------------------------------------------------
-  d.add(
-    watchAll(
-      env,
-      (s, u) =>
-        [
-          u.anchor,
-          u.eclipseDirection,
-          u.eclipseKind,
-          u.seenOnly,
-          s.observer.lat_deg,
-          s.observer.lon_deg,
-          s.observer.height_m,
-          s.observer.label,
-          s.observer.zone,
-          s.settings.timeDisplay,
-          s.settings.angleFormat,
-        ] as const,
-      ([anchor, dir, k]) => {
+  const refresh = (): void => {
+    const u = ui.get();
+    update(u.anchor, u.eclipseDirection, u.eclipseKind);
+  };
+  d.add(() => ctx.scheduler.cancel(refresh));
+  const update = (anchor: number, dir: Direction, k: EclipseKindFilter): void => {
         const s = ctx.store.get();
         const nextSettings = settingsOf(s);
         if (JSON.stringify(nextSettings) !== JSON.stringify(st)) builtKey = '';
@@ -929,19 +979,30 @@ export const eclipsesTab: TabComponent = (host, env) => {
           builtKey = '';
           stopJob();
         }
+        const years = ui.get().eclipseYears;
+        const horizon = years * YEAR_DAYS;
+        const lk = [dir, years, k, ui.get().seenOnly].join('|');
+        if (lk !== limitFor) {
+          limitFor = lk;
+          limit = ROWS_PER_PAGE;
+        }
         try {
-          const all = caches[dir].get(neededSpan(anchor, dir, ECLIPSE_HORIZON_DAYS, 1));
-          shown = eclipsesAround(all.eclipses, anchor, dir, k);
-          truncated = all.truncated;
-          listError = null;
-          ctx.notices.dismissKey('events-eclipses');
+          searchState = eclipseSearch().get(paddedSpan(neededSpan(anchor, dir, horizon, 1), 120), dir === 'upcoming' ? 'forward' : 'backward');
+          shown = eclipsesAround(searchState.items, anchor, dir, k, horizon);
+          truncated = searchState.truncated && searchState.done;
+          listError = searchState.error ? `Eclipses could not be listed: ${searchState.error}` : null;
+          if (listError) ctx.notices.push('error', listError, { key: 'events-eclipses' });
+          else ctx.notices.dismissKey('events-eclipses');
         } catch (error) {
+          searchState = null;
           shown = [];
           truncated = false;
           listError = `Eclipses could not be listed: ${errorText(error)}`;
           ctx.notices.push('error', listError, { key: 'events-eclipses' });
         }
+        root.dataset.search = searchState?.done === false ? 'searching' : 'done';
         direction.set(dir);
+        reach.set(String(years) as '10' | '100' | '1000');
         kind.set(k);
         const checked = String(ui.get().seenOnly);
         if (seen.getAttribute('aria-checked') !== checked) seen.setAttribute('aria-checked', checked);
@@ -950,8 +1011,28 @@ export const eclipsesTab: TabComponent = (host, env) => {
         if (missing.join() !== pending.join()) startJob(missing);
         paint();
         renderCard();
-        if (!pending.length && root.dataset.local !== 'done') root.dataset.local = 'done';
-      },
+        if (!pending.length && searchState?.done !== false && root.dataset.local !== 'done') root.dataset.local = 'done';
+        if (searchState?.done === false) root.dataset.local = 'pending';
+  };
+  d.add(
+    watchAll(
+      env,
+      (s, u) =>
+        [
+          u.anchor,
+          u.eclipseDirection,
+          u.eclipseYears,
+          u.eclipseKind,
+          u.seenOnly,
+          s.observer.lat_deg,
+          s.observer.lon_deg,
+          s.observer.height_m,
+          s.observer.label,
+          s.observer.zone,
+          s.settings.timeDisplay,
+          s.settings.angleFormat,
+        ] as const,
+      ([anchor, dir, , k]) => update(anchor, dir, k),
     ),
   );
   d.add(
