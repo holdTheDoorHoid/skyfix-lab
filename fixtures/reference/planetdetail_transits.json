@@ -1,0 +1,673 @@
+{
+  "catalogue": [
+    {"c1_jd_ut": 991609.815277778, "c2_jd_ut": 991609.827083333, "c3_jd_ut": 991610.118055556, "c4_jd_ut": 991610.129861111, "calendar": "julian", "date": "-1998 Nov 18", "greatest_jd_ut": 991609.972222222, "min_separation_arcsec": 374.0, "nasa_polynomial_delta_t_s": 46605.4, "planet": "Venus", "series": 2, "sun_dec_deg": -15.31, "sun_ra_hours": 14.541},
+    {"c1_jd_ut": 1030146.179166667, "c2_jd_ut": 1030146.192361111, "c3_jd_ut": 1030146.427083333, "c4_jd_ut": 1030146.440972222, "calendar": "julian", "date": "-1892 May 21", "greatest_jd_ut": 1030146.309722222, "min_separation_arcsec": 617.5, "nasa_polynomial_delta_t_s": 44063.7, "planet": "Venus", "series": 1, "sun_dec_deg": 16.16, "sun_ra_hours": 2.721},
+    {"c1_jd_ut": 1033065.880555556, "c2_jd_ut": 1033065.893055556, "c3_jd_ut": 1033066.148611111, "c4_jd_ut": 1033066.161111111, "calendar": "julian", "date": "-1884 May 19", "greatest_jd_ut": 1033066.020833333, "min_separation_arcsec": 545.4, "nasa_polynomial_delta_t_s": 43873.9, "planet": "Venus", "series": 3, "sun_dec_deg": 15.50, "sun_ra_hours": 2.581},
+    {"c1_jd_ut": 1077446.406944444, "c2_jd_ut": null, "c3_jd_ut": null, "c4_jd_ut": 1077446.504166667, "calendar": "julian", "date": "-1763 Nov 20", "greatest_jd_ut": 1077446.455555556, "min_separation_arcsec": 966.6, "nasa_polynomial_delta_t_s": 41041.2, "planet": "Venus", "series": 4, "sun_dec_deg": -16.65, "sun_ra_hours": 14.831},
+    {"c1_jd_ut": 1080365.863194444, "c2_jd_ut": 1080365.875694444, "c3_jd_ut": 1080366.150000000, "c4_jd_ut": 1080366.161805555, "calendar": "julian", "date": "-1755 Nov 18", "greatest_jd_ut": 1080366.012500000, "min_separation_arcsec": 474.8, "nasa_polynomial_delta_t_s": 40858.0, "planet": "Venus", "series": 2, "sun_dec_deg": -15.91, "sun_ra_hours": 14.669},
+    {"c1_jd_ut": 1118902.412500000, "c2_jd_ut": 1118902.427777778, "c3_jd_ut": 1118902.634027778, "c4_jd_ut": 1118902.649305556, "calendar": "julian", "date": "-1649 May 23", "greatest_jd_ut": 1118902.531250000, "min_separation_arcsec": 696.9, "nasa_polynomial_delta_t_s": 38480.4, "planet": "Venus", "series": 1, "sun_dec_deg": 16.83, "sun_ra_hours": 2.872},
+    {"c1_jd_ut": 1121822.101388889, "c2_jd_ut": 1121822.113194444, "c3_jd_ut": 1121822.388888889, "c4_jd_ut": 1121822.400694445, "calendar": "julian", "date": "-1641 May 20", "greatest_jd_ut": 1121822.251388889, "min_separation_arcsec": 459.9, "nasa_polynomial_delta_t_s": 38303.0, "planet": "Venus", "series": 3, "sun_dec_deg": 16.20, "sun_ra_hours": 2.732},
+    {"c1_jd_ut": 1166202.403472222, "c2_jd_ut": 1166202.427777778, "c3_jd_ut": 1166202.550000000, "c4_jd_ut": 1166202.574305556, "calendar": "julian", "date": "-1520 Nov 20", "greatest_jd_ut": 1166202.488888889, "min_separation_arcsec": 871.8, "nasa_polynomial_delta_t_s": 35659.2, "planet": "Venus", "series": 4, "sun_dec_deg": -17.21, "sun_ra_hours": 14.961},
+    {"c1_jd_ut": 1169121.897222222, "c2_jd_ut": 1169121.910416667, "c3_jd_ut": 1169122.159722222, "c4_jd_ut": 1169122.173611111, "calendar": "julian", "date": "-1512 Nov 18", "greatest_jd_ut": 1169122.035416667, "min_separation_arcsec": 585.4, "nasa_polynomial_delta_t_s": 35488.5, "planet": "Venus", "series": 2, "sun_dec_deg": -16.48, "sun_ra_hours": 14.797},
+    {"c1_jd_ut": 1207658.646527778, "c2_jd_ut": 1207658.664583333, "c3_jd_ut": 1207658.830555556, "c4_jd_ut": 1207658.848611111, "calendar": "julian", "date": "-1406 May 23", "greatest_jd_ut": 1207658.747916667, "min_separation_arcsec": 780.4, "nasa_polynomial_delta_t_s": 33274.9, "planet": "Venus", "series": 1, "sun_dec_deg": 17.47, "sun_ra_hours": 3.024},
+    {"c1_jd_ut": 1210578.304861111, "c2_jd_ut": 1210578.315277778, "c3_jd_ut": 1210578.604861111, "c4_jd_ut": 1210578.615972222, "calendar": "julian", "date": "-1398 May 20", "greatest_jd_ut": 1210578.460416667, "min_separation_arcsec": 384.6, "nasa_polynomial_delta_t_s": 33110.0, "planet": "Venus", "series": 3, "sun_dec_deg": 16.86, "sun_ra_hours": 2.883},
+    {"c1_jd_ut": 1254958.394444444, "c2_jd_ut": 1254958.411805555, "c3_jd_ut": 1254958.600000000, "c4_jd_ut": 1254958.617361111, "calendar": "julian", "date": "-1277 Nov 22", "greatest_jd_ut": 1254958.506250000, "min_separation_arcsec": 760.3, "nasa_polynomial_delta_t_s": 30655.2, "planet": "Venus", "series": 4, "sun_dec_deg": -17.74, "sun_ra_hours": 15.090},
+    {"c1_jd_ut": 1257877.936111111, "c2_jd_ut": 1257877.950694444, "c3_jd_ut": 1257878.170138889, "c4_jd_ut": 1257878.184722222, "calendar": "julian", "date": "-1269 Nov 19", "greatest_jd_ut": 1257878.060416667, "min_separation_arcsec": 684.5, "nasa_polynomial_delta_t_s": 30496.9, "planet": "Venus", "series": 2, "sun_dec_deg": -17.04, "sun_ra_hours": 14.928},
+    {"c1_jd_ut": 1296414.879861111, "c2_jd_ut": 1296414.904166667, "c3_jd_ut": 1296415.013888889, "c4_jd_ut": 1296415.038194444, "calendar": "julian", "date": "-1163 May 23", "greatest_jd_ut": 1296414.959027778, "min_separation_arcsec": 858.1, "nasa_polynomial_delta_t_s": 28447.4, "planet": "Venus", "series": 1, "sun_dec_deg": 18.08, "sun_ra_hours": 3.177},
+    {"c1_jd_ut": 1299334.519444444, "c2_jd_ut": 1299334.529861111, "c3_jd_ut": 1299334.831250000, "c4_jd_ut": 1299334.842361111, "calendar": "julian", "date": "-1155 May 21", "greatest_jd_ut": 1299334.680555556, "min_separation_arcsec": 295.9, "nasa_polynomial_delta_t_s": 28294.9, "planet": "Venus", "series": 3, "sun_dec_deg": 17.50, "sun_ra_hours": 3.036},
+    {"c1_jd_ut": 1343714.401388889, "c2_jd_ut": 1343714.416666667, "c3_jd_ut": 1343714.641666667, "c4_jd_ut": 1343714.656250000, "calendar": "julian", "date": "-1034 Nov 22", "greatest_jd_ut": 1343714.529166667, "min_separation_arcsec": 665.6, "nasa_polynomial_delta_t_s": 26029.0, "planet": "Venus", "series": 4, "sun_dec_deg": -18.25, "sun_ra_hours": 15.223},
+    {"c1_jd_ut": 1346633.968750000, "c2_jd_ut": 1346633.987500000, "c3_jd_ut": 1346634.159027778, "c4_jd_ut": 1346634.177083333, "calendar": "julian", "date": "-1026 Nov 19", "greatest_jd_ut": 1346634.072916667, "min_separation_arcsec": 796.4, "nasa_polynomial_delta_t_s": 25883.2, "planet": "Venus", "series": 2, "sun_dec_deg": -17.58, "sun_ra_hours": 15.058},
+    {"c1_jd_ut": 1385171.125000000, "c2_jd_ut": null, "c3_jd_ut": null, "c4_jd_ut": 1385171.208333333, "calendar": "julian", "date": "-0920 May 23", "greatest_jd_ut": 1385171.166666667, "min_separation_arcsec": 942.2, "nasa_polynomial_delta_t_s": 23997.7, "planet": "Venus", "series": 1, "sun_dec_deg": 18.67, "sun_ra_hours": 3.332},
+    {"c1_jd_ut": 1388090.717361111, "c2_jd_ut": 1388090.727777778, "c3_jd_ut": 1388091.036805555, "c4_jd_ut": 1388091.047222222, "calendar": "julian", "date": "-0912 May 21", "greatest_jd_ut": 1388090.882638889, "min_separation_arcsec": 222.1, "nasa_polynomial_delta_t_s": 23857.7, "planet": "Venus", "series": 3, "sun_dec_deg": 18.11, "sun_ra_hours": 3.190},
+    {"c1_jd_ut": 1432470.388194444, "c2_jd_ut": 1432470.401388889, "c3_jd_ut": 1432470.659027778, "c4_jd_ut": 1432470.671527778, "calendar": "julian", "date": "-0791 Nov 22", "greatest_jd_ut": 1432470.529861111, "min_separation_arcsec": 553.1, "nasa_polynomial_delta_t_s": 21780.8, "planet": "Venus", "series": 4, "sun_dec_deg": -18.74, "sun_ra_hours": 15.355},
+    {"c1_jd_ut": 1435390.004861111, "c2_jd_ut": 1435390.033333333, "c3_jd_ut": 1435390.130555555, "c4_jd_ut": 1435390.159027778, "calendar": "julian", "date": "-0783 Nov 19", "greatest_jd_ut": 1435390.081944444, "min_separation_arcsec": 899.2, "nasa_polynomial_delta_t_s": 21647.4, "planet": "Venus", "series": 2, "sun_dec_deg": -18.10, "sun_ra_hours": 15.190},
+    {"c1_jd_ut": 1476846.918055556, "c2_jd_ut": 1476846.928472222, "c3_jd_ut": 1476847.243055556, "c4_jd_ut": 1476847.253472222, "calendar": "julian", "date": "-0669 May 22", "greatest_jd_ut": 1476847.085416667, "min_separation_arcsec": 137.4, "nasa_polynomial_delta_t_s": 19798.4, "planet": "Venus", "series": 3, "sun_dec_deg": 18.69, "sun_ra_hours": 3.345},
+    {"c1_jd_ut": 1521226.385416667, "c2_jd_ut": 1521226.397916667, "c3_jd_ut": 1521226.677083333, "c4_jd_ut": 1521226.688888889, "calendar": "julian", "date": "-0548 Nov 22", "greatest_jd_ut": 1521226.537500000, "min_separation_arcsec": 451.2, "nasa_polynomial_delta_t_s": 17910.5, "planet": "Venus", "series": 4, "sun_dec_deg": -19.21, "sun_ra_hours": 15.489},
+    {"c1_jd_ut": null, "c2_jd_ut": null, "c3_jd_ut": null, "c4_jd_ut": null, "calendar": "julian", "date": "-0540 Nov 19", "greatest_jd_ut": 1524146.078472222, "min_separation_arcsec": 1012.3, "nasa_polynomial_delta_t_s": 17789.5, "planet": "Venus", "series": 2, "sun_dec_deg": -18.59, "sun_ra_hours": 15.322},
+    {"c1_jd_ut": 1565603.109722222, "c2_jd_ut": 1565603.119444445, "c3_jd_ut": 1565603.437500000, "c4_jd_ut": 1565603.447916667, "calendar": "julian", "date": "-0426 May 22", "greatest_jd_ut": 1565603.278472222, "min_separation_arcsec": 61.5, "nasa_polynomial_delta_t_s": 15935.8, "planet": "Venus", "series": 3, "sun_dec_deg": 19.25, "sun_ra_hours": 3.502},
+    {"c1_jd_ut": 1609982.360416667, "c2_jd_ut": 1609982.372222222, "c3_jd_ut": 1609982.669444444, "c4_jd_ut": 1609982.680555556, "calendar": "julian", "date": "-0305 Nov 23", "greatest_jd_ut": 1609982.520833333, "min_separation_arcsec": 335.5, "nasa_polynomial_delta_t_s": 14134.6, "planet": "Venus", "series": 4, "sun_dec_deg": -19.66, "sun_ra_hours": 15.623},
+    {"c1_jd_ut": 1654359.291666667, "c2_jd_ut": 1654359.302083333, "c3_jd_ut": 1654359.620138889, "c4_jd_ut": 1654359.629861111, "calendar": "julian", "date": "-0183 May 22", "greatest_jd_ut": 1654359.461111111, "min_separation_arcsec": 11.0, "nasa_polynomial_delta_t_s": 12583.0, "planet": "Venus", "series": 3, "sun_dec_deg": 19.76, "sun_ra_hours": 3.659},
+    {"c1_jd_ut": 1698738.346527778, "c2_jd_ut": 1698738.356944444, "c3_jd_ut": 1698738.665277778, "c4_jd_ut": 1698738.676388889, "calendar": "julian", "date": "-0062 Nov 23", "greatest_jd_ut": 1698738.511111111, "min_separation_arcsec": 229.8, "nasa_polynomial_delta_t_s": 11217.6, "planet": "Venus", "series": 4, "sun_dec_deg": -20.08, "sun_ra_hours": 15.759},
+    {"c1_jd_ut": 1743115.472222222, "c2_jd_ut": 1743115.481944444, "c3_jd_ut": 1743115.799305556, "c4_jd_ut": 1743115.809027778, "calendar": "julian", "date": "0060 May 23", "greatest_jd_ut": 1743115.640972222, "min_separation_arcsec": 87.4, "nasa_polynomial_delta_t_s": 9982.1, "planet": "Venus", "series": 3, "sun_dec_deg": 20.25, "sun_ra_hours": 3.817},
+    {"c1_jd_ut": 1787494.316666667, "c2_jd_ut": 1787494.327777778, "c3_jd_ut": 1787494.643750000, "c4_jd_ut": 1787494.654166667, "calendar": "julian", "date": "0181 Nov 22", "greatest_jd_ut": 1787494.485416667, "min_separation_arcsec": 114.3, "nasa_polynomial_delta_t_s": 8813.4, "planet": "Venus", "series": 4, "sun_dec_deg": -20.48, "sun_ra_hours": 15.895},
+    {"c1_jd_ut": 1831871.643750000, "c2_jd_ut": 1831871.654166667, "c3_jd_ut": 1831871.967361111, "c4_jd_ut": 1831871.977777778, "calendar": "julian", "date": "0303 May 24", "greatest_jd_ut": 1831871.811111111, "min_separation_arcsec": 157.7, "nasa_polynomial_delta_t_s": 7648.4, "planet": "Venus", "series": 3, "sun_dec_deg": 20.71, "sun_ra_hours": 3.977},
+    {"c1_jd_ut": 1876250.292361111, "c2_jd_ut": 1876250.303472222, "c3_jd_ut": 1876250.620833333, "c4_jd_ut": 1876250.631944444, "calendar": "julian", "date": "0424 Nov 22", "greatest_jd_ut": 1876250.461805556, "min_separation_arcsec": 9.6, "nasa_polynomial_delta_t_s": 6452.2, "planet": "Venus", "series": 4, "sun_dec_deg": -20.86, "sun_ra_hours": 16.033},
+    {"c1_jd_ut": 1920627.815972222, "c2_jd_ut": 1920627.826388889, "c3_jd_ut": 1920628.134027778, "c4_jd_ut": 1920628.144444444, "calendar": "julian", "date": "0546 May 24", "greatest_jd_ut": 1920627.979861111, "min_separation_arcsec": 232.3, "nasa_polynomial_delta_t_s": 5254.8, "planet": "Venus", "series": 3, "sun_dec_deg": 21.13, "sun_ra_hours": 4.138},
+    {"c1_jd_ut": 1923547.654166667, "c2_jd_ut": null, "c3_jd_ut": null, "c4_jd_ut": 1923547.750000000, "calendar": "julian", "date": "0554 May 22", "greatest_jd_ut": 1923547.702083333, "min_separation_arcsec": 933.6, "nasa_polynomial_delta_t_s": 5177.2, "planet": "Venus", "series": 5, "sun_dec_deg": 20.72, "sun_ra_hours": 3.990},
+    {"c1_jd_ut": 1965006.263888889, "c2_jd_ut": 1965006.275000000, "c3_jd_ut": 1965006.590972222, "c4_jd_ut": 1965006.602083333, "calendar": "julian", "date": "0667 Nov 23", "greatest_jd_ut": 1965006.433333333, "min_separation_arcsec": 99.2, "nasa_polynomial_delta_t_s": 4104.7, "planet": "Venus", "series": 4, "sun_dec_deg": -21.21, "sun_ra_hours": 16.172},
+    {"c1_jd_ut": 2009383.981250000, "c2_jd_ut": 2009383.991666667, "c3_jd_ut": 2009384.291666667, "c4_jd_ut": 2009384.302083333, "calendar": "julian", "date": "0789 May 24", "greatest_jd_ut": 2009384.141666667, "min_separation_arcsec": 307.6, "nasa_polynomial_delta_t_s": 3042.5, "planet": "Venus", "series": 3, "sun_dec_deg": 21.52, "sun_ra_hours": 4.300},
+    {"c1_jd_ut": 2012303.778472222, "c2_jd_ut": 2012303.804166667, "c3_jd_ut": 2012303.906250000, "c4_jd_ut": 2012303.932638889, "calendar": "julian", "date": "0797 May 22", "greatest_jd_ut": 2012303.855555556, "min_separation_arcsec": 866.6, "nasa_polynomial_delta_t_s": 2977.0, "planet": "Venus", "series": 5, "sun_dec_deg": 21.14, "sun_ra_hours": 4.151},
+    {"c1_jd_ut": 2053762.227777778, "c2_jd_ut": 2053762.238888889, "c3_jd_ut": 2053762.549305556, "c4_jd_ut": 2053762.560416667, "calendar": "julian", "date": "0910 Nov 23", "greatest_jd_ut": 2053762.394444444, "min_separation_arcsec": 207.9, "nasa_polynomial_delta_t_s": 2125.6, "planet": "Venus", "series": 4, "sun_dec_deg": -21.53, "sun_ra_hours": 16.312},
+    {"c1_jd_ut": 2098140.137500000, "c2_jd_ut": 2098140.148611111, "c3_jd_ut": 2098140.438888889, "c4_jd_ut": 2098140.450000000, "calendar": "julian", "date": "1032 May 24", "greatest_jd_ut": 2098140.293750000, "min_separation_arcsec": 373.4, "nasa_polynomial_delta_t_s": 1401.7, "planet": "Venus", "series": 3, "sun_dec_deg": 21.87, "sun_ra_hours": 4.463},
+    {"c1_jd_ut": 2101059.918055556, "c2_jd_ut": 2101059.936805556, "c3_jd_ut": 2101060.095833333, "c4_jd_ut": 2101060.114583333, "calendar": "julian", "date": "1040 May 22", "greatest_jd_ut": 2101060.015972222, "min_separation_arcsec": 791.8, "nasa_polynomial_delta_t_s": 1361.3, "planet": "Venus", "series": 5, "sun_dec_deg": 21.52, "sun_ra_hours": 4.314},
+    {"c1_jd_ut": 2142518.197916667, "c2_jd_ut": 2142518.209027778, "c3_jd_ut": 2142518.510416667, "c4_jd_ut": 2142518.521527778, "calendar": "julian", "date": "1153 Nov 23", "greatest_jd_ut": 2142518.359722222, "min_separation_arcsec": 307.6, "nasa_polynomial_delta_t_s": 883.8, "planet": "Venus", "series": 4, "sun_dec_deg": -21.83, "sun_ra_hours": 16.454},
+    {"c1_jd_ut": 2186896.291666667, "c2_jd_ut": 2186896.303472222, "c3_jd_ut": 2186896.581250000, "c4_jd_ut": 2186896.593055556, "calendar": "julian", "date": "1275 May 25", "greatest_jd_ut": 2186896.442361111, "min_separation_arcsec": 444.9, "nasa_polynomial_delta_t_s": 543.9, "planet": "Venus", "series": 3, "sun_dec_deg": 22.18, "sun_ra_hours": 4.627},
+    {"c1_jd_ut": 2189816.044444445, "c2_jd_ut": 2189816.060416667, "c3_jd_ut": 2189816.250694444, "c4_jd_ut": 2189816.267361111, "calendar": "julian", "date": "1283 May 23", "greatest_jd_ut": 2189816.155555556, "min_separation_arcsec": 733.6, "nasa_polynomial_delta_t_s": 526.5, "planet": "Venus", "series": 5, "sun_dec_deg": 21.87, "sun_ra_hours": 4.477},
+    {"c1_jd_ut": 2231274.154861111, "c2_jd_ut": 2231274.166666667, "c3_jd_ut": 2231274.450694445, "c4_jd_ut": 2231274.462500000, "calendar": "julian", "date": "1396 Nov 23", "greatest_jd_ut": 2231274.309027778, "min_separation_arcsec": 424.3, "nasa_polynomial_delta_t_s": 326.3, "planet": "Venus", "series": 4, "sun_dec_deg": -22.10, "sun_ra_hours": 16.595},
+    {"c1_jd_ut": 2275652.436111111, "c2_jd_ut": 2275652.447916667, "c3_jd_ut": 2275652.712500000, "c4_jd_ut": 2275652.725000000, "calendar": "julian", "date": "1518 May 26", "greatest_jd_ut": 2275652.580555555, "min_separation_arcsec": 505.3, "nasa_polynomial_delta_t_s": 179.9, "planet": "Venus", "series": 3, "sun_dec_deg": 22.45, "sun_ra_hours": 4.791},
+    {"c1_jd_ut": 2278572.175694444, "c2_jd_ut": 2278572.190277778, "c3_jd_ut": 2278572.408333333, "c4_jd_ut": 2278572.422222222, "calendar": "julian", "date": "1526 May 23", "greatest_jd_ut": 2278572.299305555, "min_separation_arcsec": 666.7, "nasa_polynomial_delta_t_s": 172.4, "planet": "Venus", "series": 5, "sun_dec_deg": 22.18, "sun_ra_hours": 4.640},
+    {"c1_jd_ut": 2317110.660416667, "c2_jd_ut": 2317110.707638889, "c3_jd_ut": 2317110.736111111, "c4_jd_ut": 2317110.782638889, "calendar": "gregorian", "date": "1631 Dec 07", "greatest_jd_ut": 2317110.721527778, "min_separation_arcsec": 939.3, "nasa_polynomial_delta_t_s": 77.6, "planet": "Venus", "series": 6, "sun_dec_deg": -22.64, "sun_ra_hours": 16.912},
+    {"c1_jd_ut": 2320030.122916667, "c2_jd_ut": 2320030.135416667, "c3_jd_ut": 2320030.400000000, "c4_jd_ut": 2320030.412500000, "calendar": "gregorian", "date": "1639 Dec 04", "greatest_jd_ut": 2320030.267361111, "min_separation_arcsec": 523.6, "nasa_polynomial_delta_t_s": 65.3, "planet": "Venus", "series": 4, "sun_dec_deg": -22.34, "sun_ra_hours": 16.738},
+    {"c1_jd_ut": 2364408.584722222, "c2_jd_ut": 2364408.597222222, "c3_jd_ut": 2364408.845833333, "c4_jd_ut": 2364408.859027778, "calendar": "gregorian", "date": "1761 Jun 06", "greatest_jd_ut": 2364408.721527778, "min_separation_arcsec": 570.4, "nasa_polynomial_delta_t_s": 15.1, "planet": "Venus", "series": 3, "sun_dec_deg": 22.69, "sun_ra_hours": 4.957},
+    {"c1_jd_ut": 2367328.302083333, "c2_jd_ut": 2367328.315277778, "c3_jd_ut": 2367328.552777778, "c4_jd_ut": 2367328.565972222, "calendar": "gregorian", "date": "1769 Jun 03", "greatest_jd_ut": 2367328.434027778, "min_separation_arcsec": 609.3, "nasa_polynomial_delta_t_s": 16.2, "planet": "Venus", "series": 5, "sun_dec_deg": 22.44, "sun_ra_hours": 4.805},
+    {"c1_jd_ut": 2405866.575694445, "c2_jd_ut": 2405866.596527778, "c3_jd_ut": 2405866.747222222, "c4_jd_ut": 2405866.768055555, "calendar": "gregorian", "date": "1874 Dec 09", "greatest_jd_ut": 2405866.671527778, "min_separation_arcsec": 829.9, "nasa_polynomial_delta_t_s": -3.1, "planet": "Venus", "series": 6, "sun_dec_deg": -22.82, "sun_ra_hours": 17.056},
+    {"c1_jd_ut": 2408786.081250000, "c2_jd_ut": 2408786.095138889, "c3_jd_ut": 2408786.329861111, "c4_jd_ut": 2408786.343750000, "calendar": "gregorian", "date": "1882 Dec 06", "greatest_jd_ut": 2408786.212500000, "min_separation_arcsec": 637.3, "nasa_polynomial_delta_t_s": -5.5, "planet": "Venus", "series": 4, "sun_dec_deg": -22.56, "sun_ra_hours": 16.881},
+    {"c1_jd_ut": 2453164.717361111, "c2_jd_ut": 2453164.731250000, "c3_jd_ut": 2453164.963194444, "c4_jd_ut": 2453164.976388889, "calendar": "gregorian", "date": "2004 Jun 08", "greatest_jd_ut": 2453164.847222222, "min_separation_arcsec": 626.9, "nasa_polynomial_delta_t_s": 64.6, "planet": "Venus", "series": 3, "sun_dec_deg": 22.89, "sun_ra_hours": 5.121},
+    {"c1_jd_ut": 2456084.422916667, "c2_jd_ut": 2456084.435416667, "c3_jd_ut": 2456084.688888889, "c4_jd_ut": 2456084.700694445, "calendar": "gregorian", "date": "2012 Jun 06", "greatest_jd_ut": 2456084.561805556, "min_separation_arcsec": 554.4, "nasa_polynomial_delta_t_s": 67.8, "planet": "Venus", "series": 5, "sun_dec_deg": 22.68, "sun_ra_hours": 4.969},
+    {"c1_jd_ut": 2494622.498611111, "c2_jd_ut": 2494622.514583333, "c3_jd_ut": 2494622.718750000, "c4_jd_ut": 2494622.734722222, "calendar": "gregorian", "date": "2117 Dec 11", "greatest_jd_ut": 2494622.616666667, "min_separation_arcsec": 723.6, "nasa_polynomial_delta_t_s": 246.1, "planet": "Venus", "series": 6, "sun_dec_deg": -22.97, "sun_ra_hours": 17.201},
+    {"c1_jd_ut": 2497542.052083333, "c2_jd_ut": 2497542.068055556, "c3_jd_ut": 2497542.266666667, "c4_jd_ut": 2497542.283333333, "calendar": "gregorian", "date": "2125 Dec 08", "greatest_jd_ut": 2497542.167361111, "min_separation_arcsec": 736.4, "nasa_polynomial_delta_t_s": 266.0, "planet": "Venus", "series": 4, "sun_dec_deg": -22.74, "sun_ra_hours": 17.026},
+    {"c1_jd_ut": 2541920.862500000, "c2_jd_ut": 2541920.877083333, "c3_jd_ut": 2541921.086111111, "c4_jd_ut": 2541921.100694444, "calendar": "gregorian", "date": "2247 Jun 11", "greatest_jd_ut": 2541920.981250000, "min_separation_arcsec": 691.3, "nasa_polynomial_delta_t_s": 564.7, "planet": "Venus", "series": 3, "sun_dec_deg": 23.05, "sun_ra_hours": 5.289},
+    {"c1_jd_ut": 2544840.547222222, "c2_jd_ut": 2544840.559027778, "c3_jd_ut": 2544840.827083333, "c4_jd_ut": 2544840.838888889, "calendar": "gregorian", "date": "2255 Jun 09", "greatest_jd_ut": 2544840.693055556, "min_separation_arcsec": 491.9, "nasa_polynomial_delta_t_s": 586.8, "planet": "Venus", "series": 5, "sun_dec_deg": 22.87, "sun_ra_hours": 5.135},
+    {"c1_jd_ut": 2583378.438888889, "c2_jd_ut": 2583378.452777778, "c3_jd_ut": 2583378.690972222, "c4_jd_ut": 2583378.705555555, "calendar": "gregorian", "date": "2360 Dec 13", "greatest_jd_ut": 2583378.572222222, "min_separation_arcsec": 625.7, "nasa_polynomial_delta_t_s": 916.4, "planet": "Venus", "series": 6, "sun_dec_deg": -23.09, "sun_ra_hours": 17.348},
+    {"c1_jd_ut": 2586298.020138889, "c2_jd_ut": 2586298.041666667, "c3_jd_ut": 2586298.188194444, "c4_jd_ut": 2586298.209027778, "calendar": "gregorian", "date": "2368 Dec 10", "greatest_jd_ut": 2586298.114583333, "min_separation_arcsec": 836.4, "nasa_polynomial_delta_t_s": 944.3, "planet": "Venus", "series": 4, "sun_dec_deg": -22.90, "sun_ra_hours": 17.172},
+    {"c1_jd_ut": 2630676.985416667, "c2_jd_ut": 2630677.001388889, "c3_jd_ut": 2630677.188888889, "c4_jd_ut": 2630677.204861111, "calendar": "gregorian", "date": "2490 Jun 12", "greatest_jd_ut": 2630677.095138889, "min_separation_arcsec": 741.1, "nasa_polynomial_delta_t_s": 1418.4, "planet": "Venus", "series": 3, "sun_dec_deg": 23.17, "sun_ra_hours": 5.454},
+    {"c1_jd_ut": 2633596.658333333, "c2_jd_ut": 2633596.670138889, "c3_jd_ut": 2633596.947916667, "c4_jd_ut": 2633596.959722222, "calendar": "gregorian", "date": "2498 Jun 10", "greatest_jd_ut": 2633596.809027778, "min_separation_arcsec": 442.7, "nasa_polynomial_delta_t_s": 1453.0, "planet": "Venus", "series": 5, "sun_dec_deg": 23.02, "sun_ra_hours": 5.301},
+    {"c1_jd_ut": 2672134.363194444, "c2_jd_ut": 2672134.376388889, "c3_jd_ut": 2672134.642361111, "c4_jd_ut": 2672134.654861111, "calendar": "gregorian", "date": "2603 Dec 16", "greatest_jd_ut": 2672134.509027778, "min_separation_arcsec": 517.1, "nasa_polynomial_delta_t_s": 1946.7, "planet": "Venus", "series": 6, "sun_dec_deg": -23.18, "sun_ra_hours": 17.494},
+    {"c1_jd_ut": 2675054.002777778, "c2_jd_ut": 2675054.046527778, "c3_jd_ut": 2675054.084027778, "c4_jd_ut": 2675054.127777778, "calendar": "gregorian", "date": "2611 Dec 13", "greatest_jd_ut": 2675054.065277778, "min_separation_arcsec": 934.8, "nasa_polynomial_delta_t_s": 1987.0, "planet": "Venus", "series": 4, "sun_dec_deg": -23.03, "sun_ra_hours": 17.319},
+    {"c1_jd_ut": 2719433.126388889, "c2_jd_ut": 2719433.145833333, "c3_jd_ut": 2719433.295833333, "c4_jd_ut": 2719433.315277778, "calendar": "gregorian", "date": "2733 Jun 15", "greatest_jd_ut": 2719433.220833333, "min_separation_arcsec": 808.3, "nasa_polynomial_delta_t_s": 2650.1, "planet": "Venus", "series": 3, "sun_dec_deg": 23.24, "sun_ra_hours": 5.623},
+    {"c1_jd_ut": 2722352.772916667, "c2_jd_ut": 2722352.784027778, "c3_jd_ut": 2722353.072222222, "c4_jd_ut": 2722353.083333333, "calendar": "gregorian", "date": "2741 Jun 13", "greatest_jd_ut": 2722352.928472222, "min_separation_arcsec": 385.6, "nasa_polynomial_delta_t_s": 2697.1, "planet": "Venus", "series": 5, "sun_dec_deg": 23.14, "sun_ra_hours": 5.468},
+    {"c1_jd_ut": 2760890.312500000, "c2_jd_ut": 2760890.324305556, "c3_jd_ut": 2760890.607638889, "c4_jd_ut": 2760890.619444444, "calendar": "gregorian", "date": "2846 Dec 16", "greatest_jd_ut": 2760890.465972222, "min_separation_arcsec": 432.1, "nasa_polynomial_delta_t_s": 3354.9, "planet": "Venus", "series": 6, "sun_dec_deg": -23.24, "sun_ra_hours": 17.643},
+    {"c1_jd_ut": null, "c2_jd_ut": null, "c3_jd_ut": null, "c4_jd_ut": null, "calendar": "gregorian", "date": "2854 Dec 14", "greatest_jd_ut": 2763810.013194445, "min_separation_arcsec": 1026.7, "nasa_polynomial_delta_t_s": 3407.6, "planet": "Venus", "series": 4, "sun_dec_deg": -23.12, "sun_ra_hours": 17.466},
+    {"c1_jd_ut": 2808189.239583333, "c2_jd_ut": 2808189.263194445, "c3_jd_ut": 2808189.381944444, "c4_jd_ut": 2808189.405555556, "calendar": "gregorian", "date": "2976 Jun 16", "greatest_jd_ut": 2808189.322222222, "min_separation_arcsec": 850.5, "nasa_polynomial_delta_t_s": 4259.7, "planet": "Venus", "series": 3, "sun_dec_deg": 23.28, "sun_ra_hours": 5.791},
+    {"c1_jd_ut": 2811108.875694444, "c2_jd_ut": 2811108.886111111, "c3_jd_ut": 2811109.181944444, "c4_jd_ut": 2811109.192361111, "calendar": "gregorian", "date": "2984 Jun 14", "greatest_jd_ut": 2811109.034027778, "min_separation_arcsec": 336.3, "nasa_polynomial_delta_t_s": 4319.1, "planet": "Venus", "series": 5, "sun_dec_deg": 23.21, "sun_ra_hours": 5.634},
+    {"c1_jd_ut": 2849646.235416667, "c2_jd_ut": 2849646.246527778, "c3_jd_ut": 2849646.545833333, "c4_jd_ut": 2849646.557638889, "calendar": "gregorian", "date": "3089 Dec 18", "greatest_jd_ut": 2849646.396527778, "min_separation_arcsec": 320.6, "nasa_polynomial_delta_t_s": 5140.9, "planet": "Venus", "series": 6, "sun_dec_deg": -23.27, "sun_ra_hours": 17.790},
+    {"c1_jd_ut": 2896945.368055556, "c2_jd_ut": 2896945.406944444, "c3_jd_ut": 2896945.452777778, "c4_jd_ut": 2896945.492361111, "calendar": "gregorian", "date": "3219 Jun 19", "greatest_jd_ut": 2896945.429861111, "min_separation_arcsec": 908.1, "nasa_polynomial_delta_t_s": 6247.1, "planet": "Venus", "series": 3, "sun_dec_deg": 23.28, "sun_ra_hours": 5.957},
+    {"c1_jd_ut": 2899864.972916667, "c2_jd_ut": 2899864.984027778, "c3_jd_ut": 2899865.284722222, "c4_jd_ut": 2899865.295138889, "calendar": "gregorian", "date": "3227 Jun 17", "greatest_jd_ut": 2899865.134027778, "min_separation_arcsec": 293.4, "nasa_polynomial_delta_t_s": 6319.0, "planet": "Venus", "series": 5, "sun_dec_deg": 23.25, "sun_ra_hours": 5.801},
+    {"c1_jd_ut": 2938402.177777778, "c2_jd_ut": 2938402.188888889, "c3_jd_ut": 2938402.497222222, "c4_jd_ut": 2938402.508333333, "calendar": "gregorian", "date": "3332 Dec 20", "greatest_jd_ut": 2938402.343055556, "min_separation_arcsec": 235.5, "nasa_polynomial_delta_t_s": 7304.9, "planet": "Venus", "series": 6, "sun_dec_deg": -23.26, "sun_ra_hours": 17.939},
+    {"c1_jd_ut": 2985701.478472222, "c2_jd_ut": null, "c3_jd_ut": null, "c4_jd_ut": 2985701.559722222, "calendar": "gregorian", "date": "3462 Jun 22", "greatest_jd_ut": 2985701.518750000, "min_separation_arcsec": 948.1, "nasa_polynomial_delta_t_s": 8612.5, "planet": "Venus", "series": 3, "sun_dec_deg": 23.24, "sun_ra_hours": 6.123},
+    {"c1_jd_ut": 2988621.063194444, "c2_jd_ut": 2988621.073611111, "c3_jd_ut": 2988621.379861111, "c4_jd_ut": 2988621.390277778, "calendar": "gregorian", "date": "3470 Jun 19", "greatest_jd_ut": 2988621.226388889, "min_separation_arcsec": 247.9, "nasa_polynomial_delta_t_s": 8696.8, "planet": "Venus", "series": 5, "sun_dec_deg": 23.25, "sun_ra_hours": 5.967},
+    {"c1_jd_ut": 3027158.103472222, "c2_jd_ut": 3027158.113888889, "c3_jd_ut": 3027158.429861111, "c4_jd_ut": 3027158.440277778, "calendar": "gregorian", "date": "3575 Dec 23", "greatest_jd_ut": 3027158.272222222, "min_separation_arcsec": 131.5, "nasa_polynomial_delta_t_s": 9846.8, "planet": "Venus", "series": 6, "sun_dec_deg": -23.23, "sun_ra_hours": 18.087},
+    {"c1_jd_ut": null, "c2_jd_ut": null, "c3_jd_ut": null, "c4_jd_ut": null, "calendar": "gregorian", "date": "3705 Jun 24", "greatest_jd_ut": 3074457.605555556, "min_separation_arcsec": 989.3, "nasa_polynomial_delta_t_s": 11355.9, "planet": "Venus", "series": 3, "sun_dec_deg": 23.16, "sun_ra_hours": 6.289},
+    {"c1_jd_ut": 3077377.142361111, "c2_jd_ut": 3077377.152777778, "c3_jd_ut": 3077377.461805556, "c4_jd_ut": 3077377.472222222, "calendar": "gregorian", "date": "3713 Jun 21", "greatest_jd_ut": 3077377.306944444, "min_separation_arcsec": 215.2, "nasa_polynomial_delta_t_s": 11452.6, "planet": "Venus", "series": 5, "sun_dec_deg": 23.21, "sun_ra_hours": 6.133},
+    {"c1_jd_ut": 3115914.039583333, "c2_jd_ut": 3115914.050000000, "c3_jd_ut": 3115914.368055556, "c4_jd_ut": 3115914.378472222, "calendar": "gregorian", "date": "3818 Dec 25", "greatest_jd_ut": 3115914.209027778, "min_separation_arcsec": 41.1, "nasa_polynomial_delta_t_s": 12766.7, "planet": "Venus", "series": 6, "sun_dec_deg": -23.16, "sun_ra_hours": 18.237},
+    {"c1_jd_ut": 3166133.223611111, "c2_jd_ut": 3166133.234027778, "c3_jd_ut": 3166133.545833333, "c4_jd_ut": 3166133.556250000, "calendar": "gregorian", "date": "3956 Jun 23", "greatest_jd_ut": 3166133.389583333, "min_separation_arcsec": 175.2, "nasa_polynomial_delta_t_s": 14586.3, "planet": "Venus", "series": 5, "sun_dec_deg": 23.13, "sun_ra_hours": 6.300},
+    {"c1_jd_ut": 2307579.279861111, "c2_jd_ut": 2307579.282638889, "c3_jd_ut": 2307579.387500000, "c4_jd_ut": 2307579.389583333, "calendar": "gregorian", "date": "1605 Nov 01", "greatest_jd_ut": 2307579.334722222, "min_separation_arcsec": 855.9, "nasa_polynomial_delta_t_s": 113.7, "planet": "Mercury", "series": 6, "sun_dec_deg": -14.68, "sun_ra_hours": 14.471},
+    {"c1_jd_ut": 2311048.778472222, "c2_jd_ut": 2311048.780555556, "c3_jd_ut": 2311049.064583333, "c4_jd_ut": 2311049.066666667, "calendar": "gregorian", "date": "1615 May 03", "greatest_jd_ut": 2311048.922916667, "min_separation_arcsec": 468.4, "nasa_polynomial_delta_t_s": 101.8, "planet": "Mercury", "series": 5, "sun_dec_deg": 15.61, "sun_ra_hours": 2.666},
+    {"c1_jd_ut": 2312329.963888889, "c2_jd_ut": 2312329.965277778, "c3_jd_ut": 2312330.176388889, "c4_jd_ut": 2312330.177083333, "calendar": "gregorian", "date": "1618 Nov 04", "greatest_jd_ut": 2312330.070833333, "min_separation_arcsec": 352.8, "nasa_polynomial_delta_t_s": 97.0, "planet": "Mercury", "series": 4, "sun_dec_deg": -15.49, "sun_ra_hours": 14.642},
+    {"c1_jd_ut": 2315800.096527778, "c2_jd_ut": 2315800.099305556, "c3_jd_ut": 2315800.361111111, "c4_jd_ut": 2315800.363888889, "calendar": "gregorian", "date": "1628 May 05", "greatest_jd_ut": 2315800.230555556, "min_separation_arcsec": 571.0, "nasa_polynomial_delta_t_s": 83.0, "planet": "Mercury", "series": 3, "sun_dec_deg": 16.52, "sun_ra_hours": 2.869},
+    {"c1_jd_ut": 2317080.693055556, "c2_jd_ut": 2317080.693750000, "c3_jd_ut": 2317080.917361111, "c4_jd_ut": 2317080.918750000, "calendar": "gregorian", "date": "1631 Nov 07", "greatest_jd_ut": 2317080.805555556, "min_separation_arcsec": 146.4, "nasa_polynomial_delta_t_s": 77.7, "planet": "Mercury", "series": 2, "sun_dec_deg": -16.27, "sun_ra_hours": 14.814},
+    {"c1_jd_ut": 2321831.453472222, "c2_jd_ut": 2321831.454861111, "c3_jd_ut": 2321831.623611111, "c4_jd_ut": 2321831.625000000, "calendar": "gregorian", "date": "1644 Nov 09", "greatest_jd_ut": 2321831.539583333, "min_separation_arcsec": 641.1, "nasa_polynomial_delta_t_s": 57.8, "planet": "Mercury", "series": 1, "sun_dec_deg": -17.02, "sun_ra_hours": 14.987},
+    {"c1_jd_ut": 2324381.463194444, "c2_jd_ut": 2324381.464583333, "c3_jd_ut": 2324381.607638889, "c4_jd_ut": 2324381.609722222, "calendar": "gregorian", "date": "1651 Nov 03", "greatest_jd_ut": 2324381.536111111, "min_separation_arcsec": 750.7, "nasa_polynomial_delta_t_s": 47.5, "planet": "Mercury", "series": 6, "sun_dec_deg": -15.01, "sun_ra_hours": 14.540},
+    {"c1_jd_ut": 2327851.045138889, "c2_jd_ut": 2327851.047222222, "c3_jd_ut": 2327851.361111111, "c4_jd_ut": 2327851.363194444, "calendar": "gregorian", "date": "1661 May 03", "greatest_jd_ut": 2327851.204166667, "min_separation_arcsec": 263.2, "nasa_polynomial_delta_t_s": 34.5, "planet": "Mercury", "series": 5, "sun_dec_deg": 15.94, "sun_ra_hours": 2.740},
+    {"c1_jd_ut": 2329132.161805556, "c2_jd_ut": 2329132.162500000, "c3_jd_ut": 2329132.381944444, "c4_jd_ut": 2329132.382638889, "calendar": "gregorian", "date": "1664 Nov 04", "greatest_jd_ut": 2329132.272222222, "min_separation_arcsec": 250.4, "nasa_polynomial_delta_t_s": 30.2, "planet": "Mercury", "series": 4, "sun_dec_deg": -15.81, "sun_ra_hours": 14.711},
+    {"c1_jd_ut": 2332602.413888889, "c2_jd_ut": 2332602.417361111, "c3_jd_ut": 2332602.604861111, "c4_jd_ut": 2332602.609027778, "calendar": "gregorian", "date": "1674 May 07", "greatest_jd_ut": 2332602.511111111, "min_separation_arcsec": 775.4, "nasa_polynomial_delta_t_s": 20.0, "planet": "Mercury", "series": 3, "sun_dec_deg": 16.84, "sun_ra_hours": 2.943},
+    {"c1_jd_ut": 2333882.897222222, "c2_jd_ut": 2333882.897916667, "c3_jd_ut": 2333883.116666667, "c4_jd_ut": 2333883.118055556, "calendar": "gregorian", "date": "1677 Nov 07", "greatest_jd_ut": 2333883.007638889, "min_separation_arcsec": 248.7, "nasa_polynomial_delta_t_s": 17.0, "planet": "Mercury", "series": 2, "sun_dec_deg": -16.58, "sun_ra_hours": 14.884},
+    {"c1_jd_ut": 2338633.664583333, "c2_jd_ut": 2338633.665972222, "c3_jd_ut": 2338633.810416667, "c4_jd_ut": 2338633.811805556, "calendar": "gregorian", "date": "1690 Nov 10", "greatest_jd_ut": 2338633.738194444, "min_separation_arcsec": 742.1, "nasa_polynomial_delta_t_s": 9.6, "planet": "Mercury", "series": 1, "sun_dec_deg": -17.32, "sun_ra_hours": 15.057},
+    {"c1_jd_ut": 2341183.651388889, "c2_jd_ut": 2341183.652777778, "c3_jd_ut": 2341183.821527778, "c4_jd_ut": 2341183.822916667, "calendar": "gregorian", "date": "1697 Nov 03", "greatest_jd_ut": 2341183.737500000, "min_separation_arcsec": 647.1, "nasa_polynomial_delta_t_s": 8.8, "planet": "Mercury", "series": 6, "sun_dec_deg": -15.33, "sun_ra_hours": 14.610},
+    {"c1_jd_ut": 2344653.315277778, "c2_jd_ut": 2344653.317361111, "c3_jd_ut": 2344653.643750000, "c4_jd_ut": 2344653.645833333, "calendar": "gregorian", "date": "1707 May 05", "greatest_jd_ut": 2344653.480555556, "min_separation_arcsec": 64.5, "nasa_polynomial_delta_t_s": 9.7, "planet": "Mercury", "series": 5, "sun_dec_deg": 16.27, "sun_ra_hours": 2.813},
+    {"c1_jd_ut": 2345934.360416667, "c2_jd_ut": 2345934.361111111, "c3_jd_ut": 2345934.585416667, "c4_jd_ut": 2345934.586805556, "calendar": "gregorian", "date": "1710 Nov 06", "greatest_jd_ut": 2345934.473611111, "min_separation_arcsec": 145.2, "nasa_polynomial_delta_t_s": 10.0, "planet": "Mercury", "series": 4, "sun_dec_deg": -16.12, "sun_ra_hours": 14.781},
+    {"c1_jd_ut": 2350685.100694444, "c2_jd_ut": 2350685.102083333, "c3_jd_ut": 2350685.312500000, "c4_jd_ut": 2350685.313888889, "calendar": "gregorian", "date": "1723 Nov 09", "greatest_jd_ut": 2350685.207638889, "min_separation_arcsec": 350.6, "nasa_polynomial_delta_t_s": 10.8, "planet": "Mercury", "series": 2, "sun_dec_deg": -16.87, "sun_ra_hours": 14.953},
+    {"c1_jd_ut": 2355435.879861111, "c2_jd_ut": 2355435.882638889, "c3_jd_ut": 2355435.992361111, "c4_jd_ut": 2355435.994444444, "calendar": "gregorian", "date": "1736 Nov 11", "greatest_jd_ut": 2355435.937500000, "min_separation_arcsec": 843.0, "nasa_polynomial_delta_t_s": 11.8, "planet": "Mercury", "series": 1, "sun_dec_deg": -17.59, "sun_ra_hours": 15.128},
+    {"c1_jd_ut": 2356704.398611111, "c2_jd_ut": 2356704.404166667, "c3_jd_ut": 2356704.514583333, "c4_jd_ut": 2356704.520138889, "calendar": "gregorian", "date": "1740 May 02", "greatest_jd_ut": 2356704.459722222, "min_separation_arcsec": 888.8, "nasa_polynomial_delta_t_s": 12.2, "planet": "Mercury", "series": 7, "sun_dec_deg": 15.68, "sun_ra_hours": 2.685},
+    {"c1_jd_ut": 2357985.841666667, "c2_jd_ut": 2357985.843750000, "c3_jd_ut": 2357986.031250000, "c4_jd_ut": 2357986.032638889, "calendar": "gregorian", "date": "1743 Nov 05", "greatest_jd_ut": 2357985.937500000, "min_separation_arcsec": 542.4, "nasa_polynomial_delta_t_s": 12.6, "planet": "Mercury", "series": 6, "sun_dec_deg": -15.65, "sun_ra_hours": 14.679},
+    {"c1_jd_ut": 2361455.594444444, "c2_jd_ut": 2361455.596527778, "c3_jd_ut": 2361455.920833333, "c4_jd_ut": 2361455.922916667, "calendar": "gregorian", "date": "1753 May 06", "greatest_jd_ut": 2361455.759027778, "min_separation_arcsec": 138.6, "nasa_polynomial_delta_t_s": 13.9, "planet": "Mercury", "series": 5, "sun_dec_deg": 16.59, "sun_ra_hours": 2.888},
+    {"c1_jd_ut": 2362736.559722222, "c2_jd_ut": 2362736.561111111, "c3_jd_ut": 2362736.787500000, "c4_jd_ut": 2362736.788194444, "calendar": "gregorian", "date": "1756 Nov 07", "greatest_jd_ut": 2362736.673611111, "min_separation_arcsec": 42.6, "nasa_polynomial_delta_t_s": 14.4, "planet": "Mercury", "series": 4, "sun_dec_deg": -16.42, "sun_ra_hours": 14.851},
+    {"c1_jd_ut": 2367487.306250000, "c2_jd_ut": 2367487.307638889, "c3_jd_ut": 2367487.506944444, "c4_jd_ut": 2367487.508333333, "calendar": "gregorian", "date": "1769 Nov 09", "greatest_jd_ut": 2367487.406944444, "min_separation_arcsec": 454.0, "nasa_polynomial_delta_t_s": 16.3, "planet": "Mercury", "series": 2, "sun_dec_deg": -17.17, "sun_ra_hours": 15.024},
+    {"c1_jd_ut": 2370037.371527778, "c2_jd_ut": 2370037.377083333, "c3_jd_ut": 2370037.422916667, "c4_jd_ut": 2370037.428472222, "calendar": "gregorian", "date": "1776 Nov 02", "greatest_jd_ut": 2370037.400000000, "min_separation_arcsec": 943.8, "nasa_polynomial_delta_t_s": 17.0, "planet": "Mercury", "series": 8, "sun_dec_deg": -14.91, "sun_ra_hours": 14.522},
+    {"c1_jd_ut": 2372238.107638889, "c2_jd_ut": 2372238.112500000, "c3_jd_ut": 2372238.159722222, "c4_jd_ut": 2372238.164583333, "calendar": "gregorian", "date": "1782 Nov 12", "greatest_jd_ut": 2372238.136111111, "min_separation_arcsec": 944.6, "nasa_polynomial_delta_t_s": 17.1, "planet": "Mercury", "series": 1, "sun_dec_deg": -17.88, "sun_ra_hours": 15.199},
+    {"c1_jd_ut": 2373506.622222222, "c2_jd_ut": 2373506.625694444, "c3_jd_ut": 2373506.847916667, "c4_jd_ut": 2373506.851388889, "calendar": "gregorian", "date": "1786 May 04", "greatest_jd_ut": 2373506.736805555, "min_separation_arcsec": 689.0, "nasa_polynomial_delta_t_s": 17.0, "planet": "Mercury", "series": 7, "sun_dec_deg": 16.02, "sun_ra_hours": 2.759},
+    {"c1_jd_ut": 2374788.035416667, "c2_jd_ut": 2374788.036805556, "c3_jd_ut": 2374788.238888889, "c4_jd_ut": 2374788.240277778, "calendar": "gregorian", "date": "1789 Nov 05", "greatest_jd_ut": 2374788.138194445, "min_separation_arcsec": 439.9, "nasa_polynomial_delta_t_s": 16.6, "planet": "Mercury", "series": 6, "sun_dec_deg": -15.96, "sun_ra_hours": 14.748},
+    {"c1_jd_ut": 2378257.879861111, "c2_jd_ut": 2378257.881944444, "c3_jd_ut": 2378258.188194444, "c4_jd_ut": 2378258.190277778, "calendar": "gregorian", "date": "1799 May 07", "greatest_jd_ut": 2378258.034722222, "min_separation_arcsec": 339.5, "nasa_polynomial_delta_t_s": 14.0, "planet": "Mercury", "series": 5, "sun_dec_deg": 16.90, "sun_ra_hours": 2.961},
+    {"c1_jd_ut": 2379538.759722222, "c2_jd_ut": 2379538.761111111, "c3_jd_ut": 2379538.986805555, "c4_jd_ut": 2379538.988194444, "calendar": "gregorian", "date": "1802 Nov 09", "greatest_jd_ut": 2379538.873611111, "min_separation_arcsec": 60.9, "nasa_polynomial_delta_t_s": 12.9, "planet": "Mercury", "series": 4, "sun_dec_deg": -16.73, "sun_ra_hours": 14.921},
+    {"c1_jd_ut": 2384289.512500000, "c2_jd_ut": 2384289.513888889, "c3_jd_ut": 2384289.698611111, "c4_jd_ut": 2384289.700000000, "calendar": "gregorian", "date": "1815 Nov 12", "greatest_jd_ut": 2384289.606250000, "min_separation_arcsec": 556.1, "nasa_polynomial_delta_t_s": 12.6, "planet": "Mercury", "series": 2, "sun_dec_deg": -17.45, "sun_ra_hours": 15.094},
+    {"c1_jd_ut": 2386839.541666667, "c2_jd_ut": 2386839.544444445, "c3_jd_ut": 2386839.656250000, "c4_jd_ut": 2386839.659027778, "calendar": "gregorian", "date": "1822 Nov 05", "greatest_jd_ut": 2386839.600694444, "min_separation_arcsec": 838.8, "nasa_polynomial_delta_t_s": 10.9, "planet": "Mercury", "series": 8, "sun_dec_deg": -15.50, "sun_ra_hours": 14.646},
+    {"c1_jd_ut": 2390308.875000000, "c2_jd_ut": 2390308.877777778, "c3_jd_ut": 2390309.157638889, "c4_jd_ut": 2390309.159722222, "calendar": "gregorian", "date": "1832 May 05", "greatest_jd_ut": 2390309.017361111, "min_separation_arcsec": 484.7, "nasa_polynomial_delta_t_s": 6.7, "planet": "Mercury", "series": 7, "sun_dec_deg": 16.34, "sun_ra_hours": 2.833},
+    {"c1_jd_ut": 2391590.231250000, "c2_jd_ut": 2391590.232638889, "c3_jd_ut": 2391590.445138889, "c4_jd_ut": 2391590.446527778, "calendar": "gregorian", "date": "1835 Nov 07", "greatest_jd_ut": 2391590.338888889, "min_separation_arcsec": 336.4, "nasa_polynomial_delta_t_s": 5.7, "planet": "Mercury", "series": 6, "sun_dec_deg": -16.27, "sun_ra_hours": 14.817},
+    {"c1_jd_ut": 2395060.180555556, "c2_jd_ut": 2395060.183333333, "c3_jd_ut": 2395060.450694445, "c4_jd_ut": 2395060.453472222, "calendar": "gregorian", "date": "1845 May 08", "greatest_jd_ut": 2395060.317361111, "min_separation_arcsec": 547.2, "nasa_polynomial_delta_t_s": 6.3, "planet": "Mercury", "series": 5, "sun_dec_deg": 17.21, "sun_ra_hours": 3.037},
+    {"c1_jd_ut": 2396340.961805556, "c2_jd_ut": 2396340.963194444, "c3_jd_ut": 2396341.186111111, "c4_jd_ut": 2396341.187500000, "calendar": "gregorian", "date": "1848 Nov 09", "greatest_jd_ut": 2396341.075000000, "min_separation_arcsec": 163.0, "nasa_polynomial_delta_t_s": 6.9, "planet": "Mercury", "series": 4, "sun_dec_deg": -17.02, "sun_ra_hours": 14.991},
+    {"c1_jd_ut": 2401091.720833333, "c2_jd_ut": 2401091.722916667, "c3_jd_ut": 2401091.887500000, "c4_jd_ut": 2401091.889583333, "calendar": "gregorian", "date": "1861 Nov 12", "greatest_jd_ut": 2401091.804861111, "min_separation_arcsec": 657.9, "nasa_polynomial_delta_t_s": 7.9, "planet": "Mercury", "series": 2, "sun_dec_deg": -17.74, "sun_ra_hours": 15.166},
+    {"c1_jd_ut": 2403641.726388889, "c2_jd_ut": 2403641.727777778, "c3_jd_ut": 2403641.875000000, "c4_jd_ut": 2403641.877083333, "calendar": "gregorian", "date": "1868 Nov 05", "greatest_jd_ut": 2403641.801388889, "min_separation_arcsec": 735.1, "nasa_polynomial_delta_t_s": 2.1, "planet": "Mercury", "series": 8, "sun_dec_deg": -15.81, "sun_ra_hours": 14.715},
+    {"c1_jd_ut": 2407111.134027778, "c2_jd_ut": 2407111.136111111, "c3_jd_ut": 2407111.447222222, "c4_jd_ut": 2407111.449305556, "calendar": "gregorian", "date": "1878 May 06", "greatest_jd_ut": 2407111.291666667, "min_separation_arcsec": 287.3, "nasa_polynomial_delta_t_s": -4.6, "planet": "Mercury", "series": 7, "sun_dec_deg": 16.66, "sun_ra_hours": 2.907},
+    {"c1_jd_ut": 2408392.428472222, "c2_jd_ut": 2408392.429861111, "c3_jd_ut": 2408392.650000000, "c4_jd_ut": 2408392.651388889, "calendar": "gregorian", "date": "1881 Nov 08", "greatest_jd_ut": 2408392.539583333, "min_separation_arcsec": 231.8, "nasa_polynomial_delta_t_s": -5.3, "planet": "Mercury", "series": 6, "sun_dec_deg": -16.58, "sun_ra_hours": 14.888},
+    {"c1_jd_ut": 2411862.497916667, "c2_jd_ut": 2411862.497916667, "c3_jd_ut": 2411862.699305556, "c4_jd_ut": 2411862.699305556, "calendar": "gregorian", "date": "1891 May 10", "greatest_jd_ut": 2411862.598611111, "min_separation_arcsec": 753.6, "nasa_polynomial_delta_t_s": -6.2, "planet": "Mercury", "series": 5, "sun_dec_deg": 17.52, "sun_ra_hours": 3.112},
+    {"c1_jd_ut": 2413143.163888889, "c2_jd_ut": 2413143.165277778, "c3_jd_ut": 2413143.382638889, "c4_jd_ut": 2413143.384027778, "calendar": "gregorian", "date": "1894 Nov 10", "greatest_jd_ut": 2413143.274305556, "min_separation_arcsec": 266.2, "nasa_polynomial_delta_t_s": -6.2, "planet": "Mercury", "series": 4, "sun_dec_deg": -17.31, "sun_ra_hours": 15.061},
+    {"c1_jd_ut": 2417893.933333333, "c2_jd_ut": 2417893.934722222, "c3_jd_ut": 2417894.074305556, "c4_jd_ut": 2417894.076388889, "calendar": "gregorian", "date": "1907 Nov 14", "greatest_jd_ut": 2417894.004861111, "min_separation_arcsec": 758.6, "nasa_polynomial_delta_t_s": 7.5, "planet": "Mercury", "series": 2, "sun_dec_deg": -18.01, "sun_ra_hours": 15.236},
+    {"c1_jd_ut": 2420443.914583333, "c2_jd_ut": 2420443.915972222, "c3_jd_ut": 2420444.088194444, "c4_jd_ut": 2420444.089583333, "calendar": "gregorian", "date": "1914 Nov 07", "greatest_jd_ut": 2420444.002083333, "min_separation_arcsec": 630.7, "nasa_polynomial_delta_t_s": 16.9, "planet": "Mercury", "series": 8, "sun_dec_deg": -16.12, "sun_ra_hours": 14.785},
+    {"c1_jd_ut": 2423913.405555556, "c2_jd_ut": 2423913.407638889, "c3_jd_ut": 2423913.732638889, "c4_jd_ut": 2423913.734722222, "calendar": "gregorian", "date": "1924 May 08", "greatest_jd_ut": 2423913.570138889, "min_separation_arcsec": 84.6, "nasa_polynomial_delta_t_s": 23.6, "planet": "Mercury", "series": 7, "sun_dec_deg": 16.97, "sun_ra_hours": 2.981},
+    {"c1_jd_ut": 2425194.626388889, "c2_jd_ut": 2425194.627777778, "c3_jd_ut": 2425194.852083333, "c4_jd_ut": 2425194.853472222, "calendar": "gregorian", "date": "1927 Nov 10", "greatest_jd_ut": 2425194.740277778, "min_separation_arcsec": 128.7, "nasa_polynomial_delta_t_s": 24.2, "planet": "Mercury", "series": 6, "sun_dec_deg": -16.87, "sun_ra_hours": 14.958},
+    {"c1_jd_ut": 2428664.870138889, "c2_jd_ut": null, "c3_jd_ut": null, "c4_jd_ut": 2428664.879166667, "calendar": "gregorian", "date": "1937 May 11", "greatest_jd_ut": 2428664.874305556, "min_separation_arcsec": 955.5, "nasa_polynomial_delta_t_s": 23.9, "planet": "Mercury", "series": 5, "sun_dec_deg": 17.81, "sun_ra_hours": 3.187},
+    {"c1_jd_ut": 2429945.367361111, "c2_jd_ut": 2429945.368750000, "c3_jd_ut": 2429945.577777778, "c4_jd_ut": 2429945.578472222, "calendar": "gregorian", "date": "1940 Nov 11", "greatest_jd_ut": 2429945.472916667, "min_separation_arcsec": 368.5, "nasa_polynomial_delta_t_s": 24.7, "planet": "Mercury", "series": 4, "sun_dec_deg": -17.59, "sun_ra_hours": 15.132},
+    {"c1_jd_ut": 2434696.150694444, "c2_jd_ut": 2434696.153472222, "c3_jd_ut": 2434696.254861111, "c4_jd_ut": 2434696.257638889, "calendar": "gregorian", "date": "1953 Nov 14", "greatest_jd_ut": 2434696.204166667, "min_separation_arcsec": 861.8, "nasa_polynomial_delta_t_s": 30.6, "planet": "Mercury", "series": 2, "sun_dec_deg": -18.28, "sun_ra_hours": 15.308},
+    {"c1_jd_ut": 2435964.499305556, "c2_jd_ut": 2435964.506250000, "c3_jd_ut": 2435964.597222222, "c4_jd_ut": 2435964.604166667, "calendar": "gregorian", "date": "1957 May 06", "greatest_jd_ut": 2435964.551388889, "min_separation_arcsec": 907.3, "nasa_polynomial_delta_t_s": 32.0, "planet": "Mercury", "series": 9, "sun_dec_deg": 16.41, "sun_ra_hours": 2.852},
+    {"c1_jd_ut": 2437246.106944445, "c2_jd_ut": 2437246.108333333, "c3_jd_ut": 2437246.298611111, "c4_jd_ut": 2437246.300000000, "calendar": "gregorian", "date": "1960 Nov 07", "greatest_jd_ut": 2437246.203472222, "min_separation_arcsec": 527.9, "nasa_polynomial_delta_t_s": 33.5, "planet": "Mercury", "series": 8, "sun_dec_deg": -16.42, "sun_ra_hours": 14.855},
+    {"c1_jd_ut": 2440715.679861111, "c2_jd_ut": 2440715.681944444, "c3_jd_ut": 2440716.006944444, "c4_jd_ut": 2440716.009027778, "calendar": "gregorian", "date": "1970 May 09", "greatest_jd_ut": 2440715.844444444, "min_separation_arcsec": 114.1, "nasa_polynomial_delta_t_s": 40.6, "planet": "Mercury", "series": 7, "sun_dec_deg": 17.28, "sun_ra_hours": 3.056},
+    {"c1_jd_ut": 2441996.824305556, "c2_jd_ut": 2441996.825694445, "c3_jd_ut": 2441997.052777778, "c4_jd_ut": 2441997.053472222, "calendar": "gregorian", "date": "1973 Nov 10", "greatest_jd_ut": 2441996.938888889, "min_separation_arcsec": 26.4, "nasa_polynomial_delta_t_s": 44.2, "planet": "Mercury", "series": 6, "sun_dec_deg": -17.17, "sun_ra_hours": 15.028},
+    {"c1_jd_ut": 2446747.571527778, "c2_jd_ut": 2446747.572916667, "c3_jd_ut": 2446747.770138889, "c4_jd_ut": 2446747.771527778, "calendar": "gregorian", "date": "1986 Nov 13", "greatest_jd_ut": 2446747.671527778, "min_separation_arcsec": 470.5, "nasa_polynomial_delta_t_s": 55.3, "planet": "Mercury", "series": 4, "sun_dec_deg": -17.87, "sun_ra_hours": 15.203},
+    {"c1_jd_ut": 2449297.629166667, "c2_jd_ut": 2449297.633333333, "c3_jd_ut": 2449297.695138889, "c4_jd_ut": 2449297.699305556, "calendar": "gregorian", "date": "1993 Nov 06", "greatest_jd_ut": 2449297.664583333, "min_separation_arcsec": 926.7, "nasa_polynomial_delta_t_s": 59.9, "planet": "Mercury", "series": 10, "sun_dec_deg": -15.97, "sun_ra_hours": 14.753},
+    {"c1_jd_ut": 2451498.385416667, "c2_jd_ut": 2451498.395833333, "c3_jd_ut": 2451498.411111111, "c4_jd_ut": 2451498.421527778, "calendar": "gregorian", "date": "1999 Nov 15", "greatest_jd_ut": 2451498.403472222, "min_separation_arcsec": 963.0, "nasa_polynomial_delta_t_s": 63.8, "planet": "Mercury", "series": 2, "sun_dec_deg": -18.54, "sun_ra_hours": 15.379},
+    {"c1_jd_ut": 2452766.717361111, "c2_jd_ut": 2452766.720138889, "c3_jd_ut": 2452766.935416667, "c4_jd_ut": 2452766.938888889, "calendar": "gregorian", "date": "2003 May 07", "greatest_jd_ut": 2452766.827777778, "min_separation_arcsec": 708.3, "nasa_polynomial_delta_t_s": 64.5, "planet": "Mercury", "series": 9, "sun_dec_deg": 16.73, "sun_ra_hours": 2.926},
+    {"c1_jd_ut": 2454048.300000000, "c2_jd_ut": 2454048.301388889, "c3_jd_ut": 2454048.505555556, "c4_jd_ut": 2454048.506944444, "calendar": "gregorian", "date": "2006 Nov 08", "greatest_jd_ut": 2454048.403472222, "min_separation_arcsec": 422.9, "nasa_polynomial_delta_t_s": 65.4, "planet": "Mercury", "series": 8, "sun_dec_deg": -16.73, "sun_ra_hours": 14.925},
+    {"c1_jd_ut": 2457517.966666667, "c2_jd_ut": 2457517.968750000, "c3_jd_ut": 2457518.277083333, "c4_jd_ut": 2457518.279166667, "calendar": "gregorian", "date": "2016 May 09", "greatest_jd_ut": 2457518.122916667, "min_separation_arcsec": 318.5, "nasa_polynomial_delta_t_s": 69.7, "planet": "Mercury", "series": 7, "sun_dec_deg": 17.58, "sun_ra_hours": 3.130},
+    {"c1_jd_ut": 2458799.024305556, "c2_jd_ut": 2458799.025694444, "c3_jd_ut": 2458799.251388889, "c4_jd_ut": 2458799.252777778, "calendar": "gregorian", "date": "2019 Nov 11", "greatest_jd_ut": 2458799.138888889, "min_separation_arcsec": 75.9, "nasa_polynomial_delta_t_s": 71.5, "planet": "Mercury", "series": 6, "sun_dec_deg": -17.45, "sun_ra_hours": 15.098},
+    {"c1_jd_ut": 2463549.778472222, "c2_jd_ut": 2463549.779861111, "c3_jd_ut": 2463549.961805556, "c4_jd_ut": 2463549.963194444, "calendar": "gregorian", "date": "2032 Nov 13", "greatest_jd_ut": 2463549.870833333, "min_separation_arcsec": 572.1, "nasa_polynomial_delta_t_s": 79.6, "planet": "Mercury", "series": 4, "sun_dec_deg": -18.14, "sun_ra_hours": 15.274},
+    {"c1_jd_ut": 2466099.803472222, "c2_jd_ut": 2466099.806250000, "c3_jd_ut": 2466099.925000000, "c4_jd_ut": 2466099.927083333, "calendar": "gregorian", "date": "2039 Nov 07", "greatest_jd_ut": 2466099.865277778, "min_separation_arcsec": 822.3, "nasa_polynomial_delta_t_s": 84.7, "planet": "Mercury", "series": 10, "sun_dec_deg": -16.27, "sun_ra_hours": 14.822},
+    {"c1_jd_ut": 2469568.960416667, "c2_jd_ut": 2469568.963194444, "c3_jd_ut": 2469569.236805555, "c4_jd_ut": 2469569.238888889, "calendar": "gregorian", "date": "2049 May 07", "greatest_jd_ut": 2469569.100000000, "min_separation_arcsec": 511.8, "nasa_polynomial_delta_t_s": 92.5, "planet": "Mercury", "series": 9, "sun_dec_deg": 17.04, "sun_ra_hours": 3.000},
+    {"c1_jd_ut": 2470850.495138889, "c2_jd_ut": 2470850.496527778, "c3_jd_ut": 2470850.711111111, "c4_jd_ut": 2470850.712500000, "calendar": "gregorian", "date": "2052 Nov 09", "greatest_jd_ut": 2470850.603472222, "min_separation_arcsec": 318.7, "nasa_polynomial_delta_t_s": 98.9, "planet": "Mercury", "series": 8, "sun_dec_deg": -17.02, "sun_ra_hours": 14.996},
+    {"c1_jd_ut": 2474320.261111111, "c2_jd_ut": 2474320.263888889, "c3_jd_ut": 2474320.536805556, "c4_jd_ut": 2474320.539583333, "calendar": "gregorian", "date": "2062 May 10", "greatest_jd_ut": 2474320.400000000, "min_separation_arcsec": 520.5, "nasa_polynomial_delta_t_s": 118.7, "planet": "Mercury", "series": 7, "sun_dec_deg": 17.88, "sun_ra_hours": 3.206},
+    {"c1_jd_ut": 2475601.225000000, "c2_jd_ut": 2475601.226388889, "c3_jd_ut": 2475601.448611111, "c4_jd_ut": 2475601.450000000, "calendar": "gregorian", "date": "2065 Nov 11", "greatest_jd_ut": 2475601.337500000, "min_separation_arcsec": 180.7, "nasa_polynomial_delta_t_s": 126.1, "planet": "Mercury", "series": 6, "sun_dec_deg": -17.73, "sun_ra_hours": 15.170},
+    {"c1_jd_ut": 2480351.987500000, "c2_jd_ut": 2480351.988888889, "c3_jd_ut": 2480352.150694444, "c4_jd_ut": 2480352.152083333, "calendar": "gregorian", "date": "2078 Nov 14", "greatest_jd_ut": 2480352.070138889, "min_separation_arcsec": 674.3, "nasa_polynomial_delta_t_s": 154.4, "planet": "Mercury", "series": 4, "sun_dec_deg": -18.41, "sun_ra_hours": 15.345},
+    {"c1_jd_ut": 2482901.987500000, "c2_jd_ut": 2482901.989583333, "c3_jd_ut": 2482902.141666667, "c4_jd_ut": 2482902.143055555, "calendar": "gregorian", "date": "2085 Nov 07", "greatest_jd_ut": 2482902.065277778, "min_separation_arcsec": 718.5, "nasa_polynomial_delta_t_s": 170.1, "planet": "Mercury", "series": 10, "sun_dec_deg": -16.58, "sun_ra_hours": 14.893},
+    {"c1_jd_ut": 2486371.222222222, "c2_jd_ut": 2486371.225000000, "c3_jd_ut": 2486371.532638889, "c4_jd_ut": 2486371.534722222, "calendar": "gregorian", "date": "2095 May 08", "greatest_jd_ut": 2486371.378472222, "min_separation_arcsec": 309.8, "nasa_polynomial_delta_t_s": 191.9, "planet": "Mercury", "series": 9, "sun_dec_deg": 17.35, "sun_ra_hours": 3.075},
+    {"c1_jd_ut": 2487652.690972222, "c2_jd_ut": 2487652.692361111, "c3_jd_ut": 2487652.913888889, "c4_jd_ut": 2487652.914583333, "calendar": "gregorian", "date": "2098 Nov 10", "greatest_jd_ut": 2487652.802777778, "min_separation_arcsec": 214.7, "nasa_polynomial_delta_t_s": 200.1, "planet": "Mercury", "series": 8, "sun_dec_deg": -17.31, "sun_ra_hours": 15.066},
+    {"c1_jd_ut": 2491122.569444444, "c2_jd_ut": 2491122.572222222, "c3_jd_ut": 2491122.782638889, "c4_jd_ut": 2491122.786111111, "calendar": "gregorian", "date": "2108 May 12", "greatest_jd_ut": 2491122.677777778, "min_separation_arcsec": 724.7, "nasa_polynomial_delta_t_s": 222.7, "planet": "Mercury", "series": 7, "sun_dec_deg": 18.16, "sun_ra_hours": 3.281},
+    {"c1_jd_ut": 2492403.427083333, "c2_jd_ut": 2492403.428472222, "c3_jd_ut": 2492403.645138889, "c4_jd_ut": 2492403.645833333, "calendar": "gregorian", "date": "2111 Nov 14", "greatest_jd_ut": 2492403.536805556, "min_separation_arcsec": 283.3, "nasa_polynomial_delta_t_s": 231.2, "planet": "Mercury", "series": 6, "sun_dec_deg": -18.01, "sun_ra_hours": 15.241},
+    {"c1_jd_ut": 2497154.200694445, "c2_jd_ut": 2497154.202777778, "c3_jd_ut": 2497154.336111111, "c4_jd_ut": 2497154.338194444, "calendar": "gregorian", "date": "2124 Nov 15", "greatest_jd_ut": 2497154.269444444, "min_separation_arcsec": 778.9, "nasa_polynomial_delta_t_s": 263.3, "planet": "Mercury", "series": 4, "sun_dec_deg": -18.67, "sun_ra_hours": 15.418},
+    {"c1_jd_ut": 2499704.176388889, "c2_jd_ut": 2499704.177777778, "c3_jd_ut": 2499704.353472222, "c4_jd_ut": 2499704.354861111, "calendar": "gregorian", "date": "2131 Nov 09", "greatest_jd_ut": 2499704.265277778, "min_separation_arcsec": 614.4, "nasa_polynomial_delta_t_s": 281.1, "planet": "Mercury", "series": 10, "sun_dec_deg": -16.87, "sun_ra_hours": 14.962},
+    {"c1_jd_ut": 2503173.490277778, "c2_jd_ut": 2503173.493055556, "c3_jd_ut": 2503173.816666667, "c4_jd_ut": 2503173.818750000, "calendar": "gregorian", "date": "2141 May 10", "greatest_jd_ut": 2503173.654861111, "min_separation_arcsec": 108.1, "nasa_polynomial_delta_t_s": 305.6, "planet": "Mercury", "series": 9, "sun_dec_deg": 17.65, "sun_ra_hours": 3.151},
+    {"c1_jd_ut": 2504454.887500000, "c2_jd_ut": 2504454.888194445, "c3_jd_ut": 2504455.113888889, "c4_jd_ut": 2504455.115277778, "calendar": "gregorian", "date": "2144 Nov 11", "greatest_jd_ut": 2504455.001388889, "min_separation_arcsec": 112.7, "nasa_polynomial_delta_t_s": 314.9, "planet": "Mercury", "series": 8, "sun_dec_deg": -17.59, "sun_ra_hours": 15.137},
+    {"c1_jd_ut": 2507924.918750000, "c2_jd_ut": 2507924.929166667, "c3_jd_ut": 2507924.984722222, "c4_jd_ut": 2507924.995138889, "calendar": "gregorian", "date": "2154 May 13", "greatest_jd_ut": 2507924.956944444, "min_separation_arcsec": 930.6, "nasa_polynomial_delta_t_s": 337.8, "planet": "Mercury", "series": 7, "sun_dec_deg": 18.45, "sun_ra_hours": 3.357},
+    {"c1_jd_ut": 2509205.630555556, "c2_jd_ut": 2509205.631944444, "c3_jd_ut": 2509205.839583333, "c4_jd_ut": 2509205.840972222, "calendar": "gregorian", "date": "2157 Nov 14", "greatest_jd_ut": 2509205.736111111, "min_separation_arcsec": 386.9, "nasa_polynomial_delta_t_s": 345.3, "planet": "Mercury", "series": 6, "sun_dec_deg": -18.28, "sun_ra_hours": 15.313},
+    {"c1_jd_ut": 2513956.420138889, "c2_jd_ut": 2513956.422916667, "c3_jd_ut": 2513956.515277778, "c4_jd_ut": 2513956.518055555, "calendar": "gregorian", "date": "2170 Nov 16", "greatest_jd_ut": 2513956.468750000, "min_separation_arcsec": 880.4, "nasa_polynomial_delta_t_s": 374.0, "planet": "Mercury", "series": 4, "sun_dec_deg": -18.92, "sun_ra_hours": 15.489},
+    {"c1_jd_ut": 2515224.600000000, "c2_jd_ut": 2515224.609027778, "c3_jd_ut": 2515224.677083333, "c4_jd_ut": 2515224.685416667, "calendar": "gregorian", "date": "2174 May 08", "greatest_jd_ut": 2515224.643055555, "min_separation_arcsec": 924.4, "nasa_polynomial_delta_t_s": 381.9, "planet": "Mercury", "series": 11, "sun_dec_deg": 17.12, "sun_ra_hours": 3.021},
+    {"c1_jd_ut": 2516506.366666667, "c2_jd_ut": 2516506.368055556, "c3_jd_ut": 2516506.561111111, "c4_jd_ut": 2516506.562500000, "calendar": "gregorian", "date": "2177 Nov 09", "greatest_jd_ut": 2516506.464583333, "min_separation_arcsec": 509.8, "nasa_polynomial_delta_t_s": 389.8, "planet": "Mercury", "series": 10, "sun_dec_deg": -17.17, "sun_ra_hours": 15.033},
+    {"c1_jd_ut": 2519975.768750000, "c2_jd_ut": 2519975.770833333, "c3_jd_ut": 2519976.095833333, "c4_jd_ut": 2519976.097916667, "calendar": "gregorian", "date": "2187 May 11", "greatest_jd_ut": 2519975.933333333, "min_separation_arcsec": 96.0, "nasa_polynomial_delta_t_s": 411.9, "planet": "Mercury", "series": 9, "sun_dec_deg": 17.94, "sun_ra_hours": 3.226},
+    {"c1_jd_ut": 2521257.085416667, "c2_jd_ut": 2521257.086805556, "c3_jd_ut": 2521257.313888889, "c4_jd_ut": 2521257.314583333, "calendar": "gregorian", "date": "2190 Nov 12", "greatest_jd_ut": 2521257.200000000, "min_separation_arcsec": 9.1, "nasa_polynomial_delta_t_s": 420.2, "planet": "Mercury", "series": 8, "sun_dec_deg": -17.87, "sun_ra_hours": 15.207},
+    {"c1_jd_ut": 2526007.836111111, "c2_jd_ut": 2526007.837500000, "c3_jd_ut": 2526008.032638889, "c4_jd_ut": 2526008.034027778, "calendar": "gregorian", "date": "2203 Nov 16", "greatest_jd_ut": 2526007.935416667, "min_separation_arcsec": 488.6, "nasa_polynomial_delta_t_s": 451.6, "planet": "Mercury", "series": 6, "sun_dec_deg": -18.54, "sun_ra_hours": 15.384},
+    {"c1_jd_ut": 2528557.884722222, "c2_jd_ut": 2528557.888194445, "c3_jd_ut": 2528557.962500000, "c4_jd_ut": 2528557.965972222, "calendar": "gregorian", "date": "2210 Nov 09", "greatest_jd_ut": 2528557.925694444, "min_separation_arcsec": 911.0, "nasa_polynomial_delta_t_s": 468.9, "planet": "Mercury", "series": 12, "sun_dec_deg": -16.73, "sun_ra_hours": 14.930},
+    {"c1_jd_ut": 2532026.807638889, "c2_jd_ut": 2532026.810416667, "c3_jd_ut": 2532027.017361111, "c4_jd_ut": 2532027.020833333, "calendar": "gregorian", "date": "2220 May 09", "greatest_jd_ut": 2532026.913888889, "min_separation_arcsec": 728.5, "nasa_polynomial_delta_t_s": 493.0, "planet": "Mercury", "series": 11, "sun_dec_deg": 17.41, "sun_ra_hours": 3.095},
+    {"c1_jd_ut": 2533308.559027778, "c2_jd_ut": 2533308.560416667, "c3_jd_ut": 2533308.766666667, "c4_jd_ut": 2533308.768055555, "calendar": "gregorian", "date": "2223 Nov 12", "greatest_jd_ut": 2533308.663194444, "min_separation_arcsec": 406.5, "nasa_polynomial_delta_t_s": 502.0, "planet": "Mercury", "series": 10, "sun_dec_deg": -17.45, "sun_ra_hours": 15.103},
+    {"c1_jd_ut": 2536778.050694444, "c2_jd_ut": 2536778.052777778, "c3_jd_ut": 2536778.363194444, "c4_jd_ut": 2536778.365277778, "calendar": "gregorian", "date": "2233 May 12", "greatest_jd_ut": 2536778.207638889, "min_separation_arcsec": 296.2, "nasa_polynomial_delta_t_s": 526.8, "planet": "Mercury", "series": 9, "sun_dec_deg": 18.23, "sun_ra_hours": 3.301},
+    {"c1_jd_ut": 2538059.284722222, "c2_jd_ut": 2538059.286111111, "c3_jd_ut": 2538059.511805556, "c4_jd_ut": 2538059.513194445, "calendar": "gregorian", "date": "2236 Nov 13", "greatest_jd_ut": 2538059.399305556, "min_separation_arcsec": 95.4, "nasa_polynomial_delta_t_s": 536.1, "planet": "Mercury", "series": 8, "sun_dec_deg": -18.14, "sun_ra_hours": 15.279},
+    {"c1_jd_ut": 2542810.043055556, "c2_jd_ut": 2542810.044444445, "c3_jd_ut": 2542810.222916667, "c4_jd_ut": 2542810.224305556, "calendar": "gregorian", "date": "2249 Nov 16", "greatest_jd_ut": 2542810.133333333, "min_separation_arcsec": 591.6, "nasa_polynomial_delta_t_s": 571.3, "planet": "Mercury", "series": 6, "sun_dec_deg": -18.80, "sun_ra_hours": 15.456},
+    {"c1_jd_ut": 2545360.059722222, "c2_jd_ut": 2545360.061805556, "c3_jd_ut": 2545360.186805556, "c4_jd_ut": 2545360.188888889, "calendar": "gregorian", "date": "2256 Nov 09", "greatest_jd_ut": 2545360.124305556, "min_separation_arcsec": 807.4, "nasa_polynomial_delta_t_s": 590.8, "planet": "Mercury", "series": 12, "sun_dec_deg": -17.02, "sun_ra_hours": 15.000},
+    {"c1_jd_ut": 2548829.052777778, "c2_jd_ut": 2548829.055555556, "c3_jd_ut": 2548829.324305556, "c4_jd_ut": 2548829.327083333, "calendar": "gregorian", "date": "2266 May 10", "greatest_jd_ut": 2548829.190277778, "min_separation_arcsec": 529.7, "nasa_polynomial_delta_t_s": 617.6, "planet": "Mercury", "series": 11, "sun_dec_deg": 17.71, "sun_ra_hours": 3.170},
+    {"c1_jd_ut": 2550110.752777778, "c2_jd_ut": 2550110.754166667, "c3_jd_ut": 2550110.970138889, "c4_jd_ut": 2550110.971527778, "calendar": "gregorian", "date": "2269 Nov 12", "greatest_jd_ut": 2550110.862500000, "min_separation_arcsec": 302.5, "nasa_polynomial_delta_t_s": 627.6, "planet": "Mercury", "series": 10, "sun_dec_deg": -17.73, "sun_ra_hours": 15.175},
+    {"c1_jd_ut": 2553580.343055556, "c2_jd_ut": 2553580.345833333, "c3_jd_ut": 2553580.622916667, "c4_jd_ut": 2553580.625694444, "calendar": "gregorian", "date": "2279 May 13", "greatest_jd_ut": 2553580.484722222, "min_separation_arcsec": 499.5, "nasa_polynomial_delta_t_s": 655.3, "planet": "Mercury", "series": 9, "sun_dec_deg": 18.50, "sun_ra_hours": 3.376},
+    {"c1_jd_ut": 2554861.486805555, "c2_jd_ut": 2554861.486805555, "c3_jd_ut": 2554861.709722222, "c4_jd_ut": 2554861.709722222, "calendar": "gregorian", "date": "2282 Nov 15", "greatest_jd_ut": 2554861.598611111, "min_separation_arcsec": 197.9, "nasa_polynomial_delta_t_s": 665.6, "planet": "Mercury", "series": 8, "sun_dec_deg": -18.41, "sun_ra_hours": 15.350},
+    {"c1_jd_ut": 2559612.252083333, "c2_jd_ut": 2559612.254166667, "c3_jd_ut": 2559612.411111111, "c4_jd_ut": 2559612.412500000, "calendar": "gregorian", "date": "2295 Nov 17", "greatest_jd_ut": 2559612.332638889, "min_separation_arcsec": 694.6, "nasa_polynomial_delta_t_s": 704.7, "planet": "Mercury", "series": 6, "sun_dec_deg": -19.04, "sun_ra_hours": 15.528}
+  ],
+  "cities": [
+    {
+      "city": "Brussels",
+      "contacts": [
+        {"jd_ut": 2453164.722164352, "kind": "c1", "sun_alt_deg": 14},
+        {"jd_ut": 2453164.735949074, "kind": "c2", "sun_alt_deg": 17},
+        {"jd_ut": 2453164.849039352, "kind": "greatest", "sun_alt_deg": 43},
+        {"jd_ut": 2453164.961099537, "kind": "c3", "sun_alt_deg": 61},
+        {"jd_ut": 2453164.974629629, "kind": "c4", "sun_alt_deg": 62}
+      ],
+      "lat_deg": 50.8503,
+      "lon_deg": 4.3517,
+      "table": "city-EU1",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Wien (Vienna)",
+      "contacts": [
+        {"jd_ut": 2453164.722118055, "kind": "c1", "sun_alt_deg": 21},
+        {"jd_ut": 2453164.735821759, "kind": "c2", "sun_alt_deg": 24},
+        {"jd_ut": 2453164.848831018, "kind": "greatest", "sun_alt_deg": 51},
+        {"jd_ut": 2453164.960914352, "kind": "c3", "sun_alt_deg": 65},
+        {"jd_ut": 2453164.974398148, "kind": "c4", "sun_alt_deg": 64}
+      ],
+      "lat_deg": 48.2082,
+      "lon_deg": 16.3738,
+      "table": "city-EU1",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Helsinki",
+      "contacts": [
+        {"jd_ut": 2453164.721527778, "kind": "c1", "sun_alt_deg": 27},
+        {"jd_ut": 2453164.735243056, "kind": "c2", "sun_alt_deg": 30},
+        {"jd_ut": 2453164.847881944, "kind": "greatest", "sun_alt_deg": 47},
+        {"jd_ut": 2453164.959942129, "kind": "c3", "sun_alt_deg": 52},
+        {"jd_ut": 2453164.973518519, "kind": "c4", "sun_alt_deg": 51}
+      ],
+      "lat_deg": 60.1699,
+      "lon_deg": 24.9384,
+      "table": "city-EU1",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Paris",
+      "contacts": [
+        {"jd_ut": 2453164.722233796, "kind": "c1", "sun_alt_deg": 12},
+        {"jd_ut": 2453164.736030092, "kind": "c2", "sun_alt_deg": 15},
+        {"jd_ut": 2453164.849212963, "kind": "greatest", "sun_alt_deg": 42},
+        {"jd_ut": 2453164.961296296, "kind": "c3", "sun_alt_deg": 63},
+        {"jd_ut": 2453164.974826389, "kind": "c4", "sun_alt_deg": 64}
+      ],
+      "lat_deg": 48.8566,
+      "lon_deg": 2.3522,
+      "table": "city-EU1",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Athens",
+      "contacts": [
+        {"jd_ut": 2453164.722199074, "kind": "c1", "sun_alt_deg": 24},
+        {"jd_ut": 2453164.735798611, "kind": "c2", "sun_alt_deg": 28},
+        {"jd_ut": 2453164.849027778, "kind": "greatest", "sun_alt_deg": 60},
+        {"jd_ut": 2453164.961331019, "kind": "c3", "sun_alt_deg": 73},
+        {"jd_ut": 2453164.974699074, "kind": "c4", "sun_alt_deg": 70}
+      ],
+      "lat_deg": 37.9838,
+      "lon_deg": 23.7275,
+      "table": "city-EU2",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Cairo",
+      "contacts": [
+        {"jd_ut": 2453164.722037037, "kind": "c1", "sun_alt_deg": 29},
+        {"jd_ut": 2453164.735520833, "kind": "c2", "sun_alt_deg": 33},
+        {"jd_ut": 2453164.848946759, "kind": "greatest", "sun_alt_deg": 68},
+        {"jd_ut": 2453164.961516204, "kind": "c3", "sun_alt_deg": 73},
+        {"jd_ut": 2453164.974803241, "kind": "c4", "sun_alt_deg": 69}
+      ],
+      "lat_deg": 30.0444,
+      "lon_deg": 31.2357,
+      "table": "city-AFR",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Nairobi",
+      "contacts": [
+        {"jd_ut": 2453164.721238426, "kind": "c1", "sun_alt_deg": 24},
+        {"jd_ut": 2453164.734490741, "kind": "c2", "sun_alt_deg": 28},
+        {"jd_ut": 2453164.849317130, "kind": "greatest", "sun_alt_deg": 61},
+        {"jd_ut": 2453164.963310185, "kind": "c3", "sun_alt_deg": 56},
+        {"jd_ut": 2453164.976377315, "kind": "c4", "sun_alt_deg": 53}
+      ],
+      "lat_deg": -1.2921,
+      "lon_deg": 36.8219,
+      "table": "city-AFR",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Johannesburg",
+      "contacts": [
+        {"jd_ut": 2453164.720381944, "kind": "c1", "sun_alt_deg": 4},
+        {"jd_ut": 2453164.733587963, "kind": "c2", "sun_alt_deg": 8},
+        {"jd_ut": 2453164.849953704, "kind": "greatest", "sun_alt_deg": 35},
+        {"jd_ut": 2453164.965312500, "kind": "c3", "sun_alt_deg": 39},
+        {"jd_ut": 2453164.978287037, "kind": "c4", "sun_alt_deg": 37}
+      ],
+      "lat_deg": -26.2041,
+      "lon_deg": 28.0473,
+      "table": "city-AFR",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Beijing (Peking)",
+      "contacts": [
+        {"jd_ut": 2453164.717500000, "kind": "c1", "sun_alt_deg": 69},
+        {"jd_ut": 2453164.730821759, "kind": "c2", "sun_alt_deg": 66},
+        {"jd_ut": 2453164.843773148, "kind": "greatest", "sun_alt_deg": 37},
+        {"jd_ut": 2453164.957916667, "kind": "c3", "sun_alt_deg": 6},
+        {"jd_ut": 2453164.971527778, "kind": "c4", "sun_alt_deg": 3}
+      ],
+      "lat_deg": 39.9042,
+      "lon_deg": 116.4074,
+      "table": "city-EAS",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Tokyo",
+      "contacts": [
+        {"jd_ut": 2453164.716134259, "kind": "c1", "sun_alt_deg": 55},
+        {"jd_ut": 2453164.729490741, "kind": "c2", "sun_alt_deg": 51},
+        {"jd_ut": 2453164.842893519, "kind": "greatest", "sun_alt_deg": 18}
+      ],
+      "lat_deg": 35.6895,
+      "lon_deg": 139.6917,
+      "table": "city-EAS",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "New Delhi",
+      "contacts": [
+        {"jd_ut": 2453164.719548611, "kind": "c1", "sun_alt_deg": 68},
+        {"jd_ut": 2453164.732777778, "kind": "c2", "sun_alt_deg": 72},
+        {"jd_ut": 2453164.845902778, "kind": "greatest", "sun_alt_deg": 69},
+        {"jd_ut": 2453164.959421296, "kind": "c3", "sun_alt_deg": 34},
+        {"jd_ut": 2453164.972754630, "kind": "c4", "sun_alt_deg": 30}
+      ],
+      "lat_deg": 28.6139,
+      "lon_deg": 77.2090,
+      "table": "city-CAS",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Washington",
+      "contacts": [
+        {"jd_ut": 2453164.962523148, "kind": "c3", "sun_alt_deg": 14},
+        {"jd_ut": 2453164.976400463, "kind": "c4", "sun_alt_deg": 18}
+      ],
+      "lat_deg": 38.9072,
+      "lon_deg": -77.0369,
+      "table": "city-USA1",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Boston",
+      "contacts": [
+        {"jd_ut": 2453164.962349537, "kind": "c3", "sun_alt_deg": 19},
+        {"jd_ut": 2453164.976203704, "kind": "c4", "sun_alt_deg": 23}
+      ],
+      "lat_deg": 42.3601,
+      "lon_deg": -71.0589,
+      "table": "city-USA1",
+      "transit": "2004-06-08-venus",
+      "utc_offset_hours": 0.0
+    },
+    {
+      "city": "Tokyo",
+      "contacts": [
+        {"jd_ut": 2456084.424178241, "kind": "c1", "sun_alt_deg": 31},
+        {"jd_ut": 2456084.436493055, "kind": "c2", "sun_alt_deg": 35},
+        {"jd_ut": 2456084.562256944, "kind": "greatest", "sun_alt_deg": 70},
+        {"jd_ut": 2456084.687442129, "kind": "c3", "sun_alt_deg": 63},
+        {"jd_ut": 2456084.699652778, "kind": "c4", "sun_alt_deg": 59}
+      ],
+      "lat_deg": 35.6895,
+      "lon_deg": 139.6917,
+      "table": "TOV2012-Tab04",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": 9.0
+    },
+    {
+      "city": "Beijing",
+      "contacts": [
+        {"jd_ut": 2456084.423622685, "kind": "c1", "sun_alt_deg": 14},
+        {"jd_ut": 2456084.435972222, "kind": "c2", "sun_alt_deg": 17},
+        {"jd_ut": 2456084.562962963, "kind": "greatest", "sun_alt_deg": 52},
+        {"jd_ut": 2456084.688877315, "kind": "c3", "sun_alt_deg": 72},
+        {"jd_ut": 2456084.701018518, "kind": "c4", "sun_alt_deg": 71}
+      ],
+      "lat_deg": 39.9042,
+      "lon_deg": 116.4074,
+      "table": "TOV2012-Tab04",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": 8.0
+    },
+    {
+      "city": "Sydney",
+      "contacts": [
+        {"jd_ut": 2456084.427824074, "kind": "c1", "sun_alt_deg": 13},
+        {"jd_ut": 2456084.440381945, "kind": "c2", "sun_alt_deg": 16},
+        {"jd_ut": 2456084.562766204, "kind": "greatest", "sun_alt_deg": 33},
+        {"jd_ut": 2456084.684918982, "kind": "c3", "sun_alt_deg": 23},
+        {"jd_ut": 2456084.697418982, "kind": "c4", "sun_alt_deg": 20}
+      ],
+      "lat_deg": -33.8688,
+      "lon_deg": 151.2093,
+      "table": "TOV2012-Tab04",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": 10.0
+    },
+    {
+      "city": "Moscow",
+      "contacts": [
+        {"jd_ut": 2456084.562939815, "kind": "greatest", "sun_alt_deg": 4},
+        {"jd_ut": 2456084.692210648, "kind": "c3", "sun_alt_deg": 28},
+        {"jd_ut": 2456084.704386574, "kind": "c4", "sun_alt_deg": 31}
+      ],
+      "lat_deg": 55.7558,
+      "lon_deg": 37.6173,
+      "table": "TOV2012-Tab04",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": 4.0
+    },
+    {
+      "city": "Manila",
+      "contacts": [
+        {"jd_ut": 2456084.425543982, "kind": "c1", "sun_alt_deg": 10},
+        {"jd_ut": 2456084.437974537, "kind": "c2", "sun_alt_deg": 14},
+        {"jd_ut": 2456084.563449074, "kind": "greatest", "sun_alt_deg": 55},
+        {"jd_ut": 2456084.687708333, "kind": "c3", "sun_alt_deg": 78},
+        {"jd_ut": 2456084.699907408, "kind": "c4", "sun_alt_deg": 75}
+      ],
+      "lat_deg": 14.5995,
+      "lon_deg": 120.9842,
+      "table": "TOV2012-Tab04",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": 8.0
+    },
+    {
+      "city": "Bombay",
+      "contacts": [
+        {"jd_ut": 2456084.564560185, "kind": "greatest", "sun_alt_deg": 13},
+        {"jd_ut": 2456084.691180556, "kind": "c3", "sun_alt_deg": 54},
+        {"jd_ut": 2456084.703321759, "kind": "c4", "sun_alt_deg": 58}
+      ],
+      "lat_deg": 19.0760,
+      "lon_deg": 72.8777,
+      "table": "TOV2012-Tab04",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": 5.5
+    },
+    {
+      "city": "Honolulu, HI",
+      "contacts": [
+        {"jd_ut": 2456084.423692130, "kind": "c1", "sun_alt_deg": 85},
+        {"jd_ut": 2456084.435949074, "kind": "c2", "sun_alt_deg": 89},
+        {"jd_ut": 2456084.559953704, "kind": "greatest", "sun_alt_deg": 49},
+        {"jd_ut": 2456084.685162037, "kind": "c3", "sun_alt_deg": 9},
+        {"jd_ut": 2456084.697662037, "kind": "c4", "sun_alt_deg": 5}
+      ],
+      "lat_deg": 21.3069,
+      "lon_deg": -157.8583,
+      "table": "TOV2012-Tab03",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": -10.0
+    },
+    {
+      "city": "Anchorage, AK",
+      "contacts": [
+        {"jd_ut": 2456084.421180556, "kind": "c1", "sun_alt_deg": 51},
+        {"jd_ut": 2456084.433379630, "kind": "c2", "sun_alt_deg": 51},
+        {"jd_ut": 2456084.560335648, "kind": "greatest", "sun_alt_deg": 38},
+        {"jd_ut": 2456084.688032407, "kind": "c3", "sun_alt_deg": 16},
+        {"jd_ut": 2456084.700370370, "kind": "c4", "sun_alt_deg": 14}
+      ],
+      "lat_deg": 61.2181,
+      "lon_deg": -149.9003,
+      "table": "TOV2012-Tab03",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": -8.0
+    },
+    {
+      "city": "Philadelphia, PA",
+      "contacts": [
+        {"jd_ut": 2456084.419328704, "kind": "c1", "sun_alt_deg": 25},
+        {"jd_ut": 2456084.431597222, "kind": "c2", "sun_alt_deg": 21}
+      ],
+      "lat_deg": 39.9526,
+      "lon_deg": -75.1652,
+      "table": "TOV2012-Tab03",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": -4.0
+    },
+    {
+      "city": "Seattle, WA",
+      "contacts": [
+        {"jd_ut": 2456084.420810185, "kind": "c1", "sun_alt_deg": 56},
+        {"jd_ut": 2456084.433009259, "kind": "c2", "sun_alt_deg": 53},
+        {"jd_ut": 2456084.559687500, "kind": "greatest", "sun_alt_deg": 23}
+      ],
+      "lat_deg": 47.6062,
+      "lon_deg": -122.3321,
+      "table": "TOV2012-Tab03",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": -7.0
+    },
+    {
+      "city": "Denver, CO",
+      "contacts": [
+        {"jd_ut": 2456084.420358796, "kind": "c1", "sun_alt_deg": 47},
+        {"jd_ut": 2456084.432581019, "kind": "c2", "sun_alt_deg": 44},
+        {"jd_ut": 2456084.559537037, "kind": "greatest", "sun_alt_deg": 9}
+      ],
+      "lat_deg": 39.7392,
+      "lon_deg": -104.9903,
+      "table": "TOV2012-Tab03",
+      "transit": "2012-06-06-venus",
+      "utc_offset_hours": -6.0
+    }
+  ],
+  "generator": {
+    "conventions": {
+      "cities": "coordinates are city centres chosen for this fixture (the tables do not print theirs); a contact moves by at most 0.07 s per km of site. Height 0.",
+      "contacts": "I and IV external, II and III internal tangency of the discs seen from the Earth's centre; greatest = least separation",
+      "sun_alt_deg": "the tables' whole-degree solar altitude at each contact",
+      "time": "jd_ut: the catalogues' Universal Time, Julian calendar before 1582-10-15 as the catalogue prints it, converted to a Julian date. Espenak's Delta-T is Stephenson (1997) before 1600, observed values to 2003 and an extrapolation after; nasa_polynomial_delta_t_s is NASA's later polynomial (Espenak & Meeus 2006), recorded only as an approximate TT for epochs far from today."
+    },
+    "description": "Transits of Venus (2000 BCE-4000 CE) and Mercury (1601-2300 CE) from NASA's catalogues by Fred Espenak (geocentric UT to the minute, least separation to 0.1\"), the 2004 and 2012 transits' geocentric contacts to the second with their position angles, and local contact times with the Sun's altitude for named cities from NASA's tables of 2004 (UT) and 2012 (local time, converted with the zone offset inferred to the half hour).",
+    "generated_utc": "2026-09-25T04:12:45Z",
+    "licence": "U.S. Government work (NASA GSFC). The pages grant reproduction with the acknowledgment \"Transit Predictions by Fred Espenak, NASA/GSFC\".",
+    "never_a_runtime_dependency": "Development-time reference. CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "retrieved": "2026-09-25",
+    "sources": [
+      {
+        "bytes": 24852,
+        "sha256": "c06f2f10efc8554328bb51ed1725d13f1ec53a5a82a0c25089dcf1104994ca7f",
+        "url": "https://eclipse.gsfc.nasa.gov/transit/catalog/VenusCatalog.html"
+      },
+      {
+        "bytes": 26830,
+        "sha256": "e29ff3e1ada11eaee343032f0c5b927ccf9a9b2cacad8e006a2bd6b4fc71ba40",
+        "url": "https://eclipse.gsfc.nasa.gov/transit/catalog/MercuryCatalog.html"
+      },
+      {
+        "bytes": 20278,
+        "sha256": "db1831b528deb3660337b0d596892a1f45b72f4a44e2c329f9ab760699cb2149",
+        "url": "https://eclipse.gsfc.nasa.gov/OH/transit04.html"
+      },
+      {
+        "bytes": 20114,
+        "sha256": "b18149fc8233e2dd43cbcc51cdd7cfd58a452e3aab2772b21d3ac941a4900adb",
+        "url": "https://eclipse.gsfc.nasa.gov/OH/transit12.html"
+      },
+      {
+        "bytes": 13994,
+        "sha256": "966a1f77d7950932b0a0ed4245e67567a318228d46b9552c974cb0a805c2f082",
+        "url": "https://eclipse.gsfc.nasa.gov/transit/TV2004/city-EU1.html"
+      },
+      {
+        "bytes": 11652,
+        "sha256": "b2ca43cb1e21aa80410fb1e5d2b75e248104191e988c9cee3a924296135df4bd",
+        "url": "https://eclipse.gsfc.nasa.gov/transit/TV2004/city-EU2.html"
+      },
+      {
+        "bytes": 18354,
+        "sha256": "099281c27d8552a23fa9e933701469fee0328beaf2e3f93a9fbe3ce4b0a240ec",
+        "url": "https://eclipse.gsfc.nasa.gov/transit/TV2004/city-AFR.html"
+      },
+      {
+        "bytes": 13789,
+        "sha256": "6b1aac27d31164d35d42cc0dfff3a5d696ab1b60135756c223615d9c4f4c8b5f",
+        "url": "https://eclipse.gsfc.nasa.gov/transit/TV2004/city-EAS.html"
+      },
+      {
+        "bytes": 10854,
+        "sha256": "82ae8aff698cbc2b678730cebb5b7c017dbf620461304ba9196ad7be0c7791f1",
+        "url": "https://eclipse.gsfc.nasa.gov/transit/TV2004/city-CAS.html"
+      },
+      {
+        "bytes": 18454,
+        "sha256": "1514931bf5f5e1e80ac7e55a1f15e6429eafad4fe563492836bffc2cca13851f",
+        "url": "https://eclipse.gsfc.nasa.gov/transit/TV2004/city-USA1.html"
+      },
+      {
+        "bytes": 57226,
+        "sha256": "dad75c31b4f72cd4342bd3dbc9d40622d750e9c5c1752f3aa836c62754634f11",
+        "url": "https://eclipse.gsfc.nasa.gov/OH/tran/TOV2012-Tab04.pdf"
+      },
+      {
+        "bytes": 56225,
+        "sha256": "8f8d3e9895b81453a0a6a108bbd532a5dc33f5b9c802a71e5fd20d90076b8f6d",
+        "url": "https://eclipse.gsfc.nasa.gov/OH/tran/TOV2012-Tab03.pdf"
+      }
+    ],
+    "tool": "tools/reference/gen_planetdetail.py"
+  },
+  "geocentric_to_the_second": [
+    {
+      "contacts": [
+        {"jd_ut": 2453164.717696759, "kind": "c1", "position_angle_deg": 116},
+        {"jd_ut": 2453164.731192130, "kind": "c2", "position_angle_deg": 119},
+        {"jd_ut": 2453164.847037037, "kind": "greatest", "position_angle_deg": 166},
+        {"jd_ut": 2453164.962881945, "kind": "c3", "position_angle_deg": 213},
+        {"jd_ut": 2453164.976377315, "kind": "c4", "position_angle_deg": 216}
+      ],
+      "id": "2004-06-08-venus",
+      "min_separation_arcsec": 627.0,
+      "source": "https://eclipse.gsfc.nasa.gov/OH/transit04.html"
+    },
+    {
+      "contacts": [
+        {"jd_ut": 2456084.423356481, "kind": "c1", "position_angle_deg": 41},
+        {"jd_ut": 2456084.435810185, "kind": "c2", "position_angle_deg": 38},
+        {"jd_ut": 2456084.562222222, "kind": "greatest", "position_angle_deg": 345},
+        {"jd_ut": 2456084.688645833, "kind": "c3", "position_angle_deg": 293},
+        {"jd_ut": 2456084.701099537, "kind": "c4", "position_angle_deg": 290}
+      ],
+      "id": "2012-06-06-venus",
+      "min_separation_arcsec": 554.0,
+      "source": "https://eclipse.gsfc.nasa.gov/OH/transit12.html"
+    }
+  ],
+  "schema": "skyfix.reference/1",
+  "skyfield": [
+    {"c1_jd_tt": 2405866.575702694, "c2_jd_tt": 2405866.596153064, "c3_jd_tt": 2405866.747418134, "c4_jd_tt": 2405866.767868478, "date": "1874 Dec 09", "greatest_jd_tt": 2405866.671782968, "min_separation_arcsec": 829.9522, "planet": "Venus"},
+    {"c1_jd_tt": 2408786.080938024, "c2_jd_tt": 2408786.095044346, "c3_jd_tt": 2408786.329821790, "c4_jd_tt": 2408786.343928398, "date": "1882 Dec 06", "greatest_jd_tt": 2408786.212430381, "min_separation_arcsec": 637.2694, "planet": "Venus"},
+    {"c1_jd_tt": 2453164.718503212, "c2_jd_tt": 2453164.731890996, "c3_jd_tt": 2453164.963683126, "c4_jd_tt": 2453164.977071476, "date": "2004 Jun 08", "greatest_jd_tt": 2453164.847787877, "min_separation_arcsec": 626.8904, "planet": "Venus"},
+    {"c1_jd_tt": 2456084.424165260, "c2_jd_tt": 2456084.436527482, "c3_jd_tt": 2456084.689462000, "c4_jd_tt": 2456084.701824455, "date": "2012 Jun 06", "greatest_jd_tt": 2456084.562995924, "min_separation_arcsec": 554.3696, "planet": "Venus"},
+    {"c1_jd_tt": 2494622.501648067, "c2_jd_tt": 2494622.517575070, "c3_jd_tt": 2494622.721509954, "c4_jd_tt": 2494622.737437170, "date": "2117 Dec 11", "greatest_jd_tt": 2494622.619539867, "min_separation_arcsec": 723.6572, "planet": "Venus"},
+    {"c1_jd_tt": 2497542.055086724, "c2_jd_tt": 2497542.071383204, "c3_jd_tt": 2497542.270022460, "c4_jd_tt": 2497542.286318657, "date": "2125 Dec 08", "greatest_jd_tt": 2497542.170700802, "min_separation_arcsec": 736.3650, "planet": "Venus"},
+    {"c1_jd_tt": 2401091.721122905, "c2_jd_tt": 2401091.722705628, "c3_jd_tt": 2401091.887856342, "c4_jd_tt": 2401091.889439223, "date": "1861 Nov 12", "greatest_jd_tt": 2401091.805265124, "min_separation_arcsec": 657.8803, "planet": "Mercury"},
+    {"c1_jd_tt": 2403641.726069159, "c2_jd_tt": 2403641.727879341, "c3_jd_tt": 2403641.875155360, "c4_jd_tt": 2403641.876965736, "date": "1868 Nov 05", "greatest_jd_tt": 2403641.801501178, "min_separation_arcsec": 735.1357, "planet": "Mercury"},
+    {"c1_jd_tt": 2407111.133862663, "c2_jd_tt": 2407111.136048879, "c3_jd_tt": 2407111.446985757, "c4_jd_tt": 2407111.449172572, "date": "1878 May 06", "greatest_jd_tt": 2407111.291567808, "min_separation_arcsec": 287.3573, "planet": "Mercury"},
+    {"c1_jd_tt": 2408392.428381380, "c2_jd_tt": 2408392.429589082, "c3_jd_tt": 2408392.649929033, "c4_jd_tt": 2408392.651136920, "date": "1881 Nov 08", "greatest_jd_tt": 2408392.539729196, "min_separation_arcsec": 231.8077, "planet": "Mercury"},
+    {"c1_jd_tt": 2411862.495920583, "c2_jd_tt": 2411862.499380404, "c3_jd_tt": 2411862.697247149, "c4_jd_tt": 2411862.700707579, "date": "1891 May 10", "greatest_jd_tt": 2411862.598336204, "min_separation_arcsec": 753.5486, "planet": "Mercury"},
+    {"c1_jd_tt": 2413143.164164477, "c2_jd_tt": 2413143.165378380, "c3_jd_tt": 2413143.382862619, "c4_jd_tt": 2413143.384076691, "date": "1894 Nov 10", "greatest_jd_tt": 2413143.274093462, "min_separation_arcsec": 266.1730, "planet": "Mercury"},
+    {"c1_jd_tt": 2417893.933166520, "c2_jd_tt": 2417893.935031702, "c3_jd_tt": 2417894.074511319, "c4_jd_tt": 2417894.076376659, "date": "1907 Nov 14", "greatest_jd_tt": 2417894.004759445, "min_separation_arcsec": 758.6428, "planet": "Mercury"},
+    {"c1_jd_tt": 2420443.914744064, "c2_jd_tt": 2420443.916295863, "c3_jd_tt": 2420444.088429631, "c4_jd_tt": 2420444.089981623, "date": "1914 Nov 07", "greatest_jd_tt": 2420444.002342064, "min_separation_arcsec": 630.7474, "planet": "Mercury"},
+    {"c1_jd_tt": 2423913.405533024, "c2_jd_tt": 2423913.407628548, "c3_jd_tt": 2423913.733035536, "c4_jd_tt": 2423913.735131665, "date": "1924 May 08", "greatest_jd_tt": 2423913.570385838, "min_separation_arcsec": 84.5938, "planet": "Mercury"},
+    {"c1_jd_tt": 2425194.626656131, "c2_jd_tt": 2425194.627838432, "c3_jd_tt": 2425194.852698389, "c4_jd_tt": 2425194.853880871, "date": "1927 Nov 10", "greatest_jd_tt": 2425194.740237765, "min_separation_arcsec": 128.7030, "planet": "Mercury"},
+    {"c1_jd_tt": 2428664.870088805, "c2_jd_tt": null, "c3_jd_tt": null, "c4_jd_tt": 2428664.879452704, "date": "1937 May 11", "greatest_jd_tt": 2428664.874776166, "min_separation_arcsec": 955.5464, "planet": "Mercury"},
+    {"c1_jd_tt": 2429945.367528860, "c2_jd_tt": 2429945.368790044, "c3_jd_tt": 2429945.577819918, "c4_jd_tt": 2429945.579081272, "date": "1940 Nov 11", "greatest_jd_tt": 2429945.473280026, "min_separation_arcsec": 368.4633, "planet": "Mercury"},
+    {"c1_jd_tt": 2434696.151041405, "c2_jd_tt": 2434696.153571036, "c3_jd_tt": 2434696.255162051, "c4_jd_tt": 2434696.257691837, "date": "1953 Nov 14", "greatest_jd_tt": 2434696.204358739, "min_separation_arcsec": 861.7576, "planet": "Mercury"},
+    {"c1_jd_tt": 2435964.499556857, "c2_jd_tt": 2435964.506465410, "c3_jd_tt": 2435964.597344657, "c4_jd_tt": 2435964.604253801, "date": "1957 May 06", "greatest_jd_tt": 2435964.551916087, "min_separation_arcsec": 907.3443, "planet": "Mercury"},
+    {"c1_jd_tt": 2437246.107208668, "c2_jd_tt": 2437246.108612229, "c3_jd_tt": 2437246.299000443, "c4_jd_tt": 2437246.300404196, "date": "1960 Nov 07", "greatest_jd_tt": 2437246.203781985, "min_separation_arcsec": 527.9191, "planet": "Mercury"},
+    {"c1_jd_tt": 2440715.680557647, "c2_jd_tt": 2440715.682663289, "c3_jd_tt": 2440716.007286531, "c4_jd_tt": 2440716.009392778, "date": "1970 May 09", "greatest_jd_tt": 2440715.845027741, "min_separation_arcsec": 114.0965, "planet": "Mercury"},
+    {"c1_jd_tt": 2441996.825070666, "c2_jd_tt": 2441996.826242168, "c3_jd_tt": 2441997.052944675, "c4_jd_tt": 2441997.054116356, "date": "1973 Nov 10", "greatest_jd_tt": 2441996.939562651, "min_separation_arcsec": 26.3953, "planet": "Mercury"},
+    {"c1_jd_tt": 2446747.572192322, "c2_jd_tt": 2446747.573525663, "c3_jd_tt": 2446747.770893951, "c4_jd_tt": 2446747.772227458, "date": "1986 Nov 13", "greatest_jd_tt": 2446747.672187438, "min_separation_arcsec": 470.5343, "planet": "Mercury"},
+    {"c1_jd_tt": 2449297.629760509, "c2_jd_tt": 2449297.633852644, "c3_jd_tt": 2449297.696052132, "c4_jd_tt": 2449297.700144467, "date": "1993 Nov 06", "greatest_jd_tt": 2449297.664946570, "min_separation_arcsec": 926.7393, "planet": "Mercury"},
+    {"c1_jd_tt": 2451498.386167763, "c2_jd_tt": 2451498.396403785, "c3_jd_tt": 2451498.411877127, "c4_jd_tt": 2451498.422113304, "date": "1999 Nov 15", "greatest_jd_tt": 2451498.404137194, "min_separation_arcsec": 962.9903, "planet": "Mercury"},
+    {"c1_jd_tt": 2452766.718063823, "c2_jd_tt": 2452766.721166517, "c3_jd_tt": 2452766.936380446, "c4_jd_tt": 2452766.939483738, "date": "2003 May 07", "greatest_jd_tt": 2452766.828802720, "min_separation_arcsec": 708.3199, "planet": "Mercury"},
+    {"c1_jd_tt": 2454048.300803753, "c2_jd_tt": 2454048.302110796, "c3_jd_tt": 2454048.506493003, "c4_jd_tt": 2454048.507800238, "date": "2006 Nov 08", "greatest_jd_tt": 2454048.404274602, "min_separation_arcsec": 422.9143, "planet": "Mercury"},
+    {"c1_jd_tt": 2457517.967659640, "c2_jd_tt": 2457517.969881719, "c3_jd_tt": 2457518.278015617, "c4_jd_tt": 2457518.280238303, "date": "2016 May 09", "greatest_jd_tt": 2457518.123996242, "min_separation_arcsec": 318.5394, "planet": "Mercury"},
+    {"c1_jd_tt": 2458799.025420127, "c2_jd_tt": 2458799.026594006, "c3_jd_tt": 2458799.252570697, "c4_jd_tt": 2458799.253744754, "date": "2019 Nov 11", "greatest_jd_tt": 2458799.139552090, "min_separation_arcsec": 75.9352, "planet": "Mercury"},
+    {"c1_jd_tt": 2463549.779373259, "c2_jd_tt": 2463549.780816290, "c3_jd_tt": 2463549.962797625, "c4_jd_tt": 2463549.964240819, "date": "2032 Nov 13", "greatest_jd_tt": 2463549.871787709, "min_separation_arcsec": 572.0825, "planet": "Mercury"},
+    {"c1_jd_tt": 2466099.805066205, "c2_jd_tt": 2466099.807303742, "c3_jd_tt": 2466099.926146701, "c4_jd_tt": 2466099.928384436, "date": "2039 Nov 07", "greatest_jd_tt": 2466099.866713174, "min_separation_arcsec": 822.2651, "planet": "Mercury"},
+    {"c1_jd_tt": 2469568.961920628, "c2_jd_tt": 2469568.964381013, "c3_jd_tt": 2469569.237931394, "c4_jd_tt": 2469569.240392380, "date": "2049 May 07", "greatest_jd_tt": 2469569.101198548, "min_separation_arcsec": 511.8093, "planet": "Mercury"},
+    {"c1_jd_tt": 2470850.496732570, "c2_jd_tt": 2470850.497976904, "c3_jd_tt": 2470850.712527633, "c4_jd_tt": 2470850.713772154, "date": "2052 Nov 09", "greatest_jd_tt": 2470850.605222843, "min_separation_arcsec": 318.6916, "planet": "Mercury"},
+    {"c1_jd_tt": 2474320.262780842, "c2_jd_tt": 2474320.265287118, "c3_jd_tt": 2474320.538644704, "c4_jd_tt": 2474320.541151593, "date": "2062 May 10", "greatest_jd_tt": 2474320.402004193, "min_separation_arcsec": 520.5313, "planet": "Mercury"},
+    {"c1_jd_tt": 2475601.226686246, "c2_jd_tt": 2475601.227876609, "c3_jd_tt": 2475601.450438863, "c4_jd_tt": 2475601.451629401, "date": "2065 Nov 11", "greatest_jd_tt": 2475601.339128596, "min_separation_arcsec": 180.7367, "planet": "Mercury"},
+    {"c1_jd_tt": 2480351.989547925, "c2_jd_tt": 2480351.991168080, "c3_jd_tt": 2480352.152750950, "c4_jd_tt": 2480352.154371267, "date": "2078 Nov 14", "greatest_jd_tt": 2480352.071943837, "min_separation_arcsec": 674.2844, "planet": "Mercury"},
+    {"c1_jd_tt": 2482901.989928933, "c2_jd_tt": 2482901.991689812, "c3_jd_tt": 2482902.143580535, "c4_jd_tt": 2482902.145341613, "date": "2085 Nov 07", "greatest_jd_tt": 2482902.067617828, "min_separation_arcsec": 718.5214, "planet": "Mercury"},
+    {"c1_jd_tt": 2486371.224906083, "c2_jd_tt": 2486371.227103019, "c3_jd_tt": 2486371.534835015, "c4_jd_tt": 2486371.537032552, "date": "2095 May 08", "greatest_jd_tt": 2486371.381020064, "min_separation_arcsec": 309.7694, "planet": "Mercury"},
+    {"c1_jd_tt": 2487652.693541056, "c2_jd_tt": 2487652.694745209, "c3_jd_tt": 2487652.916262651, "c4_jd_tt": 2487652.917466991, "date": "2098 Nov 10", "greatest_jd_tt": 2487652.805473099, "min_separation_arcsec": 214.6790, "planet": "Mercury"},
+    {"c1_jd_tt": 2491122.571873123, "c2_jd_tt": 2491122.575119891, "c3_jd_tt": 2491122.785334836, "c4_jd_tt": 2491122.788582227, "date": "2108 May 12", "greatest_jd_tt": 2491122.680252429, "min_separation_arcsec": 724.6928, "planet": "Mercury"},
+    {"c1_jd_tt": 2492403.430050061, "c2_jd_tt": 2492403.431272202, "c3_jd_tt": 2492403.647758559, "c4_jd_tt": 2492403.648980875, "date": "2111 Nov 14", "greatest_jd_tt": 2492403.539487937, "min_separation_arcsec": 283.3335, "planet": "Mercury"},
+    {"c1_jd_tt": 2497154.204107219, "c2_jd_tt": 2497154.206060402, "c3_jd_tt": 2497154.339351758, "c4_jd_tt": 2497154.341305103, "date": "2124 Nov 15", "greatest_jd_tt": 2497154.272694525, "min_separation_arcsec": 778.8933, "planet": "Mercury"},
+    {"c1_jd_tt": 2499704.179550491, "c2_jd_tt": 2499704.181076303, "c3_jd_tt": 2499704.356637652, "c4_jd_tt": 2499704.358163661, "date": "2131 Nov 09", "greatest_jd_tt": 2499704.268835148, "min_separation_arcsec": 614.3651, "planet": "Mercury"},
+    {"c1_jd_tt": 2503173.494095320, "c2_jd_tt": 2503173.496189279, "c3_jd_tt": 2503173.820091308, "c4_jd_tt": 2503173.822185869, "date": "2141 May 10", "greatest_jd_tt": 2503173.658195369, "min_separation_arcsec": 108.1154, "planet": "Mercury"},
+    {"c1_jd_tt": 2504454.890824756, "c2_jd_tt": 2504454.892006210, "c3_jd_tt": 2504455.117567278, "c4_jd_tt": 2504455.118748916, "date": "2144 Nov 11", "greatest_jd_tt": 2504455.004755194, "min_separation_arcsec": 112.7240, "planet": "Mercury"}
+  ]
+}

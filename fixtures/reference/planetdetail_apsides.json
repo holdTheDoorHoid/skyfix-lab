@@ -1,0 +1,713 @@
+{
+  "generator": {
+    "description": "The Earth's perihelion and aphelion: USNO's seasons API 1990-2060 (UT to the minute), Meeus's table 38.C 1991-2010 (TD to 0.01 h, radius vector to 1e-6 au; computed by Meeus with the complete VSOP87) and Skyfield + DE440s (distance of the Earth's centre from the Sun's, 1990-2060).",
+    "generated_utc": "2026-09-25T04:24:18Z",
+    "licence": "USNO API: U.S. Government work. Meeus: facts from a published table. DE440s: development-time reference.",
+    "meeus": "J. Meeus, Astronomical Algorithms, 2nd ed. (1998), table 38.C; values as transcribed in soniakeys/meeus (MIT)",
+    "never_a_runtime_dependency": "Development-time reference. CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "sources": [
+      {
+        "bytes": 827,
+        "sha256": "a871531a299a73252c6851c258ca1f408ab0884e9f4db25688e1ba2d538f6a05",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1990"
+      },
+      {
+        "bytes": 827,
+        "sha256": "f9dffe575ab7bfad1d8c50ada853e9fa58dd4e7ccf16777c3b2beb77fb86dba7",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1991"
+      },
+      {
+        "bytes": 827,
+        "sha256": "fe2eaf9001cd7663c78bbd2a5e17504c1f05bc368d478110552cb7100652c42e",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1992"
+      },
+      {
+        "bytes": 827,
+        "sha256": "e648571da60d108263c1fe4f1b054affbd7a01ffbe7802f6f315bb76e84528d2",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1993"
+      },
+      {
+        "bytes": 827,
+        "sha256": "a4275c7176950c8c562212f8797163e8f56592cf1009a88859f9d4570903875f",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1994"
+      },
+      {
+        "bytes": 827,
+        "sha256": "57abca7d3827da6a1d837414e5fc01652f40eaa85f52b21f30e2c41f532d2557",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1995"
+      },
+      {
+        "bytes": 827,
+        "sha256": "5ca3cb4e793bbcd18befdfdd9240159fddb5a2ff606a66dd16ff7b7cb166dec9",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1996"
+      },
+      {
+        "bytes": 827,
+        "sha256": "0c3942b8ec6a680dae15c0fe12e5929ce1f11b503f4c993f67ca4a32a7fa8511",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1997"
+      },
+      {
+        "bytes": 827,
+        "sha256": "19f79e04148684eaf40f231d8c20d10d8d9073acbfaf9ecf1c4e389285e556e0",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1998"
+      },
+      {
+        "bytes": 827,
+        "sha256": "9d98caf74fe760727f857546565ba1d233f4488db5ce45ac5eb6ae5627d0bd42",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=1999"
+      },
+      {
+        "bytes": 827,
+        "sha256": "6d88f397190d946d045b44dd52bed81b63fb07d579af7c87a89410ab8c9a26e6",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2000"
+      },
+      {
+        "bytes": 827,
+        "sha256": "3ea9a3370796e3dda715dd9e512c069dd719a0739f1f5b866d5b0ce4e949b09e",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2001"
+      },
+      {
+        "bytes": 827,
+        "sha256": "a11d8f9220479f5ad3c3938fe0d507c756e7595207d0db66b3e504471c5b648c",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2002"
+      },
+      {
+        "bytes": 827,
+        "sha256": "447fa43775a52eadf9cbd53fb62cdd2edb1bd853482648b572e495653ca0aadc",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2003"
+      },
+      {
+        "bytes": 827,
+        "sha256": "8706cbe011a5b028d433c36aa9b5f60f67a995ac5a9bf7505228e46180d80a57",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2004"
+      },
+      {
+        "bytes": 827,
+        "sha256": "2ba855d51fd33ddc8063749abfee096bb6f6dd0908fa07b6e161590394a704d5",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2005"
+      },
+      {
+        "bytes": 827,
+        "sha256": "a5b93eaa50c4d739a1f1ab6b898e1e93f829367edd12f4bab270c7b066384fdf",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2006"
+      },
+      {
+        "bytes": 827,
+        "sha256": "32dd38c95f5bb5c9ca219c5cf511305ac5cdc1977e162ce088d42530e7c0b4e7",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2007"
+      },
+      {
+        "bytes": 827,
+        "sha256": "ac3afafb791f33094f586de69ab7de8e0f803443be8fbe1a790c410d94c47378",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2008"
+      },
+      {
+        "bytes": 827,
+        "sha256": "e277fe17d810f07eaf1d0725ff2b99e706ac35fb7a0e2c9ec93b5687182850a1",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2009"
+      },
+      {
+        "bytes": 827,
+        "sha256": "631cdb53cc8eeea1996803e22c4891140be3a2d2f7ab29fa03496de749b98949",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2010"
+      },
+      {
+        "bytes": 827,
+        "sha256": "e0f0f0af53a71796352d88f454acfc7770358ee90d1861511c0d7666437f02a7",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2011"
+      },
+      {
+        "bytes": 827,
+        "sha256": "d071642d9fe3c47ae655afe8278b8429c7d1e32cb6cdf9a3569f14a32ff0a9f5",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2012"
+      },
+      {
+        "bytes": 827,
+        "sha256": "34e35cc76722855685a45d56525dcd25e60a0af0bec9806da5664a68c14cffc2",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2013"
+      },
+      {
+        "bytes": 827,
+        "sha256": "3620bd316627d065a0f014ec416bed829f04cc381c0a21de8d4b2203dcd1dfb4",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2014"
+      },
+      {
+        "bytes": 827,
+        "sha256": "565b9e06aed4db61d9d9f98f558eb1e1d170d462ad55f8c71417580b4d88dadd",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2015"
+      },
+      {
+        "bytes": 827,
+        "sha256": "6f8e499662da26e6a8eadabd1d9f7d8becabf0530b86b06182d2a45db961a0b3",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2016"
+      },
+      {
+        "bytes": 827,
+        "sha256": "74dbfbf75c73c61baf1aaa7e0a3e30bf066bb96501b7d2a526460ff1831c97c8",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2017"
+      },
+      {
+        "bytes": 827,
+        "sha256": "92c20dfb68e7aa18efbd43ef6a2bb4dbaeac988aef08603a7da02e425af8d14f",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2018"
+      },
+      {
+        "bytes": 827,
+        "sha256": "e615e091b36071222ef0be72807f485be2ea52098be6620c8202a9f454c1c6d3",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2019"
+      },
+      {
+        "bytes": 827,
+        "sha256": "2de80d81ac35eadd684f4ebe523a1118712b9e406fb04c0922bebccc1dccdf23",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2020"
+      },
+      {
+        "bytes": 827,
+        "sha256": "ca0cecf0de895a192b0ec2699ddb3caa71edbd4a617fae4a934817ae7d208846",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2021"
+      },
+      {
+        "bytes": 827,
+        "sha256": "088dde435f2ed68b91ce1069d048cad77b0ca53d3578dddccd8f4f68d0d07f85",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2022"
+      },
+      {
+        "bytes": 827,
+        "sha256": "765f4ca9242d60295f11cce55cdba6ad18a65fd7dfef229995db84c1efff7d11",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2023"
+      },
+      {
+        "bytes": 827,
+        "sha256": "cc5db8e2f8689609980816701ad77063e45b58b604caf82068116b1ba87ba8b6",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2024"
+      },
+      {
+        "bytes": 827,
+        "sha256": "1305c8ecd2af78c845d483effa5c120bfaed0f6ff5cf8f081e6ec04cb0e175ae",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2025"
+      },
+      {
+        "bytes": 827,
+        "sha256": "6d62dcd6de55cc5b9cf94df813844bda6750a2438098256e6826e56bcf5c22c4",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2026"
+      },
+      {
+        "bytes": 827,
+        "sha256": "1a0c001621026c30979abb78c5036f43b9234b1000640db588a12cffbc0f6310",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2027"
+      },
+      {
+        "bytes": 827,
+        "sha256": "5b021f3139ac79fca8e26e571faee646d6597bfa6093d188ebc580326a20d68f",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2028"
+      },
+      {
+        "bytes": 827,
+        "sha256": "49d8f8504ddf71c1dc38092f90dbbf98540fecef0b711972a8ee0f83817e740a",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2029"
+      },
+      {
+        "bytes": 827,
+        "sha256": "7f97ea94eafb66f72be327470c9df126476ab184f21cc5ab6a45462dc6fdc9a4",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2030"
+      },
+      {
+        "bytes": 827,
+        "sha256": "4a93edf3d80588b14184c1dc4f5dc5cfe3f29bc992ba89140865a52d11c311ec",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2031"
+      },
+      {
+        "bytes": 827,
+        "sha256": "73a43fca79c47d613b69ef0f46074e09791737389090b24da87de9cfca5a428e",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2032"
+      },
+      {
+        "bytes": 827,
+        "sha256": "8902cf66a9d96cf28e9b19fdaab5daf0d4694120e9d78c69260150326bf1fd3f",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2033"
+      },
+      {
+        "bytes": 827,
+        "sha256": "bdbe0de8291e9e9b9fdedf6826c2d6c4969c23f1f5564efa3077d443cae19148",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2034"
+      },
+      {
+        "bytes": 827,
+        "sha256": "010c5121a184f081227186cde42d0a148cc0717126e48d3baa6f475ed239e018",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2035"
+      },
+      {
+        "bytes": 827,
+        "sha256": "884ded894b454a93830b99c74479c2cf164241d2684b2f27e7293a68061746c6",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2036"
+      },
+      {
+        "bytes": 827,
+        "sha256": "645079d0cd93192a9737b12cd04698b6e88d39311fdf0afed113e2bfbb43b586",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2037"
+      },
+      {
+        "bytes": 827,
+        "sha256": "9b6096b4b8f524d3dae773c3cb5a3d2458ed9dab9d9685f54dee11b57771f9ba",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2038"
+      },
+      {
+        "bytes": 827,
+        "sha256": "6bb5582c1d751d43390b24bd5f1252faa8d44d7bfe669bd42846a48519307d1c",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2039"
+      },
+      {
+        "bytes": 827,
+        "sha256": "18e30b7706ad22f87b6245eadb83625ab436e5467c4ff96a80dfda10ba277c0d",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2040"
+      },
+      {
+        "bytes": 827,
+        "sha256": "6d75fb24a48ef3c88744a67bdb6760486eeea89671168c7b8a813b61ea2c0894",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2041"
+      },
+      {
+        "bytes": 827,
+        "sha256": "73163474c5cb3adee67121957e8774ca06d52848da144af3fba60889338cad80",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2042"
+      },
+      {
+        "bytes": 827,
+        "sha256": "14e93bc63fa946a5bdc5a9dd5967bf952e8e5f41ba2249919742264f93a2022a",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2043"
+      },
+      {
+        "bytes": 827,
+        "sha256": "7cc28dcf04d129df334b12af0f4b88f883f0626f6115f49b6f0d734f5dc0a33b",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2044"
+      },
+      {
+        "bytes": 827,
+        "sha256": "9116cc49e5f8bd93cccaf574762184a66fd72014a703c047d56387419e7e6010",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2045"
+      },
+      {
+        "bytes": 827,
+        "sha256": "5c283cd35af97ff5f872426f155419f38828e2d1c5785fe6f336502243c57edc",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2046"
+      },
+      {
+        "bytes": 827,
+        "sha256": "35140d0254c2455e675945646c7910de633d7ccbf99f195ba30745957b489ea0",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2047"
+      },
+      {
+        "bytes": 827,
+        "sha256": "8ee75c06abdc84ef756834f38b82932733ca7a8d4ddb1e38d89044df7875fe6f",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2048"
+      },
+      {
+        "bytes": 827,
+        "sha256": "8e7de620cca7ab2608789d0b756b140425e5e60eb34f1c1f7a2049a93201cb52",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2049"
+      },
+      {
+        "bytes": 827,
+        "sha256": "ed3b2c4e4820abf18ec981b5879d3cc2a2f798d493d5bfef83de2eb5415ca0b8",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2050"
+      },
+      {
+        "bytes": 827,
+        "sha256": "cfc4a19544c9d3907ad3921da18a8b04c8f4fe33602863de22dd8b71395bd24a",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2051"
+      },
+      {
+        "bytes": 827,
+        "sha256": "4ce6cb97a442d1c1c522aaa3308e6576e393332c3451d474e9d2cf76757af2c2",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2052"
+      },
+      {
+        "bytes": 827,
+        "sha256": "9d02c2b54a511c10e0ad9aa5c1e23f4976c64563b25551ef3dde1775f4c21f10",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2053"
+      },
+      {
+        "bytes": 827,
+        "sha256": "655017db33ead3c3d47c249caae9e038de3c90697fc0d73e1d11cc460285f6b5",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2054"
+      },
+      {
+        "bytes": 827,
+        "sha256": "e2f9cd4dd47efa1201790ea0655f6ab3fc773974930bd7fc22720fca1991abe4",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2055"
+      },
+      {
+        "bytes": 827,
+        "sha256": "64369e3af8413a297a0758bace31799d6550c8180ddd121394ee5194e71f3bb7",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2056"
+      },
+      {
+        "bytes": 827,
+        "sha256": "5c71817d5766f13377687668deded3a1d081eedd1ae9aca7cc9f3b04e61af693",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2057"
+      },
+      {
+        "bytes": 827,
+        "sha256": "9475c4bf25de73623ebee9f758c45ba82c36608ba1633c7d83107fb8cbab2c3a",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2058"
+      },
+      {
+        "bytes": 827,
+        "sha256": "82af7f84a186fd03b779a872869fb16b22dfd72221c20660c977d2921ad6368a",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2059"
+      },
+      {
+        "bytes": 827,
+        "sha256": "3008e6eb7f26393ca755e8d85ee90d883e6a7d137444cbdce3a1fa649a053cff",
+        "url": "https://aa.usno.navy.mil/api/seasons?year=2060"
+      }
+    ],
+    "tool": "tools/reference/gen_planetdetail.py",
+    "versions": {
+      "jplephem": "2.24",
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "python": "3.12.3",
+      "skyfield": "1.55"
+    }
+  },
+  "meeus_38c": [
+    {"distance_au": 0.983281, "jd_tt": 2448259.625000000, "kind": "perihelion", "td_hours": 3.00},
+    {"distance_au": 0.983324, "jd_tt": 2448625.127500000, "kind": "perihelion", "td_hours": 15.06},
+    {"distance_au": 0.983283, "jd_tt": 2448991.628333333, "kind": "perihelion", "td_hours": 3.08},
+    {"distance_au": 0.983301, "jd_tt": 2449354.746666667, "kind": "perihelion", "td_hours": 5.92},
+    {"distance_au": 0.983302, "jd_tt": 2449721.962500000, "kind": "perihelion", "td_hours": 11.10},
+    {"distance_au": 0.983223, "jd_tt": 2450086.809583333, "kind": "perihelion", "td_hours": 7.43},
+    {"distance_au": 0.983267, "jd_tt": 2450450.470416666, "kind": "perihelion", "td_hours": 23.29},
+    {"distance_au": 0.983300, "jd_tt": 2450818.386250000, "kind": "perihelion", "td_hours": 21.27},
+    {"distance_au": 0.983281, "jd_tt": 2451182.042500000, "kind": "perihelion", "td_hours": 13.02},
+    {"distance_au": 0.983321, "jd_tt": 2451546.721250000, "kind": "perihelion", "td_hours": 5.31},
+    {"distance_au": 0.983286, "jd_tt": 2451913.870416667, "kind": "perihelion", "td_hours": 8.89},
+    {"distance_au": 0.983290, "jd_tt": 2452277.090416667, "kind": "perihelion", "td_hours": 14.17},
+    {"distance_au": 0.983320, "jd_tt": 2452643.710000000, "kind": "perihelion", "td_hours": 5.04},
+    {"distance_au": 0.983265, "jd_tt": 2453009.238333333, "kind": "perihelion", "td_hours": 17.72},
+    {"distance_au": 0.983297, "jd_tt": 2453372.525416667, "kind": "perihelion", "td_hours": 0.61},
+    {"distance_au": 0.983327, "jd_tt": 2453740.146666666, "kind": "perihelion", "td_hours": 15.52},
+    {"distance_au": 0.983260, "jd_tt": 2454104.322500000, "kind": "perihelion", "td_hours": 19.74},
+    {"distance_au": 0.983280, "jd_tt": 2454468.494583333, "kind": "perihelion", "td_hours": 23.87},
+    {"distance_au": 0.983273, "jd_tt": 2454836.146250000, "kind": "perihelion", "td_hours": 15.51},
+    {"distance_au": 0.983290, "jd_tt": 2455199.507500000, "kind": "perihelion", "td_hours": 0.18},
+    {"distance_au": 1.016703, "jd_tt": 2448444.144166667, "kind": "aphelion", "td_hours": 15.46},
+    {"distance_au": 1.016740, "jd_tt": 2448807.005833333, "kind": "aphelion", "td_hours": 12.14},
+    {"distance_au": 1.016666, "jd_tt": 2449173.432083333, "kind": "aphelion", "td_hours": 22.37},
+    {"distance_au": 1.016724, "jd_tt": 2449539.304166667, "kind": "aphelion", "td_hours": 19.30},
+    {"distance_au": 1.016742, "jd_tt": 2449902.595416666, "kind": "aphelion", "td_hours": 2.29},
+    {"distance_au": 1.016717, "jd_tt": 2450270.292500000, "kind": "aphelion", "td_hours": 19.02},
+    {"distance_au": 1.016754, "jd_tt": 2450634.305833333, "kind": "aphelion", "td_hours": 19.34},
+    {"distance_au": 1.016696, "jd_tt": 2450998.494166667, "kind": "aphelion", "td_hours": 23.86},
+    {"distance_au": 1.016718, "jd_tt": 2451366.452500000, "kind": "aphelion", "td_hours": 22.86},
+    {"distance_au": 1.016741, "jd_tt": 2451729.493333333, "kind": "aphelion", "td_hours": 23.84},
+    {"distance_au": 1.016643, "jd_tt": 2452095.068750000, "kind": "aphelion", "td_hours": 13.65},
+    {"distance_au": 1.016688, "jd_tt": 2452461.658333333, "kind": "aphelion", "td_hours": 3.80},
+    {"distance_au": 1.016728, "jd_tt": 2452824.736250000, "kind": "aphelion", "td_hours": 5.67},
+    {"distance_au": 1.016694, "jd_tt": 2453191.954166667, "kind": "aphelion", "td_hours": 10.90},
+    {"distance_au": 1.016742, "jd_tt": 2453556.707500000, "kind": "aphelion", "td_hours": 4.98},
+    {"distance_au": 1.016697, "jd_tt": 2453920.465833333, "kind": "aphelion", "td_hours": 23.18},
+    {"distance_au": 1.016706, "jd_tt": 2454288.495416667, "kind": "aphelion", "td_hours": 23.89},
+    {"distance_au": 1.016754, "jd_tt": 2454651.821250000, "kind": "aphelion", "td_hours": 7.71},
+    {"distance_au": 1.016666, "jd_tt": 2455016.570416667, "kind": "aphelion", "td_hours": 1.69},
+    {"distance_au": 1.016702, "jd_tt": 2455383.980000000, "kind": "aphelion", "td_hours": 11.52}
+  ],
+  "schema": "skyfix.reference/1",
+  "skyfield": [
+    {"distance_au": 0.9833028094, "jd_tt": 2447896.224656953, "jd_utc": 2447896.223995102, "kind": "perihelion"},
+    {"distance_au": 1.0166520749, "jd_tt": 2448076.711802812, "jd_utc": 2448076.711140960, "kind": "aphelion"},
+    {"distance_au": 0.9832808634, "jd_tt": 2448259.625045666, "jd_utc": 2448259.624372240, "kind": "perihelion"},
+    {"distance_au": 1.0167027623, "jd_tt": 2448444.144033674, "jd_utc": 2448444.143360248, "kind": "aphelion"},
+    {"distance_au": 0.9833239720, "jd_tt": 2448625.127316454, "jd_utc": 2448625.126643029, "kind": "perihelion"},
+    {"distance_au": 1.0167400094, "jd_tt": 2448807.005519029, "jd_utc": 2448807.004834029, "kind": "aphelion"},
+    {"distance_au": 0.9832826306, "jd_tt": 2448991.628273868, "jd_utc": 2448991.627588868, "kind": "perihelion"},
+    {"distance_au": 1.0166663360, "jd_tt": 2449173.431804104, "jd_utc": 2449173.431107530, "kind": "aphelion"},
+    {"distance_au": 1.0166663360, "jd_tt": 2449173.431818210, "jd_utc": 2449173.431121636, "kind": "aphelion"},
+    {"distance_au": 1.0166663360, "jd_tt": 2449173.431832316, "jd_utc": 2449173.431135742, "kind": "aphelion"},
+    {"distance_au": 0.9833012932, "jd_tt": 2449354.746631500, "jd_utc": 2449354.745934926, "kind": "perihelion"},
+    {"distance_au": 1.0167240126, "jd_tt": 2449539.303991794, "jd_utc": 2449539.303283645, "kind": "aphelion"},
+    {"distance_au": 0.9833023468, "jd_tt": 2449721.962740712, "jd_utc": 2449721.962032564, "kind": "perihelion"},
+    {"distance_au": 1.0167418178, "jd_tt": 2449902.595624235, "jd_utc": 2449902.594916087, "kind": "aphelion"},
+    {"distance_au": 0.9832228060, "jd_tt": 2450086.809634248, "jd_utc": 2450086.808914526, "kind": "perihelion"},
+    {"distance_au": 1.0167173235, "jd_tt": 2450270.292271489, "jd_utc": 2450270.291551767, "kind": "aphelion"},
+    {"distance_au": 0.9832674075, "jd_tt": 2450450.470169340, "jd_utc": 2450450.469449617, "kind": "perihelion"},
+    {"distance_au": 1.0167535974, "jd_tt": 2450634.305822580, "jd_utc": 2450634.305091284, "kind": "aphelion"},
+    {"distance_au": 0.9832997779, "jd_tt": 2450818.386134760, "jd_utc": 2450818.385403463, "kind": "perihelion"},
+    {"distance_au": 1.0166963281, "jd_tt": 2450998.493919468, "jd_utc": 2450998.493188171, "kind": "aphelion"},
+    {"distance_au": 0.9832809097, "jd_tt": 2451182.042495761, "jd_utc": 2451182.041752891, "kind": "perihelion"},
+    {"distance_au": 1.0167179490, "jd_tt": 2451366.452625931, "jd_utc": 2451366.451883061, "kind": "aphelion"},
+    {"distance_au": 1.0167179490, "jd_tt": 2451366.452638627, "jd_utc": 2451366.451895756, "kind": "aphelion"},
+    {"distance_au": 0.9833214176, "jd_tt": 2451546.721332454, "jd_utc": 2451546.720589584, "kind": "perihelion"},
+    {"distance_au": 1.0167410905, "jd_tt": 2451729.493028662, "jd_utc": 2451729.492285792, "kind": "aphelion"},
+    {"distance_au": 0.9832860283, "jd_tt": 2451913.870361404, "jd_utc": 2451913.869618534, "kind": "perihelion"},
+    {"distance_au": 1.0166426273, "jd_tt": 2452095.068191558, "jd_utc": 2452095.067448687, "kind": "aphelion"},
+    {"distance_au": 0.9832897831, "jd_tt": 2452277.090159719, "jd_utc": 2452277.089416849, "kind": "perihelion"},
+    {"distance_au": 1.0166882029, "jd_tt": 2452461.658225375, "jd_utc": 2452461.657482504, "kind": "aphelion"},
+    {"distance_au": 0.9833203812, "jd_tt": 2452643.710267014, "jd_utc": 2452643.709524143, "kind": "perihelion"},
+    {"distance_au": 1.0167282303, "jd_tt": 2452824.736595537, "jd_utc": 2452824.735852666, "kind": "aphelion"},
+    {"distance_au": 0.9832648362, "jd_tt": 2453009.238201614, "jd_utc": 2453009.237458743, "kind": "perihelion"},
+    {"distance_au": 1.0166936784, "jd_tt": 2453191.954696575, "jd_utc": 2453191.953953705, "kind": "aphelion"},
+    {"distance_au": 0.9832968227, "jd_tt": 2453372.525235361, "jd_utc": 2453372.524492491, "kind": "perihelion"},
+    {"distance_au": 1.0167415992, "jd_tt": 2453556.707582103, "jd_utc": 2453556.706839232, "kind": "aphelion"},
+    {"distance_au": 0.9833269785, "jd_tt": 2453740.146328627, "jd_utc": 2453740.145574182, "kind": "perihelion"},
+    {"distance_au": 1.0166972603, "jd_tt": 2453920.466018575, "jd_utc": 2453920.465264131, "kind": "aphelion"},
+    {"distance_au": 0.9832601829, "jd_tt": 2454104.322261547, "jd_utc": 2454104.321507103, "kind": "perihelion"},
+    {"distance_au": 1.0167059464, "jd_tt": 2454288.495585823, "jd_utc": 2454288.494831378, "kind": "aphelion"},
+    {"distance_au": 0.9832800549, "jd_tt": 2454468.494573350, "jd_utc": 2454468.493818905, "kind": "perihelion"},
+    {"distance_au": 1.0167535120, "jd_tt": 2454651.820816936, "jd_utc": 2454651.820062492, "kind": "aphelion"},
+    {"distance_au": 0.9832730344, "jd_tt": 2454836.146357954, "jd_utc": 2454836.145591936, "kind": "perihelion"},
+    {"distance_au": 1.0166664195, "jd_tt": 2455016.570407203, "jd_utc": 2455016.569641185, "kind": "aphelion"},
+    {"distance_au": 0.9832896669, "jd_tt": 2455199.507192263, "jd_utc": 2455199.506426245, "kind": "perihelion"},
+    {"distance_au": 1.0167019579, "jd_tt": 2455383.979915443, "jd_utc": 2455383.979149424, "kind": "aphelion"},
+    {"distance_au": 0.9833412727, "jd_tt": 2455565.272959705, "jd_utc": 2455565.272193687, "kind": "perihelion"},
+    {"distance_au": 0.9833412727, "jd_tt": 2455565.272987918, "jd_utc": 2455565.272221900, "kind": "perihelion"},
+    {"distance_au": 1.0167403850, "jd_tt": 2455747.121585346, "jd_utc": 2455747.120819328, "kind": "aphelion"},
+    {"distance_au": 0.9832840943, "jd_tt": 2455931.522883487, "jd_utc": 2455931.522117469, "kind": "perihelion"},
+    {"distance_au": 1.0166750585, "jd_tt": 2456113.648167073, "jd_utc": 2456113.647389481, "kind": "aphelion"},
+    {"distance_au": 0.9832904738, "jd_tt": 2456294.693542086, "jd_utc": 2456294.692764493, "kind": "perihelion"},
+    {"distance_au": 1.0167084969, "jd_tt": 2456479.114943286, "jd_utc": 2456479.114165694, "kind": "aphelion"},
+    {"distance_au": 0.9833347186, "jd_tt": 2456661.999781451, "jd_utc": 2456661.999003859, "kind": "perihelion"},
+    {"distance_au": 1.0166816290, "jd_tt": 2456842.510109802, "jd_utc": 2456842.509332209, "kind": "aphelion"},
+    {"distance_au": 0.9832773904, "jd_tt": 2457026.775901664, "jd_utc": 2457026.775124072, "kind": "perihelion"},
+    {"distance_au": 1.0166821215, "jd_tt": 2457210.320491483, "jd_utc": 2457210.319702317, "kind": "aphelion"},
+    {"distance_au": 0.9833039412, "jd_tt": 2457390.451313386, "jd_utc": 2457390.450524219, "kind": "perihelion"},
+    {"distance_au": 1.0167509389, "jd_tt": 2457574.184263421, "jd_utc": 2457574.183474254, "kind": "aphelion"},
+    {"distance_au": 0.9833094361, "jd_tt": 2457758.096517347, "jd_utc": 2457758.095716606, "kind": "perihelion"},
+    {"distance_au": 1.0166755940, "jd_tt": 2457938.342021629, "jd_utc": 2457938.341220888, "kind": "aphelion"},
+    {"distance_au": 0.9832842684, "jd_tt": 2458121.733243621, "jd_utc": 2458121.732442881, "kind": "perihelion"},
+    {"distance_au": 1.0166960594, "jd_tt": 2458306.199922200, "jd_utc": 2458306.199121459, "kind": "aphelion"},
+    {"distance_au": 0.9833011646, "jd_tt": 2458486.723016860, "jd_utc": 2458486.722216120, "kind": "perihelion"},
+    {"distance_au": 1.0167543454, "jd_tt": 2458669.424963871, "jd_utc": 2458669.424163131, "kind": "aphelion"},
+    {"distance_au": 0.9832435645, "jd_tt": 2458853.825734431, "jd_utc": 2458853.824933690, "kind": "perihelion"},
+    {"distance_au": 1.0166942521, "jd_tt": 2459034.983252667, "jd_utc": 2459034.982451926, "kind": "aphelion"},
+    {"distance_au": 0.9832570604, "jd_tt": 2459217.077598051, "jd_utc": 2459217.076797310, "kind": "perihelion"},
+    {"distance_au": 1.0167292244, "jd_tt": 2459401.436506397, "jd_utc": 2459401.435705656, "kind": "aphelion"},
+    {"distance_au": 0.9833365396, "jd_tt": 2459583.788731256, "jd_utc": 2459583.787930516, "kind": "perihelion"},
+    {"distance_au": 1.0167153743, "jd_tt": 2459764.799915127, "jd_utc": 2459764.799114386, "kind": "aphelion"},
+    {"distance_au": 0.9832955778, "jd_tt": 2459949.179589536, "jd_utc": 2459949.178788795, "kind": "perihelion"},
+    {"distance_au": 1.0166805840, "jd_tt": 2460132.338745390, "jd_utc": 2460132.337944649, "kind": "aphelion"},
+    {"distance_au": 0.9833069935, "jd_tt": 2460312.527602518, "jd_utc": 2460312.526801777, "kind": "perihelion"},
+    {"distance_au": 1.0167254891, "jd_tt": 2460496.713333390, "jd_utc": 2460496.712532649, "kind": "aphelion"},
+    {"distance_au": 0.9833274074, "jd_tt": 2460680.061977972, "jd_utc": 2460680.061177231, "kind": "perihelion"},
+    {"distance_au": 1.0166437323, "jd_tt": 2460860.330463025, "jd_utc": 2460860.329662284, "kind": "aphelion"},
+    {"distance_au": 0.9833020572, "jd_tt": 2461044.219980222, "jd_utc": 2461044.219179481, "kind": "perihelion"},
+    {"distance_au": 1.0166439777, "jd_tt": 2461228.230412015, "jd_utc": 2461228.229611274, "kind": "aphelion"},
+    {"distance_au": 0.9833334635, "jd_tt": 2461408.606857737, "jd_utc": 2461408.606056996, "kind": "perihelion"},
+    {"distance_au": 1.0167289179, "jd_tt": 2461591.713172350, "jd_utc": 2461591.712371609, "kind": "aphelion"},
+    {"distance_au": 0.9833073582, "jd_tt": 2461776.020473766, "jd_utc": 2461776.019673025, "kind": "perihelion"},
+    {"distance_au": 1.0166797687, "jd_tt": 2461956.430035721, "jd_utc": 2461956.429234980, "kind": "aphelion"},
+    {"distance_au": 0.9832917329, "jd_tt": 2462139.260211506, "jd_utc": 2462139.259410765, "kind": "perihelion"},
+    {"distance_au": 1.0167127150, "jd_tt": 2462323.717372484, "jd_utc": 2462323.716571743, "kind": "aphelion"},
+    {"distance_au": 0.9833417873, "jd_tt": 2462504.926173201, "jd_utc": 2462504.925372460, "kind": "perihelion"},
+    {"distance_au": 1.0167226500, "jd_tt": 2462687.040884024, "jd_utc": 2462687.040083284, "kind": "aphelion"},
+    {"distance_au": 0.9832664165, "jd_tt": 2462871.367372994, "jd_utc": 2462871.366572253, "kind": "perihelion"},
+    {"distance_au": 1.0166881742, "jd_tt": 2463053.799462766, "jd_utc": 2463053.798662025, "kind": "aphelion"},
+    {"distance_au": 1.0166881742, "jd_tt": 2463053.799475462, "jd_utc": 2463053.798674721, "kind": "aphelion"},
+    {"distance_au": 0.9832468883, "jd_tt": 2463234.717013859, "jd_utc": 2463234.716213118, "kind": "perihelion"},
+    {"distance_au": 1.0167509753, "jd_tt": 2463418.996366222, "jd_utc": 2463418.995565481, "kind": "aphelion"},
+    {"distance_au": 0.9832989498, "jd_tt": 2463601.994779414, "jd_utc": 2463601.993978673, "kind": "perihelion"},
+    {"distance_au": 1.0166936148, "jd_tt": 2463782.370227812, "jd_utc": 2463782.369427071, "kind": "aphelion"},
+    {"distance_au": 0.9832893216, "jd_tt": 2463966.700081162, "jd_utc": 2463966.699280421, "kind": "perihelion"},
+    {"distance_au": 1.0166703199, "jd_tt": 2464150.284995597, "jd_utc": 2464150.284194856, "kind": "aphelion"},
+    {"distance_au": 0.9833249431, "jd_tt": 2464330.538485524, "jd_utc": 2464330.537684783, "kind": "perihelion"},
+    {"distance_au": 1.0167406365, "jd_tt": 2464514.265864932, "jd_utc": 2464514.265064191, "kind": "aphelion"},
+    {"distance_au": 0.9833202055, "jd_tt": 2464698.096025131, "jd_utc": 2464698.095224390, "kind": "perihelion"},
+    {"distance_au": 1.0166632770, "jd_tt": 2464878.387977626, "jd_utc": 2464878.387176885, "kind": "aphelion"},
+    {"distance_au": 0.9832889038, "jd_tt": 2465061.667836480, "jd_utc": 2465061.667035739, "kind": "perihelion"},
+    {"distance_au": 1.0166651451, "jd_tt": 2465246.004586460, "jd_utc": 2465246.003785719, "kind": "aphelion"},
+    {"distance_au": 0.9833548883, "jd_tt": 2465426.710177295, "jd_utc": 2465426.709376554, "kind": "perihelion"},
+    {"distance_au": 1.0166908733, "jd_tt": 2465609.324476883, "jd_utc": 2465609.323676142, "kind": "aphelion"},
+    {"distance_au": 0.9833112633, "jd_tt": 2465793.779699637, "jd_utc": 2465793.778898896, "kind": "perihelion"},
+    {"distance_au": 1.0166588155, "jd_tt": 2465975.060041067, "jd_utc": 2465975.059240326, "kind": "aphelion"},
+    {"distance_au": 1.0166588155, "jd_tt": 2465975.060055174, "jd_utc": 2465975.059254433, "kind": "aphelion"},
+    {"distance_au": 0.9832936501, "jd_tt": 2466156.981921352, "jd_utc": 2466156.981120611, "kind": "perihelion"},
+    {"distance_au": 1.0167271163, "jd_tt": 2466341.293681807, "jd_utc": 2466341.292881066, "kind": "aphelion"},
+    {"distance_au": 0.9833471042, "jd_tt": 2466523.411919237, "jd_utc": 2466523.411118496, "kind": "perihelion"},
+    {"distance_au": 0.9833471042, "jd_tt": 2466523.411934754, "jd_utc": 2466523.411134013, "kind": "perihelion"},
+    {"distance_au": 1.0166886601, "jd_tt": 2466704.569237161, "jd_utc": 2466704.568436420, "kind": "aphelion"},
+    {"distance_au": 0.9833014462, "jd_tt": 2466888.880522231, "jd_utc": 2466888.879721490, "kind": "perihelion"},
+    {"distance_au": 1.0166553937, "jd_tt": 2467072.049370606, "jd_utc": 2467072.048569866, "kind": "aphelion"},
+    {"distance_au": 0.9832882023, "jd_tt": 2467252.428276488, "jd_utc": 2467252.427475747, "kind": "perihelion"},
+    {"distance_au": 1.0167441475, "jd_tt": 2467436.601307349, "jd_utc": 2467436.600506608, "kind": "aphelion"},
+    {"distance_au": 0.9832896225, "jd_tt": 2467620.037105631, "jd_utc": 2467620.036304890, "kind": "perihelion"},
+    {"distance_au": 1.0166959860, "jd_tt": 2467800.142801179, "jd_utc": 2467800.142000438, "kind": "aphelion"},
+    {"distance_au": 0.9832653376, "jd_tt": 2467984.123333002, "jd_utc": 2467984.122532261, "kind": "perihelion"},
+    {"distance_au": 1.0166888270, "jd_tt": 2468168.036176575, "jd_utc": 2468168.035375834, "kind": "aphelion"},
+    {"distance_au": 0.9833450529, "jd_tt": 2468348.540937121, "jd_utc": 2468348.540136380, "kind": "perihelion"},
+    {"distance_au": 1.0167265486, "jd_tt": 2468531.755208173, "jd_utc": 2468531.754407432, "kind": "aphelion"},
+    {"distance_au": 0.9833215945, "jd_tt": 2468715.990040673, "jd_utc": 2468715.989239932, "kind": "perihelion"},
+    {"distance_au": 1.0166728024, "jd_tt": 2468896.773332495, "jd_utc": 2468896.772531754, "kind": "aphelion"},
+    {"distance_au": 0.9832817717, "jd_tt": 2469079.254674837, "jd_utc": 2469079.253874096, "kind": "perihelion"},
+    {"distance_au": 1.0167071527, "jd_tt": 2469263.714541424, "jd_utc": 2469263.713740683, "kind": "aphelion"},
+    {"distance_au": 0.9833342170, "jd_tt": 2469444.936369422, "jd_utc": 2469444.935568681, "kind": "perihelion"},
+    {"distance_au": 1.0166721719, "jd_tt": 2469626.879942559, "jd_utc": 2469626.879141818, "kind": "aphelion"},
+    {"distance_au": 0.9833060446, "jd_tt": 2469811.316866465, "jd_utc": 2469811.316065724, "kind": "perihelion"},
+    {"distance_au": 1.0166284673, "jd_tt": 2469993.582343891, "jd_utc": 2469993.581543150, "kind": "aphelion"},
+    {"distance_au": 0.9833049716, "jd_tt": 2470174.731274139, "jd_utc": 2470174.730473398, "kind": "perihelion"},
+    {"distance_au": 1.0167251812, "jd_tt": 2470358.934044156, "jd_utc": 2470358.933243415, "kind": "aphelion"},
+    {"distance_au": 0.9833360045, "jd_tt": 2470541.888678071, "jd_utc": 2470541.887877330, "kind": "perihelion"},
+    {"distance_au": 1.0166951566, "jd_tt": 2470722.194220690, "jd_utc": 2470722.193419949, "kind": "aphelion"},
+    {"distance_au": 0.9832999825, "jd_tt": 2470906.430145028, "jd_utc": 2470906.429344287, "kind": "perihelion"},
+    {"distance_au": 1.0166677621, "jd_tt": 2471090.021692300, "jd_utc": 2471090.020891559, "kind": "aphelion"},
+    {"distance_au": 0.9833360162, "jd_tt": 2471270.250390193, "jd_utc": 2471270.249589453, "kind": "perihelion"},
+    {"distance_au": 1.0167191066, "jd_tt": 2471454.154597817, "jd_utc": 2471454.153797076, "kind": "aphelion"},
+    {"distance_au": 0.9833059346, "jd_tt": 2471638.017699331, "jd_utc": 2471638.016898590, "kind": "perihelion"},
+    {"distance_au": 1.0166803292, "jd_tt": 2471818.370718519, "jd_utc": 2471818.369917778, "kind": "aphelion"},
+    {"distance_au": 0.9832510240, "jd_tt": 2472001.656521819, "jd_utc": 2472001.655721078, "kind": "perihelion"},
+    {"distance_au": 1.0167106043, "jd_tt": 2472185.871886049, "jd_utc": 2472185.871085308, "kind": "aphelion"},
+    {"distance_au": 0.9833267989, "jd_tt": 2472366.633335490, "jd_utc": 2472366.632534749, "kind": "perihelion"},
+    {"distance_au": 1.0167009089, "jd_tt": 2472549.196201656, "jd_utc": 2472549.195400916, "kind": "aphelion"},
+    {"distance_au": 0.9833281587, "jd_tt": 2472733.667909173, "jd_utc": 2472733.667108432, "kind": "perihelion"},
+    {"distance_au": 1.0166422920, "jd_tt": 2472915.155458407, "jd_utc": 2472915.154657667, "kind": "aphelion"},
+    {"distance_au": 0.9833125271, "jd_tt": 2473096.948279048, "jd_utc": 2473096.947478307, "kind": "perihelion"},
+    {"distance_au": 1.0167173288, "jd_tt": 2473281.393558187, "jd_utc": 2473281.392757446, "kind": "aphelion"},
+    {"distance_au": 0.9833475384, "jd_tt": 2473463.456877908, "jd_utc": 2473463.456077167, "kind": "perihelion"},
+    {"distance_au": 1.0166774306, "jd_tt": 2473644.458587907, "jd_utc": 2473644.457787166, "kind": "aphelion"},
+    {"distance_au": 0.9833019981, "jd_tt": 2473828.815637026, "jd_utc": 2473828.814836286, "kind": "perihelion"}
+  ],
+  "usno": [
+    {"jd_ut": 2447896.224305556, "kind": "perihelion", "time": "1990-01-04T17:23", "year": 1990},
+    {"jd_ut": 2448076.711111111, "kind": "aphelion", "time": "1990-07-04T05:04", "year": 1990},
+    {"jd_ut": 2448259.624305556, "kind": "perihelion", "time": "1991-01-03T02:59", "year": 1991},
+    {"jd_ut": 2448444.143055555, "kind": "aphelion", "time": "1991-07-06T15:26", "year": 1991},
+    {"jd_ut": 2448625.126388889, "kind": "perihelion", "time": "1992-01-03T15:02", "year": 1992},
+    {"jd_ut": 2448807.004861111, "kind": "aphelion", "time": "1992-07-03T12:07", "year": 1992},
+    {"jd_ut": 2448991.627777778, "kind": "perihelion", "time": "1993-01-04T03:04", "year": 1993},
+    {"jd_ut": 2449173.431250000, "kind": "aphelion", "time": "1993-07-04T22:21", "year": 1993},
+    {"jd_ut": 2449354.745833333, "kind": "perihelion", "time": "1994-01-02T05:54", "year": 1994},
+    {"jd_ut": 2449539.303472222, "kind": "aphelion", "time": "1994-07-05T19:17", "year": 1994},
+    {"jd_ut": 2449721.961805556, "kind": "perihelion", "time": "1995-01-04T11:05", "year": 1995},
+    {"jd_ut": 2449902.595138889, "kind": "aphelion", "time": "1995-07-04T02:17", "year": 1995},
+    {"jd_ut": 2450086.809027778, "kind": "perihelion", "time": "1996-01-04T07:25", "year": 1996},
+    {"jd_ut": 2450270.291666667, "kind": "aphelion", "time": "1996-07-05T19:00", "year": 1996},
+    {"jd_ut": 2450450.469444444, "kind": "perihelion", "time": "1997-01-01T23:16", "year": 1997},
+    {"jd_ut": 2450634.304861111, "kind": "aphelion", "time": "1997-07-04T19:19", "year": 1997},
+    {"jd_ut": 2450818.385416667, "kind": "perihelion", "time": "1998-01-04T21:15", "year": 1998},
+    {"jd_ut": 2450998.493055556, "kind": "aphelion", "time": "1998-07-03T23:50", "year": 1998},
+    {"jd_ut": 2451182.041666667, "kind": "perihelion", "time": "1999-01-03T13:00", "year": 1999},
+    {"jd_ut": 2451366.452083333, "kind": "aphelion", "time": "1999-07-06T22:51", "year": 1999},
+    {"jd_ut": 2451546.720833333, "kind": "perihelion", "time": "2000-01-03T05:18", "year": 2000},
+    {"jd_ut": 2451729.492361111, "kind": "aphelion", "time": "2000-07-03T23:49", "year": 2000},
+    {"jd_ut": 2451913.869444444, "kind": "perihelion", "time": "2001-01-04T08:52", "year": 2001},
+    {"jd_ut": 2452095.067361111, "kind": "aphelion", "time": "2001-07-04T13:37", "year": 2001},
+    {"jd_ut": 2452277.089583333, "kind": "perihelion", "time": "2002-01-02T14:09", "year": 2002},
+    {"jd_ut": 2452461.657638889, "kind": "aphelion", "time": "2002-07-06T03:47", "year": 2002},
+    {"jd_ut": 2452643.709722222, "kind": "perihelion", "time": "2003-01-04T05:02", "year": 2003},
+    {"jd_ut": 2452824.736111111, "kind": "aphelion", "time": "2003-07-04T05:40", "year": 2003},
+    {"jd_ut": 2453009.237500000, "kind": "perihelion", "time": "2004-01-04T17:42", "year": 2004},
+    {"jd_ut": 2453191.954166667, "kind": "aphelion", "time": "2004-07-05T10:54", "year": 2004},
+    {"jd_ut": 2453372.524305556, "kind": "perihelion", "time": "2005-01-02T00:35", "year": 2005},
+    {"jd_ut": 2453556.706944444, "kind": "aphelion", "time": "2005-07-05T04:58", "year": 2005},
+    {"jd_ut": 2453740.145833333, "kind": "perihelion", "time": "2006-01-04T15:30", "year": 2006},
+    {"jd_ut": 2453920.465277778, "kind": "aphelion", "time": "2006-07-03T23:10", "year": 2006},
+    {"jd_ut": 2454104.321527778, "kind": "perihelion", "time": "2007-01-03T19:43", "year": 2007},
+    {"jd_ut": 2454288.495138889, "kind": "aphelion", "time": "2007-07-06T23:53", "year": 2007},
+    {"jd_ut": 2454468.493750000, "kind": "perihelion", "time": "2008-01-02T23:51", "year": 2008},
+    {"jd_ut": 2454651.820138889, "kind": "aphelion", "time": "2008-07-04T07:41", "year": 2008},
+    {"jd_ut": 2454836.145833333, "kind": "perihelion", "time": "2009-01-04T15:30", "year": 2009},
+    {"jd_ut": 2455016.569444444, "kind": "aphelion", "time": "2009-07-04T01:40", "year": 2009},
+    {"jd_ut": 2455199.506250000, "kind": "perihelion", "time": "2010-01-03T00:09", "year": 2010},
+    {"jd_ut": 2455383.979166667, "kind": "aphelion", "time": "2010-07-06T11:30", "year": 2010},
+    {"jd_ut": 2455565.272222222, "kind": "perihelion", "time": "2011-01-03T18:32", "year": 2011},
+    {"jd_ut": 2455747.120833333, "kind": "aphelion", "time": "2011-07-04T14:54", "year": 2011},
+    {"jd_ut": 2455931.522222222, "kind": "perihelion", "time": "2012-01-05T00:32", "year": 2012},
+    {"jd_ut": 2456113.647222222, "kind": "aphelion", "time": "2012-07-05T03:32", "year": 2012},
+    {"jd_ut": 2456294.693055556, "kind": "perihelion", "time": "2013-01-02T04:38", "year": 2013},
+    {"jd_ut": 2456479.113888889, "kind": "aphelion", "time": "2013-07-05T14:44", "year": 2013},
+    {"jd_ut": 2456661.998611111, "kind": "perihelion", "time": "2014-01-04T11:58", "year": 2014},
+    {"jd_ut": 2456842.509027778, "kind": "aphelion", "time": "2014-07-04T00:13", "year": 2014},
+    {"jd_ut": 2457026.775000000, "kind": "perihelion", "time": "2015-01-04T06:36", "year": 2015},
+    {"jd_ut": 2457210.319444444, "kind": "aphelion", "time": "2015-07-06T19:40", "year": 2015},
+    {"jd_ut": 2457390.450694445, "kind": "perihelion", "time": "2016-01-02T22:49", "year": 2016},
+    {"jd_ut": 2457574.183333333, "kind": "aphelion", "time": "2016-07-04T16:24", "year": 2016},
+    {"jd_ut": 2457758.095833333, "kind": "perihelion", "time": "2017-01-04T14:18", "year": 2017},
+    {"jd_ut": 2457938.340972222, "kind": "aphelion", "time": "2017-07-03T20:11", "year": 2017},
+    {"jd_ut": 2458121.732638889, "kind": "perihelion", "time": "2018-01-03T05:35", "year": 2018},
+    {"jd_ut": 2458306.199305556, "kind": "aphelion", "time": "2018-07-06T16:47", "year": 2018},
+    {"jd_ut": 2458486.722222222, "kind": "perihelion", "time": "2019-01-03T05:20", "year": 2019},
+    {"jd_ut": 2458669.424305555, "kind": "aphelion", "time": "2019-07-04T22:11", "year": 2019},
+    {"jd_ut": 2458853.825000000, "kind": "perihelion", "time": "2020-01-05T07:48", "year": 2020},
+    {"jd_ut": 2459034.982638889, "kind": "aphelion", "time": "2020-07-04T11:35", "year": 2020},
+    {"jd_ut": 2459217.076388889, "kind": "perihelion", "time": "2021-01-02T13:50", "year": 2021},
+    {"jd_ut": 2459401.435416667, "kind": "aphelion", "time": "2021-07-05T22:27", "year": 2021},
+    {"jd_ut": 2459583.787500000, "kind": "perihelion", "time": "2022-01-04T06:54", "year": 2022},
+    {"jd_ut": 2459764.799305555, "kind": "aphelion", "time": "2022-07-04T07:11", "year": 2022},
+    {"jd_ut": 2459949.178472222, "kind": "perihelion", "time": "2023-01-04T16:17", "year": 2023},
+    {"jd_ut": 2460132.337500000, "kind": "aphelion", "time": "2023-07-06T20:06", "year": 2023},
+    {"jd_ut": 2460312.526388889, "kind": "perihelion", "time": "2024-01-03T00:38", "year": 2024},
+    {"jd_ut": 2460496.712500000, "kind": "aphelion", "time": "2024-07-05T05:06", "year": 2024},
+    {"jd_ut": 2460680.061111111, "kind": "perihelion", "time": "2025-01-04T13:28", "year": 2025},
+    {"jd_ut": 2460860.329861111, "kind": "aphelion", "time": "2025-07-03T19:55", "year": 2025},
+    {"jd_ut": 2461044.218750000, "kind": "perihelion", "time": "2026-01-03T17:15", "year": 2026},
+    {"jd_ut": 2461228.229166667, "kind": "aphelion", "time": "2026-07-06T17:30", "year": 2026},
+    {"jd_ut": 2461408.606250000, "kind": "perihelion", "time": "2027-01-03T02:33", "year": 2027},
+    {"jd_ut": 2461591.712500000, "kind": "aphelion", "time": "2027-07-05T05:06", "year": 2027},
+    {"jd_ut": 2461776.019444444, "kind": "perihelion", "time": "2028-01-05T12:28", "year": 2028},
+    {"jd_ut": 2461956.429166667, "kind": "aphelion", "time": "2028-07-03T22:18", "year": 2028},
+    {"jd_ut": 2462139.259027778, "kind": "perihelion", "time": "2029-01-02T18:13", "year": 2029},
+    {"jd_ut": 2462323.716666667, "kind": "aphelion", "time": "2029-07-06T05:12", "year": 2029},
+    {"jd_ut": 2462504.925000000, "kind": "perihelion", "time": "2030-01-03T10:12", "year": 2030},
+    {"jd_ut": 2462687.039583333, "kind": "aphelion", "time": "2030-07-04T12:57", "year": 2030},
+    {"jd_ut": 2462871.366666667, "kind": "perihelion", "time": "2031-01-04T20:48", "year": 2031},
+    {"jd_ut": 2463053.798611111, "kind": "aphelion", "time": "2031-07-06T07:10", "year": 2031},
+    {"jd_ut": 2463234.715972222, "kind": "perihelion", "time": "2032-01-03T05:11", "year": 2032},
+    {"jd_ut": 2463418.995138889, "kind": "aphelion", "time": "2032-07-05T11:53", "year": 2032},
+    {"jd_ut": 2463601.993750000, "kind": "perihelion", "time": "2033-01-04T11:51", "year": 2033},
+    {"jd_ut": 2463782.369444444, "kind": "aphelion", "time": "2033-07-03T20:52", "year": 2033},
+    {"jd_ut": 2463966.699305556, "kind": "perihelion", "time": "2034-01-04T04:47", "year": 2034},
+    {"jd_ut": 2464150.284027778, "kind": "aphelion", "time": "2034-07-06T18:49", "year": 2034},
+    {"jd_ut": 2464330.537500000, "kind": "perihelion", "time": "2035-01-03T00:54", "year": 2035},
+    {"jd_ut": 2464514.264583333, "kind": "aphelion", "time": "2035-07-05T18:21", "year": 2035},
+    {"jd_ut": 2464698.095138889, "kind": "perihelion", "time": "2036-01-05T14:17", "year": 2036},
+    {"jd_ut": 2464878.386805556, "kind": "aphelion", "time": "2036-07-03T21:17", "year": 2036},
+    {"jd_ut": 2465061.666666667, "kind": "perihelion", "time": "2037-01-03T04:00", "year": 2037},
+    {"jd_ut": 2465246.003472222, "kind": "aphelion", "time": "2037-07-06T12:05", "year": 2037},
+    {"jd_ut": 2465426.709027778, "kind": "perihelion", "time": "2038-01-03T05:01", "year": 2038},
+    {"jd_ut": 2465609.323611111, "kind": "aphelion", "time": "2038-07-04T19:46", "year": 2038},
+    {"jd_ut": 2465793.778472222, "kind": "perihelion", "time": "2039-01-05T06:41", "year": 2039},
+    {"jd_ut": 2465975.059027778, "kind": "aphelion", "time": "2039-07-05T13:25", "year": 2039},
+    {"jd_ut": 2466156.980555556, "kind": "perihelion", "time": "2040-01-03T11:32", "year": 2040},
+    {"jd_ut": 2466341.292361111, "kind": "aphelion", "time": "2040-07-05T19:01", "year": 2040},
+    {"jd_ut": 2466523.411111111, "kind": "perihelion", "time": "2041-01-03T21:52", "year": 2041},
+    {"jd_ut": 2466704.568055556, "kind": "aphelion", "time": "2041-07-04T01:38", "year": 2041},
+    {"jd_ut": 2466888.879166667, "kind": "perihelion", "time": "2042-01-04T09:06", "year": 2042},
+    {"jd_ut": 2467072.048611111, "kind": "aphelion", "time": "2042-07-06T13:10", "year": 2042},
+    {"jd_ut": 2467252.427083333, "kind": "perihelion", "time": "2043-01-02T22:15", "year": 2043},
+    {"jd_ut": 2467436.600000000, "kind": "aphelion", "time": "2043-07-06T02:24", "year": 2043},
+    {"jd_ut": 2467620.036111111, "kind": "perihelion", "time": "2044-01-05T12:52", "year": 2044},
+    {"jd_ut": 2467800.141666667, "kind": "aphelion", "time": "2044-07-03T15:24", "year": 2044},
+    {"jd_ut": 2467984.122222222, "kind": "perihelion", "time": "2045-01-03T14:56", "year": 2045},
+    {"jd_ut": 2468168.035416667, "kind": "aphelion", "time": "2045-07-06T12:51", "year": 2045},
+    {"jd_ut": 2468348.539583333, "kind": "perihelion", "time": "2046-01-03T00:57", "year": 2046},
+    {"jd_ut": 2468531.754166667, "kind": "aphelion", "time": "2046-07-05T06:06", "year": 2046},
+    {"jd_ut": 2468715.988888889, "kind": "perihelion", "time": "2047-01-05T11:44", "year": 2047},
+    {"jd_ut": 2468896.772222222, "kind": "aphelion", "time": "2047-07-05T06:32", "year": 2047},
+    {"jd_ut": 2469079.253472222, "kind": "perihelion", "time": "2048-01-03T18:05", "year": 2048},
+    {"jd_ut": 2469263.713194444, "kind": "aphelion", "time": "2048-07-06T05:07", "year": 2048},
+    {"jd_ut": 2469444.935416667, "kind": "perihelion", "time": "2049-01-03T10:27", "year": 2049},
+    {"jd_ut": 2469626.879166667, "kind": "aphelion", "time": "2049-07-04T09:06", "year": 2049},
+    {"jd_ut": 2469811.315972222, "kind": "perihelion", "time": "2050-01-04T19:35", "year": 2050},
+    {"jd_ut": 2469993.581250000, "kind": "aphelion", "time": "2050-07-06T01:57", "year": 2050},
+    {"jd_ut": 2470174.729861111, "kind": "perihelion", "time": "2051-01-03T05:31", "year": 2051},
+    {"jd_ut": 2470358.932638889, "kind": "aphelion", "time": "2051-07-06T10:23", "year": 2051},
+    {"jd_ut": 2470541.887500000, "kind": "perihelion", "time": "2052-01-05T09:18", "year": 2052},
+    {"jd_ut": 2470722.193055556, "kind": "aphelion", "time": "2052-07-03T16:38", "year": 2052},
+    {"jd_ut": 2470906.429166667, "kind": "perihelion", "time": "2053-01-03T22:18", "year": 2053},
+    {"jd_ut": 2471090.020833333, "kind": "aphelion", "time": "2053-07-06T12:30", "year": 2053},
+    {"jd_ut": 2471270.249305556, "kind": "perihelion", "time": "2054-01-02T17:59", "year": 2054},
+    {"jd_ut": 2471454.153472222, "kind": "aphelion", "time": "2054-07-05T15:41", "year": 2054},
+    {"jd_ut": 2471638.016666667, "kind": "perihelion", "time": "2055-01-05T12:24", "year": 2055},
+    {"jd_ut": 2471818.369444444, "kind": "aphelion", "time": "2055-07-04T20:52", "year": 2055},
+    {"jd_ut": 2472001.655555556, "kind": "perihelion", "time": "2056-01-04T03:44", "year": 2056},
+    {"jd_ut": 2472185.870833333, "kind": "aphelion", "time": "2056-07-06T08:54", "year": 2056},
+    {"jd_ut": 2472366.631944444, "kind": "perihelion", "time": "2057-01-03T03:10", "year": 2057},
+    {"jd_ut": 2472549.195138889, "kind": "aphelion", "time": "2057-07-04T16:41", "year": 2057},
+    {"jd_ut": 2472733.666666667, "kind": "perihelion", "time": "2058-01-05T04:00", "year": 2058},
+    {"jd_ut": 2472915.154166667, "kind": "aphelion", "time": "2058-07-05T15:42", "year": 2058},
+    {"jd_ut": 2473096.947222222, "kind": "perihelion", "time": "2059-01-03T10:44", "year": 2059},
+    {"jd_ut": 2473281.392361111, "kind": "aphelion", "time": "2059-07-06T21:25", "year": 2059},
+    {"jd_ut": 2473463.455555555, "kind": "perihelion", "time": "2060-01-04T22:56", "year": 2060},
+    {"jd_ut": 2473644.457638889, "kind": "aphelion", "time": "2060-07-03T22:59", "year": 2060}
+  ]
+}

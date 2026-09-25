@@ -3629,3 +3629,432 @@ export function isTidePackNotLoaded(error: unknown): boolean {
   const text = error instanceof Error ? error.message : String(error);
   return text.includes('pack_not_loaded');
 }
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — planet detail (planetdetail agent, P9). Rust:
+// crates/skyfix-wasm/src/planetdetail.rs over skyfix_almanac::{discs, rings,
+// satellites, transits, conjunctions, earth_apsides, orbits}. Wire format:
+// docs/EXPLORER_API.md, "Planet detail"; definitions: CONVENTIONS §13.12.
+// ---------------------------------------------------------------------------------
+
+export type GalileanMoonName = 'Io' | 'Europa' | 'Ganymede' | 'Callisto';
+
+/** Jupiter as the moons' diagram needs it. */
+export interface JupiterFrame {
+  distance_au: number;
+  light_time_s: number;
+  /** Apparent radii of the disc, arcseconds. */
+  equatorial_radius_arcsec: number;
+  polar_radius_arcsec: number;
+  /** Position angle of Jupiter's north pole, north through east. */
+  pole_position_angle_deg: number;
+  /** Planetocentric latitude of the Earth seen from Jupiter. */
+  sub_earth_lat_deg: number;
+  ra_deg: number;
+  dec_deg: number;
+  /** Angle from the Sun seen from the Earth. */
+  elongation_deg: number;
+}
+
+export interface GalileanMoon {
+  name: GalileanMoonName;
+  /** Along Jupiter's equator, positive west, in Jupiter's apparent equatorial radii. */
+  x_rj: number;
+  /** Toward Jupiter's projected north pole, same unit. */
+  y_rj: number;
+  /** Depth along the line of sight, same unit; positive = farther than Jupiter. */
+  z_rj: number;
+  /** Offset from Jupiter's centre on the sky (true equator of date), arcseconds. */
+  offset_east_arcsec: number;
+  offset_north_arcsec: number;
+  ra_deg: number;
+  dec_deg: number;
+  in_front: boolean;
+  in_transit: boolean;
+  occulted: boolean;
+  eclipsed: boolean;
+  shadow_on_disc: boolean;
+  /** Where its shadow is on the disc (same axes and unit), or null. */
+  shadow_x_rj: number | null;
+  shadow_y_rj: number | null;
+}
+
+export interface GalileanMoons {
+  jd_utc: number;
+  utc: string;
+  jupiter: JupiterFrame;
+  moons: GalileanMoon[];
+  theory: string;
+  /** Worst error of the moons' offsets measured against JPL (arcseconds). */
+  accuracy_arcsec: number;
+}
+
+export type GalileanPhenomenonKind = 'transit' | 'shadow_transit' | 'occultation' | 'eclipse';
+
+export interface GalileanInstant {
+  jd_utc: number;
+  utc: string;
+  /** False when another phenomenon hides the moment (an eclipse behind Jupiter). */
+  observable: boolean;
+}
+
+export interface GalileanPhenomenon {
+  moon: GalileanMoonName;
+  kind: GalileanPhenomenonKind;
+  start: GalileanInstant;
+  end: GalileanInstant;
+  /** Jupiter's angle from the Sun at the start (nothing is visible within ~15°). */
+  jupiter_elongation_deg: number;
+}
+
+export interface GalileanEvents {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  /** Every phenomenon overlapping the window, sorted by start. */
+  phenomena: GalileanPhenomenon[];
+  conventions: string;
+}
+
+export interface SaturnRingEdge {
+  name: string;
+  radius_km: number;
+  major_axis_arcsec: number;
+  minor_axis_arcsec: number;
+}
+
+export interface SaturnRings {
+  jd_utc: number;
+  utc: string;
+  /** B: the Earth's latitude above the ring plane (positive: north face seen). */
+  earth_latitude_deg: number;
+  /** B′: the Sun's (positive: north face lit). */
+  sun_latitude_deg: number;
+  delta_u_deg: number;
+  /** P: position angle of the ring's northern minor axis. */
+  position_angle_deg: number;
+  /** Outer edge of the A ring. */
+  major_axis_arcsec: number;
+  minor_axis_arcsec: number;
+  edges: SaturnRingEdge[];
+  north_face_visible: boolean;
+  /** False when the rings are seen from their unlit side. */
+  lit_face_visible: boolean;
+  distance_au: number;
+  heliocentric_distance_au: number;
+  /** Astronomical Almanac 1984 / Meeus 41 magnitude, for comparison with printed almanacs. */
+  magnitude_aa1984: number;
+  /** The explorer's magnitude (Mallama & Hilton 2018). */
+  magnitude: number | null;
+}
+
+export interface PlanetCentralMeridian {
+  system: 'I' | 'II' | 'III' | 'IAU';
+  longitude_deg: number;
+}
+
+export interface PlanetDisc {
+  body: string;
+  jd_utc: number;
+  utc: string;
+  distance_au: number;
+  light_time_s: number;
+  equatorial_diameter_arcsec: number;
+  polar_diameter_arcsec: number;
+  phase_angle_deg: number;
+  illuminated_fraction: number;
+  defect_of_illumination_arcsec: number;
+  bright_limb_angle_deg: number;
+  pole_position_angle_deg: number;
+  /** Planetocentric; `_graphic` on the IAU reference ellipsoid. */
+  sub_earth_lat_deg: number;
+  sub_earth_lat_graphic_deg: number;
+  sub_earth_lon_deg: number;
+  sub_solar_lat_deg: number;
+  sub_solar_lat_graphic_deg: number;
+  sub_solar_lon_deg: number;
+  /** IAU planetographic sense of every longitude in the object. */
+  longitude_positive: 'west' | 'east';
+  /** Jupiter I, II, III; Saturn and Uranus III; the others IAU. */
+  central_meridians: PlanetCentralMeridian[];
+  magnitude: number | null;
+  rotation_model: string;
+  notes: string[];
+}
+
+export type PlanetTransitContactKind = 'c1' | 'c2' | 'greatest' | 'c3' | 'c4';
+
+export interface PlanetTransitContact {
+  kind: PlanetTransitContactKind;
+  jd_utc: number;
+  utc: string;
+  jd_tt: number;
+  /** On the Sun's disc, from the north point through east. */
+  position_angle_deg: number;
+  separation_arcsec: number;
+}
+
+export interface PlanetTransitPathPoint {
+  jd_utc: number;
+  /** The planet's centre relative to the Sun's, toward celestial east and north. */
+  east_arcsec: number;
+  north_arcsec: number;
+}
+
+export interface PlanetTransitLocalEvent {
+  kind: PlanetTransitContactKind | 'sunrise' | 'sunset';
+  jd_utc: number;
+  utc: string;
+  sun_alt_deg: number;
+  sun_az_deg: number;
+  /** The Sun is above its rise/set altitude (−50′). */
+  visible: boolean;
+  position_angle_deg: number;
+  /** From the point of the Sun's limb nearest the zenith. */
+  vertex_angle_deg: number;
+  separation_arcsec: number;
+}
+
+export interface PlanetTransitLocal {
+  observer: { lat_deg: number; lon_deg: number; height_m: number };
+  visibility: 'visible' | 'partly_below_horizon' | 'below_horizon' | 'none';
+  events: PlanetTransitLocalEvent[];
+  path: PlanetTransitPathPoint[];
+}
+
+export interface PlanetTransit {
+  /** `"2012-06-06-venus"`. */
+  id: string;
+  planet: 'Mercury' | 'Venus';
+  /** Seen from the Earth's centre, in time order. */
+  contacts: PlanetTransitContact[];
+  min_separation_arcsec: number;
+  sun_semidiameter_arcsec: number;
+  planet_semidiameter_arcsec: number;
+  /** No contacts II and III. */
+  grazing: boolean;
+  duration_s: number;
+  path: PlanetTransitPathPoint[];
+  tt_minus_utc_s: number;
+  /** Present when an observer was given. */
+  local: PlanetTransitLocal | null;
+}
+
+export interface PlanetTransitList {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  transits: PlanetTransit[];
+  conventions: string;
+}
+
+export type ConjunctionKind = 'planet_planet' | 'moon_planet' | 'planet_star' | 'moon_star';
+
+export interface ConjunctionOptions {
+  /** Default all seven planets. */
+  planets?: string[];
+  /** Include the Moon (default true). */
+  moon?: boolean;
+  /** Navigational star names; default Aldebaran, Regulus, Spica, Antares. */
+  stars?: string[];
+  /** Largest separation reported, 0.1–20° (default 5). */
+  max_separation_deg?: number;
+  /** Least elongation from the Sun for `visible` (default 15°). */
+  min_sun_elongation_deg?: number;
+  observer?: Observer;
+}
+
+export interface ConjunctionView {
+  jd_utc: number;
+  utc: string;
+  body_alt_deg: number;
+  other_alt_deg: number;
+  sun_alt_deg: number;
+}
+
+export interface ConjunctionLocal {
+  /** Apparent altitudes at closest approach. */
+  body_alt_deg: number;
+  other_alt_deg: number;
+  sun_alt_deg: number;
+  /** Within 12 h, when the lower body stands highest with the Sun below −6°; null if never. */
+  best: ConjunctionView | null;
+}
+
+export interface Conjunction {
+  kind: ConjunctionKind;
+  /** The Moon, else the planet (the inner of two). */
+  body: string;
+  other: string;
+  jd_utc: number;
+  utc: string;
+  separation_deg: number;
+  /** Of `body` seen from `other`, north through east. */
+  position_angle_deg: number;
+  ra_deg: number;
+  dec_deg: number;
+  body_elongation_deg: number;
+  other_elongation_deg: number;
+  body_magnitude: number | null;
+  other_magnitude: number | null;
+  /** Both at least `min_sun_elongation_deg` from the Sun. */
+  visible: boolean;
+  local: ConjunctionLocal | null;
+}
+
+export interface ConjunctionList {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  conjunctions: Conjunction[];
+}
+
+export type PlanetStationKind = 'retrograde_begins' | 'retrograde_ends';
+export type PlanetStationCoordinate = 'ecliptic_longitude' | 'right_ascension';
+
+export interface PlanetStation {
+  body: string;
+  kind: PlanetStationKind;
+  coordinate: PlanetStationCoordinate;
+  jd_utc: number;
+  utc: string;
+  /** The coordinate's value at the station. */
+  angle_deg: number;
+  ra_deg: number;
+  dec_deg: number;
+  ecliptic_longitude_deg: number;
+  elongation_deg: number;
+  magnitude: number | null;
+}
+
+export interface PlanetStationList {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  /** Both coordinates, sorted by time. */
+  stations: PlanetStation[];
+  /** What the explorer shows: `"ecliptic_longitude"`. */
+  ui_coordinate: PlanetStationCoordinate;
+}
+
+export interface EarthApsisEvent {
+  kind: 'perihelion' | 'aphelion';
+  jd_utc: number;
+  utc: string;
+  distance_au: number;
+  distance_km: number;
+}
+
+export interface EarthApsides {
+  year: number;
+  events: EarthApsisEvent[];
+}
+
+export type OrbitClass = 'asteroid' | 'comet';
+
+export type OrbitMagnitudeModel =
+  | { model: 'hg'; h: number; g: number }
+  | { model: 'comet'; m1: number; k1: number }
+  | { model: 'none' };
+
+/** Heliocentric osculating elements, J2000.0 ecliptic; times TT Julian dates. */
+export interface OrbitalElements {
+  name: string;
+  designation: string | null;
+  class: OrbitClass;
+  epoch_jd_tt: number | null;
+  perihelion_distance_au: number;
+  eccentricity: number;
+  inclination_deg: number;
+  ascending_node_deg: number;
+  argument_of_perihelion_deg: number;
+  perihelion_jd_tt: number;
+  magnitude: OrbitMagnitudeModel;
+  source: 'mpcorb' | 'mpc_comet' | 'manual';
+}
+
+/** Elements typed in by hand: q or a; the perihelion time or a mean anomaly at the epoch. */
+export interface ManualOrbitalElements {
+  name: string;
+  class?: OrbitClass;
+  epoch_jd_tt?: number;
+  /** RFC 3339 read on the TT scale. */
+  epoch_tt?: string;
+  q_au?: number;
+  a_au?: number;
+  e: number;
+  i_deg: number;
+  node_deg: number;
+  peri_deg: number;
+  tp_jd_tt?: number;
+  tp_tt?: string;
+  mean_anomaly_deg?: number;
+  h?: number;
+  g?: number;
+  m1?: number;
+  k1?: number;
+}
+
+export type CustomBodyInput = OrbitalElements | ManualOrbitalElements;
+
+/** `BodyState` for a comet or an asteroid, with the orbit's own quantities. */
+export interface CustomBodyState extends Omit<BodyState, 'kind'> {
+  kind: OrbitClass;
+  custom: true;
+  distance_au: number;
+  heliocentric_distance_au: number;
+  /** Days from the elements' epoch (or perihelion time). */
+  elements_age_days: number;
+  /** Staleness warnings (past 30 days from the epoch). */
+  warnings: string[];
+}
+
+export interface CustomBodyStates {
+  jd_utc: number;
+  utc: string;
+  bodies: CustomBodyState[];
+  errors: BodyError[];
+}
+
+/** Planet detail (expansion programme). Behind a type guard, like the eclipse engine. */
+export interface PlanetDetailEngine {
+  galileanMoons(jdUtc: number): GalileanMoons;
+  /** Up to 400 days; a month takes under 0.1 s natively. */
+  galileanEvents(jdStart: number, jdEnd: number): GalileanEvents;
+  saturnRings(jdUtc: number): SaturnRings;
+  planetDisc(body: string, jdUtc: number): PlanetDisc;
+  /** With an observer, each transit gains `local`. */
+  transits(jdStart: number, jdEnd: number, observer?: Observer): PlanetTransitList;
+  /** Up to ten years; a year of the default bodies takes about 0.22 s natively. */
+  conjunctions(jdStart: number, jdEnd: number, options?: ConjunctionOptions): ConjunctionList;
+  stations(jdStart: number, jdEnd: number): PlanetStationList;
+  earthApsides(year: number): EarthApsides;
+  /** MPCORB lines, MPC comet lines or JSON elements. Throws an Error naming the bad line or field. */
+  parseOrbits(text: string): OrbitalElements[];
+  customBodyStates(observer: Observer, jdUtc: number, bodies: CustomBodyInput[]): CustomBodyStates;
+  /** The shape of `sampleBodies`; at most 5,000 samples per body. */
+  sampleCustomBodies(
+    observer: Observer,
+    bodies: CustomBodyInput[],
+    jdStart: number,
+    jdEnd: number,
+    stepMinutes: number,
+  ): Sampled;
+}
+
+/** True when `engine` has the planet-detail calls (the memoised engine must forward them). */
+export function isPlanetDetailEngine(engine: unknown): engine is PlanetDetailEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<PlanetDetailEngine>;
+  return (
+    typeof e.galileanMoons === 'function' &&
+    typeof e.conjunctions === 'function' &&
+    typeof e.parseOrbits === 'function'
+  );
+}

@@ -137,3 +137,14 @@ This file is the single list; the completion report links here.
 | Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
 | Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
 | Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |
+
+## Expansion programme — planet detail (planetdetail agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Galilean moons, Saturn's rings, planet discs, transits of Mercury and Venus with local circumstances, conjunctions and stations, the Earth's apsides, comets and asteroids from supplied elements | completed (engine) | `skyfix_almanac::{satellites, rings, discs, transits, conjunctions, earth_apsides, orbits}`, exports in `crates/skyfix-wasm/src/planetdetail.rs`, `PlanetDetailEngine` in types.ts with the mock; `docs/ACCURACY.md` section 17. The eyepiece insets are wave 2 (Q3), the lists wave 2 (Q4) |
+| The Great Red Spot's longitude | unstarted, by decision | It drifts in System II by tens of degrees a year, irregularly, so no compiled value stays right; a value the person types in (from ALPO's or the BAA's current reports) would place it |
+| Galilean phenomena to seconds | unstarted | E5 puts them 23 s (Io) to 97 s (Ganymede) from JPL; a steady per-moon along-track correction fitted to jup365, or JPL's own satellite series in a pack, would bring them under 10 s |
+| Transit contacts as seen (black drop, irradiation) | unstarted | Contacts are geometric (the discs' tangencies); what an observer times differs by several seconds, and no published model is simple enough to be worth it |
+| Perturbed orbits for supplied elements | unstarted | Two-body only; a numerical integration with the planets would keep near-Earth objects and Jupiter-passing comets right for months after their epoch |
+| Core-module size | noted | The package adds 191 KB raw and 77 KB gzipped on main 3f4fe4e, taking the module to 2 997 407 / 1 231 646 bytes, 2.6 KB under the 3 MB raw budget (mostly code: E5, the searches, the MPC parser, the serialisation of eleven calls). `opt-level = "z"` (the polish agent's lever) or a lazily loaded second module would restore headroom |
