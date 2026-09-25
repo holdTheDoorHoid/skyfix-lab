@@ -524,7 +524,7 @@ mod tests {
             Warning::SuppliedDirectionUsed { id: "obs-1".into() },
             Warning::EphemerisCoverageLimited {
                 provider: "p".into(),
-                coverage: "1990..2060".into(),
+                coverage: "1550..2650".into(),
             },
             Warning::PoorGeometry {
                 condition_number: 42.0,
