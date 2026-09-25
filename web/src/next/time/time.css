@@ -1,0 +1,95 @@
+/*
+ * Deep time in the interface: the ±ΔT chip, the calendar tag, and the coverage table.
+ * OWNER: time-ui agent. Colours come from the --ui-* variables (theme/components.css), so
+ * the same markup works on the chrome and on the stage, and the night theme stays red.
+ */
+
+/* The ±ΔT chip beside a time: a small outlined label, never colour alone. */
+.sf-dt-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 5px;
+  border: 1px solid var(--ui-line-strong);
+  border-radius: var(--radius-xs);
+  color: var(--ui-ink-2);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  white-space: nowrap;
+  vertical-align: 0.1em;
+  cursor: help;
+}
+
+.sf-dt-chip[hidden] {
+  display: none;
+}
+
+/* In the labelled tier the chip's edge takes the caution colour: an estimate. */
+.sf-dt-chip[data-tier='labelled'] {
+  border-color: var(--caution);
+}
+
+.sf-dt-chip:focus-visible {
+  outline: 2px solid var(--ui-focus);
+  outline-offset: 1px;
+}
+
+/* The calendar a date is in ("Julian", "ISO"), beside the date. */
+.sf-cal-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 17px;
+  padding: 0 5px;
+  border-radius: var(--radius-xs);
+  background: var(--ui-raised-2);
+  color: var(--ui-ink-2);
+  font-size: var(--text-2xs);
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: help;
+}
+
+.sf-cal-tag:empty,
+.sf-cal-tag[hidden] {
+  display: none;
+}
+
+/* --- The coverage table (About / Help) ------------------------------------------------ */
+
+.sf-coverage {
+  display: grid;
+  gap: 10px;
+}
+
+.sf-coverage__tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.sf-coverage__tier[data-tier='labelled'] {
+  color: var(--ui-ink-2);
+}
+
+.sf-coverage__span {
+  color: var(--ui-ink-2);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.sf-coverage__note {
+  color: var(--ui-ink-3);
+  font-size: var(--text-sm);
+}
+
+.sf-coverage table td,
+.sf-coverage table th {
+  vertical-align: top;
+}
