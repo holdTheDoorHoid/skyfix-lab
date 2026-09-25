@@ -72,8 +72,8 @@ export function runningMethod(host: HTMLElement, nc: NavCtx): Mounted {
   f.track(store.select((w) => w.running.legs, renderLegs));
   renderLegs();
 
-  const reference = optionalUtcField(nc, 'Fix for the moment (UTC)', 'the time of the last sight', () => store.get().running.referenceUtc, (v) => set({ referenceUtc: v }));
-  const end = optionalUtcField(nc, 'The run ends (UTC)', 'it goes on past the last sight', () => store.get().running.endUtc, (v) => set({ endUtc: v }));
+  const reference = optionalUtcField(nc, 'Fix for the moment', 'the time of the last sight', () => store.get().running.referenceUtc, (v) => set({ referenceUtc: v }));
+  const end = optionalUtcField(nc, 'The run ends', 'it goes on past the last sight', () => store.get().running.endUtc, (v) => set({ endUtc: v }));
   const speedSigma = numberField('Speed uncertainty (knots, 1 sigma)', { min: 0 }, () => store.get().running.speedSigmaKn, (v) => set({ speedSigmaKn: v }));
   const courseSigma = numberField('Course uncertainty (°, 1 sigma)', { min: 0 }, () => store.get().running.courseSigmaDeg, (v) => set({ courseSigmaDeg: v }));
   const walk = numberField('Random drift (NM per √hour)', { min: 0 }, () => store.get().running.walkNmPerSqrtHour, (v) => set({ walkNmPerSqrtHour: v }));

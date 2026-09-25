@@ -22,7 +22,7 @@ export function averageMethod(host: HTMLElement, nc: NavCtx): Mounted {
   const store = nc.working.store;
   const set = (patch: Partial<AverageForm>): void => store.patch({ average: { ...store.get().average, ...patch } });
   const body = runBodySelect(nc, f.track, () => store.get().average.body, (v) => set({ body: v }), 'Body of the run');
-  const reference = optionalUtcField(nc, 'Average for the moment (UTC)', 'the middle of the run, where the average is best', () => store.get().average.referenceUtc, (v) => set({ referenceUtc: v }));
+  const reference = optionalUtcField(nc, 'Average for the moment', 'the middle of the run, where the average is best', () => store.get().average.referenceUtc, (v) => set({ referenceUtc: v }));
   const drSigma = drSigmaField(() => store.get().average.drSigmaNm, (v) => set({ drSigmaNm: v }));
   const vessel = vesselFields(() => store.get().average.vessel, (v) => set({ vessel: v }));
   const reject = checkbox('Leave out a sight that does not fit', store.get().average.rejectOutliers, (v) => set({ rejectOutliers: v }), 'One at a time, worst first, while three or more remain.');

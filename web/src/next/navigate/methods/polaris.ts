@@ -51,7 +51,7 @@ export function polarisMethod(host: HTMLElement, nc: NavCtx): Mounted {
   const set = (patch: Partial<PolarisForm>): void => store.patch({ polaris: { ...store.get().polaris, ...patch } });
   const drSigma = drSigmaField(() => store.get().polaris.drSigmaNm, (v) => set({ drSigmaNm: v }));
   const vessel = vesselFields(() => store.get().polaris.vessel, (v) => set({ vessel: v }));
-  const reference = optionalUtcField(nc, 'Latitude for the moment (UTC)', 'the time of the last Polaris sight', () => store.get().polaris.referenceUtc, (v) => set({ referenceUtc: v }));
+  const reference = optionalUtcField(nc, 'Latitude for the moment', 'the time of the last Polaris sight', () => store.get().polaris.referenceUtc, (v) => set({ referenceUtc: v }));
   f.inputs.append(
     drLine(nc, f.track),
     para('Polaris sights only: the DR’s LONGITUDE matters here, because it sets where Polaris is in its small circle round the pole.', 'sfn-note'),

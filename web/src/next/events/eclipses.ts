@@ -979,7 +979,8 @@ export const eclipsesTab: TabComponent = (host, env) => {
     }
     const cal = calendarNote(items.map((e) => e.greatest.jd_utc).slice(0, 1).concat(items.map((e) => e.greatest.jd_utc).slice(-1)), st.zone);
     if (cal) notes.push(h('p', { class: 'sfe-note' }, cal));
-    if (truncated) {
+    // The empty list's sentence already names the years: no second one (polish2).
+    if (truncated && shown.length) {
       const a = ui.get().anchor;
       const days = ui.get().eclipseYears * YEAR_DAYS;
       notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + days : a - days, eclipseSpan()));

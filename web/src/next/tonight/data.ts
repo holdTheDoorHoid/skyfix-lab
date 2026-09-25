@@ -166,7 +166,7 @@ export function loadCore(ctx: Pick<Ctx, 'engine'>, q: NightQuery): NightCore {
   if (!inside) return core;
   core.day = tryCall(errors, 'Rising and setting', () => engine.dayEvents(q.observer, q.n, q.n + 1, 'solar_system', q.options));
   if (isDeepSkyEngine(engine)) {
-    core.tonight = tryCall(errors, 'Tonight’s sky', () => engine.tonight(q.observer, nightProbe(q.n), { ...q.conditions, limit: q.limit }));
+    core.tonight = tryCall(errors, 'Planets, deep sky and meteor showers', () => engine.tonight(q.observer, nightProbe(q.n), { ...q.conditions, limit: q.limit }));
   } else missing.push('deep sky');
   if (isSunToolsEngine(engine)) {
     core.sunHours = tryCall(errors, 'Golden and blue hours', () => engine.sunHours(q.observer, q.n, q.n + 1));

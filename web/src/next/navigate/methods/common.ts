@@ -204,11 +204,20 @@ export function runBodySelect(nc: NavCtx, track: Track, read: () => string | nul
  * when that time carries an uncertainty (polish2, list item 33: the running fix, noon,
  * lunar, Polaris, average, plan, compass and passage fields said "(UTC)" in any year).
  */
-export function optionalUtcField(nc: NavCtx, label: string, emptyMeans: string, read: () => string | null, commit: (v: string | null) => void): ParsedField {
-  const m = /^(.*) \(UTC(, [^)]*)?\)$/.exec(label);
+export function optionalUtcField(
+  nc: NavCtx,
+  label: string,
+  emptyMeans: string,
+  read: () => string | null,
+  commit: (v: string | null) => void,
+  note = '',
+): ParsedField {
+  // `label` is the words alone ("Fix for the moment"); the clock's word, and `note`
+  // ("optional"), go in brackets after it.
+  const labelAt = (jd: number): string => `${label} (${scaleLabel(jd)}${note ? `, ${note}` : ''})`;
   const chip = uncertaintyChip(null);
-  const f = parsedField<string | null>(label, {
-    help: `UTC. Empty: ${emptyMeans}.`,
+  const f = parsedField<string | null>(labelAt(nc.ctx.store.get().time.jd_utc), {
+    help: `Empty: ${emptyMeans}.`,
     placeholder: 'yyyy-mm-dd hh:mm:ss',
     size: 20,
     aside: chip,
@@ -223,7 +232,7 @@ export function optionalUtcField(nc: NavCtx, label: string, emptyMeans: string, 
     const typed = v ? jdFromIso(v) : null;
     const jd = typed ?? nc.ctx.store.get().time.jd_utc;
     const word = scaleLabel(jd);
-    const text = m ? `${m[1]} (${word}${m[2] ?? ''})` : label;
+    const text = labelAt(jd);
     if (text !== shown) {
       shown = text;
       f.parts.setLabel(text);

@@ -128,7 +128,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   // navigate2 (time-ui helpers): the ±ΔT chip beside the time, shown when the Earth's rotation
   // then is uncertain by more than 30 s; the label's clock word follows the typed time.
   const timeChip = uncertaintyChip(null);
-  const timeField = field('Time of the sight (UTC)', timeInput, { help: null, aside: timeChip });
+  const timeField = field(`Time of the sight (${scaleLabel(nc.ctx.store.get().time.jd_utc)})`, timeInput, { help: null, aside: timeChip });
   const nowBtn = btn('Now', () => setTime(isoUtc(jdNow())), { tip: 'The time on this computer’s clock, now', variant: 'outline' });
   const barBtn = btn('Time bar', () => setTime(isoUtc(nc.ctx.store.get().time.jd_utc)), { tip: 'The time shown on the explorer’s time bar', variant: 'ghost' });
   const timeRow = h('div', { class: 'sfn-entry__time' }, timeField.el, h('div', { class: 'sfn-entry__time-buttons' }, nowBtn, barBtn));
