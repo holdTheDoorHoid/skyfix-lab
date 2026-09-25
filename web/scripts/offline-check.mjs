@@ -259,6 +259,7 @@ async function session(profile) {
   };
   const s = {
     send,
+    on,
     evaluate,
     waitFor,
     exceptions,
@@ -634,14 +635,28 @@ async function upgrade(way, server, profile, build) {
   const servedOld = await s.waitFor(oldReady, 30000);
   if (tag === 'reopen') {
     // The new version installs while the old page is open; then every page of the site is
-    // closed, and the app opened again at its old start address.
+    // closed, and the app opened again at its old start address. The browser activates the
+    // waiting version once the old one has no page and no work left (a fetch it is still
+    // finishing); a person reopens the app much later than that, so wait for it rather
+    // than for a fixed time (DevTools' ServiceWorker domain reports each version's state).
     const waiting = await s.waitFor('navigator.serviceWorker.getRegistration().then((r) => !!r?.waiting)', 60000);
+    const versions = new Map();
+    s.on('ServiceWorker.workerVersionUpdated', (p) => {
+      for (const v of p.versions) versions.set(v.versionId, v.status);
+    });
+    await s.send('ServiceWorker.enable');
+    await sleep(500);
+    const waitingIds = [...versions].filter(([, status]) => status === 'installed').map(([id]) => id);
     await s.navigate('about:blank');
-    await sleep(1500);
+    const end = Date.now() + 30000;
+    while (Date.now() < end && !waitingIds.some((id) => versions.get(id) === 'activated')) await sleep(200);
+    const activated = waitingIds.some((id) => versions.get(id) === 'activated');
+    await s.send('ServiceWorker.disable');
     await s.navigate(start);
     check(
-      `upgrade (${way}): the old copy serves the page until then, and the app reopens on the explorer at the home page`,
-      servedOld && waiting && (await s.waitFor(AT_HOME, 60000)),
+      `upgrade (${way}): the old copy serves the page until then, the new version takes over once every page is closed, and the app reopens on the explorer at the home page`,
+      servedOld && waiting && activated && (await s.waitFor(AT_HOME, 60000)),
+      `served by the old copy: ${servedOld}; new version waiting: ${waiting}; activated after closing: ${activated}`,
     );
   } else {
     const prompt = tag === 'workbench' ? `document.querySelector('.sw-prompt')` : `document.querySelector('.sf-pwa__card[data-kind="update"]')`;
@@ -662,8 +677,17 @@ async function upgrade(way, server, profile, build) {
     !(precacheName(old.version) in after) && after[precacheName(build.version)]?.length === build.entries.length,
     Object.keys(after).join(', '),
   );
-  const refetched = [...new Set(server.log)].filter((p) => /\/data\/|\.woff2$|\.wasm$/.test(p));
-  check(`upgrade (${way}): unchanged files (map data, fonts, the engine) are reused, not downloaded again`, refetched.length === 0, refetched.join(', ') || 'none downloaded');
+  // Files both versions precache with the same content: never downloaded again. (A file
+  // that changed, the engine included when the crates did, is downloaded, as it must be.)
+  const oldRevs = new Map(old.entries.map((e) => [e.url, e.rev]));
+  const unchanged = new Set(build.entries.filter((e) => oldRevs.get(e.url) === e.rev).map((e) => `${PREFIX}${e.url}`));
+  const refetched = [...new Set(server.log)].filter((p) => unchanged.has(p));
+  const heavy = [...unchanged].filter((p) => /\/data\/|\.woff2$|\.wasm$/.test(p)).length;
+  check(
+    `upgrade (${way}): unchanged files (map data, fonts, the engine when it did not change) are reused, not downloaded again`,
+    refetched.length === 0,
+    `${unchanged.size} unchanged files (${heavy} of them map data, fonts or the engine); downloaded again: ${refetched.join(', ') || 'none'}`,
+  );
 
   // Offline afterwards: the old start address and old share links still work.
   await server.stop();
