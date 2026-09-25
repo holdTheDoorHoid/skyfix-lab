@@ -9,9 +9,11 @@ sources and licence: `docs/THIRD_PARTY.md`, "Tides".
 
 ## The pipeline
 
-Run from the repository root, in this order. Everything NOAA serves is cached byte for
-byte under `tools/tides/cache/` (git-ignored), with its URL, retrieval time and SHA-256
-in `cache/manifest.json`; a re-run asks NOAA only for what is missing.
+`make -C tools/tides` runs it all (`make -C tools/tides offline` from the cache only,
+which reproduces the committed fixtures and pack byte for byte); the steps, run from the
+repository root, are below. Everything NOAA serves is cached byte for byte under
+`tools/tides/cache/` (git-ignored), with its URL, retrieval time and SHA-256 in
+`cache/manifest.json`; a re-run asks NOAA only for what is missing.
 
 | step | command | what it does | requests |
 |---|---|---|---|
