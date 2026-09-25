@@ -1,16 +1,18 @@
 /**
  * The settings popover: theme, how times, angles and units are shown, navigator terms,
- * and the horizon used for rise and set. Changes apply at once and are remembered on
- * this device (settings only; never the place). OWNER: shell-design agent.
+ * the horizon used for rise and set, and the data packs saved on this device. Changes apply
+ * at once and are remembered on this device (settings only; never the place). OWNER:
+ * shell-design agent; the 12/24-hour clock and Data packs: packs agent.
  */
 
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
+import { packsSettings } from '../packs/settings-section.js';
 import { lengthToMetres, metresToUnits } from './format.js';
-import { shallowEqual, type AngleFormat, type HorizonOption, type Theme, type TimeDisplay, type Units } from '../state.js';
+import { shallowEqual, type AngleFormat, type HorizonOption, type HourCycle, type Theme, type TimeDisplay, type Units } from '../state.js';
 import { segmented, switchRow, type Segmented } from '../theme/primitives.js';
 
-export function settingsPanel(ctx: Ctx): { el: HTMLElement; destroy(): void } {
+export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; destroy(): void } {
   const { store } = ctx;
   const d = disposer();
   const s0 = store.get().settings;
@@ -37,6 +39,16 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       { value: 'utc', label: 'UTC first' },
     ],
     onChange: (v) => set('timeDisplay', v),
+  });
+  const cycle = segmented<HourCycle>({
+    label: 'Clock',
+    value: s0.hourCycle,
+    size: 'sm',
+    options: [
+      { value: 'h23', label: '24-hour', tip: '18:40' },
+      { value: 'h12', label: '12-hour', tip: '6:40 PM. UTC stays on the 24-hour clock.' },
+    ],
+    onChange: (v) => set('hourCycle', v),
   });
   const angles = segmented<AngleFormat>({
     label: 'Angles',
@@ -76,6 +88,8 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     checked: s0.navigatorTerms,
     onChange: (v) => set('navigatorTerms', v),
   });
+  const packs = packsSettings(ctx.packs);
+  d.add(packs.destroy);
   const eye = h('input', { class: 'sf-input sf-num', type: 'number', min: 0, max: 500, step: 'any', inputmode: 'decimal', id: 'sf-set-eye' });
   const eyeUnit = h('span', { class: 'sf-editor__unit' });
   eye.addEventListener('change', () => {
@@ -91,6 +105,7 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     h('div', { class: 'sf-popover__title' }, 'Display'),
     row('Theme', theme.el),
     row('Times', times.el),
+    row('Clock', cycle.el),
     row('Angles', angles.el),
     row('Units', units.el),
     terms,
@@ -103,11 +118,13 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       h('div', { class: 'sf-editor__with-unit' }, eye, eyeUnit),
     ),
     h('p', { class: 'sf-settings__note' }, 'Settings are remembered on this device. Your place is not.'),
+    packs.el,
   );
 
   const segs: [Segmented<string>, (s: typeof s0) => string][] = [
     [theme as Segmented<string>, (s) => s.theme],
     [times as Segmented<string>, (s) => s.timeDisplay],
+    [cycle as Segmented<string>, (s) => s.hourCycle],
     [angles as Segmented<string>, (s) => s.angleFormat],
     [units as Segmented<string>, (s) => s.units],
     [horizon as Segmented<string>, (s) => s.horizon],
@@ -125,5 +142,5 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       { equals: shallowEqual },
     ),
   );
-  return { el, destroy: () => d.dispose() };
+  return { el, refresh: packs.refresh, destroy: () => d.dispose() };
 }

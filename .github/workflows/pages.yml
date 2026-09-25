@@ -36,7 +36,12 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
       - name: Build the WASM core
         run: npm run wasm --prefix web
-      - name: Build the workbench
+      # Optional data packs (docs/EXPLORER_API.md, "Packs"): each producer commits
+      # web/public/data/packs/<name>-<rev>.bin with its <name>.json sidecar. A producer whose
+      # pack is built from committed data adds its build step here, before the checks.
+      - name: Check the data packs (every committed pack installs into this build's core)
+        run: cargo test -p skyfix-wasm --lib packs::
+      - name: Build the site (the packs plugin writes data/packs/manifest.json and checks each pack's hash, size and header)
         run: |
           npm ci --prefix web
           npm run build --prefix web

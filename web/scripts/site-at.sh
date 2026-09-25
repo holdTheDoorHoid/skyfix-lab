@@ -22,7 +22,8 @@ git archive "$REF" web docs | tar -x -C "$TMP"
 if git diff --quiet "$REF" HEAD -- crates Cargo.toml Cargo.lock && [ -f web/src/wasm-pkg/skyfix_wasm.js ]; then
   cp -r web/src/wasm-pkg "$TMP/web/src/"
 else
-  git archive "$REF" crates Cargo.toml Cargo.lock | tar -x -C "$TMP"
+  # The crates read fixtures at compile time (include_str!), so they come too.
+  git archive "$REF" crates fixtures Cargo.toml Cargo.lock | tar -x -C "$TMP"
   (cd "$TMP/web" && npm ci --no-audit --no-fund && npm run wasm)
 fi
 [ -d "$TMP/web/node_modules" ] || npm ci --prefix "$TMP/web" --no-audit --no-fund

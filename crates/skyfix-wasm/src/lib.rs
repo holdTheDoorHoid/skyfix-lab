@@ -32,6 +32,8 @@ pub mod geomag;
 pub mod misfit;
 pub mod nav;
 pub mod navsky;
+// Optional data packs: header, registry and dispatcher (packs agent; EXPLORER_API "Packs").
+pub mod packs;
 pub mod planet_events;
 pub mod starfield;
 

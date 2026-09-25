@@ -23,7 +23,7 @@ import { displayZone } from '../state.js';
 import { UTC_ZONE } from '../time.js';
 import { appbar } from './appbar.js';
 import { coverageSpan, covered } from './derived.js';
-import { dateMedium } from './format.js';
+import { dateMedium, setHourCycle } from './format.js';
 import { noticeBar } from './noticebar.js';
 import { startPlaceService } from './place.js';
 import { startRouter } from './router.js';
@@ -35,6 +35,10 @@ export const shell: Component = (host, ctx) => {
   const { store } = ctx;
   const d = disposer();
   d.add(startThemeController(store));
+  // The 12- or 24-hour clock is read by the format functions (format.ts). Set at once, and
+  // on every change before the next frame draws (every `watch` then draws again).
+  setHourCycle(store.get().settings.hourCycle);
+  d.add(store.select((s) => s.settings.hourCycle, setHourCycle));
   const place = startPlaceService(store, ctx.notices);
   d.add(place.destroy);
 

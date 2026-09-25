@@ -27,6 +27,9 @@ import type {
   ExplorerCoverage,
   ExplorerEngine,
   Observer,
+  PackEngine,
+  PackInfo,
+  PackStatus,
   PhaseEvent,
   PlanetEventList,
   PlanetEventsEngine,
@@ -125,6 +128,9 @@ export interface ExplorerWasmExports {
   magnetic_field?: GeomagWasmExports['magnetic_field'];
   magnetic_grid?: GeomagWasmExports['magnetic_grid'];
   compass_error?: GeomagWasmExports['compass_error'];
+  /** Expansion programme, data packs (EXPLORER_API "Packs"); absent in older builds. */
+  packs?(): unknown;
+  load_pack?(name: string, bytes: Uint8Array): unknown;
   version?(): string;
   // Expansion programme — sun tools (suntools agent; EXPLORER_API "Expansion programme —
   // sun tools"); absent in older builds.
@@ -194,7 +200,7 @@ function rebuildError(name: string, what: string): Error {
   );
 }
 
-export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine {
+export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine, PackEngine {
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -509,6 +515,25 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
   /** Compass error by azimuth or amplitude (`compass_error`). */
   compassError(request: CompassRequest): CompassError {
     return wasmCompassError(this.x, request);
+  }
+
+  /** The data packs this build can install, and which are loaded (`packs`); none in older builds. */
+  packs(): PackStatus[] {
+    const fn = this.x.packs;
+    if (typeof fn !== 'function') return [];
+    return this.call('packs', () => fn.call(this.x));
+  }
+
+  /**
+   * Parse, verify and install a data pack (`load_pack`). Throws with the core's sentence
+   * when the file is wrong. The coverage it reports changes, so it is asked again.
+   */
+  loadPack(name: string, bytes: Uint8Array): PackInfo {
+    const fn = this.x.load_pack;
+    if (typeof fn !== 'function') throw rebuildError('load_pack', 'data packs');
+    const info = this.call<PackInfo>('load_pack', () => fn.call(this.x, name, bytes));
+    this.coverageCache = null;
+    return info;
   }
 }
 

@@ -1,7 +1,7 @@
 /**
  * The installable app: the web app manifest (web/public/manifest.webmanifest), its icons,
- * the pages since the switch-over (the explorer at the site root, the original workbench
- * at classic/, next/ forwarding to the root), and which pages a production build ships
+ * the pages since the original workbench was retired (the explorer at the site root;
+ * next/ and classic/ forwarding to it), and which pages a production build ships
  * (web/vite.config.ts): those three, never the developer pages.
  */
 
@@ -89,8 +89,8 @@ describe('web app manifest', () => {
 
 describe('the pages', () => {
   const explorer = read('index.html');
-  const classic = read('classic/index.html');
   const moved = read('next/index.html');
+  const retired = read('classic/index.html');
 
   it('the explorer is the home page, and links the manifest and the iOS icon', () => {
     expect(explorer).toContain('<script type="module" src="/src/next/main.ts"></script>');
@@ -99,17 +99,6 @@ describe('the pages', () => {
     expect(explorer).toContain('<link rel="manifest" href="/manifest.webmanifest" />');
     expect(explorer).toContain('<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />');
     for (const href of explorer.matchAll(/href="\/([^"]+)"/g)) expect(existsSync(resolve(PUBLIC, href[1]!)), href[1]).toBe(true);
-  });
-
-  it('the original workbench is at classic/, says so, and links the home page', () => {
-    expect(classic).toContain('<script type="module" src="/src/main.ts"></script>');
-    const notice = /<p class="classic-notice" role="note">([\s\S]*?)<\/p>/.exec(classic)?.[1]?.replace(/\s+/g, ' ').trim();
-    expect(notice).toBe(
-      'This is the original SkyFix Lab workbench, kept for reference. The new explorer is at <a href="../">the site\'s home page</a>.',
-    );
-    // Before the page's code: it shows even if the workbench cannot start.
-    expect(classic.indexOf('classic-notice')).toBeLessThan(classic.indexOf('<div id="app">'));
-    expect(classic).toContain('<link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />');
   });
 
   it('next/ only forwards to the home page, keeping the query and the fragment (share links)', () => {
@@ -121,23 +110,35 @@ describe('the pages', () => {
     expect(moved).not.toMatch(/type="module"|src=/);
   });
 
-  it('the worker answers the same redirect: next/ to the home page', () => {
+  it('classic/ (the retired workbench) only forwards to the explorer, saying where its views went', () => {
+    // Its mapping is checked against the worker's in pwa-policy.test.ts.
+    expect(retired).toContain('<meta name="robots" content="noindex" />');
+    expect(retired).not.toMatch(/type="module"|src=/);
+    expect(retired.replace(/\s+/g, ' ')).toContain('Everything it did is in the explorer');
+  });
+
+  it('the worker answers the same forwards: next/ and classic/ to the home page', () => {
     const config = (viteConfig as (env: { command: 'build'; mode: string }) => UserConfig)({ command: 'build', mode: 'production' });
     const input = config.build?.rollupOptions?.input as Record<string, string>;
     expect(input.next).toBe(resolve(WEB, 'next/index.html'));
+    expect(input.classic).toBe(resolve(WEB, 'classic/index.html'));
     expect(read('vite.config.ts')).toMatch(/next: \{ file: 'next\/index\.html', from: 'next\/', to: '\.\/' \}/);
+    expect(read('vite.config.ts')).toMatch(/classic: \{ file: 'classic\/index\.html', from: 'classic\/', to: '\.\/', fragments: CLASSIC_VIEWS \}/);
   });
 
-  it('starts offline support from both entry modules', () => {
+  it('starts offline support from the entry module', () => {
     expect(read('src/next/main.ts')).toMatch(/^startPwa\(\);$/m);
-    expect(read('src/main.ts')).toMatch(/^startWorkbenchPwa\(\);$/m);
   });
 
-  it('links the original workbench at classic/, never one level up (that leaves the site now)', () => {
-    for (const file of ['src/next/main.ts', 'src/next/shell/appbar.ts', 'src/next/about/view.ts', 'src/next/shell/placeholder.ts']) {
+  it('never links the retired workbench, nor one level up (that leaves the site)', () => {
+    for (const file of ['src/next/main.ts', 'src/next/shell/appbar.ts', 'src/next/about/view.ts']) {
       const text = read(file);
-      expect(text, file).toContain("'classic/'");
+      expect(text, file).not.toContain("'classic/'");
       expect(text, file).not.toMatch(/href(: | = )'\.\.\/'/);
+    }
+    expect(existsSync(resolve(WEB, 'src/next/shell/placeholder.ts'))).toBe(false);
+    for (const gone of ['src/main.ts', 'src/app.ts', 'src/store.ts', 'src/styles.css', 'src/views', 'src/pwa/workbench-prompt.ts']) {
+      expect(existsSync(resolve(WEB, gone)), gone).toBe(false);
     }
   });
 });
@@ -161,7 +162,7 @@ describe('what a production build ships', () => {
 
   const shipped = ['classic/index.html', 'index.html', 'next/index.html'];
 
-  it('builds only the two app pages and the next/ redirect', () => {
+  it('builds only the app page and the two forwarding pages', () => {
     delete process.env.SKYFIX_DEV_PAGES;
     expect(inputs('build')).toEqual(shipped);
   });
@@ -182,5 +183,10 @@ describe('what a production build ships', () => {
     for (const file of ['data/gazetteer.json', 'data/basemap/manifest.json', 'manifest.webmanifest']) {
       expect(existsSync(resolve(PUBLIC, file)), file).toBe(true);
     }
+    // Built by the packs plugin, which must come before the pwa plugin.
+    const names = (config.plugins ?? []).map((p) => (p as { name?: string }).name);
+    expect(names.indexOf('skyfix-packs')).toBeGreaterThanOrEqual(0);
+    expect(names.indexOf('skyfix-packs')).toBeLessThan(names.indexOf('skyfix-pwa'));
+    expect(existsSync(resolve(PUBLIC, 'data/packs/manifest.json'))).toBe(false);
   });
 });

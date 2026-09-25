@@ -729,7 +729,7 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
     const p = pass?.passage;
     const key =
       body && pass
-        ? `${observerKey(engineObserver(s))}|${start}|${end}|${body}|${opts.horizon}|${opts.height_of_eye_m}|${zoneKeyOf(displayZone(s))}|${L.paths}|${s.settings.angleFormat}|${p?.kind}|${p?.rise?.jd_utc}|${p?.transit?.jd_utc}|${p?.set?.jd_utc}`
+        ? `${observerKey(engineObserver(s))}|${start}|${end}|${body}|${opts.horizon}|${opts.height_of_eye_m}|${zoneKeyOf(displayZone(s))}|${L.paths}|${s.settings.angleFormat}|${s.settings.hourCycle}|${p?.kind}|${p?.rise?.jd_utc}|${p?.transit?.jd_utc}|${p?.set?.jd_utc}`
         : 'none';
     if (key !== dayKey) {
       dayKey = key;

@@ -8,10 +8,10 @@
  *     (next/dev-*.html, next/mockup.html) are served by `vite` in development only; one
  *     reaching the production build means vite.config.ts lost that rule, and it would be
  *     deployed.
- *  2. Work out the precache (precache.ts): the app's pages and every hashed file they
- *     reach, minus development-only chunks (the mock engine, the developer harness);
- *     plus the basemap files its manifest lists, the gazetteer, the web app manifest and
- *     the icons.
+ *  2. Work out the precache (precache.ts): the app's page and every hashed file it
+ *     reaches, minus development-only chunks (the mock engine, the developer harness);
+ *     plus the basemap files its manifest lists, the gazetteer, the data packs' manifest,
+ *     the web app manifest and the icons. Never the data packs themselves (`networkOnly`).
  *  3. Compile src/sw/sw.ts into `<site>/sw.js` with that list and its version hash
  *     inlined. Any change to a precached file changes sw.js, which is how browsers learn
  *     that a new version exists.
@@ -24,7 +24,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join, relative, resolve, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { build, type Plugin, type ResolvedConfig } from 'vite';
-import type { SwBuild } from '../src/sw/policy.ts';
+import type { FragmentMap, SwBuild } from '../src/sw/policy.ts';
 import { listedFiles, pageAddress, precacheList, type PrecacheList } from './precache.ts';
 
 export interface PwaOptions {
@@ -39,9 +39,24 @@ export interface PwaOptions {
   /**
    * Pages that moved: `file` (a site path, built and deployed) forwards visitors from the
    * directory address `from` to `to`, and the service worker answers the same redirect
-   * itself, offline too. Never precached.
+   * itself, offline too. With `fragments`, the old fragments are mapped to new ones (the
+   * worker answers with a forwarding page, `forwardPageHtml`). Never precached.
    */
-  readonly redirects?: readonly { readonly file: string; readonly from: string; readonly to: string }[];
+  readonly redirects?: readonly {
+    readonly file: string;
+    readonly from: string;
+    readonly to: string;
+    readonly fragments?: FragmentMap;
+  }[];
+  /**
+   * Site-path prefixes deliberately left out of the precache and answered by the network
+   * only (the data packs, `data/packs/`: the page stores the ones a person chooses). The
+   * build does not warn about them; files under them that are also in `extra` (the packs'
+   * manifest) are precached as usual.
+   */
+  readonly networkOnly?: readonly string[];
+  /** Other addresses the offline page links (the manual), relative to the site root. */
+  readonly links?: readonly { readonly url: string; readonly label: string }[];
   /** The service worker's source, relative to the Vite root. */
   readonly worker: string;
   /** Allow HTML pages other than `pages` in the output (never precached). Default false. */
@@ -164,11 +179,14 @@ export function skyfixPwa(options: PwaOptions): Plugin {
         exclude: devFiles,
       });
 
+      const networkOnly = options.networkOnly ?? [];
       await compileWorker(config, outDir, options.worker, {
         version: list.version,
         entries: list.entries.map(({ url, rev }) => ({ url, rev })),
         pages: options.pages.map((p) => ({ url: pageAddress(p.file), label: p.label })),
-        redirects: redirects.map(({ from, to }) => ({ from, to })),
+        redirects: redirects.map(({ from, to, fragments }) => (fragments ? { from, to, fragments } : { from, to })),
+        networkOnly: [...networkOnly],
+        links: [...(options.links ?? [])],
       });
 
       const gzip = list.entries.reduce((sum, e) => sum + gzipSync(files.get(e.url) as Uint8Array).byteLength, 0);
@@ -183,7 +201,7 @@ export function skyfixPwa(options: PwaOptions): Plugin {
             list.unreached.map((f) => `${f} (${Math.round((files.get(f)?.byteLength ?? 0) / 1000)} kB)`).join(', '),
         );
       }
-      const unlisted = list.unlisted.filter((f) => !redirects.some((r) => r.file === f));
+      const unlisted = list.unlisted.filter((f) => !redirects.some((r) => r.file === f) && !networkOnly.some((p) => f.startsWith(p)));
       if (unlisted.length > 0) {
         // Normally empty. A data file the app loads must be listed in `extra`, or it will
         // not work offline; developer pages (SKYFIX_DEV_PAGES=1) are expected here.

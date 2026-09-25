@@ -27,6 +27,7 @@ import { computeMoonMonth } from '../moon-data.js';
 import { ALL_PLANETS, planetYearJob } from '../planet-data.js';
 import { localDay, zoneKey } from '../windows.js';
 import { computeYear, computeYearSky } from '../year-data.js';
+import { NO_PACKS } from '../../packs/service.js';
 
 interface Place {
   id: string;
@@ -103,7 +104,7 @@ async function boot(root: HTMLElement): Promise<void> {
   });
   const scheduler = createScheduler();
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
-  const ctx: Ctx = { store, engine, notices, scheduler };
+  const ctx: Ctx = { store, engine, notices, scheduler, packs: NO_PACKS };
   startPlayback(store, scheduler);
   bindTimeKeys(window, store);
 
