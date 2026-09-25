@@ -457,6 +457,8 @@ planner's navigation candidates or any accuracy claim. Enforced by crate boundar
 `skyfix-sim` or `skyfix-almanac`; only the adapters join it with the engine, to label a
 body's constellation: `skyfix-wasm` (the `sky_state` export) and `skyfix-cli` (the
 constellation column of `skyfix sky`).
+(Expansion P8: the WASM adapter also passes the star field's bright stars to the lunar
+occultation search as catalogue places, an event rather than a sight; see 13.10.)
 
 ### 13.7 Accuracy targets and validation
 
@@ -590,6 +592,68 @@ the same instant.
   **arch** (the galactic equator) has its highest point at `90° − h` in the azimuth
   opposite the galactic pole that is above the horizon (`h` that pole's altitude) and
   meets the horizon 90° either side of that pole's azimuth. Geometric directions.
+
+### 13.10 The Moon in detail (expansion programme P8, moondetail agent)
+
+`skyfix_almanac::{libration, lunar_features, apsides, occultations}`; wire format in
+`docs/EXPLORER_API.md`, "Expansion programme P8 — the Moon in detail". Display only: none
+of it feeds sight reduction.
+
+- **Selenographic coordinates**: latitude north-positive, longitude **east**-positive
+  (toward Mare Crisium, the IAU convention since 1961), `(-180, 180]`, in the **mean
+  Earth/polar axis** frame of IAU coordinates, of the LOLA control network and so of the
+  USGS/IAU gazetteer. The Moon's orientation is Meeus's chapter 53 (Eckhardt's physical
+  libration, `I = 1°32′32.7″`) built as one rotation from the true equator and equinox of
+  date, then tilted by the published 78.6944″ between the figure (principal-axis) pole
+  that Cassini's laws describe and the mean rotation pole (DE440's PA-to-ME rotation about
+  y; its 67.85″ about z is already in Meeus's prime meridian, `F + 180°`, and its 0.28″
+  about x is left out). Meeus's printed totals are in the figure frame.
+- **Libration**: the selenographic place of the point at the centre of the disc, where
+  the line from the Moon's centre toward the observer meets the surface, with the Moon
+  where the observer sees it (light-time and aberration, SPICE's `LT+S`) and its
+  orientation at the moment the light left it. Geocentric for the Earth's centre;
+  topocentric (the diurnal libration, up to about 1°) for an observer on the WGS84
+  ellipsoid (13.2). **Optical** and **physical** parts are Meeus's `l′ b′` and `l″ b″`
+  (geocentric, figure frame).
+- **Sub-solar point**: where the Sun's apparent direction seen from the Moon meets the
+  surface (the geocentric apparent Sun minus the Moon). **Colongitude** `= 90° − its
+  longitude`, `[0, 360)`: the east longitude of the morning terminator at the equator.
+  **Terminator**: the great circle 90° from the sub-solar point. **Axis position angle**:
+  of the Moon's north pole projected on the sky at the Moon's apparent direction, from
+  celestial north through east. **Bright limb**: the ephemeris's (13.5).
+- **Disc** (`DiscPoint`): orthographic, in disc radii, `east`/`north` along celestial east
+  and north at the Moon; `x`/`y` with the zenith up (rotated by the parallactic angle, the
+  position angle of the geodetic zenith at the Moon), or north up and east left without an
+  observer. A point is `visible` when it faces the observer.
+- **Named features**: the Sun's altitude over a feature is `90°` minus its angle from the
+  sub-solar point (mean sphere, no slope, the Sun a point). **Near the terminator** (best
+  relief): visible, and the Sun between `−r` and `band + r` over it, `r` the feature's
+  angular radius on a 1737.4 km sphere, `band` 10°.
+- **Perigee and apogee**: local minimum and maximum of the geometric distance between the
+  centres of the Earth and the Moon from the ephemeris. **Supermoon** (Nolle 1979): a new
+  or full Moon (13.5) at least 90 % of the way from apogee to perigee, `(d_A − d)/(d_A −
+  d_P) ≥ 0.9`, with P and A the perigee and apogee on either side of it in time;
+  **micromoon** `≤ 0.1`. **Largest / smallest full Moon of the year**: least / greatest
+  distance at the instant of full Moon among the full Moons of the UTC calendar year.
+  Sizes are against the mean distance, 384 400 km.
+- **Lunar occultations**: a contact is when the topocentric angular separation of the
+  body (a star, or a planet's centre) from the Moon's centre equals the Moon's topocentric
+  semidiameter on the **mean limb**, a sphere of radius `k a` (`k = 0.2725076`,
+  `a = 6378.14 km`, the ephemeris's own). The result always carries this label, because the
+  real limb moves times by seconds and by up to a minute where the body meets the limb
+  obliquely near the Moon's poles. **Position angle** on the limb from celestial north
+  through east; **vertex angle** from the zenith; **cusp angle** from the nearer cusp,
+  positive on the dark limb (the cusps at the bright limb's position angle ±90°);
+  **dark/bright limb** by whether the contact is within 90° of the bright limb's
+  midpoint. **Graze**: the body passes within 1′ of the mean limb, inside or outside; a
+  miss by under 1′ is reported as a near miss. Altitudes are 13.2's (geometric centre); an
+  event is `visible` when the Moon is above the horizon at a contact.
+- **Stars for occultations**: the 58 navigational stars (their places exactly as
+  everywhere else) and the Bright Star Catalogue's stars brighter than a magnitude limit
+  (3.5 by default), which are display data (13.6) passed in by the WASM adapter as
+  catalogue places: an occultation is an event, not a sight, and the catalogue's
+  arcsecond positions are worth a couple of seconds of time. `skyfix-almanac` still does
+  not depend on `skyfix-starfield`.
 
 ## 14. Navigation methods: noon sight, Polaris, averaging, running fix
 

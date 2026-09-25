@@ -37,6 +37,8 @@ a fact you expect is not where you thought, it has moved, not gone.
 | Constellation boundaries (IAU, Delporte 1930) | "Which constellation is this body in" | Public domain by age | None |
 | Natural Earth vector data | Offline world map (basemap) | Public domain | None |
 | Natural Earth populated places + IANA tzdata | Place search and time-zone guess (gazetteer) | Public domain | None |
+| USGS/IAU Gazetteer of Planetary Nomenclature, 150 named lunar features | The Moon in detail: features on the terminator, Apollo sites (display only) | U.S. Public Domain (USGS); names are IAU facts; selection and descriptions this project's own | None (USGS asks for credit; given in this document) |
+| Meeus, *Astronomical Algorithms*, chapters 47 and 53 (Eckhardt's physical libration) | The Moon's libration and orientation | Published formulas (facts); book not reproduced | None |
 | Inter, JetBrains Mono (Fontsource) | Interface and figures typefaces | SIL Open Font License 1.1 | None (licence ships with the files) |
 | `maplibre-gl` | Map and globe rendering | BSD-3-Clause | None |
 | Service worker, web app manifest, icons | Offline reload and install; written for this project, no library copied | This project's own work | None |
@@ -45,6 +47,7 @@ a fact you expect is not where you thought, it has moved, not gone.
 | World Magnetic Model WMM2025 (NOAA NCEI and BGS), 90 coefficient rows | Magnetic variation, dip and field 2025-2030; compass error | U.S. Government work, public domain ("not licensed or under copyright", NCEI) | None |
 | International Geomagnetic Reference Field IGRF-14 (IAGA), 195 coefficient rows × 27 columns | Magnetic variation 1900-2024 | **CC BY 4.0** (IAGA's Zenodo record); credited in this document — [see the licence note](#igrf-14-is-cc-by-40-credited-in-the-documentation) | None on screen; credited here |
 | WMM2025 official test values and technical report (NCEI), IAGA's pyIGRF14 test values, the BGS IGRF-14 calculator, NOAA's Geomag 7.0 sample output, Bowditch ch. 15 | Development-time checks of the magnetic models and the compass-error method | U.S. Government works; MIT (pyIGRF14); BGS web-service outputs as test data; **never shipped** | None |
+| NAIF lunar orientation kernels (DE440), published occultation predictions (BAA; IOTA via EarthSky and Astronomy) | Development-time truth for the Moon in detail (`docs/ACCURACY.md` section 14) | US Government works; published times are facts, transcribed; **never shipped** | None (not in the runtime at all) |
 
 ## Runtime data
 
@@ -962,6 +965,60 @@ a test re-parses both files and compares every number.
   made": only the storage format changed). See the licence note below for why this is a
   documentation credit and not an on-screen one.
 
+### The Moon in detail: named lunar features and the Moon's orientation (expansion programme P8)
+
+Owner: moondetail agent (2026-09-25). What ships: `crates/skyfix-almanac/data/
+lunar_features.tsv` (150 rows, 14.4 KB, 5.9 KB gzipped) and the formulas of
+`skyfix_almanac::libration`.
+
+#### Named lunar features — USGS/IAU Gazetteer of Planetary Nomenclature
+
+- **Source**: the Gazetteer of Planetary Nomenclature, https://planetarynames.wr.usgs.gov/,
+  maintained by the USGS Astrogeology Science Center for the IAU Working Group for
+  Planetary System Nomenclature: approved Moon features (target `16_Moon`, approval status
+  "Adopted by IAU"), searched by feature type (maria, oceanus, lacus, sinus, palus, montes,
+  rupes, rimae, valles, promontoria, dorsa, albedo features, stations, astronaut-named
+  features, craters; 2 002 named features read).
+- **Retrieved**: 2026-09-25 by `tools/moon/fetch.py` (HTTP POST of the site's own search
+  form; each saved page's size and SHA-256 are in `crates/skyfix-almanac/data/
+  lunar_features.manifest.json`). The site has no server-side CSV: its "CSV" button
+  exports the page's HTML table in the browser, and `tools/moon/gazetteer.py` reads the same
+  cells.
+- **Terms**: USGS, https://www.usgs.gov/information-policies-and-instructions/copyrights-and-credits
+  (checked by `fetch.py` on every run): "USGS-authored or produced data and information
+  are considered to be in the U.S. Public Domain." Credit is requested, not required; it
+  is given here and in the `source` field of every `moon_features` result. The names
+  themselves are IAU decisions (facts).
+- **Processing**: `tools/moon/build.py` joins the gazetteer's rows with
+  `tools/moon/picks.txt` — this project's own choice of 150 features (21 maria and the
+  ocean, bays, lakes and marshes, 21 ranges and peaks, scarps, rilles, valleys, a ridge,
+  capes, Reiner Gamma, 79 craters, the six Apollo sites), their ranks and their one-line
+  descriptions, written for this project and not copied from any list (the data audit's
+  caution about curated lists such as the "Lunar 100" was followed) — and writes name,
+  kind, latitude, longitude and diameter exactly as the gazetteer gives them
+  (planetocentric, east-positive, the LOLA 2011 control network's mean Earth/polar axis
+  frame, 0.01° precision). The six Apollo landing sites are not gazetteer names: each takes
+  the coordinates of the approved feature at its landing point (Apollo 11 "Statio
+  Tranquillitatis"; 12 "Surveyor"; 14 "Triplet"; 15 "Last"; 16 "Spot"; 17 "Trident", all
+  within 0.01° of the landers), recorded per row in the manifest.
+
+#### The Moon's orientation — published formulas
+
+- Meeus, J., *Astronomical Algorithms*, 2nd ed., Willmann-Bell, 1998, chapter 47 (the
+  Moon's fundamental arguments `D, M, M′, F, Ω`) and chapter 53 (optical libration, the
+  physical-libration series `ρ, σ, τ`, the position angle of the axis, the Sun's
+  selenographic position), which condense Eckhardt, D. H. (1981), *The Moon and the
+  Planets* 25, 3-49, as the *Astronomical Almanac* uses it (*Explanatory Supplement to the
+  Astronomical Almanac*, 1992, section 7.3, which also gives the IAU inclination
+  `I = 1°32′32.7″` and the definitions of colongitude and the librations' signs).
+  Formulas and coefficients are facts; nothing of the book is reproduced beyond them.
+- The 78.6944″ tilt from the principal-axis pole to the mean rotation pole: the DE440
+  `MOON_PA_DE440` to `MOON_ME_DE440_ME421` rotation, published in NAIF's frame kernel
+  `moon_de440_250416.tf` (a US Government work) after Park, R. S., et al. (2021), "The JPL
+  Planetary and Lunar Ephemerides DE440 and DE441", *AJ* 161, 105. One number, transcribed.
+- The Moon's radius for occultations, `k = 0.2725076` of `a = 6378.14 km`, is the
+  ephemeris's own (section "Moon model").
+
 ## Development-time references
 
 Everything below is read only by the Python tools under `tools/reference/`, `tools/starfield/`
@@ -1467,6 +1524,42 @@ is built and set (a base with a north and a south side, blue templates every 10�
 latitude, the arrow set on LHA Aries). No text, figure or data from them is used: the
 geometry (`methods/starfinder.rs`) is derived here from the sight-reduction formulas and
 tested against them.
+
+### The Moon in detail: reference data (development-time only, moondetail agent)
+
+Read only by `tools/moon/gen_reference.py` (and, for the published times, transcribed by
+hand) to write `fixtures/reference/moon_{libration,apsides,occultations}.json` and
+`moon_occultations_published.json`. Never shipped. Retrieved 2026-09-25.
+
+| File (in `tools/reference/data/`, git-ignored) | URL | Size (bytes) | SHA-256 | Publisher / licence |
+|---|---|---|---|---|
+| `moon_pa_de440_200625.bpc` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/moon_pa_de440_200625.bpc` | 12 863 488 | `60cd55aa401ea2ea97360636f567554bfe4e37bb829f901b4460a455dfaf783f` | NASA JPL / NAIF: DE440's integrated lunar orientation (principal axes), 1549-12-31 to 2650-01-25. US Government work, unrestricted. |
+| `moon_de440_250416.tf` | `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/fk/satellites/moon_de440_250416.tf` | 19 478 | `a47c71e9c9f33796bdafb2c9d69a7ee447b6016ecad80f71cd6f3e479f9cf768` | NASA JPL / NAIF: the lunar frame definitions (PA and ME). Same terms. |
+
+With Skyfield's `PlanetaryConstants` these reproduce the frame kernel's own worked example
+(Earth relative to the Moon at 2022 SEP 30 TDB) to 1 mm in both frames; the generator
+builds one Skyfield frame per PCK segment, since `read_binary` keeps only the last segment
+per body. The ephemerides (`de440s.bsp`, `de440.bsp`) and `hip_main.dat` are those listed
+above.
+
+**Published occultation predictions** (times only, facts; transcribed by hand into
+`moon_occultations_published.json`, which records each page and what it printed):
+
+- British Astronomical Association, M. Foulkes, "Observers' challenge: a lunar
+  occultation of Saturn on 2024 August 21",
+  https://britastro.org/2024/observers-challenge-a-lunar-occultation-of-saturn-on-2024-august-21
+  (Greenwich and Edinburgh, UT to 0.1 min).
+- EarthSky, B. McClure, "Moon occults Aldebaran on December 30",
+  https://earthsky.org/sky-archive/moon-occults-aldebaran-on-december-30/ (London and
+  Reykjavik, UT to the second, from IOTA's prediction).
+- Astronomy magazine, M. E. Bakich, "Watch the full Moon cover Mars",
+  https://www.astronomy.com/observing/watch-the-full-moon-cover-mars/, and J. L. Hunt,
+  https://www.whenthecurveslineup.com/2024/12/30/2025-january-13-wolf-moon-occults-mars/
+  (New York and Chicago, local times to the minute, from IOTA's prediction).
+
+IOTA's own prediction pages (lunar-occultations.com) could not be reached on the
+retrieval date (TLS errors), and in-the-sky.org refused automated reading, so the IOTA
+figures are the ones these articles quote.
 
 ## Licence decisions
 

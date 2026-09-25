@@ -88,6 +88,15 @@ import type {
   SunPath,
   SunToolsEngine,
 } from './types.js';
+import { mockMoonApsides, mockMoonFeatures, mockMoonOrientation, mockOccultations } from './mock/moondetail.js';
+import type {
+  MoonApsides,
+  MoonDetailEngine,
+  MoonFeatures,
+  MoonOrientation,
+  OccultationList,
+  OccultationOptions,
+} from './types.js';
 
 export const MOCK_DESCRIPTION =
   'MOCK ENGINE for developing the interface. Every number on this page is illustrative: positions come from ' +
@@ -243,7 +252,9 @@ function inCoverage(jd: number): boolean {
   return jd >= COVERAGE_START && jd <= COVERAGE_END;
 }
 
-export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine, SailingsEngine {
+export class MockEngine
+  implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine, SailingsEngine, MoonDetailEngine
+{
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
   /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
@@ -1002,4 +1013,28 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, Ti
   galacticCentreWindows(...args: Parameters<SunToolsEngine['galacticCentreWindows']>): GalacticCentreWindows {
     return this.sunTools.galacticCentreWindows(...args);
   }
+
+  // Expansion programme P8 (moondetail agent): the Moon in detail, low precision
+  // (mock/moondetail.ts), illustrative like everything here.
+
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation {
+    return mockMoonOrientation(observer, jdUtc);
+  }
+
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures {
+    return mockMoonFeatures(observer, jdUtc);
+  }
+
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides {
+    return mockMoonApsides(this, jdStart, jdEnd);
+  }
+
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList {
+    return mockOccultations(observer, jdStart, jdEnd, options);
+  }
 }
+
+// The mock is a Moon-detail engine (checked here rather than in its `implements` list,
+// so parallel additions to that line do not collide).
+const _mockIsMoonDetail: (e: MockEngine) => MoonDetailEngine = (e) => e;
+void _mockIsMoonDetail;

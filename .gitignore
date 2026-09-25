@@ -30,3 +30,6 @@ docs/design/local/
 # The columns used are committed as tools/timescales/sources/finals2000A-ut1-<date>.txt;
 # docs/THIRD_PARTY.md, "Time scales", records the file's URL, size and SHA-256.
 tools/timescales/sources/finals2000A.all
+
+# Lunar gazetteer raw downloads (tools/moon/fetch.py); re-fetchable, never committed.
+/tools/moon/data/

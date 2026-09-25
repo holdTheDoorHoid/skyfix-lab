@@ -2783,3 +2783,309 @@ export function isSailingsEngine(engine: unknown): engine is SailingsEngine {
     typeof e.starFinderGeometry === 'function'
   );
 }
+
+// ---------------------------------------------------------------------------------
+// Expansion programme P8 — the Moon in detail (moondetail agent). Rust:
+// crates/skyfix-wasm/src/moondetail.rs over skyfix_almanac::{libration, lunar_features,
+// apsides, occultations}. Wire format: docs/EXPLORER_API.md, "Moon in detail";
+// definitions: CONVENTIONS 13.10.
+// ---------------------------------------------------------------------------------
+
+/** A place on the Moon, or a direction from its centre: selenographic latitude and east
+ * longitude (toward Mare Crisium, IAU), degrees, longitude in (-180, 180]. */
+export interface Selenographic {
+  lat_deg: number;
+  lon_deg: number;
+}
+
+/** Where a point of the Moon appears on its disc, in disc radii. */
+export interface DiscPoint {
+  /** Toward celestial east (position angle 90°) and north (0°). */
+  east: number;
+  north: number;
+  /** As the observer sees it with the zenith up: x to the right, y up. Without an
+   * observer: celestial north up, east to the left. */
+  x: number;
+  y: number;
+  /** On the hemisphere facing the observer. */
+  visible: boolean;
+}
+
+/** Libration, degrees: the selenographic place at the centre of the disc. */
+export interface LibrationAngles {
+  /** As the observer sees it (topocentric with an observer, else geocentric). */
+  lon_deg: number;
+  lat_deg: number;
+  /** Meeus's optical (orbit) and physical (the Moon's own rocking) parts, geocentric. */
+  optical_lon_deg: number;
+  optical_lat_deg: number;
+  physical_lon_deg: number;
+  physical_lat_deg: number;
+  /** The observer's own offset from the Earth's centre (up to about 1°); 0 without one. */
+  diurnal_lon_deg: number;
+  diurnal_lat_deg: number;
+}
+
+export interface MoonTerminator {
+  /** The sub-solar point, the circle's pole. */
+  pole: Selenographic;
+  /** Where the sunrise and sunset terminators cross the lunar equator. */
+  morning_lon_deg: number;
+  evening_lon_deg: number;
+  /** The whole great circle every 5°, `[lat_deg, lon_deg]`. */
+  points: [number, number][];
+  /** The half the observer sees, cusp to cusp, `[x, y]` in disc radii (DiscPoint x/y). */
+  disc: [number, number][];
+}
+
+export interface MoonOrientation {
+  jd_utc: number;
+  utc: string;
+  topocentric: boolean;
+  libration: LibrationAngles;
+  sub_observer: Selenographic;
+  sub_earth: Selenographic;
+  sub_solar: Selenographic;
+  /** Selenographic colongitude of the Sun: ~270 new, 0 first quarter, 90 full, 180 last. */
+  colongitude_deg: number;
+  /** Position angle of the Moon's north pole as the observer sees it (north through east). */
+  axis_position_angle_deg: number;
+  geocentric_axis_position_angle_deg: number;
+  /** Position angle of the bright limb's midpoint (the ephemeris's, geocentric). */
+  bright_limb_angle_deg: number;
+  illuminated_fraction: number;
+  phase_angle_deg: number;
+  waxing: boolean;
+  terminator: MoonTerminator;
+  /** Observer (or geocentre) to the Moon's centre. */
+  distance_km: number;
+  semidiameter_arcmin: number;
+  apparent_diameter_arcmin: number;
+  /** Size against the mean distance of 384 400 km, percent. */
+  diameter_vs_mean_percent: number;
+  geocentric_distance_km: number;
+  geocentric_semidiameter_arcmin: number;
+  /** Topocentric geometric; null without an observer. */
+  alt_deg: number | null;
+  az_deg: number | null;
+  /** Position angle of the zenith at the Moon; null without an observer. */
+  parallactic_angle_deg: number | null;
+  north_pole_disc: DiscPoint;
+  sub_solar_disc: DiscPoint;
+}
+
+export type LunarFeatureKind =
+  | 'mare'
+  | 'oceanus'
+  | 'lacus'
+  | 'sinus'
+  | 'palus'
+  | 'mons'
+  | 'montes'
+  | 'rupes'
+  | 'rima'
+  | 'vallis'
+  | 'dorsum'
+  | 'promontorium'
+  | 'albedo'
+  | 'crater'
+  | 'landing_site';
+
+export interface LunarFeatureState {
+  name: string;
+  kind: LunarFeatureKind;
+  lat_deg: number;
+  lon_deg: number;
+  /** km; 0 for a landing site. */
+  diameter_km: number;
+  /** 1 showpiece, 2 notable, 3 more to find. */
+  rank: 1 | 2 | 3;
+  description: string;
+  /** The Sun's altitude over the feature (negative: night). */
+  sun_altitude_deg: number;
+  lit: boolean;
+  /** Lunar morning there (the Sun climbing). */
+  morning: boolean;
+  /** Faces the observer and the terminator crosses it or lies within the band: best relief. */
+  near_terminator: boolean;
+  visible: boolean;
+  /** 0 at the disc's centre, 90 at the limb. */
+  angle_from_disc_centre_deg: number;
+  disc: DiscPoint;
+}
+
+export interface MoonFeatures {
+  jd_utc: number;
+  utc: string;
+  topocentric: boolean;
+  colongitude_deg: number;
+  sub_solar: Selenographic;
+  sub_observer: Selenographic;
+  axis_position_angle_deg: number;
+  parallactic_angle_deg: number | null;
+  illuminated_fraction: number;
+  waxing: boolean;
+  terminator_band_deg: number;
+  /** Visible relief features near the terminator, best first (names). */
+  tonight: string[];
+  /** All 150, in table order. */
+  features: LunarFeatureState[];
+  source: string;
+}
+
+export interface MoonApsis {
+  kind: 'perigee' | 'apogee';
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+  semidiameter_arcmin: number;
+  diameter_arcmin: number;
+  diameter_vs_mean_percent: number;
+}
+
+export interface MoonApsisRef {
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+}
+
+export interface MoonSyzygy {
+  kind: 'new_moon' | 'full_moon';
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+  diameter_arcmin: number;
+  diameter_vs_mean_percent: number;
+  /** The perigee and apogee on either side of it in time. */
+  perigee: MoonApsisRef;
+  apogee: MoonApsisRef;
+  hours_from_perigee: number;
+  /** 0 at apogee, 1 at perigee. */
+  perigee_fraction: number;
+  /** perigee_fraction >= 0.9 (Nolle). */
+  supermoon: boolean;
+  /** perigee_fraction <= 0.1. */
+  micromoon: boolean;
+  /** Full Moons: nearest and farthest of the UTC calendar year. */
+  largest_of_year: boolean;
+  smallest_of_year: boolean;
+}
+
+export interface MoonApsides {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  apsides: MoonApsis[];
+  syzygies: MoonSyzygy[];
+  definitions: {
+    apsis: string;
+    supermoon: string;
+    micromoon: string;
+    largest_of_year: string;
+    mean_distance_km: number;
+  };
+}
+
+/** `occultations` options (all optional; defaults in brackets). */
+export interface OccultationOptions {
+  /** Catalogue stars brighter than this join the 58 navigational stars [3.5], at most 6.5. */
+  max_magnitude?: number;
+  /** Search stars [true] and planets [true]. */
+  stars?: boolean;
+  planets?: boolean;
+  /** Keep events with the Moon below the horizon at every contact [false]. */
+  include_below_horizon?: boolean;
+  /** Keep near misses within 1′ of the mean limb [true]. */
+  include_near_misses?: boolean;
+  /** Only these bodies (names as results spell them). */
+  bodies?: string[] | null;
+}
+
+export interface OccultationContact {
+  kind: 'disappearance' | 'reappearance';
+  jd_utc: number;
+  utc: string;
+  /** On the limb, from celestial north through east. */
+  position_angle_deg: number;
+  /** The same from the zenith. */
+  vertex_angle_deg: number;
+  /** From the nearer cusp, positive on the dark limb, negative on the bright. */
+  cusp_angle_deg: number;
+  cusp: 'N' | 'S';
+  limb: 'dark' | 'bright';
+  moon_alt_deg: number;
+  moon_az_deg: number;
+  moon_above_horizon: boolean;
+  sun_alt_deg: number;
+  sky_phase: SkyPhase;
+  /** Planets: seconds for the disc to cross the limb; 0 for a star. */
+  crossing_s: number;
+}
+
+export interface Occultation {
+  body: string;
+  kind: 'star' | 'planet';
+  designation: string | null;
+  hr: number | null;
+  magnitude: number | null;
+  navigational: boolean;
+  /** Hidden by the mean limb; false for a near miss. */
+  occulted: boolean;
+  /** Passes within 1′ of the mean limb. */
+  graze: boolean;
+  disappearance: OccultationContact | null;
+  reappearance: OccultationContact | null;
+  closest: {
+    jd_utc: number;
+    utc: string;
+    /** From the mean limb, arcminutes, negative inside. */
+    limb_distance_arcmin: number;
+    position_angle_deg: number;
+    moon_alt_deg: number;
+  };
+  duration_s: number | null;
+  body_semidiameter_arcsec: number;
+  moon_illuminated_fraction: number;
+  waxing: boolean;
+  /** The Moon is up at a contact (at closest approach for a near miss). */
+  visible: boolean;
+}
+
+export interface OccultationList {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  /** Say this beside the times: mean limb, real limb differs. */
+  limb_note: string;
+  bodies_searched: number;
+  /** Sorted by the first contact. */
+  events: Occultation[];
+  errors: BodyError[];
+}
+
+/** The Moon in detail (moondetail agent). */
+export interface MoonDetailEngine {
+  /** Libration, axis, terminator and disc geometry; `null` observer = the Earth's centre. */
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation;
+  /** The 150 named features at an instant (about a millisecond natively). */
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures;
+  /** Perigees, apogees, supermoons in a window (about 0.1 s a year natively). */
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides;
+  /** Occultations for one place, at most 400 days (about 0.1 s a year natively). */
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList;
+}
+
+export function isMoonDetailEngine(engine: unknown): engine is MoonDetailEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<MoonDetailEngine>;
+  return (
+    typeof e.moonOrientation === 'function' &&
+    typeof e.moonFeatures === 'function' &&
+    typeof e.moonApsides === 'function' &&
+    typeof e.occultations === 'function'
+  );
+}

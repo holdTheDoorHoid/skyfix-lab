@@ -40,6 +40,8 @@ pub mod sailings;
 pub mod starfield;
 // Expansion programme, wave 1 (docs/EXPANSION_PLAN.md section 5): one module per agent.
 pub mod timescale;
+// Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod moondetail;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;

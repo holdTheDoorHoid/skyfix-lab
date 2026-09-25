@@ -117,3 +117,59 @@ fn explorer_budget() {
     assert!(ms_all < 2.0, "sky_state over budget: {ms_all} ms");
     assert!(ms_year < 500.0, "a year of Sun events: {ms_year} ms");
 }
+
+// ---------------------------------------------------------------------------
+// Moon in detail (moondetail agent, expansion programme P8)
+// ---------------------------------------------------------------------------
+
+#[test]
+#[ignore = "timing; run in release with --ignored --nocapture"]
+fn moon_detail_budget() {
+    use skyfix_almanac::apsides::moon_apsides;
+    use skyfix_almanac::libration::moon_orientation;
+    use skyfix_almanac::lunar_features::moon_features;
+    use skyfix_almanac::occultations::{
+        OccultationOptions, navigational_star_targets, occultations, planet_targets,
+    };
+    use skyfix_ephemeris::moon::MoonProvider;
+    use skyfix_ephemeris::planets::PlanetProvider;
+    use skyfix_ephemeris::sun::SunProvider;
+
+    let (m, s, p) = (
+        MoonProvider::new(),
+        SunProvider::new(),
+        PlanetProvider::new(),
+    );
+    let site = Site {
+        height_m: 10.0,
+        ..Site::new(39.9526, -75.1652)
+    };
+    let t0 = civil_to_jd(2026, 1, 1);
+    // The yardstick: bare ephemeris calls, so a loaded machine shows as such.
+    time("400 Moon positions (yardstick)", 5, || {
+        for k in 0..400 {
+            std::hint::black_box(m.position(t0 + k as f64).unwrap());
+        }
+    });
+    let mut targets = navigational_star_targets();
+    targets.extend(planet_targets());
+    let options = OccultationOptions::default();
+    time(
+        "occultations, a year at one place (58 stars + 7 planets); budget 200 ms",
+        5,
+        || occultations(&m, &s, &p, &site, t0, t0 + 365.0, &targets, &options).unwrap(),
+    );
+    let mut k = 0.0;
+    time("moon_orientation, topocentric", 500, || {
+        k += 1.0;
+        moon_orientation(&m, &s, Some(&site), t0 + k / 24.0).unwrap()
+    });
+    let mut k = 0.0;
+    time("moon_features, 150 features", 200, || {
+        k += 1.0;
+        moon_features(&m, &s, Some(&site), t0 + k / 24.0).unwrap()
+    });
+    time("moon_apsides, one year", 3, || {
+        moon_apsides(&m, &Sky::new(), t0, t0 + 365.0).unwrap()
+    });
+}

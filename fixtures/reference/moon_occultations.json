@@ -1,0 +1,402 @@
+{
+  "events": [
+    {
+      "body": "Aldebaran",
+      "catalogue": {"dec_j2000_deg": 16.509761640, "magnitude": 0.870000000, "parallax_mas": 50.090000000, "pm_dec_mas_yr": -189.360000000, "pm_ra_cosdec_mas_yr": 62.780000000, "ra_j2000_deg": 68.980001950},
+      "contacts": [
+        {"jd_utc": 2457763.125781945, "kind": "disappearance", "moon_alt_deg": 45.5240, "moon_az_deg": 256.6638, "position_angle_deg": 92.1969, "sun_alt_deg": -76.0680, "utc": "2017-01-09T15:01:07.560Z"},
+        {"jd_utc": 2457763.172813268, "kind": "reappearance", "moon_alt_deg": 32.3591, "moon_az_deg": 267.7905, "position_angle_deg": 257.4772, "sun_alt_deg": -67.8288, "utc": "2017-01-09T16:08:51.066Z"}
+      ],
+      "hip": 21421,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -14.3372,
+      "navigational": true,
+      "observer": {"height_m": 40.0000, "lat_deg": 35.676200000, "lon_deg": 139.650300000},
+      "site": "tokyo"
+    },
+    {
+      "body": "Aldebaran",
+      "catalogue": {"dec_j2000_deg": 16.509761640, "magnitude": 0.870000000, "parallax_mas": 50.090000000, "pm_dec_mas_yr": -189.360000000, "pm_ra_cosdec_mas_yr": 62.780000000, "ra_j2000_deg": 68.980001950},
+      "contacts": [
+        {"jd_utc": 2458173.192314819, "kind": "disappearance", "moon_alt_deg": 49.2843, "moon_az_deg": 139.3227, "position_angle_deg": 97.7618, "sun_alt_deg": 6.9028, "utc": "2018-02-23T16:36:56.000Z"},
+        {"jd_utc": 2458173.238954187, "kind": "reappearance", "moon_alt_deg": 54.3079, "moon_az_deg": 163.4408, "position_angle_deg": 230.6598, "sun_alt_deg": -2.9786, "utc": "2018-02-23T17:44:05.641Z"}
+      ],
+      "hip": 21421,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -9.6917,
+      "navigational": true,
+      "observer": {"height_m": 20.0000, "lat_deg": 51.507400000, "lon_deg": -0.127800000},
+      "site": "london"
+    },
+    {
+      "body": "Aldebaran",
+      "catalogue": {"dec_j2000_deg": 16.509761640, "magnitude": 0.870000000, "parallax_mas": 50.090000000, "pm_dec_mas_yr": -189.360000000, "pm_ra_cosdec_mas_yr": 62.780000000, "ra_j2000_deg": 68.980001950},
+      "contacts": [
+        {"jd_utc": 2463882.608593796, "kind": "disappearance", "moon_alt_deg": 38.0944, "moon_az_deg": 141.0395, "position_angle_deg": 132.9979, "sun_alt_deg": -31.4654, "utc": "2033-10-12T02:36:22.504Z"},
+        {"jd_utc": 2463882.637115519, "kind": "reappearance", "moon_alt_deg": 40.5016, "moon_az_deg": 152.9483, "position_angle_deg": 210.8855, "sun_alt_deg": -29.2503, "utc": "2033-10-12T03:17:26.780Z"}
+      ],
+      "hip": 21421,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -3.6122,
+      "navigational": true,
+      "observer": {"height_m": 30.0000, "lat_deg": 64.146600000, "lon_deg": -21.942600000},
+      "site": "reykjavik"
+    },
+    {
+      "body": "Regulus",
+      "catalogue": {"dec_j2000_deg": 11.967195130, "magnitude": 1.360000000, "parallax_mas": 42.090000000, "pm_dec_mas_yr": 4.910000000, "pm_ra_cosdec_mas_yr": -249.400000000, "ra_j2000_deg": 152.093580750},
+      "contacts": [
+        {"jd_utc": 2457768.619839446, "kind": "disappearance", "moon_alt_deg": 21.8673, "moon_az_deg": 56.8117, "position_angle_deg": 99.4225, "sun_alt_deg": -31.8453, "utc": "2017-01-15T02:52:34.128Z"},
+        {"jd_utc": 2457768.672681470, "kind": "reappearance", "moon_alt_deg": 33.5300, "moon_az_deg": 41.0215, "position_angle_deg": 294.9892, "sun_alt_deg": -34.2896, "utc": "2017-01-15T04:08:39.679Z"}
+      ],
+      "hip": 49669,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -13.9706,
+      "navigational": true,
+      "observer": {"height_m": 25.0000, "lat_deg": -34.603700000, "lon_deg": -58.381600000},
+      "site": "buenos_aires"
+    },
+    {
+      "body": "Regulus",
+      "catalogue": {"dec_j2000_deg": 11.967195130, "magnitude": 1.360000000, "parallax_mas": 42.090000000, "pm_dec_mas_yr": 4.910000000, "pm_ra_cosdec_mas_yr": -249.400000000, "ra_j2000_deg": 152.093580750},
+      "contacts": [
+        {"jd_utc": 2458123.850104460, "kind": "disappearance", "moon_alt_deg": 16.3315, "moon_az_deg": 268.7624, "position_angle_deg": 107.1154, "sun_alt_deg": 1.4509, "utc": "2018-01-05T08:24:09.025Z"},
+        {"jd_utc": 2458123.887958703, "kind": "reappearance", "moon_alt_deg": 8.0454, "moon_az_deg": 278.8324, "position_angle_deg": 290.7846, "sun_alt_deg": 7.3338, "utc": "2018-01-05T09:18:39.631Z"}
+      ],
+      "hip": 49669,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -15.6519,
+      "navigational": true,
+      "observer": {"height_m": 20.0000, "lat_deg": 51.507400000, "lon_deg": -0.127800000},
+      "site": "london"
+    },
+    {
+      "body": "Regulus",
+      "catalogue": {"dec_j2000_deg": 11.967195130, "magnitude": 1.360000000, "parallax_mas": 42.090000000, "pm_dec_mas_yr": 4.910000000, "pm_ra_cosdec_mas_yr": -249.400000000, "ra_j2000_deg": 152.093580750},
+      "contacts": [
+        {"jd_utc": 2460992.544747308, "kind": "disappearance", "moon_alt_deg": 34.7908, "moon_az_deg": 259.3246, "position_angle_deg": 205.4529, "sun_alt_deg": 32.9974, "utc": "2025-11-13T01:04:26.167Z"},
+        {"jd_utc": 2460992.552753367, "kind": "reappearance", "moon_alt_deg": 32.5067, "moon_az_deg": 261.1744, "position_angle_deg": 225.2249, "sun_alt_deg": 33.8578, "utc": "2025-11-13T01:15:57.890Z"}
+      ],
+      "hip": 49669,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -0.2357,
+      "navigational": true,
+      "observer": {"height_m": 40.0000, "lat_deg": 35.676200000, "lon_deg": 139.650300000},
+      "site": "tokyo"
+    },
+    {
+      "body": "Spica",
+      "catalogue": {"dec_j2000_deg": -11.161244910, "magnitude": 0.980000000, "parallax_mas": 12.440000000, "pm_dec_mas_yr": -31.730000000, "pm_ra_cosdec_mas_yr": -42.500000000, "ra_j2000_deg": 201.298352300},
+      "contacts": [
+        {"jd_utc": 2460505.611770248, "kind": "disappearance", "moon_alt_deg": 43.2455, "moon_az_deg": 197.5488, "position_angle_deg": 157.9189, "sun_alt_deg": 3.7662, "utc": "2024-07-14T02:40:56.949Z"},
+        {"jd_utc": 2460505.665235610, "kind": "reappearance", "moon_alt_deg": 35.4381, "moon_az_deg": 219.4703, "position_angle_deg": 278.8499, "sun_alt_deg": -10.1482, "utc": "2024-07-14T03:57:56.356Z"}
+      ],
+      "hip": 65474,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -7.8608,
+      "navigational": true,
+      "observer": {"height_m": 90.0000, "lat_deg": 34.052200000, "lon_deg": -118.243700000},
+      "site": "los_angeles"
+    },
+    {
+      "body": "Spica",
+      "catalogue": {"dec_j2000_deg": -11.161244910, "magnitude": 0.980000000, "parallax_mas": 12.440000000, "pm_dec_mas_yr": -31.730000000, "pm_ra_cosdec_mas_yr": -42.500000000, "ra_j2000_deg": 201.298352300},
+      "contacts": [
+        {"jd_utc": 2460696.694023150, "kind": "disappearance", "moon_alt_deg": 67.8239, "moon_az_deg": 309.3821, "position_angle_deg": 114.7286, "sun_alt_deg": 12.9809, "utc": "2025-01-21T04:39:23.600Z"},
+        {"jd_utc": 2460696.755755512, "kind": "reappearance", "moon_alt_deg": 50.2961, "moon_az_deg": 284.1977, "position_angle_deg": 321.2538, "sun_alt_deg": 32.4726, "utc": "2025-01-21T06:08:17.276Z"}
+      ],
+      "hip": 65474,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -11.1382,
+      "navigational": true,
+      "observer": {"height_m": 1750.0000, "lat_deg": -26.204100000, "lon_deg": 28.047300000},
+      "site": "johannesburg"
+    },
+    {
+      "body": "Spica",
+      "catalogue": {"dec_j2000_deg": -11.161244910, "magnitude": 0.980000000, "parallax_mas": 12.440000000, "pm_dec_mas_yr": -31.730000000, "pm_ra_cosdec_mas_yr": -42.500000000, "ra_j2000_deg": 201.298352300},
+      "contacts": [
+        {"jd_utc": 2463074.129299493, "kind": "disappearance", "moon_alt_deg": 6.8589, "moon_az_deg": 98.7865, "position_angle_deg": 147.3745, "sun_alt_deg": 34.5168, "utc": "2031-07-26T15:06:11.476Z"},
+        {"jd_utc": 2463074.162145493, "kind": "reappearance", "moon_alt_deg": 16.3252, "moon_az_deg": 92.5942, "position_angle_deg": 256.9091, "sun_alt_deg": 36.0019, "utc": "2031-07-26T15:53:29.370Z"}
+      ],
+      "hip": 65474,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -6.5086,
+      "navigational": true,
+      "observer": {"height_m": 25.0000, "lat_deg": -34.603700000, "lon_deg": -58.381600000},
+      "site": "buenos_aires"
+    },
+    {
+      "body": "Antares",
+      "catalogue": {"dec_j2000_deg": -26.431946080, "magnitude": 1.060000000, "parallax_mas": 5.400000000, "pm_dec_mas_yr": -23.210000000, "pm_ra_cosdec_mas_yr": -10.160000000, "ra_j2000_deg": 247.351948040},
+      "contacts": [
+        {"jd_utc": 2460181.576742054, "kind": "disappearance", "moon_alt_deg": 29.5195, "moon_az_deg": 174.6594, "position_angle_deg": 165.9199, "sun_alt_deg": 7.0461, "utc": "2023-08-25T01:50:30.513Z"},
+        {"jd_utc": 2460181.610568481, "kind": "reappearance", "moon_alt_deg": 29.2860, "moon_az_deg": 186.9091, "position_angle_deg": 233.0165, "sun_alt_deg": -2.8344, "utc": "2023-08-25T02:39:13.116Z"}
+      ],
+      "hip": 80763,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -2.7677,
+      "navigational": true,
+      "observer": {"height_m": 90.0000, "lat_deg": 34.052200000, "lon_deg": -118.243700000},
+      "site": "los_angeles"
+    },
+    {
+      "body": "Antares",
+      "catalogue": {"dec_j2000_deg": -26.431946080, "magnitude": 1.060000000, "parallax_mas": 5.400000000, "pm_dec_mas_yr": -23.210000000, "pm_ra_cosdec_mas_yr": -10.160000000, "ra_j2000_deg": 247.351948040},
+      "contacts": [
+        {"jd_utc": 2460318.109354322, "kind": "disappearance", "moon_alt_deg": 23.3764, "moon_az_deg": 184.3154, "position_angle_deg": 77.1702, "sun_alt_deg": 18.6726, "utc": "2024-01-08T14:37:28.213Z"},
+        {"jd_utc": 2460318.160620669, "kind": "reappearance", "moon_alt_deg": 20.1850, "moon_az_deg": 201.3015, "position_angle_deg": 312.8655, "sun_alt_deg": 25.3263, "utc": "2024-01-08T15:51:17.625Z"}
+      ],
+      "hip": 80763,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -8.1619,
+      "navigational": true,
+      "observer": {"height_m": 10.0000, "lat_deg": 39.952600000, "lon_deg": -75.165200000},
+      "site": "philadelphia"
+    },
+    {
+      "body": "Antares",
+      "catalogue": {"dec_j2000_deg": -26.431946080, "magnitude": 1.060000000, "parallax_mas": 5.400000000, "pm_dec_mas_yr": -23.210000000, "pm_ra_cosdec_mas_yr": -10.160000000, "ra_j2000_deg": 247.351948040},
+      "contacts": [
+        {"jd_utc": 2460700.531645525, "kind": "disappearance", "moon_alt_deg": 55.1606, "moon_az_deg": 271.1458, "position_angle_deg": 61.2184, "sun_alt_deg": 66.4532, "utc": "2025-01-25T00:45:34.173Z"},
+        {"jd_utc": 2460700.578627761, "kind": "reappearance", "moon_alt_deg": 41.5206, "moon_az_deg": 262.7033, "position_angle_deg": 306.8109, "sun_alt_deg": 74.7341, "utc": "2025-01-25T01:53:13.438Z"}
+      ],
+      "hip": 80763,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -6.8128,
+      "navigational": true,
+      "observer": {"height_m": 40.0000, "lat_deg": -33.868800000, "lon_deg": 151.209300000},
+      "site": "sydney"
+    },
+    {
+      "body": "Alcyone",
+      "catalogue": {"dec_j2000_deg": 24.105241930, "magnitude": 2.850000000, "parallax_mas": 8.870000000, "pm_dec_mas_yr": -43.110000000, "pm_ra_cosdec_mas_yr": 19.350000000, "ra_j2000_deg": 56.871100650},
+      "contacts": [
+        {"jd_utc": 2460248.129996118, "kind": "disappearance", "moon_alt_deg": 32.1975, "moon_az_deg": 0.4725, "position_angle_deg": 21.7657, "sun_alt_deg": -37.8717, "utc": "2023-10-30T15:07:11.664Z"},
+        {"jd_utc": 2460248.172915198, "kind": "reappearance", "moon_alt_deg": 30.3841, "moon_az_deg": 344.4518, "position_angle_deg": 289.4653, "sun_alt_deg": -30.3934, "utc": "2023-10-30T16:08:59.873Z"}
+      ],
+      "hip": 17702,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -5.1081,
+      "navigational": false,
+      "observer": {"height_m": 40.0000, "lat_deg": -33.868800000, "lon_deg": 151.209300000},
+      "site": "sydney"
+    },
+    {
+      "body": "Alcyone",
+      "catalogue": {"dec_j2000_deg": 24.105241930, "magnitude": 2.850000000, "parallax_mas": 8.870000000, "pm_dec_mas_yr": -43.110000000, "pm_ra_cosdec_mas_yr": 19.350000000, "ra_j2000_deg": 56.871100650},
+      "contacts": [
+        {"jd_utc": 2460357.266668985, "kind": "disappearance", "moon_alt_deg": 12.6828, "moon_az_deg": 48.4508, "position_angle_deg": 66.2223, "sun_alt_deg": 51.9025, "utc": "2024-02-16T18:24:00.200Z"},
+        {"jd_utc": 2460357.315970497, "kind": "reappearance", "moon_alt_deg": 21.9824, "moon_az_deg": 35.0895, "position_angle_deg": 235.7073, "sun_alt_deg": 38.1455, "utc": "2024-02-16T19:34:59.850Z"}
+      ],
+      "hip": 17702,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -14.3139,
+      "navigational": false,
+      "observer": {"height_m": 25.0000, "lat_deg": -34.603700000, "lon_deg": -58.381600000},
+      "site": "buenos_aires"
+    },
+    {
+      "body": "Alcyone",
+      "catalogue": {"dec_j2000_deg": 24.105241930, "magnitude": 2.850000000, "parallax_mas": 8.870000000, "pm_dec_mas_yr": -43.110000000, "pm_ra_cosdec_mas_yr": 19.350000000, "ra_j2000_deg": 56.871100650},
+      "contacts": [
+        {"jd_utc": 2460685.552652569, "kind": "disappearance", "moon_alt_deg": 73.9639, "moon_az_deg": 168.9136, "position_angle_deg": 85.8775, "sun_alt_deg": -38.0278, "utc": "2025-01-10T01:15:49.181Z"},
+        {"jd_utc": 2460685.606311950, "kind": "reappearance", "moon_alt_deg": 69.6792, "moon_az_deg": 224.5101, "position_angle_deg": 231.8879, "sun_alt_deg": -52.5978, "utc": "2025-01-10T02:33:05.352Z"}
+      ],
+      "hip": 17702,
+      "kind": "star",
+      "least_limb_distance_arcmin_sampled": -11.2724,
+      "navigational": false,
+      "observer": {"height_m": 10.0000, "lat_deg": 39.952600000, "lon_deg": -75.165200000},
+      "site": "philadelphia"
+    },
+    {
+      "body": "Venus",
+      "contacts": [
+        {"jd_utc": 2458014.533790047, "kind": "disappearance", "moon_alt_deg": 41.7446, "moon_az_deg": 345.9975, "position_angle_deg": 130.1228, "sun_alt_deg": 51.5141, "utc": "2017-09-18T00:48:39.460Z"},
+        {"jd_utc": 2458014.595320972, "kind": "reappearance", "moon_alt_deg": 33.8815, "moon_az_deg": 321.1059, "position_angle_deg": 281.2553, "sun_alt_deg": 53.6902, "utc": "2017-09-18T02:17:15.731Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -12.0271,
+      "navigational": true,
+      "observer": {"height_m": 40.0000, "lat_deg": -33.868800000, "lon_deg": 151.209300000},
+      "site": "sydney"
+    },
+    {
+      "body": "Venus",
+      "contacts": [
+        {"jd_utc": 2458166.148504021, "kind": "disappearance", "moon_alt_deg": 61.0014, "moon_az_deg": 38.0349, "position_angle_deg": 7.5111, "sun_alt_deg": 66.3212, "utc": "2018-02-16T15:33:50.747Z"},
+        {"jd_utc": 2458166.189906026, "kind": "reappearance", "moon_alt_deg": 65.6007, "moon_az_deg": 7.2748, "position_angle_deg": 299.4633, "sun_alt_deg": 66.8203, "utc": "2018-02-16T16:33:27.880Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -2.5223,
+      "navigational": true,
+      "observer": {"height_m": 25.0000, "lat_deg": -34.603700000, "lon_deg": -58.381600000},
+      "site": "buenos_aires"
+    },
+    {
+      "body": "Venus",
+      "contacts": [
+        {"jd_utc": 2458696.390735159, "kind": "disappearance", "moon_alt_deg": 29.5415, "moon_az_deg": 272.2356, "position_angle_deg": 94.6087, "sun_alt_deg": 31.3730, "utc": "2019-07-31T21:22:39.517Z"},
+        {"jd_utc": 2458696.432768037, "kind": "reappearance", "moon_alt_deg": 18.3629, "moon_az_deg": 280.9018, "position_angle_deg": 298.5955, "sun_alt_deg": 19.7937, "utc": "2019-07-31T22:23:11.158Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -13.1440,
+      "navigational": true,
+      "observer": {"height_m": 10.0000, "lat_deg": 39.952600000, "lon_deg": -75.165200000},
+      "site": "philadelphia"
+    },
+    {
+      "body": "Mars",
+      "contacts": [
+        {"jd_utc": 2458015.248180947, "kind": "disappearance", "moon_alt_deg": 39.7019, "moon_az_deg": 95.1710, "position_angle_deg": 127.6805, "sun_alt_deg": 21.9527, "utc": "2017-09-18T17:57:22.833Z"},
+        {"jd_utc": 2458015.305394493, "kind": "reappearance", "moon_alt_deg": 58.0420, "moon_az_deg": 106.9982, "position_angle_deg": 274.2235, "sun_alt_deg": 40.7009, "utc": "2017-09-18T19:19:46.084Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -11.0907,
+      "navigational": true,
+      "observer": {"height_m": 5.0000, "lat_deg": 21.306900000, "lon_deg": -157.858300000},
+      "site": "honolulu"
+    },
+    {
+      "body": "Mars",
+      "contacts": [
+        {"jd_utc": 2458668.753367916, "kind": "disappearance", "moon_alt_deg": 60.5613, "moon_az_deg": 247.3660, "position_angle_deg": 32.0000, "sun_alt_deg": 45.2457, "utc": "2019-07-04T06:04:50.987Z"},
+        {"jd_utc": 2458668.768285406, "kind": "reappearance", "moon_alt_deg": 56.5495, "moon_az_deg": 252.7111, "position_angle_deg": 0.4959, "sun_alt_deg": 40.8842, "utc": "2019-07-04T06:26:19.859Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -0.6329,
+      "navigational": true,
+      "observer": {"height_m": 40.0000, "lat_deg": 35.676200000, "lon_deg": 139.650300000},
+      "site": "tokyo"
+    },
+    {
+      "body": "Mars",
+      "contacts": [
+        {"jd_utc": 2458898.021546976, "kind": "disappearance", "moon_alt_deg": 25.5549, "moon_az_deg": 169.1181, "position_angle_deg": 79.1205, "sun_alt_deg": 6.6204, "utc": "2020-02-18T12:31:01.658Z"},
+        {"jd_utc": 2458898.084703134, "kind": "reappearance", "moon_alt_deg": 25.3764, "moon_az_deg": 191.6487, "position_angle_deg": 295.4878, "sun_alt_deg": 21.7541, "utc": "2020-02-18T14:01:58.350Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -10.3038,
+      "navigational": true,
+      "observer": {"height_m": 10.0000, "lat_deg": 39.952600000, "lon_deg": -75.165200000},
+      "site": "philadelphia"
+    },
+    {
+      "body": "Jupiter",
+      "contacts": [
+        {"jd_utc": 2458815.982919900, "kind": "disappearance", "moon_alt_deg": 29.0253, "moon_az_deg": 228.1276, "position_angle_deg": 124.0683, "sun_alt_deg": 10.7042, "utc": "2019-11-28T11:35:24.279Z"},
+        {"jd_utc": 2458816.025958539, "kind": "reappearance", "moon_alt_deg": 17.7152, "moon_az_deg": 236.8628, "position_angle_deg": 230.0054, "sun_alt_deg": -2.6388, "utc": "2019-11-28T12:37:22.817Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -6.3943,
+      "navigational": true,
+      "observer": {"height_m": 10.0000, "lat_deg": 19.076000000, "lon_deg": 72.877700000},
+      "site": "mumbai"
+    },
+    {
+      "body": "Jupiter",
+      "contacts": [
+        {"jd_utc": 2458871.631898155, "kind": "disappearance", "moon_alt_deg": 54.9628, "moon_az_deg": 277.9314, "position_angle_deg": 62.1770, "sun_alt_deg": 69.9777, "utc": "2020-01-23T03:09:56.000Z"},
+        {"jd_utc": 2458871.682940410, "kind": "reappearance", "moon_alt_deg": 40.1114, "moon_az_deg": 267.2606, "position_angle_deg": 281.6246, "sun_alt_deg": 56.5142, "utc": "2020-01-23T04:23:26.051Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -10.1527,
+      "navigational": true,
+      "observer": {"height_m": 40.0000, "lat_deg": -33.868800000, "lon_deg": 151.209300000},
+      "site": "sydney"
+    },
+    {
+      "body": "Jupiter",
+      "contacts": [
+        {"jd_utc": 2459998.472069755, "kind": "disappearance", "moon_alt_deg": 21.4850, "moon_az_deg": 288.9381, "position_angle_deg": 8.9687, "sun_alt_deg": 0.6336, "utc": "2023-02-22T23:19:46.826Z"},
+        {"jd_utc": 2459998.500650500, "kind": "reappearance", "moon_alt_deg": 13.3428, "moon_az_deg": 282.8445, "position_angle_deg": 289.0074, "sun_alt_deg": -7.6819, "utc": "2023-02-23T00:00:56.203Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -3.8979,
+      "navigational": true,
+      "observer": {"height_m": 570.0000, "lat_deg": -33.448900000, "lon_deg": -70.669300000},
+      "site": "santiago"
+    },
+    {
+      "body": "Saturn",
+      "contacts": [
+        {"jd_utc": 2458489.290922572, "kind": "disappearance", "moon_alt_deg": 20.9708, "moon_az_deg": 211.6223, "position_angle_deg": 115.8418, "sun_alt_deg": 22.1588, "utc": "2019-01-05T18:58:55.710Z"},
+        {"jd_utc": 2458489.338704038, "kind": "reappearance", "moon_alt_deg": 12.9736, "moon_az_deg": 225.5598, "position_angle_deg": 230.0003, "sun_alt_deg": 14.5032, "utc": "2019-01-05T20:07:44.028Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -6.9327,
+      "navigational": true,
+      "observer": {"height_m": 10.0000, "lat_deg": 39.952600000, "lon_deg": -75.165200000},
+      "site": "philadelphia"
+    },
+    {
+      "body": "Saturn",
+      "contacts": [
+        {"jd_utc": 2460434.460326497, "kind": "disappearance", "moon_alt_deg": 61.4664, "moon_az_deg": 337.7398, "position_angle_deg": 332.9945, "sun_alt_deg": 25.8845, "utc": "2024-05-03T23:02:52.209Z"},
+        {"jd_utc": 2460434.473673810, "kind": "reappearance", "moon_alt_deg": 59.6229, "moon_az_deg": 328.9863, "position_angle_deg": 303.7629, "sun_alt_deg": 28.6461, "utc": "2024-05-03T23:22:05.417Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -0.5394,
+      "navigational": true,
+      "observer": {"height_m": 40.0000, "lat_deg": -33.868800000, "lon_deg": 151.209300000},
+      "site": "sydney"
+    },
+    {
+      "body": "Saturn",
+      "contacts": [
+        {"jd_utc": 2460680.223067497, "kind": "disappearance", "moon_alt_deg": 28.5041, "moon_az_deg": 200.5821, "position_angle_deg": 51.9367, "sun_alt_deg": -10.9859, "utc": "2025-01-04T17:21:13.031Z"},
+        {"jd_utc": 2460680.271123542, "kind": "reappearance", "moon_alt_deg": 23.6263, "moon_az_deg": 218.4498, "position_angle_deg": 234.1222, "sun_alt_deg": -21.2896, "utc": "2025-01-04T18:30:25.074Z"}
+      ],
+      "kind": "planet",
+      "least_limb_distance_arcmin_sampled": -15.7390,
+      "navigational": true,
+      "observer": {"height_m": 20.0000, "lat_deg": 51.507400000, "lon_deg": -0.127800000},
+      "site": "london"
+    }
+  ],
+  "generator": {
+    "contact": "A contact is where the topocentric apparent separation of the Moon's centre and the body equals the Moon's topocentric semidiameter asin(R / d), R = 0.2725076 x 6378.14 km = 1738.092 km, d the geometric observer-Moon distance; found on a 2-minute grid over +/-5 h of the geocentric closest approach and refined by bisection to 1 ms.",
+    "description": "Lunar occultations for observers on the WGS84 ellipsoid: disappearance and reappearance at the Moon's mean limb from Skyfield's topocentric apparent places (JPL DE440s, Hipparcos), UT1 = UTC.",
+    "ephemeris": {
+      "file": "de440s.bsp",
+      "sha256": "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2",
+      "size_bytes": 32726016,
+      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp"
+    },
+    "generated_utc": "2026-09-25T04:34:48Z",
+    "never_a_runtime_dependency": "Generated by tools/reference/ (Python + Skyfield). CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "position_angle": "Of the body from the Moon's centre, topocentric apparent RA/Dec of date, north through east.",
+    "selection": "Bodies: Aldebaran, Regulus, Spica, Antares (navigational), Alcyone (eta Tauri, from the Bright Star Catalogue's range), Venus, Mars, Jupiter, Saturn. For each, the first geocentric close approaches (< 1.6 deg) from 2017 on, at most one per calendar year, each at the first place of OCC_SITES that sees a disappearance and a reappearance with the Moon at least 5 degrees up; 3 per body.",
+    "stars": {
+      "file": "hip_main.dat",
+      "sha256": "58ceabb104d647160d9437ce6e513a02a036bb4ad9f8879a5a22fd52943616e0",
+      "size_bytes": 53316318,
+      "url": "https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat"
+    },
+    "timescale": {
+      "call": "skyfield.api.load.timescale(builtin=True)",
+      "delta_t_source": "Skyfield's bundled skyfield/data/iers.npz, a daily Delta-T table built from the IERS finals2000A.all series at the time the Skyfield wheel was released. Outside the table Skyfield extrapolates with its long-term Delta-T model (Morrison & Stephenson / Espenak & Meeus).",
+      "delta_t_table_utc_span": [
+        "1973-01-02T00:00:00Z",
+        "2027-01-23T00:00:00Z"
+      ],
+      "dut1_definition": "DUT1 = UT1 - UTC = 32.184 + Delta_AT - Delta_T, as Skyfield derives it",
+      "leap_second_table": "bundled in the same iers.npz; latest offset 37 s from 2017-01-01",
+      "polar_motion": "not applied (no polar-motion table installed)",
+      "warning_dut1": "CONVENTIONS section 6 assumes DUT1 = 0. Skyfield does not: every GHA in these fixtures uses Skyfield's UT1. The per-epoch dut1_s is recorded, and gha_deg_dut1_zero gives the same GHA recomputed with UT1 = UTC so a DUT1 = 0 implementation has a directly comparable number. 1 s of DUT1 = 15.0410686 arcsec of GHA. Beyond the Delta-T table's end the extrapolated Delta-T implies |DUT1| far above the 0.9 s that real leap seconds enforce (about -3.5 s at 2055), so gha_deg alone is not a physically meaningful prediction for far-future epochs; gha_deg_dut1_zero is."
+    },
+    "tolerance_arcmin": 0.0000,
+    "tolerance_justification": "EXPANSION_PLAN P8: occultation contacts within 30 s of Skyfield's topocentric geometry (mean limb).",
+    "tool": "tools/moon/gen_reference.py occultations",
+    "ut1": "load.timescale(delta_t = 69.184): UT1 = UTC exactly for 2017 on.",
+    "versions": {
+      "jplephem": "2.24",
+      "numpy": "2.5.3",
+      "pandas": "3.0.6",
+      "python": "3.12.3",
+      "skyfield": "1.55"
+    }
+  },
+  "schema": "skyfix.reference/1"
+}
