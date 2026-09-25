@@ -63,7 +63,8 @@
         "sg": 45,
         "snr": 4
       },
-      "bytes": 20181,
+      "bytes": 19017,
+      "descriptions_left_to_the_engine": 29,
       "galaxies_with_rc3_colour": 61,
       "median_galaxy_colour_bv": 0.81,
       "messier": 110,
@@ -236,7 +237,7 @@
     "sha256": "58202e2139d51c4cb081fd3b380ba8129a0a15bbdf5f02024e71acf1be9c441c"
   },
   "names": {
-    "bytes": 7401,
+    "bytes": 7169,
     "differences_from_the_2022_file": [],
     "existing_agreeing_with_wgsn": 237,
     "existing_names": 252,
@@ -275,7 +276,7 @@
     ],
     "names_added": 220,
     "position_or_duplicate_rejections": [],
-    "sha256": "ce56e3c8088d61833a7e36ce20dd3c698baf387c282aaa207094d1d0a8adab53",
+    "sha256": "cad07acd247e6da8f2d57de2633a16012b94ed36d8d0610388e45e2531acba3d",
     "spelling_differences_kept_ours": [
       "HR 264: ours 'Navi', WGSN 'Tiansi' (ours kept)",
       "HR 8425: ours \"Al Na'ir\", WGSN 'Alnair' (same name; ours kept)"
@@ -285,7 +286,7 @@
     "with_hr_designation": 459
   },
   "showers": {
-    "bytes": 2835,
+    "bytes": 2509,
     "exceptions": {
       "KCG imo_radiant": "Table 5 of the IMO calendars gives (286, +59); their own Table 6 and the MDC give a radiant drifting north 0.67 deg/day that stands at (288, +54) on the peak date, which we use",
       "PHO mdc_lambda": "the MDC's two Phoenicid parameter sets average 251.65 deg; we keep the IMO's peak, 249.5",

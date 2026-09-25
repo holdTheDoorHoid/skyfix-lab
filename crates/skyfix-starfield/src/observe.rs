@@ -252,6 +252,19 @@ pub fn compass_words(az_deg: f64) -> &'static str {
     WORDS[((az_deg.rem_euclid(360.0) / 45.0).round() as usize) % 8]
 }
 
+/// Plain words for where something is: "high in the south-east" (60 degrees up or
+/// more), "in the west" (30 to 60), "low in the north" (below 30).
+pub fn place_words(alt_deg: f64, az_deg: f64) -> String {
+    let lead = match alt_deg {
+        a if a >= 60.0 => "high in the ",
+        a if a >= 30.0 => "in the ",
+        _ => "low in the ",
+    };
+    let mut s = String::from(lead);
+    s.push_str(compass_words(az_deg));
+    s
+}
+
 impl Sighting {
     pub fn new(jd_utc: f64, h: &Horizon) -> Sighting {
         Sighting {
@@ -380,7 +393,7 @@ fn body_events<'a>(d: &'a DayEvents, body: &str) -> &'a [SkyEvent] {
 /// The longest run of consecutive phase segments for which `pred` holds.
 fn longest_run(
     phases: &[(f64, f64, SkyPhase)],
-    pred: impl Fn(SkyPhase) -> bool,
+    pred: &dyn Fn(SkyPhase) -> bool,
 ) -> Option<(f64, f64)> {
     let mut best: Option<(f64, f64)> = None;
     let mut run: Option<(f64, f64)> = None;
@@ -479,7 +492,7 @@ impl Night {
             }),
         ];
         let dark = tiers.iter().find_map(|(kind, f)| {
-            longest_run(&phases, f).map(|(a, b)| DarkWindow {
+            longest_run(&phases, &|p| f(p)).map(|(a, b)| DarkWindow {
                 kind: *kind,
                 start: Instant::new(a),
                 end: Instant::new(b),
@@ -541,7 +554,7 @@ impl Night {
         };
         if let Some(w) = night.dark.clone() {
             let (up, total) =
-                night.fraction_of(w.start.jd_utc, w.end.jd_utc, |t| night.moon_at(t).0 > 0.0);
+                night.fraction_of(w.start.jd_utc, w.end.jd_utc, &|t| night.moon_at(t).0 > 0.0);
             night.moon.up_hours = up * 24.0;
             night.moon.down_hours = (total - up) * 24.0;
         }
@@ -549,7 +562,7 @@ impl Night {
     }
 
     /// Days of `[a, b]` for which `pred` holds, sampled every minute, and `b - a`.
-    fn fraction_of(&self, a: f64, b: f64, pred: impl Fn(f64) -> bool) -> (f64, f64) {
+    fn fraction_of(&self, a: f64, b: f64, pred: &dyn Fn(f64) -> bool) -> (f64, f64) {
         let step = 1.0 / 1440.0;
         let n = ((b - a) / step).ceil().max(1.0) as usize;
         let dt = (b - a) / n as f64;
@@ -594,7 +607,7 @@ impl Night {
     }
 
     /// The longest run of consecutive sky phases for which `pred` holds.
-    pub fn run(&self, pred: impl Fn(SkyPhase) -> bool) -> Option<(f64, f64)> {
+    pub fn run(&self, pred: &dyn Fn(SkyPhase) -> bool) -> Option<(f64, f64)> {
         longest_run(&self.phases, pred)
     }
 
@@ -639,6 +652,30 @@ pub struct NightSummary {
     pub darkness: Option<DarkWindow>,
     pub sun: SunNight,
     pub moon: MoonNight,
+}
+
+/// Indices of `keys` from the largest key to the smallest (ties in index order). One
+/// sort shared by every ranking in the crate, instead of one per element type.
+pub fn order_desc(keys: &[f64]) -> Vec<usize> {
+    // Insertion sort: the lists are a few hundred long at most, and it is a few dozen
+    // bytes of code instead of a quicksort per call site.
+    let mut idx: Vec<usize> = Vec::with_capacity(keys.len());
+    for i in 0..keys.len() {
+        let at = idx.partition_point(|&j: &usize| keys[j] >= keys[i]);
+        idx.insert(at, i);
+    }
+    idx
+}
+
+/// Reorder `items` by `keys`, largest first, keeping at most `limit`.
+pub fn take_ordered<T>(items: Vec<T>, keys: &[f64], limit: usize) -> Vec<T> {
+    let order = order_desc(keys);
+    let mut slots: Vec<Option<T>> = items.into_iter().map(Some).collect();
+    order
+        .into_iter()
+        .take(limit)
+        .filter_map(|i| slots[i].take())
+        .collect()
 }
 
 /// Years since J2000.0 of a UTC instant (for drift and display only).

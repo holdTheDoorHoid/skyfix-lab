@@ -32,6 +32,10 @@ pub mod nav;
 pub mod navsky;
 pub mod planet_events;
 pub mod starfield;
+// --- deepsky agent (expansion programme, 2026-09-24): deep-sky objects, meteor
+// showers, the Milky Way, search, extinction, tonight. EXPLORER_API.md, "Deep sky".
+pub mod deepsky;
+// --- end deepsky ---
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;

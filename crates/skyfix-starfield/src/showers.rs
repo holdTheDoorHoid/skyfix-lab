@@ -117,7 +117,7 @@ impl Shower {
         if span <= 0.0 {
             return peak;
         }
-        peak * 10f64.powf(-(peak / edge).log10() * d.abs() / span)
+        peak * crate::extinction::exp10(-(peak / edge).log10() * d.abs() / span)
     }
 }
 
@@ -128,7 +128,8 @@ fn parse() -> Result<Vec<Shower>, StarfieldError> {
             continue;
         }
         let f: Vec<&'static str> = line.split('|').collect();
-        let bad = || StarfieldError::Data(format!("showers.txt: bad line {line:?}"));
+        // A malformed table is a packaging error the tests rule out.
+        let bad = || StarfieldError::Data("showers.txt is malformed".into());
         if f.len() != 15 {
             return Err(bad());
         }
@@ -238,6 +239,10 @@ pub struct ShowerNight {
     pub limiting_mag: Option<f64>,
     /// Hours of the window with the radiant above 20 degrees.
     pub hours_radiant_above_20: f64,
+    /// The shower's rate varies from year to year.
+    pub variable: bool,
+    /// One sentence without clock times: how far from the peak, the rate, the radiant.
+    pub reason: String,
 }
 
 /// The shower through `night` (its observing window), or `None` when it is not active.
@@ -284,12 +289,17 @@ pub fn night_activity(
             conditions.sky_brightness_mpsas,
         );
         let lm = conditions.nelm_brightened(ml.brightening_mag);
-        let rate = zhr * h.alt_apparent_deg.to_radians().sin() * shower.r.powf(lm - 6.5);
+        let rate = zhr
+            * h.alt_apparent_deg.to_radians().sin()
+            * crate::extinction::powf(shower.r, lm - 6.5);
         if best.is_none_or(|(_, r, _, _)| rate > r) {
             best = Some((t, rate, lm, h));
         }
     }
     let days_from_peak = wrap180(lambda - shower.lambda_peak_deg) / SUN_DEG_PER_DAY;
+    let rate = best.map_or(0.0, |(_, r, _, _)| r);
+    let best = best.map(|(t, _, lm, h)| (Sighting::new(t, &h), lm));
+    let reason = reason(shower, days_from_peak, rate, best.as_ref().map(|b| &b.0));
     Ok(Some(ShowerNight {
         code: shower.code,
         name: shower.name,
@@ -298,11 +308,49 @@ pub fn night_activity(
         days_from_peak,
         radiant_ra_deg: ra0,
         radiant_dec_deg: dec0,
-        best: best.map(|(t, _, _, h)| Sighting::new(t, &h)),
-        expected_rate_per_hour: best.map_or(0.0, |(_, r, _, _)| r),
-        limiting_mag: best.map(|(_, _, lm, _)| lm),
+        limiting_mag: best.as_ref().map(|b| b.1),
+        best: best.map(|b| b.0),
+        expected_rate_per_hour: rate,
         hours_radiant_above_20: above20 as f64 * dt * 24.0,
+        variable: shower.variable,
+        reason,
     }))
+}
+
+/// "Perseids 2 days before its peak: about 25 meteors an hour, best with the radiant
+/// high in the north-east (62°)".
+fn reason(s: &Shower, days_from_peak: f64, rate: f64, best: Option<&Sighting>) -> String {
+    let mut t = String::from(s.name);
+    let d = days_from_peak.abs().round();
+    if days_from_peak.abs() < 1.0 {
+        t.push_str(" at its peak");
+    } else {
+        t += &format!(
+            " {d:.0} days {} its peak",
+            if days_from_peak < 0.0 {
+                "before"
+            } else {
+                "after"
+            }
+        );
+    }
+    let r = rate.round();
+    if r >= 1.0 {
+        t += &format!(": about {r:.0} meteors an hour");
+    } else {
+        t.push_str(": only an occasional meteor");
+    }
+    if let Some(b) = best {
+        t += &format!(
+            ", best with the radiant {} ({:.0}°)",
+            crate::observe::place_words(b.alt_deg, b.az_deg),
+            b.alt_deg
+        );
+    }
+    if s.variable {
+        t.push_str("; rates vary from year to year");
+    }
+    t
 }
 
 // ---------------------------------------------------------------------------
@@ -312,7 +360,6 @@ pub fn night_activity(
 /// One shower's dates in a year.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct ShowerDates {
-    #[serde(flatten)]
     pub shower: &'static Shower,
     /// The peak in the calendar year asked for; start and end around it (the start
     /// may fall in the year before, the end in the year after).
@@ -419,8 +466,9 @@ pub fn year(
             .first()
             .map_or_else(|| "no showers".to_string(), |e| e.message.clone()));
     }
-    out.showers
-        .sort_by(|a, b| a.peak.jd_utc.total_cmp(&b.peak.jd_utc));
+    let keys: Vec<f64> = out.showers.iter().map(|d| -d.peak.jd_utc).collect();
+    let n = keys.len();
+    out.showers = crate::observe::take_ordered(std::mem::take(&mut out.showers), &keys, n);
     Ok(out)
 }
 

@@ -13,12 +13,15 @@
 //! navigational stars (from the navigation catalogue); [`hip_of`] answers for those and
 //! `None` otherwise.
 
-use std::collections::HashMap;
 use std::sync::OnceLock;
 
 use crate::{Catalog, StarfieldError};
 
 const NAMES_WGSN_TXT: &str = include_str!("../data/names_wgsn.txt");
+
+fn bad() -> StarfieldError {
+    StarfieldError::Data("names_wgsn.txt is malformed".into())
+}
 
 fn parse() -> Result<Vec<(i32, u32, &'static str)>, StarfieldError> {
     let mut out = Vec::new();
@@ -26,15 +29,15 @@ fn parse() -> Result<Vec<(i32, u32, &'static str)>, StarfieldError> {
         if line.trim().is_empty() || line.starts_with('#') {
             continue;
         }
-        let f: Vec<&'static str> = line.split('|').collect();
-        let bad = || StarfieldError::Data(format!("names_wgsn.txt: bad line {line:?}"));
-        if f.len() != 3 {
+        let mut f = line.split('|');
+        let (Some(hr), Some(hip), Some(name), None) = (f.next(), f.next(), f.next(), f.next())
+        else {
             return Err(bad());
-        }
+        };
         out.push((
-            f[0].parse().map_err(|_| bad())?,
-            f[1].parse().map_err(|_| bad())?,
-            f[2],
+            hr.parse().map_err(|_| bad())?,
+            hip.parse().map_err(|_| bad())?,
+            name,
         ));
     }
     Ok(out)
@@ -47,47 +50,54 @@ pub(crate) fn extend(c: &mut Catalog) -> Result<(), StarfieldError> {
         if name.is_empty() {
             continue;
         }
-        let index = c.index_of_hr(hr).ok_or_else(|| {
-            StarfieldError::Data(format!("names_wgsn.txt: HR {hr} is not in the catalogue"))
-        })?;
-        if c.name_of(index).is_some() {
-            return Err(StarfieldError::Data(format!(
-                "names_wgsn.txt: HR {hr} is already named"
-            )));
+        // A star missing from the catalogue, one already named, or a name already
+        // used would be a packaging error (the build and the tests rule them out).
+        let index = c.index_of_hr(hr).ok_or_else(bad)?;
+        if c.name_of(index).is_some() || c.names.iter().any(|(_, n)| n == name) {
+            return Err(bad());
         }
-        if c.names.iter().any(|(_, n)| n == name) {
-            return Err(StarfieldError::Data(format!(
-                "names_wgsn.txt: {name} is already used"
-            )));
-        }
-        c.names.push((index, name.to_string()));
-        c.names.sort_by_key(|(i, _)| *i);
+        let at = c.names.partition_point(|(i, _)| *i < index);
+        c.names.insert(at, (index, name.to_string()));
     }
     Ok(())
 }
 
-/// The HIP number of a catalogue star, where it is known.
-pub fn hip_of(index: usize) -> Option<u32> {
-    static CELL: OnceLock<HashMap<usize, u32>> = OnceLock::new();
+/// `(catalogue index, HIP)` for every star whose HIP number is known, by index.
+fn hip_table() -> &'static [(usize, u32)] {
+    static CELL: OnceLock<Vec<(usize, u32)>> = OnceLock::new();
     CELL.get_or_init(|| {
-        let mut m = HashMap::new();
+        let mut m: Vec<(usize, u32)> = Vec::new();
         let (Ok(sf), Ok(rows)) = (crate::starfield(), parse()) else {
             return m;
         };
-        for (hr, hip, _) in rows {
-            if let (Some(i), true) = (sf.catalog.index_of_hr(hr), hip > 0) {
-                m.insert(i, hip);
+        let mut add = |i: usize, hip: u32| {
+            if let Err(at) = m.binary_search_by_key(&i, |x| x.0) {
+                m.insert(at, (i, hip));
             }
-        }
+        };
         for nav in &sf.navigational {
             if let Some(s) = skyfix_ephemeris::catalog::find(nav.name) {
-                m.insert(nav.index, s.hip);
+                add(nav.index, s.hip);
+            }
+        }
+        for (hr, hip, _) in rows {
+            if let (Some(i), true) = (sf.catalog.index_of_hr(hr), hip > 0) {
+                add(i, hip);
             }
         }
         m
     })
-    .get(&index)
-    .copied()
+}
+
+/// The HIP number of a catalogue star, where it is known.
+pub fn hip_of(index: usize) -> Option<u32> {
+    let t = hip_table();
+    t.binary_search_by_key(&index, |x| x.0).ok().map(|k| t[k].1)
+}
+
+/// The catalogue star with a HIP number, where it is known.
+pub fn index_of_hip(hip: u32) -> Option<usize> {
+    hip_table().iter().find(|x| x.1 == hip).map(|x| x.0)
 }
 
 #[cfg(test)]

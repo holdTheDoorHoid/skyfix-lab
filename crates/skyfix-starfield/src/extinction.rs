@@ -29,6 +29,18 @@
 
 use serde::{Deserialize, Serialize};
 
+/// `10^x` through `exp` (libm's `pow` is otherwise not in the WASM module).
+#[inline]
+pub fn exp10(x: f64) -> f64 {
+    (x * std::f64::consts::LN_10).exp()
+}
+
+/// `b^y` for `b > 0` through `exp` and `ln`.
+#[inline]
+pub fn powf(b: f64, y: f64) -> f64 {
+    (y * b.ln()).exp()
+}
+
 /// Extinction coefficient in V, magnitudes per air mass, when the caller gives none.
 pub const K_DEFAULT: f64 = 0.25;
 /// The range the caller may choose from.
@@ -51,7 +63,7 @@ pub fn airmass(apparent_alt_deg: f64) -> Option<f64> {
         return None;
     }
     let h = apparent_alt_deg;
-    let arg = h + 244.0 / (165.0 + 47.0 * h.powf(1.1));
+    let arg = h + 244.0 / (165.0 + 47.0 * powf(h.max(1e-12), 1.1));
     Some(1.0 / arg.to_radians().sin())
 }
 
@@ -68,13 +80,13 @@ pub fn bortle_nelm(class: u8) -> Option<f64> {
 /// Schaefer's relation: naked-eye limiting magnitude for a sky of `mpsas` V
 /// mag/arcsec^2.
 pub fn nelm_from_sky(mpsas: f64) -> f64 {
-    7.93 - 5.0 * (10f64.powf(4.316 - mpsas / 5.0) + 1.0).log10()
+    7.93 - 5.0 * (exp10(4.316 - mpsas / 5.0) + 1.0).log10()
 }
 
 /// Inverse of [`nelm_from_sky`], capped at [`DARKEST_SKY_MPSAS`] (the relation runs off
 /// to infinity as the limit approaches 7.93).
 pub fn sky_from_nelm(nelm: f64) -> f64 {
-    let t = 10f64.powf(1.586 - nelm / 5.0) - 1.0;
+    let t = exp10(1.586 - nelm / 5.0) - 1.0;
     if t <= 0.0 {
         return DARKEST_SKY_MPSAS;
     }
@@ -95,7 +107,7 @@ pub fn nanolamberts_to_mpsas(nl: f64) -> f64 {
 /// their model only.
 fn ks_airmass(zenith_distance_deg: f64) -> f64 {
     let s = zenith_distance_deg.to_radians().sin();
-    (1.0 - 0.96 * s * s).max(1e-6).powf(-0.5)
+    1.0 / (1.0 - 0.96 * s * s).max(1e-6).sqrt()
 }
 
 /// What the Moon does to one point of the sky.
@@ -128,7 +140,7 @@ pub fn moonlight(
     let z = (90.0 - target_alt_deg).clamp(0.0, 90.0);
     let x = ks_airmass(z);
     let b_zen = mpsas_to_nanolamberts(dark_zenith_mpsas);
-    let dark = b_zen * 10f64.powf(-0.4 * k * (x - 1.0)) * x;
+    let dark = b_zen * exp10(-0.4 * k * (x - 1.0)) * x;
     if moon_alt_deg <= 0.0 || target_alt_deg <= 0.0 {
         return Moonlight {
             added_nanolamberts: 0.0,
@@ -137,12 +149,12 @@ pub fn moonlight(
         };
     }
     let a = phase_angle_deg.abs().min(180.0);
-    let i_star = 10f64.powf(-0.4 * (3.84 + 0.026 * a + 4.0e-9 * a.powi(4)));
+    let i_star = exp10(-0.4 * (3.84 + 0.026 * a + 4.0e-9 * a.powi(4)));
     let rho = separation_deg.clamp(0.0, 180.0);
     let c = rho.to_radians().cos();
-    let f = 10f64.powf(5.36) * (1.06 + c * c) + 10f64.powf(6.15 - rho / 40.0);
+    let f = exp10(5.36) * (1.06 + c * c) + exp10(6.15 - rho / 40.0);
     let xm = ks_airmass(90.0 - moon_alt_deg.clamp(0.0, 90.0));
-    let added = f * i_star * 10f64.powf(-0.4 * k * xm) * (1.0 - 10f64.powf(-0.4 * k * x));
+    let added = f * i_star * exp10(-0.4 * k * xm) * (1.0 - exp10(-0.4 * k * x));
     Moonlight {
         added_nanolamberts: added,
         dark_nanolamberts: dark,

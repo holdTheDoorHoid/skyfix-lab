@@ -16,24 +16,24 @@
 //!   `100 x base(instrument) x sin(best altitude) x (0.5 + 0.5 min(1, hours / 4)) x
 //!   10^(-0.2 x moon brightening) x 1.2 if it has a common name`, with
 //!   `base` = 1.0 eye, 0.8 binoculars, 0.5 telescope, 0.35 camera; the best `limit`.
-//! - **Meteor showers** active that night ([`crate::showers::night_activity`]).
+//! - **Meteor showers** active that night ([`crate::showers::night_activity`]), listed
+//!   when the expected rate reaches half a meteor an hour or the shower is variable.
 //! - **The Milky Way's core** (Sagittarius A*) through the darkness.
-//! - **The summary**: plain sentences. Times inside them are tokens `{jd:2461308.51717}`
+//! - **The summary**: plain sentences. Times inside them are tokens `{jd:2461308.517173}`
 //!   (a UTC Julian date) that the interface replaces with a time in its own zone.
 //!
-//! Natively the whole call takes a few tens of milliseconds (`tests/timing.rs`).
+//! Natively the whole call takes about 20 ms (`tests/deepsky_timing.rs`).
 
 use serde::Serialize;
 use skyfix_almanac::events::SkyPhase;
 use skyfix_almanac::sky::sample_bodies;
-use skyfix_core::units::norm_360;
 use skyfix_ephemeris::body::{BodyEphemeris, PLANETS, Sky};
 use skyfix_ephemeris::topocentric::Site;
 
 use crate::dso::{self, Instrument, MoonEffect};
 use crate::extinction::Conditions;
 use crate::observe::{
-    Darkness, Frame, Instant, Night, NightSummary, Sighting, compass_words, separation_deg,
+    Darkness, Frame, Instant, Night, NightSummary, Sighting, compass, place_words, take_ordered,
 };
 use crate::showers::{self, ShowerNight};
 
@@ -79,15 +79,6 @@ pub struct DsoTonight {
     pub reason: String,
 }
 
-/// An active meteor shower.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct ShowerTonight {
-    #[serde(flatten)]
-    pub night: ShowerNight,
-    pub variable: bool,
-    pub reason: String,
-}
-
 /// The Milky Way's core.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct CoreTonight {
@@ -102,7 +93,7 @@ pub struct Tonight {
     pub conditions: Conditions,
     pub planets: Vec<PlanetTonight>,
     pub deep_sky: Vec<DsoTonight>,
-    pub showers: Vec<ShowerTonight>,
+    pub showers: Vec<ShowerNight>,
     pub milky_way_core: CoreTonight,
     /// Plain sentences; `{jd:...}` tokens stand for times.
     pub summary: String,
@@ -117,41 +108,35 @@ pub const NOTES: [&str; 3] = [
     "Meteor rates: ZHR x sin(radiant altitude) x r^(LM - 6.5); real rates vary.",
 ];
 
+/// A time token for the summary.
 fn tok(jd: f64) -> String {
     format!("{{jd:{jd:.6}}}")
 }
 
-fn place_words(alt: f64, az: f64) -> String {
-    let where_ = compass_words(az);
-    match alt {
-        a if a >= 60.0 => format!("high in the {where_}"),
-        a if a >= 30.0 => format!("in the {where_}"),
-        _ => format!("low in the {where_}"),
-    }
+/// A number with `digits` decimals, and a proper minus sign.
+fn num(x: f64, digits: usize) -> String {
+    format!("{x:.digits$}").replace('-', "−")
 }
 
-fn moon_words(m: &Option<MoonEffect>) -> &'static str {
-    match m.map_or(0.0, |m| m.brightening_mag) {
-        b if b < 0.3 => "",
-        b if b < 1.0 => "; some moonlight",
-        _ => "; washed out by moonlight",
-    }
-}
-
-fn instrument_words(i: Instrument) -> &'static str {
-    match i {
-        Instrument::Eye => "naked eye",
-        Instrument::Binoculars => "binoculars",
-        Instrument::Telescope => "a small telescope",
-        Instrument::Camera => "a camera",
-    }
+/// "high in the south (62° at best)".
+fn place_at(alt: f64, az: f64) -> String {
+    let mut s = place_words(alt, az);
+    s.push_str(" (");
+    s.push_str(&num(alt, 0));
+    s.push_str("° at best)");
+    s
 }
 
 fn list_words(items: &[String]) -> String {
     match items.len() {
         0 => String::new(),
         1 => items[0].clone(),
-        n => format!("{} and {}", items[..n - 1].join(", "), items[n - 1]),
+        n => {
+            let mut s = items[..n - 1].join(", ");
+            s.push_str(" and ");
+            s.push_str(&items[n - 1]);
+            s
+        }
     }
 }
 
@@ -161,24 +146,23 @@ fn planets_tonight(
     night: &Night,
     errors: &mut Vec<String>,
 ) -> Vec<PlanetTonight> {
-    let twilight = |p: SkyPhase| {
+    let Some((a, b)) = night.run(&|p| {
         matches!(
             p,
             SkyPhase::Nautical | SkyPhase::Astronomical | SkyPhase::Night
         )
-    };
-    let Some((a, b)) = night.run(twilight) else {
+    }) else {
         return Vec::new();
     };
     let s = match sample_bodies(sky, site, &PLANETS, a, b, 10.0) {
         Ok(s) => s,
         Err(e) => {
-            errors.push(format!("planets: {e}"));
+            errors.push(e.to_string());
             return Vec::new();
         }
     };
     for e in &s.errors {
-        errors.push(format!("{}: {}", e.body, e.message));
+        errors.push(e.message.clone());
     }
     let mid = 0.5 * (a + b);
     let mut out = Vec::new();
@@ -190,11 +174,11 @@ fn planets_tonight(
             .apparent_state(name, mid)
             .ok()
             .and_then(|st| st.magnitude);
-        let (mut best, mut first, mut last, mut up) = (None::<(f64, f64, f64)>, None, None, 0usize);
+        let (mut best, mut first, mut last, mut up) = (None::<usize>, None, None, 0usize);
         for (k, &t) in s.jd_utc.iter().enumerate() {
             let alt = body.alt_apparent_deg[k];
-            if best.is_none_or(|(_, x, _)| alt > x) {
-                best = Some((t, alt, body.az_deg[k]));
+            if best.is_none_or(|j| alt > body.alt_apparent_deg[j]) {
+                best = Some(k);
             }
             if alt >= PLANET_UP_DEG {
                 first.get_or_insert(t);
@@ -202,35 +186,33 @@ fn planets_tonight(
                 up += 1;
             }
         }
-        let hours_up = up as f64 * 10.0 / 60.0;
-        let best = best.filter(|(_, alt, _)| *alt > 0.0);
-        let reason = match (best, magnitude) {
-            (Some((_, alt, az)), m) if alt >= PLANET_UP_DEG => format!(
-                "{}{}, at best {} ({:.0}°)",
-                name,
-                m.map_or(String::new(), |m| format!(
-                    ", magnitude {}",
-                    format!("{m:.1}").replace('-', "−")
-                )),
-                place_words(alt, az),
-                alt
-            ),
-            (Some(_), _) => format!("{name} stays below 10° in the dark hours"),
-            (None, _) => format!("{name} is not up while the sky is dark"),
-        };
+        let best = best.filter(|&k| body.alt_apparent_deg[k] > 0.0);
+        let mut reason = String::from(*name);
+        if let Some(m) = magnitude {
+            reason.push_str(", magnitude ");
+            reason.push_str(&num(m, 1));
+        }
+        match best {
+            Some(k) if body.alt_apparent_deg[k] >= PLANET_UP_DEG => {
+                reason.push_str(", ");
+                reason.push_str(&place_at(body.alt_apparent_deg[k], body.az_deg[k]));
+            }
+            Some(_) => reason.push_str(": below 10° in the dark hours"),
+            None => reason.push_str(": not up while the sky is dark"),
+        }
         out.push(PlanetTonight {
             body: name,
             magnitude,
-            best: best.map(|(t, alt, az)| Sighting {
-                jd_utc: t,
-                utc: skyfix_core::time::format_utc(t),
-                alt_deg: alt,
-                az_deg: az,
-                direction: crate::observe::compass(az),
+            best: best.map(|k| Sighting {
+                jd_utc: s.jd_utc[k],
+                utc: skyfix_core::time::format_utc(s.jd_utc[k]),
+                alt_deg: body.alt_apparent_deg[k],
+                az_deg: body.az_deg[k],
+                direction: compass(body.az_deg[k]),
             }),
             up_from: first.map(Instant::new),
             up_until: last.map(Instant::new),
-            hours_up,
+            hours_up: up as f64 * 10.0 / 60.0,
             reason,
         });
     }
@@ -256,27 +238,33 @@ fn deep_sky_tonight(
         if v.hours_above_20 <= 0.0 {
             continue;
         }
-        let base = match instrument {
-            Instrument::Eye => 1.0,
-            Instrument::Binoculars => 0.8,
-            Instrument::Telescope => 0.5,
-            Instrument::Camera => 0.35,
+        let (base, how) = match instrument {
+            Instrument::Eye => (1.0, "naked eye"),
+            Instrument::Binoculars => (0.8, "binoculars"),
+            Instrument::Telescope => (0.5, "a small telescope"),
+            Instrument::Camera => (0.35, "a camera"),
         };
         let moon = v.moon.map_or(0.0, |m| m.brightening_mag);
         let score = 100.0
             * base
             * best.alt_deg.to_radians().sin()
             * (0.5 + 0.5 * (v.hours_above_20 / 4.0).min(1.0))
-            * 10f64.powf(-0.2 * moon)
+            * crate::extinction::exp10(-0.2 * moon)
             * if d.name.is_some() { 1.2 } else { 1.0 };
-        let reason = format!(
-            "{} ({:.0}° at best), {:.1} h above 20° in darkness; {}{}",
-            capital(&place_words(best.alt_deg, best.az_deg)),
-            best.alt_deg,
-            v.hours_above_20,
-            instrument_words(instrument),
-            moon_words(&v.moon)
-        );
+        let mut reason = place_at(best.alt_deg, best.az_deg);
+        reason.push_str(", ");
+        reason.push_str(&num(v.hours_above_20, 1));
+        reason.push_str(" h above 20° in darkness; ");
+        reason.push_str(how);
+        reason.push_str(match moon {
+            m if m < 0.3 => "",
+            m if m < 1.0 => "; some moonlight",
+            _ => "; washed out by moonlight",
+        });
+        let mut r = reason.chars();
+        let reason = r.next().map_or_else(String::new, |f| {
+            f.to_uppercase().collect::<String>() + r.as_str()
+        });
         out.push(DsoTonight {
             id: d.id,
             label: d.label.clone(),
@@ -293,16 +281,8 @@ fn deep_sky_tonight(
             reason,
         });
     }
-    out.sort_by(|x, y| y.score.total_cmp(&x.score));
-    out.truncate(limit);
-    Ok(out)
-}
-
-fn capital(s: &str) -> String {
-    let mut c = s.chars();
-    c.next().map_or_else(String::new, |f| {
-        f.to_uppercase().collect::<String>() + c.as_str()
-    })
+    let keys: Vec<f64> = out.iter().map(|d| d.score).collect();
+    Ok(take_ordered(out, &keys, limit))
 }
 
 /// Tonight at `site`, for the night `jd_utc` belongs to ([`Night::containing`]).
@@ -325,23 +305,17 @@ pub fn tonight(
     let mut shower_list = Vec::new();
     for s in showers::table().map_err(|e| e.to_string())? {
         match showers::night_activity(sky, s, &night, conditions) {
-            Ok(Some(n)) if n.expected_rate_per_hour >= 0.5 || s.variable => {
-                let reason = shower_reason(s, &n);
-                shower_list.push(ShowerTonight {
-                    night: n,
-                    variable: s.variable,
-                    reason,
-                })
-            }
+            Ok(Some(n)) if n.expected_rate_per_hour >= 0.5 || s.variable => shower_list.push(n),
             Ok(_) => {}
-            Err(e) => errors.push(format!("{}: {e}", s.code)),
+            Err(e) => errors.push(e),
         }
     }
-    shower_list.sort_by(|a, b| {
-        b.night
-            .expected_rate_per_hour
-            .total_cmp(&a.night.expected_rate_per_hour)
-    });
+    let keys: Vec<f64> = shower_list
+        .iter()
+        .map(|n| n.expected_rate_per_hour)
+        .collect();
+    let n = keys.len();
+    let shower_list = take_ordered(shower_list, &keys, n);
 
     let core = {
         let mid = night
@@ -350,19 +324,18 @@ pub fn tonight(
         let frame = Frame::at(mid).map_err(|e| e.to_string())?;
         let (ra, dec) = frame.apparent(GALACTIC_CENTRE_RA_DEG, GALACTIC_CENTRE_DEC_DEG);
         let v = dso::visibility_of(ra, dec, &night, conditions, None);
-        let reason = match &v.best {
-            Some(b) if v.hours_above_20 > 0.0 => format!(
-                "The Milky Way's core is {} ({:.0}° at best), {:.1} h above 20° in darkness",
-                place_words(b.alt_deg, b.az_deg),
-                b.alt_deg,
-                v.hours_above_20
-            ),
-            Some(b) => format!(
-                "The Milky Way's core stays low ({:.0}° at best) in the dark hours",
-                b.alt_deg
-            ),
-            None => "The Milky Way's core is not up while the sky is dark".to_string(),
-        };
+        let mut reason = String::from("The Milky Way's core ");
+        match &v.best {
+            Some(b) if v.hours_above_20 > 0.0 => {
+                reason.push_str("is ");
+                reason.push_str(&place_at(b.alt_deg, b.az_deg));
+                reason.push_str(", ");
+                reason.push_str(&num(v.hours_above_20, 1));
+                reason.push_str(" h above 20° in darkness");
+            }
+            Some(_) => reason.push_str("stays below 20° in the dark hours"),
+            None => reason.push_str("is not up while the sky is dark"),
+        }
         CoreTonight {
             best: v.best,
             hours_above_20: v.hours_above_20,
@@ -384,160 +357,130 @@ pub fn tonight(
     })
 }
 
-fn shower_reason(s: &showers::Shower, n: &ShowerNight) -> String {
-    let when = match n.days_from_peak {
-        d if d.abs() < 1.0 => "at its peak".to_string(),
-        d if d < 0.0 => format!("{:.0} days before its peak", -d),
-        d => format!("{d:.0} days after its peak"),
-    };
-    let rate = n.expected_rate_per_hour.round();
-    let at = n.best.as_ref().map_or(String::new(), |b| {
-        format!(
-            ", best with the radiant {} ({:.0}°)",
-            place_words(b.alt_deg, b.az_deg),
-            b.alt_deg
-        )
-    });
-    let var = if s.variable {
-        "; rates vary from year to year"
-    } else {
-        ""
-    };
-    if rate >= 1.0 {
-        format!(
-            "{} {when}: about {rate:.0} meteors an hour{at}{var}",
-            s.name
-        )
-    } else {
-        format!("{} {when}: only an occasional meteor{at}{var}", s.name)
-    }
-}
-
 fn summary(
     night: &Night,
     planets: &[PlanetTonight],
     deep: &[DsoTonight],
-    showers: &[ShowerTonight],
+    showers: &[ShowerNight],
     core: &CoreTonight,
 ) -> String {
-    let mut s: Vec<String> = Vec::new();
+    let mut s = String::new();
     match &night.dark {
-        Some(w) if w.kind == Darkness::Night => s.push(format!(
-            "Dark from {} to {} ({:.1} hours).",
-            tok(w.start.jd_utc),
-            tok(w.end.jd_utc),
-            w.hours
-        )),
-        Some(w) => s.push(format!(
-            "The sky never gets fully dark tonight; it is darkest from {} to {}.",
-            tok(w.start.jd_utc),
-            tok(w.end.jd_utc)
-        )),
-        None => s.push("The Sun stays too high for a dark sky tonight.".to_string()),
+        Some(w) => {
+            s.push_str(if w.kind == Darkness::Night {
+                "Dark from "
+            } else {
+                "The sky never gets fully dark tonight; it is darkest from "
+            });
+            s.push_str(&tok(w.start.jd_utc));
+            s.push_str(" to ");
+            s.push_str(&tok(w.end.jd_utc));
+            s.push_str(" (");
+            s.push_str(&num(w.hours, 1));
+            s.push_str(" hours).");
+        }
+        None => s.push_str("The Sun stays too high for a dark sky tonight."),
     }
     let m = &night.moon;
-    let pct = (m.illuminated_fraction * 100.0).round();
-    let moon = if m.illuminated_fraction < 0.03 {
-        "The Moon is new: a dark night.".to_string()
-    } else if night.dark.is_none() {
-        format!("The Moon is {}, {pct:.0}% lit.", m.phase)
-    } else if m.up_hours < 0.1 {
-        format!(
-            "The Moon ({}, {pct:.0}% lit) is down during the dark hours.",
-            m.phase
-        )
-    } else if m.down_hours < 0.1 {
-        format!(
-            "The Moon, {}, {pct:.0}% lit, is up all through the dark hours{}",
-            m.phase,
-            if m.illuminated_fraction > 0.5 {
+    s.push_str(" The Moon is ");
+    if m.illuminated_fraction < 0.03 {
+        s.push_str("new: a dark night.");
+    } else {
+        s.push_str(m.phase);
+        s.push_str(", ");
+        s.push_str(&num(m.illuminated_fraction * 100.0, 0));
+        s.push_str("% lit");
+        if night.dark.is_none() {
+            s.push('.');
+        } else if m.up_hours < 0.1 {
+            s.push_str(", and down during the dark hours.");
+        } else if m.down_hours < 0.1 {
+            s.push_str(", and up all through the dark hours");
+            s.push_str(if m.illuminated_fraction > 0.5 {
                 ": faint objects will be hard."
             } else {
                 "."
+            });
+        } else {
+            let mut events: Vec<(f64, &str)> = Vec::new();
+            if let Some(r) = &m.rise {
+                events.push((r.jd_utc, "rises"));
             }
-        )
-    } else {
-        let mut t = format!("The Moon is {}, {pct:.0}% lit", m.phase);
-        match (&m.rise, &m.set) {
-            (Some(r), Some(st)) if r.jd_utc < st.jd_utc => {
-                t += &format!(
-                    "; it rises at {} and sets at {}",
-                    tok(r.jd_utc),
-                    tok(st.jd_utc)
-                )
+            if let Some(st) = &m.set {
+                events.push((st.jd_utc, "sets"));
             }
-            (Some(r), Some(st)) => {
-                t += &format!(
-                    "; it sets at {} and rises at {}",
-                    tok(st.jd_utc),
-                    tok(r.jd_utc)
-                )
+            if events.len() == 2 && events[1].0 < events[0].0 {
+                events.swap(0, 1);
             }
-            (Some(r), None) => t += &format!("; it rises at {}", tok(r.jd_utc)),
-            (None, Some(st)) => t += &format!("; it sets at {}", tok(st.jd_utc)),
-            (None, None) => {}
+            for (k, (t, what)) in events.iter().enumerate() {
+                s.push_str(if k == 0 { "; it " } else { " and " });
+                s.push_str(what);
+                s.push_str(" at ");
+                s.push_str(&tok(*t));
+            }
+            s.push_str(", leaving ");
+            s.push_str(&num(m.down_hours, 1));
+            s.push_str(" dark hours without it.");
         }
-        t += &format!(", leaving {:.1} dark hours without it.", m.down_hours);
+    }
+    let item = |name: &str, best: Option<&Sighting>, extra: &str| {
+        let mut t = String::from(name);
+        t.push_str(extra);
+        if let Some(b) = best {
+            t.push_str(if extra.is_empty() { " (" } else { ", " });
+            t.push_str(&place_words(b.alt_deg, b.az_deg));
+            t.push_str(", best near ");
+            t.push_str(&tok(b.jd_utc));
+            t.push(')');
+        } else if !extra.is_empty() {
+            t.push(')');
+        }
         t
     };
-    s.push(moon);
     let up: Vec<String> = planets
         .iter()
         .filter(|p| p.hours_up > 0.0)
-        .map(|p| {
-            let b = p.best.as_ref().map_or(String::new(), |b| {
-                format!(
-                    " ({}, best near {})",
-                    place_words(b.alt_deg, b.az_deg),
-                    tok(b.jd_utc)
-                )
-            });
-            format!("{}{}", p.body, b)
-        })
+        .map(|p| item(p.body, p.best.as_ref(), ""))
         .collect();
     if !up.is_empty() {
-        s.push(format!("Planets: {}.", list_words(&up)));
+        s.push_str(" Planets: ");
+        s.push_str(&list_words(&up));
+        s.push('.');
     }
-    let best_showers: Vec<String> = showers
+    let rain: Vec<String> = showers
         .iter()
-        .filter(|x| x.night.expected_rate_per_hour >= 2.0)
+        .filter(|x| x.expected_rate_per_hour >= 2.0)
         .map(|x| {
-            format!(
-                "the {} (about {:.0} an hour{})",
-                x.night.name,
-                x.night.expected_rate_per_hour.round(),
-                x.night
-                    .best
-                    .as_ref()
-                    .map_or(String::new(), |b| format!(" near {}", tok(b.jd_utc)))
-            )
+            let mut extra = String::from(" (about ");
+            extra.push_str(&num(x.expected_rate_per_hour.round(), 0));
+            extra.push_str(" an hour");
+            item(&(String::from("the ") + x.name), x.best.as_ref(), &extra)
         })
         .collect();
-    if !best_showers.is_empty() {
-        s.push(format!("Meteors: {}.", list_words(&best_showers)));
+    if !rain.is_empty() {
+        s.push_str(" Meteors: ");
+        s.push_str(&list_words(&rain));
+        s.push('.');
     }
     let top: Vec<String> = deep
         .iter()
         .take(3)
         .map(|d| {
             d.name
-                .map_or_else(|| d.label.clone(), |n| format!("the {n}"))
+                .map_or_else(|| d.label.clone(), |n| String::from("the ") + n)
         })
         .collect();
     if !top.is_empty() {
-        s.push(format!("Best deep-sky sights: {}.", list_words(&top)));
+        s.push_str(" Best deep-sky sights: ");
+        s.push_str(&list_words(&top));
+        s.push('.');
     }
     if core.hours_above_20 > 0.0 {
-        s.push(format!("{}.", core.reason));
+        s.push(' ');
+        s.push_str(&core.reason);
+        s.push('.');
     }
-    s.join(" ")
-}
-
-/// Angle from the Moon to a direction, for callers that have both (re-exported for the
-/// WASM layer's tests).
-pub fn moon_separation(night: &Night, t: f64, ra: f64, dec: f64) -> f64 {
-    let (_, mra, mdec) = night.moon_at(t);
-    separation_deg(norm_360(ra), dec, mra, mdec)
+    s
 }
 
 #[cfg(test)]
@@ -563,14 +506,20 @@ mod tests {
         let per = t
             .showers
             .iter()
-            .find(|s| s.night.code == "PER")
+            .find(|s| s.code == "PER")
             .expect("the Perseids");
+        assert!(per.days_from_peak.abs() < 1.0, "{}", per.days_from_peak);
+        assert!(per.expected_rate_per_hour > 5.0, "{per:?}");
         assert!(
-            per.night.days_from_peak.abs() < 1.0,
+            per.reason.starts_with("Perseids at its peak: about "),
             "{}",
-            per.night.days_from_peak
+            per.reason
         );
-        assert!(per.night.expected_rate_per_hour > 5.0, "{per:?}");
+        assert!(
+            t.showers
+                .windows(2)
+                .all(|w| w[0].expected_rate_per_hour >= w[1].expected_rate_per_hour)
+        );
         assert!(t.summary.starts_with("Dark from {jd:"), "{}", t.summary);
         assert!(t.summary.contains("Perseids"), "{}", t.summary);
         // Every token in the summary is a Julian date inside the night.
@@ -589,5 +538,11 @@ mod tests {
             "{core:?}"
         );
         assert!(t.milky_way_core.hours_above_20 > 0.0);
+        // The top objects read as sentences.
+        assert!(
+            t.deep_sky[0].reason.contains("h above 20° in darkness"),
+            "{}",
+            t.deep_sky[0].reason
+        );
     }
 }

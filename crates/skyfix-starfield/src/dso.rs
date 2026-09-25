@@ -158,8 +158,13 @@ fn capitalise(s: &str) -> String {
     })
 }
 
+/// A malformed table is a packaging error (the build and `tests/dso_reference.rs` rule
+/// it out), so one message says it.
+fn bad() -> StarfieldError {
+    StarfieldError::Data("dso.txt is malformed".into())
+}
+
 fn parse() -> Result<Vec<Dso>, StarfieldError> {
-    let err = |line: &str, why: &str| StarfieldError::Data(format!("dso.txt: {why}: {line:?}"));
     let mut out: Vec<Dso> = Vec::new();
     for line in DSO_TXT.lines() {
         if line.trim().is_empty() || line.starts_with('#') {
@@ -167,13 +172,15 @@ fn parse() -> Result<Vec<Dso>, StarfieldError> {
         }
         let f: Vec<&'static str> = line.split('|').collect();
         if f.len() != 10 {
-            return Err(err(line, "expected 10 fields"));
+            return Err(bad());
         }
-        let num = |s: &str| s.parse::<f64>().map_err(|_| err(line, "bad number"));
-        let kind = DsoType::from_code(f[1]).ok_or_else(|| err(line, "unknown type"))?;
+        let num = |s: &str| s.parse::<f64>().map_err(|_| bad());
+        let kind = DsoType::from_code(f[1]).ok_or_else(bad)?;
         let (ra, dec) = (num(f[2])?, num(f[3])?);
-        if !((0.0..360.0).contains(&ra) && (-90.0..=90.0).contains(&dec)) {
-            return Err(err(line, "impossible position"));
+        if !((0.0..360.0).contains(&ra) && (-90.0..=90.0).contains(&dec))
+            || out.iter().any(|d| d.id == f[0])
+        {
+            return Err(bad());
         }
         let magnitude = if f[4].is_empty() {
             None
@@ -181,20 +188,15 @@ fn parse() -> Result<Vec<Dso>, StarfieldError> {
             Some(num(f[4])?)
         };
         let (b_ra, b_dec) = icrs_to_b1875(ra, dec);
-        let constellation =
-            constellation_at_b1875(b_ra, b_dec).ok_or_else(|| err(line, "no constellation"))?;
+        let constellation = constellation_at_b1875(b_ra, b_dec).ok_or_else(bad)?;
         let description = if f[8].is_empty() {
-            capitalise(&format!(
-                "{} in {}",
-                kind.noun(),
-                constellation_name(constellation)
-            ))
+            let mut d = capitalise(kind.noun());
+            d.push_str(" in ");
+            d.push_str(constellation_name(constellation));
+            d
         } else {
             f[8].to_string()
         };
-        if out.iter().any(|d| d.id == f[0]) {
-            return Err(err(line, "listed twice"));
-        }
         out.push(Dso {
             id: f[0],
             label: label_of(f[0]),
@@ -259,28 +261,18 @@ pub struct ListOptions {
     pub above_horizon: bool,
 }
 
-/// One object at one instant.
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct DsoState {
-    #[serde(flatten)]
-    pub object: &'static Dso,
-    /// Apparent geocentric RA and Dec of date (the frame of `sky_state`).
-    pub ra_deg: f64,
-    pub dec_deg: f64,
-    /// Topocentric, with an observer: geometric altitude, azimuth, apparent altitude.
-    pub alt_deg: Option<f64>,
-    pub az_deg: Option<f64>,
-    pub alt_apparent_deg: Option<f64>,
-    pub above_horizon: Option<bool>,
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize)]
-pub struct DsoList {
+/// The objects' places at one instant, as parallel arrays aligned with `index` (the
+/// positions in [`catalog`] that passed the filter); the WASM layer hands them over as
+/// typed arrays, like `starfield_apparent`.
+#[derive(Debug, Clone, PartialEq)]
+pub struct DsoPositions {
     pub jd_utc: f64,
-    pub utc: String,
-    pub objects: Vec<DsoState>,
-    /// Provenance, one sentence.
-    pub source: &'static str,
+    pub index: Vec<i32>,
+    /// Apparent geocentric RA and Dec of date (the frame of `sky_state`).
+    pub ra_deg: Vec<f64>,
+    pub dec_deg: Vec<f64>,
+    /// With an observer: topocentric geometric altitude, azimuth and apparent altitude.
+    pub horizon: Option<[Vec<f64>; 3]>,
 }
 
 pub const SOURCE: &str = "SkyFix Lab's selection: the 110 Messier objects and 103 NGC/IC \
@@ -324,35 +316,39 @@ pub fn serde_json_like_name(t: DsoType) -> &'static str {
 
 /// Every object (filtered by `options`), with its apparent place at `jd_utc` and, given
 /// a site, its altitude and azimuth.
-pub fn list(site: Option<&Site>, jd_utc: f64, options: &ListOptions) -> Result<DsoList, String> {
+pub fn list(
+    site: Option<&Site>,
+    jd_utc: f64,
+    options: &ListOptions,
+) -> Result<DsoPositions, String> {
     let frame = Frame::at(jd_utc).map_err(|e| e.to_string())?;
     let sf = site.map(SiteFrame::new);
-    let mut objects = Vec::new();
-    for d in catalog().map_err(|e| e.to_string())? {
+    let mut out = DsoPositions {
+        jd_utc,
+        index: Vec::new(),
+        ra_deg: Vec::new(),
+        dec_deg: Vec::new(),
+        horizon: sf.map(|_| [Vec::new(), Vec::new(), Vec::new()]),
+    };
+    for (i, d) in catalog().map_err(|e| e.to_string())?.iter().enumerate() {
         if !keep(d, options) {
             continue;
         }
         let (ra, dec) = frame.apparent(d.ra_j2000_deg, d.dec_j2000_deg);
-        let h: Option<Horizon> = sf.as_ref().map(|s| s.horizontal(frame.gha_deg(ra), dec));
-        if options.above_horizon && h.is_some_and(|h| h.alt_apparent_deg <= 0.0) {
-            continue;
+        if let (Some(s), Some(h)) = (sf.as_ref(), out.horizon.as_mut()) {
+            let hz = s.horizontal(frame.gha_deg(ra), dec);
+            if options.above_horizon && hz.alt_apparent_deg <= 0.0 {
+                continue;
+            }
+            h[0].push(hz.alt_deg);
+            h[1].push(hz.az_deg);
+            h[2].push(hz.alt_apparent_deg);
         }
-        objects.push(DsoState {
-            object: d,
-            ra_deg: ra,
-            dec_deg: dec,
-            alt_deg: h.map(|h| h.alt_deg),
-            az_deg: h.map(|h| h.az_deg),
-            alt_apparent_deg: h.map(|h| h.alt_apparent_deg),
-            above_horizon: h.map(|h| h.alt_apparent_deg > 0.0),
-        });
+        out.index.push(i as i32);
+        out.ra_deg.push(ra);
+        out.dec_deg.push(dec);
     }
-    Ok(DsoList {
-        jd_utc,
-        utc: skyfix_core::time::format_utc(jd_utc),
-        objects,
-        source: SOURCE,
-    })
+    Ok(out)
 }
 
 // ---------------------------------------------------------------------------
@@ -530,7 +526,6 @@ pub struct DsoVisibility {
     pub object: &'static Dso,
     pub night: NightSummary,
     pub conditions: Conditions,
-    #[serde(flatten)]
     pub visibility: Visibility,
     /// Apparent altitude through the night (local noon to noon) every 10 minutes, for
     /// charts.

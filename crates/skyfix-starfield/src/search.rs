@@ -434,9 +434,7 @@ fn catalogue_number(q: &str) -> Option<Target> {
         return sf.catalog.index_of_hr(n).map(Target::Star);
     }
     if let Some(n) = c.strip_prefix("hip").and_then(|n| n.parse::<u32>().ok()) {
-        return (0..sf.catalog.len())
-            .find(|&i| names::hip_of(i) == Some(n))
-            .map(Target::Star);
+        return names::index_of_hip(n).map(Target::Star);
     }
     None
 }
@@ -664,20 +662,22 @@ pub fn search(
     }
     let catalog = &starfield().map_err(|e| e.to_string())?.catalog;
     let dsos = dso::catalog().map_err(|e| e.to_string())?;
-    let mag = |t: Target| -> f64 {
-        match t {
-            Target::Star(i) => f64::from(catalog.vmag[i]),
-            Target::Dso(i) => dsos[i].magnitude.unwrap_or(9.0),
-            Target::Body(_) => -30.0,
-            _ => 5.0,
-        }
-    };
-    best.sort_by(|a, b| {
-        b.1.cmp(&a.1)
-            .then(b.2.cmp(&a.2))
-            .then(mag(a.0).total_cmp(&mag(b.0)))
-    });
-    for (t, s, _) in best.into_iter().take(limit) {
+    // One key: score, then priority, then brightness (magnitudes span -30 to 15, so
+    // 50 - m stays inside one priority step of 100).
+    let keys: Vec<f64> = best
+        .iter()
+        .map(|&(t, s, p)| {
+            let m = match t {
+                Target::Star(i) => f64::from(catalog.vmag[i]),
+                Target::Dso(i) => dsos[i].magnitude.unwrap_or(9.0),
+                Target::Body(_) => -30.0,
+                _ => 5.0,
+            };
+            f64::from(s) * 1000.0 + f64::from(p) * 100.0 + (50.0 - m)
+        })
+        .collect();
+    let best = crate::observe::take_ordered(best, &keys, limit);
+    for (t, s, _) in best {
         result
             .hits
             .push(describe(t, sky, frame.as_ref(), sf.as_ref(), s).map_err(|e| e.to_string())?);
