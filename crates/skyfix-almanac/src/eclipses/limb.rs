@@ -108,15 +108,17 @@ const ARCSEC: f64 = std::f64::consts::PI / 648_000.0;
 /// How far a slice is followed from the plane of the sky at most, degrees: at 8 degrees
 /// the sphere has fallen 17 km below the tangent line, more than any relief on the Moon.
 const SLICE_MAX_DEG: f64 = 8.0;
-/// Rows per block of the pruning bound (1 degree at the pack's step).
-const BLOCK_ROWS: usize = 16;
+/// Rows per block of the pruning bound (half a degree at the pack's step).
+const BLOCK_ROWS: usize = 8;
 /// Columns either side over which a block maximum is taken: a slice drifts in axis angle
 /// by at most `atan(tan 8° sin L)` across its 8 degrees (L the total libration, at most
-/// about 11 degrees: 1.5 degrees, 25 columns); the bound is dropped for a slice that
-/// could drift further.
-const DRIFT_COLUMNS: usize = 28;
+/// about 11 degrees: 1.5 degrees, 25 columns). Two tables: a narrow one for the usual
+/// libration (up to about 5 degrees) and a wide one; the bound is dropped for a slice
+/// that could drift further than either.
+const DRIFT_NARROW: usize = 12;
+const DRIFT_WIDE: usize = 28;
 /// The most row blocks a ring may have (the parser refuses more).
-const MAX_BLOCKS: usize = 64;
+const MAX_BLOCKS: usize = 128;
 /// Half-width of the position angles examined for an external contact, degrees: two
 /// discs of 960" touching externally part by `960" theta^2`, so relief of 7" can only
 /// matter within 5 degrees of the line of centres.
@@ -152,8 +154,10 @@ pub struct LimbRing {
     q: Vec<i16>,
     n_blocks: usize,
     /// `block_max[j * n_blocks + b]`: the highest node of row block `b` within
-    /// `DRIFT_COLUMNS` columns of column `j`, quanta.
+    /// `DRIFT_WIDE` columns of column `j`, quanta; `block_max_narrow` within
+    /// `DRIFT_NARROW` columns.
     block_max: Vec<i16>,
+    block_max_narrow: Vec<i16>,
     max_q: i16,
     min_q: i16,
 }
@@ -264,7 +268,9 @@ impl LimbRing {
                 "heights from {min_m} m to {max_m} m are not the Moon's"
             ));
         }
-        let block_max = block_maxima(&q, n_alpha, n_delta, n_blocks);
+        let cols = column_block_maxima(&q, n_alpha, n_delta, n_blocks);
+        let block_max = block_maxima(&cols, n_alpha, n_blocks, DRIFT_WIDE);
+        let block_max_narrow = block_maxima(&cols, n_alpha, n_blocks, DRIFT_NARROW);
         Ok(LimbRing {
             version,
             source,
@@ -277,6 +283,7 @@ impl LimbRing {
             q,
             n_blocks,
             block_max,
+            block_max_narrow,
             max_q,
             min_q,
         })
@@ -376,43 +383,51 @@ impl LimbRing {
 /// followed by a little-endian i16 (`tools/limb/ring.py`).
 fn decode_body(body: &[u8], n_alpha: usize, n_delta: usize) -> Result<Vec<i16>, String> {
     let n = n_alpha * n_delta;
+    let short = || format!("the height data ends before its {n} heights");
     let mut q = vec![0i16; n];
     let mut at = 0usize;
-    let next = |at: &mut usize, done: usize| -> Result<i32, String> {
-        let Some(&b) = body.get(*at) else {
-            return Err(format!("the height data ends after {done} of {n} heights"));
-        };
+    // One residual; `None` when the body ends first.
+    let mut next = || -> Option<i32> {
+        let b = *body.get(at)?;
         if b == 0x80 {
-            let Some(pair) = body.get(*at + 1..*at + 3) else {
-                return Err("the height data ends inside an escape".into());
-            };
-            *at += 3;
-            Ok(i32::from(i16::from_le_bytes([pair[0], pair[1]])))
+            let pair = body.get(at + 1..at + 3)?;
+            at += 3;
+            Some(i32::from(i16::from_le_bytes([pair[0], pair[1]])))
         } else {
-            *at += 1;
-            Ok(i32::from(b as i8))
+            at += 1;
+            Some(i32::from(b as i8))
         }
     };
-    let store = |v: i32| {
-        i16::try_from(v).map_err(|_| format!("a height of {v} quanta does not fit the ring"))
-    };
+    let fits = |v: i32| i16::try_from(v).ok();
+    let mut bad = false;
     // The first column: differences down the column.
     let mut prev = 0i32;
-    for (i, slot) in q[..n_delta].iter_mut().enumerate() {
-        prev += next(&mut at, i)?;
-        *slot = store(prev)?;
+    for slot in q[..n_delta].iter_mut() {
+        prev += next().ok_or_else(short)?;
+        *slot = fits(prev).unwrap_or_else(|| {
+            bad = true;
+            0
+        });
     }
     for j in 1..n_alpha {
         let (done, rest) = q.split_at_mut(j * n_delta);
         let left = &done[(j - 1) * n_delta..];
         let col = &mut rest[..n_delta];
-        let mut up = i32::from(left[0]) + next(&mut at, j * n_delta)?;
-        col[0] = store(up)?;
+        let mut up = i32::from(left[0]) + next().ok_or_else(short)?;
+        col[0] = fits(up).unwrap_or_else(|| {
+            bad = true;
+            0
+        });
         for i in 1..n_delta {
-            let predicted = up + i32::from(left[i]) - i32::from(left[i - 1]);
-            up = predicted + next(&mut at, j * n_delta + i)?;
-            col[i] = store(up)?;
+            up += i32::from(left[i]) - i32::from(left[i - 1]) + next().ok_or_else(short)?;
+            col[i] = fits(up).unwrap_or_else(|| {
+                bad = true;
+                0
+            });
         }
+    }
+    if bad {
+        return Err("a height does not fit the ring's 16 bits".into());
     }
     if at != body.len() {
         return Err(format!("{} bytes follow the last height", body.len() - at));
@@ -420,28 +435,33 @@ fn decode_body(body: &[u8], n_alpha: usize, n_delta: usize) -> Result<Vec<i16>, 
     Ok(q)
 }
 
+/// Per row block, the highest node of each column (the input of [`block_maxima`]).
+fn column_block_maxima(q: &[i16], n_alpha: usize, n_delta: usize, n_blocks: usize) -> Vec<i16> {
+    let mut out = vec![i16::MIN; n_alpha * n_blocks];
+    for j in 0..n_alpha {
+        let col = &q[j * n_delta..(j + 1) * n_delta];
+        for (b, rows) in col.chunks(BLOCK_ROWS).enumerate() {
+            out[b * n_alpha + j] = rows.iter().copied().max().unwrap_or(i16::MIN);
+        }
+    }
+    out
+}
+
 /// The pruning bound's table: per column and row block, the highest node of the block
-/// within `DRIFT_COLUMNS` columns either side (a circular sliding maximum, van Herk -
-/// Gil - Werman, linear in the number of columns).
-fn block_maxima(q: &[i16], n_alpha: usize, n_delta: usize, n_blocks: usize) -> Vec<i16> {
-    let w = (2 * DRIFT_COLUMNS + 1).min(n_alpha);
+/// within `drift` columns either side (a circular sliding maximum, van Herk - Gil -
+/// Werman, linear in the number of columns). `cols[b * n_alpha + j]` is block `b`'s
+/// highest node in column `j`.
+fn block_maxima(cols: &[i16], n_alpha: usize, n_blocks: usize, drift: usize) -> Vec<i16> {
+    let w = (2 * drift + 1).min(n_alpha);
     let half = w / 2;
     let mut out = vec![i16::MIN; n_alpha * n_blocks];
     let ext_len = n_alpha + w - 1;
-    let mut a = vec![i16::MIN; n_alpha];
     let mut e = vec![i16::MIN; ext_len];
     let mut g = vec![i16::MIN; ext_len];
     let mut h = vec![i16::MIN; ext_len];
     for b in 0..n_blocks {
-        let rows = b * BLOCK_ROWS..((b + 1) * BLOCK_ROWS).min(n_delta);
-        for (j, slot) in a.iter_mut().enumerate() {
-            *slot = q[j * n_delta + rows.start..j * n_delta + rows.end]
-                .iter()
-                .copied()
-                .max()
-                .unwrap_or(i16::MIN);
-        }
-        // e[k] = a[(k - half) mod n]: window [j - half, j + half] is e[j .. j + w).
+        let a = &cols[b * n_alpha..(b + 1) * n_alpha];
+        // e[k] = a[(k - half) mod n]: the window [j - half, j + half] is e[j .. j + w).
         for (k, slot) in e.iter_mut().enumerate() {
             *slot = a[(k + n_alpha - half % n_alpha) % n_alpha];
         }
@@ -489,6 +509,8 @@ pub(crate) struct View {
     pub sub_observer: Selenographic,
     /// Position angle of the Moon's north pole, degrees.
     pub axis_position_angle_deg: f64,
+    /// Position angle of the zenith at the Moon, degrees in `(-180, 180]`.
+    pub parallactic_angle_deg: f64,
 }
 
 impl View {
@@ -506,6 +528,7 @@ impl View {
             distance_km,
             sub_observer: g.frame.selenographic(to_observer),
             axis_position_angle_deg: position_angle_deg(u, g.frame.pole()),
+            parallactic_angle_deg: g.parallactic_angle_deg().unwrap_or(0.0),
         }
     }
 }
@@ -532,7 +555,7 @@ struct Slicer<'a> {
     r0: f64,
     km_per_q: f64,
     step_rad: f64,
-    drift_limit_rad: f64,
+    inv_step_deg: f64,
 }
 
 /// The highest point of one slice: `a = r cos eps`, `b = r sin eps` (km), so that at a
@@ -560,7 +583,7 @@ impl<'a> Slicer<'a> {
             r0: ring.reference_radius_km,
             km_per_q: ring.quantum_m / 1000.0,
             step_rad,
-            drift_limit_rad: (DRIFT_COLUMNS - 2) as f64 * step_rad,
+            inv_step_deg: 1.0 / ring.step_deg,
         }
     }
 
@@ -579,7 +602,7 @@ impl<'a> Slicer<'a> {
         let d = v.distance_km;
         let step = ring.step_deg;
         let (alpha0, _) = ring_coordinates(q);
-        let fa0 = alpha0.to_degrees() / step - 0.5;
+        let fa0 = alpha0.to_degrees() * self.inv_step_deg - 0.5;
         // Axis angle along the slice: alpha = atan2(-P_y, P_z), and (-P_y, P_z) is
         // cos eps v0 + sin eps w; measured from the second component toward the first,
         // the turn from v0 is atan(sin eps (v0[1] w[0] - v0[0] w[1]) / (cos eps |v0|^2 +
@@ -594,22 +617,67 @@ impl<'a> Slicer<'a> {
         // columns: check the furthest drift once.
         let (se_far, ce_far) = *self.trig.last().unwrap_or(&(0.0, 1.0));
         let t_far = se_far * cross.abs() / (ce_far * v0v0 - se_far * dotw.abs()).max(1e-9);
-        let pruned_by_blocks = t_far.atan() <= self.drift_limit_rad;
+        let drift_columns = t_far.atan().to_degrees() * self.inv_step_deg + 2.0;
+        let table = if drift_columns <= DRIFT_NARROW as f64 {
+            Some(&ring.block_max_narrow)
+        } else if drift_columns <= DRIFT_WIDE as f64 {
+            Some(&ring.block_max)
+        } else {
+            None
+        };
+        let pruned_by_blocks = table.is_some();
         let nb = ring.n_blocks;
-        let mut prefix = [i16::MIN; MAX_BLOCKS];
-        let mut suffix = [i16::MIN; MAX_BLOCKS];
-        if pruned_by_blocks {
-            let col = ((alpha0.to_degrees() / step) as usize) % ring.n_alpha;
-            let blocks = &ring.block_max[col * nb..(col + 1) * nb];
-            let mut m = i16::MIN;
-            for (b, &x) in blocks.iter().enumerate() {
-                m = m.max(x);
-                prefix[b] = m;
+        // The bound on what the rest of a side can reach: the highest ground of the row
+        // block the slice is in, one step further out, and for the blocks beyond it the
+        // best their highest ground could do from where the slice first meets them (the
+        // sphere falls away as R (1 - cos eps)). `beyond[side][b]`: the blocks further out
+        // than `b` on that side (lower rows behind the limb, higher in front of it).
+        let d_km = d;
+        let reach = move |rb: f64, side: usize, se: f64, ce: f64| -> f64 {
+            if side == 0 {
+                rb * ce / (d_km + rb * se)
+            } else if se * d_km >= rb {
+                rb * ce / (d_km - rb * se)
+            } else {
+                rb / (d_km * d_km - rb * rb).sqrt()
             }
-            let mut m = i16::MIN;
-            for (b, &x) in blocks.iter().enumerate().rev() {
-                m = m.max(x);
-                suffix[b] = m;
+        };
+        let mut blk_h = [i16::MIN; MAX_BLOCKS];
+        let mut beyond = [[f64::NEG_INFINITY; MAX_BLOCKS]; 2];
+        let m_max = self.trig.len() - 1;
+        if let Some(table) = table {
+            let col = (fa0 + 0.5) as usize % ring.n_alpha;
+            blk_h[..nb].copy_from_slice(&table[col * nb..(col + 1) * nb]);
+            let delta0_deg = small_asin(q[0]).to_degrees();
+            // The slice's distance from the mean limb changes at most 1.1 times as fast
+            // as eps (|d delta / d eps| <= (|q_x| + |s_x|) / cos delta within the ring):
+            // the eps at which it can first meet a block, less a step, taken down to a
+            // whole step, is a safe bound (the reach falls with eps beyond the tangent).
+            let first = |gap_deg: f64| -> usize {
+                ((gap_deg / 1.1 - step).max(0.0) * self.inv_step_deg) as usize
+            };
+            let block_deg = BLOCK_ROWS as f64 * step;
+            let mut far = f64::NEG_INFINITY;
+            for b in 0..nb {
+                beyond[0][b] = far;
+                let top = ring.delta_min_deg + (b as f64 + 1.0) * block_deg + 0.5 * step;
+                let m = first(delta0_deg - top);
+                if m <= m_max {
+                    let (se, ce) = self.trig[m];
+                    let rb = self.r0 + f64::from(blk_h[b]) * self.km_per_q;
+                    far = far.max(reach(rb, 0, se, ce));
+                }
+            }
+            let mut far = f64::NEG_INFINITY;
+            for b in (0..nb).rev() {
+                beyond[1][b] = far;
+                let bottom = ring.delta_min_deg + b as f64 * block_deg - 0.5 * step;
+                let m = first(bottom - delta0_deg);
+                if m <= m_max {
+                    let (se, ce) = self.trig[m];
+                    let rb = self.r0 + f64::from(blk_h[b]) * self.km_per_q;
+                    far = far.max(reach(rb, 1, se, ce));
+                }
             }
         }
         let last_block = nb - 1;
@@ -623,7 +691,6 @@ impl<'a> Slicer<'a> {
         // Side 0 goes behind the limb (away from the observer, rows decreasing), side 1
         // in front of it (rows increasing).
         let mut alive = [true, true];
-        let m_max = self.trig.len() - 1;
         for m in 0..=m_max {
             let (se_abs, ce) = self.trig[m];
             for (side, live) in alive.iter_mut().enumerate() {
@@ -636,7 +703,7 @@ impl<'a> Slicer<'a> {
                 let t = se * cross / (ce * v0v0 + se * dotw);
                 let dalpha = t * (1.0 - t * t * (1.0 / 3.0 - t * t * 0.2));
                 let fa = fa0 + dalpha * inv_step_rad;
-                let fd = (delta.to_degrees() - ring.delta_min_deg) / step - 0.5;
+                let fd = (delta.to_degrees() - ring.delta_min_deg) * self.inv_step_deg - 0.5;
                 let Some(hq) = ring.bilinear_q(fa, fd) else {
                     truncated = true;
                     *live = false;
@@ -656,26 +723,22 @@ impl<'a> Slicer<'a> {
                 if m == m_max {
                     continue;
                 }
-                // The rest of this side: rows beyond this sample (its bilinear cell
-                // included), at least one more step out.
-                let hb = if pruned_by_blocks {
-                    let row = fd.max(0.0) as usize;
-                    if side == 0 {
-                        prefix[((row + 1) / BLOCK_ROWS).min(last_block)]
-                    } else {
-                        suffix[(row / BLOCK_ROWS).min(last_block)]
-                    }
-                } else {
-                    ring.max_q
-                };
-                let rb = self.r0 + f64::from(hb) * self.km_per_q;
+                // The rest of this side: the current block (its bilinear cell included)
+                // at least one more step out, and the blocks beyond.
                 let (se_n, ce_n) = self.trig[m + 1];
-                let bound = if side == 0 {
-                    rb * ce_n / (d + rb * se_n)
-                } else if se_n * d >= rb {
-                    rb * ce_n / (d - rb * se_n)
+                let bound = if pruned_by_blocks {
+                    let row = fd.max(0.0) as usize;
+                    let bc = if side == 0 { row + 1 } else { row } / BLOCK_ROWS;
+                    let bc = bc.min(last_block);
+                    let rb = self.r0 + f64::from(blk_h[bc]) * self.km_per_q;
+                    reach(rb, side, se_n, ce_n).max(beyond[side][bc])
                 } else {
-                    rb / (d * d - rb * rb).sqrt()
+                    reach(
+                        self.r0 + f64::from(ring.max_q) * self.km_per_q,
+                        side,
+                        se_n,
+                        ce_n,
+                    )
                 };
                 if bound <= best_ratio {
                     *live = false;
@@ -984,6 +1047,10 @@ pub struct LimbContact {
     pub sun_offset_east_arcsec: f64,
     pub sun_offset_north_arcsec: f64,
     pub sun_radius_arcsec: f64,
+    /// How far the contact would move if the limb there were 1" higher or lower, seconds:
+    /// about 3 s for a contact well inside the path, tens of seconds for a near graze at
+    /// its edge, where the times are correspondingly less certain.
+    pub seconds_per_arcsec: f64,
 }
 
 /// One approximate Baily's bead.
@@ -1025,7 +1092,8 @@ pub struct LimbProfile {
     pub sun_radius_arcsec: f64,
     pub sun_offset_east_arcsec: f64,
     pub sun_offset_north_arcsec: f64,
-    /// The Moon's north pole on the sky, and the zenith (parallactic angle), degrees.
+    /// The Moon's north pole on the sky, degrees, and the zenith at the Moon (the
+    /// parallactic angle), degrees in `(-180, 180]`.
     pub axis_position_angle_deg: f64,
     pub parallactic_angle_deg: f64,
     /// The topocentric libration (the point at the centre of the disc), degrees.
@@ -1128,12 +1196,6 @@ impl Ctx<'_> {
         sky_at(self.el, self.p, t)
     }
 
-    /// The ring's whole relief, radians at `distance_km`.
-    fn relief(&self, distance_km: f64) -> f64 {
-        let (lo, hi) = self.ring.height_range_m();
-        (hi - lo) / 1000.0 / distance_km
-    }
-
     /// The Sun's speed across the Moon on the sky around `t`, rad per hour.
     fn sun_speed(&self, t: f64) -> f64 {
         let dt = 30.0 / H;
@@ -1225,6 +1287,7 @@ fn central_intervals(
 fn contact_record(
     ctx: &Ctx,
     tab: &Table,
+    cond: Condition,
     kind: LocalEventKind,
     t: f64,
     i: usize,
@@ -1256,7 +1319,21 @@ fn contact_record(
         sun_offset_east_arcsec: round3(sky.c[0] / ARCSEC),
         sun_offset_north_arcsec: round3(sky.c[1] / ARCSEC),
         sun_radius_arcsec: round3(sky.s / ARCSEC),
+        seconds_per_arcsec: round3(seconds_per_arcsec(ctx, tab, cond, t)),
     })
+}
+
+/// Seconds per arcsecond of limb height at a contact: the inverse of the contact
+/// function's rate at `t`, over a second either side.
+fn seconds_per_arcsec(ctx: &Ctx, tab: &Table, cond: Condition, t: f64) -> f64 {
+    let dt = 0.5 / H;
+    let (a, b) = (
+        condition_at(ctx, tab, cond, t - dt),
+        condition_at(ctx, tab, cond, t + dt),
+    );
+    let rate = ((b - a) / (2.0 * dt * H)).abs() / ARCSEC; // arcsec per second
+    // A contact that barely happens (the function flat at its root) is capped.
+    if rate > 1e-3 { 1.0 / rate } else { 999.0 }
 }
 
 /// Solve an external contact near the mean-limb instant `t_mean` (hours).
@@ -1281,7 +1358,7 @@ fn external_contact(
     let Some((_, i)) = condition(&tab, &ctx.sky(t), Condition::External) else {
         return Ok(None);
     };
-    contact_record(ctx, &tab, kind, t, i, Some(t_mean)).map(Some)
+    contact_record(ctx, &tab, Condition::External, kind, t, i, Some(t_mean)).map(Some)
 }
 
 /// A central contact near `t_scan` (found against the maximum's outline): solved with
@@ -1298,10 +1375,17 @@ fn central_contact(
         return Ok(None);
     };
     // The Sun's limb and the Moon's part as d (1 - cos theta) from the deciding point
-    // (d the distance between the centres): only within the relief do other position
-    // angles compete.
+    // (d the distance between the centres): only within the outline's own relief (at the
+    // maximum, plus 1" for the minutes between) do other position angles compete.
     let d = sky.c[0].hypot(sky.c[1]);
-    let relief = 1.5 * ctx.relief(sky.distance_km) + 2.0 * ARCSEC;
+    let (lo, hi) = tab_max
+        .rho
+        .iter()
+        .filter(|r| r.is_finite())
+        .fold((f64::INFINITY, f64::NEG_INFINITY), |(a, b), &r| {
+            (a.min(r), b.max(r))
+        });
+    let relief = (hi - lo).max(0.0) + ARCSEC;
     let half = if relief >= 2.0 * d {
         std::f64::consts::PI
     } else {
@@ -1375,11 +1459,14 @@ fn beads_near(
             continue;
         }
         let t = t_c - a / rate;
+        // The contact's own valley is at zero to the root's tolerance (0.36 ms).
         let secs = (t - t_c) * H;
-        let right_side = if before { secs <= 1e-6 } else { secs >= -1e-6 };
+        let right_side = if before { secs <= 0.01 } else { secs >= -0.01 };
         if !right_side || secs.abs() > BEAD_WINDOW_S {
             continue;
         }
+        let secs = if before { secs.min(0.0) } else { secs.max(0.0) };
+        let t = t_c + secs / H;
         let sky = ctx.sky(t);
         let rho = tab.rho[i] * tab.distance_km / sky.distance_km;
         let (x, y) = (rho * tab.sin[i], rho * tab.cos[i]);
@@ -1412,13 +1499,7 @@ fn beads_near(
 }
 
 /// The drawn profile from a full outline, with the Sun of `sky`.
-fn profile_from(
-    ring: &LimbRing,
-    o: &Outline,
-    sky: &Sky,
-    jd: f64,
-    parallactic_angle_deg: f64,
-) -> LimbProfile {
+fn profile_from(ring: &LimbRing, o: &Outline, sky: &Sky, jd: f64) -> LimbProfile {
     let reference = (ring.reference_radius_km / sky.distance_km).asin();
     let tab = o.table(sky.distance_km);
     let mut height_arcsec = vec![None; ring.n_alpha];
@@ -1443,7 +1524,7 @@ fn profile_from(
         sun_offset_east_arcsec: round3(sky.c[0] / ARCSEC),
         sun_offset_north_arcsec: round3(sky.c[1] / ARCSEC),
         axis_position_angle_deg: v.axis_position_angle_deg,
-        parallactic_angle_deg,
+        parallactic_angle_deg: v.parallactic_angle_deg,
         libration_lon_deg: v.sub_observer.lon_deg,
         libration_lat_deg: v.sub_observer.lat_deg,
         moon_distance_km: v.distance_km,
@@ -1463,14 +1544,7 @@ pub fn profile_at(
     let g = MoonGeometry::new(moon, sun, Some(site), jd_utc)
         .map_err(|e| EphemerisError::Data(e.to_string()))?;
     let o = outline(ring, View::of(&g), None);
-    let hz = sun_horizontal(sun, site, jd_utc)?;
-    Ok(profile_from(
-        ring,
-        &o,
-        &sky_of(&g),
-        jd_utc,
-        hz.parallactic_angle_deg,
-    ))
+    Ok(profile_from(ring, &o, &sky_of(&g), jd_utc))
 }
 
 /// The limb-corrected local circumstances of a solar eclipse at `site`, from the same
@@ -1518,14 +1592,7 @@ pub(crate) fn solar_limb(
     // The outline at the maximum: the drawing, and the scan for the central phase.
     let o_max = ctx.outline_at(mc.t_max, None)?;
     let sky_max = ctx.sky(mc.t_max);
-    let hz_max = sun_horizontal(sun, site, el.jd(mc.t_max))?;
-    limb.profile = Some(profile_from(
-        ring,
-        &o_max,
-        &sky_max,
-        el.jd(mc.t_max),
-        hz_max.parallactic_angle_deg,
-    ));
+    limb.profile = Some(profile_from(ring, &o_max, &sky_max, el.jd(mc.t_max)));
     let tab_max = o_max.table(o_max.view.distance_km);
 
     let mut contacts = Vec::new();
@@ -1568,7 +1635,15 @@ pub(crate) fn solar_limb(
             if let Some(ts) = intervals.first().and_then(|iv| iv.0)
                 && let Some((t, tab, i)) = central_contact(&ctx, &tab_max, cond, ts)?
             {
-                contacts.push(contact_record(&ctx, &tab, LocalEventKind::C2, t, i, mc.c2)?);
+                contacts.push(contact_record(
+                    &ctx,
+                    &tab,
+                    cond,
+                    LocalEventKind::C2,
+                    t,
+                    i,
+                    mc.c2,
+                )?);
                 limb.beads
                     .extend(beads_near(&ctx, &tab, cond, t, LocalEventKind::C2)?);
                 t2 = Some(t);
@@ -1576,7 +1651,15 @@ pub(crate) fn solar_limb(
             if let Some(ts) = intervals.last().and_then(|iv| iv.1)
                 && let Some((t, tab, i)) = central_contact(&ctx, &tab_max, cond, ts)?
             {
-                contacts.push(contact_record(&ctx, &tab, LocalEventKind::C3, t, i, mc.c3)?);
+                contacts.push(contact_record(
+                    &ctx,
+                    &tab,
+                    cond,
+                    LocalEventKind::C3,
+                    t,
+                    i,
+                    mc.c3,
+                )?);
                 limb.beads
                     .extend(beads_near(&ctx, &tab, cond, t, LocalEventKind::C3)?);
                 t3 = Some(t);
@@ -1706,17 +1789,26 @@ mod tests {
         let (na, nd) = (720, 40);
         let ring = LimbRing::parse(&synthetic_payload(na, nd, 0.5, 5.0, f)).unwrap();
         let nb = ring.n_blocks;
-        assert_eq!(nb, 3);
-        for j in 0..na {
-            for b in 0..nb {
-                let mut want = i16::MIN;
-                for o in 0..=2 * DRIFT_COLUMNS {
-                    let jj = (j + na + o - DRIFT_COLUMNS) % na;
-                    for i in b * BLOCK_ROWS..((b + 1) * BLOCK_ROWS).min(nd) {
-                        want = want.max(ring.q[jj * nd + i]);
+        assert_eq!(nb, 5);
+        for (table, drift) in [
+            (&ring.block_max, DRIFT_WIDE),
+            (&ring.block_max_narrow, DRIFT_NARROW),
+        ] {
+            for j in 0..na {
+                for b in 0..nb {
+                    let mut want = i16::MIN;
+                    for o in 0..=2 * drift {
+                        let jj = (j + na + o - drift) % na;
+                        for i in b * BLOCK_ROWS..((b + 1) * BLOCK_ROWS).min(nd) {
+                            want = want.max(ring.q[jj * nd + i]);
+                        }
                     }
+                    assert_eq!(
+                        table[j * nb + b],
+                        want,
+                        "column {j} block {b} drift {drift}"
+                    );
                 }
-                assert_eq!(ring.block_max[j * nb + b], want, "column {j} block {b}");
             }
         }
     }
@@ -1769,6 +1861,7 @@ mod tests {
                 lon_deg: s[1].atan2(s[0]).to_degrees(),
             },
             axis_position_angle_deg: 0.0,
+            parallactic_angle_deg: 0.0,
         }
     }
 
