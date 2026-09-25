@@ -2426,10 +2426,14 @@ Earth's apsides for a year 18 ms. Most of it is the providers (a planet 40 µs, 
 
 ### Size
 
-The package adds **214 KB raw and 87 KB gzipped** to the core module (`npm run wasm`),
-measured on the programme's base commit 28131c5 by building with and without
-`skyfix_wasm::planetdetail` (2 060 851 / 848 977 bytes without, 2 274 712 / 936 206 with).
-It is code: E5, the searches, the MPC parser and the serialisation of eleven calls.
+The package adds **191 KB raw and 77 KB gzipped** to the core module (`npm run wasm`),
+measured by building with and without `skyfix_wasm::planetdetail` on main as of 3f4fe4e
+(2 806 595 / 1 154 399 bytes without, **2 997 407 / 1 231 646 with**: inside the revised
+budget of 3 MB / 1.25 MB, with 2.6 KB of raw headroom). It is code: E5, the searches, the
+MPC parser and the serialisation of eleven calls. The fits and Brent's searches are
+compiled once each through `dyn` calls rather than once per closure (18.8 KB raw, 8.2 KB
+gzipped saved; each call costs an ephemeris evaluation, so the dynamic dispatch is free);
+on the base commit 28131c5 the package measured 214 KB / 87 KB before that.
 
 ### Reproduce
 

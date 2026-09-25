@@ -48,12 +48,12 @@ use skyfix_core::time::{format_utc, jd_tt};
 use skyfix_ephemeris::frames::apply_annual_aberration;
 use skyfix_ephemeris::planets::{Planet, heliocentric_position_au};
 
-use crate::eclipses::cheb::{minimise, root};
 use crate::planet_geometry::{
     C_AU_PER_DAY, Mat3, RAD_TO_ARCSEC, Vec3, VecFit, add, dot, icrs_to_ecliptic_of_date,
     icrs_to_true_of_date, mat_t_vec, mat_vec, norm, orientation, radec_of, scale, sub,
     sun_planet_coverage, tangent_plane, unavailable, unit,
 };
+use crate::planet_geometry::{minimise, root};
 use crate::sky::AlmanacError;
 
 /// The four moons, in order from Jupiter.
@@ -637,19 +637,19 @@ pub fn galilean_events(jd_start: f64, jd_end: f64) -> Result<GalileanEvents, Alm
                         continue;
                     }
                     let x_at = |t: f64| eval(t).map_or(f64::NAN, |s| view_of(&s, view, k).x);
-                    let Some(tc) = root(x_at, *t0, *t1, 1e-6) else {
+                    let Some(tc) = root(&x_at, *t0, *t1, 1e-6) else {
                         continue;
                     };
                     let margin =
                         |t: f64| eval(t).map_or(f64::NAN, |s| view_of(&s, view, k).margin());
                     let hw = 1.5 / 24.0;
-                    let (tm, fm) = minimise(margin, tc - hw, tc + hw, 1e-6);
+                    let (tm, fm) = minimise(&margin, tc - hw, tc + hw, 1e-6);
                     if fm.is_nan() || fm >= 0.0 {
                         continue;
                     }
                     let quarter = PERIODS_DAYS[k] / 4.0;
-                    let t_in = root(margin, tm - quarter, tm, 1e-7);
-                    let t_out = root(margin, tm, tm + quarter, 1e-7);
+                    let t_in = root(&margin, tm - quarter, tm, 1e-7);
+                    let t_out = root(&margin, tm, tm + quarter, 1e-7);
                     let (Some(t_in), Some(t_out)) = (t_in, t_out) else {
                         continue;
                     };

@@ -20,8 +20,7 @@ use serde::{Deserialize, Serialize};
 use skyfix_core::time::{civil_to_jd, format_utc};
 use skyfix_ephemeris::sun::SunProvider;
 
-use crate::eclipses::cheb::minimise;
-use crate::planet_geometry::{sun_planet_coverage, unavailable};
+use crate::planet_geometry::{minimise, sun_planet_coverage, unavailable};
 use crate::sky::AlmanacError;
 
 const AU_KM: f64 = skyfix_ephemeris::body::AU_KM;
@@ -102,7 +101,7 @@ pub fn earth_apsides(year: i32) -> Result<EarthApsides, AlmanacError> {
         } else {
             -1.0
         };
-        let (t, v) = minimise(|t| sign * dist(t), t0, t1, 1e-6);
+        let (t, v) = minimise(&|t| sign * dist(t), t0, t1, 1e-6);
         if t >= a && t < b {
             let d = sign * v;
             events.push(ApsisEvent {

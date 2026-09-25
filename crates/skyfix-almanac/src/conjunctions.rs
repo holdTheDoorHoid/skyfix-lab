@@ -52,12 +52,12 @@ use skyfix_ephemeris::stars::StarProvider;
 use skyfix_ephemeris::sun::SunProvider;
 use skyfix_ephemeris::topocentric::{Site, refraction_true_to_apparent_arcmin};
 
-use crate::eclipses::cheb::{minimise, root};
 use crate::planet_geometry::{
     Mat3, Vec3, VecFit, angle, clip_window, dot, icrs_to_true_of_date, mat_t_vec, mat_vec,
     planet_coverage, position_angle_deg, r3, radec_of, radec_unit, scale, sub, sun_planet_coverage,
     unavailable,
 };
+use crate::planet_geometry::{minimise, root};
 use crate::sky::{AlmanacError, checked_site};
 
 const AU_KM: f64 = skyfix_ephemeris::body::AU_KM;
@@ -387,13 +387,14 @@ fn parse_bodies(opts: &ConjunctionOptions) -> Result<(Vec<Body>, Vec<Body>), Alm
                 "conjunctions: {name:?} is not a planet (Mercury..Neptune)"
             ))
         })?;
-        if !planets.contains(&p) {
-            planets.push(p);
-        }
+        planets.push(p);
     }
     // In the Sun-outward order whatever the request's, so `body` is the inner planet.
-    planets.sort_by_key(|p| Planet::ALL.iter().position(|q| q == p));
-    let planets: Vec<Body> = planets.into_iter().map(Body::Planet).collect();
+    let planets: Vec<Body> = Planet::ALL
+        .iter()
+        .filter(|p| planets.contains(p))
+        .map(|&p| Body::Planet(p))
+        .collect();
     let mut stars = Vec::new();
     for name in &opts.stars {
         let entry = skyfix_ephemeris::catalog::find(name).ok_or_else(|| {
@@ -471,7 +472,7 @@ pub fn conjunctions(
                     continue;
                 }
                 let (t0, t1) = (fa + h * (k - 1) as f64, fa + h * (k + 1) as f64);
-                let (t, v) = minimise(sep, t0, t1, 1e-8);
+                let (t, v) = minimise(&sep, t0, t1, 1e-8);
                 if t < a || t > b || v.to_degrees() > options.max_separation_deg + 0.01 {
                     continue;
                 }
@@ -669,7 +670,7 @@ pub fn stations(jd_start: f64, jd_end: f64) -> Result<StationList, AlmanacError>
                     let t1 = fa + h * k as f64;
                     let r1 = rate(t1);
                     if prev.1 * r1 < 0.0 {
-                        if let Some(t) = root(rate, prev.0, t1, 1e-8) {
+                        if let Some(t) = root(&rate, prev.0, t1, 1e-8) {
                             if t >= a && t <= b {
                                 let kind = if prev.1 > 0.0 {
                                     StationKind::RetrogradeBegins

@@ -393,6 +393,17 @@ pub(crate) struct VecFit {
     parts: Vec<[crate::eclipses::cheb::Cheb; 3]>,
 }
 
+/// Brent's minimum ([`crate::eclipses::cheb::minimise`]) through one dynamically
+/// dispatched copy, for the same reason as [`VecFit::new`]'s.
+pub(crate) fn minimise(f: &dyn Fn(f64) -> f64, a: f64, b: f64, tol: f64) -> (f64, f64) {
+    crate::eclipses::cheb::minimise(f, a, b, tol)
+}
+
+/// Brent's root ([`crate::eclipses::cheb::root`]), one copy likewise.
+pub(crate) fn root(f: &dyn Fn(f64) -> f64, a: f64, b: f64, tol: f64) -> Option<f64> {
+    crate::eclipses::cheb::root(f, a, b, tol)
+}
+
 /// The direction tolerance of [`VecFit`], radians (1e-4").
 const FIT_TOL_RAD: f64 = 1e-4 / RAD_TO_ARCSEC;
 /// The shortest segment [`VecFit`] splits down to, days.
@@ -408,6 +419,19 @@ impl VecFit {
         seg_days: f64,
         n: usize,
     ) -> Result<VecFit, E> {
+        VecFit::fit(&mut f, a, b, seg_days, n)
+    }
+
+    /// The work of [`VecFit::new`], compiled once per error type rather than once per
+    /// closure: the fits are called with many closures, and each evaluation of an
+    /// ephemeris costs far more than the dynamic call.
+    fn fit<E>(
+        f: &mut dyn FnMut(f64) -> Result<Vec3, E>,
+        a: f64,
+        b: f64,
+        seg_days: f64,
+        n: usize,
+    ) -> Result<VecFit, E> {
         let count = (((b - a) / seg_days).ceil() as usize).max(1);
         let seg = (b - a) / count as f64;
         let mut out = VecFit {
@@ -415,14 +439,14 @@ impl VecFit {
             parts: Vec::with_capacity(count),
         };
         for k in 0..count {
-            out.fit_segment(&mut f, a + seg * k as f64, a + seg * (k + 1) as f64, n)?;
+            out.fit_segment(f, a + seg * k as f64, a + seg * (k + 1) as f64, n)?;
         }
         Ok(out)
     }
 
     fn fit_segment<E>(
         &mut self,
-        f: &mut impl FnMut(f64) -> Result<Vec3, E>,
+        f: &mut dyn FnMut(f64) -> Result<Vec3, E>,
         lo: f64,
         hi: f64,
         n: usize,

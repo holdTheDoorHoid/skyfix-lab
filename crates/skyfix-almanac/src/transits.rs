@@ -41,11 +41,11 @@ use skyfix_ephemeris::planets::{Planet, PlanetPosition, PlanetProvider};
 use skyfix_ephemeris::sun::{SUN_SEMIDIAMETER_UNIT_ARCSEC, SunProvider};
 use skyfix_ephemeris::topocentric::{Site, earth_fixed_unit};
 
-use crate::eclipses::cheb::{minimise, root};
 use crate::planet_geometry::{
     RAD_TO_ARCSEC, Vec3, angle, clip_window, dot, jd_utc_from_tt, norm, position_angle_deg, scale,
     sub, sun_planet_coverage, tangent_plane, unavailable,
 };
+use crate::planet_geometry::{minimise, root};
 use crate::sky::{AlmanacError, SUN_RISE_SET_DEG, checked_site};
 
 const AU_KM: f64 = skyfix_ephemeris::body::AU_KM;
@@ -315,7 +315,7 @@ impl Searcher<'_> {
     /// [c1, c2, c3, c4])`, contacts `None` when they do not happen. `None` overall when
     /// there is no transit.
     fn contacts(&self, lo: f64, hi: f64) -> Option<(f64, [Option<f64>; 4])> {
-        let (tm, sep) = minimise(|t| self.separation(t), lo, hi, 1e-7);
+        let (tm, sep) = minimise(&|t| self.separation(t), lo, hi, 1e-7);
         let v = self.at(tm)?;
         if sep.is_nan() || sep >= v.sd_sun + v.sd_planet {
             return None;
@@ -433,7 +433,7 @@ fn local(
         let t = t_first + h * i as f64;
         let v = sun_alt(t);
         if prev.1 * v < 0.0 {
-            if let Some(tr) = root(sun_alt, prev.0, t, 1e-7) {
+            if let Some(tr) = root(&sun_alt, prev.0, t, 1e-7) {
                 let name = if prev.1 < 0.0 { "sunrise" } else { "sunset" };
                 marks.push((name.to_string(), tr));
             }
