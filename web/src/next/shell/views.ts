@@ -1,7 +1,11 @@
 /**
- * The explorer's views as the switcher shows them. OWNER: shell-design agent.
+ * The explorer's views as the switcher shows them. OWNER: shell-design agent; the tab
+ * strip since the expansion programme: tonight agent (Q2).
+ *
  * `map` and `globe` share one tab (the map view switches between a flat chart and a
- * globe itself).
+ * globe itself). Eight tabs: Tonight joined them in the expansion programme and About left
+ * for the Help menu (the **?** in the app strip), where "About SkyFix Lab" opens it; it is
+ * still a view, reached at `#about` like any other, with no tab of its own.
  */
 
 import type { ViewId } from '../state.js';
@@ -35,6 +39,13 @@ export const VIEW_META: Record<ViewId, ViewMeta> = {
     icon: 'sky',
     tip: 'What you would see: the sky dome and the horizon',
     title: 'Sky',
+  },
+  tonight: {
+    tab: 'tonight',
+    label: 'Tonight',
+    icon: 'tonight',
+    tip: 'The night ahead: darkness, the Moon, planets, deep sky, meteors and what is coming up',
+    title: 'Tonight',
   },
   charts: {
     tab: 'charts',
@@ -80,7 +91,13 @@ export const VIEW_META: Record<ViewId, ViewMeta> = {
   },
 };
 
+/** The tabs, in order: eight, two rows of four on a desktop. About is in the Help menu. */
+export const TAB_IDS = ['map', 'sky', 'tonight', 'charts', 'navigate', 'almanac', 'events', 'learn'] as const;
+
 /** The tabs, in order. */
-export const TABS: readonly ViewMeta[] = (['map', 'sky', 'charts', 'navigate', 'almanac', 'events', 'learn', 'about'] as const).map(
-  (id) => VIEW_META[id],
-);
+export const TABS: readonly ViewMeta[] = TAB_IDS.map((id) => VIEW_META[id]);
+
+/** True when the view has a tab of its own (About is reached from Help). */
+export function hasTab(view: ViewId): boolean {
+  return TABS.some((t) => t.tab === VIEW_META[view].tab);
+}

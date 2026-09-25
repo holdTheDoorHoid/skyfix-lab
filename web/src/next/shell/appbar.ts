@@ -16,13 +16,27 @@ import { openTour } from './tour.js';
 
 export const HONESTY = 'Simulation and analysis workbench. Not a navigation instrument.';
 
-function help(ctx: Ctx, onTour: () => void, install: HTMLElement): HTMLElement {
+function help(ctx: Ctx, onTour: () => void, install: HTMLElement, onAbout: () => void): HTMLElement {
   const key = (...keys: string[]): HTMLElement => h('span', { class: 'sf-help__keys' }, ...keys.map((k) => h('span', { class: 'sf-kbd' }, k)));
   const row = (keys: HTMLElement, text: string): HTMLElement => h('div', { class: 'sf-help__row' }, keys, h('span', {}, text));
   return h(
     'div',
     { class: 'sf-help' },
-    button({ label: 'Show the tour', icon: 'info', variant: 'secondary', size: 'sm', class: 'sf-help__tour', onClick: onTour }),
+    // tonight agent (Q2): About left the tab strip; it opens from here (and at #about).
+    h(
+      'div',
+      { class: 'sf-help__actions' },
+      button({ label: 'Show the tour', icon: 'info', variant: 'secondary', size: 'sm', class: 'sf-help__tour', onClick: onTour }),
+      button({
+        label: 'About SkyFix Lab',
+        icon: 'about',
+        variant: 'secondary',
+        size: 'sm',
+        class: 'sf-help__about',
+        tip: 'What this page is, how far each number can be trusted, where the data comes from, and what happens to your place',
+        onClick: onAbout,
+      }),
+    ),
     h('div', { class: 'sf-popover__title' }, 'Keys for time'),
     row(key('←', '→'), '10 minutes back or on'),
     row(key('Shift', '←', '→'), 'an hour'),
@@ -100,6 +114,10 @@ export function appbar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
         openTour(ctx);
       },
       install.el,
+      () => {
+        helpPop.close({ returnFocus: false });
+        store.patch({ view: 'about' });
+      },
     ),
     { label: 'Help and keys', placement: 'bottom-end' },
   );

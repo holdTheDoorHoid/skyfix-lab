@@ -230,7 +230,9 @@ export type ViewId =
   | 'almanac'
   | 'events'
   | 'learn'
-  | 'about';
+  | 'about'
+  // tonight agent (expansion programme Q2): the Tonight view; About left the tab strip for Help.
+  | 'tonight';
 
 export const VIEW_IDS: readonly ViewId[] = [
   'map',
@@ -242,6 +244,7 @@ export const VIEW_IDS: readonly ViewId[] = [
   'events',
   'learn',
   'about',
+  'tonight',
 ];
 
 export interface ObserverState {
