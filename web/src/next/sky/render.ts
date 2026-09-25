@@ -1150,6 +1150,31 @@ export class SkyRenderer {
       this.haloText(text, x + glyph + 3, y, css(nameColour, 0.95), halo);
     }
 
+    // sky2 agent: added comets and asteroids, and meteor radiants, with the bodies' priority.
+    for (const m of f.custom ?? []) {
+      if (!m.drawn) continue;
+      ctx.font = `600 11px ${f.palette.fontUi}`;
+      const w = this.width(m.name, ctx.font);
+      const x = m.x + 7;
+      if (!this.place(x - 1, m.y - 12, w + 2, 15) && !forced.has(m.key)) continue;
+      ctx.textAlign = 'left';
+      this.haloText(m.name, x, m.y + 3, css(f.colours.light ? ink : f.palette.custom, 0.95), halo);
+    }
+    for (const m of f.radiants ?? []) {
+      if (!m.drawn) continue;
+      const text = m.rate ? `${m.name} · ${m.rate}` : m.name;
+      ctx.font = `600 11px ${f.palette.fontUi}`;
+      const w = this.width(text, ctx.font);
+      const off = 9 + 3 * m.strength;
+      let x = m.x + off;
+      if (!this.place(x - 1, m.y - 12, w + 2, 15)) {
+        x = m.x - off - w;
+        if (!this.place(x - 1, m.y - 12, w + 2, 15) && !forced.has(m.key)) continue;
+      }
+      ctx.textAlign = 'left';
+      this.haloText(text, x, m.y + 4, css(f.colours.light ? ink : f.palette.radiant, 0.95), halo);
+    }
+
     // Reference lines: after the bodies, before the stars.
     for (const l of this.lineLabels) this.tagText(f, l.text, l.x, l.y, l.fill, `600 10.5px ${f.palette.fontUi}`, l.centred ? 'center' : 'left');
 
@@ -1196,6 +1221,9 @@ export class SkyRenderer {
       }
     }
 
+    // sky2 agent: deep-sky labels ("M31", "NGC 869"), brightest first, beside their symbols.
+    if (f.dso) this.deepSkyLabels(f, f.dso, forced, halo);
+
     // Constellation names, last and quietest.
     const cat = s.catalog;
     const roomy = !(f.projector instanceof DomeProjector) || f.projector.radius >= 230;
@@ -1219,6 +1247,61 @@ export class SkyRenderer {
       if (spacing) (ctx as Ctx2D & { letterSpacing: string }).letterSpacing = '0px';
     }
     ctx.textAlign = 'left';
+  }
+
+  /**
+   * Deep-sky labels (sky2 agent): the brightest objects first, right of the symbol (else
+   * left), skipped where they would cover another label; the selected, hovered and
+   * highlighted ones always. A constellation the search found gets its name in the accent.
+   */
+  private deepSkyLabels(f: Frame, field: DeepSkyField, forced: ReadonlySet<string>, halo: Rgb): void {
+    const ctx = this.ctx;
+    const font = `600 10.5px ${f.palette.fontUi}`;
+    ctx.font = font;
+    ctx.textAlign = 'left';
+    const colours = this.deepSkyColours(f);
+    const hover = f.hoverKey?.startsWith('d:') ? Number(f.hoverKey.slice(2)) : -1;
+    const sel = f.selectedKey?.startsWith('d:') ? Number(f.selectedKey.slice(2)) : -1;
+    const order = field.byBrightness;
+    const draw = (i: number, isForced: boolean): void => {
+      const o = field.catalog[i]!;
+      const text = o.label;
+      const r = field.radius[i]!;
+      const w = this.width(text, font);
+      const x0 = field.x[i]!;
+      const y0 = field.y[i]!;
+      let x = x0 + Math.min(r, 14) * 0.75 + 4;
+      const y = y0 - Math.min(r, 14) * 0.5 - 2;
+      if (!this.place(x - 1, y - 10, w + 2, 13)) {
+        x = x0 - Math.min(r, 14) * 0.75 - 4 - w;
+        if (!this.place(x - 1, y - 10, w + 2, 13) && !isForced) return;
+      }
+      const shape = field.shape[i]!;
+      const fill =
+        f.colours.light ? css(f.colours.ink, 0.9) : shape === 0 ? colours.galaxy : shape === 3 || shape === 4 ? colours.nebula : shape === 6 ? colours.other : colours.cluster;
+      this.haloText(text, x, y, fill, halo);
+    };
+    for (const i of [sel, hover]) if (i >= 0 && field.on[i] === 1) draw(i, true);
+    for (let k = 0; k < order.length; k += 1) {
+      const i = order[k]!;
+      if (field.on[i] === 0 || i === sel || i === hover) continue;
+      draw(i, forced.has(`d:${i}`));
+    }
+    if (f.constellation !== undefined && f.constellation >= 0) {
+      const ch = f.scene.ch;
+      const c = f.constellation;
+      const p = f.projector;
+      const con = f.scene.catalog?.constellations[c];
+      if (con && ch.alt[c]! > 0 && p.projectDir(ch.alt[c]!, ch.sinAlt[c]!, ch.cosAlt[c]!, ch.sinAz[c]!, ch.cosAz[c]!)) {
+        ctx.font = `700 12px ${f.palette.fontUi}`;
+        ctx.textAlign = 'center';
+        const text = con.name.toUpperCase();
+        const w = this.width(text, ctx.font);
+        this.reserve(p.x - w / 2, p.y - 11, w, 14);
+        this.haloText(text, p.x, p.y, css(f.palette.accent), halo);
+        ctx.textAlign = 'left';
+      }
+    }
   }
 
   private haloText(text: string, x: number, y: number, fill: string, halo: Rgb): void {
@@ -1597,7 +1680,20 @@ export class SkyRenderer {
     ctx.lineTo(bx + dy * 5 - dx * 2, by - dx * 5 - dy * 2);
     ctx.closePath();
     ctx.fill();
-    const name = f.selectedKey.startsWith('b:') ? f.selectedKey.slice(2) : starTitle(f.scene.stars!, Number(f.selectedKey.slice(2)));
+    const k = f.selectedKey;
+    const n = Number(k.slice(2));
+    const name =
+      k.startsWith('b:') || k.startsWith('c:')
+        ? k.slice(2)
+        : k.startsWith('d:')
+          ? (f.scene.dso.catalog[n]?.label ?? '')
+          : k.startsWith('r:')
+            ? (f.radiants?.find((r) => r.key === k)?.name ?? '')
+            : k.startsWith('k:')
+              ? (f.scene.catalog?.constellations[n]?.name ?? '')
+              : f.scene.stars
+                ? starTitle(f.scene.stars, n)
+                : '';
     const text = `${name} ${Math.round(-at.alt * RAD)}° below`;
     ctx.font = `600 11px ${f.palette.fontUi}`;
     ctx.textAlign = 'center';

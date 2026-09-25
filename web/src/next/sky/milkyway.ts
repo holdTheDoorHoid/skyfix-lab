@@ -106,26 +106,37 @@ export function buildMilkyWayGrid(outline: Pick<MilkyWayOutline, 'levels' | 'rin
     }
     byLevel[ring.level]!.push({ l, b });
   }
-  const crossings: number[] = [];
+  // Each edge adds its crossing to the few meridians it spans (an edge is at most 14° long),
+  // rather than every meridian testing every edge: a few thousand crossings in all.
+  const perColumn: number[][] = Array.from({ length: cols }, () => []);
   for (let level = 0; level < levels; level += 1) {
-    const rings = byLevel[level]!;
-    for (let col = 0; col < cols; col += 1) {
-      const lc = (col + 0.5) * GRID_STEP;
-      crossings.length = 0;
-      for (const { l, b } of rings) {
-        const n = l.length;
-        for (let i = 0; i < n; i += 1) {
-          // Consecutive points; a closed ring repeats its first point, so i -> i+1 covers every edge.
-          const j = i + 1 < n ? i + 1 : 0;
-          if (j === 0 && l[0] === l[n - 1] && b[0] === b[n - 1]) continue;
-          const l1 = l[i]!;
-          const dl = wrap180(l[j]! - l1);
-          if (dl === 0) continue;
-          const d = wrap180(lc - l1);
-          // Half-open: an edge counts the meridian at its start, not its end.
-          if (dl > 0 ? d >= 0 && d < dl : d <= 0 && d > dl) crossings.push(b[i]! + (b[j]! - b[i]!) * (d / dl));
+    for (const col of perColumn) col.length = 0;
+    for (const { l, b } of byLevel[level]!) {
+      const n = l.length;
+      for (let i = 0; i < n; i += 1) {
+        // Consecutive points; a closed ring repeats its first point, so i -> i+1 covers every edge.
+        const j = i + 1 < n ? i + 1 : 0;
+        if (j === 0 && l[0] === l[n - 1] && b[0] === b[n - 1]) continue;
+        const l1 = l[i]!;
+        const dl = wrap180(l[j]! - l1);
+        if (dl === 0) continue;
+        // Meridians lc = (c + 0.5)·step with d = lc − l1 in [0, dl) (dl > 0) or (dl, 0] (dl < 0):
+        // half-open, so an edge counts the meridian at its start, not its end.
+        const lo = dl > 0 ? l1 : l1 + dl;
+        const hi = dl > 0 ? l1 + dl : l1;
+        const c0 = Math.ceil(lo / GRID_STEP - 0.5);
+        const c1 = Math.floor(hi / GRID_STEP - 0.5);
+        for (let c = c0; c <= c1; c += 1) {
+          const lc = (c + 0.5) * GRID_STEP;
+          const d = lc - l1;
+          if (dl > 0 ? !(d >= 0 && d < dl) : !(d <= 0 && d > dl)) continue;
+          const col = ((c % cols) + cols) % cols;
+          perColumn[col]!.push(b[i]! + (b[j]! - b[i]!) * (d / dl));
         }
       }
+    }
+    for (let col = 0; col < cols; col += 1) {
+      const crossings = perColumn[col]!;
       if (crossings.length < 2) continue;
       crossings.sort((p, q) => p - q);
       for (let k = 0; k + 1 < crossings.length; k += 2) {
@@ -145,42 +156,56 @@ function wrap180(d: number): number {
   return x === -180 ? 180 : x;
 }
 
-/** Separable Gaussian blur; longitude wraps, latitude clamps at the grid's edge. */
+/**
+ * A Gaussian blur of standard deviation `sigma` cells, as three passes of a running box
+ * filter each way (the usual approximation: three boxes of width w give σ² = (w² − 1)/4);
+ * longitude wraps, latitude clamps at the grid's edge. Its cost does not grow with σ.
+ */
 function blurGrid(src: Float32Array, cols: number, rows: number, sigma: number): Float32Array {
-  const r = Math.max(1, Math.ceil(3 * sigma));
-  const k = new Float32Array(2 * r + 1);
-  let sum = 0;
-  for (let i = -r; i <= r; i += 1) {
-    k[i + r] = Math.exp((-i * i) / (2 * sigma * sigma));
-    sum += k[i + r]!;
+  const half = Math.max(1, Math.round((Math.sqrt(4 * sigma * sigma + 1) - 1) / 2));
+  const a = Float32Array.from(src);
+  const b = new Float32Array(src.length);
+  for (let pass = 0; pass < 3; pass += 1) {
+    boxRows(a, b, cols, rows, half);
+    boxCols(b, a, cols, rows, half);
   }
-  for (let i = 0; i < k.length; i += 1) k[i] = k[i]! / sum;
-  const tmp = new Float32Array(src.length);
+  return a;
+}
+
+/** One box pass along longitude (wrapping), width 2·half + 1 (half < cols). */
+function boxRows(src: Float32Array, dst: Float32Array, cols: number, rows: number, half: number): void {
+  const inv = 1 / (2 * half + 1);
   for (let row = 0; row < rows; row += 1) {
     const o = row * cols;
+    let acc = 0;
+    for (let i = -half; i <= half; i += 1) acc += src[o + (i < 0 ? i + cols : i)]!;
     for (let col = 0; col < cols; col += 1) {
-      let acc = 0;
-      for (let i = -r; i <= r; i += 1) {
-        let c = col + i;
-        if (c < 0) c += cols;
-        else if (c >= cols) c -= cols;
-        acc += k[i + r]! * src[o + c]!;
-      }
-      tmp[o + col] = acc;
+      dst[o + col] = acc * inv;
+      const inn = col + half + 1;
+      const out = col - half;
+      acc += src[o + (inn >= cols ? inn - cols : inn)]! - src[o + (out < 0 ? out + cols : out)]!;
     }
   }
-  const out = new Float32Array(src.length);
-  for (let col = 0; col < cols; col += 1) {
-    for (let row = 0; row < rows; row += 1) {
-      let acc = 0;
-      for (let i = -r; i <= r; i += 1) {
-        const rr = Math.min(rows - 1, Math.max(0, row + i));
-        acc += k[i + r]! * tmp[rr * cols + col]!;
-      }
-      out[row * cols + col] = acc;
+}
+
+/** One box pass along latitude (clamped at the edges), width 2·half + 1: rows swept in order. */
+function boxCols(src: Float32Array, dst: Float32Array, cols: number, rows: number, half: number): void {
+  const inv = 1 / (2 * half + 1);
+  const acc = new Float64Array(cols);
+  const rowOf = (r: number): number => (r < 0 ? 0 : r >= rows ? rows - 1 : r) * cols;
+  for (let i = -half; i <= half; i += 1) {
+    const o = rowOf(i);
+    for (let c = 0; c < cols; c += 1) acc[c]! += src[o + c]!;
+  }
+  for (let row = 0; row < rows; row += 1) {
+    const o = row * cols;
+    const add = rowOf(row + half + 1);
+    const sub = rowOf(row - half);
+    for (let c = 0; c < cols; c += 1) {
+      dst[o + c] = acc[c]! * inv;
+      acc[c]! += src[add + c]! - src[sub + c]!;
     }
   }
-  return out;
 }
 
 /** The grid's brightness at a galactic unit vector (0 outside the band). Nearest cell. */

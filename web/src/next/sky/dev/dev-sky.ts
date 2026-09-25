@@ -16,6 +16,16 @@
  *   bench=600 speed=3600        play for 600 frames and report frame times (#bench)
  *   bare=1                      hide the control strip (the honesty banner stays)
  *   menu=1                      open the Layers popover
+ * sky2 agent:
+ *   show=deep_sky:M31           show a target as showInSky does (kinds: body, star, deep_sky,
+ *                               constellation, shower, custom)
+ *   upclose=Moon                open the "Up close" inset (orient=seen|north|south, mirror=1)
+ *   fov=bino7x50                a field of view (eye, bino7x50, bino10x50, scope, camera),
+ *   fovat=centre                around the middle of the view (else the selected object)
+ *   bortle=5  nelm=5.5          the sky's darkness (else automatic)
+ *   search=vega                 open the search with this query
+ *   ranking=1                   open tonight's best deep-sky objects
+ *   custom=ceres                add (1) Ceres from the example elements
  */
 
 // The design system (fonts, tokens, components), as the shell loads it.
@@ -30,6 +40,11 @@ import { bindTimeKeys, goNow, setPlaying, setSpeed, startPlayback, stepTime } fr
 import { createExplorerStore, displayZone, type Layers, type Theme } from '../../state.js';
 import { formatWithUtc, isValidIanaZone, jdFromIso, jdFromWallClock, resolveZone } from '../../time.js';
 import { highlightBodies, mountSky, type SkyMounted } from '../index.js';
+import { skyViewSettings } from '../view.js';
+import { customBodies, CUSTOM_EXAMPLE, MPC_CREDIT } from '../custom.js';
+import { isPlanetDetailEngine } from '../../engine/types.js';
+import type { FovPresetId } from '../fov.js';
+import type { SkyTarget } from '../requests.js';
 import { NO_PACKS } from '../../packs/service.js';
 
 const BANNER = 'Simulation and analysis workbench. Not a navigation instrument.';
@@ -53,6 +68,13 @@ const SKY_LAYERS: (keyof Layers)[] = [
   'meridian',
   'equator',
   'ecliptic',
+  // sky2 agent
+  'deepSky',
+  'milkyWay',
+  'raDecGrid',
+  'meteorRadiants',
+  'customBodies',
+  'extinction',
 ];
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string> = {}, ...kids: (Node | string)[]): HTMLElementTagNameMap[K] {
@@ -110,6 +132,9 @@ async function boot(root: HTMLElement): Promise<void> {
   for (const k of (params.get('off') ?? '').split(',').filter(Boolean)) if (k in store.get().layers) layerPatch[k as keyof Layers] = false;
   store.patch({ layers: layerPatch });
   if (params.has('select')) store.patch({ selection: { body: params.get('select') || null } });
+  // sky2 agent: the sky's darkness.
+  if (params.has('bortle')) store.patch({ settings: { skyQuality: 'bortle', skyBortle: Number(params.get('bortle')) || 5 } });
+  if (params.has('nelm')) store.patch({ settings: { skyQuality: 'nelm', skyNelm: Number(params.get('nelm')) || 6 } });
 
   const scheduler = createScheduler();
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
@@ -190,6 +215,32 @@ async function boot(root: HTMLElement): Promise<void> {
   if (Object.keys(pano).length) handle.setPanorama(pano);
   if (params.has('highlight')) highlightBodies(ctx, (params.get('highlight') ?? '').split(',').filter(Boolean));
   (globalThis as { __sky?: unknown }).__sky = { ctx, handle };
+  // sky2 agent: targets, the close-up, the field of view, search, ranking, added bodies.
+  if (params.get('custom') === 'ceres' && isPlanetDetailEngine(engine)) {
+    customBodies(ctx).add(engine.parseOrbits(CUSTOM_EXAMPLE), MPC_CREDIT);
+  }
+  if (params.has('fov')) handle.setFov((params.get('fov') as FovPresetId) || null, params.get('fovat') === 'centre' ? 'centre' : 'target');
+  const orient = params.get('orient');
+  if (orient === 'seen' || orient === 'north' || orient === 'south' || params.get('mirror') === '1') {
+    const v = skyViewSettings(ctx);
+    if (orient === 'seen' || orient === 'north' || orient === 'south') v.upClose.orientation = orient;
+    if (params.get('mirror') === '1') v.upClose.mirror = true;
+  }
+  if (params.has('show') || params.has('upclose') || params.has('search') || params.get('ranking') === '1') {
+    await nextFrame();
+    await nextFrame();
+    const show = params.get('show');
+    if (show) {
+      const [kind, ...rest] = show.split(':');
+      handle.show({ kind: kind as SkyTarget['kind'], id: rest.join(':') });
+    }
+    const up = params.get('upclose');
+    if (up) handle.openUpClose(up);
+    const q = params.get('search');
+    if (q) handle.search(q);
+    if (params.get('ranking') === '1') document.querySelector<HTMLButtonElement>('.sky-ov--tools [aria-label^="Tonight"]')?.click();
+    handle.drawNow();
+  }
 
   setInterval(() => {
     const st = handle.stats();

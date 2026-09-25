@@ -53,6 +53,13 @@ export interface SceneFlags {
   raDecGrid?: boolean;
   /** Deep-sky objects (sky2 agent). */
   deepSky?: boolean;
+  /**
+   * Keep the star and deep-sky places of the last bucket (sky2 agent): while time runs at
+   * weeks a second and more (`fastPlayback`, playback.ts) a new bucket would come every
+   * frame, and the places move by arcseconds meanwhile. They are brought up to date when
+   * time slows.
+   */
+  frozen?: boolean;
 }
 
 // ---------------------------------------------------------------------------------
@@ -212,11 +219,12 @@ export class SkyScene {
    * Bring the star places to the simulated hour (or day) of `jd` and carry the J2000
    * boundaries and labels into the frame of date. Cheap when the bucket has not changed.
    */
-  private ensureBucket(engine: ExplorerEngine, jd: number, daily: boolean): void {
+  private ensureBucket(engine: ExplorerEngine, jd: number, daily: boolean, frozen = false): void {
     if (!this.catalog) return;
     const perDay = daily ? 1 : 24;
     const key = Math.round(jd * perDay) / perDay;
     if (key === this.bucketKey) return;
+    if (frozen && Number.isFinite(this.bucketKey)) return;
     try {
       const apparent = engine.starfieldApparent(key);
       unitsFromRaDecArray(apparent, this.n, this.units);
@@ -247,8 +255,8 @@ export class SkyScene {
 
   /** The frame's horizon rotation and every direction's apparent altitude and azimuth. */
   update(engine: ExplorerEngine, observer: Observer, jd: number, flags: SceneFlags): void {
-    this.ensureBucket(engine, jd, flags.daily ?? false);
-    if (flags.deepSky && this.dso.load(engine)) {
+    this.ensureBucket(engine, jd, flags.daily ?? false, flags.frozen ?? false);
+    if (flags.deepSky && this.dso.load(engine) && !(flags.frozen && this.dso.ok)) {
       const perDay = flags.daily ? 1 : 24;
       this.dso.ensureBucket(engine, Math.round(jd * perDay) / perDay);
     }
