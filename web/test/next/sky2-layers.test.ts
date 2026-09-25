@@ -735,3 +735,62 @@ describe.skipIf(!hasPackage)('the Sky view’s layers on the built WebAssembly p
     expect(isMoonDetailEngine(load.engine)).toBe(true);
   });
 });
+
+// --- verify2: ACCURACY §20's two Milky Way figures, measured on the engine's rings ----------
+describe.skipIf(!hasPackage)('the Milky Way rings against ACCURACY §20 (verify2)', () => {
+  let load: WasmLoad;
+  beforeAll(async () => {
+    const glue = (await import(/* @vite-ignore */ pathToFileURL(GLUE_FILE).href)) as { initSync: (i: { module: BufferSource }) => unknown; init?: () => void };
+    glue.initSync({ module: readFileSync(WASM_FILE) });
+    glue.init?.();
+    load = inspectWasmModule(glue);
+  });
+
+  it('every ring lies within 28° of the galactic equator, and each straight (l, b) edge within 0.1° of its great-circle arc', ({ skip }) => {
+    if (load.status !== 'ready' || !isDeepSkyEngine(load.engine)) return skip();
+    const outline = load.engine.milkyWayOutline();
+    // The band the fill assumes (the old check was only "inside the 32° grid").
+    const maxAbsB = buildMilkyWayGrid(outline).maxAbsB;
+    expect(maxAbsB).toBeLessThan(28);
+    const unit = (ra: number, dec: number): number[] => [Math.cos(dec * DEG) * Math.cos(ra * DEG), Math.cos(dec * DEG) * Math.sin(ra * DEG), Math.sin(dec * DEG)];
+    const wrap = (d: number): number => ((((d + 180) % 360) + 360) % 360) - 180;
+    let worst = 0;
+    let longest = 0;
+    let edges = 0;
+    for (const ring of outline.rings) {
+      const n = Math.min(ring.ra_deg.length, ring.dec_deg.length);
+      for (let i = 0; i < n; i += 1) {
+        const j = (i + 1) % n;
+        const a = unit(ring.ra_deg[i]!, ring.dec_deg[i]!);
+        const b = unit(ring.ra_deg[j]!, ring.dec_deg[j]!);
+        const omega = Math.acos(Math.min(1, Math.max(-1, a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!)));
+        if (omega < 1e-9) continue;
+        edges += 1;
+        longest = Math.max(longest, omega / DEG);
+        const ga = galacticOf(ring.ra_deg[i]!, ring.dec_deg[i]!);
+        const gb = galacticOf(ring.ra_deg[j]!, ring.dec_deg[j]!);
+        // The straight edge the fill uses, in a local plane (l·cos b, b) about the edge.
+        const cosB = Math.cos(((ga.b + gb.b) / 2) * DEG);
+        const ex = wrap(gb.l - ga.l) * cosB;
+        const ey = gb.b - ga.b;
+        const len2 = ex * ex + ey * ey;
+        for (let k = 1; k < 16; k += 1) {
+          // The great circle's point a fraction t of the way along (slerp).
+          const t = k / 16;
+          const wa = Math.sin((1 - t) * omega) / Math.sin(omega);
+          const wb = Math.sin(t * omega) / Math.sin(omega);
+          const p = [0, 1, 2].map((c) => wa * a[c]! + wb * b[c]!);
+          const g = galacticOf(Math.atan2(p[1]!, p[0]!) / DEG, Math.asin(Math.max(-1, Math.min(1, p[2]!))) / DEG);
+          const px = wrap(g.l - ga.l) * cosB;
+          const py = g.b - ga.b;
+          const s = len2 > 0 ? Math.max(0, Math.min(1, (px * ex + py * ey) / len2)) : 0;
+          worst = Math.max(worst, Math.hypot(px - s * ex, py - s * ey));
+        }
+      }
+    }
+    console.info(`Milky Way rings: |b| at most ${maxAbsB.toFixed(2)}°, ${edges} edges, the longest ${longest.toFixed(2)}°, a straight (l, b) edge at most ${worst.toFixed(4)}° from its arc`);
+    expect(edges).toBeGreaterThan(100);
+    expect(longest).toBeLessThanOrEqual(14);
+    expect(worst).toBeLessThan(0.1);
+  });
+});
