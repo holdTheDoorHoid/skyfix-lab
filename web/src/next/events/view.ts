@@ -1,22 +1,26 @@
 /**
- * The Events view (EXPLORER_PLAN §2): eclipses, Moon phases, equinoxes and solstices, and
- * the planets' oppositions, conjunctions, elongations and closest approaches.
- * OWNER: eclipse agent. Mounted by the shell's registry as the `events` view.
+ * The Events view (EXPLORER_PLAN §2): what happens in the sky and when, as lists you can
+ * click. OWNER: eclipse agent; events2 agent (expansion programme Q4) for the Moon and
+ * Planets groups, meteors, the Earth's perihelion, calendar files and tables, deep time.
+ * Mounted by the shell's registry as the `events` view.
  *
  *   Eclipses  upcoming or past (ten years), solar and lunar, "seen from here"; a card with
- *             what the place sees (a timeline of the contacts with the Sun's or Moon's
- *             height at each, magnitude, obscuration, a plain-language account) and
- *             "Show on the map" (map/README.md, the map service)
- *   Moon      the principal phases for the coming months
- *   Seasons   equinoxes and solstices, the year before and four after
- *   Planets   a year of planet events, ahead or back
+ *             what the place sees and "Show on the map" (map/README.md)
+ *   Moon      phases · perigee, apogee and supermoons · occultations of stars and planets
+ *             seen from here (and elsewhere on Earth)
+ *   Planets   highlights (oppositions, elongations, closest approaches) · conjunctions ·
+ *             retrograde loops · transits of Mercury and Venus · Jupiter's moons, night by night
+ *   Meteors   the year's showers: peak, rate, the Moon, tonight's expected rate
+ *   Seasons   equinoxes and solstices, and the Earth's perihelion and aphelion
  *
  * Every event is a button: it sets the explorer's time (and the selected body; the place
  * too for the point of greatest eclipse). The lists are anchored at the explorer's time,
  * but a jump made from this view does not move them (the item clicked stays where it was):
  * they follow the time bar, the clock and playback, and a button re-anchors them after a
- * jump. Times are in the display zone with UTC beside or on hover (CONVENTIONS 13.8);
- * event times are rounded to the minute, eclipse contacts shown to the second.
+ * jump. Times are in the display zone with UTC (or UT) beside or on hover (CONVENTIONS
+ * 13.8, 15.2); a far date's times carry the ±ΔT chip. Each list has a Save menu: a
+ * calendar file (.ics) and a table (.csv). Long searches run in pieces between frames
+ * (search.ts) and wait while the time bar is dragged.
  *
  * Themed only through design tokens (events.css): the displayed theme is
  * `<html data-theme>`, and nothing here reads `settings.theme`.
@@ -33,45 +37,69 @@ import { roundToMinute, zoneShortName } from '../time.js';
 import { button } from '../theme/primitives.js';
 import { eclipsesTab } from './eclipses.js';
 import { watchAll, type EventsTab, type EventsUi, type JumpOptions, type TabComponent, type TabEnv } from './env.js';
-import { moonTab, planetsTab, seasonsTab } from './lists.js';
+import { moonGroup, planetsGroup } from './groups.js';
+import { seasonsTab } from './lists.js';
+import { sharedSearches } from './shared.js';
+import { showersTab } from './showers.js';
 
 const TABS: readonly { id: EventsTab; label: string; tip: string; tab: TabComponent }[] = [
   { id: 'eclipses', label: 'Eclipses', tip: 'Solar and lunar eclipses, and what you would see of them', tab: eclipsesTab },
-  { id: 'moon', label: 'Moon phases', tip: 'New Moon, first quarter, full Moon and last quarter for the coming months', tab: moonTab },
-  { id: 'seasons', label: 'Seasons', tip: 'Equinoxes and solstices', tab: seasonsTab },
-  { id: 'planets', label: 'Planets', tip: 'Oppositions, conjunctions, greatest elongations and closest approaches', tab: planetsTab },
+  { id: 'moon', label: 'Moon', tip: 'Phases, perigee and supermoons, and the stars and planets the Moon hides', tab: moonGroup },
+  {
+    id: 'planets',
+    label: 'Planets',
+    tip: 'Oppositions and elongations, close approaches, retrograde loops, transits and Jupiter’s moons',
+    tab: planetsGroup,
+  },
+  { id: 'meteors', label: 'Meteors', tip: 'The year’s meteor showers, the Moon at their peaks and tonight’s expected rate', tab: showersTab },
+  { id: 'seasons', label: 'Seasons', tip: 'Equinoxes and solstices, and the Earth closest to and farthest from the Sun', tab: seasonsTab },
 ];
 
 type Remembered = Omit<EventsUi, 'anchor'>;
 
 const DEFAULTS: Remembered = {
   tab: 'eclipses',
+  moonSub: 'phases',
+  planetSub: 'events',
   eclipseDirection: 'upcoming',
   eclipseKind: 'all',
   seenOnly: false,
   selected: null,
   planetDirection: 'upcoming',
+  apsisDirection: 'upcoming',
+  occultationDirection: 'upcoming',
+  occultationsAll: false,
+  occultation: null,
+  conjunctionDirection: 'upcoming',
+  conjunctionKinds: { planets: true, moon: true, stars: true },
+  conjunctionsSeenOnly: false,
+  transitDirection: 'upcoming',
+  transit: null,
+  jupiterSeenOnly: true,
+  showerYear: null,
+  shower: null,
+  skyDarkness: 5,
+  namePlace: true,
 };
 
-/** Per explorer (store), so leaving the view and coming back keeps the tab and the selection. */
+/** Per explorer (store), so leaving the view and coming back keeps the tabs and the choices. */
 const memory = new WeakMap<ExplorerStore, Remembered>();
+
+/** A time change this recent counts as a drag of the time bar: background searches wait. */
+const SETTLE_MS = 300;
+/** While playing, background searches take a piece at most this often. */
+const PLAYING_PACE_MS = 250;
 
 let tabSeq = 0;
 
 const view: Component = (host, ctx) => {
   const d = disposer();
   const remembered = memory.get(ctx.store) ?? DEFAULTS;
-  const ui = createStore<EventsUi>({ ...remembered, anchor: ctx.store.get().time.jd_utc });
+  const ui = createStore<EventsUi>({ ...DEFAULTS, ...remembered, anchor: ctx.store.get().time.jd_utc });
   d.add(
     ui.subscribe((u) => {
-      memory.set(ctx.store, {
-        tab: u.tab,
-        eclipseDirection: u.eclipseDirection,
-        eclipseKind: u.eclipseKind,
-        seenOnly: u.seenOnly,
-        selected: u.selected,
-        planetDirection: u.planetDirection,
-      });
+      const { anchor: _anchor, ...keep } = u;
+      memory.set(ctx.store, keep);
     }),
   );
 
@@ -86,7 +114,28 @@ const view: Component = (host, ctx) => {
       if (options.body) ctx.store.patch({ selection: { body: options.body } });
     });
   };
-  const env: TabEnv = { ctx, ui, jump };
+
+  // The pace of background searches: none while the page is still, slower while the time
+  // bar is dragged or playing (the live clock's ticks do not count).
+  let lastMove = Number.NEGATIVE_INFINITY;
+  const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  d.add(
+    ctx.store.select(
+      (s) => s.time.jd_utc,
+      () => {
+        if (!ctx.store.get().time.live) lastMove = now();
+      },
+    ),
+  );
+  const pace = (): number => {
+    if (ctx.store.get().time.playing) return PLAYING_PACE_MS;
+    const since = now() - lastMove;
+    return since < SETTLE_MS ? Math.ceil(SETTLE_MS - since) + 20 : 0;
+  };
+  const shared = sharedSearches(ctx.store);
+  shared.pace = pace;
+  d.add(() => shared.pause());
+  const env: TabEnv = { ctx, ui, jump, pace, shared };
 
   const root = h('section', { class: 'sfe sf-on-stage', 'aria-label': 'Events' });
   host.append(root);

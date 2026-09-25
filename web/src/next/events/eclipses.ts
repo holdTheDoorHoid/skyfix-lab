@@ -40,9 +40,14 @@ import {
 } from '../shell/format.js';
 import { displayZone, engineObserver, type AngleFormat, type ExplorerState } from '../state.js';
 import { jdFromIso, roundToMinute, UTC_ZONE, zoneShortName, type Zone } from '../time.js';
+import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { button, readout, segmented, switchRow } from '../theme/primitives.js';
+import { chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote } from './deeptime.js';
 import { errorText, watchAll, type TabComponent, type TabEnv } from './env.js';
+import { addToCalendarButton, exportMenu } from './export-ui.js';
+import { fileWords, utcDate } from './items.js';
+import { eclipseItem } from './sky-model.js';
 import { clearEclipse, eclipseOnMap, lunarOverlays, showEclipse, solarOverlays } from './mapping.js';
 import {
   centralPhase,
@@ -122,12 +127,13 @@ function isUtc(zone: Zone): boolean {
   return zone.kind === 'fixed' && zone.offsetMs === 0;
 }
 
-/** `Mon 8 Apr 2024, 13:17 CDT (18:17 UTC)`; the UTC date too when it differs. */
+/** `Mon 8 Apr 2024, 13:17 CDT (18:17 UTC)`; the UTC date too when it differs; UT outside 1972-2035. */
 function whenWithUtc(jd: number, zone: Zone): string {
   const r = roundToMinute(jd);
-  if (isUtc(zone)) return `${dateMedium(r, UTC_ZONE)}, ${eventTime(r, UTC_ZONE)} UTC`;
+  const clock = scaleLabel(r);
+  if (isUtc(zone)) return `${dateMedium(r, UTC_ZONE)}, ${eventTime(r, UTC_ZONE)} ${clock}`;
   const sameDay = dateMedium(r, zone) === dateMedium(r, UTC_ZONE);
-  return `${dateMedium(r, zone)}, ${eventTime(r, zone)} ${zoneShortName(r, zone)} (${sameDay ? '' : `${dateShort(r, UTC_ZONE)} `}${eventTime(r, UTC_ZONE)} UTC)`;
+  return `${dateMedium(r, zone)}, ${eventTime(r, zone)} ${zoneShortName(r, zone)} (${sameDay ? '' : `${dateShort(r, UTC_ZONE)} `}${eventTime(r, UTC_ZONE)} ${clock})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,11 +272,13 @@ function contactsTable(
   local: EclipseLocal,
   st: Settings,
   jump: (jd: number) => void,
+  engine: TabEnv['ctx']['engine'],
 ): HTMLElement {
   const body = bodyOf(e);
   const central = local.kind === 'solar' ? centralPhase(local) : null;
   const max = eventOf(local, 'max');
   const ref = max?.jd_utc ?? e.greatest.jd_utc;
+  const chips = local.events.length ? chipsIn(engine, local.events[0]!.jd_utc, local.events[local.events.length - 1]!.jd_utc) : false;
   const rows = local.events.map((ev) => {
     const n = localEventName(ev.kind, central);
     const extra: string[] = [];
@@ -300,7 +308,13 @@ function contactsTable(
         n.term ? h('span', { class: 'sfe-ev__term', 'data-term': '' }, n.term) : null,
         extra.length ? h('span', { class: 'sfe-ev__extra' }, extra.join(' · ')) : null,
       ),
-      h('td', {}, time, h('span', { class: 'sfe-utc' }, `${clockSeconds(ev.jd_utc, UTC_ZONE)} UTC`)),
+      h(
+        'td',
+        {},
+        time,
+        uncertaintyChip(rowTimeInfo(engine, ev.jd_utc, chips)),
+        h('span', { class: 'sfe-utc' }, `${clockSeconds(ev.jd_utc, UTC_ZONE)} ${scaleLabel(ev.jd_utc)}`),
+      ),
       h('td', { class: 'sf-num-r' }, alt, ev.visible ? null : h('span', { class: 'sfe-below' }, 'below the horizon')),
       h('td', {}, h('abbr', { title: compassWords(ev.az_deg) }, compassPoint(ev.az_deg))),
     );
@@ -418,12 +432,14 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
     if (tl && local.events.length) {
       parts.push(h('h4', { class: 'sfe-card__sub' }, 'Timeline'));
       parts.push(tl.el);
-      parts.push(contactsTable(e, local, st, jumpHere));
+      parts.push(contactsTable(e, local, st, jumpHere, env.ctx.engine));
+      const unc = listUncertaintySentence(env.ctx.engine, local.events.map((ev) => ev.jd_utc));
       parts.push(
         h(
           'p',
           { class: 'sfe-note' },
-          'Times to the second as computed. The Earth’s rotation is not perfectly predictable (Delta-T), so a future contact may come a few seconds earlier or later.',
+          unc ||
+            'Times to the second as computed. The Earth’s rotation is not perfectly predictable (Delta-T), so a future contact may come a few seconds earlier or later.',
         ),
       );
     }
@@ -484,6 +500,8 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
   };
   renderActions();
   parts.push(actions);
+  const add = addToCalendarButton(env.ctx, env.ui, () => eclipseItem(e, local, fileWords(env.ctx.store.get())), `${eclipseTitle(e)}, ${dateMedium(roundToMinute(e.greatest.jd_utc), st.zone)}`);
+  parts.push(h('div', { class: 'sfe-actions sfe-actions--add' }, add, h('span', { class: 'sfe-note' }, 'Add to a calendar')));
   if (e.kind === 'solar') {
     parts.push(
       h(
@@ -512,8 +530,8 @@ function showOnMap(e: Eclipse, env: TabEnv): void {
     const path = engine.eclipsePath(e.id);
     specs =
       path.kind === 'solar'
-        ? solarOverlays(path, { greatest: `Greatest eclipse ${eventTime(e.greatest.jd_utc, UTC_ZONE)} UTC` })
-        : lunarOverlays(path, { overhead: `Moon overhead ${eventTime(e.greatest.jd_utc, UTC_ZONE)} UTC` });
+        ? solarOverlays(path, { greatest: `Greatest eclipse ${eventTime(e.greatest.jd_utc, UTC_ZONE)} ${scaleLabel(e.greatest.jd_utc)}` })
+        : lunarOverlays(path, { overhead: `Moon overhead ${eventTime(e.greatest.jd_utc, UTC_ZONE)} ${scaleLabel(e.greatest.jd_utc)}` });
   } catch (error) {
     env.ctx.notices.push('error', `The eclipse could not be drawn: ${errorText(error)}`, { key: 'events-map' });
     return;
@@ -596,8 +614,20 @@ export const eclipsesTab: TabComponent = (host, env) => {
   const status = h('p', { class: 'sfe-status', role: 'status', 'aria-live': 'polite' });
   const list = h('div', { class: 'sfe-list' });
   const aside = h('div', { class: 'sfe-cardcol' });
+  // The file holds the eclipses listed, with what the place sees of each when it is known.
+  const save = exportMenu(ctx, ui, {
+    title: () => `Eclipses, ${ui.get().eclipseDirection === 'upcoming' ? 'next' : 'last'} ten years`,
+    fileParts: () => ['eclipses', ui.get().eclipseDirection === 'upcoming' ? 'next-10-years' : 'last-10-years', utcDate(ui.get().anchor)],
+    items: (w) =>
+      visibleRows().map((e) => {
+        const r = localOf(e.id);
+        return eclipseItem(e, r && 'ok' in r ? r.ok : null, w);
+      }),
+    local: true,
+  });
+  d.add(() => save.destroy());
   root.append(
-    h('div', { class: 'sfe-controls' }, direction.el, kind.el, seen),
+    h('div', { class: 'sfe-controls' }, direction.el, kind.el, seen, save.el),
     h('div', { class: 'sfe-split' }, h('div', { class: 'sfe-listcol' }, status, list), aside),
   );
 
@@ -746,7 +776,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
         h(
           'p',
           { class: 'sfe-message' },
-          'No eclipses in these years. Eclipses are computed for 1990 to 2060: move the explorer’s time inside that span.',
+          `No eclipses in these years. ${coveredSentence(ctx.engine, 'Eclipses')}: move the explorer’s time inside that span.`,
         ),
       );
     } else if (!items.length && !pending.length) {
@@ -755,7 +785,8 @@ export const eclipsesTab: TabComponent = (host, env) => {
       );
     }
     if (truncated && shown.length) {
-      notes.push(h('p', { class: 'sfe-note' }, 'Eclipses are computed for 1990 to 2060; the list stops there.'));
+      const a = ui.get().anchor;
+      notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + ECLIPSE_HORIZON_DAYS : a - ECLIPSE_HORIZON_DAYS));
     }
     list.replaceChildren(...groups, ...notes);
     placeCard();
