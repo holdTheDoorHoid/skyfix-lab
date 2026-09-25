@@ -72,6 +72,7 @@ import {
   type YearSky,
 } from './year-data.js';
 import { phaseRank } from './day-data.js';
+import { attachExport } from './export-menu.js';
 
 export const yearMemo = memoize(
   (ctx: Ctx, input: YearInput) => computeYear(ctx.engine, input),
@@ -836,6 +837,19 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
   d.add(bindTimeButtons(c.tableWrap, ctx));
   d.add(() => ctx.scheduler.cancel(hoverTask));
   d.add(() => ctx.scheduler.cancel(frame));
+  // Save: picture, table, print, share (charts2 agent).
+  d.add(
+    attachExport(c, {
+      fileParts: () => ['sunrise-sunset', inputFor(store.get()).year],
+      picture: () => svg,
+      tables: () => {
+        if (!data) return [];
+        renderTable();
+        return [...c.tableWrap.querySelectorAll('table')];
+      },
+      labels: () => ['Sunrise and sunset: the upper limb of the Sun on the horizon (standard refraction). Twilight by the Sun’s centre at −6°, −12° and −18°.'],
+    }),
+  );
 
   return { destroy: () => d.dispose() };
 };
