@@ -13,9 +13,9 @@ with reference data is not field accuracy — see [`docs/ACCURACY.md`](docs/ACCU
 <https://holdthedoorhoid.github.io/skyfix-lab/docs/>
 
 > The map-first **explorer** is the site's home page (since 2026-09-24; it was at `/next/`,
-> which now forwards there). The original workbench is kept for reference at
-> <https://holdthedoorhoid.github.io/skyfix-lab/classic/>. New user? Start with
-> [`docs/EXPLORER_GUIDE.md`](docs/EXPLORER_GUIDE.md).
+> which now forwards there). The original workbench has been retired: its old address,
+> `/classic/`, opens the explorer's Navigate and Learn views, which do everything it did.
+> New user? Start with [`docs/EXPLORER_GUIDE.md`](docs/EXPLORER_GUIDE.md).
 
 ## What it does
 
@@ -51,7 +51,7 @@ $ npm run build --prefix web     # emits web/dist
 ```
 
 `npm run dev --prefix web` starts a local server at <http://localhost:5173> (the explorer
-at `/`, the original workbench at `/classic/`); `npm test --prefix web` runs the
+at `/`); `npm test --prefix web` runs the
 TypeScript unit tests. No CDN fonts,
 scripts or map tiles: every asset is bundled, so the built site needs no network once
 loaded (the one exception is an optional online street-map layer, off by default).
@@ -90,8 +90,7 @@ subcommand with worked examples, and run `cargo test --workspace` for the full t
 | `crates/skyfix-wasm` | wasm-bindgen adapter for the browser |
 | `crates/skyfix-camera` | synthetic camera star-sextant (simulation only) |
 | `crates/skyfix-polar` | polarization compass heading laboratory (simulation only) |
-| `web/src/next/` | the explorer (map, sky, charts, almanac, learn) |
-| `web/src/views/` | the original workbench (sights, corrections, fix, planner, simulator) |
+| `web/src/next/` | the explorer (map, sky, charts, navigate, almanac, events, learn), `web/README.md` |
 | `fixtures/` | sessions, separate truth files, independent reference cases |
 | `tools/reference/`, `tools/starfield/`, `tools/mapdata/` | development-time generators (Python + Skyfield, or Node); never a runtime dependency |
 | `docs/` | this book: guide, conventions, architecture, demos, accuracy, third-party inventory, backlog |

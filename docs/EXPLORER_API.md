@@ -1142,3 +1142,94 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+### Packs — the mechanism as built (packs agent, 2026-09-24)
+
+Implements "Packs" above. **Contract changes, all additive or clarifying:**
+
+1. **Producers register with one table entry, not a match arm.** `skyfix_wasm::packs::PRODUCERS`
+   holds one `Producer { name, label, description, provides, install }` per pack; `install`
+   is the producer's `install_<pack>(payload: &[u8]) -> Result<PackInfo, String>`. The
+   contract's `install(name, payload)` exists and dispatches through the table, so `packs()`
+   and the "no such pack" sentence come from the same list. Each producer adds its entry
+   between the `producer entries start` / `end` comments; nothing else in `packs.rs` changes.
+2. **`packs()`**: `version` and `bytes` describe the *loaded* pack (`""` and `0` before
+   one is loaded); `label`, `description` and `provides` come from the registry. The version
+   and size of the file the site offers are the manifest's (below).
+3. **`PackInfo.bytes`** is the size of the whole pack file, header included; the dispatcher
+   sets it, whatever the producer reported.
+4. **`PackService`** (TypeScript) gains `get(name)` (Settings → Get: download and load with no
+   prompt), `subscribe(listener)` and `refresh()`; `status()` returns `PackState[]`, which
+   extends `PackStatus` with `offered`, `supported`, `saved`, `savedBytes`, `stale`,
+   `removedInUse`, `progress` and `error`.
+
+**The file.** Header as above; the name is `[a-z0-9][a-z0-9-]*`, at most 64 bytes; the
+format version is 1; nothing may follow the checksum; the CRC is CRC-32/ISO-HDLC (zlib's
+`crc32`: reflected polynomial 0xEDB88320, initial value and final XOR 0xFFFFFFFF; check
+value `crc32("123456789") = 0xCBF43926`). `load_pack(name, bytes)` refuses, each with its
+own sentence: a file that does not start with `SKYFIXPK`, is cut short, has another format
+version, a malformed name, a payload length that does not fit the file, trailing bytes, a
+checksum that does not hold, a header naming another pack than `name`, a name no producer
+registered ("no pack called "x" in this build: it can install …"), or a payload the
+producer refuses ("the deep-time pack: …"). It is idempotent: the same pack again (same
+name, CRC and payload length) returns the first `PackInfo` without running the producer;
+different bytes for the same name run it again, and the producer must replace what it
+installed (a newer revision). A refused file changes nothing. `skyfix_wasm::packs::encode`
+writes the layout for Rust generators; `web/plugins/packs.ts` `encodePack` does the same
+in Node.
+
+**The site's list: `data/packs/manifest.json`, schema `skyfix.packs/1`.**
+
+```json
+{"schema": "skyfix.packs/1",
+ "packs": [{"name": "deep-time", "version": "2026-09-24", "rev": "0123456789abcdef",
+            "file": "deep-time-0123456789abcdef.bin", "bytes": 412000, "label": "Deep time",
+            "description": "Positions from 2000 BC to AD 3000",
+            "provides": ["ephemeris:-2000..3000"]}]}
+```
+
+Written at build time by `web/plugins/packs.ts` from the producers' files in
+`web/public/data/packs/`: `<name>-<rev>.bin` (rev = the first 16 hex digits of the file's
+SHA-256, as the precache names revisions) and a sidecar `<name>.json` with `{name, version,
+bytes, label, description, provides}`. The build refuses a sidecar without exactly one
+file, a file without a sidecar, a file whose hash is not its name's rev, whose size is not
+the sidecar's `bytes`, whose header names another pack or whose CRC fails, a committed
+`manifest.json`, and anything else in the folder. The sidecars are not deployed. The
+manifest is precached; with no packs it is `{"schema": "skyfix.packs/1", "packs": []}`.
+The development server answers the same file, built on each request.
+`cargo test -p skyfix-wasm` (`every_pack_committed_to_the_site_installs`) installs every
+committed pack into the core, and the Pages workflow runs it before building.
+
+**The service worker** leaves `data/packs/*.bin` to the network (`SwBuild.networkOnly`:
+no precache, no runtime copy) and never deletes the page's packs cache (`isStaleCache`).
+
+**The page** (`web/src/next/packs/`, reached as `ctx.packs`):
+
+- Saved packs live in the Cache API cache `skyfix-lab-packs-1@<site path>`
+  (`packsCacheName`), keyed by the file's absolute address, so name and revision are read
+  back from the key; `content-length` is kept. Older packs-cache schemas of the same site
+  are deleted at start-up.
+- **Start-up:** before the first view mounts (at most 3 s), every saved pack the site still
+  offers is loaded into the engine; a saved pack the site no longer offers is deleted; a
+  saved copy the engine refuses is deleted and the reason shown in Settings. A visitor with
+  nothing saved pays one cache lookup and no manifest fetch. Chosen over loading lazily so
+  that `explorer_coverage()` and every view are right from the first frame, and because a
+  pack loads in milliseconds.
+- **`ensure(name, reason)`:** loaded → true (and, if the site now offers a newer revision,
+  it is fetched in the background, loaded, saved, and the old copy deleted); saved → loaded,
+  true; declined this page session → false; the site does not offer it, or the core cannot
+  install it → false, no prompt. Otherwise one prompt: `reason` (a sentence), the pack's
+  label and description, its size, "downloaded once and saved on this device", **Get** /
+  **Not now** (offline: "You are offline, and it is not saved on this device yet", **Try
+  again**). Get downloads with progress and **Stop**, checks the size and the SHA-256
+  revision against the manifest, calls `loadPack`, and only then saves the file. A failure
+  is shown in words with **Try again**. Not now, Stop, Esc, × and closing after a failure
+  are all remembered for the page session. Concurrent calls share one prompt.
+- **`remove(name)`** deletes the saved copy; a loaded pack stays in the engine (there is no
+  unloading) until the page is reloaded, and Settings says so.
+- After every load the explorer's memoised engine forgets its results
+  (`memoEngine(...).invalidate()`), and the WASM wrapper asks `explorer_coverage()` again.
+  A view that showed "not computed" for what a pack now answers redraws after `ensure`
+  resolves true, or on `ctx.packs.subscribe`.
+- Developer harnesses pass `NO_PACKS`; the mock engine lists `deep-time`, `tides-us` and
+  `lunar-limb` and accepts any bytes (`engine/mock/packs.ts`).

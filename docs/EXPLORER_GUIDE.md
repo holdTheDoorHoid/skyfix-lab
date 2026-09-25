@@ -6,10 +6,11 @@ in which direction, and when each one rises and sets. It is the site's home page
 <https://holdthedoorhoid.github.io/skyfix-lab/>. Nothing the original workbench could do is
 gone: the [Navigate](#navigate) view below now does everything it did (sights,
 corrections, the fix, the planner) and more, and [Learn](#celestial-navigation-in-five-minutes)
-has its simulator and demonstrations. The original workbench itself is kept for reference,
-for a while, at <https://holdthedoorhoid.github.io/skyfix-lab/classic/>. Links to the
-explorer's old address, `/next/`, share links included, still work: they open the home
-page with the same place and time.
+has its simulator and demonstrations. The original workbench itself was retired in
+September 2026; its old address, `/classic/`, now opens the explorer instead — its
+Observations, Corrections, Fix and Planner links on Navigate, its Simulator link on
+Learn — online or offline. Links to the explorer's old address, `/next/`, share links
+included, still work too: they open the home page with the same place and time.
 
 **Simulation and analysis workbench. Not a navigation instrument.** Every position and
 time on the page comes from the same offline calculation engine as the command line
@@ -232,8 +233,9 @@ celestial navigation works, and the coverage simulator — see
 What the page is, where every number comes from, and a table of how closely each part
 (the Sun, the Moon, the planets, the stars) has been checked against an independent
 reference ephemeris, with which are validated for real sights. It also explains, in one
-place, what happens to your chosen place (nothing, unless you press Share) and credits the
-map, star and font data.
+place, what happens to your chosen place (nothing, unless you press Share), links this
+manual and the source code, and credits the map, star and font data. The **?** Help menu
+has the same two links.
 
 ## Themes, including night vision
 
@@ -250,20 +252,23 @@ choices:
 ![The Map view in the night-vision theme: everything, including the map itself, rendered in shades of red.](design/app-night.png)
 
 **Settings** (the sliders icon beside Theme) also controls: whether the clock shows your
-local time or UTC first; how angles are written (`26° 02.3′`, `26° 02′ 17″`, or
-`26.038°`); units (metric, nautical, or imperial); whether rise and set are figured for a
-sea-level horizon or dipped for your own height of eye; and a **Navigator's terms** switch
-that shows the navigator's word beside the plain one everywhere on the page ("Height above
-horizon · altitude"). All of these are remembered on your own device. Your chosen place
-never is.
+local time or UTC first; a 24-hour or 12-hour clock for local times (`18:40` or
+`6:40 PM`; UTC always stays on the 24-hour clock, as navigators write it); how angles are
+written (`26° 02.3′`, `26° 02′ 17″`, or `26.038°`); units (metric, nautical, or
+imperial); whether rise and set are figured for a sea-level horizon or dipped for your own
+height of eye; and a **Navigator's terms** switch that shows the navigator's word beside
+the plain one everywhere on the page ("Height above horizon · altitude"). All of these are
+remembered on your own device. Your chosen place never is. **Data packs**, at the bottom,
+lists the optional data this site offers (see [Working offline](#working-offline)).
 
 ## Sharing a link
 
 Press **Share** in the top bar. Nothing is sent anywhere by opening this panel — a link is
 only *built*, there, when you ask for it, and it opens exactly this place, this time and
 this selected body for whoever you send it to. Two checkboxes let you leave the place or
-the time out of the link before you copy it. Outside of pressing Share, your position is
-never written into the address bar and never leaves your browser.
+the time out of the link before you copy it. On a phone or tablet (anywhere the device has
+a share sheet) **Share…** beside **Copy** hands the same link to it. Outside of pressing
+Share, your position is never written into the address bar and never leaves your browser.
 
 ## Working offline
 
@@ -280,10 +285,20 @@ of the view to say so — a reassurance, not a warning, since nothing else chang
 new version of the site is published, a card there offers to reload into it; your work is
 never lost or reloaded without your say so.
 
-You can also **install** SkyFix Lab as an app — "Install" in the address bar of Chrome or
-Edge, "Add to Home Screen" on a phone. It opens in its own window at the explorer, and
-works offline in the same way. A copy installed before the switch-over (when the explorer
-was at `/next/`) is the same app and opens the home page.
+Some data is too large, or too specialised, for everyone to download on a first visit, so
+it comes as an optional **data pack**: the positions of the Sun, Moon and planets far
+outside 1550–2650, tide stations, the Moon's detailed edge for eclipses. When a view needs
+one, a small card says so, gives its size, and offers **Get** or **Not now**; a pack you
+get is downloaded once and saved in this browser, then works offline like everything else.
+**Settings → Data packs** lists what the site offers and what is saved on your device,
+with **Get** and **Remove**. Nothing about you is sent when a pack is downloaded.
+
+You can also **install** SkyFix Lab as an app — **Install SkyFix Lab** in the **?** Help
+menu or on the About view, when your browser offers it; "Install" in the address bar of
+Chrome or Edge; "Add to Home Screen" from the Share menu on an iPhone or iPad. It opens in
+its own window at the explorer, and works offline in the same way. A copy installed before
+the switch-over (when the explorer was at `/next/`) is the same app and opens the home
+page.
 
 ## Celestial navigation in five minutes
 

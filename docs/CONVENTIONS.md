@@ -537,3 +537,19 @@ installs wider series tables and the long-term precession; the `tides-us` pack i
 station constants; the `lunar-limb` pack installs a limb profile. `explorer_coverage()`
 reflects loaded packs. A pack is loaded per page session from the app's own cache; the
 core module never depends on one.
+
+Refined by the packs agent (2026-09-24; the mechanism: EXPLORER_API "Packs — the mechanism
+as built"):
+
+- A pack file is named `<name>-<rev>.bin` (rev = the first 16 hex digits of its SHA-256),
+  carries the common header with a CRC-32/ISO-HDLC of its payload, and is listed in the
+  precached `data/packs/manifest.json`. A pack is never precached and never stored by the
+  service worker; the page keeps a chosen pack in `skyfix-lab-packs-<schema>@<site>` until
+  the person removes it.
+- A file is loaded into the engine before it is saved, so a file the engine refuses is
+  never kept. Saved packs are loaded before the first view mounts.
+- A pack is fetched only when the person asks (Settings → Data packs) or accepts the one
+  prompt a view's need raises, which states its size; declining is remembered for the page
+  session. Nothing about the person is sent to fetch a pack.
+- Every committed pack must install into the core built from the same commit
+  (`cargo test -p skyfix-wasm`, and the Pages workflow before it builds).
