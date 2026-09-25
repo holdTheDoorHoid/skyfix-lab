@@ -4058,3 +4058,158 @@ export function isPlanetDetailEngine(engine: unknown): engine is PlanetDetailEng
     typeof e.parseOrbits === 'function'
   );
 }
+
+// ---------------------------------------------------------------------------------
+// Expansion programme P12 — the lunar limb (eclipselimb agent). Rust:
+// crates/skyfix-wasm/src/limb.rs over skyfix_almanac::eclipses::limb. Wire format:
+// docs/EXPLORER_API.md, "Expansion programme P12 — the lunar limb"; definitions:
+// CONVENTIONS 15.7. Additive: an engine without it keeps answering eclipseLocal as before.
+// ---------------------------------------------------------------------------------
+
+/** `eclipseLocal(id, observer, options)`. */
+export interface EclipseLocalOptions {
+  /**
+   * Add the limb-corrected block `SolarEclipseLocal.limb` (the WASM export
+   * `eclipse_local_limb`): corrected contacts, the profile and the beads with the
+   * `lunar-limb` pack loaded, else a note that the pack refines the mean-limb times.
+   */
+  limb?: boolean;
+}
+
+/** One limb-corrected contact (`c1` … `c4`). */
+export interface LimbContact {
+  kind: 'c1' | 'c2' | 'c3' | 'c4';
+  jd_utc: number;
+  utc: string;
+  /** The mean-limb instant it corrects and the correction (limb minus mean), s; null when
+   * the mean limb has no such contact (a central phase gained at the edge of the path). */
+  mean_jd_utc: number | null;
+  correction_s: number | null;
+  /** Where the limbs meet on the Sun's disc, from north through east / from the zenith. */
+  position_angle_deg: number;
+  vertex_angle_deg: number;
+  /** The same point from the Moon's centre (the profile's index) and its height, arcsec. */
+  limb_position_angle_deg: number;
+  limb_height_arcsec: number;
+  /** The Sun (CONVENTIONS 13.2) and whether it is up (13.3). */
+  alt_deg: number;
+  az_deg: number;
+  visible: boolean;
+  /** The Sun's disc against the profile then: centre from the Moon's (east, north), radius. */
+  sun_offset_east_arcsec: number;
+  sun_offset_north_arcsec: number;
+  sun_radius_arcsec: number;
+  /**
+   * How far the contact would move if the limb there were 1" higher or lower, seconds:
+   * about 2–3 s inside the path, more than 8 s for a near graze at its edge (show the time
+   * as less certain there).
+   */
+  seconds_per_arcsec: number;
+}
+
+/** One approximate Baily's bead (1.9 km terrain): a valley's light going out or coming on. */
+export interface LimbBead {
+  /** `c2`: goes out before second contact; `c3`: comes on after third contact. */
+  contact: 'c2' | 'c3';
+  jd_utc: number;
+  utc: string;
+  /** Negative before second contact, positive after third. */
+  seconds_from_contact: number;
+  position_angle_deg: number;
+  vertex_angle_deg: number;
+  limb_position_angle_deg: number;
+  limb_height_arcsec: number;
+}
+
+/**
+ * The Moon's outline as the observer sees it: bin `k` at position angle `start_deg + k
+ * step_deg` (from the Moon's centre, north through east; 1/16° from `lunarLimbProfile`,
+ * 1/8° in an eclipse's limb block), its height above the 1737.4 km sphere in arcseconds
+ * (null where the ring does not reach). To draw: radius `reference_radius_arcsec +
+ * height_arcsec[k]` (exaggerate the heights to see them).
+ */
+export interface LimbProfile {
+  jd_utc: number;
+  utc: string;
+  start_deg: number;
+  step_deg: number;
+  height_arcsec: (number | null)[];
+  reference_radius_km: number;
+  reference_radius_arcsec: number;
+  /** The mean-limb Moon of the other results (NASA's k1 and k2) against the sphere, arcsec. */
+  mean_limb_k1_arcsec: number;
+  mean_limb_k2_arcsec: number;
+  sun_radius_arcsec: number;
+  sun_offset_east_arcsec: number;
+  sun_offset_north_arcsec: number;
+  axis_position_angle_deg: number;
+  parallactic_angle_deg: number;
+  /** The topocentric libration: the point at the centre of the disc. */
+  libration_lon_deg: number;
+  libration_lat_deg: number;
+  moon_distance_km: number;
+  /** Ground beyond the ring's ±12° might have stood out (never for 1550–2650 eclipses). */
+  ring_truncated: boolean;
+}
+
+/** `SolarEclipseLocal.limb` (with `options.limb`). */
+export interface SolarEclipseLimb {
+  /** The lunar-limb pack is loaded; without it only `note` says anything. */
+  loaded: boolean;
+  pack_version: string | null;
+  /** Show it beside the times. */
+  note: string;
+  resolution_km: number | null;
+  /** May differ from the mean limb's `local_type` near the edge of the path. */
+  local_type: LocalEclipseType | null;
+  /** Limb-corrected contacts in time order. */
+  contacts: LimbContact[];
+  duration_s: number | null;
+  central_duration_s: number | null;
+  central_duration_correction_s: number | null;
+  /** Sunlight returns through a valley between second and third contact (a graze). */
+  interrupted: boolean;
+  /** At the instant of maximum eclipse. */
+  profile: LimbProfile | null;
+  /** Approximate; before second contact and after third, in time order. */
+  beads: LimbBead[];
+}
+
+export interface SolarEclipseLocal {
+  /** Present only when asked for (`options.limb`). */
+  limb?: SolarEclipseLimb;
+}
+
+export interface EclipseEngine {
+  /** With `options.limb`: the limb-corrected block for a solar eclipse (P12). */
+  eclipseLocal(id: string, observer: Observer, options?: EclipseLocalOptions): EclipseLocal;
+}
+
+/** `lunarLimbInfo()`: the installed ring. */
+export interface LimbPackInfo {
+  name: 'lunar-limb';
+  version: string;
+  source: string;
+  step_deg: number;
+  resolution_km: number;
+  reference_radius_km: number;
+  delta_min_deg: number;
+  delta_max_deg: number;
+  min_height_m: number;
+  max_height_m: number;
+}
+
+/** The limb profile at any instant (P12). Separate from `EclipseEngine`. */
+export interface LimbEngine {
+  /** Throws `pack_not_loaded: …` until the lunar-limb pack is loaded. About 60 ms in WebAssembly. */
+  lunarLimbProfile(observer: Observer, jdUtc: number): LimbProfile;
+  /** The installed ring, or null. */
+  lunarLimbInfo(): LimbPackInfo | null;
+}
+
+/** True when `engine` can draw the lunar limb (the memoised engine forwards the methods). */
+export function isLimbEngine(engine: unknown): engine is LimbEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<LimbEngine>;
+  return typeof e.lunarLimbProfile === 'function' && typeof e.lunarLimbInfo === 'function';
+}

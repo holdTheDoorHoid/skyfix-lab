@@ -18,7 +18,7 @@ interface MockPack {
 export const MOCK_PACKS: readonly MockPack[] = [
   { name: 'deep-time', label: 'Deep time', description: 'Positions from 2000 BC to AD 3000', provides: ['ephemeris:-2000..3000'] },
   { name: 'tides-us', label: 'US tides', description: 'Tide predictions for NOAA stations in the United States', provides: ['tides:us'] },
-  { name: 'lunar-limb', label: 'The Moon’s limb', description: 'The Moon’s edge in detail, for eclipse contact times', provides: ['eclipses:limb'] },
+  { name: 'lunar-limb', label: 'Lunar limb', description: "The mountains and valleys at the Moon's edge, for eclipse contact times and Baily's beads", provides: ['eclipses:lunar-limb'] },
 ];
 
 export class MockPacks {

@@ -1,0 +1,751 @@
+{
+  "eclipses": [
+    {
+      "cities": [
+        {
+          "height_m": 222.0,
+          "lat_deg": 28.712803,
+          "lon_deg": -100.484812,
+          "name": "Eagle Pass",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["17:10:30", "17:55:30", "18:27:33", "18:31:57", "19:04:40", "19:51:20"],
+            "LAT": 28.712803,
+            "LON": -100.484812,
+            "NAME": "Eagle Pass",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 500.0,
+          "lat_deg": 30.037703,
+          "lon_deg": -99.132422,
+          "name": "Kerrville",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["17:15:00", "18:00:00", "18:32:07", "18:36:31", "19:09:10", "19:55:30"],
+            "LAT": 30.037703,
+            "LON": -99.132422,
+            "NAME": "Kerrville",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 198.0,
+          "lat_deg": 29.462809,
+          "lon_deg": -98.524635,
+          "name": "San Antonio",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["17:14:50", "18:00:00", "18:34:04", "18:34:22", "19:09:10", "19:55:40"],
+            "LAT": 29.462809,
+            "LON": -98.524635,
+            "NAME": "San Antonio",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 149.0,
+          "lat_deg": 30.298622,
+          "lon_deg": -97.754134,
+          "name": "Austin",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["17:17:30", "18:02:50", "18:35:57", "18:38:06", "19:11:50", "19:58:00"],
+            "LAT": 30.298622,
+            "LON": -97.754134,
+            "NAME": "Austin",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 143.0,
+          "lat_deg": 31.557994,
+          "lon_deg": -97.189750,
+          "name": "Waco",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["17:20:40", "18:05:50", "18:37:56", "18:42:12", "19:14:40", "20:00:40"],
+            "LAT": 31.557994,
+            "LON": -97.189750,
+            "NAME": "Waco",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 198.0,
+          "lat_deg": 32.781954,
+          "lon_deg": -97.348573,
+          "name": "Fort Worth",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["17:22:40", "18:07:40", "18:40:34", "18:42:58", "19:16:00", "20:01:40"],
+            "LAT": 32.781954,
+            "LON": -97.348573,
+            "NAME": "Fort Worth",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 131.0,
+          "lat_deg": 32.793333,
+          "lon_deg": -96.766513,
+          "name": "Dallas",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["17:23:40", "18:08:40", "18:40:47", "18:44:38", "19:17:10", "20:02:40"],
+            "LAT": 32.793333,
+            "LON": -96.766513,
+            "NAME": "Dallas",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 102.0,
+          "lat_deg": 33.451136,
+          "lon_deg": -94.090087,
+          "name": "Texarkana",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["17:28:50", "18:14:00", "18:46:43", "18:49:28", "19:22:20", "20:07:30"],
+            "LAT": 33.451136,
+            "LON": -94.090087,
+            "NAME": "Texarkana",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 180.0,
+          "lat_deg": 34.489442,
+          "lon_deg": -93.050254,
+          "name": "Hot Springs",
+          "state": "AR",
+          "svs": {
+            "ECLIPSE": ["17:32:10", "18:17:20", "18:49:29", "18:53:05", "19:25:10", "20:10:10"],
+            "LAT": 34.489442,
+            "LON": -93.050254,
+            "NAME": "Hot Springs",
+            "STATE": "AR"
+          }
+        },
+        {
+          "height_m": 102.0,
+          "lat_deg": 34.725393,
+          "lon_deg": -92.358556,
+          "name": "Little Rock",
+          "state": "AR",
+          "svs": {
+            "ECLIPSE": ["17:33:40", "18:18:50", "18:51:21", "18:54:02", "19:26:40", "20:11:20"],
+            "LAT": 34.725393,
+            "LON": -92.358556,
+            "NAME": "Little Rock",
+            "STATE": "AR"
+          }
+        },
+        {
+          "height_m": 97.0,
+          "lat_deg": 35.819755,
+          "lon_deg": -90.679033,
+          "name": "Jonesboro",
+          "state": "AR",
+          "svs": {
+            "ECLIPSE": ["17:38:00", "18:23:10", "18:55:39", "18:57:56", "19:30:30", "20:14:40"],
+            "LAT": 35.819755,
+            "LON": -90.679033,
+            "NAME": "Jonesboro",
+            "STATE": "AR"
+          }
+        },
+        {
+          "height_m": 105.0,
+          "lat_deg": 36.763259,
+          "lon_deg": -90.413953,
+          "name": "Poplar Bluff",
+          "state": "MO",
+          "svs": {
+            "ECLIPSE": ["17:40:00", "18:24:50", "18:56:18", "19:00:27", "19:31:50", "20:15:50"],
+            "LAT": 36.763259,
+            "LON": -90.413953,
+            "NAME": "Poplar Bluff",
+            "STATE": "MO"
+          }
+        },
+        {
+          "height_m": 107.0,
+          "lat_deg": 37.309389,
+          "lon_deg": -89.558359,
+          "name": "Cape Girardeau",
+          "state": "MO",
+          "svs": {
+            "ECLIPSE": ["17:42:10", "18:27:00", "18:58:17", "19:02:25", "19:33:40", "20:17:20"],
+            "LAT": 37.309389,
+            "LON": -89.558359,
+            "NAME": "Cape Girardeau",
+            "STATE": "MO"
+          }
+        },
+        {
+          "height_m": 126.0,
+          "lat_deg": 37.722062,
+          "lon_deg": -89.223664,
+          "name": "Carbondale",
+          "state": "IL",
+          "svs": {
+            "ECLIPSE": ["17:43:10", "18:28:00", "18:59:15", "19:03:25", "19:34:30", "20:18:10"],
+            "LAT": 37.722062,
+            "LON": -89.223664,
+            "NAME": "Carbondale",
+            "STATE": "IL"
+          }
+        },
+        {
+          "height_m": 118.0,
+          "lat_deg": 37.987737,
+          "lon_deg": -87.534705,
+          "name": "Evansville",
+          "state": "IN",
+          "svs": {
+            "ECLIPSE": ["17:46:20", "18:31:00", "19:02:41", "19:05:43", "19:37:10", "20:20:30"],
+            "LAT": 37.987737,
+            "LON": -87.534705,
+            "NAME": "Evansville",
+            "STATE": "IN"
+          }
+        },
+        {
+          "height_m": 235.0,
+          "lat_deg": 39.163700,
+          "lon_deg": -86.524264,
+          "name": "Bloomington",
+          "state": "IN",
+          "svs": {
+            "ECLIPSE": ["17:49:30", "18:34:00", "19:04:51", "19:08:55", "19:39:40", "20:22:30"],
+            "LAT": 39.163700,
+            "LON": -86.524264,
+            "NAME": "Bloomington",
+            "STATE": "IN"
+          }
+        },
+        {
+          "height_m": 218.0,
+          "lat_deg": 39.776664,
+          "lon_deg": -86.145935,
+          "name": "Indianapolis city (balance)",
+          "state": "IN",
+          "svs": {
+            "ECLIPSE": ["17:50:50", "18:35:10", "19:06:06", "19:09:53", "19:40:30", "20:23:10"],
+            "LAT": 39.776664,
+            "LON": -86.145935,
+            "NAME": "Indianapolis city (balance)",
+            "STATE": "IN"
+          }
+        },
+        {
+          "height_m": 290.0,
+          "lat_deg": 40.198826,
+          "lon_deg": -85.395059,
+          "name": "Muncie",
+          "state": "IN",
+          "svs": {
+            "ECLIPSE": ["17:52:30", "18:36:40", "19:07:36", "19:11:19", "19:41:50", "20:24:10"],
+            "LAT": 40.198826,
+            "LON": -85.395059,
+            "NAME": "Muncie",
+            "STATE": "IN"
+          }
+        },
+        {
+          "height_m": 225.0,
+          "lat_deg": 39.784743,
+          "lon_deg": -84.199632,
+          "name": "Dayton",
+          "state": "OH",
+          "svs": {
+            "ECLIPSE": ["17:53:50", "18:38:10", "19:09:25", "19:12:16", "19:43:10", "20:25:30"],
+            "LAT": 39.784743,
+            "LON": -84.199632,
+            "NAME": "Dayton",
+            "STATE": "OH"
+          }
+        },
+        {
+          "height_m": 265.0,
+          "lat_deg": 40.740679,
+          "lon_deg": -84.112091,
+          "name": "Lima",
+          "state": "OH",
+          "svs": {
+            "ECLIPSE": ["17:55:10", "18:39:10", "19:09:49", "19:13:39", "19:43:50", "20:26:00"],
+            "LAT": 40.740679,
+            "LON": -84.112091,
+            "NAME": "Lima",
+            "STATE": "OH"
+          }
+        },
+        {
+          "height_m": 187.0,
+          "lat_deg": 41.664071,
+          "lon_deg": -83.581861,
+          "name": "Toledo",
+          "state": "OH",
+          "svs": {
+            "ECLIPSE": ["17:57:10", "18:41:00", "19:12:21", "19:13:51", "19:45:00", "20:26:50"],
+            "LAT": 41.664071,
+            "LON": -83.581861,
+            "NAME": "Toledo",
+            "STATE": "OH"
+          }
+        },
+        {
+          "height_m": 306.0,
+          "lat_deg": 41.080456,
+          "lon_deg": -81.521429,
+          "name": "Akron",
+          "state": "OH",
+          "svs": {
+            "ECLIPSE": ["17:59:20", "18:43:20", "19:14:13", "19:17:02", "19:47:20", "20:29:00"],
+            "LAT": 41.080456,
+            "LON": -81.521429,
+            "NAME": "Akron",
+            "STATE": "OH"
+          }
+        },
+        {
+          "height_m": 199.0,
+          "lat_deg": 41.478462,
+          "lon_deg": -81.679435,
+          "name": "Cleveland",
+          "state": "OH",
+          "svs": {
+            "ECLIPSE": ["17:59:40", "18:43:30", "19:13:45", "19:17:34", "19:47:30", "20:29:00"],
+            "LAT": 41.478462,
+            "LON": -81.679435,
+            "NAME": "Cleveland",
+            "STATE": "OH"
+          }
+        },
+        {
+          "height_m": 199.0,
+          "lat_deg": 42.116594,
+          "lon_deg": -80.073503,
+          "name": "Erie",
+          "state": "PA",
+          "svs": {
+            "ECLIPSE": ["18:02:40", "18:46:20", "19:16:22", "19:20:04", "19:49:40", "20:30:50"],
+            "LAT": 42.116594,
+            "LON": -80.073503,
+            "NAME": "Erie",
+            "STATE": "PA"
+          }
+        },
+        {
+          "height_m": 183.0,
+          "lat_deg": 42.892492,
+          "lon_deg": -78.859686,
+          "name": "Buffalo",
+          "state": "NY",
+          "svs": {
+            "ECLIPSE": ["18:05:10", "18:48:40", "19:18:22", "19:22:08", "19:51:30", "20:32:10"],
+            "LAT": 42.892492,
+            "LON": -78.859686,
+            "NAME": "Buffalo",
+            "STATE": "NY"
+          }
+        },
+        {
+          "height_m": 154.0,
+          "lat_deg": 43.169927,
+          "lon_deg": -77.616891,
+          "name": "Rochester",
+          "state": "NY",
+          "svs": {
+            "ECLIPSE": ["18:07:10", "18:50:30", "19:20:07", "19:23:48", "19:53:00", "20:33:20"],
+            "LAT": 43.169927,
+            "LON": -77.616891,
+            "NAME": "Rochester",
+            "STATE": "NY"
+          }
+        },
+        {
+          "height_m": 142.0,
+          "lat_deg": 43.973292,
+          "lon_deg": -75.910039,
+          "name": "Watertown",
+          "state": "NY",
+          "svs": {
+            "ECLIPSE": ["18:10:20", "18:53:10", "19:22:34", "19:26:14", "19:55:00", "20:35:00"],
+            "LAT": 43.973292,
+            "LON": -75.910039,
+            "NAME": "Watertown",
+            "STATE": "NY"
+          }
+        },
+        {
+          "height_m": 50.0,
+          "lat_deg": 44.692025,
+          "lon_deg": -73.458276,
+          "name": "Plattsburgh",
+          "state": "NY",
+          "svs": {
+            "ECLIPSE": ["18:14:20", "18:56:40", "19:25:43", "19:29:19", "19:57:40", "20:37:00"],
+            "LAT": 44.692025,
+            "LON": -73.458276,
+            "NAME": "Plattsburgh",
+            "STATE": "NY"
+          }
+        },
+        {
+          "height_m": 61.0,
+          "lat_deg": 44.491927,
+          "lon_deg": -73.238882,
+          "name": "Burlington",
+          "state": "VT",
+          "svs": {
+            "ECLIPSE": ["18:14:30", "18:57:00", "19:26:03", "19:29:22", "19:57:50", "20:37:20"],
+            "LAT": 44.491927,
+            "LON": -73.238882,
+            "NAME": "Burlington",
+            "STATE": "VT"
+          }
+        },
+        {
+          "height_m": 263.0,
+          "lat_deg": 44.488623,
+          "lon_deg": -71.574224,
+          "name": "Lancaster",
+          "state": "NH",
+          "svs": {
+            "ECLIPSE": ["18:16:50", "18:59:10", "19:29:07", "19:29:53", "19:59:30", "20:38:40"],
+            "LAT": 44.488623,
+            "LON": -71.574224,
+            "NAME": "Lancaster",
+            "STATE": "NH"
+          }
+        },
+        {
+          "height_m": 110.0,
+          "lat_deg": 46.121447,
+          "lon_deg": -67.832210,
+          "name": "Houlton",
+          "state": "ME",
+          "svs": {
+            "ECLIPSE": ["18:22:30", "19:04:00", "19:32:05", "19:35:25", "20:03:00", "20:41:00"],
+            "LAT": 46.121447,
+            "LON": -67.832210,
+            "NAME": "Houlton",
+            "STATE": "ME"
+          }
+        },
+        {
+          "height_m": 180.0,
+          "lat_deg": 46.688952,
+          "lon_deg": -67.991914,
+          "name": "Presque Isle",
+          "state": "ME",
+          "svs": {
+            "ECLIPSE": ["18:22:30", "19:03:50", "19:32:11", "19:35:00", "20:02:40", "20:40:40"],
+            "LAT": 46.688952,
+            "LON": -67.991914,
+            "NAME": "Presque Isle",
+            "STATE": "ME"
+          }
+        }
+      ],
+      "id": "2024-04-08-solar",
+      "source": {
+        "rows": 32174,
+        "rows_in_central_path": 3330,
+        "sha256": "134ae4529021f03640aeaa67ca2876d235a6f837e9e4bb76ed6abfe601a2363c",
+        "size_bytes": 4350357,
+        "url": "https://svs.gsfc.nasa.gov/vis/a000000/a005000/a005073/cities-eclipse-2024.json"
+      }
+    },
+    {
+      "cities": [
+        {
+          "height_m": 130.0,
+          "lat_deg": 44.056848,
+          "lon_deg": -123.119019,
+          "name": "Eugene",
+          "state": "OR",
+          "svs": {
+            "ECLIPSE": ["15:05:40", "15:46:40", "16:17:00", "16:20:45", "16:52:40", "17:39:40"],
+            "LAT": 44.056848,
+            "LON": -123.119019,
+            "NAME": "Eugene",
+            "STATE": "OR"
+          }
+        },
+        {
+          "height_m": 140.0,
+          "lat_deg": 43.223604,
+          "lon_deg": -123.352037,
+          "name": "Roseburg",
+          "state": "OR",
+          "svs": {
+            "ECLIPSE": ["15:05:20", "15:46:20", "16:16:30", "16:20:42", "16:52:30", "17:39:40"],
+            "LAT": 43.223604,
+            "LON": -123.352037,
+            "NAME": "Roseburg",
+            "STATE": "OR"
+          }
+        },
+        {
+          "height_m": 1250.0,
+          "lat_deg": 42.218845,
+          "lon_deg": -121.778718,
+          "name": "Klamath Falls",
+          "state": "OR",
+          "svs": {
+            "ECLIPSE": ["15:05:30", "15:47:00", "16:18:01", "16:21:16", "16:54:00", "17:41:40"],
+            "LAT": 42.218845,
+            "LON": -121.778718,
+            "NAME": "Klamath Falls",
+            "STATE": "OR"
+          }
+        },
+        {
+          "height_m": 1310.0,
+          "lat_deg": 40.964440,
+          "lon_deg": -117.724594,
+          "name": "Winnemucca",
+          "state": "NV",
+          "svs": {
+            "ECLIPSE": ["15:06:40", "15:49:20", "16:20:42", "16:25:01", "16:58:10", "17:47:20"],
+            "LAT": 40.964440,
+            "LON": -117.724594,
+            "NAME": "Winnemucca",
+            "STATE": "NV"
+          }
+        },
+        {
+          "height_m": 1545.0,
+          "lat_deg": 40.838111,
+          "lon_deg": -115.767809,
+          "name": "Elko",
+          "state": "NV",
+          "svs": {
+            "ECLIPSE": ["15:07:30", "15:50:40", "16:22:32", "16:26:39", "17:00:20", "17:50:00"],
+            "LAT": 40.838111,
+            "LON": -115.767809,
+            "NAME": "Elko",
+            "STATE": "NV"
+          }
+        },
+        {
+          "height_m": 1620.0,
+          "lat_deg": 38.761285,
+          "lon_deg": -112.092974,
+          "name": "Richfield",
+          "state": "UT",
+          "svs": {
+            "ECLIPSE": ["15:09:20", "15:53:50", "16:26:26", "16:30:55", "17:05:30", "17:56:50"],
+            "LAT": 38.761285,
+            "LON": -112.092974,
+            "NAME": "Richfield",
+            "STATE": "UT"
+          }
+        },
+        {
+          "height_m": 1880.0,
+          "lat_deg": 37.349783,
+          "lon_deg": -108.576687,
+          "name": "Cortez",
+          "state": "CO",
+          "svs": {
+            "ECLIPSE": ["15:11:40", "15:57:20", "16:31:45", "16:34:28", "17:11:00", "18:03:40"],
+            "LAT": 37.349783,
+            "LON": -108.576687,
+            "NAME": "Cortez",
+            "STATE": "CO"
+          }
+        },
+        {
+          "height_m": 1640.0,
+          "lat_deg": 36.753833,
+          "lon_deg": -108.180530,
+          "name": "Farmington",
+          "state": "NM",
+          "svs": {
+            "ECLIPSE": ["15:12:00", "15:58:00", "16:31:58", "16:35:59", "17:12:00", "18:04:50"],
+            "LAT": 36.753833,
+            "LON": -108.180530,
+            "NAME": "Farmington",
+            "STATE": "NM"
+          }
+        },
+        {
+          "height_m": 1520.0,
+          "lat_deg": 35.104780,
+          "lon_deg": -106.646809,
+          "name": "Albuquerque",
+          "state": "NM",
+          "svs": {
+            "ECLIPSE": ["15:13:30", "16:00:20", "16:34:34", "16:39:18", "17:15:40", "18:09:20"],
+            "LAT": 35.104780,
+            "LON": -106.646809,
+            "NAME": "Albuquerque",
+            "STATE": "NM"
+          }
+        },
+        {
+          "height_m": 2130.0,
+          "lat_deg": 35.661981,
+          "lon_deg": -105.981815,
+          "name": "Santa Fe",
+          "state": "NM",
+          "svs": {
+            "ECLIPSE": ["15:13:50", "16:00:40", "16:35:53", "16:38:40", "17:16:00", "18:09:50"],
+            "LAT": 35.661981,
+            "LON": -105.981815,
+            "NAME": "Santa Fe",
+            "STATE": "NM"
+          }
+        },
+        {
+          "height_m": 1100.0,
+          "lat_deg": 33.373442,
+          "lon_deg": -104.529393,
+          "name": "Roswell",
+          "state": "NM",
+          "svs": {
+            "ECLIPSE": ["15:15:50", "16:03:40", "16:38:51", "16:43:19", "17:20:30", "18:15:20"],
+            "LAT": 33.373442,
+            "LON": -104.529393,
+            "NAME": "Roswell",
+            "STATE": "NM"
+          }
+        },
+        {
+          "height_m": 870.0,
+          "lat_deg": 32.024642,
+          "lon_deg": -102.113467,
+          "name": "Midland",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["15:18:40", "16:07:30", "16:43:21", "16:48:07", "17:26:00", "18:21:40"],
+            "LAT": 32.024642,
+            "LON": -102.113467,
+            "NAME": "Midland",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 890.0,
+          "lat_deg": 31.880461,
+          "lon_deg": -102.345314,
+          "name": "Odessa",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["15:18:40", "16:07:20", "16:43:13", "16:47:56", "17:25:50", "18:21:30"],
+            "LAT": 31.880461,
+            "LON": -102.345314,
+            "NAME": "Odessa",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 560.0,
+          "lat_deg": 31.441078,
+          "lon_deg": -100.450499,
+          "name": "San Angelo",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["15:20:40", "16:10:10", "16:47:15", "16:50:17", "17:29:30", "18:25:40"],
+            "LAT": 31.441078,
+            "LON": -100.450499,
+            "NAME": "San Angelo",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 500.0,
+          "lat_deg": 30.037703,
+          "lon_deg": -99.132422,
+          "name": "Kerrville",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["15:23:00", "16:13:10", "16:50:28", "16:54:27", "17:33:40", "18:30:40"],
+            "LAT": 30.037703,
+            "LON": -99.132422,
+            "NAME": "Kerrville",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 198.0,
+          "lat_deg": 29.462809,
+          "lon_deg": -98.524635,
+          "name": "San Antonio",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["15:24:00", "16:14:40", "16:52:07", "16:56:12", "17:35:40", "18:32:50"],
+            "LAT": 29.462809,
+            "LON": -98.524635,
+            "NAME": "San Antonio",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 10.0,
+          "lat_deg": 27.754252,
+          "lon_deg": -97.173385,
+          "name": "Corpus Christi",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["15:27:00", "16:18:30", "16:56:17", "17:01:06", "17:40:40", "18:38:40"],
+            "LAT": 27.754252,
+            "LON": -97.173385,
+            "NAME": "Corpus Christi",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 62.0,
+          "lat_deg": 27.755616,
+          "lon_deg": -98.065812,
+          "name": "Alice",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["15:26:00", "16:17:20", "16:55:14", "16:59:17", "17:39:10", "18:36:50"],
+            "LAT": 27.755616,
+            "LON": -98.065812,
+            "NAME": "Alice",
+            "STATE": "TX"
+          }
+        },
+        {
+          "height_m": 20.0,
+          "lat_deg": 27.509201,
+          "lon_deg": -97.861028,
+          "name": "Kingsville",
+          "state": "TX",
+          "svs": {
+            "ECLIPSE": ["15:26:30", "16:18:00", "16:56:01", "16:59:55", "17:40:00", "18:37:50"],
+            "LAT": 27.509201,
+            "LON": -97.861028,
+            "NAME": "Kingsville",
+            "STATE": "TX"
+          }
+        }
+      ],
+      "id": "2023-10-14-solar",
+      "source": {
+        "rows": 32174,
+        "rows_in_central_path": 811,
+        "sha256": "63d5687f1a5580adf1d62605501a91cfe801670d552ab613f6514620e30b01c3",
+        "size_bytes": 4323853,
+        "url": "https://svs.gsfc.nasa.gov/vis/a000000/a005000/a005073/cities-eclipse-2023.json"
+      }
+    }
+  ],
+  "generator": {
+    "description": "NASA Scientific Visualization Studio, 'The 2023 and 2024 Solar Eclipses: Map and Data' (item 5073): for each city 'An array of UTC times for the [0.01%, 50%, 100%, 50%, 0.01%] points of coverage (normalized with respect to the maximum coverage achieved)'; in the central path the two 100% entries are the start and end of totality or annularity (second and third contact), to the whole second, computed by Ernie Wright with the lunar limb from LRO LOLA and SELENE (SLDEM2015), SRTM terrain and JPL DE421. Rows stored verbatim; height_m is this project's (the file has none).",
+    "generated_utc": "2026-09-25T07:01:33Z",
+    "licence": "U.S. Government work (NASA); credit requested: NASA's Scientific Visualization Studio. A test oracle only; nothing shipped.",
+    "never_a_runtime_dependency": "Development-time reference only.",
+    "page": "https://svs.gsfc.nasa.gov/5073",
+    "script": "tools/limb/reference.py svs"
+  },
+  "schema": "skyfix.reference/1"
+}
