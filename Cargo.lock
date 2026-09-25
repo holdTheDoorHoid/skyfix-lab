@@ -420,6 +420,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "skyfix-tides"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "skyfix-core",
+]
+
+[[package]]
 name = "skyfix-wasm"
 version = "0.1.0"
 dependencies = [
@@ -434,6 +443,7 @@ dependencies = [
  "skyfix-motion",
  "skyfix-sim",
  "skyfix-starfield",
+ "skyfix-tides",
  "wasm-bindgen",
 ]
 

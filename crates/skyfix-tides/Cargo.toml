@@ -1,0 +1,17 @@
+[package]
+name = "skyfix-tides"
+description = "Harmonic tide predictions for NOAA stations (the optional tides-us pack) for SkyFix Lab: Schureman node factors, high and low water, subordinate stations, nearest stations. No network, no filesystem."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# format_utc: every time on the wire is formatted by the one implementation.
+skyfix-core = { path = "../skyfix-core" }
+serde = { workspace = true }
+
+[dev-dependencies]
+# The NOAA reference fixtures are JSON; only the tests read them.
+serde_json = { workspace = true }

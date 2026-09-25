@@ -11,6 +11,8 @@ members = [
     "crates/skyfix-motion",
     "crates/skyfix-almanac",
     "crates/skyfix-starfield",
+    # Expansion programme (tides agent): harmonic tide predictions, the tides-us pack.
+    "crates/skyfix-tides",
 ]
 
 [workspace.package]
