@@ -11,11 +11,18 @@
  *   none (the Moon rises about 50 minutes later each day), and the calendar says so.
  * - ◀ ▶ step the app's time by a month; choosing a day moves the app to that day, keeping
  *   the time of day; a rise or set time moves it to that moment.
+ * - Perigee and apogee (charts2 agent, expansion programme Q5): the Moon's nearest and
+ *   farthest points of the month (`moon_apsides`, the moondetail engine), marked on their
+ *   days with the distance, and the supermoons and micromoons on their full Moons. The search
+ *   takes a tenth of a second or so, so it runs once the time settles and the marks appear
+ *   after the calendar.
+ * - Save (charts2): a picture of the month (drawn for the picture, in light colours), the
+ *   table as CSV, print.
  */
 
 import { h } from '../../dom.js';
 import { disposer, memoize, observerKey, watch, type Ctx } from '../component.js';
-import type { PhaseEvent } from '../engine/types.js';
+import { isMoonDetailEngine, type MoonApsides, type PhaseEvent } from '../engine/types.js';
 import { setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { wallClock, zoneLabel, type Zone } from '../time.js';
@@ -49,9 +56,13 @@ import {
   timeButtonText,
   type ChartComponent,
 } from './frame.js';
-import { computeMoonMonth, monthGrid, PHASE_NAMES, type MoonDay, type MoonInput, type MoonMonth } from './moon-data.js';
+import { apsidesOn, APSIS_WORDS, computeMoonMonth, monthGrid, PHASE_NAMES, syzygyWords, type MoonDay, type MoonInput, type MoonMonth } from './moon-data.js';
 import { clamp } from './scale.js';
 import { jdAtWallHours, localDateOf, sameDate, zoneKey } from './windows.js';
+import { attachExport } from './export-menu.js';
+import { settler } from './settle.js';
+import { calendarPicture } from './moon-picture.js';
+import { formatDistance } from '../shell/format.js';
 
 const moonMemo = memoize(
   (ctx: Ctx, input: MoonInput) => computeMoonMonth(ctx.engine, input),
@@ -99,6 +110,11 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
   let failure: string | null = null;
   let width = 0;
   let focusKey: string | null = null;
+  // Perigee and apogee (charts2): searched when the time settles, remembered per month.
+  let apsides: MoonApsides | null = null;
+  const apsidesCache = new Map<string, MoonApsides | null>();
+  const settle = settler();
+  d.add(() => settle.cancel());
 
   const nav = stepperNav(c.nav, 'Previous month', 'Next month', (dir) => stepTime(store, { unit: 'month', count: dir }));
   const phaseList = h('div', { class: 'sfc-cal-phases' });
@@ -116,6 +132,42 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     }
   }
 
+  function apsidesWindow(): { key: string; start: number; end: number } | null {
+    if (!data || !data.days.length) return null;
+    const start = data.days[0]!.day.jd_start;
+    const end = data.days[data.days.length - 1]!.day.jd_end;
+    return { key: `${ctx.engine.kind}|${start}|${end}`, start, end };
+  }
+
+  function loadApsides(): void {
+    const w = apsidesWindow();
+    const engine = ctx.engine;
+    if (!w || !isMoonDetailEngine(engine)) {
+      apsides = null;
+      return;
+    }
+    if (apsidesCache.has(w.key)) {
+      settle.cancel();
+      apsides = apsidesCache.get(w.key) ?? null;
+      return;
+    }
+    apsides = null;
+    settle.request(() => {
+      let value: MoonApsides | null = null;
+      try {
+        value = engine.moonApsides(w.start, w.end);
+      } catch {
+        value = null;
+      }
+      apsidesCache.set(w.key, value);
+      while (apsidesCache.size > 6) apsidesCache.delete(apsidesCache.keys().next().value as string);
+      if (apsidesWindow()?.key !== w.key) return;
+      apsides = value;
+      ctx.scheduler.schedule(frame);
+      if (ui.get().mode === 'table') renderTable();
+    });
+  }
+
   function renderHeader(): void {
     const st = store.get();
     const input = moonInputFor(st);
@@ -128,7 +180,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     nav.textContent = `${MONTHS_SHORT[input.month - 1]} ${input.year}`;
   }
 
-  function eventText(ev: PhaseEvent, zone: Zone): { local: string; utc: string; date: string } {
+  function eventText(ev: Pick<PhaseEvent, 'jd_utc'>, zone: Zone): { local: string; utc: string; date: string } {
     const day = data?.days.find((x) => ev.jd_utc >= x.day.jd_start && ev.jd_utc < x.day.jd_end);
     const off = day ? offsetOn(day.day, ev.jd_utc, zone) : 0;
     const local = clockAt(ev.jd_utc, off);
@@ -146,6 +198,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     }
     const zone = data.input.zone;
     const south = store.get().observer.lat_deg < 0;
+    const units = store.get().settings.units;
     phaseList.replaceChildren(
       ...data.events.map((ev) => {
         const t = eventText(ev, zone);
@@ -155,6 +208,16 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
           phaseGlyph(ev.kind, 7, 7, 7, south),
           h('strong', {}, PHASE_NAMES[ev.kind]),
           `${t.date.replace(/ \d{4}$/, '')}, ${t.local}`,
+        );
+      }),
+      ...(apsides?.apsides ?? []).map((a) => {
+        const t = eventText(a, zone);
+        return h(
+          'span',
+          { title: `${t.local} · ${t.utc}: ${APSIS_WORDS[a.kind].long}` },
+          h('span', { class: `sfc-apsis-mark sfc-apsis-mark--${a.kind}`, 'aria-hidden': 'true' }),
+          h('strong', {}, APSIS_WORDS[a.kind].name),
+          `${t.date.replace(/ \d{4}$/, '')}, ${t.local} · ${formatDistance(a.distance_km, units)}`,
         );
       }),
     );
@@ -218,12 +281,22 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
           times.append(h('span', { class: 'sfc-muted' }, md.alwaysAbove ? 'up all day' : md.alwaysBelow ? 'down all day' : '—'));
         }
         const lit = md.illuminated === null ? null : percent(md.illuminated);
+        const marks = apsidesOn(apsides, md.day);
+        const units = st.settings.units;
+        const badges = marks.length
+          ? h(
+              'span',
+              { class: 'sfc-cal-badges' },
+              ...marks.map((m) => h('span', { class: `sfc-cal-badge sfc-cal-badge--${m.kind}`, title: m.title(units, zone) }, m.short)),
+            )
+          : null;
         const label = [
           dateLong(date),
           md.error ? `no data (${md.error})` : `${md.name}${lit ? `, ${lit} lit` : ''}`,
           md.principal ? `${PHASE_NAMES[md.principal.kind]} at ${eventText(md.principal, zone).local}` : '',
           riseTexts.length ? `moonrise ${riseTexts.join(' and ')}` : md.alwaysAbove ? 'the Moon is up all day' : md.alwaysBelow ? 'the Moon stays down all day' : 'no moonrise',
           setTexts.length ? `moonset ${setTexts.join(' and ')}` : md.alwaysAbove || md.alwaysBelow ? '' : 'no moonset',
+          ...marks.map((m) => m.title(units, zone)),
         ]
           .filter(Boolean)
           .join('; ');
@@ -250,6 +323,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
             },
             md.principal ? `${PHASE_NAMES[md.principal.kind]} ${eventText(md.principal, zone).local.split(' ')[0]}` : md.name,
           ),
+          badges,
           times,
         );
         cell.addEventListener('click', (event) => {
@@ -353,7 +427,50 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
         ),
       );
     }
-    c.tableWrap.replaceChildren(t.table);
+    const tables: HTMLElement[] = [t.table];
+    if (apsides && (apsides.apsides.length || apsides.syzygies.length)) {
+      const units = store.get().settings.units;
+      const at = table(`Nearest and farthest: perigee and apogee, ${MONTHS_LONG[data.input.month - 1]} ${data.input.year} (centre to centre)`, [
+        'Date',
+        'Time',
+        'Event',
+        'Distance',
+        'Size against the mean',
+      ]);
+      for (const a of apsides.apsides) {
+        const day = data.days.find((x) => a.jd_utc >= x.day.jd_start && a.jd_utc < x.day.jd_end);
+        if (!day) continue;
+        at.body.append(
+          h(
+            'tr',
+            {},
+            h('th', { scope: 'row' }, dateShort(day.day.date)),
+            h('td', {}, timeButtonText(a.jd_utc, clockAt(a.jd_utc, offsetOn(day.day, a.jd_utc, zone)), eventText(a, zone).local, clockUtcFast(a.jd_utc))),
+            h('td', { class: 'sfc-text' }, APSIS_WORDS[a.kind].long),
+            h('td', { 'data-csv': a.distance_km.toFixed(0) }, formatDistance(a.distance_km, units)),
+            h('td', { 'data-csv': a.diameter_vs_mean_percent.toFixed(2) }, `${a.diameter_vs_mean_percent >= 0 ? '+' : '−'}${Math.abs(a.diameter_vs_mean_percent).toFixed(1)} %`),
+          ),
+        );
+      }
+      for (const sz of apsides.syzygies) {
+        if (!(sz.supermoon || sz.micromoon)) continue;
+        const day = data.days.find((x) => sz.jd_utc >= x.day.jd_start && sz.jd_utc < x.day.jd_end);
+        if (!day) continue;
+        at.body.append(
+          h(
+            'tr',
+            {},
+            h('th', { scope: 'row' }, dateShort(day.day.date)),
+            h('td', {}, timeButtonText(sz.jd_utc, clockAt(sz.jd_utc, offsetOn(day.day, sz.jd_utc, zone)), eventText(sz, zone).local, clockUtcFast(sz.jd_utc))),
+            h('td', { class: 'sfc-text' }, syzygyWords(sz)),
+            h('td', { 'data-csv': sz.distance_km.toFixed(0) }, formatDistance(sz.distance_km, units)),
+            h('td', { 'data-csv': sz.diameter_vs_mean_percent.toFixed(2) }, `${sz.diameter_vs_mean_percent >= 0 ? '+' : '−'}${Math.abs(sz.diameter_vs_mean_percent).toFixed(1)} %`),
+          ),
+        );
+      }
+      tables.push(at.table);
+    }
+    c.tableWrap.replaceChildren(...tables);
     c.root.dataset.ready = '1';
   }
 
@@ -363,6 +480,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     if (dataDirty) {
       dataDirty = false;
       recompute();
+      loadApsides();
     }
     draw();
   }
@@ -416,6 +534,29 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
   );
   d.add(bindTimeButtons(c.tableWrap, ctx));
   d.add(() => ctx.scheduler.cancel(frame));
+  d.add(
+    attachExport(c, {
+      fileParts: () => {
+        const i = moonInputFor(store.get());
+        return ['moon-phases', `${i.year}-${String(i.month).padStart(2, '0')}`];
+      },
+      picture: () =>
+        data
+          ? calendarPicture(data, {
+              apsides,
+              south: store.get().observer.lat_deg < 0,
+              firstWeekday: firstWeekday(),
+              units: store.get().settings.units,
+              title: `Moon phases, ${MONTHS_LONG[data.input.month - 1]} ${data.input.year}`,
+            })
+          : null,
+      tables: () => {
+        renderTable();
+        return [...c.tableWrap.querySelectorAll('table')];
+      },
+      labels: () => ['Each disc is the Moon at local noon. Perigee and apogee: centre-to-centre distance (the moondetail engine).'],
+    }),
+  );
 
   return { destroy: () => d.dispose() };
 };
