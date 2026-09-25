@@ -54,7 +54,7 @@ use skyfix_ephemeris::topocentric::{Site, refraction_true_to_apparent_arcmin};
 
 use crate::eclipses::cheb::{minimise, root};
 use crate::planet_geometry::{
-    Vec3, VecFit, angle, clip_window, dot, icrs_to_true_of_date, mat_t_vec, mat_vec,
+    Mat3, Vec3, VecFit, angle, clip_window, dot, icrs_to_true_of_date, mat_t_vec, mat_vec,
     planet_coverage, position_angle_deg, r3, radec_of, radec_unit, scale, sub, sun_planet_coverage,
     unavailable,
 };
@@ -337,22 +337,45 @@ fn fit_body(body: &Body, a: f64, b: f64) -> Result<VecFit, AlmanacError> {
 // Conjunctions
 // ---------------------------------------------------------------------------
 
-/// Topocentric view from `site`: the apparent altitude (degrees, refraction of CONVENTIONS
-/// 13.2 included) of a geocentric vector of date `v` (km; a unit vector for a star).
-fn altitude(v: Vec3, jd_utc: f64, site: &Site, star: bool, refract: bool) -> f64 {
-    let gast = gast_deg(jd_ut1(jd_utc, 0.0), jd_tt(jd_utc));
-    let ef = crate::planet_geometry::mat_vec(&r3(gast.to_radians()), v);
-    let t = if star {
-        ef
-    } else {
-        sub(ef, site.position_km())
-    };
-    let [e, n, up] = site.enu_axes();
-    let alt = dot(t, up).atan2(dot(t, e).hypot(dot(t, n))).to_degrees();
-    if refract {
-        alt + refraction_true_to_apparent_arcmin(alt, site.pressure_hpa, site.temperature_c) / 60.0
-    } else {
-        alt
+/// An observer's view: the site's position and axes, computed once for every instant and
+/// body a search looks at.
+struct Topo<'a> {
+    site: &'a Site,
+    position_km: Vec3,
+    enu: [Vec3; 3],
+}
+
+impl<'a> Topo<'a> {
+    fn new(site: &'a Site) -> Topo<'a> {
+        Topo {
+            site,
+            position_km: site.position_km(),
+            enu: site.enu_axes(),
+        }
+    }
+
+    /// The Earth's rotation at an instant (GAST, DUT1 = 0: CONVENTIONS 13.2), shared by
+    /// the bodies seen then.
+    fn rotation(jd_utc: f64) -> Mat3 {
+        r3(gast_deg(jd_ut1(jd_utc, 0.0), jd_tt(jd_utc)).to_radians())
+    }
+
+    /// Topocentric altitude, degrees, of a geocentric vector of date `v` (km; a unit
+    /// vector for a star), with the refraction of CONVENTIONS 13.2 when `refract`.
+    fn altitude(&self, rotation: &Mat3, v: Vec3, star: bool, refract: bool) -> f64 {
+        let ef = mat_vec(rotation, v);
+        let t = if star { ef } else { sub(ef, self.position_km) };
+        let [e, n, up] = self.enu;
+        let alt = dot(t, up).atan2(dot(t, e).hypot(dot(t, n))).to_degrees();
+        if refract {
+            alt + refraction_true_to_apparent_arcmin(
+                alt,
+                self.site.pressure_hpa,
+                self.site.temperature_c,
+            ) / 60.0
+        } else {
+            alt
+        }
     }
 }
 
@@ -518,15 +541,25 @@ fn conjunction(
         // turns by under 0.1" in 12 hours.
         let bpn = icrs_to_true_of_date(jd_tt(t));
         let date = |v: Vec3| mat_vec(&bpn, v);
-        let alt_b = |t: f64| altitude(date(fit_body.eval(t)), t, site, false, true);
-        let alt_o = |t: f64| altitude(date(fit_other.eval(t)), t, site, star_o, true);
-        let alt_s = |t: f64| altitude(date(sun.eval(t)), t, site, false, false);
+        let topo = Topo::new(site);
+        let sun_alt = |rot: &Mat3, t: f64| topo.altitude(rot, date(sun.eval(t)), false, false);
+        let pair_alts = |rot: &Mat3, t: f64| {
+            (
+                topo.altitude(rot, date(fit_body.eval(t)), false, true),
+                topo.altitude(rot, date(fit_other.eval(t)), star_o, true),
+            )
+        };
         let mut best: Option<ConjunctionView> = None;
         let steps = 96;
         for k in 0..=steps {
             let tk = t - 0.5 + k as f64 / steps as f64;
-            let (hb, ho, hs) = (alt_b(tk), alt_o(tk), alt_s(tk));
-            if hs > -6.0 || hb.min(ho) <= 0.0 {
+            let rot = Topo::rotation(tk);
+            let hs = sun_alt(&rot, tk);
+            if hs > -6.0 {
+                continue;
+            }
+            let (hb, ho) = pair_alts(&rot, tk);
+            if hb.min(ho) <= 0.0 {
                 continue;
             }
             if best
@@ -542,10 +575,12 @@ fn conjunction(
                 });
             }
         }
+        let rot = Topo::rotation(t);
+        let (hb, ho) = pair_alts(&rot, t);
         ConjunctionLocal {
-            body_alt_deg: alt_b(t),
-            other_alt_deg: alt_o(t),
-            sun_alt_deg: alt_s(t),
+            body_alt_deg: hb,
+            other_alt_deg: ho,
+            sun_alt_deg: sun_alt(&rot, t),
             best,
         }
     });

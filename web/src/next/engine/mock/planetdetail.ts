@@ -671,7 +671,8 @@ export function mockPlanetDisc(env: PlanetDetailMockEnv, body: string, jdUtc: nu
   const notes: string[] = [];
   if (name === 'Jupiter') {
     notes.push(
-      'The Great Red Spot is not predicted: it drifts in System II longitude by tens of degrees a year, irregularly.',
+      'The Great Red Spot is not tracked: its System II longitude drifts by tens of degrees a year, irregularly, ' +
+        'so no longitude compiled into the site stays right for more than a few months.',
     );
   }
   if (name === 'Venus') notes.push('Venus shows only its clouds; its longitudes are those of the solid surface.');
@@ -1417,9 +1418,10 @@ function customState(env: PlanetDetailMockEnv, el: OrbitalElements, p: Place, jd
     horizontal_parallax_arcmin: Math.asin(A.EARTH_RADIUS_KM / (g.delta * A.AU_KM)) * R2D * 60,
     magnitude,
     phase_angle_deg: phase,
-    illuminated_fraction: (1 + Math.cos(phase * D2R)) / 2,
+    // A point of light: no disc, so no illuminated fraction or bright limb (as the real engine).
+    illuminated_fraction: null,
     elongation_deg: angleDeg(g.u, sun.u),
-    bright_limb_angle_deg: A.brightLimbAngle(sun.ra_deg, sun.dec_deg, g.ra_deg, g.dec_deg),
+    bright_limb_angle_deg: null,
     parallactic_angle_deg: A.parallacticAngle(t.ha_deg, t.dec_deg, p.site),
     constellation: env.constellationAt(g.ra_deg, g.dec_deg, jd),
     distance_au: g.delta,
