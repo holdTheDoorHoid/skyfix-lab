@@ -14,6 +14,10 @@ import { h } from '../../dom.js';
 import { disposer, observerKey } from '../component.js';
 import {
   isEclipseEngine,
+  isLimbEngine,
+  type PackService,
+  type SolarEclipseLimb,
+  type SolarEclipseLocal,
   type Eclipse,
   type EclipseEngine,
   type EclipseLocal,
@@ -43,6 +47,8 @@ import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { button, readout, segmented, switchRow } from '../theme/primitives.js';
 import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { formatBytes } from '../packs/manifest.js';
+import { clockPosition } from './moon-model.js';
 import { errorText, watchAll, type EclipseYears, type TabComponent, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, utcDate } from './items.js';
@@ -51,7 +57,9 @@ import { progressText, type SearchState } from './search.js';
 import { eclipseItem } from './sky-model.js';
 import { clearEclipse, eclipseOnMap, lunarOverlays, showEclipse, solarOverlays } from './mapping.js';
 import {
+  beadWords,
   centralPhase,
+  correctionWords,
   eclipsesAround,
   eclipseTitle,
   eclipseTypeWords,
@@ -67,6 +75,7 @@ import {
   seenHere,
   solarSummary,
   paddedSpan,
+  withLimb,
   YEAR_DAYS,
   type Direction,
   type EclipseKindFilter,
@@ -281,6 +290,7 @@ function contactsTable(
   st: Settings,
   jump: (jd: number) => void,
   engine: TabEnv['ctx']['engine'],
+  limb: SolarEclipseLimb | null = null,
 ): HTMLElement {
   const body = bodyOf(e);
   const central = local.kind === 'solar' ? centralPhase(local) : null;
@@ -292,6 +302,11 @@ function contactsTable(
     const extra: string[] = [];
     if (ev.magnitude !== null) extra.push(`magnitude ${formatEclipseMagnitude(ev.magnitude)}`);
     if (ev.obscuration !== null) extra.push(`${formatPercent(ev.obscuration)} of the Sun covered`);
+    const corrected = limb?.loaded ? (limb.contacts.find((c) => c.kind === ev.kind) ?? null) : null;
+    if (corrected) {
+      extra.push(`limb-corrected: ${correctionWords(corrected)}`);
+      if (corrected.seconds_per_arcsec > 8) extra.push('near a graze: less certain');
+    }
     const day = otherDay(ev.jd_utc, ref, st.zone);
     const time = h(
       'button',
@@ -341,7 +356,7 @@ function contactsTable(
           'tr',
           {},
           h('th', { scope: 'col' }, 'What happens'),
-          h('th', { scope: 'col' }, `Time (${zoneShortName(ref, st.zone)})`),
+          h('th', { scope: 'col' }, `Time (${zoneShortName(ref, st.zone)}${limb?.loaded ? ', limb-corrected' : ''})`),
           h('th', { scope: 'col', class: 'sf-num-r' }, `${body}’s height`),
           h('th', { scope: 'col' }, 'Direction'),
         ),
@@ -413,7 +428,25 @@ function globalLine(e: Eclipse, st: Settings): HTMLElement {
   return h('p', { class: 'sfe-global' }, parts.join(' '));
 }
 
-function card(e: Eclipse, local: EclipseLocal | null, localError: string | null, st: Settings, env: TabEnv): CardParts {
+/** What the card knows of the lunar limb (EXPLORER_API "Expansion programme P12"). */
+interface LimbView {
+  /** The engine's block: corrected (`loaded`) or the mean limb's note; null without it. */
+  block: SolarEclipseLimb | null;
+  /** The mean-limb circumstances, to say what the limb changed. */
+  mean: SolarEclipseLocal | null;
+}
+
+const LIMB_PACK = 'lunar-limb';
+const LIMB_REASON =
+  'The times of this eclipse are for a smooth Moon; its mountains and valleys move second and third contact by a few seconds and make Baily’s beads.';
+/**
+ * The card offers the pack once a page session: an answer other than Get (or a site that
+ * does not offer it) is remembered here as the pack service remembers "Not now", so a
+ * second card neither asks again nor flashes "answer the card" while the service says no.
+ */
+let limbAnswered = false;
+
+function card(e: Eclipse, local: EclipseLocal | null, localError: string | null, st: Settings, env: TabEnv, limbView: LimbView | null = null): CardParts {
   const body = bodyOf(e);
   const jumpHere = (jd: number): void => env.jump(jd, { body });
   const title = h('h3', { class: 'sfe-card__title', id: `sfe-card-${e.id}` }, dateLong(roundToMinute(e.greatest.jd_utc), st.zone));
@@ -435,12 +468,31 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
         : lunarSummary(e as LunarEclipse, local as LunarEclipseLocal, w);
     parts.push(h('h4', { class: 'sfe-card__sub' }, `Seen from ${st.place}`));
     parts.push(h('div', { class: 'sfe-summary' }, ...sentences.map((t) => h('p', {}, t))));
+    const limbNote = limbLine(limbView);
+    if (limbNote) parts.push(limbNote);
     parts.push(readoutsFor(e, local, st));
     tl = timeline(e, local, st.zone);
     if (tl && local.events.length) {
       parts.push(h('h4', { class: 'sfe-card__sub' }, 'Timeline'));
       parts.push(tl.el);
-      parts.push(contactsTable(e, local, st, jumpHere, env.ctx.engine));
+      parts.push(contactsTable(e, local, st, jumpHere, env.ctx.engine, limbView?.block ?? null));
+      const beads = limbView?.block?.loaded ? limbView.block.beads : [];
+      if (beads.length && local.kind === 'solar') {
+        const central = centralPhase(local) ?? 'total';
+        parts.push(h('h4', { class: 'sfe-card__sub' }, 'Baily’s beads, approximate'));
+        parts.push(
+          h(
+            'div',
+            { class: 'sfe-summary sfe-beads' },
+            ...beadWords(beads, (jd) => clockSeconds(jd, st.zone), clockPosition, central).map((t) => h('p', {}, t)),
+            h(
+              'p',
+              { class: 'sfe-note' },
+              'Approximate: from the Moon’s mapped terrain at 1.9 km, the valleys at least 0.1″ deep, within 15 s of the contact. The o’clock positions read the Sun’s edge as a clock face, 12 toward the point overhead.',
+            ),
+          ),
+        );
+      }
       const unc = listUncertaintySentence(env.ctx.engine, local.events.map((ev) => ev.jd_utc));
       parts.push(
         h(
@@ -508,7 +560,17 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
   };
   renderActions();
   parts.push(actions);
-  const add = addToCalendarButton(env.ctx, env.ui, () => eclipseItem(e, local, fileWords(env.ctx.store.get())), `${eclipseTitle(e)}, ${dateMedium(roundToMinute(e.greatest.jd_utc), st.zone)}`);
+  const limbCorrected = limbView?.block?.loaded === true;
+  const add = addToCalendarButton(
+    env.ctx,
+    env.ui,
+    () => {
+      const item = eclipseItem(e, local, fileWords(env.ctx.store.get()));
+      // The card's times are the corrected ones; the list's Save menu keeps the smooth Moon's.
+      return limbCorrected ? { ...item, sentence: `${item.sentence} Times corrected for the Moon’s mountains and valleys (Lunar limb pack).` } : item;
+    },
+    `${eclipseTitle(e)}, ${dateMedium(roundToMinute(e.greatest.jd_utc), st.zone)}`,
+  );
   parts.push(h('div', { class: 'sfe-actions sfe-actions--add' }, add, h('span', { class: 'sfe-note' }, 'Add to a calendar')));
   if (e.kind === 'solar') {
     parts.push(
@@ -527,6 +589,79 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
     ...parts.filter((p): p is HTMLElement => p !== null),
   );
   return { el, setNow: (jd) => tl?.setNow(jd) };
+}
+
+/**
+ * One or two sentences on the Moon's edge under the summary: the times are corrected for its
+ * mountains (and what that changed here), or they are the smooth Moon's, with the pack offered.
+ */
+function limbLine(view: LimbView | null): HTMLElement | null {
+  const block = view?.block ?? null;
+  if (!block) return null;
+  const el = h('div', { class: 'sfe-limb' });
+  if (block.loaded) {
+    const parts: string[] = [];
+    const mean = view?.mean ?? null;
+    const words = (t: string | null | undefined): string =>
+      t === 'total' ? 'total' : t === 'annular' ? 'annular' : t === 'partial' ? 'partial' : 'not eclipsed';
+    if (mean && block.local_type && block.local_type !== mean.local_type) {
+      parts.push(`With the Moon’s mountains and valleys the eclipse here is ${words(block.local_type)}; the smooth Moon of the list makes it ${words(mean.local_type)}.`);
+    }
+    if (block.central_duration_correction_s !== null && Math.abs(block.central_duration_correction_s) >= 0.5) {
+      parts.push(
+        `The Moon’s edge makes the central phase ${Math.abs(block.central_duration_correction_s).toFixed(1)} s ${block.central_duration_correction_s < 0 ? 'shorter' : 'longer'} than the smooth Moon’s.`,
+      );
+    }
+    if (block.interrupted) parts.push('Sunlight returns through a valley during the central phase: a graze.');
+    el.append(
+      h('span', { class: 'sfe-badge sfe-badge--accent' }, 'Limb-corrected'),
+      h('p', {}, [...parts, block.note].join(' ')),
+    );
+    return el;
+  }
+  // The badge says "Mean limb"; the engine's note starts with it too.
+  const note = block.note.replace(/^Mean limb:\s*/, '');
+  el.append(
+    h('span', { class: 'sfe-badge sfe-badge--muted' }, 'Mean limb'),
+    h('p', {}, note.charAt(0).toUpperCase() + note.slice(1)),
+    h('p', { class: 'sfe-packline', 'data-pack': LIMB_PACK }),
+  );
+  return el;
+}
+
+/**
+ * The card's line about the pack, redrawn on every change the pack service reports (the
+ * tides tab's pattern): while the one prompt is up, where to answer it; then the "not saved
+ * on this device" state with a Get button, the download's progress, or what went wrong.
+ */
+function fillLimbPack(line: HTMLElement, packs: PackService, asking: boolean): void {
+  const state = packs.status().find((p) => p.name === LIMB_PACK) ?? null;
+  const progress = state?.progress ?? null;
+  if (progress) {
+    const pct = Math.round((100 * progress.received) / Math.max(1, progress.total));
+    line.replaceChildren(h('span', { role: 'status' }, `Downloading the ${state!.label} pack… ${pct} %`));
+    return;
+  }
+  if (asking) {
+    line.replaceChildren('Answer the card at the bottom of the view to get it.');
+    return;
+  }
+  if (!state || !state.offered || !state.supported || state.loaded) {
+    line.replaceChildren();
+    return;
+  }
+  const get = button({
+    label: state.error ? 'Try again' : `Get the pack (${formatBytes(state.bytes)})`,
+    variant: 'secondary',
+    size: 'sm',
+    class: 'sfe-getpack',
+    tip: state.description,
+    onClick: () => {
+      get.setAttribute('disabled', '');
+      void packs.get(LIMB_PACK).catch(() => false);
+    },
+  });
+  line.replaceChildren(h('strong', {}, 'Not saved on this device. '), ...(state.error ? [`${state.error} `] : []), get);
 }
 
 /** Put the eclipse on the map, then switch to the map view (which fits it). */
@@ -906,15 +1041,19 @@ export const eclipsesTab: TabComponent = (host, env) => {
   let cardParts: CardParts | null = null;
   let cardEl: HTMLElement | null = null;
   let cardKey = '';
+  /** Whether the card on screen was built with the lunar-limb pack loaded. */
+  let cardLimb = false;
   const renderCard = (): void => {
     const id = ui.get().selected;
     const e = id ? (shown.find((x) => x.id === id) ?? findEclipse(id)) : null;
-    const key = [id ?? '', localsFor, JSON.stringify(st), eclipseOnMap(mapServiceFor(ctx)) === id].join('|');
+    const limbLoaded = limbIsLoaded();
+    const key = [id ?? '', localsFor, JSON.stringify(st), eclipseOnMap(mapServiceFor(ctx)) === id, limbLoaded].join('|');
     if (key === cardKey && cardEl) {
       placeCard();
       return;
     }
     cardKey = key;
+    cardLimb = limbLoaded;
     cardEl?.remove();
     if (!e) {
       cardParts = null;
@@ -929,12 +1068,63 @@ export const eclipsesTab: TabComponent = (host, env) => {
       );
     } else {
       const r = localOf(e.id) ?? computeLocal(e.id);
-      cardParts = card(e, 'ok' in r ? r.ok : null, 'error' in r ? r.error : null, st, env);
+      const mean = 'ok' in r ? r.ok : null;
+      const view = mean && mean.kind === 'solar' && seenHere(mean) ? limbViewFor(e, mean) : null;
+      const shown = view?.block?.loaded && mean?.kind === 'solar' ? (withLimb({ ...mean, limb: view.block }) ?? mean) : mean;
+      cardParts = card(e, shown, 'error' in r ? r.error : null, st, env, view);
       cardEl = cardParts.el;
       cardParts.setNow(ctx.store.get().time.jd_utc);
+      const line = cardEl.querySelector<HTMLElement>('.sfe-packline');
+      if (line) fillLimbPack(line, ctx.packs, limbAsking);
     }
     placeCard();
   };
+
+  // --- The lunar limb: corrected contacts with the lunar-limb pack (EXPLORER_API P12) -------
+  const limbEngine = isLimbEngine(engine) ? engine : null;
+  const limbIsLoaded = (): boolean => (limbEngine ? limbEngine.lunarLimbInfo() !== null : false);
+  let limbAsking = false;
+  let alive = true;
+  d.add(() => {
+    alive = false;
+  });
+  /** The pack service changed: rebuild the card once the pack is in, else redraw its pack line. */
+  const refreshLimb = (): void => {
+    if (!alive || !cardEl) return;
+    if (limbIsLoaded() !== cardLimb) {
+      ctx.scheduler.schedule(renderCard);
+      return;
+    }
+    const line = cardEl.querySelector<HTMLElement>('.sfe-packline');
+    if (line) fillLimbPack(line, ctx.packs, limbAsking);
+  };
+  /** One prompt a page session (the service shows it, and remembers "Not now"). */
+  const askForLimb = (): void => {
+    if (limbAsking || limbAnswered || limbIsLoaded()) return;
+    limbAsking = true;
+    void ctx.packs
+      .ensure(LIMB_PACK, LIMB_REASON)
+      .catch(() => false)
+      .then((ok) => {
+        limbAsking = false;
+        if (!ok) limbAnswered = true;
+        refreshLimb();
+      });
+  };
+  /** The limb's block for a solar eclipse seen here (null from a core without the limb). */
+  const limbViewFor = (e: Eclipse, mean: SolarEclipseLocal): LimbView | null => {
+    if (!limbEngine) return null;
+    let block: SolarEclipseLimb | null = null;
+    try {
+      const withBlock = engine.eclipseLocal(e.id, observer, { limb: true });
+      block = withBlock.kind === 'solar' ? (withBlock.limb ?? null) : null;
+    } catch {
+      return null;
+    }
+    if (block && !block.loaded) askForLimb();
+    return { block, mean };
+  };
+  d.add(ctx.packs.subscribe(refreshLimb));
 
   /** Beside the list on a wide stage; under the selected row on a narrow one. */
   const placeCard = (): void => {

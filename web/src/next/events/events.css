@@ -1488,3 +1488,35 @@
   grid-column: 1 / -1;
   margin-top: var(--space-2);
 }
+
+/* The lunar limb on the eclipse card: corrected or mean, with the pack's offer. */
+.sfe-limb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px var(--space-2);
+  max-width: 76ch;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--stage-line-strong);
+  border-radius: var(--radius-xs);
+  background: var(--stage-surface-2);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfe-limb > p {
+  flex: 1 1 24em;
+  min-width: 0;
+}
+
+.sfe-limb .sfe-packline {
+  flex-basis: 100%;
+}
+
+.sfe-beads p + p {
+  margin-top: 2px;
+}
+
+.sfe-limb .sfe-packline:empty {
+  display: none;
+}

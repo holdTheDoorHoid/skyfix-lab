@@ -11,7 +11,11 @@ import { describe, expect, it } from 'vitest';
 import { MockEngine } from '../../src/next/engine/mock.js';
 import type {
   Conjunction,
+  EclipseLocalEvent,
   ExplorerCoverage,
+  LimbContact,
+  SolarEclipseLimb,
+  SolarEclipseLocal,
   GalileanPhenomenon,
   MoonSyzygy,
   Occultation,
@@ -22,6 +26,7 @@ import type {
 } from '../../src/next/engine/types.js';
 import { calendarNote, chipsIn, coverageYears, coveredSentence, listUncertaintySentence, wireYear, yearText } from '../../src/next/events/deeptime.js';
 import { eclipseIdDate } from '../../src/next/events/eclipses.js';
+import { beadWords, correctionWords, withLimb } from '../../src/next/events/model.js';
 import { csvComments, csvOfItems, screenWords, utcDate, type EventItem, type Words } from '../../src/next/events/items.js';
 import { nightStart, nightStarts } from '../../src/next/events/jupiter.js';
 import {
@@ -632,5 +637,135 @@ describe('deep time in the lists', () => {
     expect(eclipseIdDate('+12345-01-01-lunar')).not.toBeNull();
     expect(eclipseIdDate('2024-04-08-venus')).toBeNull();
     expect(utcDate(1_507_900.1)).toBe('-0584-05-22');
+  });
+});
+
+// ---------------------------------------------------------------------------------------
+// The lunar limb on the eclipse card
+// ---------------------------------------------------------------------------------------
+
+describe('the eclipse card with the lunar limb', () => {
+  const t = (iso: string): number => jdOf(iso);
+  const ev = (kind: EclipseLocalEvent['kind'], iso: string): EclipseLocalEvent => ({
+    kind,
+    jd_utc: t(iso),
+    utc: iso,
+    alt_deg: 60,
+    az_deg: 150,
+    visible: true,
+    position_angle_deg: 200,
+    vertex_angle_deg: 240,
+    magnitude: kind === 'max' ? 1.01 : null,
+    obscuration: kind === 'max' ? 1 : null,
+  });
+  // The smooth Moon misses totality here (the edge of the path): partial only.
+  const mean: SolarEclipseLocal = {
+    kind: 'solar',
+    id: '2024-04-08-solar',
+    observer: { lat_deg: 29.42, lon_deg: -98.49, height_m: 200 },
+    visibility: 'visible',
+    local_type: 'partial',
+    magnitude: 0.9995,
+    obscuration: 0.9994,
+    duration_s: 9000,
+    central_duration_s: null,
+    events: [ev('c1', '2024-04-08T17:14:00Z'), ev('max', '2024-04-08T18:33:10Z'), ev('c4', '2024-04-08T19:55:00Z')],
+    visible_max: ev('max', '2024-04-08T18:33:10Z'),
+    delta_t_s: 69.2,
+  };
+  const contact = (kind: LimbContact['kind'], iso: string, meanIso: string | null, extra: Partial<LimbContact> = {}): LimbContact => ({
+    kind,
+    jd_utc: t(iso),
+    utc: iso,
+    mean_jd_utc: meanIso ? t(meanIso) : null,
+    correction_s: meanIso ? (Date.parse(iso) - Date.parse(meanIso)) / 1000 : null,
+    position_angle_deg: 210,
+    vertex_angle_deg: 250,
+    limb_position_angle_deg: 30,
+    limb_height_arcsec: 0.8,
+    alt_deg: 61,
+    az_deg: 151,
+    visible: true,
+    sun_offset_east_arcsec: 0,
+    sun_offset_north_arcsec: 0,
+    sun_radius_arcsec: 958,
+    seconds_per_arcsec: 2.5,
+    ...extra,
+  });
+  const limb: SolarEclipseLimb = {
+    loaded: true,
+    pack_version: '2026-09-25',
+    note: 'Limb-corrected with LRO LOLA topography.',
+    resolution_km: 1.896,
+    local_type: 'total',
+    contacts: [
+      contact('c1', '2024-04-08T17:14:01.2Z', '2024-04-08T17:14:00Z'),
+      contact('c2', '2024-04-08T18:33:03Z', null, { seconds_per_arcsec: 9.5 }),
+      contact('c3', '2024-04-08T18:33:18Z', null),
+      contact('c4', '2024-04-08T19:54:59.4Z', '2024-04-08T19:55:00Z'),
+    ],
+    duration_s: 8998,
+    central_duration_s: 15,
+    central_duration_correction_s: null,
+    interrupted: false,
+    profile: null,
+    beads: [
+      { contact: 'c2', jd_utc: t('2024-04-08T18:32:57Z'), utc: '', seconds_from_contact: -6, position_angle_deg: 200, vertex_angle_deg: 250, limb_position_angle_deg: 20, limb_height_arcsec: -0.4 },
+      { contact: 'c2', jd_utc: t('2024-04-08T18:33:01Z'), utc: '', seconds_from_contact: -2, position_angle_deg: 205, vertex_angle_deg: 262, limb_position_angle_deg: 25, limb_height_arcsec: -0.3 },
+      { contact: 'c3', jd_utc: t('2024-04-08T18:33:21Z'), utc: '', seconds_from_contact: 3, position_angle_deg: 30, vertex_angle_deg: 70, limb_position_angle_deg: 200, limb_height_arcsec: -0.5 },
+    ],
+  };
+
+  it('replaces the contacts, adds the central phase the real Moon gains, and keeps the maximum', () => {
+    const shown = withLimb({ ...mean, limb })!;
+    expect(shown.local_type).toBe('total');
+    expect(shown.central_duration_s).toBe(15);
+    expect(shown.duration_s).toBe(8998);
+    expect(shown.events.map((e) => e.kind)).toEqual(['c1', 'c2', 'max', 'c3', 'c4']);
+    expect(shown.events[0]!.jd_utc).toBeCloseTo(t('2024-04-08T17:14:01.2Z'), 9);
+    expect(shown.events.find((e) => e.kind === 'max')).toBe(mean.events[1]);
+    // Nothing without a loaded block.
+    expect(withLimb(mean)).toBeNull();
+    expect(withLimb({ ...mean, limb: { ...limb, loaded: false } })).toBeNull();
+  });
+
+  it('removes second and third contact where light gets through a valley throughout', () => {
+    const totalMean: SolarEclipseLocal = {
+      ...mean,
+      local_type: 'total',
+      central_duration_s: 20,
+      events: [ev('c1', '2024-04-08T17:14:00Z'), ev('c2', '2024-04-08T18:33:00Z'), ev('max', '2024-04-08T18:33:10Z'), ev('c3', '2024-04-08T18:33:20Z'), ev('c4', '2024-04-08T19:55:00Z')],
+    };
+    const partial: SolarEclipseLimb = { ...limb, local_type: 'partial', central_duration_s: null, contacts: [limb.contacts[0]!, limb.contacts[3]!], interrupted: true };
+    const shown = withLimb({ ...totalMean, limb: partial })!;
+    expect(shown.local_type).toBe('partial');
+    expect(shown.events.map((e) => e.kind)).toEqual(['c1', 'max', 'c4']);
+    expect(shown.central_duration_s).toBeNull();
+  });
+
+  it('says how each contact moved, and where and when the beads show, as approximate', () => {
+    expect(correctionWords(limb.contacts[0]!)).toBe('1.2 s later than the smooth Moon’s');
+    expect(correctionWords(limb.contacts[3]!)).toBe('0.6 s earlier than the smooth Moon’s');
+    expect(correctionWords(limb.contacts[1]!)).toBe('the smooth Moon has no such contact here');
+    expect(correctionWords({ correction_s: 0.01, mean_jd_utc: 1 })).toBe('as the smooth Moon');
+    const clock = (v: number): number => {
+      const h = Math.round(((((360 - v) % 360) + 360) % 360) / 30) % 12;
+      return h === 0 ? 12 : h;
+    };
+    const lines = beadWords(limb.beads, (jd) => W.seconds(jd), clock);
+    expect(lines).toEqual([
+      '2 beads of sunlight in the Moon’s valleys go out from 18:32:57 to 18:33:01, as totality begins, near 3 to 4 o’clock on the Sun’s edge.',
+      '1 bead come on at 18:33:21, as totality ends, near 10 o’clock.',
+    ]);
+    expect(beadWords(limb.beads, (jd) => W.seconds(jd), clock, 'annular')[1]).toBe('The ring breaks into 1 bead at 18:33:21, near 10 o’clock.');
+    // Beads within one second read "at", and an arc across 12 o'clock is read clockwise.
+    const across = [
+      { ...limb.beads[0]!, jd_utc: t('2024-04-08T18:33:02.1Z'), vertex_angle_deg: 20 },
+      { ...limb.beads[0]!, jd_utc: t('2024-04-08T18:33:02.2Z'), vertex_angle_deg: 340 },
+      { ...limb.beads[0]!, jd_utc: t('2024-04-08T18:33:02.4Z'), vertex_angle_deg: 355 },
+    ];
+    expect(beadWords(across, (jd) => W.seconds(jd), clock)).toEqual([
+      '3 beads of sunlight in the Moon’s valleys go out at 18:33:02, as totality begins, near 11 to 1 o’clock on the Sun’s edge.',
+    ]);
   });
 });
