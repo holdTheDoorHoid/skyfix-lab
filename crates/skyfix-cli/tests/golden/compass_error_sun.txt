@@ -1,0 +1,19 @@
+COMPASS ERROR BY AZIMUTH
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84 ellipsoid
+Time       2026-09-24T21:40:00Z
+
+Compass error 14.4° W; variation 11.8° W; deviation 2.6° W.
+The Sun bore 257.6° true at 21:40:00 UTC, 13.3° high; the compass read 272.0°.
+
+                       deg  sigma
+  true bearing     257.552      -  from skyfix-auto (Sun, Moon, planets, stars)
+  compass bearing  272.000      -  as read
+  compass error    -14.448      -  14.4° W
+  variation        -11.805  0.364  11.8° W (WMM2025)
+  deviation         -2.642  0.364  2.6° W
+
+Azimuth    GHA 147 01.8, Dec S 0 44.3, altitude +13 18.8, Zn on the sphere 257 33.1,
+           changing +0.170 deg/min
+
+Errors are true minus compass, east positive: compass least, error east (CONVENTIONS
+14.2). Deviation is compass error minus variation.

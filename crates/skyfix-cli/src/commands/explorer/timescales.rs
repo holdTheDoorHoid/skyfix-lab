@@ -96,7 +96,16 @@ fn render_time_info(t: &TimeInfoWire) -> String {
     line(
         &mut out,
         "Instant",
-        &format!("{} (JD {:.6} on the app's clock)", t.utc, t.jd_utc),
+        &format!(
+            "{} (JD {:.6} on the app's clock)",
+            super::text::utc(t.jd_utc),
+            t.jd_utc
+        ),
+    );
+    line(
+        &mut out,
+        "Wire",
+        &format!("{} (proleptic Gregorian, as JSON carries it)", t.utc),
     );
     line(
         &mut out,

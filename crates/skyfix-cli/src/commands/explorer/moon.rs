@@ -506,7 +506,7 @@ fn contact_words(
                 vec![text::clock(c.jd_utc, zone.offset_minutes)]
             };
             v.push(format!(
-                "{:.0} {}{}",
+                "{:>3.0} {}{}",
                 c.position_angle_deg,
                 words(&c.limb),
                 if c.moon_above_horizon {

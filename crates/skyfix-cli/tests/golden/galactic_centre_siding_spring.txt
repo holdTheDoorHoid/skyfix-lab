@@ -1,0 +1,15 @@
+THE GALACTIC CENTRE IN A DARK SKY
+Observer   31 16.40' S, 149 03.70' E (-31.273300, 149.061700), 1165 m above the WGS84 ellipsoid
+Window     2026-06-14T14:00:00Z to 2026-06-16T14:00:00Z, shown in UTC+10:00
+Rule       the centre at least 10 deg up (apparent), the Sun at most -18 deg (geometric)
+
+  from                 from UTC              hours  Moon     best           alt        Az  arch top Az
+  2026-06-15 00:00:00  2026-06-14T14:00:00Z   5.56  down 0%  00:19:33  +87 44.8    0 00.1     301 12.3
+  2026-06-15 18:34:33  2026-06-15T08:34:33Z  10.99  down 0%  00:15:37  +87 44.8    0 00.0     301 12.3
+  2026-06-16 18:34:41  2026-06-16T08:34:41Z   5.42  down 3%  00:00:00  +86 36.6   49 04.3     122 43.3
+
+Each window is split where the Moon rises or sets (Moon: up or down throughout, and its
+illuminated fraction at the window's middle). best is the centre at its highest in the
+window, alt apparent and Az true; arch top Az is where the Milky Way's arch (the
+galactic equator) stands highest then. --format json adds the arch's ends and the
+altitudes.

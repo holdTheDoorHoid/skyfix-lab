@@ -1,0 +1,54 @@
+SAILINGS
+From       36 57.70' N, 075 42.20' W (36.961700, -75.703300)
+To         45 39.10' N, 001 29.80' W (45.651700, -1.496700)
+Speed      12 kn, departing 2026-10-01T12:00:00.000Z
+
+  sailing                                      course      NM      km  under way
+  great circle              55.8 initial, 109.0 final  3264.5  6045.9  272.2 h, arriving 2026-10-12T20:12:22Z
+  rhumb line (sphere)                            81.1  3376.9  6254.0  281.4 h, arriving 2026-10-13T05:24:31Z
+  mid-latitude                                   81.1  3385.0       -  282.1 h, arriving 2026-10-13T06:04:54Z
+  composite (limit 47 deg)                     3 legs  3271.3  6058.4  272.7 h, arriving 2026-10-12T20:44:22Z
+
+Saving     the great circle is 112.4 NM shorter than the rhumb line
+Vertex     48 37.78' N, 027 12.70' W (48.629720, -27.211739), 2205.2 NM from the
+           departure, on the route
+Rhumb line DLat 521.4', DLo 4452.4', departure 3336.4 NM, meridional difference 695.8'
+
+Composite sailing
+  leg           from                       to                             NM         course
+  great circle  36 57.70' N, 075 42.20' W  47 00.00' N, 030 16.13' W  2082.0   58.6 to 90.0
+  parallel      47 00.00' N, 030 16.13' W  47 00.00' N, 018 56.86' W   463.3   90.0 to 90.0
+  great circle  47 00.00' N, 018 56.86' W  45 39.10' N, 001 29.80' W   726.0  90.0 to 102.7
+the great circle would reach 48.6297°; the composite track follows a great circle to the
+limiting parallel 47.0000°, runs along it, and leaves it on a great circle tangent to it
+
+Composite waypoints
+  #  lat          lon           from start NM  track  rhumb to next     NM  sailed NM  ETA
+  0  36 57.70' N  075 42.20' W            0.0   58.6           60.3  309.3        0.0  2026-10-01T12:00:00Z
+  1  39 30.76' N  070 00.00' W          309.2   62.1           65.4  496.2      309.3  2026-10-02T13:46:18Z
+  2  42 57.59' N  060 00.00' W          805.1   68.7           72.2  452.4      805.5  2026-10-04T07:07:15Z
+  3  45 16.09' N  050 00.00' W         1257.3   75.7           79.3  424.7     1257.9  2026-10-05T20:49:19Z
+  4  46 35.14' N  040 00.00' W         1681.7   82.9           86.5  411.5     1682.6  2026-10-07T08:13:00Z
+  5  47 00.00' N  030 00.00' W         2093.0   90.0           90.0  409.2     2094.1  2026-10-08T18:30:39Z
+  6  47 00.00' N  020 00.00' W         2502.2   90.0           92.9  411.1     2503.3  2026-10-10T04:36:39Z
+  7  46 39.00' N  010 00.00' W         2913.0   96.5           99.6  358.5     2914.4  2026-10-11T14:52:01Z
+  8  45 39.10' N  001 29.80' W         3271.3  102.7              -      -     3272.9  2026-10-12T20:44:22Z
+
+Great-circle waypoints (steer the rhumb line to the next)
+  #  lat          lon           from start NM  track  rhumb to next     NM  sailed NM  ETA
+  0  36 57.70' N  075 42.20' W            0.0   55.8           57.5  317.8        0.0  2026-10-01T12:00:00Z
+  1  39 48.23' N  070 00.00' W          317.8   59.4           62.6  504.0      317.8  2026-10-02T14:29:02Z
+  2  43 40.09' N  060 00.00' W          821.5   66.0           69.5  452.9      821.8  2026-10-04T08:29:05Z
+  3  46 18.64' N  050 00.00' W         1274.1   73.1           76.7  419.5     1274.7  2026-10-05T22:13:32Z
+  4  47 54.89' N  040 00.00' W         1693.3   80.4           84.2  401.6     1694.2  2026-10-07T09:10:56Z
+  5  48 35.76' N  030 00.00' W         2094.6   87.9           91.7  397.7     2095.8  2026-10-08T18:38:45Z
+  6  48 24.23' N  020 00.00' W         2492.0   95.4           99.1  407.7     2493.5  2026-10-10T03:47:27Z
+  7  47 19.46' N  010 00.00' W         2899.4  102.8          105.9  365.3     2901.2  2026-10-11T13:45:54Z
+  8  45 39.10' N  001 29.80' W         3264.5  109.0              -      -     3266.5  2026-10-12T20:12:22Z
+  sailing the rhumb lines between them: 3266.5 NM
+
+Distances are on the sphere of 1′ = 1 NM. On the WGS84 ellipsoid the same legs differ by
+at most 0.52 % (a minute of latitude is 1842.9 m at the equator and 1861.6 m at the
+poles).
+Steering the rhumb lines between the waypoints sails 3266.5 NM, 1.9 NM more than the
+great circle itself.
