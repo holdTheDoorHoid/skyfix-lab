@@ -102,6 +102,8 @@ const SHOTS = {
   'print-sun-path': [`${PHILLY}&theme=night&tab=sun&sub=path`, DESKTOP],
   'print-bearings': [`${PHILLY}&theme=dark&tab=sun&sub=bearings`, TALL],
   'print-tides-table': [`place=sanfrancisco&date=2026-09-24T13:00&theme=light&tab=tides&mode=table&packs=tides-us`, DESKTOP],
+  'print-moon': [`${PHILLY}&theme=night&tab=moon&sub=phases`, TALL],
+  'print-year': [`${PHILLY}&theme=dark&tab=year`, DESKTOP],
   // Files made by each card's Save menu (picture and CSV), saved into OUT by the browser.
   'export-sun-path': [`${PHILLY}&theme=night&tab=sun&sub=path`, DESKTOP],
   'export-analemma': [`${PHILLY}&theme=dark&tab=sun&sub=analemma`, TALL],

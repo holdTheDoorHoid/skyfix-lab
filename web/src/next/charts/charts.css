@@ -1724,7 +1724,7 @@
     height: auto !important;
     overflow: visible !important;
     background: none !important;
-    color-scheme: light;
+    color-scheme: light !important;
   }
   html.sfc-printing body > *:not(.sfc-print-root) {
     display: none !important;
