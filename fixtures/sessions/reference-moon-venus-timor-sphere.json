@@ -15,7 +15,7 @@
   },
   "observations": [
     {
-      "altitude_deg": 40.3507822173,
+      "altitude_deg": 40.3507822355,
       "altitude_kind": "sextant_hs",
       "body": "Canopus",
       "horizon": null,
@@ -26,7 +26,7 @@
       "utc": "2026-11-26T19:52:00Z"
     },
     {
-      "altitude_deg": 26.5501166585,
+      "altitude_deg": 26.5501166671,
       "altitude_kind": "sextant_hs",
       "body": "Acrux",
       "horizon": null,

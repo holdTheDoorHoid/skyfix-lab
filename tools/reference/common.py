@@ -466,13 +466,174 @@ def _sha256(path):
     return out.split()[0]
 
 
-def load_timescale():
+def load_builtin_timescale():
+    """Skyfield's own bundled timescale: what every fixture generated before the
+    expansion programme used (their generator blocks say so)."""
     from skyfield.api import load
 
     return load.timescale(builtin=True)
 
 
+def load_timescale(dut1_zero=False):
+    """The app's clock as a Skyfield timescale (`ClockTimescale`): SkyFix Lab's own Delta T
+    and IERS table (tools/timescales/skyfield_timescale.py), with `ts.utc(...)` read as
+    an instant on the app's clock (CONVENTIONS 15.2: UTC 1972-2035, UT outside) and a
+    Time's UTC labels, `t.utc`, `utc_strftime()` and `dut1` read back on that clock.
+    `dut1_zero=True` gives UT1 = UTC on the UTC scale (the "DUT1 = 0" columns)."""
+    return _clock_timescale(dut1_zero)
+
+
+def project_timescales():
+    """``(ts, ts_dut1_zero, clock_time)``: `load_timescale()` both ways and
+    tools/timescales/skyfield_timescale.py's `clock_time(ts, jd_clock)`."""
+    mod = _skyfield_timescale_module()
+    return load_timescale(), load_timescale(dut1_zero=True), mod.clock_time
+
+
+_TS_MODULE = []
+
+
+def _skyfield_timescale_module():
+    if not _TS_MODULE:
+        import importlib.util
+
+        path = os.path.join(REPO, "tools", "timescales", "skyfield_timescale.py")
+        spec = importlib.util.spec_from_file_location("skyfield_timescale", path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        _TS_MODULE.append(mod)
+    return _TS_MODULE[0]
+
+
+# ---------------------------------------------------------------------------
+# The app's clock inside Skyfield (expansion programme)
+# ---------------------------------------------------------------------------
+#
+# CONVENTIONS 15.2: the app's clock reads UTC from 1972-01-01 to 2035-12-31 and UT (UT1)
+# outside, where TT = UT1 + Delta T. Skyfield's `ts.utc()` would instead continue UTC past
+# 2035 with the leap seconds frozen (TT = UTC + 69.184 s), which puts an instant labelled
+# 2055-01-01T00:00:00Z about 6 s of UT1 away from the app's. `ClockTimescale` reads every
+# calendar date it is given on the app's clock, and a Time made by it reports its UTC
+# fields (`t.utc`, `utc_strftime()`, `utc_iso()`, `utc_datetime()`) and `dut1` on that
+# clock too: the UT reading and DUT1 = 0 outside the UTC scale. Inside 1972-2035 it is
+# exactly Skyfield's UTC.
+
+#: [start, end) of the UTC scale on the app's clock, Julian dates (1972-01-01, 2036-01-01).
+UTC_SCALE_JD = (2_441_317.5, 2_464_693.5)
+
+_CLOCK_CLASS = []
+
+
+def _clock_class():
+    if _CLOCK_CLASS:
+        return _CLOCK_CLASS[0]
+    import numpy as np
+    from skyfield import timelib
+    from skyfield.descriptorlib import reify
+    from skyfield.timelib import Time, Timescale, calendar_tuple
+
+    class ClockTimescale(Timescale):
+        """A Skyfield Timescale whose calendar dates are the app's clock (see above)."""
+
+        def _utc(self, tup):
+            year, month, day, hour, minute, second = tup
+            whole, fraction = self._jd(year, month, day, hour, minute, second)
+            jd = np.asarray(whole + fraction, dtype=float)
+            on_utc = (jd >= UTC_SCALE_JD[0]) & (jd < UTC_SCALE_JD[1])
+            if np.all(on_utc):
+                return Timescale._utc(self, tup)
+            t_ut = self.ut1_jd(jd if jd.ndim else float(jd))
+            if not np.any(on_utc):
+                return t_ut
+            t_utc = Timescale._utc(self, tup)
+            return self.tt_jd(np.where(on_utc, t_utc.whole, t_ut.whole),
+                              np.where(on_utc, t_utc.tt_fraction, t_ut.tt_fraction))
+
+    def on_utc_scale(t):
+        """True where a Time of a ClockTimescale falls on the UTC part of the clock."""
+        utc = t.whole - 0.5 + (t.tt_fraction + 0.5) - (32.184 + t._leap_seconds()) / 86400.0
+        return (utc >= UTC_SCALE_JD[0]) & (utc < UTC_SCALE_JD[1])
+
+    base_utc_tuple = Time._utc_tuple
+
+    def _utc_tuple(self, offset, return_jd=False):
+        out = base_utc_tuple(self, offset, return_jd)
+        if not isinstance(self.ts, ClockTimescale):
+            return out
+        on_utc = on_utc_scale(self)
+        if np.all(on_utc):
+            return out
+        whole = self.whole
+        fraction = self.ut1_fraction + offset / 86400.0
+        ut = calendar_tuple(whole, fraction, self.ts.julian_calendar_cutoff)
+        ut = list(ut)
+        if return_jd:
+            ut.append(np.floor(whole + fraction + 0.5).astype(np.int64))
+        if not np.any(on_utc):
+            return tuple(ut)
+        return tuple(np.where(on_utc, a, b) for a, b in zip(out, ut))
+
+    def dut1(self):
+        value = 32.184 + self._leap_seconds() - self.delta_t
+        if isinstance(self.ts, ClockTimescale):
+            value = np.where(on_utc_scale(self), value, 0.0)
+            if np.ndim(value) == 0:
+                value = float(value)
+        return value
+
+    Time._utc_tuple = _utc_tuple
+    Time.dut1 = reify(dut1)
+    timelib._skyfix_clock = True
+    _CLOCK_CLASS.append(ClockTimescale)
+    return ClockTimescale
+
+
+def _clock_timescale(dut1_zero=False):
+    mod = _skyfield_timescale_module()
+    base = mod.dut1_zero_timescale() if dut1_zero else mod.timescale()
+    cls = _clock_class()
+    ts = cls.__new__(cls)
+    ts.__dict__.update(base.__dict__)
+    return ts
+
+
+def clock_jd(t):
+    """The app's clock reading of a Skyfield Time, as a Julian date (float or array)."""
+    import numpy as np
+
+    y, mo, d, h, mi, s = t.utc
+    frac = (np.asarray(h) * 3600.0 + np.asarray(mi) * 60.0 + np.asarray(s)) / 86400.0
+    jd0 = np.vectorize(lambda a, b, cc: jd_from_gregorian(int(a), int(b), int(cc)))(y, mo, d)
+    out = jd0 + frac
+    return float(out) if np.ndim(out) == 0 else out
+
+
+def clock_time(ts, jd_clock):
+    """The Skyfield Time of an instant on the app's clock (scalar)."""
+    return _skyfield_timescale_module().clock_time(ts, jd_clock)
+
+
+def project_timescale_facts():
+    return {
+        "call": "tools/timescales/skyfield_timescale.py timescale() and dut1_zero_timescale()",
+        "delta_t_source": (
+            "SkyFix Lab's own Delta T (crates/skyfix-core/src/deltat/data.rs): Stephenson, "
+            "Morrison & Hohenkerk 2016/2020 splines, the IERS weekly table 1973 on, the "
+            "long-term parabola beyond, joined as Skyfield 1.55 joins them"
+        ),
+        "clock": (
+            "the app's clock (CONVENTIONS 15.2): UTC 1972-01-01 .. 2035-12-31, UT (= UT1) "
+            "outside; clock_time() turns a clock instant into TT and UT1"
+        ),
+        "dut1_zero": (
+            "gha_deg_dut1_zero columns use dut1_zero_timescale(): UT1 = UTC on the UTC scale "
+            "(the Nautical Almanac's and USNO's convention), the model's UT1 outside"
+        ),
+    }
+
+
 def load_ephemeris(path=None):
+    """A kernel file by path (`EPHEMERIS_FILE`, DE421, when none is given)."""
     from skyfield.api import load_file
 
     return load_file(path or EPHEMERIS_FILE)
@@ -565,8 +726,11 @@ def kernel_for_window(jd_start, jd_end):
 class KernelSet:
     """One JPL kernel, possibly split over several files (DE441), behind one lookup.
 
-    `segment(jd_tdb)` returns the Skyfield ephemeris object whose file covers that
-    date, so generators can keep using Skyfield's own `observe().apparent()` chain;
+    It behaves like a Skyfield ephemeris: `k["earth"]`, `k["moon"] - k["earth"]`,
+    `k["earth"].at(t).observe(k["mars barycenter"]).apparent()` work across DE441's
+    two files for scalar and array times alike (each instant is answered by the file
+    that covers it), and so does Skyfield's light deflection, which looks deflectors up
+    by name. `segment(jd_tdb)` returns the file object itself;
     `position_km(target, jd_tdb, center)` evaluates arrays across the split."""
 
     def __init__(self, name):
@@ -580,11 +744,29 @@ class KernelSet:
             if not os.path.exists(p):
                 raise SystemExit("missing %s -- see tools/reference/README.md, 'Kernels'" % p)
         self.files = [load_file(p) for p in self.paths]
+        self.filename = "+".join(KERNELS[name]["files"])
+        self._bodies = {}
 
     def segment(self, jd_tdb):
         if len(self.files) == 1:
             return self.files[0]
         return self.files[0] if jd_tdb < DE441_SPLIT_JD else self.files[1]
+
+    def __getitem__(self, key):
+        if len(self.files) == 1:
+            return self.files[0][key]
+        if key not in self._bodies:
+            self._bodies[key] = _split_body(self, [f[key] for f in self.files])
+        return self._bodies[key]
+
+    def __contains__(self, key):
+        return key in self.files[0]
+
+    def names(self):
+        return self.files[0].names()
+
+    def decode(self, name):
+        return self.files[0].decode(name)
 
     def position_km(self, ts, target, jd_tdb, center="earth"):
         import numpy as np
@@ -604,8 +786,48 @@ class KernelSet:
                 "files": [file_facts(p, KERNELS[self.name]["url"]) for p in self.paths]}
 
 
+def _split_body(kernel, parts):
+    """A Skyfield VectorFunction answering from DE441 part 1 before `DE441_SPLIT_JD`
+    (TDB) and part 2 from it on."""
+    import numpy as np
+    from skyfield.vectorlib import VectorFunction
+
+    class SplitBody(VectorFunction):
+        def __init__(self):
+            self.center = parts[0].center
+            self.target = parts[0].target
+            self.ephemeris = kernel
+
+        @property
+        def vector_name(self):
+            return "DE441 " + parts[0].vector_name
+
+        def _at(self, t):
+            tdb = t.tdb
+            if np.ndim(tdb) == 0:
+                return (parts[0] if tdb < DE441_SPLIT_JD else parts[1])._at(t)
+            early = tdb < DE441_SPLIT_JD
+            if early.all() or not early.any():
+                return (parts[0] if early.all() else parts[1])._at(t)
+            p = np.zeros((3,) + tdb.shape)
+            v = np.zeros((3,) + tdb.shape)
+            message = None
+            for part, sel in ((parts[0], early), (parts[1], ~early)):
+                pp, vv, _, message = part._at(t[sel])
+                p[:, sel], v[:, sel] = pp, vv
+            return p, v, None, message
+
+    return SplitBody()
+
+
+_KERNEL_CACHE = {}
+
+
 def load_kernel(name):
-    return KernelSet(name)
+    """A `KernelSet` by `--kernel` name (cached: the files are large)."""
+    if name not in _KERNEL_CACHE:
+        _KERNEL_CACHE[name] = KernelSet(name)
+    return _KERNEL_CACHE[name]
 
 
 def add_window_kernel_args(parser, default_window, default_kernel="auto"):
@@ -625,6 +847,178 @@ def resolve_window_kernel(args):
     return j0, j1, k
 
 
+class Run:
+    """What one generator run was asked for: its `--window` (on the app's clock) and
+    `--kernel`. `setup()` fills `RUN`; generators read it through `in_window()`,
+    `window_years()` and `run_ephemeris()`."""
+
+    def __init__(self):
+        self.window_text = None
+        self.window = None
+        self.kernel = None
+        self.default_window = None
+
+    def facts(self):
+        return {"window": self.window_text, "kernel": self.kernel,
+                "window_is_default": self.window_text == self.default_window}
+
+
+RUN = Run()
+
+
+def setup(argv, description, default_window, default_kernel, parser=None):
+    """Parse `--window` and `--kernel` (and whatever `parser` already defines) for one
+    generator, record them in `RUN`, and put Skyfield on the app's frame of date
+    (`use_app_frame`). The defaults are the generator's own: with no arguments it
+    reproduces the fixture it has always written. `argv=None` reads `sys.argv[1:]`;
+    `generate_all` passes its own list."""
+    import argparse
+
+    ap = parser or argparse.ArgumentParser(description=description)
+    add_window_kernel_args(ap, default_window, default_kernel)
+    args = ap.parse_args(argv)
+    j0, j1, k = resolve_window_kernel(args)
+    RUN.window_text, RUN.window, RUN.kernel = args.window, (j0, j1), k
+    RUN.default_window = default_window
+    use_app_frame()
+    return args
+
+
+def in_window(jd_clock):
+    """Whether an instant on the app's clock is inside this run's `--window`."""
+    if RUN.window is None:
+        return True
+    return RUN.window[0] <= jd_clock < RUN.window[1]
+
+
+def window_years():
+    """(first year, last year) of this run's window, whole years touched."""
+    y0 = gregorian_from_jd(RUN.window[0])[0]
+    y1 = gregorian_from_jd(RUN.window[1] - 1e-9)[0]
+    return y0, y1
+
+
+def run_ephemeris():
+    """This run's `--kernel` as a Skyfield ephemeris: the SpiceKernel itself for a
+    one-file kernel, the `KernelSet` for DE441's two files."""
+    k = load_kernel(RUN.kernel)
+    return k.files[0] if len(k.files) == 1 else k
+
+
+def run_kernel_facts():
+    return load_kernel(RUN.kernel).facts()
+
+
+def kernel_label(name=None):
+    """"DE440s" and the like, for prose."""
+    name = name or RUN.kernel
+    return "DE" + name[2:]
+
+
+# ---------------------------------------------------------------------------
+# The app's frame of date inside Skyfield (expansion programme)
+# ---------------------------------------------------------------------------
+#
+# Inside the validated tier, 1550-01-01 .. 2650-01-22 (by TT, as the Rust side switches),
+# SkyFix Lab's frame of date is Skyfield's own: IAU 2006 precession, IAU 2006 mean
+# obliquity and GMST. Outside it the app uses the Vondrak-Capitaine-Wallace 2011
+# long-term precession (ltp.py, pinned to ERFA's test values), its mean obliquity (the
+# angle between its ecliptic and equator poles) and the GMST consistent with it (ERA plus
+# the accumulated precession, ltp.gmst_minus_era_samples). `use_app_frame()` hands
+# Skyfield those three outside the tier, so `radec(epoch='date')`, `gast`, `altaz()`
+# and the ITRS rotation of every generator are the app's model at any date; inside the
+# tier it changes nothing. Nutation stays Skyfield's IAU 2000A throughout.
+
+#: The validated tier's bounds as Julian dates (TT), crates/skyfix-ephemeris/src/tiers.rs.
+JD_VALIDATED = (2_287_185.5, 2_688_973.5)
+
+
+def outside_validated(jd_tt):
+    import numpy as np
+
+    jd = np.asarray(jd_tt, dtype=float)
+    return (jd < JD_VALIDATED[0]) | (jd > JD_VALIDATED[1])
+
+
+def use_app_frame():
+    """Patch Skyfield (idempotently) to the app's frame of date outside the validated
+    tier. See the section comment above."""
+    import numpy as np
+    from skyfield import timelib
+    from skyfield.framelib import ICRS_to_J2000
+
+    if getattr(timelib, "_skyfix_app_frame", False):
+        return
+    from . import ltp as L
+
+    base_precession = timelib.compute_precession
+    base_obliquity = timelib.mean_obliquity
+    base_sidereal = timelib.sidereal_time
+    samples = []
+
+    def epj(jd):
+        return 2000.0 + (jd - 2451545.0) / 365.25
+
+    def compute_precession(jd_tdb):
+        out = base_precession(jd_tdb)
+        far = outside_validated(jd_tdb)
+        if not np.any(far):
+            return out
+        if np.ndim(jd_tdb) == 0:
+            return L.ltpb(epj(float(jd_tdb))) @ ICRS_to_J2000.T
+        out = np.array(out, dtype=float)
+        for k in np.flatnonzero(far):
+            out[:, :, k] = L.ltpb(epj(float(jd_tdb[k]))) @ ICRS_to_J2000.T
+        return out
+
+    def ltp_obliquity_arcsec(jd):
+        pecl, peqr = L.ltpecl(epj(jd)), L.ltpequ(epj(jd))
+        return math.atan2(np.linalg.norm(np.cross(pecl, peqr)), float(pecl @ peqr)) / L.DAS2R
+
+    def mean_obliquity(jd_tdb):
+        out = base_obliquity(jd_tdb)
+        far = outside_validated(jd_tdb)
+        if not np.any(far):
+            return out
+        if np.ndim(jd_tdb) == 0:
+            return ltp_obliquity_arcsec(float(jd_tdb))
+        out = np.array(out, dtype=float)
+        for k in np.flatnonzero(far):
+            out[k] = ltp_obliquity_arcsec(float(jd_tdb[k]))
+        return out
+
+    def sidereal_time(t):
+        out = base_sidereal(t)
+        tdb = t.tdb
+        far = outside_validated(tdb)
+        if not np.any(far):
+            return out
+        if not samples:
+            samples.append(L.gmst_minus_era_samples())
+        tc, g = samples[0]
+        theta = timelib.earth_rotation_angle(t.whole, t.ut1_fraction)
+        ltp = (np.interp((tdb - 2451545.0) / 36525.0, tc, g) / 54000.0 + theta * 24.0) % 24.0
+        return np.where(far, ltp, out) if np.ndim(out) else float(ltp)
+
+    timelib.compute_precession = compute_precession
+    timelib.mean_obliquity = mean_obliquity
+    timelib.sidereal_time = sidereal_time
+    timelib._skyfix_app_frame = True
+
+
+def app_frame_facts():
+    return {
+        "inside_validated_tier": ("Skyfield's own frame of date: IAU 2006 precession (P03), "
+                                  "IAU 2006 mean obliquity and GMST, IAU 2000A nutation"),
+        "outside_validated_tier": ("common.use_app_frame(): the Vondrak-Capitaine-Wallace "
+                                   "2011 long-term precession with the IERS 2010 frame bias "
+                                   "(ltp.ltpb, ERFA eraLtpb), its mean obliquity, and GMST = "
+                                   "ERA + the long-term accumulated precession "
+                                   "(ltp.gmst_minus_era_samples); IAU 2000A nutation"),
+        "switch": "by TT at 1550-01-01 and 2650-01-22 (JD 2287185.5 and 2688973.5), as the Rust side",
+    }
+
+
 def load_hipparcos_frame():
     from skyfield.data import hipparcos
 
@@ -633,11 +1027,16 @@ def load_hipparcos_frame():
 
 
 def timescale_facts():
+    """The timescale block of a fixture generated with `load_timescale()`."""
+    return project_timescale_facts()
+
+
+def builtin_timescale_facts():
     """What `load.timescale(builtin=True)` implies, measured, not asserted."""
     import numpy as np
     from skyfield.iokit import load_bundled_npy
 
-    ts = load_timescale()
+    ts = load_builtin_timescale()
     a = load_bundled_npy("iers.npz")
     tt = a["tt_jd_minus_arange"] + np.arange(len(a["tt_jd_minus_arange"]))
     t0 = ts.tt_jd(float(tt[0]))
@@ -707,13 +1106,14 @@ def generator_block(
     frame_notes=None,
     refraction=None,
     extra=None,
+    timescale=None,
 ):
     block = {
         "tool": tool,
         "description": description,
         "generated_utc": generated_utc(),
         "versions": versions(),
-        "timescale": timescale_facts(),
+        "timescale": timescale if timescale is not None else timescale_facts(),
         "tolerance_arcmin": tolerance_arcmin,
         "tolerance_justification": tolerance_justification,
         "never_a_runtime_dependency": (
@@ -863,10 +1263,13 @@ STAR_NOTES = {
         "inside this file's tolerance."
     ),
     "Rigil Kentaurus": (
-        "HIP 71683 is alpha Centauri A. The Almanac's Rigil Kentaurus is the combined "
-        "A+B image, which orbits with a period of 80 years; the A-only position can "
-        "differ from the photocentre by several arcseconds, and the 3.7 arcsec/yr "
-        "proper motion makes the epoch matter."
+        "HIP 71683 is alpha Centauri A, the body the Nautical Almanac and USNO's celnav "
+        "tabulate (checked against USNO at 15 dates 1800-2050: USNO is this entry with "
+        "linear space motion and a radial velocity, to 0.2 arcsec). A orbits B every "
+        "80 years, so its Hipparcos proper motion is the tangent to a curve: `orbit` "
+        "gives the ORB6 elements to follow the curve (5.8 arcsec from the tangent in 2026, "
+        "17 in 2060). A sextant sees the A+B light centre, 0.23 of the separation from A "
+        "toward B (about 2 arcsec in 2026)."
     ),
     "Zubenelgenubi": (
         "HIP 72622 is alpha-2 Librae, the brighter (V 2.75) of the wide alpha Librae "
@@ -895,9 +1298,18 @@ STAR_NAMES = [s[0] for s in NAV_STARS]
 BODY_NAMES = ["Sun"] + STAR_NAMES
 
 
-def build_stars(df):
-    """Return {name: skyfield Star} and the verification report."""
+def build_stars(df, space_motion=True):
+    """Return {name: skyfield Star} and the verification report.
+
+    With `space_motion` (the default since the expansion programme) every star carries
+    its SIMBAD radial velocity (gen_stars.RADIAL_VELOCITIES), so Skyfield applies the
+    perspective acceleration, and Rigil Kentaurus (alpha Cen A) follows its orbit about
+    the A-B barycentre (acen_orbit.py). `space_motion=False` gives the plain Hipparcos
+    stars of the fixtures generated before it."""
     from skyfield.api import Star
+
+    from . import acen_orbit
+    from .gen_stars import RADIAL_VELOCITIES
 
     stars = {}
     problems = []
@@ -920,7 +1332,21 @@ def build_stars(df):
                 % (name, hip, mag, exp_mag, abs(mag - exp_mag))
             )
         rows[name] = (row, sep, mag - exp_mag)
-        stars[name] = Star.from_dataframe(row)
+        if not space_motion:
+            stars[name] = Star.from_dataframe(row)
+        elif hip == acen_orbit.HIP:
+            stars[name] = acen_orbit.orbiting_star(row, RADIAL_VELOCITIES[hip][0])
+        else:
+            base = Star.from_dataframe(row)
+            stars[name] = Star(
+                ra_hours=base.ra.hours,
+                dec_degrees=base.dec.degrees,
+                ra_mas_per_year=base.ra_mas_per_year,
+                dec_mas_per_year=base.dec_mas_per_year,
+                parallax_mas=base.parallax_mas,
+                radial_km_per_s=RADIAL_VELOCITIES[hip][0],
+                epoch=base.epoch,
+            )
     return stars, rows, problems
 
 
@@ -957,8 +1383,11 @@ def topos(lat_deg, lon_deg, elevation_m):
 
 
 def jd_utc_of(t):
-    """Exact Julian date of the UTC calendar instant (Gregorian, 1995-2055)."""
+    """Julian date of a Time's reading on the app's clock (`t.utc`: UTC 1972-2035 and UT
+    outside for a `ClockTimescale` Time), proleptic Gregorian."""
     y, m, d, hh, mm, ss = t.utc
+    if not 1583 <= y <= 9999:
+        return jd_from_gregorian(y, m, d, hh + mm / 60.0 + ss / 3600.0)
     if m <= 2:
         y -= 1
         m += 12
@@ -975,9 +1404,13 @@ def jd_utc_of(t):
 
 
 def epoch_header(t):
+    """The instant: its clock label and Julian date, its TT and UT1 (so a test can put a
+    provider at exactly the fixture's instants), Delta T, DUT1 and the sidereal time."""
     return {
-        "utc": t.utc_strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "utc": iso_utc(jd_utc_of(t)),
         "jd_utc": jd(jd_utc_of(t)),
+        "jd_tt": jd(float(t.tt)),
+        "jd_ut1": jd(float(t.ut1)),
         "delta_t_s": secs(float(t.delta_t)),
         "dut1_s": secs(float(t.dut1)),
         "gast_hours": Num(float(t.gast), 12),

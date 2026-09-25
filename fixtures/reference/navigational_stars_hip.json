@@ -11,7 +11,9 @@
       "parallax_mas": 20.2200,
       "pm_dec_mas_yr": 25.7100,
       "pm_ra_cosdec_mas_yr": -53.5300,
-      "ra_deg": 44.565481800
+      "ra_deg": 44.565481800,
+      "rv_km_s": 11.9000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 2.6000, "quality": "C"}
     },
     {
       "dec_deg": -57.236660070,
@@ -23,7 +25,9 @@
       "parallax_mas": 22.6800,
       "pm_dec_mas_yr": -40.0800,
       "pm_ra_cosdec_mas_yr": 88.0200,
-      "ra_deg": 24.428132040
+      "ra_deg": 24.428132040,
+      "rv_km_s": 8.4700,
+      "rv_source": {"bibcode": "2023ApJS..266...11B", "err_km_s": 2.1600, "quality": "C"}
     },
     {
       "dec_deg": -63.099055860,
@@ -36,7 +40,9 @@
       "parallax_mas": 10.1700,
       "pm_dec_mas_yr": -14.7300,
       "pm_ra_cosdec_mas_yr": -35.3700,
-      "ra_deg": 186.649755850
+      "ra_deg": 186.649755850,
+      "rv_km_s": 11.9000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 2.4000, "quality": "C"}
     },
     {
       "dec_deg": -28.972089310,
@@ -48,7 +54,9 @@
       "parallax_mas": 7.5700,
       "pm_dec_mas_yr": 2.2900,
       "pm_ra_cosdec_mas_yr": 2.6300,
-      "ra_deg": 104.656444510
+      "ra_deg": 104.656444510,
+      "rv_km_s": 27.3000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.4000, "quality": "A"}
     },
     {
       "dec_deg": 16.509761640,
@@ -60,7 +68,9 @@
       "parallax_mas": 50.0900,
       "pm_dec_mas_yr": -189.3600,
       "pm_ra_cosdec_mas_yr": 62.7800,
-      "ra_deg": 68.980001950
+      "ra_deg": 68.980001950,
+      "rv_km_s": 54.3980,
+      "rv_source": {"bibcode": "2018A&A...616A...7S", "err_km_s": 0.0008, "quality": "A"}
     },
     {
       "dec_deg": 55.959843010,
@@ -72,7 +82,9 @@
       "parallax_mas": 40.3000,
       "pm_dec_mas_yr": -8.9900,
       "pm_ra_cosdec_mas_yr": 111.7400,
-      "ra_deg": 193.506804100
+      "ra_deg": 193.506804100,
+      "rv_km_s": -12.7000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.2000, "quality": "A"}
     },
     {
       "dec_deg": 49.313302880,
@@ -84,7 +96,9 @@
       "parallax_mas": 32.3900,
       "pm_dec_mas_yr": -15.5600,
       "pm_ra_cosdec_mas_yr": -121.2300,
-      "ra_deg": 206.885608800
+      "ra_deg": 206.885608800,
+      "rv_km_s": -13.4000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.6000, "quality": "A"}
     },
     {
       "dec_deg": -46.960615930,
@@ -96,7 +110,9 @@
       "parallax_mas": 32.1600,
       "pm_dec_mas_yr": -147.9100,
       "pm_ra_cosdec_mas_yr": 127.6000,
-      "ra_deg": 332.057818380
+      "ra_deg": 332.057818380,
+      "rv_km_s": 10.9000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 1.7000, "quality": "B"}
     },
     {
       "dec_deg": -1.201917250,
@@ -108,7 +124,9 @@
       "parallax_mas": 2.4300,
       "pm_dec_mas_yr": -1.0600,
       "pm_ra_cosdec_mas_yr": 1.4900,
-      "ra_deg": 84.053385720
+      "ra_deg": 84.053385720,
+      "rv_km_s": 27.3000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.8000, "quality": "A"}
     },
     {
       "dec_deg": -8.658683350,
@@ -120,7 +138,9 @@
       "parallax_mas": 18.4000,
       "pm_dec_mas_yr": 33.2500,
       "pm_ra_cosdec_mas_yr": -14.4900,
-      "ra_deg": 141.896882600
+      "ra_deg": 141.896882600,
+      "rv_km_s": -4.5610,
+      "rv_source": {"bibcode": "2018A&A...616A...7S", "err_km_s": 0.0001, "quality": "A"}
     },
     {
       "dec_deg": 26.714910410,
@@ -132,7 +152,9 @@
       "parallax_mas": 43.6500,
       "pm_dec_mas_yr": -89.4400,
       "pm_ra_cosdec_mas_yr": 120.3800,
-      "ra_deg": 233.671622930
+      "ra_deg": 233.671622930,
+      "rv_km_s": 1.7000,
+      "rv_source": {"bibcode": "1953GCRV..C......0W", "err_km_s": 0.9000, "quality": "E"}
     },
     {
       "dec_deg": 29.090828050,
@@ -144,7 +166,9 @@
       "parallax_mas": 33.6000,
       "pm_dec_mas_yr": -162.9500,
       "pm_ra_cosdec_mas_yr": 135.6800,
-      "ra_deg": 2.096533330
+      "ra_deg": 2.096533330,
+      "rv_km_s": -10.1000,
+      "rv_source": {"bibcode": "2004A&A...424..727P", "err_km_s": 0.2000, "quality": "A"}
     },
     {
       "dec_deg": 8.867384910,
@@ -156,7 +180,9 @@
       "parallax_mas": 194.4400,
       "pm_dec_mas_yr": 385.5400,
       "pm_ra_cosdec_mas_yr": 536.8200,
-      "ra_deg": 297.694508600
+      "ra_deg": 297.694508600,
+      "rv_km_s": -26.6000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.4000, "quality": "A"}
     },
     {
       "dec_deg": -42.305121970,
@@ -168,7 +194,9 @@
       "parallax_mas": 42.1400,
       "pm_dec_mas_yr": -353.6400,
       "pm_ra_cosdec_mas_yr": 232.7600,
-      "ra_deg": 6.570280750
+      "ra_deg": 6.570280750,
+      "rv_km_s": 74.6000,
+      "rv_source": {"bibcode": "1979IAUS...30...57E", "err_km_s": 0.9000, "quality": "A"}
     },
     {
       "dec_deg": -26.431946080,
@@ -180,7 +208,9 @@
       "parallax_mas": 5.4000,
       "pm_dec_mas_yr": -23.2100,
       "pm_ra_cosdec_mas_yr": -10.1600,
-      "ra_deg": 247.351948040
+      "ra_deg": 247.351948040,
+      "rv_km_s": -3.5000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.8000, "quality": "A"}
     },
     {
       "dec_deg": 19.187269970,
@@ -192,7 +222,9 @@
       "parallax_mas": 88.8500,
       "pm_dec_mas_yr": -1999.4000,
       "pm_ra_cosdec_mas_yr": -1093.4500,
-      "ra_deg": 213.918114030
+      "ra_deg": 213.918114030,
+      "rv_km_s": -5.2290,
+      "rv_source": {"bibcode": "2018A&A...616A...7S", "err_km_s": 0.0002, "quality": "A"}
     },
     {
       "dec_deg": -69.027635030,
@@ -204,7 +236,9 @@
       "parallax_mas": 7.8500,
       "pm_dec_mas_yr": -32.9200,
       "pm_ra_cosdec_mas_yr": 17.8500,
-      "ra_deg": 252.166107420
+      "ra_deg": 252.166107420,
+      "rv_km_s": -3.0000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.1000, "quality": "A"}
     },
     {
       "dec_deg": -59.509538290,
@@ -216,7 +250,9 @@
       "parallax_mas": 5.1600,
       "pm_dec_mas_yr": 22.7200,
       "pm_ra_cosdec_mas_yr": -25.3400,
-      "ra_deg": 125.628602990
+      "ra_deg": 125.628602990,
+      "rv_km_s": 11.6000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.5000, "quality": "A"}
     },
     {
       "dec_deg": 6.349734510,
@@ -228,7 +264,9 @@
       "parallax_mas": 13.4200,
       "pm_dec_mas_yr": -13.2800,
       "pm_ra_cosdec_mas_yr": -8.7500,
-      "ra_deg": 81.282784160
+      "ra_deg": 81.282784160,
+      "rv_km_s": 17.3100,
+      "rv_source": {"bibcode": "2023ApJS..266...11B", "err_km_s": 0.4500, "quality": "A"}
     },
     {
       "dec_deg": 7.407036340,
@@ -241,7 +279,9 @@
       "parallax_mas": 7.6300,
       "pm_dec_mas_yr": 10.8600,
       "pm_ra_cosdec_mas_yr": 27.3300,
-      "ra_deg": 88.792871610
+      "ra_deg": 88.792871610,
+      "rv_km_s": 21.9100,
+      "rv_source": {"bibcode": "2005A&A...430..165F", "err_km_s": 0.5100, "quality": "A"}
     },
     {
       "dec_deg": -52.695717990,
@@ -253,7 +293,9 @@
       "parallax_mas": 10.4300,
       "pm_dec_mas_yr": 23.6700,
       "pm_ra_cosdec_mas_yr": 19.9900,
-      "ra_deg": 95.987877630
+      "ra_deg": 95.987877630,
+      "rv_km_s": 20.3000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.5000, "quality": "A"}
     },
     {
       "dec_deg": 45.999029270,
@@ -265,7 +307,9 @@
       "parallax_mas": 77.2900,
       "pm_dec_mas_yr": -427.1300,
       "pm_ra_cosdec_mas_yr": 75.5200,
-      "ra_deg": 79.172065170
+      "ra_deg": 79.172065170,
+      "rv_km_s": 29.1900,
+      "rv_source": {"bibcode": "2004MNRAS.349.1069K", "err_km_s": 0.0700, "quality": "A"}
     },
     {
       "dec_deg": 45.280334230,
@@ -277,7 +321,9 @@
       "parallax_mas": 1.0100,
       "pm_dec_mas_yr": 1.5500,
       "pm_ra_cosdec_mas_yr": 1.5600,
-      "ra_deg": 310.357972700
+      "ra_deg": 310.357972700,
+      "rv_km_s": -4.9000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.3000, "quality": "A"}
     },
     {
       "dec_deg": 14.572336870,
@@ -289,7 +335,9 @@
       "parallax_mas": 90.1600,
       "pm_dec_mas_yr": -113.7800,
       "pm_ra_cosdec_mas_yr": -499.0200,
-      "ra_deg": 177.266159770
+      "ra_deg": 177.266159770,
+      "rv_km_s": -0.2000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.5000, "quality": "A"}
     },
     {
       "dec_deg": -17.986684100,
@@ -301,7 +349,9 @@
       "parallax_mas": 34.0400,
       "pm_dec_mas_yr": 32.7100,
       "pm_ra_cosdec_mas_yr": 232.7900,
-      "ra_deg": 10.896784520
+      "ra_deg": 10.896784520,
+      "rv_km_s": 13.2570,
+      "rv_source": {"bibcode": "2018A&A...616A...7S", "err_km_s": 0.0002, "quality": "A"}
     },
     {
       "dec_deg": 61.751118880,
@@ -313,7 +363,9 @@
       "parallax_mas": 26.3800,
       "pm_dec_mas_yr": -35.2500,
       "pm_ra_cosdec_mas_yr": -136.4600,
-      "ra_deg": 165.932653650
+      "ra_deg": 165.932653650,
+      "rv_km_s": -9.4000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.3000, "quality": "A"}
     },
     {
       "dec_deg": 28.607873460,
@@ -325,7 +377,9 @@
       "parallax_mas": 24.8900,
       "pm_dec_mas_yr": -174.2200,
       "pm_ra_cosdec_mas_yr": 23.2800,
-      "ra_deg": 81.572908040
+      "ra_deg": 81.572908040,
+      "rv_km_s": 9.2000,
+      "rv_source": {"bibcode": "1979IAUS...30...57E", "err_km_s": 2.0000, "quality": "B"}
     },
     {
       "dec_deg": 51.488951010,
@@ -337,7 +391,9 @@
       "parallax_mas": 22.1000,
       "pm_dec_mas_yr": -23.0500,
       "pm_ra_cosdec_mas_yr": -8.5200,
-      "ra_deg": 269.151574390
+      "ra_deg": 269.151574390,
+      "rv_km_s": -27.9100,
+      "rv_source": {"bibcode": "2005A&A...430..165F", "err_km_s": 0.1900, "quality": "A"}
     },
     {
       "dec_deg": 9.875007910,
@@ -349,7 +405,9 @@
       "parallax_mas": 4.8500,
       "pm_dec_mas_yr": 1.3800,
       "pm_ra_cosdec_mas_yr": 30.0200,
-      "ra_deg": 326.046418080
+      "ra_deg": 326.046418080,
+      "rv_km_s": 3.3900,
+      "rv_source": {"bibcode": "2005A&A...430..165F", "err_km_s": 0.0600, "quality": "A"}
     },
     {
       "dec_deg": -29.621837010,
@@ -361,7 +419,9 @@
       "parallax_mas": 130.0800,
       "pm_dec_mas_yr": -164.2200,
       "pm_ra_cosdec_mas_yr": 329.2200,
-      "ra_deg": 344.411773230
+      "ra_deg": 344.411773230,
+      "rv_km_s": 6.5000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.5000, "quality": "A"}
     },
     {
       "dec_deg": -57.112569220,
@@ -373,7 +433,9 @@
       "parallax_mas": 37.0900,
       "pm_dec_mas_yr": -264.3300,
       "pm_ra_cosdec_mas_yr": 27.9400,
-      "ra_deg": 187.791372020
+      "ra_deg": 187.791372020,
+      "rv_km_s": 21.0000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.1000, "quality": "A"}
     },
     {
       "dec_deg": -17.541983700,
@@ -386,7 +448,9 @@
       "parallax_mas": 19.7800,
       "pm_dec_mas_yr": 22.3100,
       "pm_ra_cosdec_mas_yr": -159.5800,
-      "ra_deg": 183.951949370
+      "ra_deg": 183.951949370,
+      "rv_km_s": -4.2000,
+      "rv_source": {"bibcode": "1953GCRV..C......0W", "err_km_s": 2.0000, "quality": "E"}
     },
     {
       "dec_deg": -60.372978400,
@@ -398,7 +462,9 @@
       "parallax_mas": 6.2100,
       "pm_dec_mas_yr": -25.0600,
       "pm_ra_cosdec_mas_yr": -33.9600,
-      "ra_deg": 210.956018980
+      "ra_deg": 210.956018980,
+      "rv_km_s": 2.5200,
+      "rv_source": {"bibcode": "2023ApJS..266...11B", "err_km_s": 2.9600, "quality": "C"}
     },
     {
       "dec_deg": 23.462777430,
@@ -410,7 +476,9 @@
       "parallax_mas": 49.4800,
       "pm_dec_mas_yr": -145.7700,
       "pm_ra_cosdec_mas_yr": 190.7300,
-      "ra_deg": 31.792857570
+      "ra_deg": 31.792857570,
+      "rv_km_s": -14.4120,
+      "rv_source": {"bibcode": "2018A&A...616A...7S", "err_km_s": 0.0005, "quality": "A"}
     },
     {
       "dec_deg": -34.384314600,
@@ -422,7 +490,9 @@
       "parallax_mas": 22.5500,
       "pm_dec_mas_yr": -124.0500,
       "pm_ra_cosdec_mas_yr": -39.6100,
-      "ra_deg": 276.043109670
+      "ra_deg": 276.043109670,
+      "rv_km_s": -15.0000,
+      "rv_source": {"bibcode": "2007AN....328..889K", "err_km_s": 3.7000, "quality": "C"}
     },
     {
       "dec_deg": 74.155475960,
@@ -434,7 +504,9 @@
       "parallax_mas": 25.7900,
       "pm_dec_mas_yr": 11.9100,
       "pm_ra_cosdec_mas_yr": -32.2900,
-      "ra_deg": 222.676647510
+      "ra_deg": 222.676647510,
+      "rv_km_s": 16.9600,
+      "rv_source": {"bibcode": "2005A&A...430..165F", "err_km_s": 0.1900, "quality": "A"}
     },
     {
       "dec_deg": 15.205367860,
@@ -446,7 +518,9 @@
       "parallax_mas": 23.3600,
       "pm_dec_mas_yr": -42.5600,
       "pm_ra_cosdec_mas_yr": 61.1000,
-      "ra_deg": 346.190070200
+      "ra_deg": 346.190070200,
+      "rv_km_s": -2.7000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.8000, "quality": "A"}
     },
     {
       "dec_deg": 4.089925390,
@@ -458,7 +532,9 @@
       "parallax_mas": 14.8200,
       "pm_dec_mas_yr": -78.7600,
       "pm_ra_cosdec_mas_yr": -11.8100,
-      "ra_deg": 45.569912790
+      "ra_deg": 45.569912790,
+      "rv_km_s": -25.4700,
+      "rv_source": {"bibcode": "2023A&A...676A.129H", "err_km_s": 0.1000, "quality": "A"}
     },
     {
       "dec_deg": -36.368695750,
@@ -470,7 +546,9 @@
       "parallax_mas": 53.5200,
       "pm_dec_mas_yr": -517.8700,
       "pm_ra_cosdec_mas_yr": -519.2900,
-      "ra_deg": 211.672186080
+      "ra_deg": 211.672186080,
+      "rv_km_s": 1.3000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.5000, "quality": "A"}
     },
     {
       "dec_deg": -69.717472450,
@@ -482,7 +560,9 @@
       "parallax_mas": 29.3400,
       "pm_dec_mas_yr": 108.9100,
       "pm_ra_cosdec_mas_yr": -157.6600,
-      "ra_deg": 138.301003290
+      "ra_deg": 138.301003290,
+      "rv_km_s": -5.1000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 2.3000, "quality": "C"}
     },
     {
       "dec_deg": 49.861242810,
@@ -494,7 +574,9 @@
       "parallax_mas": 5.5100,
       "pm_dec_mas_yr": -26.0100,
       "pm_ra_cosdec_mas_yr": 24.1100,
-      "ra_deg": 51.080618890
+      "ra_deg": 51.080618890,
+      "rv_km_s": -2.1580,
+      "rv_source": {"bibcode": "2018A&A...616A...7S", "err_km_s": 0.0036, "quality": "A"}
     },
     {
       "dec_deg": -26.296594280,
@@ -506,7 +588,9 @@
       "parallax_mas": 14.5400,
       "pm_dec_mas_yr": -52.6500,
       "pm_ra_cosdec_mas_yr": 13.8700,
-      "ra_deg": 283.816319560
+      "ra_deg": 283.816319560,
+      "rv_km_s": -11.2000,
+      "rv_source": {"bibcode": "1979IAUS...30...57E", "err_km_s": 2.0000, "quality": "B"}
     },
     {
       "dec_deg": -56.734880710,
@@ -518,7 +602,9 @@
       "parallax_mas": 17.8000,
       "pm_dec_mas_yr": -86.1500,
       "pm_ra_cosdec_mas_yr": 7.7100,
-      "ra_deg": 306.411873470
+      "ra_deg": 306.411873470,
+      "rv_km_s": 2.0000,
+      "rv_source": {"bibcode": "1953GCRV..C......0W", "err_km_s": 0.9000, "quality": "E"}
     },
     {
       "dec_deg": 28.026310310,
@@ -530,7 +616,9 @@
       "parallax_mas": 96.7400,
       "pm_dec_mas_yr": -45.9500,
       "pm_ra_cosdec_mas_yr": -625.6900,
-      "ra_deg": 116.330682630
+      "ra_deg": 116.330682630,
+      "rv_km_s": 3.3910,
+      "rv_source": {"bibcode": "2018A&A...616A...7S", "err_km_s": 0.0003, "quality": "A"}
     },
     {
       "dec_deg": 5.227507670,
@@ -542,7 +630,9 @@
       "parallax_mas": 285.9300,
       "pm_dec_mas_yr": -1034.5800,
       "pm_ra_cosdec_mas_yr": -716.5700,
-      "ra_deg": 114.827241940
+      "ra_deg": 114.827241940,
+      "rv_km_s": -4.5053,
+      "rv_source": {"bibcode": "2020AJ....160..120J", "err_km_s": 0.0208, "quality": "A"}
     },
     {
       "dec_deg": 12.560575840,
@@ -554,7 +644,9 @@
       "parallax_mas": 69.8400,
       "pm_dec_mas_yr": -222.6100,
       "pm_ra_cosdec_mas_yr": 110.0800,
-      "ra_deg": 263.733353210
+      "ra_deg": 263.733353210,
+      "rv_km_s": 11.7000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 1.0000, "quality": "B"}
     },
     {
       "dec_deg": 11.967195130,
@@ -566,7 +658,9 @@
       "parallax_mas": 42.0900,
       "pm_dec_mas_yr": 4.9100,
       "pm_ra_cosdec_mas_yr": -249.4000,
-      "ra_deg": 152.093580750
+      "ra_deg": 152.093580750,
+      "rv_km_s": 0.7195,
+      "rv_source": {"bibcode": "2020AJ....160..120J", "err_km_s": 0.6145, "quality": "A"}
     },
     {
       "dec_deg": -8.201639190,
@@ -578,7 +672,9 @@
       "parallax_mas": 4.2200,
       "pm_dec_mas_yr": -0.5600,
       "pm_ra_cosdec_mas_yr": 1.8700,
-      "ra_deg": 78.634463530
+      "ra_deg": 78.634463530,
+      "rv_km_s": 17.8000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.4000, "quality": "A"}
     },
     {
       "dec_deg": -60.835147070,
@@ -587,11 +683,27 @@
       "identity_check": {"expected_dec_deg": -60.8350, "expected_mag": -0.010, "expected_ra_deg": 219.9020, "mag_difference": 0.000, "separation_arcsec": 32.3029},
       "mag": -0.0100,
       "name": "Rigil Kentaurus",
-      "notes": "HIP 71683 is alpha Centauri A. The Almanac's Rigil Kentaurus is the combined A+B image, which orbits with a period of 80 years; the A-only position can differ from the photocentre by several arcseconds, and the 3.7 arcsec/yr proper motion makes the epoch matter.",
+      "notes": "HIP 71683 is alpha Centauri A, the body the Nautical Almanac and USNO's celnav tabulate (checked against USNO at 15 dates 1800-2050: USNO is this entry with linear space motion and a radial velocity, to 0.2 arcsec). A orbits B every 80 years, so its Hipparcos proper motion is the tangent to a curve: `orbit` gives the ORB6 elements to follow the curve (5.8 arcsec from the tangent in 2026, 17 in 2060). A sextant sees the A+B light centre, 0.23 of the separation from A toward B (about 2 arcsec in 2026).",
+      "orbit": {
+        "companion": "alpha Centauri B (HIP 71681)",
+        "eccentricity": 0.519470,
+        "inclination_deg": 79.243000,
+        "mass_source": "Akeson et al. 2021: M_A = 1.0788, M_B = 0.9092 solar masses",
+        "model": "A = barycentre + (-f_B) x (B relative to A); the barycentre moves linearly from the catalogue's position of A at J1991.25 with A's catalogue proper motion minus A's orbital velocity at that epoch, and the system radial velocity: at J1991.25 the model is the catalogue (and USNO's celnav) exactly, and elsewhere it follows the orbit instead of the tangent line",
+        "node_deg": 205.073000,
+        "periastron_arg_deg": 231.519000,
+        "periastron_epoch_yr": 1955.564000,
+        "period_yr": 79.762000,
+        "secondary_mass_fraction": 0.457344,
+        "semi_major_arcsec": 17.493000,
+        "source": "USNO Sixth Catalog of Orbits of Visual Binary Stars (ORB6), https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.txt, retrieved 2026-09-25: WDS 14396-6050 RHD 1AB, Akeson et al. 2021, AJ 162, 14 (grade 2)"
+      },
       "parallax_mas": 742.1200,
       "pm_dec_mas_yr": 481.8400,
       "pm_ra_cosdec_mas_yr": -3678.1900,
-      "ra_deg": 219.920410340
+      "ra_deg": 219.920410340,
+      "rv_km_s": -22.3000,
+      "rv_source": {"bibcode": "1979IAUS...30...57E", "err_km_s": 0.9000, "quality": "A"}
     },
     {
       "dec_deg": -15.725147570,
@@ -603,7 +715,9 @@
       "parallax_mas": 38.7700,
       "pm_dec_mas_yr": 97.6500,
       "pm_ra_cosdec_mas_yr": 41.1600,
-      "ra_deg": 257.594426590
+      "ra_deg": 257.594426590,
+      "rv_km_s": -2.4000,
+      "rv_source": {"bibcode": "2007AN....328..889K", "err_km_s": 0.3000, "quality": "A"}
     },
     {
       "dec_deg": 56.537409280,
@@ -615,7 +729,9 @@
       "parallax_mas": 14.2700,
       "pm_dec_mas_yr": -32.1700,
       "pm_ra_cosdec_mas_yr": 50.3600,
-      "ra_deg": 10.126613490
+      "ra_deg": 10.126613490,
+      "rv_km_s": -4.2040,
+      "rv_source": {"bibcode": "2018A&A...616A...7S", "err_km_s": 0.0006, "quality": "A"}
     },
     {
       "dec_deg": -37.103748350,
@@ -627,7 +743,9 @@
       "parallax_mas": 4.6400,
       "pm_dec_mas_yr": -29.9500,
       "pm_ra_cosdec_mas_yr": -8.9000,
-      "ra_deg": 263.402193730
+      "ra_deg": 263.402193730,
+      "rv_km_s": -3.0000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 2.8000, "quality": "C"}
     },
     {
       "dec_deg": -16.713143060,
@@ -639,7 +757,9 @@
       "parallax_mas": 379.2100,
       "pm_dec_mas_yr": -1223.0800,
       "pm_ra_cosdec_mas_yr": -546.0100,
-      "ra_deg": 101.288541050
+      "ra_deg": 101.288541050,
+      "rv_km_s": -5.5000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.4000, "quality": "A"}
     },
     {
       "dec_deg": -11.161244910,
@@ -651,7 +771,9 @@
       "parallax_mas": 12.4400,
       "pm_dec_mas_yr": -31.7300,
       "pm_ra_cosdec_mas_yr": -42.5000,
-      "ra_deg": 201.298352300
+      "ra_deg": 201.298352300,
+      "rv_km_s": -3.3100,
+      "rv_source": {"bibcode": "2023ApJS..266...11B", "err_km_s": 0.7800, "quality": "A"}
     },
     {
       "dec_deg": -43.432624060,
@@ -663,7 +785,9 @@
       "parallax_mas": 5.6900,
       "pm_dec_mas_yr": 14.2800,
       "pm_ra_cosdec_mas_yr": -23.2100,
-      "ra_deg": 136.999071260
+      "ra_deg": 136.999071260,
+      "rv_km_s": 17.6000,
+      "rv_source": {"bibcode": "2006AstL...32..759G", "err_km_s": 0.3000, "quality": "A"}
     },
     {
       "dec_deg": 38.782993110,
@@ -675,7 +799,9 @@
       "parallax_mas": 128.9300,
       "pm_dec_mas_yr": 287.4600,
       "pm_ra_cosdec_mas_yr": 201.0200,
-      "ra_deg": 279.234108320
+      "ra_deg": 279.234108320,
+      "rv_km_s": -13.5000,
+      "rv_source": {"bibcode": "2004A&A...420..183A", "err_km_s": 0.4000, "quality": "C"}
     },
     {
       "dec_deg": -16.041610470,
@@ -688,7 +814,9 @@
       "parallax_mas": 42.2500,
       "pm_dec_mas_yr": -69.0000,
       "pm_ra_cosdec_mas_yr": -105.6900,
-      "ra_deg": 222.719905360
+      "ra_deg": 222.719905360,
+      "rv_km_s": -10.0000,
+      "rv_source": {"bibcode": "1953GCRV..C......0W", "err_km_s": 5.0000, "quality": "E"}
     },
     {
       "dec_deg": 89.264138050,
@@ -701,7 +829,9 @@
       "parallax_mas": 7.5600,
       "pm_dec_mas_yr": -11.7400,
       "pm_ra_cosdec_mas_yr": 44.2200,
-      "ra_deg": 37.946146890
+      "ra_deg": 37.946146890,
+      "rv_km_s": -16.4200,
+      "rv_source": {"bibcode": "2004A&A...424..727P", "err_km_s": 0.0300, "quality": "A"}
     }
   ],
   "generator": {
@@ -720,19 +850,17 @@
       "frame": "ICRS (equivalent to FK5 J2000 to within 0.02 arcsec)",
       "not_j2000": "These are catalogue elements at 1991.25, not J2000.0 apparent places. Do not use ra_deg/dec_deg as a J2000 position without applying proper motion."
     },
-    "generated_utc": "2026-09-24T02:36:11Z",
+    "generated_utc": "2026-09-25T04:00:00Z",
     "never_a_runtime_dependency": "Generated by tools/reference/ (Python + Skyfield). CONVENTIONS section 11: never regenerate a fixture from Rust output.",
+    "radial_velocities": {
+      "retrieved": "2026-09-25",
+      "source": "SIMBAD (CDS, Strasbourg), TAP service https://simbad.cds.unistra.fr/simbad/sim-tap, table basic, columns rvz_radvel, rvz_err, rvz_qual, rvz_bibcode"
+    },
     "timescale": {
-      "call": "skyfield.api.load.timescale(builtin=True)",
-      "delta_t_source": "Skyfield's bundled skyfield/data/iers.npz, a daily Delta-T table built from the IERS finals2000A.all series at the time the Skyfield wheel was released. Outside the table Skyfield extrapolates with its long-term Delta-T model (Morrison & Stephenson / Espenak & Meeus).",
-      "delta_t_table_utc_span": [
-        "1973-01-02T00:00:00Z",
-        "2027-01-23T00:00:00Z"
-      ],
-      "dut1_definition": "DUT1 = UT1 - UTC = 32.184 + Delta_AT - Delta_T, as Skyfield derives it",
-      "leap_second_table": "bundled in the same iers.npz; latest offset 37 s from 2017-01-01",
-      "polar_motion": "not applied (no polar-motion table installed)",
-      "warning_dut1": "CONVENTIONS section 6 assumes DUT1 = 0. Skyfield does not: every GHA in these fixtures uses Skyfield's UT1. The per-epoch dut1_s is recorded, and gha_deg_dut1_zero gives the same GHA recomputed with UT1 = UTC so a DUT1 = 0 implementation has a directly comparable number. 1 s of DUT1 = 15.0410686 arcsec of GHA. Beyond the Delta-T table's end the extrapolated Delta-T implies |DUT1| far above the 0.9 s that real leap seconds enforce (about -3.5 s at 2055), so gha_deg alone is not a physically meaningful prediction for far-future epochs; gha_deg_dut1_zero is."
+      "call": "tools/timescales/skyfield_timescale.py timescale() and dut1_zero_timescale()",
+      "clock": "the app's clock (CONVENTIONS 15.2): UTC 1972-01-01 .. 2035-12-31, UT (= UT1) outside; clock_time() turns a clock instant into TT and UT1",
+      "delta_t_source": "SkyFix Lab's own Delta T (crates/skyfix-core/src/deltat/data.rs): Stephenson, Morrison & Hohenkerk 2016/2020 splines, the IERS weekly table 1973 on, the long-term parabola beyond, joined as Skyfield 1.55 joins them",
+      "dut1_zero": "gha_deg_dut1_zero columns use dut1_zero_timescale(): UT1 = UTC on the UTC scale (the Nautical Almanac's and USNO's convention), the model's UT1 outside"
     },
     "tolerance_arcmin": 0.0500,
     "tolerance_justification": "This file is a catalogue transcription, not a computation: the numbers are exact copies of hip_main.dat. The 0.05 arcmin (3 arcsec) tolerance applies to a consumer that reconstructs an apparent place from these elements; it is set by the identity margin of the double stars (Acrux, Rigil Kentaurus), which is several arcsec, and it is an order of magnitude below the 0.1 arcmin sextant sigma used everywhere in the project.",
@@ -751,7 +879,8 @@
     "Positions and proper motions are ICRS at the Hipparcos catalogue epoch J1991.25 (epoch_year = 1991.25), NOT J2000.0. A consumer must propagate proper motion from 1991.25 to the epoch of observation; over 35 years Rigil Kentaurus moves 129 arcsec and Sirius 12 arcsec, so this is not optional.",
     "`ra_deg`/`dec_deg` are the catalogue's RAdeg/DEdeg (fields H8/H9). `pm_ra_cosdec_mas_yr` is the catalogue's pmRA (field H12), which is already mu_alpha * cos(delta); it is NOT d(RA)/dt.",
     "`parallax_mas` is the catalogue's Plx (field H11). It can be negative for distant stars where the measurement noise exceeded the parallax; that is the published value and is left as published.",
-    "Radial velocity is not in hip_main.dat and is taken as zero, so these positions carry no radial-velocity (perspective acceleration) term. For the fast, nearby Rigil Kentaurus that is a real approximation: its true radial velocity of -22 km/s changes its proper motion measurably over decades.",
+    "Radial velocity is not in hip_main.dat. `rv_km_s` is SIMBAD's (retrieved 2026-09-25; `rv_source` gives the error, SIMBAD's quality grade and the bibcode), so a consumer can apply rigorous space motion with its perspective acceleration: 26 arcsec for Rigil Kentaurus by 2650, 15 arcmin by 2000 BC.",
+    "Rigil Kentaurus is alpha Centauri A, the body the Nautical Almanac and USNO's celnav tabulate (verified: USNO reproduces this entry, linear space motion with a radial velocity, to 0.2 arcsec from 1800 to 2050). Its Hipparcos proper motion is A's instantaneous one, which includes A's orbital motion about the A-B barycentre (0.22 arcsec/yr in 1991), so `orbit` carries the ORB6 elements and the mass fraction a consumer needs to follow A's real path: it leaves the tangent line by 5.8 arcsec by 2026 and 17 arcsec by 2060.",
     "Each entry carries an `identity_check` comparing the catalogue entry with an independently known position and V magnitude for the star the name promises. Largest separation found: 32.30 arcsec. Largest magnitude difference: 0.060 mag.",
     "All 58 names resolved to a catalogue entry within 0.2 deg and 0.5 mag of the independently expected star. No HIP mapping is in doubt."
   ],

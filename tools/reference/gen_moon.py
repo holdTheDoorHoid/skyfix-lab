@@ -28,10 +28,18 @@ moon_topocentric.json -- topocentric altitude and azimuth without refraction at
 12 sites (tropics, 60+ degrees of latitude both north and south, one at 2000 m, both
 hemispheres, the antimeridian) for 50 instants each at which the Moon is above -2
 degrees, plus the Sun and four stars whenever they are above -2 degrees at the same
-instant. Here **UT1 = UTC by construction**: every instant is built on a Skyfield
-timescale whose Delta-T is the constant 32.184 s + (TAI - UTC) of that instant's
-leap-second era (`load.timescale(delta_t=...)`), so UT1 = TT - Delta-T = UTC exactly
-and the whole horizon frame, not just the GHA, carries DUT1 = 0.
+instant. Here **UT1 = UTC by construction** on the UTC scale: every instant is built
+on SkyFix Lab's clock with UT1 = UTC (`common.load_timescale(dut1_zero=True)`), so the
+whole horizon frame, not just the GHA, carries DUT1 = 0; after 2035 the clock is UT1
+itself (CONVENTIONS 15.2).
+
+    tools/reference/.venv/bin/python -m tools.reference.gen_moon \
+        [--window 1990..2060] [--kernel de440s]
+
+Every instant is on the app's clock with SkyFix Lab's own Delta T
+(`common.load_timescale`), so a case's TT and UT1 are the Rust side's; outside the
+validated tier the frame of date is the app's long-term one (`common.use_app_frame`).
+The random instants use Python datetime (years 1-9999).
 """
 
 from __future__ import annotations
@@ -60,9 +68,24 @@ TOPO_PER_SITE = 50
 TOPO_ALT_GATE_DEG = -2.0
 TOPO_STARS = ["Sirius", "Vega", "Canopus", "Polaris"]
 
+#: The window's first and last whole seconds, set from --window by `main` (the defaults
+#: are 1990-01-01T00:00:00Z and 2060-12-31T23:59:59Z).
 WINDOW_START = _dt.datetime(1990, 1, 1, 0, 0, 0, tzinfo=_dt.timezone.utc)
 WINDOW_END = _dt.datetime(2060, 12, 31, 23, 59, 59, tzinfo=_dt.timezone.utc)
+DE421_START_JD_TT = 2415020.5  # 1899-12-31, inside DE421's span
 DE421_END_JD_TT = 2469807.5  # 2053-10-09
+
+
+def _set_window():
+    global WINDOW_START, WINDOW_END
+    edges = []
+    for jd in c.RUN.window:
+        y, mo, d, h = c.gregorian_from_jd(jd)
+        if not 1 <= y <= 9999:
+            raise SystemExit("gen_moon uses Python datetime: keep --window within years 1-9999")
+        edges.append(_dt.datetime(1970, 1, 1, tzinfo=_dt.timezone.utc)
+                     + _dt.timedelta(seconds=round((jd - 2440587.5) * 86400.0)))
+    WINDOW_START, WINDOW_END = edges[0], edges[1] - _dt.timedelta(seconds=1)
 
 #: name, geodetic latitude, east longitude, height above the WGS84 ellipsoid (m)
 TOPO_SITES = [
@@ -237,13 +260,15 @@ def build_geocentric(ts, eph440, eph421):
         head = {
             "utc": t.utc_strftime("%Y-%m-%dT%H:%M:%SZ"),
             "jd_utc": c.jd(jd_utc),
+            "jd_tt": c.jd(float(t.tt)),
+            "jd_ut1": c.jd(float(t.ut1)),
             "dut1_s": c.secs(float(t.dut1)),
             "set": label,
             "moon": rec,
         }
         dut1 = float(t.dut1)
         dut1_lo, dut1_hi = min(dut1_lo, dut1), max(dut1_hi, dut1)
-        if float(t.tt) < DE421_END_JD_TT:
+        if eph421 is not None and DE421_START_JD_TT < float(t.tt) < DE421_END_JD_TT:
             rec421, (_g, dec421, ra421) = moon_record(eph421, t, jd_utc)
             worst_421["n"] += 1
             worst_421["direction_arcsec"] = max(
@@ -260,18 +285,17 @@ def build_geocentric(ts, eph440, eph421):
     return cases, counts, extremes, worst_421, (dut1_lo, dut1_hi)
 
 
-def ut1_equals_utc_timescale(cache, ts_builtin, when):
-    """A timescale on which this instant has UT1 = UTC exactly (see the module doc)."""
-    from skyfield.api import load
-
-    t = ts_builtin.from_datetime(when)
-    jd_utc = c.jd_utc_of(t)
-    tai_minus_utc = round((float(t.tai) - jd_utc) * 86400.0)
-    if tai_minus_utc not in cache:
-        cache[tai_minus_utc] = load.timescale(delta_t=32.184 + tai_minus_utc)
-    t_eq = cache[tai_minus_utc].from_datetime(when)
+def ut1_equals_utc_time(ts, ts0, when):
+    """The instant on the app's clock twice: with the IERS DUT1 (`ts`) and with UT1 = UTC
+    on the UTC scale (`ts0`; the clock is UT1 after 2035 either way), and TAI - UTC there
+    (None on the UT part of the clock)."""
+    t = ts.from_datetime(when)
+    t_eq = ts0.from_datetime(when)
     assert abs(float(t_eq.dut1)) < 1e-6, (when, float(t_eq.dut1))
     assert abs(float(t_eq.tt) - float(t.tt)) * 86400.0 < 1e-6
+    jd_utc = c.jd_utc_of(t)
+    on_utc = c.UTC_SCALE_JD[0] <= jd_utc < c.UTC_SCALE_JD[1]
+    tai_minus_utc = round((float(t.tai) - jd_utc) * 86400.0) if on_utc else None
     return t, t_eq, tai_minus_utc
 
 
@@ -282,7 +306,7 @@ def build_topocentric(ts, eph, stars):
     targets = [("Moon", moon), ("Sun", sun)] + [(n, stars[n]) for n in TOPO_STARS]
     rng = np.random.default_rng(20260925)
     lo, hi = _unix(WINDOW_START), _unix(WINDOW_END)
-    cache = {}
+    ts0 = c.load_timescale(dut1_zero=True)
     eras = set()
     cases = []
     counts = {"Moon": 0, "Sun": 0, "star": 0}
@@ -293,15 +317,17 @@ def build_topocentric(ts, eph, stars):
         n = 0
         while n < TOPO_PER_SITE:
             when = _from_unix(int(rng.integers(lo, hi + 1)))
-            t_builtin, t, era = ut1_equals_utc_timescale(cache, ts, when)
+            t_builtin, t, era = ut1_equals_utc_time(ts, ts0, when)
             alt, _az, _d = site.at(t).observe(moon).apparent().altaz()
             if float(alt.degrees) <= TOPO_ALT_GATE_DEG:
                 continue
             n += 1
-            eras.add(era)
+            eras.add(era if era is not None else "ut")
             head = {
                 "utc": t.utc_strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "jd_utc": c.jd(c.jd_utc_of(t)),
+                "jd_tt": c.jd(float(t.tt)),
+                "jd_ut1": c.jd(float(t.ut1)),
                 "tai_minus_utc_s": era,
                 "site": {"name": name, "lat_deg": c.deg(lat), "lon_deg": c.deg(lon), "height_m": c.metres(h)},
             }
@@ -331,7 +357,7 @@ def build_topocentric(ts, eph, stars):
                 counts[body if body in ("Moon", "Sun") else "star"] += 1
             head["bodies"] = bodies
             cases.append(c.Inline(head))
-    return cases, counts, sorted(eras), worst_gha_consistency
+    return cases, counts, sorted(eras, key=str), worst_gha_consistency
 
 
 MOON_FRAME_NOTES = {
@@ -345,9 +371,10 @@ MOON_FRAME_NOTES = {
         "geocentric position at the retarded time t - r/c (about 0.7 arcsec from the geometric one)."
     ),
     "gha_columns": (
-        "gha_deg uses Skyfield's UT1 from its builtin Delta-T; gha_deg_dut1_zero is the same GHA with "
-        "UT1 = UTC (common.gha_dut1_zero_deg), the CONVENTIONS section 6 convention. Test DUT1 = 0 "
-        "implementations against gha_deg_dut1_zero."
+        "gha_deg uses the UT1 of SkyFix Lab's own timescale (the IERS table on the UTC scale); "
+        "gha_deg_dut1_zero is the same GHA with UT1 = UTC (common.gha_dut1_zero_deg), the "
+        "CONVENTIONS section 6 convention. After 2035 the clock is UT1 and they coincide. Test "
+        "DUT1 = 0 implementations against gha_deg_dut1_zero."
     ),
     "ecliptic": "frame_latlon(skyfield.framelib.ecliptic_frame): true ecliptic and equinox of date",
     "distance_km": "geometric geocentric distance at t, (moon - earth).at(t)",
@@ -366,10 +393,12 @@ MOON_FRAME_NOTES = {
 }
 
 
-def main():
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "1990..2060", "de440s")
+    _set_window()
     ts = c.load_timescale()
-    eph440 = c.load_ephemeris(c.EPHEMERIS_CROSSCHECK_FILE)
-    eph421 = c.load_ephemeris(c.EPHEMERIS_FILE)
+    eph440 = c.run_ephemeris()
+    eph421 = c.load_kernel("de421") if c.RUN.kernel != "de421" else None
 
     cases, counts, extremes, worst_421, dut1_range = build_geocentric(ts, eph440, eph421)
     print(
@@ -382,8 +411,8 @@ def main():
         "generator": c.generator_block(
             tool="tools/reference/gen_moon.py",
             description=(
-                "Apparent geocentric Moon of date at %d instants over 1990-2060 from Skyfield + JPL "
-                "DE440s, with DE421 as a cross-check." % len(cases)
+                "Apparent geocentric Moon of date at %d instants over %s from Skyfield + JPL "
+                "%s, with DE421 as a cross-check." % (len(cases), c.RUN.window_text, c.kernel_label())
             ),
             tolerance_arcmin=c.Num(TOLERANCE_GHA_DEC_ARCMIN, 4),
             tolerance_justification=(
@@ -395,7 +424,10 @@ def main():
             ),
             frame_notes=MOON_FRAME_NOTES,
             refraction="none; geocentric directions",
+            timescale=c.project_timescale_facts(),
             extra={
+                "run": c.RUN.facts(),
+                "frame_of_date": c.app_frame_facts(),
                 "tolerances": c.Inline(
                     {
                         "gha_dec_arcmin": c.Num(TOLERANCE_GHA_DEC_ARCMIN, 4),
@@ -403,7 +435,7 @@ def main():
                         "illuminated_fraction": c.Num(TOLERANCE_ILLUMINATED_FRACTION, 4),
                     }
                 ),
-                "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+                "ephemeris": eph440.facts(),
                 "ephemeris_crosscheck": {
                     "file": c.file_facts(c.EPHEMERIS_FILE, c.EPHEMERIS_URL),
                     "instants_compared": worst_421["n"],
@@ -425,14 +457,16 @@ def main():
             },
         ),
         "notes": [
-            "Instants are whole UTC seconds. Random instants are uniform over "
-            "1990-01-01T00:00:00Z .. 2060-12-31T23:59:59Z; extremes are found with DE440s "
+            "Instants are whole seconds on the app's clock. Random instants are uniform over "
+            "%s .. %s; extremes are found with %s "
             "(skyfield.searchlib, 1-day steps) and rounded to the nearest second, so each is "
-            "within a second of the true extreme.",
-            "Beyond Skyfield's bundled Delta-T table (2027-01) DUT1 is extrapolated and "
-            "gha_deg is not a physical prediction; gha_deg_dut1_zero is well defined everywhere.",
-            "Every instant is computed with DE440s. dut1_s is Skyfield's UT1 - UTC at the instant "
-            "(builtin timescale); gha_deg carries it and gha_deg_dut1_zero does not.",
+            "within a second of the true extreme."
+            % (WINDOW_START.strftime("%Y-%m-%dT%H:%M:%SZ"), WINDOW_END.strftime("%Y-%m-%dT%H:%M:%SZ"),
+               c.kernel_label()),
+            "The clock is UTC 1972-2035 and UT outside it (CONVENTIONS 15.2), with SkyFix Lab's own "
+            "Delta T; jd_tt and jd_ut1 give each case's TT and UT1. dut1_s is UT1 - UTC from SkyFix "
+            "Lab's IERS table (Bulletin A's prediction, then the Delta T model, past its end) and 0 "
+            "on the UT part of the clock; gha_deg carries it and gha_deg_dut1_zero does not.",
         ],
         "cases": cases,
     }
@@ -453,8 +487,9 @@ def main():
             description=(
                 "Topocentric altitude and azimuth without refraction, UT1 = UTC, at %d sites x %d "
                 "instants with the Moon above %.0f degrees, plus the Sun and %s when above it; "
-                "Skyfield + JPL DE440s."
-                % (len(TOPO_SITES), TOPO_PER_SITE, TOPO_ALT_GATE_DEG, ", ".join(TOPO_STARS))
+                "Skyfield + JPL %s."
+                % (len(TOPO_SITES), TOPO_PER_SITE, TOPO_ALT_GATE_DEG, ", ".join(TOPO_STARS),
+                   c.kernel_label())
             ),
             tolerance_arcmin=c.Num(TOLERANCE_TOPOCENTRIC_ARCMIN, 4),
             tolerance_justification=(
@@ -469,18 +504,22 @@ def main():
                 "altitude": "topocentric, from the plane normal to the ellipsoid normal, no refraction",
                 "azimuth": "true bearing from north through east, [0, 360)",
                 "ut1": (
-                    "UT1 = UTC by construction: each instant is built on "
-                    "load.timescale(delta_t = 32.184 + (TAI - UTC)) for its leap-second era, so "
-                    "Delta-T = TT - UTC and t.dut1 = 0 exactly (asserted per instant). TT, and so the "
-                    "positions of the bodies, are unchanged. The GHA recorded with each body comes "
-                    "from the same timescale and agrees with common.gha_dut1_zero_deg applied to the "
-                    "builtin timescale to %.1e arcsec." % worst_cons
+                    "UT1 = UTC by construction on the UTC scale: each instant is built on "
+                    "common.load_timescale(dut1_zero=True), SkyFix Lab's clock with UT1 = UTC "
+                    "there, so t.dut1 = 0 exactly (asserted per instant); after 2035 the clock is "
+                    "UT1 itself. TT, and so the positions of the bodies, are those of the app's "
+                    "clock. The GHA recorded with each body comes from the same timescale and "
+                    "agrees with common.gha_dut1_zero_deg applied to the IERS-DUT1 timescale to "
+                    "%.1e arcsec." % worst_cons
                 ),
                 "polar_motion": "not applied",
             },
             refraction="none",
+            timescale=c.project_timescale_facts(),
             extra={
-                "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+                "run": c.RUN.facts(),
+                "frame_of_date": c.app_frame_facts(),
+                "ephemeris": eph440.facts(),
                 "catalogue": c.file_facts(c.HIPPARCOS_FILE, c.HIPPARCOS_URL),
                 "sites": [
                     c.Inline({"name": n, "lat_deg": c.deg(la), "lon_deg": c.deg(lo), "height_m": c.metres(h)})
@@ -493,9 +532,9 @@ def main():
             },
         ),
         "notes": [
-            "Each instant is chosen at random in 1990-2060 and kept only if the Moon's topocentric "
+            "Each instant is chosen at random in %s and kept only if the Moon's topocentric "
             "altitude is above %.0f degrees; the Sun and the stars are listed when they are above "
-            "it at the same instant." % TOPO_ALT_GATE_DEG,
+            "it at the same instant." % (c.RUN.window_text, TOPO_ALT_GATE_DEG),
             "Azimuth is ill-conditioned near the zenith: an on-sky error e appears as e / cos(alt) "
             "of azimuth. Compare azimuth scaled by cos(alt), or away from the zenith.",
         ]

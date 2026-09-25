@@ -70,7 +70,7 @@
       "utc": "2025-02-10T23:10:00Z"
     },
     {
-      "altitude_deg": 39.6084678350,
+      "altitude_deg": 39.6084678238,
       "altitude_kind": "sextant_hs",
       "body": "Polaris",
       "horizon": null,
@@ -81,7 +81,7 @@
       "utc": "2025-02-10T23:12:00Z"
     },
     {
-      "altitude_deg": 70.6366212371,
+      "altitude_deg": 70.6366212396,
       "altitude_kind": "sextant_hs",
       "body": "Capella",
       "horizon": null,

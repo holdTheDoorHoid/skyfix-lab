@@ -811,6 +811,94 @@ pub fn proper_motion_from_j2000(
     ])
 }
 
+/// Kilometres per astronomical unit (IAU 2012, exact).
+const AU_KM: f64 = 149_597_870.700;
+/// Speed of light, km/s.
+const C_KM_S: f64 = 299_792.458;
+/// Seconds per Julian year.
+const JULIAN_YEAR_S: f64 = 365.25 * 86_400.0;
+
+/// Barycentric (ICRS) unit vector of a star `years` Julian years after the epoch of
+/// its catalogue place, by **rigorous rectilinear space motion**: the star moves in a
+/// straight line at constant velocity in space, so its proper motion changes as it
+/// approaches or recedes (the perspective acceleration a radial velocity produces).
+///
+/// This is the model of Skyfield's `Star` (and of ERFA's `eraStarpv`/`eraPmsafe`):
+/// distance `1 / sin(parallax)` au (1 Gpc for a parallax that is zero or negative),
+/// tangential velocity `mu / parallax` au per year and radial velocity in au per year,
+/// all three scaled by the Doppler factor `1 / (1 - v_r / c)` for the change in light
+/// travel time. With `rv_km_s = 0` it is [`proper_motion_from_j2000`]'s direction to
+/// about 1e-6". The perspective term reaches 0.6" for Rigil Kentaurus by 2060, 26" by
+/// 2650 and 15' by 2000 BC (the accuracy audit), under 0.01" for the other stars inside
+/// 1990-2060.
+pub fn space_motion(
+    ra_deg: f64,
+    dec_deg: f64,
+    pm_ra_cosdec_mas_yr: f64,
+    pm_dec_mas_yr: f64,
+    parallax_mas: f64,
+    rv_km_s: f64,
+    years: f64,
+) -> [f64; 3] {
+    let plx = if parallax_mas > 0.0 {
+        parallax_mas
+    } else {
+        1.0e-6
+    };
+    let dist_au = 1.0 / (plx * MAS).sin();
+    let (sa, ca) = (ra_deg * DEG).sin_cos();
+    let (sd, cd) = (dec_deg * DEG).sin_cos();
+    let k = 1.0 / (1.0 - rv_km_s / C_KM_S);
+    let pmr = pm_ra_cosdec_mas_yr / plx * k;
+    let pmd = pm_dec_mas_yr / plx * k;
+    let rvl = rv_km_s * JULIAN_YEAR_S / AU_KM * k;
+    let pos = [dist_au * cd * ca, dist_au * cd * sa, dist_au * sd];
+    let vel = [
+        -pmr * sa - pmd * sd * ca + rvl * cd * ca,
+        pmr * ca - pmd * sd * sa + rvl * cd * sa,
+        pmd * cd + rvl * sd,
+    ];
+    normalize([
+        pos[0] + years * vel[0],
+        pos[1] + years * vel[1],
+        pos[2] + years * vel[2],
+    ])
+}
+
+/// Move a unit vector by `(north, east)` radians in its own tangent plane (the local
+/// directions of increasing declination and right ascension), renormalised. For the
+/// small offsets of a binary orbit (arcseconds to a quarter of a degree) the second-order
+/// error is under 1e-4 of the offset.
+pub fn tangent_offset(p: [f64; 3], north_rad: f64, east_rad: f64) -> [f64; 3] {
+    let (ra, dec) = {
+        let r = dot(p, p).sqrt();
+        (p[1].atan2(p[0]), (p[2] / r).clamp(-1.0, 1.0).asin())
+    };
+    let (sa, ca) = ra.sin_cos();
+    let (sd, cd) = dec.sin_cos();
+    let e_ra = [-sa, ca, 0.0];
+    let e_dec = [-sd * ca, -sd * sa, cd];
+    normalize([
+        p[0] + north_rad * e_dec[0] + east_rad * e_ra[0],
+        p[1] + north_rad * e_dec[1] + east_rad * e_ra[1],
+        p[2] + north_rad * e_dec[2] + east_rad * e_ra[2],
+    ])
+}
+
+/// Apparent right ascension and declination of date, degrees, from a barycentric
+/// (ICRS) direction: the chain of [`apparent_radec_of_date`] after its proper-motion
+/// step (bias-precession-nutation, annual parallax, solar light deflection, annual
+/// aberration).
+pub fn apparent_radec_from_barycentric(p: [f64; 3], parallax_mas: f64, jd_tt: f64) -> (f64, f64) {
+    let m = bias_precession_nutation_matrix(jd_tt);
+    let p = apply(&m, p);
+    let earth = earth_state_of_date(jd_tt);
+    let p = apply_annual_parallax(p, parallax_mas, earth.pos_au);
+    let p = apply_solar_light_deflection(p, earth.pos_au);
+    let p = apply_annual_aberration(p, earth.vel_c);
+    radec_from_vector(p)
+}
+
 /// Annual parallax: shift a barycentric direction to a geocentric one.
 /// `earth_pos_au` must be in the same frame as `p`.
 pub fn apply_annual_parallax(p: [f64; 3], parallax_mas: f64, earth_pos_au: [f64; 3]) -> [f64; 3] {

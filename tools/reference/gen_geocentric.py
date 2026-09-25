@@ -3,7 +3,7 @@
 Apparent geocentric of-date GHA / Dec / SHA for the Sun and all 58 stars, plus
 GHA of Aries, at 58 epochs:
 
-  * every 2 years, 1 January 00:00 UTC, 1995 through 2055 (31 epochs) --
+  * every 2 years, 1 January 00:00, 1995 through 2055 (31 epochs; --window) --
     a 60-year span to exercise precession, nutation and proper motion;
   * hourly through 2026-10-01T00:00Z .. 2026-10-02T00:00Z (25 epochs) --
     a dense day around the project's demo date, so an interpolating provider
@@ -14,6 +14,15 @@ GHA of Aries, at 58 epochs:
 CONVENTIONS section 7 frame: true equator and equinox of date, with precession,
 nutation, annual aberration and light-time; no polar motion, no diurnal
 aberration, no topocentric parallax, no refraction.
+
+    tools/reference/.venv/bin/python -m tools.reference.gen_geocentric \
+        [--window 1995..2055] [--kernel de421]
+
+`--window` keeps the fixed epochs inside it and lays the two-yearly 1 January grid
+across it; `--kernel` names the primary kernel (DE440s answers where DE421 does not
+reach). Instants are on the app's clock with SkyFix Lab's own Delta T
+(`common.load_timescale`), and outside the validated tier the frame is the app's
+long-term one (`common.use_app_frame`).
 """
 
 from __future__ import annotations
@@ -24,13 +33,19 @@ from . import common as c
 
 
 def epochs(ts):
+    """The two-yearly 1 January grid (odd years, 1995 .. 2055 by default) across the
+    window, and the fixed epochs that fall inside it."""
     out = []
-    for year in range(1995, 2056, 2):
-        out.append(ts.utc(year, 1, 1, 0, 0, 0))
+    y0, y1 = c.window_years()
+    for year in range(y0 + (1 - y0 % 2), y1 + 1, 2):
+        if c.in_window(c.jd_from_gregorian(year, 1, 1)):
+            out.append(ts.utc(year, 1, 1, 0, 0, 0))
     for hour in range(0, 25):
-        out.append(ts.utc(2026, 10, 1, hour, 0, 0))
-    out.append(ts.utc(2026, 9, 23, 12, 0, 0))
-    out.append(ts.utc(2028, 2, 29, 0, 0, 0))
+        if c.in_window(c.jd_from_gregorian(2026, 10, 1, hour)):
+            out.append(ts.utc(2026, 10, 1, hour, 0, 0))
+    for fixed in ((2026, 9, 23, 12), (2028, 2, 29, 0)):
+        if c.in_window(c.jd_from_gregorian(*fixed)):
+            out.append(ts.utc(*fixed, 0, 0))
     return out
 
 
@@ -40,7 +55,7 @@ def crosscheck(ts, ts_list, stars, eph_a, eph_b):
 
     earth_a, sun_a = eph_a["earth"], eph_a["sun"]
     earth_b, sun_b = eph_b["earth"], eph_b["sun"]
-    lo, hi = eph_a.spk.segments[0].start_jd, eph_a.spk.segments[0].end_jd
+    lo, hi = _span(eph_a)
     worst_sun = 0.0
     worst_star = 0.0
     n = 0
@@ -67,12 +82,19 @@ def _sep_arcsec(gha1, dec1, gha2, dec2):
     return math.degrees(math.acos(max(-1.0, min(1.0, cos_sep)))) * 3600.0
 
 
+def _span(eph):
+    """(start, end) TDB Julian dates a kernel covers."""
+    files = getattr(eph, "files", [eph])
+    return (float(files[0].spk.segments[0].start_jd), float(files[-1].spk.segments[0].end_jd))
+
+
 def build():
     ts = c.load_timescale()
-    eph421 = c.load_ephemeris(c.EPHEMERIS_FILE)
-    eph440 = c.load_ephemeris(c.EPHEMERIS_CROSSCHECK_FILE)
-    lo421 = float(eph421.spk.segments[0].start_jd)
-    hi421 = float(eph421.spk.segments[0].end_jd)
+    eph421 = c.run_ephemeris()
+    eph440 = c.load_kernel("de440s" if c.RUN.kernel != "de440s" else "de440")
+    lo421, hi421 = _span(eph421)
+    primary = c.RUN.kernel
+    fallback = eph440.name
 
     df = c.load_hipparcos_frame()
     stars, _rows, problems = c.build_stars(df)
@@ -89,7 +111,7 @@ def build():
     for t in ts_list:
         in_421 = lo421 < float(t.tt) < hi421
         eph = eph421 if in_421 else eph440
-        eph_name = "de421.bsp" if in_421 else "de440s.bsp"
+        eph_name = (primary if in_421 else fallback) + ".bsp"
         if not in_421:
             used_440.append(t.utc_strftime("%Y-%m-%dT%H:%M:%SZ"))
         earth, sun = eph["earth"], eph["sun"]
@@ -164,29 +186,22 @@ def build():
         "geocentric frame with no observer in it. Topocentric parallax is not "
         "applied; CONVENTIONS section 5 step 5 applies it as an altitude "
         "correction instead. There is no refraction here.",
-        "Two GHA columns are given for every body. `gha_deg` uses Skyfield's UT1, "
-        "i.e. it applies the epoch's DUT1. `gha_deg_dut1_zero` is the same GHA "
-        "recomputed with UT1 = UTC, which is the assumption CONVENTIONS section 6 "
-        "makes. An implementation that assumes DUT1 = 0 must be compared against "
+        "Two GHA columns are given for every body. `gha_deg` uses the timescale's UT1, "
+        "i.e. it applies the epoch's DUT1 (SkyFix Lab's IERS table on the UTC scale, "
+        "Bulletin A's prediction beyond it, the Delta T model where the table ends). "
+        "`gha_deg_dut1_zero` is the same GHA recomputed with UT1 = UTC, which is the "
+        "assumption CONVENTIONS section 6 makes for a navigator without a time signal. "
+        "An implementation that assumes DUT1 = 0 must be compared against "
         "`gha_deg_dut1_zero`; comparing it against `gha_deg` will fail by "
         "15.0410686 arcsec per second of DUT1. Over these epochs DUT1 runs from "
-        "%.4f s to %.4f s, i.e. up to %.3f arcmin of GHA -- already larger than "
-        "this file's tolerance, which is why both columns exist."
+        "%.4f s to %.4f s, i.e. up to %.3f arcmin of GHA. After 2035 the app's clock is "
+        "UT1 itself (CONVENTIONS 15.2): DUT1 is 0 there by definition and the two "
+        "columns coincide."
         % (
             dut1_min,
             dut1_max,
             abs(dut1_extreme) * c.EARTH_ROTATION_ARCSEC_PER_SECOND / 60.0,
         ),
-        "Beyond the end of Skyfield's bundled Delta-T table (see the timescale "
-        "block) Delta-T, and therefore DUT1, is extrapolated. Real leap seconds "
-        "keep |DUT1| below 0.9 s; Skyfield's extrapolation reaches %.2f s at the "
-        "far epochs because it cannot know about leap seconds that have not been "
-        "announced. Declination and RA are essentially unaffected -- Delta-T "
-        "enters them only through TT, where several seconds moves the Sun by "
-        "under 0.2 arcsec and a star not at all -- but `gha_deg` at the far "
-        "epochs is not a physical prediction. `gha_deg_dut1_zero` is well defined "
-        "at every epoch and is the column to test against."
-        % dut1_extreme,
         "Solar semidiameter is %.2f arcsec / distance_au and horizontal parallax "
         "is %.3f arcsec / distance_au, the Nautical Almanac / IAU 1976 constants. "
         "distance_au is the light-time-corrected geocentric distance taken from "
@@ -194,15 +209,23 @@ def build():
         "refers to."
         % (c.SUN_SEMIDIAMETER_ARCSEC_AT_1AU, c.SUN_HORIZONTAL_PARALLAX_ARCSEC_AT_1AU),
         "Star positions carry Hipparcos proper motion and annual parallax "
-        "propagated from the catalogue epoch J1991.25 to each epoch, with radial "
-        "velocity taken as zero (hip_main.dat does not carry it).",
-        "DE421's SPK coverage ends 2053-10-08, so the %d epoch(s) after that (%s) "
-        "use DE440s instead; each case records which kernel produced it. Over the "
-        "%d epochs both cover, the two kernels agree to %.4f arcsec on the Sun "
+        "propagated from the catalogue epoch J1991.25 to each epoch by Skyfield's "
+        "rigorous space motion, with each star's SIMBAD radial velocity "
+        "(navigational_stars_hip.json); Rigil Kentaurus (alpha Cen A) follows its "
+        "orbit about the A-B barycentre (tools/reference/acen_orbit.py, ORB6).",
+        "Instants are on the app's clock (CONVENTIONS 15.2: UTC to 2035, UT after) with "
+        "SkyFix Lab's own Delta T (tools/timescales/skyfield_timescale.py); every case "
+        "records its jd_tt and jd_ut1. After 2035 the clock is UT1, so dut1_s is 0 there "
+        "and the two GHA columns agree.",
+        "The primary kernel (%s) is used where it covers the epoch; the %d epoch(s) "
+        "outside it (%s) use %s instead; each case records which kernel produced it. "
+        "Over the %d epochs both cover, the two kernels agree to %.4f arcsec on the Sun "
         "and %.4f arcsec on the stars, so the switch is far below the tolerance."
         % (
+            primary,
             len(used_440),
             ", ".join(used_440) if used_440 else "none",
+            fallback,
             n_cross,
             worst_sun,
             worst_star,
@@ -218,20 +241,19 @@ def build():
             tool="tools/reference/gen_geocentric.py",
             description=(
                 "Apparent geocentric of-date GHA/Dec/SHA for the Sun and 58 stars "
-                "at %d epochs spanning 1995-2055." % len(cases)
+                "at %d epochs in %s." % (len(cases), c.RUN.window_text)
             ),
             tolerance_arcmin=c.Num(0.05, 4),
             tolerance_justification=tolerance_note,
             frame_notes=c.GEOCENTRIC_FRAME_NOTES,
             refraction="none; these are geocentric directions, not altitudes",
+            timescale=c.project_timescale_facts(),
             extra={
-                "ephemeris": c.file_facts(c.EPHEMERIS_FILE, c.EPHEMERIS_URL),
-                "ephemeris_coverage_utc": ["1899-07-28", "2053-10-08"],
+                "run": c.RUN.facts(),
+                "frame_of_date": c.app_frame_facts(),
+                "ephemeris": eph421.facts(),
                 "ephemeris_crosscheck": {
-                    "file": c.file_facts(
-                        c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL
-                    ),
-                    "coverage_utc": ["1849-12-25", "2150-01-21"],
+                    "file": eph440.facts(),
                     "epochs_compared": n_cross,
                     "max_sun_difference_arcsec": c.arcsec(worst_sun),
                     "max_star_difference_arcsec": c.arcsec(worst_star),
@@ -245,7 +267,8 @@ def build():
                     {"min": c.secs(dut1_min), "max": c.secs(dut1_max)}
                 ),
                 "epoch_sets": [
-                    "1 January 00:00 UTC, every 2 years from 1995 to 2055",
+                    "1 January 00:00 on the app's clock, odd years across the window "
+                    "(1995 to 2055 by default)",
                     "hourly 2026-10-01T00:00Z through 2026-10-02T00:00Z",
                     "2026-09-23T12:00Z",
                     "2028-02-29T00:00Z (leap day)",
@@ -263,7 +286,8 @@ def build():
     return doc
 
 
-def main():
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "1995..2055", "de421")
     doc = build()
     c.write_json(os.path.join(c.FIX_REFERENCE, "geocentric_sun_stars.json"), doc)
 
