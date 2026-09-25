@@ -56,6 +56,16 @@
  *      Save menu writing a real calendar file (RFC 5545 basics) and table; a background search
  *      that waits while the time bar is dragged and finishes once it is let go; a solar eclipse
  *      card offering the Lunar limb pack once and, with it, limb-corrected.
+ *  11. the Sky view's astronomy layers (sky2 agent, expansion Q3): at night the Milky Way
+ *      and deep-sky objects, the panel's Tonight's sights ringed; the Sky view's search
+ *      (M31 → its card with the best time tonight) and the panel's "Sky objects" group
+ *      (Jupiter → its card → its close-up with the four moons); tonight's ranking; a field
+ *      of view; "How dark is your sky" (a city sky hides the Milky Way and most deep-sky
+ *      objects); the dome's zoom; the picture saved as a real PNG with its caption; photo's hooks (the
+ *      Moon card's "See it up close", the Milky Way planner's "Show in Sky"); Tonight's
+ *      "Show in Sky" and "See it up close" centring the zoomed dome; the night theme
+ *      red-only with the card and the close-up open; the phone layout. (Frame times
+ *      are the developer page's bench: headless Chrome here runs few animation frames.)
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
  * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
@@ -70,6 +80,7 @@
  *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts,time,photo,navigate2
  *   ONLY=tonight node web/scripts/ui-check.mjs        # the Tonight view's own checks (9)
  *   ONLY=events EVENTS=moon/occultations,meteors node web/scripts/ui-check.mjs   # events2: some Events lists (11)
+ *   ONLY=sky2 node web/scripts/ui-check.mjs           # the Sky view's astronomy layers (24)
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
  * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
@@ -95,7 +106,7 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,tonight,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,photo,almanac,navigate2,tonight,events').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,photo,almanac,navigate2,tonight,events,sky2').split(','));
 /** events2: the Events view's tabs and sub-lists, `tab` or `tab/sub`. */
 const EVENT_VIEWS = (process.env.EVENTS ?? 'eclipses,moon/phases,moon/apsides,moon/occultations,planets/events,planets/conjunctions,planets/retrograde,planets/transits,planets/jupiter,meteors,seasons').split(',');
 /** charts2: the Charts view's tabs and sub-views, `tab` or `tab/sub`. */
@@ -576,6 +587,9 @@ async function main() {
     }
     // 8. The Selected card's photographer and astronomer tools (photo agent, expansion Q8).
     if (ONLY.has('photo')) await photoChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary });
+
+    // 11. The Sky view's astronomy layers (sky2 agent, expansion Q3).
+    if (ONLY.has('sky2')) await skyChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary });
 
     // 6. Dragging the time bar.
     if (ONLY.has('scrub')) {
@@ -1480,6 +1494,213 @@ async function photoChecks({ send, evaluate, waitFor, messages, open, shot, view
     console.log(`info  photo: the drawers' cost is not judged: the machine was too busy (a star's frame took ${out.drag.starMsPerFrame} ms of script)`);
   }
   summary.photo = out;
+}
+
+// ---------------------------------------------------------------------------------
+// 11. The Sky view's astronomy layers (sky2 agent, expansion programme Q3)
+// ---------------------------------------------------------------------------------
+
+/** 22:00 EDT on 24 September 2026 in Philadelphia: dark, the Milky Way up, a Moon nearly full. */
+const SKY_NIGHT = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&t=2026-09-25T02:00:00Z&body=Moon';
+
+async function skyChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary }) {
+  const js = (v) => JSON.stringify(v);
+  const data = async () => JSON.parse(await evaluate(`JSON.stringify({ ...(document.querySelector('.sky')?.dataset ?? {}) })`));
+  const noise = () => messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+  const typeInto = (sel, value) =>
+    evaluate(`(() => { const i = document.querySelector(${js(sel)}); if (!i) return false; i.focus(); i.value = ${js(value)}; i.dispatchEvent(new Event('input', { bubbles: true })); return true; })()`);
+  const key = (sel, k) => evaluate(`(() => { const i = document.querySelector(${js(sel)}); i?.dispatchEvent(new KeyboardEvent('keydown', { key: ${js(k)}, bubbles: true })); return Boolean(i); })()`);
+  const clickSel = (sel) => evaluate(`(() => { const b = document.querySelector(${js(sel)}); b?.click(); return Boolean(b); })()`);
+  const clickText = (sel, re) => evaluate(`(() => { const b = [...document.querySelectorAll(${js(sel)})].find((x) => new RegExp(${js(re)}).test(x.textContent)); b?.click(); return Boolean(b); })()`);
+  const cardOf = async () => JSON.parse(await evaluate(`JSON.stringify((() => { const c = document.querySelector('.sky-card'); return { shown: Boolean(c && !c.hidden), title: c?.querySelector('.sky-card__title')?.textContent ?? '', lines: [...(c?.querySelectorAll('.sky-card__line') ?? [])].map((l) => l.textContent), actions: [...(c?.querySelectorAll('.sky-card__actions button') ?? [])].map((b) => b.textContent) }; })())`));
+  const out = {};
+
+  // --- Desktop, dark: the night sky ----------------------------------------------------------
+  await viewport(1440, 900, false);
+  messages.length = 0;
+  await open(`${SKY_NIGHT}&view=sky`, { theme: 'dark' });
+  await waitFor(`Number(document.querySelector('.sky')?.dataset.milkyWay) > 0 && Number(document.querySelector('.sky')?.dataset.highlights) > 0`, 30000);
+  const night = await data();
+  out.night = night;
+  check('sky2: at night the Milky Way glows and deep-sky objects are drawn down to the dark sky’s limit', Number(night.milkyWay) > 500 && Number(night.dso) > 20 && night.limit === '6.5', js(night));
+  check('sky2: the panel’s Tonight’s star sights are ringed in the Sky view', Number(night.highlights) >= 3, night.highlights);
+  await shot('sky2-desktop-dark-night');
+
+  // The Sky view's search: M31, Enter, its card.
+  await clickSel('.sky-ov--tools [aria-label="Find in the sky"]');
+  await waitFor(`document.activeElement?.matches('.sky-search input')`, 5000);
+  await typeInto('.sky-search input', 'M31');
+  await waitFor(`document.querySelectorAll('.sky-search__opt:not(.sky-search__opt--msg)').length > 0`, 10000);
+  const first = await evaluate(`document.querySelector('.sky-search__opt .sky-search__name')?.textContent ?? ''`);
+  await key('.sky-search input', 'Enter');
+  await waitFor(`document.querySelector('.sky-card') && !document.querySelector('.sky-card').hidden`, 10000);
+  const m31 = await cardOf();
+  out.m31 = m31;
+  check(
+    'sky2: the search finds M31; its card gives its size, RA and Dec, the best time tonight and what shows it',
+    /^(M31|Andromeda Galaxy)$/.test(first) &&
+      m31.title === 'Andromeda Galaxy' &&
+      m31.lines.some((l) => /^Size3\.3° × 1\.2°$/.test(l)) &&
+      m31.lines.some((l) => /^Right ascension · declination0h 4\dm \d\ds, \+41° \d\d′$/.test(l)) &&
+      m31.lines.some((l) => /^Best tonight\d{1,2}:\d\d/.test(l)) &&
+      m31.lines.some((l) => /^To see it(the naked eye|binoculars)$/.test(l)),
+    js({ first, m31 }),
+  );
+  check('sky2: the card pins M31 on the chart', /^d:\d+$/.test((await data()).pinned), (await data()).pinned);
+  // Tonight's ranking from the card.
+  await clickText('.sky-card__actions button', 'ranking');
+  await waitFor(`document.querySelectorAll('.sky-rank__item').length >= 5`, 20000);
+  const ranking = JSON.parse(await evaluate(`JSON.stringify([...document.querySelectorAll('.sky-rank__item')].map((b) => b.textContent))`));
+  out.ranking = ranking;
+  check('sky2: tonight’s ranking lists the best-placed deep-sky objects with their best times', ranking.length >= 5 && ranking.every((t) => /\d{1,2}:\d\d/.test(t)), js(ranking.slice(0, 5)));
+  await key('.sky-rank', 'Escape');
+  await evaluate(`document.querySelector('.sf-popover:not([hidden]) .sky-rank') && document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); true`);
+
+  // A field of view round the pinned object.
+  await clickSel('.sky-ov--tools [aria-label="Field of view"]');
+  await clickText('.sky-fov__presets .sf-menu__item', '^Binoculars 7×50');
+  await waitFor(`document.querySelector('.sky')?.dataset.fov === 'Binoculars 7×50 · 7.1°'`, 5000);
+  check('sky2: a field of view is drawn round the pinned object, labelled', (await data()).fov === 'Binoculars 7×50 · 7.1°', (await data()).fov);
+  await shot('sky2-desktop-dark-m31-fov');
+  await clickText('.sky-fov__presets .sf-menu__item', '^None');
+  // The dome's zoom: + on the chart zooms in about its middle, Whole sky returns.
+  await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); document.querySelector('.sky-canvas').focus(); document.querySelector('.sky-canvas').dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true })); true`);
+  await waitFor(`document.querySelector('.sky')?.dataset.zoom === '1.50'`, 5000);
+  const zoomed = await data();
+  const zoomWords = await evaluate(`document.querySelector('.sky-status__text')?.textContent ?? ''`);
+  await clickText('.sky button', '^Whole sky$');
+  await waitFor(`document.querySelector('.sky')?.dataset.zoom === '1.00'`, 5000);
+  check('sky2: + zooms the dome (the status says how far and where), Whole sky returns', zoomed.zoom === '1.50' && /Zoomed 1\.5×/.test(zoomWords) && (await data()).zoom === '1.00', js({ zoom: zoomed.zoom, zoomWords }));
+
+  // The picture: a real PNG, taller than the chart by its caption, named by the time.
+  await evaluate(`window.__saved = null; window.__click = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { if (this.download) { window.__saved = { name: this.download, href: this.href }; return; } return window.__click.call(this); }; true`);
+  await clickSel('.sky-ov--tools [aria-label="Save the sky as a picture"]');
+  await waitFor(`window.__saved !== null`, 15000);
+  const saved = JSON.parse(
+    await evaluate(`(async () => { const s = window.__saved; const u = new Uint8Array(await (await fetch(s.href)).arrayBuffer()); const c = document.querySelector('.sky-canvas'); return JSON.stringify({ name: s.name, bytes: u.length, png: u[1] === 0x50 && u[2] === 0x4e && u[3] === 0x47, w: (u[16] << 24) | (u[17] << 16) | (u[18] << 8) | u[19], h: (u[20] << 24) | (u[21] << 16) | (u[22] << 8) | u[23], cw: c.width, ch: c.height }); })()`),
+  );
+  await evaluate(`HTMLAnchorElement.prototype.click = window.__click; true`);
+  out.picture = saved;
+  check('sky2: Save as a picture makes a PNG of the chart with its caption strip, named by the time', saved.png && saved.name === 'skyfix-sky-2026-09-25t0200.png' && saved.w === saved.cw && saved.h > saved.ch + 60 && saved.bytes > 50_000, js(saved));
+
+  // How dark is your sky: a city sky hides the Milky Way and most deep-sky objects.
+  const before = await data();
+  await evaluate(`[...document.querySelectorAll('.sky .sky-ov--tr button')].find((b) => /Layers/.test(b.textContent))?.click(); true`);
+  await waitFor(`Boolean(document.querySelector('.sky-quality__seg'))`, 5000);
+  await clickSel('.sky-quality__seg [data-value="bortle"]');
+  await evaluate(`(() => { const s = document.querySelector('.sky-quality select'); s.value = '8'; s.dispatchEvent(new Event('change', { bubbles: true })); return true; })()`);
+  await waitFor(`document.querySelector('.sky')?.dataset.limit === '4.3'`, 10000);
+  const city = await data();
+  const words = await evaluate(`document.querySelector('.sky-quality__now')?.textContent ?? ''`);
+  out.city = { before, city, words };
+  check('sky2: a Bortle 8 sky draws stars to 4.3 overhead, hides the Milky Way and most deep-sky objects, and says so', city.milkyWay === '0' && Number(city.dso) < Number(before.dso) / 2 && /magnitude 4\.3 overhead/.test(words) && /not visible/.test(words), js(out.city));
+  await shot('sky2-desktop-dark-bortle8-menu');
+  await clickSel('.sky-quality__seg [data-value="auto"]');
+  await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); document.querySelector('.sky-canvas').focus(); true`);
+
+  // The side panel's search: Jupiter from the "Sky objects" group, then its close-up.
+  await typeInto('.sf-search input', 'Jupiter');
+  await waitFor(`[...document.querySelectorAll('.sf-search__group')].some((g) => g.textContent === 'Sky objects')`, 10000);
+  await evaluate(`(() => { const o = [...document.querySelectorAll('.sf-search__opt')].find((x) => /^Jupiter/.test(x.textContent) && /Planet/.test(x.textContent)); o?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return Boolean(o); })()`);
+  await waitFor(`document.querySelector('.sky-card') && !document.querySelector('.sky-card').hidden && document.querySelector('.sky-card__title')?.textContent === 'Jupiter'`, 10000);
+  await clickText('.sky-card__actions button', 'up close');
+  await waitFor(`document.querySelector('.sky')?.dataset.upclose === 'Jupiter' && document.querySelectorAll('.sky-upclose__facts dt').length >= 4`, 10000);
+  const jupiter = JSON.parse(await evaluate(`JSON.stringify({ title: document.querySelector('.sky-upclose__title')?.textContent, moons: [...document.querySelectorAll('.sky-upclose__facts dt')].map((d) => d.textContent) })`));
+  out.jupiter = jupiter;
+  check('sky2: the panel’s search opens Jupiter in the Sky view, and its close-up names the four moons', jupiter.title === 'Jupiter and its moons' && ['Io', 'Europa', 'Ganymede', 'Callisto'].every((m) => jupiter.moons.includes(m)), js(jupiter));
+  await shot('sky2-desktop-dark-jupiter');
+  check('sky2: desktop, dark: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  // --- photo's hooks: the Moon card's close-up, the Milky Way planner's Show in Sky ------------
+  messages.length = 0;
+  await open(`${SKY_NIGHT}&view=map`, { theme: 'light' });
+  await waitFor(`[...document.querySelectorAll('.sf-photo-moon__terminator button')].some((b) => /up close/.test(b.textContent) && b.offsetParent)`, 30000);
+  const listed = JSON.parse(await evaluate(`JSON.stringify([...document.querySelectorAll('.sf-photo-moon__feat')].map((f) => f.textContent))`));
+  await clickText('.sf-photo-moon__terminator button', 'up close');
+  await waitFor(`document.querySelector('.sky')?.dataset.upclose === 'Moon' && Boolean(document.querySelector('.sky-upclose__canvas')?.getAttribute('aria-label'))`, 30000);
+  const moon = await evaluate(`document.querySelector('.sky-upclose__canvas').getAttribute('aria-label')`);
+  out.moon = { listed, moon };
+  check('sky2: the Moon card’s “See it up close” opens the Moon’s close-up with the features it lists', /^The Moon, \d+ % lit/.test(moon) && listed.length > 0 && listed.every((n) => moon.includes(n)), js(out.moon));
+  await shot('sky2-desktop-light-moon');
+  await open(`${SKY_NIGHT}&view=map`, { theme: 'dark' });
+  await evaluate(`(() => { const d = document.querySelector('.sf-photo-mw'); if (d) d.open = true; return Boolean(d); })()`);
+  await waitFor(`[...document.querySelectorAll('.sf-photo-mw button')].some((b) => /Show in Sky/.test(b.textContent))`, 30000);
+  await clickText('.sf-photo-mw button', 'Show in Sky');
+  await waitFor(`document.querySelector('.sky')?.dataset.pinned === 'p:0' && document.querySelector('.sky-card__title')?.textContent === 'Galactic centre'`, 30000);
+  const core = await cardOf();
+  out.core = core;
+  check('sky2: the Milky Way planner’s “Show in Sky” marks the galactic centre in Sagittarius', core.title === 'Galactic centre' && core.lines.some((l) => /^Right ascension · declination17h 4\dm/.test(l)), js(core));
+  check('sky2: photo’s hooks: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  // --- Tonight's "Show in Sky" and "See it up close" (the sky-link channel) --------------------
+  messages.length = 0;
+  await open(`${SKY_NIGHT}&view=tonight`, { theme: 'dark' });
+  await waitFor(`Boolean(document.querySelector('.sft-dso .sft-actions button'))`, 60000);
+  const dsoTitle = await evaluate(`(() => { const r = document.querySelector('.sft-dso'); r?.querySelector('.sft-actions button')?.click(); return r?.querySelector('.sft-dso__head strong')?.textContent ?? ''; })()`);
+  await waitFor(`/^d:\\d+$/.test(document.querySelector('.sky')?.dataset.pinned ?? '') && Number(document.querySelector('.sky')?.dataset.zoom) >= 3 && Boolean(document.querySelector('.sky')?.dataset.shown)`, 30000);
+  await sleep(500);
+  const fromTonight = await data();
+  const dsoCard = await cardOf();
+  const off = (fromTonight.shown ?? '').split(' ').map(Number);
+  out.tonight = { dsoTitle, card: dsoCard.title, zoom: fromTonight.zoom, shown: fromTonight.shown };
+  check(
+    'sky2: Tonight’s “Show in Sky” on a deep-sky object centres the dome on it, zoomed in, its card open',
+    Number(fromTonight.zoom) >= 3 && Math.hypot(off[0], off[1]) < 30 && dsoCard.shown && dsoTitle.includes(dsoCard.title.replace(/ \(.*$/, '')),
+    js(out.tonight),
+  );
+  await shot('sky2-desktop-dark-from-tonight');
+  await open(`${SKY_NIGHT}&view=tonight`, { theme: 'dark' });
+  await waitFor(`[...document.querySelectorAll('.sft button')].some((b) => /See it up close/.test(b.textContent))`, 60000);
+  await clickText('.sft button', 'See it up close');
+  await waitFor(`document.querySelector('.sky')?.dataset.upclose === 'Moon' && Number(document.querySelector('.sky')?.dataset.zoom) >= 3`, 30000);
+  await sleep(500);
+  const moonFromTonight = await data();
+  const moonOff = (moonFromTonight.shown ?? '').split(' ').map(Number);
+  out.tonightMoon = { zoom: moonFromTonight.zoom, shown: moonFromTonight.shown, upclose: moonFromTonight.upclose };
+  check('sky2: Tonight’s “See it up close” opens the Moon’s close-up with the dome centred on the Moon', moonFromTonight.upclose === 'Moon' && Math.hypot(moonOff[0], moonOff[1]) < 30, js(out.tonightMoon));
+  const LT = JSON.parse(await evaluate(LAYOUT));
+  check('sky2: desktop, the close-up open over a zoomed dome: no overlap or cut-off text', !LT.hscroll && !LT.overlaps.length && !LT.clipped.length, [...LT.overlaps, ...LT.clipped].join('; '));
+  check('sky2: from Tonight: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  // --- The night theme at night, with the card and the close-up open ---------------------------
+  messages.length = 0;
+  await open(`${SKY_NIGHT}&view=sky`, { theme: 'night' });
+  await waitFor(`Number(document.querySelector('.sky')?.dataset.milkyWay) > 0`, 30000);
+  await typeInto('.sf-search input', 'Moon');
+  await waitFor(`[...document.querySelectorAll('.sf-search__opt')].some((x) => /^Moon/.test(x.textContent) && /The Moon/.test(x.textContent))`, 10000);
+  await evaluate(`(() => { const o = [...document.querySelectorAll('.sf-search__opt')].find((x) => /^Moon/.test(x.textContent) && /The Moon/.test(x.textContent)); o?.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); return true; })()`);
+  await waitFor(`document.querySelector('.sky-card__title')?.textContent === 'Moon'`, 10000);
+  await clickText('.sky-card__actions button', 'up close');
+  await waitFor(`document.querySelector('.sky')?.dataset.upclose === 'Moon'`, 10000);
+  await sleep(1200);
+  const png = await shot('sky2-desktop-night-moon');
+  const red = lightNotRed(decodePng(png));
+  check('sky2: the night theme at night, the card and the Moon’s close-up open: no blue, green or white light', red.count < 50, red.count ? `${red.count} px, worst ${js(red.worst)}` : '');
+  const L = JSON.parse(await evaluate(LAYOUT));
+  check('sky2: desktop, night, the card and close-up open: no sideways scroll, overlap or cut-off text', !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+  check('sky2: night theme: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  // --- A phone at night: the card open ---------------------------------------------------------
+  await viewport(390, 844, true);
+  messages.length = 0;
+  await open(`${SKY_NIGHT}&view=sky`, { theme: 'dark' });
+  await waitFor(`Number(document.querySelector('.sky')?.dataset.dso) > 0`, 30000);
+  const phone = await data();
+  await clickSel('.sky-ov--tools [aria-label="Find in the sky"]');
+  await waitFor(`Boolean(document.querySelector('.sky-search input'))`, 5000);
+  await typeInto('.sky-search input', 'Pleiades');
+  await waitFor(`document.querySelectorAll('.sky-search__opt:not(.sky-search__opt--msg)').length > 0`, 10000);
+  await key('.sky-search input', 'Enter');
+  await waitFor(`document.querySelector('.sky-card__title')?.textContent === 'Pleiades'`, 10000);
+  await sleep(800);
+  await shot('sky2-phone-dark-card');
+  const LP = JSON.parse(await evaluate(LAYOUT));
+  out.phone = { phone, layout: LP };
+  check('sky2: a phone’s whole-sky chart draws only the showpieces (fewer deep-sky objects than a laptop’s)', Number(phone.dso) > 0 && Number(phone.dso) < Number(night.dso), js({ phone: phone.dso, desktop: night.dso }));
+  check('sky2: phone, the card open: no sideways scroll, overlap or cut-off text; the view ends where the sheet begins', !LP.hscroll && !LP.overlaps.length && !LP.clipped.length && LP.underSheet <= 0, [...LP.overlaps, ...LP.clipped, LP.underSheet].join('; '));
+  check('sky2: phone: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  summary.sky2 = out;
 }
 
 main().catch((error) => {

@@ -173,6 +173,17 @@ export interface SkyPalette {
   dashBelow: number[];
   /** Applied to every derived colour: identity, or `nightRed` in the night theme. */
   filter(c: Rgb): Rgb;
+  // --- sky2 agent: the astronomy layers' colours, derived from the tokens above ---
+  /** Deep-sky symbols by kind (shape carries the kind; colour reinforces it). */
+  dso: { galaxy: Rgb; nebula: Rgb; cluster: Rgb; other: Rgb };
+  /** The right ascension and declination grid and its labels. */
+  raDec: Rgb;
+  /** The Milky Way's glow. */
+  milkyWay: Rgb;
+  /** Meteor radiants. */
+  radiant: Rgb;
+  /** Comets and asteroids the person added. */
+  custom: Rgb;
 }
 
 /** Reads one custom property (default: the document's, through the design system). */
@@ -220,6 +231,9 @@ export function readPalette(theme: SkyTheme, readVar: ReadVar = documentReadVar)
   const body = Object.fromEntries(BODY_KEYS.map((k) => [k, color(`--body-${k}`)])) as Record<BodyKey, Rgb>;
   const phase = Object.fromEntries(PHASE_KEYS.map((k) => [k, color(`--phase-${k}`)])) as Record<PhaseKey, Rgb>;
   const [halo, haloAlpha] = rgba('--line-halo');
+  // sky2 agent: every layer colour is a mix of two tokens, kept red in the night theme.
+  const ink = color('--phase-night-ink');
+  const derived = (token: string, t: number): Rgb => filter(mix(color(token), ink, t));
   return {
     theme,
     fontUi: readVar('--font-ui') || FONT_UI,
@@ -244,6 +258,16 @@ export function readPalette(theme: SkyTheme, readVar: ReadVar = documentReadVar)
     dashPath: dashes(readVar('--dash-path')),
     dashBelow: dashes(readVar('--dash-below')),
     filter,
+    dso: {
+      galaxy: derived('--event-set', 0.28),
+      nebula: derived('--body-uranus', 0.22),
+      cluster: derived('--event-transit', 0.22),
+      other: ink,
+    },
+    raDec: derived('--body-neptune', 0.3),
+    milkyWay: derived('--body-star', 0.55),
+    radiant: derived('--event-rise', 0.1),
+    custom: derived('--body-uranus', 0.1),
   };
 }
 

@@ -31,6 +31,8 @@ import {
   unitsFromRaDecArray,
   type HorizonBuffers,
 } from './astro.js';
+import { extinctionAt } from './conditions.js';
+import { DeepSkyField } from './deepsky.js';
 import type { Projector } from './projection.js';
 import { buildStarRenderData, type StarRenderData } from './stars.js';
 
@@ -47,6 +49,66 @@ export interface SceneFlags {
   ecliptic: boolean;
   /** Refresh the star places once per simulated day instead of hour (fast playback). */
   daily?: boolean;
+  /** The right ascension and declination grid (sky2 agent). */
+  raDecGrid?: boolean;
+  /** Deep-sky objects (sky2 agent). */
+  deepSky?: boolean;
+  /**
+   * Keep the star and deep-sky places of the last bucket (sky2 agent): while time runs at
+   * weeks a second and more (`fastPlayback`, playback.ts) a new bucket would come every
+   * frame, and the places move by arcseconds meanwhile. They are brought up to date when
+   * time slows.
+   */
+  frozen?: boolean;
+}
+
+// ---------------------------------------------------------------------------------
+// The right ascension and declination grid (sky2 agent): fixed in the frame of date
+// ---------------------------------------------------------------------------------
+
+/** Hour circles every hour to ±80° (the four at 0, 6, 12 and 18 h to the poles), parallels every 10°. */
+export interface RaDecGrid {
+  /** Unit vectors of every polyline point, equator and equinox of date. */
+  units: Float64Array;
+  /** Polyline k runs over points [start[k], start[k + 1]). */
+  start: Int32Array;
+  count: number;
+  /** Declination of each parallel polyline, or NaN for an hour circle (label placement). */
+  decOf: Float64Array;
+  /** Right ascension, hours, of each hour circle, or NaN for a parallel. */
+  hourOf: Float64Array;
+}
+
+export function raDecGridUnits(stepDeg = 2): RaDecGrid {
+  const pts: number[] = [];
+  const start: number[] = [];
+  const decOf: number[] = [];
+  const hourOf: number[] = [];
+  const push = (ra: number, dec: number): void => {
+    const c = Math.cos(dec * DEG);
+    pts.push(c * Math.cos(ra * DEG), c * Math.sin(ra * DEG), Math.sin(dec * DEG));
+  };
+  for (let hour = 0; hour < 24; hour += 1) {
+    start.push(pts.length / 3);
+    decOf.push(Number.NaN);
+    hourOf.push(hour);
+    const reach = hour % 6 === 0 ? 90 : 80;
+    for (let dec = -reach; dec <= reach + 1e-9; dec += stepDeg) push(hour * 15, dec);
+  }
+  for (let dec = -80; dec <= 80; dec += 10) {
+    start.push(pts.length / 3);
+    decOf.push(dec);
+    hourOf.push(Number.NaN);
+    for (let ra = 0; ra <= 360 + 1e-9; ra += stepDeg) push(ra, dec);
+  }
+  start.push(pts.length / 3);
+  return {
+    units: Float64Array.from(pts),
+    start: Int32Array.from(start),
+    count: start.length - 1,
+    decOf: Float64Array.from(decOf),
+    hourOf: Float64Array.from(hourOf),
+  };
 }
 
 export class SkyScene {
@@ -62,6 +124,11 @@ export class SkyScene {
   y = new Float32Array(0);
   /** 1 when above the horizon and projected inside (or near) the view. */
   onScreen = new Uint8Array(0);
+  /**
+   * Each star's magnitude as seen this frame: the catalogue's, plus the extinction
+   * relative to the zenith when that layer is on (sky2 agent). Set by `project`.
+   */
+  effMag = new Float32Array(0);
 
   /** J2000 unit vectors of the boundary polylines, and of date. */
   private bJ2000 = new Float64Array(0);
@@ -80,6 +147,18 @@ export class SkyScene {
   eclUnits = new Float64Array(3 * CIRCLE_POINTS);
   eqh: HorizonBuffers = horizonBuffers(CIRCLE_POINTS);
   eclh: HorizonBuffers = horizonBuffers(CIRCLE_POINTS);
+
+  /** The right ascension and declination grid of date, and its directions this frame (sky2 agent). */
+  readonly raDec: RaDecGrid = raDecGridUnits();
+  raDecH: HorizonBuffers = horizonBuffers(this.raDec.units.length / 3);
+  /** Deep-sky objects (sky2 agent). */
+  readonly dso = new DeepSkyField();
+  /** ICRS to the frame of date for the current bucket (identity until the engine gives it). */
+  readonly frame = Float64Array.from(IDENTITY3);
+  /** The instant (rounded to the hour or day) the star places are for. */
+  get bucketJd(): number {
+    return this.bucketKey;
+  }
 
   /** The horizon rotation of the frame: (E, N, U) = hm · v. */
   hm = new Float64Array(9);
@@ -109,6 +188,7 @@ export class SkyScene {
     this.x = new Float32Array(n);
     this.y = new Float32Array(n);
     this.onScreen = new Uint8Array(n);
+    this.effMag = Float32Array.from(catalog.vmag);
 
     let points = 0;
     for (const b of boundaries) points += b.ra_deg.length;
@@ -139,11 +219,12 @@ export class SkyScene {
    * Bring the star places to the simulated hour (or day) of `jd` and carry the J2000
    * boundaries and labels into the frame of date. Cheap when the bucket has not changed.
    */
-  private ensureBucket(engine: ExplorerEngine, jd: number, daily: boolean): void {
+  private ensureBucket(engine: ExplorerEngine, jd: number, daily: boolean, frozen = false): void {
     if (!this.catalog) return;
     const perDay = daily ? 1 : 24;
     const key = Math.round(jd * perDay) / perDay;
     if (key === this.bucketKey) return;
+    if (frozen && Number.isFinite(this.bucketKey)) return;
     try {
       const apparent = engine.starfieldApparent(key);
       unitsFromRaDecArray(apparent, this.n, this.units);
@@ -167,13 +248,18 @@ export class SkyScene {
     rotateUnits(m, this.bJ2000, this.bJ2000.length / 3, this.bUnits);
     rotateUnits(m, this.cJ2000, this.cJ2000.length / 3, this.cUnits);
     greatCircleUnits(meanObliquityDeg(key), CIRCLE_POINTS, this.eclUnits);
+    this.frame.set(m);
     this.bucketKey = key;
     this.refreshes += 1;
   }
 
   /** The frame's horizon rotation and every direction's apparent altitude and azimuth. */
   update(engine: ExplorerEngine, observer: Observer, jd: number, flags: SceneFlags): void {
-    this.ensureBucket(engine, jd, flags.daily ?? false);
+    this.ensureBucket(engine, jd, flags.daily ?? false, flags.frozen ?? false);
+    if (flags.deepSky && this.dso.load(engine) && !(flags.frozen && this.dso.ok)) {
+      const perDay = flags.daily ? 1 : 24;
+      this.dso.ensureBucket(engine, Math.round(jd * perDay) / perDay);
+    }
     const gha = engine.sidereal(jd).gha_aries_deg;
     this.lst = localSiderealDeg(gha, observer.lon_deg);
     this.latDeg = observer.lat_deg;
@@ -188,19 +274,27 @@ export class SkyScene {
     }
     if (flags.equator) horizonDirections(this.eqUnits, CIRCLE_POINTS, this.hm, this.refraction, this.eqh, SKIP_BELOW);
     if (flags.ecliptic) horizonDirections(this.eclUnits, CIRCLE_POINTS, this.hm, this.refraction, this.eclh, SKIP_BELOW);
+    if (flags.raDecGrid) {
+      horizonDirections(this.raDec.units, this.raDecH.alt.length, this.hm, this.refraction, this.raDecH, SKIP_BELOW);
+    }
+    if (flags.deepSky) this.dso.update(this.hm, this.refraction);
   }
 
   /**
    * Screen positions of the stars. Stars down to 25° below the horizon are projected
    * (constellation lines that cross the horizon need their far end); `onScreen` marks
-   * the ones above the horizon inside the view plus a margin.
+   * the ones above the horizon inside the view plus a margin. `ext` is the extinction
+   * relative to the zenith per degree of altitude (conditions.ts), or null for none: it
+   * sets `effMag`, the magnitude every star is drawn and labelled at this frame.
    */
-  project(p: Projector, width: number, height: number, margin = 24): void {
+  project(p: Projector, width: number, height: number, margin = 24, ext: Float32Array | null = null): void {
     const n = this.starsOk ? this.n : 0;
     const { alt, sinAlt, cosAlt, sinAz, cosAz } = this.h;
     const xs = this.x;
     const ys = this.y;
     const on = this.onScreen;
+    const eff = this.effMag;
+    const vmag = this.stars?.vmag;
     for (let i = 0; i < n; i += 1) {
       const a = alt[i]!;
       if (a < SKIP_BELOW || !p.projectDir(a, sinAlt[i]!, cosAlt[i]!, sinAz[i]!, cosAz[i]!)) {
@@ -212,7 +306,9 @@ export class SkyScene {
       const y = p.y;
       xs[i] = x;
       ys[i] = y;
-      on[i] = a >= 0 && x > -margin && x < width + margin && y > -margin && y < height + margin ? 1 : 0;
+      const shown = a >= 0 && x > -margin && x < width + margin && y > -margin && y < height + margin;
+      on[i] = shown ? 1 : 0;
+      if (shown && vmag) eff[i] = ext ? vmag[i]! + extinctionAt(ext, a) : vmag[i]!;
     }
     for (let i = n; i < this.n; i += 1) on[i] = 0;
   }

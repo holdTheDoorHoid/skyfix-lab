@@ -251,11 +251,121 @@ What you would actually see, looking up: a **Dome** (the whole sky at once, zeni
 middle) or a **Panorama** (drag to turn toward any compass point, scroll to zoom), with
 roughly 9,000 stars sized by brightness and tinted by colour, the 88 constellation
 figures, the planets, the Moon with its correct phase, and the sky's own colour following
-the Sun. A **South up** switch flips the dome for the southern hemisphere. The star field
-is for display only — see [Third-party sources](THIRD_PARTY.md), "Star field and
-constellations" — and never affects a fix.
+the Sun. A **South up** switch flips the dome for the southern hemisphere. **Zoom the dome**
+with the mouse wheel, a pinch, the **+** and **−** buttons or keys, and drag to move around
+a zoomed chart; fainter stars get their names and fainter deep-sky objects appear as you
+zoom in, and **Whole sky** (or the 0 key) goes back. Everything on
+this view is for looking and finding — see [Third-party sources](THIRD_PARTY.md), "Star
+field and constellations" and "Deep sky" — and none of it ever affects a fix.
 
 ![The Sky dome at night over Philadelphia: stars, constellation figures, the ecliptic, and the Sun's position well below the horizon.](design/sky-night-philadelphia-dome.png)
+
+**In a dark sky** the view also shows:
+
+- **The Milky Way**, as a soft glow behind the stars: its brighter star clouds and its
+  darker lanes follow NASA's COBE maps of the galaxy's light. It fades out as the sky
+  brightens — in twilight, under a bright town sky — just as the real one does.
+- **Deep-sky objects**: the 110 Messier objects and about a hundred of the brightest others
+  (NGC and IC objects, the Hyades, the Magellanic Clouds), each labelled ("M31",
+  "NGC 869") and drawn with the usual atlas mark, sized by how big the object looks:
+
+  | mark | kind |
+  |---|---|
+  | ellipse | galaxy |
+  | dotted circle | open star cluster |
+  | circle with a cross | globular star cluster |
+  | square | nebula (bright gas or dust, or a supernova's remains) |
+  | circle with four spikes | planetary nebula |
+  | dotted circle in a square | star cluster in a nebula |
+  | diamond | star cloud, double star or asterism |
+
+  How many are drawn follows the sky and the chart: on a laptop's whole-sky chart, those a
+  pair of binoculars shows; zoomed in (the panorama narrowed), telescope objects too; on a
+  phone's small chart, only the showpieces.
+- **Meteor radiants**, while a shower is active: the point its meteors seem to come from,
+  with the shower's name and how many meteors an hour to expect at best tonight (an
+  estimate for your sky; meteors appear all over the sky, not only near the radiant).
+- **Comets and asteroids you add** (below).
+
+**Click anything** — a star, a planet, a deep-sky object, a radiant — for a card: what it
+is, where it is now (height, bearing, and its right ascension and declination, the sky's
+own coordinates), when it rises if it is below the horizon, and, for a deep-sky object, its
+size, the **best time tonight** to see it and **what shows it** (the naked eye, binoculars,
+a small telescope, or only a camera). These are estimates for the sky you set under
+**Layers**, with the Moon's light taken into account, and the card says so. **Tonight's
+ranking** lists the best-placed deep-sky objects of the night; choose one to see it on the
+chart. Escape, or the card's ×, closes it.
+
+**Find** (the magnifier on the left) takes any name or designation: "Vega", "alpha Lyrae",
+"HR 7001", "M31", "NGC 224", "Andromeda", "Orion", "Perseids", "Jupiter". The first match
+is shown on the chart — ringed on the dome, turned to in the panorama — with its card. The
+search box at the top of the side panel finds the same things under **Sky objects**, below
+the places, and opens this view on the one you choose.
+
+**Show in Sky** elsewhere — on the **Tonight** page (a planet, a deep-sky object, a meteor
+shower's radiant, the Milky Way's core), on the side panel's Selected card (the Milky Way
+planner), and from the side panel's search — opens this view on it: the dome zooms in
+three times if it showed the whole sky and centres on it, the panorama turns to face it,
+and its card opens; from Tonight, at the moment it is best seen. Tonight's and the Moon
+card's **See it up close** open the Moon's close-up the same way. **Whole sky** (or 0)
+goes back to the whole dome.
+
+**See it up close.** The card of the Moon or a planet has **See it up close** (so does a
+second click on the selected Moon or planet, and the Moon card in the side panel):
+
+- **The Moon**: its phase, its seas, and the craters, mountains and valleys along the
+  shadow line, where the low Sun shows their relief best (the side panel's list is ringed).
+  The Moon rocks a little as it orbits (libration): the dashed lines are its equator and
+  central meridian, and how far they sit from the middle of the disc shows which edge is
+  tipped toward you.
+- **Jupiter**: its four large moons on a line, named, with any moon crossing Jupiter's face,
+  hidden behind it or in its shadow, and the moons' shadows on its clouds.
+- **Saturn**: its rings at their true tilt and size, the near side of the rings passing in
+  front of the globe.
+- **Mercury, Venus, Mars, Uranus, Neptune**: their phase and size.
+
+Turn the picture **as seen** from here (the zenith up), **north up** (the sky as the eye and
+binoculars show it), or **south up** (an astronomical telescope), and **Mirrored** for a
+telescope with a star diagonal.
+
+**Field of view** (the circle with a star) draws how much of the sky a naked eye (about
+50°), binoculars (7×50: 7.1°; 10×50: 6.5°), a small telescope (about 1°) or a camera takes
+in: for a camera, type the lens's focal length and choose the sensor ("Camera 50 mm ·
+40° × 27°", held level). It sits round the selected object and follows it, or in the
+middle of the view. The fields are typical figures: the one printed on your binoculars or
+eyepiece is the one to trust.
+
+**Layers** (top right) switches the figures, names, boundaries, the Milky Way, deep-sky
+objects, meteor radiants and added bodies on and off, and the lines: the height-and-bearing
+grid, the **right ascension and declination grid** (hours along the celestial equator,
+declinations up the meridian), the meridian, the celestial equator and the ecliptic. Under
+**How dark is your sky**:
+
+- **Automatic** — a dark site, where only twilight hides the stars (the view as it always
+  was);
+- **Bortle class** — Bortle's nine classes, from 1 (an excellent dark site, stars to about
+  magnitude 7.8 overhead) to 9 (an inner-city sky, about 4);
+- **Faintest star** — the faintest star you can see overhead, if you know it.
+
+The line underneath says what the view draws down to now, overhead and 20° up.
+**Dimmer toward the horizon** fades stars, deep-sky objects and the Milky Way low in the
+sky, where their light crosses much more air (about a magnitude at 10° up). The deep-sky
+card, tonight's ranking and the meteor rates use the same sky.
+
+**Comets and asteroids.** In **Layers**, **Add from orbital elements…** takes lines copied
+from the Minor Planet Center (its MPCORB and comet formats) or elements typed as JSON
+(**Example** fills in Ceres). They are drawn with their names, followed as time moves, and
+described by their card, with the credit "Source: Minor Planet Center" where it applies.
+Their places follow the orbit alone, without the planets' pull, so they drift from the real
+body as the elements age (the card warns past 30 days); good for finding one, not for
+timing it. They are kept for this visit only.
+
+**Tonight's star sights**: while the side panel shows its list of tonight's bodies to
+shoot, the Sky view rings them with a dashed circle, so you can find them before twilight.
+
+**Save the sky as a picture** (the arrow into a tray) saves the chart as it is on screen —
+its layers, its theme, night vision included — with a caption: the place, the time, what
+the view shows, and the site's line. It stays on your device.
 
 ### Tonight
 

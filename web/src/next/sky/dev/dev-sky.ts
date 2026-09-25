@@ -16,6 +16,23 @@
  *   bench=600 speed=3600        play for 600 frames and report frame times (#bench)
  *   bare=1                      hide the control strip (the honesty banner stays)
  *   menu=1                      open the Layers popover
+ * sky2 agent:
+ *   show=deep_sky:M31           show a target as showInSky does (kinds: body, star, deep_sky,
+ *                               constellation, shower, custom)
+ *   upclose=Moon                open the "Up close" inset (orient=seen|north|south, mirror=1)
+ *   fov=bino7x50                a field of view (eye, bino7x50, bino10x50, scope, camera),
+ *   fovat=centre                around the middle of the view (else the selected object)
+ *   bortle=5  nelm=5.5          the sky's darkness (else automatic)
+ *   search=vega                 open the search with this query
+ *   ranking=1                   open tonight's best deep-sky objects
+ *   custom=ceres                add (1) Ceres from the example elements
+ *   zoom=3                      zoom the dome (applied after `show`, which then centres it)
+ *   syncbench=200               N draws in a row without animation frames (headless Chrome
+ *                               runs few), the time moving a minute each as at an hour a
+ *                               second; reports the view's own draw times (#bench). Read the
+ *                               median and p95: with no frame shown, the canvas keeps every
+ *                               draw's commands, and the Milky Way's next picture makes it
+ *                               carry out all of them at once (the maximum, seconds)
  */
 
 // The design system (fonts, tokens, components), as the shell loads it.
@@ -26,10 +43,15 @@ import { installTooltips } from '../../theme/primitives.js';
 import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
 import { createNotices } from '../../notices.js';
-import { bindTimeKeys, goNow, setPlaying, setSpeed, startPlayback, stepTime } from '../../playback.js';
+import { bindTimeKeys, goNow, setPlaying, setSpeed, setTime, startPlayback, stepTime } from '../../playback.js';
 import { createExplorerStore, displayZone, type Layers, type Theme } from '../../state.js';
 import { formatWithUtc, isValidIanaZone, jdFromIso, jdFromWallClock, resolveZone } from '../../time.js';
 import { highlightBodies, mountSky, type SkyMounted } from '../index.js';
+import { skyViewSettings } from '../view.js';
+import { customBodies, CUSTOM_EXAMPLE, MPC_CREDIT } from '../custom.js';
+import { isPlanetDetailEngine } from '../../engine/types.js';
+import type { FovPresetId } from '../fov.js';
+import type { SkyTarget } from '../requests.js';
 import { NO_PACKS } from '../../packs/service.js';
 
 const BANNER = 'Simulation and analysis workbench. Not a navigation instrument.';
@@ -53,6 +75,13 @@ const SKY_LAYERS: (keyof Layers)[] = [
   'meridian',
   'equator',
   'ecliptic',
+  // sky2 agent
+  'deepSky',
+  'milkyWay',
+  'raDecGrid',
+  'meteorRadiants',
+  'customBodies',
+  'extinction',
 ];
 
 function h<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string, string> = {}, ...kids: (Node | string)[]): HTMLElementTagNameMap[K] {
@@ -110,6 +139,9 @@ async function boot(root: HTMLElement): Promise<void> {
   for (const k of (params.get('off') ?? '').split(',').filter(Boolean)) if (k in store.get().layers) layerPatch[k as keyof Layers] = false;
   store.patch({ layers: layerPatch });
   if (params.has('select')) store.patch({ selection: { body: params.get('select') || null } });
+  // sky2 agent: the sky's darkness.
+  if (params.has('bortle')) store.patch({ settings: { skyQuality: 'bortle', skyBortle: Number(params.get('bortle')) || 5 } });
+  if (params.has('nelm')) store.patch({ settings: { skyQuality: 'nelm', skyNelm: Number(params.get('nelm')) || 6 } });
 
   const scheduler = createScheduler();
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
@@ -190,6 +222,33 @@ async function boot(root: HTMLElement): Promise<void> {
   if (Object.keys(pano).length) handle.setPanorama(pano);
   if (params.has('highlight')) highlightBodies(ctx, (params.get('highlight') ?? '').split(',').filter(Boolean));
   (globalThis as { __sky?: unknown }).__sky = { ctx, handle };
+  // sky2 agent: targets, the close-up, the field of view, search, ranking, added bodies.
+  if (params.get('custom') === 'ceres' && isPlanetDetailEngine(engine)) {
+    customBodies(ctx).add(engine.parseOrbits(CUSTOM_EXAMPLE), MPC_CREDIT);
+  }
+  if (params.has('fov')) handle.setFov((params.get('fov') as FovPresetId) || null, params.get('fovat') === 'centre' ? 'centre' : 'target');
+  if (params.has('zoom')) handle.setDomeZoom(Number(params.get('zoom')) || 1);
+  const orient = params.get('orient');
+  if (orient === 'seen' || orient === 'north' || orient === 'south' || params.get('mirror') === '1') {
+    const v = skyViewSettings(ctx);
+    if (orient === 'seen' || orient === 'north' || orient === 'south') v.upClose.orientation = orient;
+    if (params.get('mirror') === '1') v.upClose.mirror = true;
+  }
+  if (params.has('show') || params.has('upclose') || params.has('search') || params.get('ranking') === '1') {
+    await nextFrame();
+    await nextFrame();
+    const show = params.get('show');
+    if (show) {
+      const [kind, ...rest] = show.split(':');
+      handle.show({ kind: kind as SkyTarget['kind'], id: rest.join(':') });
+    }
+    const up = params.get('upclose');
+    if (up) handle.openUpClose(up);
+    const q = params.get('search');
+    if (q) handle.search(q);
+    if (params.get('ranking') === '1') document.querySelector<HTMLButtonElement>('.sky-ov--tools [aria-label^="Tonight"]')?.click();
+    handle.drawNow();
+  }
 
   setInterval(() => {
     const st = handle.stats();
@@ -263,6 +322,45 @@ async function boot(root: HTMLElement): Promise<void> {
     benchOut.textContent = JSON.stringify(result);
     document.title = `BENCH ${JSON.stringify(result)}`;
     console.info('sky bench', result);
+  }
+
+  // sky2: the same without animation frames: N draws in a row, a minute of sky apart.
+  const syncBench = Number(params.get('syncbench') ?? 0);
+  if (syncBench > 0) {
+    const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+    await pause(1500); // the Milky Way's grid and the year's showers are made off the frame
+    setSpeed(store, 3600);
+    setPlaying(store, true);
+    const step = (): void => {
+      setTime(store, store.get().time.jd_utc + 1 / 1440);
+      handle.drawNow();
+    };
+    for (let k = 0; k < 30; k += 1) step();
+    handle.resetStats();
+    const wall: number[] = [];
+    for (let k = 0; k < syncBench; k += 1) {
+      const t0 = performance.now();
+      step();
+      wall.push(performance.now() - t0);
+    }
+    setPlaying(store, false);
+    const st = handle.stats();
+    wall.sort((a, b) => a - b);
+    const result = {
+      draws: st.frames,
+      drawMeanMs: +st.mean.toFixed(2),
+      drawP50Ms: +st.p50.toFixed(2),
+      drawP95Ms: +st.p95.toFixed(2),
+      drawMaxMs: +st.max.toFixed(2),
+      computeMeanMs: +st.computeMean.toFixed(2),
+      paintMeanMs: +st.paintMean.toFixed(2),
+      stepP50Ms: +wall[Math.floor(wall.length / 2)]!.toFixed(2),
+      canvas: `${handle.canvas.width}x${handle.canvas.height}`,
+      engine: engine.kind,
+    };
+    benchOut.textContent = JSON.stringify(result);
+    document.title = `BENCH ${JSON.stringify(result)}`;
+    console.info('sky sync bench', result);
   }
 }
 

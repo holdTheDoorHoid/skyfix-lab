@@ -57,3 +57,28 @@ export function formatMagnitude(mag: number): string {
   const text = Math.abs(mag).toFixed(1);
   return mag < 0 && Number(text) !== 0 ? `${MINUS}${text}` : text;
 }
+
+// --- sky2 agent: equatorial coordinates -------------------------------------------------
+
+/** Right ascension as `2h 31m 49s` (hours, minutes, whole seconds; 24h wraps to 0h). */
+export function formatRa(raDeg: number): string {
+  if (!Number.isFinite(raDeg)) return '—';
+  let s = Math.round((((raDeg % 360) + 360) % 360) * 240); // seconds of time
+  s %= 86_400;
+  const hh = Math.floor(s / 3600);
+  const mm = Math.floor((s % 3600) / 60);
+  const ss = s % 60;
+  return `${hh}h ${String(mm).padStart(2, '0')}m ${String(ss).padStart(2, '0')}s`;
+}
+
+/** Declination as `+89° 15′` (signed, whole arcminutes), or in the chosen angle format with a sign. */
+export function formatDec(decDeg: number, format: AngleFormat = 'dm'): string {
+  if (!Number.isFinite(decDeg)) return '—';
+  const sign = decDeg < 0 ? MINUS : '+';
+  if (format === 'decimal') return `${sign}${Math.abs(decDeg).toFixed(2)}°`;
+  let m = Math.round(Math.abs(decDeg) * 60);
+  const d = Math.floor(m / 60);
+  m -= d * 60;
+  const text = `${d}° ${String(m).padStart(2, '0')}′`;
+  return `${d === 0 && m === 0 ? '' : sign}${text}`;
+}

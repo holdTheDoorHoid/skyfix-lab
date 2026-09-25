@@ -34,6 +34,7 @@ import { icon } from '../theme/icons.js';
 import { kv } from '../theme/primitives.js';
 import type { Zone } from '../time.js';
 import { deltaTNote, SETTLE_MS, Settler } from './photo.js';
+import { openUpClose } from '../sky/requests.js'; // sky2 agent: the Moon's close-up in the Sky view
 
 /** The mean distance the engine compares sizes with (EXPLORER_API `moon_apsides.definitions`). */
 export const MEAN_DISTANCE_KM = 384_400;
@@ -172,10 +173,9 @@ export function moonTools(ctx: Ctx): MoonTools {
   const superNote = h('p', { class: 'sf-photo__note sf-photo-moon__super' });
   const featList = h('ul', { class: 'sf-photo-moon__feats', 'aria-label': 'Features along the shadow line' });
   const upClose = h('button', { type: 'button', class: 'sf-btn sf-btn--secondary sf-btn--sm' }, icon('sky'), h('span', { class: 'sf-btn__label' }, 'See it up close'));
-  upClose.addEventListener('click', () => {
-    // sky2: open the Moon's close-up ("eyepiece") inset in the Sky view once it exists.
-    store.patch({ view: 'sky', selection: { body: 'Moon' } });
-  });
+  // sky2 agent: the Sky view's close-up of the Moon, with the features listed here marked on it.
+  let shownFeatures: string[] = [];
+  upClose.addEventListener('click', () => openUpClose(ctx, 'Moon', { features: shownFeatures }));
   const feats = h(
     'div',
     { class: 'sf-photo-moon__terminator' },
@@ -245,6 +245,7 @@ export function moonTools(ctx: Ctx): MoonTools {
       return;
     }
     const names = f.tonight.slice(0, FEATURES_SHOWN);
+    shownFeatures = names; // sky2 agent
     feats.hidden = names.length === 0;
     featList.replaceChildren(
       ...names.map((name) => {

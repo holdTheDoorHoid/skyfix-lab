@@ -1,19 +1,22 @@
 /**
- * "Show in Sky" from the Tonight view. OWNER: tonight agent (expansion programme Q2).
+ * "Show in Sky" from the Tonight view. OWNER: tonight agent (expansion programme Q2); moved
+ * here from tonight/ by the sky2 agent, whose Sky view reads the channel.
  *
  * `showInSky` moves the explorer to the moment (the object's best time), selects the body
- * when there is one and rings it (sky/highlight.ts), opens the Sky view, and posts the
- * target on a per-explorer channel, `skyTargets(ctx)`, that the Sky view can read to centre
- * on it and open an inset (a deep-sky object, a meteor radiant, the Moon "up close"). The
- * channel outlives the views, like the highlight channel, so a target set here is waiting
- * when the Sky view mounts. Until the Sky view reads it (the sky2 package: search and centre,
- * the eyepiece insets), the Sky view opens at that moment with the body ringed, and the card
- * the person came from has already said where to look.
+ * when there is one and rings it (highlight.ts), opens the Sky view, and posts the target
+ * on a per-explorer channel, `skyTargets(ctx)`. The channel outlives the views, like the
+ * highlight channel, so a target set here is waiting when the Sky view mounts. The Sky view
+ * takes it (`take`) once the sky has reached the moment: it centres the dome on the target
+ * (zoomed in if it showed the whole sky; the panorama turns to face it), opens its card,
+ * and for `inset` the body's "Up close" panel (targets.ts says how each kind is shown).
+ *
+ * The Sky view's own requests (requests.ts: `showInSky(ctx, target)`, `openUpClose`) do the
+ * same without moving the time; this form is for callers that pick the moment.
  */
 
 import type { Ctx } from '../component.js';
 import { setTime } from '../playback.js';
-import { highlightBodies } from '../sky/highlight.js';
+import { highlightBodies } from './highlight.js';
 
 export type SkyTarget =
   /** A body of the engine's list; `inset` asks for its close-up (the Moon, Jupiter, Saturn). */
@@ -31,6 +34,8 @@ export type TimedSkyTarget = SkyTarget & { jd_utc: number | null };
 export interface SkyTargets {
   get(): TimedSkyTarget | null;
   set(target: TimedSkyTarget | null): void;
+  /** The pending target, cleared without telling the listeners (the Sky view carries it out). */
+  take(): TimedSkyTarget | null;
   subscribe(listener: (target: TimedSkyTarget | null) => void): () => void;
 }
 
@@ -44,6 +49,11 @@ export function skyTargets(ctx: Pick<Ctx, 'store'>): SkyTargets {
     const listeners = new Set<(t: TimedSkyTarget | null) => void>();
     channel = {
       get: () => current,
+      take() {
+        const target = current;
+        current = null;
+        return target;
+      },
       set(target) {
         current = target;
         for (const listener of [...listeners]) {
