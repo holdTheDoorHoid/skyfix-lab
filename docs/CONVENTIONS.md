@@ -1116,6 +1116,10 @@ station constants; the `lunar-limb` pack installs a limb profile. `explorer_cove
 reflects loaded packs. A pack is loaded per page session from the app's own cache; the
 core module never depends on one.
 
+Refined by the deeptime agent (2026-09-25): the `deep-time` pack above was not built. Both
+tiers ship in the core module (15.1), no `deep-time` producer is registered, and no pack is
+needed or offered for a date between 2000 BC and AD 3000.
+
 Refined by the packs agent (2026-09-24; the mechanism: EXPLORER_API "Packs — the mechanism
 as built"):
 

@@ -13,9 +13,11 @@ choice are in docs/ACCURACY.md, "Historical accuracy"):
   Sun and the planets. Truncated by measured error: the Earth to 0.05" of the Sun's
   direction, each planet to 1" of geocentric direction at its closest approach to the
   Earth, separately for the validated tier (1550-2650) and the labelled tier
-  (-2000..3000). Within each (body, coordinate, power) group the terms are sorted by
-  amplitude, so each tier's set is a prefix: the file stores the union and, per group,
-  how many terms the validated tier uses.
+  (-2000..3000); in the validated tier the Earth to 0.01", Mercury to 0.1" and Venus to
+  0.2" (`VALIDATED_BUDGET_ARCSEC`: the Earth's apsides, transits and planet discs). Within
+  each (body, coordinate, power) group the terms are sorted by amplitude, so each tier's
+  set is a prefix: the file stores the union and, per group, how many terms the
+  validated tier uses.
 * **Corrections to VSOP87A** fitted by this project, because VSOP87 (fitted to DE200 in
   1988) drifts from the modern ephemerides by up to 10" inside 1550-2650 (Mars, Uranus,
   Neptune) and 110" at 2000 BC (Saturn): per body, the heliocentric ecliptic longitude,
@@ -85,6 +87,13 @@ MARGIN_DAYS = 2.0
 SUN_BUDGET_ARCSEC = 0.05
 PLANET_BUDGET_ARCSEC = 1.0
 SELECT_MARGIN = 0.9
+#: Tighter budgets for the validated tier, per body. The planet-detail engines measure
+#: what the looser cut loses: the Earth's perihelion and aphelion follow the monthly
+#: wobble of its radius (0.05" put them 4.2 min from the full series, 0.01" 0.8 min);
+#: the contacts of Mercury's transits need Mercury to about 0.1" at inferior
+#: conjunction (0.2" left 0.14" at 1960), Venus's and the planets' sub-solar points
+#: about 0.2" (the budget of the one-tier series before, for 1990-2060).
+VALIDATED_BUDGET_ARCSEC = {"Earth": 0.01, "Mercury": 0.1, "Venus": 0.2}
 #: ELP/MPP02 amplitude thresholds for longitude and latitude (arcsec) and distance
 #: (km), applied to |A| * tau^n with tau the tier's largest |t| in centuries.
 ELP_THRESHOLDS = (0.002, 0.002, 0.02)
@@ -203,8 +212,9 @@ def keep_by_budget(terms, T, budget_au, tabs):
     return keep
 
 
-def truncate_vsop(series, tier_jd, n_grid):
-    """{body: keep mask} for one tier, and the budgets used."""
+def truncate_vsop(series, tier_jd, n_grid, overrides=None):
+    """{body: keep mask} for one tier, and the budgets used (`overrides`: arcseconds
+    per body instead of the default budget)."""
     j0, j1 = tier_jd[0] - MARGIN_DAYS, tier_jd[1] + MARGIN_DAYS
     jd = epochs(j0, j1, n_grid, 11)
     T = V.tjy(jd)
@@ -216,6 +226,7 @@ def truncate_vsop(series, tier_jd, n_grid):
     keep, budget = {}, {}
     for name, s in series.items():
         arc = SUN_BUDGET_ARCSEC if name == "Earth" else PLANET_BUDGET_ARCSEC
+        arc = (overrides or {}).get(name, arc)
         budget[name] = arc * ARC * closest[name]
         keep[name] = keep_by_budget(s, T, SELECT_MARGIN * budget[name], tabs)
     return keep, budget, closest
@@ -719,7 +730,7 @@ def main(argv=None):
     ref = Reference()
 
     print("-- VSOP87A truncation, validated tier", flush=True)
-    keep_v, budget_v, closest_v = truncate_vsop(series, val, n_grid)
+    keep_v, budget_v, closest_v = truncate_vsop(series, val, n_grid, VALIDATED_BUDGET_ARCSEC)
     print("-- VSOP87A truncation, labelled tier", flush=True)
     keep_l, budget_l, closest_l = truncate_vsop(series, lab, n_grid)
     tabs_l = float(np.abs(V.tjy(np.array([lab[0] - MARGIN_DAYS, lab[1] + MARGIN_DAYS]))).max())
@@ -790,9 +801,10 @@ def main(argv=None):
             "rule": ("per body, keep the terms whose peak |A| tau^n exceeds a threshold chosen "
                      "so the dropped terms' vector sum stays inside %.0f%% of the budget on a "
                      "%d-epoch grid: the Earth %.2f\" of the Sun's direction, each planet %.1f\" "
-                     "at its closest approach; separately per tier, stored as the union, each "
-                     "group sorted by |A|, the validated count first"
-                     % (SELECT_MARGIN * 100, n_grid, SUN_BUDGET_ARCSEC, PLANET_BUDGET_ARCSEC)),
+                     "at its closest approach, and in the validated tier %s; separately per tier, "
+                     "stored as the union, each group sorted by |A|, the validated count first"
+                     % (SELECT_MARGIN * 100, n_grid, SUN_BUDGET_ARCSEC, PLANET_BUDGET_ARCSEC,
+                        ", ".join("%s %g\"" % kv for kv in sorted(VALIDATED_BUDGET_ARCSEC.items())))),
             "terms_total": int(sum(len(s) for s in series.values())),
             "terms_stored": int(sum(len(deq[n][0]) for n in series)),
             "terms_validated": int(sum(deq[n][1].sum() for n in series)),

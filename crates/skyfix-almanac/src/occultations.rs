@@ -1086,7 +1086,11 @@ mod tests {
         assert!(track.end() <= c1 + 1e-9);
         let t = c1 - 0.3;
         let exact = moon.position(t).unwrap().apparent_km;
-        assert!(norm(sub(track.at(t), exact)) < 0.5);
+        // In the last day the stencil is one-sided, and its error there follows the
+        // anomalistic month: 0.03 to 1.9 km over a month of end dates (deeptime agent,
+        // measured at the validated tier's end and a century before it). It is 0.69 km at
+        // this end (2650-01-22) and was 0.19 km at the old one (2060-12-31).
+        assert!(norm(sub(track.at(t), exact)) < 2.5);
     }
 
     #[test]
