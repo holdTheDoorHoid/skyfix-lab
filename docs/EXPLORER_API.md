@@ -2518,3 +2518,18 @@ u32 S                       station count, then S records sorted by id:
 
 A reader maps constituent names to its own table and refuses an unknown one; nothing
 may follow the last station.
+
+## Expansion programme — navigate2 (wave 2): notes for the interface
+
+Additive; no export changed.
+
+- **The instrument of `predict_sextant`, `plan_sights` and `lunar_distance` carries the
+  index-error log.** Their `instrument_json` is the Rust `Instrument`, which already took
+  `index_error_log` (sailings agent, "Session and reduction additions" above); the web's
+  `instrumentJson` (`web/src/next/engine/wasm-nav.ts`) now sends it when it has entries, and
+  `SightInstrument` gains `index_error_log?` by declaration merging at the end of
+  `web/src/next/engine/types.ts`. Navigate passes the session's log, so a predicted reading
+  uses the logged index correction as the sight's reduction does.
+- **Actions on the map's measurement** are a page-level registry in
+  `web/src/next/map/measure.ts` (`registerMeasureAction`, `measureActions`), not an engine
+  call; `web/src/next/map/README.md` describes it.
