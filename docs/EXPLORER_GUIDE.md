@@ -539,29 +539,99 @@ Moon stands 0.5″ lower) as well as your height of eye (which sets the dip).
 
 ### Events
 
-Eclipses, Moon phases, equinoxes and solstices, and the planets' big moments, as lists
-you can click.
+What happens in the sky and when, as lists you can click. Five tabs:
 
-- **Eclipses** — every solar and lunar eclipse of the next (or last) ten years, with a
-  switch for "seen from here". Pick one to read, in plain words, what you would see from
+- **Eclipses** — every solar and lunar eclipse of the next (or last) ten, hundred or
+  thousand years, with a switch for "seen from here"; a long list fills in as it is found
+  and shows its rows a page at a time. Pick one to read, in plain words, what you would see from
   your place: whether you are inside the path of totality, when it starts and ends, how
   much of the Sun is covered, and how high it stands. **Show on the map** draws the path
   of totality (or annularity), its central line and the limits of the partial eclipse;
   **Go there** moves your place and time to the point of greatest eclipse. Solar eclipse
-  cards carry an eye-safety note.
-- **Moon phases** for the coming months, with links to any eclipse they bring.
-- **Seasons** — the equinoxes and solstices, worded for your hemisphere.
-- **Planets** — oppositions, conjunctions with the Sun (and the rare transits of Mercury
-  and Venus across it), greatest elongations of Mercury and Venus, and closest approaches.
+  cards carry an eye-safety note. The times are for a smooth Moon unless the **Lunar limb**
+  data pack is on your device (2.2 MB; offered once, the first time you open a solar eclipse
+  seen from your place, and in Settings → Data packs): then the card's times are
+  corrected for the mountains and valleys at the Moon's edge and marked **limb-corrected**,
+  with how far each moved — a second or a few, more at the edge of the path — and when and
+  where on the Sun's edge **Baily's beads**, the last and first sunlight through the
+  Moon's valleys, should show. The beads are approximate, and the list keeps the smooth
+  Moon's times.
+- **Moon** — three lists.
+  - **Phases** for the coming months, with links to any eclipse they bring.
+  - **Perigee and supermoons**: the Moon at its closest and farthest on each orbit, every
+    full Moon with how much larger or smaller than average it looks, the supermoons and
+    micromoons, and the year's largest and smallest full Moon. A supermoon here is a new or
+    full Moon at least 90% of the way from apogee to perigee (Nolle's rule): about a third
+    of them are, so stricter lists elsewhere are shorter.
+  - **Occultations**: the bright stars (to magnitude 3.5) and the planets the Moon passes
+    in front of as seen from your place — when each disappears and reappears, at which edge
+    of the Moon (a star winks out at once at the dark edge, the easiest to time), how high
+    the Moon stands and whether the sky is dark. Grazes, where a star runs along the Moon's
+    edge and may blink among its mountains, and near misses are marked. Pick one to see the
+    Moon drawn as you will see it, with the points of its edge where the star goes in and
+    comes out, and the times to the second. **Also not seen from here** adds those that
+    happen with the Moon below your horizon and those seen only elsewhere on Earth, with the
+    part of the Earth that sees them. Times are for the Moon's mean edge: its mountains move a
+    contact by seconds, and by up to a minute near its poles.
+- **Planets** — five lists.
+  - **Highlights**: oppositions, conjunctions with the Sun, greatest elongations of Mercury
+    and Venus, and closest approaches.
+  - **Close approaches**: planets passing each other, the Moon passing the planets and the
+    bright stars on its path, and planets passing those stars, within 5°: how close, which
+    way, whether they are far enough from the Sun to be seen, and when they are best seen
+    from your place (both up and the sky dark). A pass marked **Hidden from some places** is
+    an occultation for part of the Earth.
+  - **Retrograde**: when each planet seems to stop against the stars and turn back (a
+    station), and when it turns forward again, with a timeline of the year's retrograde loops
+    and the ones under way.
+  - **Transits**: Mercury and Venus crossing the Sun's face in the next (or last) hundred
+    years. Pick one for its path across the Sun, drawn as the Sun appears with north up, the
+    contact times at your place with the Sun's height at each, and the eye-safety note.
+  - **Jupiter's moons**: the transits, shadows, eclipses and disappearances of Io, Europa,
+    Ganymede and Callisto, night by night for a week, with Jupiter's rising and setting and
+    the hours of darkness, and for each event whether you can see it from your place
+    (Jupiter at least 5° up, the Sun at least 6° down) and why not when you cannot.
+- **Meteors** — the year's meteor showers as a calendar: when each is active and peaks, its
+  zenithal hourly rate (ZHR, the rate under a perfect sky with the radiant overhead), how
+  bright the Moon is at the peak, and the rate to expect at your place on the peak night,
+  with the hour it is best; above the list, what the night of the time shown offers. Choose
+  how dark your sky is, from a dark site to a city. The rates are estimates from a simple
+  model and say so: real showers vary from year to year.
+- **Seasons** — the equinoxes and solstices, worded for your hemisphere, and the Earth's
+  perihelion and aphelion (closest to and farthest from the Sun, about 3% apart: the
+  seasons come from the tilt of the Earth's axis, not from the distance).
 
-Clicking any event moves the explorer's time to it. The eclipse list agrees with NASA's
-eclipse canon for every eclipse of 1990–2060 (see [Accuracy and limitations](ACCURACY.md),
-"Eclipses" and "Planet events"). From a terminal, `skyfix events`, `skyfix phases` and
-`skyfix seasons` give the day's events, the Moon's phases and the seasons;
-`skyfix eclipses` lists the eclipses and what your place sees of each, `skyfix eclipse`
-gives one eclipse's contacts from your place and its path (as GeoJSON for any map tool),
-and `skyfix planet-events` the planets' oppositions, conjunctions, elongations and
-closest approaches (see [Command line](CLI.md)).
+Clicking any event moves the explorer's time to it and selects the body concerned.
+
+**Saving events.** Every list has a **Save** menu. **Add to a calendar** makes a calendar
+file (`.ics`, the iCalendar standard every calendar program imports) of the events listed,
+each with a sentence saying what it is, and for times that hold only at your place, the place
+— unless you untick **Name the place in the files**. **Save as a table** makes a CSV file
+for a spreadsheet, every row with its time in UTC (or UT) beside your local time. The small
+calendar button beside each event saves that one alone. Where your device's share sheet
+takes calendar files, **Share to a calendar…** hands the file to it. The files are made in
+the page; nothing is sent anywhere. Saving an event again, from any place, replaces its
+entry in your calendar rather than adding a second one. A calendar file cannot hold a date
+before AD 1.
+
+**Far dates.** The lists say which years the engine covers now, and a list that reaches its
+edge says where it stops and, when the site offers one, has a button for the data pack that
+extends it. Far from the present the Earth's rotation is known only roughly, so a clock time
+then carries its uncertainty (the ± chip, see [Moving through time](#moving-through-time))
+and the list says why. Lists that take the engine a while — a year of close approaches is
+about a second — fill in as they are found, with a progress line, and wait while you drag
+the time bar.
+
+The eclipse list agrees with NASA's eclipse canon for every eclipse of 1990–2060;
+occultation contacts agree with Skyfield's within 1.4 s at the mean limb, transit contacts
+with NASA's within 5 s, close approaches within 5 minutes and perigees within 11 s; the
+"seen elsewhere" rule for occultations is checked against the engine's own local search
+(see [Accuracy and limitations](ACCURACY.md), "Eclipses", "Planet events", "Moon in detail",
+"Planet detail" and "Events view"). From a terminal, `skyfix events`, `skyfix phases` and `skyfix seasons` give the day's events, the
+Moon's phases and the seasons; `skyfix eclipses` lists the eclipses and what your place sees
+of each, `skyfix eclipse` gives one eclipse's contacts from your place and its path (as
+GeoJSON for any map tool), and `skyfix planet-events` the planets' oppositions, conjunctions,
+elongations and closest approaches (see [Command line](CLI.md)).
 
 ![The Events view: the total solar eclipse of 8 April 2024 as seen from Dallas, with its timeline and contact times.](design/events-eclipse-light.png)
 

@@ -2885,3 +2885,75 @@ with the mock engine through the same contract):
   first visit they cost the first draw 260 ms). A time change inside the night costs the
   view about nothing per frame (the median frame's work is the same with About mounted
   instead, 1.5-1.9 ms).
+
+## Events view: the lists' own rules, calendar files and search pieces (events2 agent, wave 2)
+
+The Events view shows the engines' answers (sections 12, 13, 14 "Moon in detail", "Deep
+sky", 17) in words; every number on it is theirs, except for three rules of its own, which
+are checked here (`web/test/next/events-*.test.ts`; the real-engine block runs when the
+WebAssembly package is built).
+
+**Occultations seen elsewhere on Earth** (`moon-model.ts` `occultedSomewhere`,
+`whereSeen`). The Moon hides a body for someone on Earth when the Moon's shadow cast by the
+body (a cylinder of the Moon's radius along the body's direction) meets the Earth:
+`sin(sep) < sin(HP) + sin(SD☾)`, with the geocentric least separation `sep` from
+`conjunctions` and the Moon's geocentric horizontal parallax and semidiameter from
+`sky_state`; a planet's own semidiameter is added, since a partial cover counts. Which part
+of the Earth sees it follows from where the Moon passes the body as seen from the Earth's
+centre: north of it, the northern part of the half of the Earth facing the Moon; south,
+the southern; over it (`sep ≤ SD☾`), across the middle. `events-real-engine.test.ts` asks the
+engine's own local occultation search (section 14, "Moon in detail": 1.42 s against
+Skyfield) at the place where the Moon's shadow line through its centre comes nearest the
+Earth's centre, for every pass of the Moon within 1.6° of a planet or of the seven
+navigational stars it can cover (Aldebaran, Regulus, Spica, Antares, Nunki, Elnath,
+Zubenelgenubi) in 2026-2027:
+
+| check | passes | result |
+|---|---|---|
+| "hidden somewhere" against the local search, more than 1′ from the threshold | 123 | **123 agree** |
+| within 1′ of the threshold (the Earth's flattening moves it by 0.2′ at the poles, and the shadow's hours-long crossing by fractions of an arcminute) | 1 | not judged |
+| "north" or "south" against the side of the sub-lunar point that place is on (passes not over the body, `|cos PA| > 0.3`) | 104 | **104 agree** |
+
+This is a sorting rule for a list, not a prediction of where on Earth an occultation is
+seen: the list says so ("roughly: the exact track needs their places").
+
+**Calendar files** (`web/src/next/export/ics.ts`, CONVENTIONS 15.8). `events-ics.test.ts`
+reads every file back with a small RFC 5545 reader written independently of the writer: CRLF
+line ends, lines of at most 75 octets folded without splitting a UTF-8 character, BEGIN/END
+nesting, VERSION and PRODID, one UID, DTSTAMP and DTSTART per event, DATE-TIME values in UTC
+form, DTEND after DTSTART, unique UIDs, TEXT values (commas, semicolons, backslashes, line
+breaks, `±`, `°`, `′`, an emoji) reading back exactly, GEO in range. On the built package a
+year of every list at Philadelphia (46 perigee and full-Moon events, 34 occultations, 117
+close approaches, 18 stations, the 12 transits of 1990-2060, 14 Jupiter's-moon events in
+three days, 32 meteor-shower peaks, the Earth's 2 apsides) makes files that pass the reader,
+one entry per event, and tables with one row per event. Times are rounded to the second, as
+the format holds; the description says when the clock is UT rather than UTC and gives the
+Earth-rotation uncertainty when it counts.
+
+**Jupiter's moons "seen from here"** is a stated rule, not a model: Jupiter's apparent
+altitude at least 5° and the Sun's at least 6° below the horizon at the start or the end (and
+that moment `observable` in `galilean_events`), Jupiter at least 15° from the Sun.
+
+**Search pieces.** The longer searches run one engine call at a time between frames, and
+wait while a pointer is pressed on the page, while the time has moved in the last 300 ms,
+and (one piece every 250 ms) while the time plays. The pieces, measured in Chrome and in node
+(the same V8) on the shared machine at a load average near 30: eclipses for ten years about
+0.1 s (a millennium is a hundred pieces), occultations for 61 days 26 ms,
+close approaches for 21 days with the place 52 ms, perigees and apogees for half a year
+149 ms (most of it the engine's phase search around the window), stations for 61 days 74 ms,
+transits for two years with the place about 80 ms, Jupiter's moons for a day 15 to 60 ms,
+the year's meteor showers without the place 63 ms and with it 355 ms (one call, made once the
+page is still). `ui-check.mjs` (group `events`) drags the time bar over a running search of
+close approaches and checks that it makes no progress until the pointer lets go, then
+finishes.
+
+**The lunar limb on the eclipse card** shows the engine's limb-corrected contacts and beads
+(section 19) as they come; the card's own words are tested in `events-models.test.ts`
+(the contacts replaced and re-sorted, a central phase gained or lost at the edge of the
+path, each contact's shift from the smooth Moon's, the beads' span and clock positions).
+On the built site at Dallas for 8 April 2024: second contact 0.9 s and third 3.7 s earlier
+than the smooth Moon's, totality 2.8 s shorter (3 min 48 s), eight beads going out at
+11 to 12 o'clock and eight coming on at 4 o'clock; the pack is offered once a page session
+and a second solar eclipse neither asks again nor loses its Get button (a private headless
+Chrome, `docs/design/local/events-eclipse-*limb*.png`). The list and its Save menu stay on
+the mean limb (the limb costs 60-75 ms an eclipse in WebAssembly).

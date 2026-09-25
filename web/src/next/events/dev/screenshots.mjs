@@ -55,6 +55,14 @@ const toMap = (id) => [
   { wait: 5000 },
 ];
 const listed = `document.querySelector('.sfe-eclipses')?.dataset.local === 'done'`;
+/** events2: open a tab (and a sub-list), wait until its search is done, then open a card. */
+const list = (tabId, sub, root, open = null) => [
+  { run: tab(tabId) },
+  { until: onTab(tabId) },
+  ...(sub ? [{ until: `!!document.querySelector('.sfe-subtabs [data-sub="${sub}"]')` }, { run: `document.querySelector('.sfe-subtabs [data-sub="${sub}"]').click()` }] : []),
+  { until: `document.querySelector('${root}')?.dataset.state === 'done'` },
+  ...(open ? [{ run: `document.querySelector('${open}')?.click()` }, { wait: 900 }] : [{ wait: 400 }]),
+];
 const onTab = (id) => `document.querySelector('.sfe')?.dataset.tab === '${id}'`;
 const mapReady = `document.querySelector('.sfm')?.dataset.detail === '1' && document.querySelector('.sfm')?.dataset.places === '1'`;
 
@@ -83,6 +91,19 @@ const SHOTS = {
   'map-2021-annular-polar': [DALLAS('2021-06-01T15:00:00Z'), DESKTOP, 'light', null, toMap('2021-06-10-solar')],
   'map-lunar': [PHILLY('2025-03-01T15:00:00Z'), DESKTOP, 'dark', null, toMap('2025-03-14-lunar')],
   'map-2024-phone': [DALLAS('2024-03-20T15:00:00Z'), PHONE, 'dark', null, toMap('2024-04-08-solar')],
+  // events2 (expansion programme Q4): the Moon and Planets groups, meteors, seasons.
+  'occultations-light': [PHILLY('2026-09-24T15:00:00Z'), DESKTOP, 'light', null, list('moon', 'occultations', '.sfe-occ', '.sfe-occ .sfe-ev2__open')],
+  'occultations-night': [PHILLY('2026-09-24T15:00:00Z'), DESKTOP, 'dark', night, list('moon', 'occultations', '.sfe-occ', '.sfe-occ .sfe-ev2__open')],
+  'occultations-phone-night': [PHILLY('2026-09-24T15:00:00Z'), PHONE, 'dark', night, [...list('moon', 'occultations', '.sfe-occ', '.sfe-occ .sfe-ev2__open'), { run: "document.querySelector('.sfe-card--occ')?.scrollIntoView({ block: 'start' })" }, { wait: 400 }]],
+  'apsides-light': [PHILLY('2026-09-24T15:00:00Z'), DESKTOP, 'light', null, list('moon', 'apsides', '.sfe-aps')],
+  'transit-light': [PHILLY('2019-10-01T15:00:00Z'), DESKTOP, 'light', null, list('planets', 'transits', '.sfe-transits', '.sfe-transits .sfe-ev2__open')],
+  'transit-night': [PHILLY('2019-10-01T15:00:00Z'), DESKTOP, 'dark', night, list('planets', 'transits', '.sfe-transits', '.sfe-transits .sfe-ev2__open')],
+  'conjunctions-dark': [PHILLY('2026-09-24T15:00:00Z'), DESKTOP, 'dark', null, list('planets', 'conjunctions', '.sfe-conj')],
+  'retrograde-light': [PHILLY('2026-09-24T15:00:00Z'), DESKTOP, 'light', null, list('planets', 'retrograde', '.sfe-retro')],
+  'jupiter-dark': [PHILLY('2026-09-24T15:00:00Z'), DESKTOP, 'dark', null, list('planets', 'jupiter', '.sfe-jup')],
+  'showers-light': [PHILLY('2026-09-24T15:00:00Z'), DESKTOP, 'light', null, list('meteors', null, '.sfe-showers', '.sfe-showers [data-shower="PER"] .sfe-ev2__open')],
+  'showers-phone-night': [PHILLY('2026-09-24T15:00:00Z'), PHONE, 'dark', night, list('meteors', null, '.sfe-showers')],
+  'seasons-perihelion-light': [PHILLY('2026-09-24T15:00:00Z'), DESKTOP, 'light', null, [{ run: tab('seasons') }, { until: onTab('seasons') }, { until: "!/Computing/.test(document.querySelector('.sfe-tabbody')?.textContent ?? 'Computing')" }, { wait: 300 }]],
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
