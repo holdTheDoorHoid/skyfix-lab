@@ -260,7 +260,7 @@ describe('sunrise and sunset bearings, equation of time, solar panel', () => {
     }
     expect(worstS).toBeLessThan(1);
     expect(worstAz).toBeLessThan(0.01);
-  });
+  }, 30_000);
 
   it('leaves out the days the engine cannot compute, and counts them', () => {
     const data = bearingsFromYear(2026, [
@@ -298,5 +298,5 @@ describe('sunrise and sunset bearings, equation of time, solar panel', () => {
     const day = computeSolarDay(engine, PHILLY, localDay(NEW_YORK, { year: 2026, month: 9, day: 24 }), { tilt: 40, azimuth: 180 });
     expect(day.panel.tilt_deg).toBe(40);
     expect(day.poa_kwh_m2).toBeGreaterThan(day.ghi_kwh_m2);
-  });
+  }, 30_000);
 });

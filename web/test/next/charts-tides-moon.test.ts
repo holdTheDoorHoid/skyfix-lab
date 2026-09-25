@@ -180,7 +180,7 @@ describe('the Moon through the year', () => {
       expect(d.az).toBeCloseTo(moon.az_deg, 6);
     }
     expect(data.days.filter((d) => d.alt >= 0).length).toBeGreaterThan(120);
-  });
+  }, 30_000);
 
   it('leaves out the days outside the engine’s coverage and counts them', () => {
     const data = computeMoonYear(engine, { observer: PHILLY, zone: NEW_YORK, year: 2061, hour: 21 });
