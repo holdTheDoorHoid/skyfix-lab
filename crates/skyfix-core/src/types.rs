@@ -110,7 +110,12 @@ pub struct Instrument {
     pub horizon: HorizonMode,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+/// The horizon a sextant altitude was measured from (CONVENTIONS section 5, step 2).
+///
+/// Serialised as a string for the modes without parameters (`"sea"`, ...) and as
+/// `{"shore": {"distance_nm": 1.2}}` for a shoreline nearer than the sea horizon (not
+/// `Eq`: it carries a distance).
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum HorizonMode {
     /// Natural sea horizon: dip applies.
@@ -120,6 +125,10 @@ pub enum HorizonMode {
     ArtificialReflected,
     /// Electronic local vertical (inclinometer / camera attitude): no dip.
     ElectronicVertical,
+    /// The waterline of a shore (or any object afloat) `distance_nm` away, nearer than
+    /// the sea horizon: the dip short of the horizon applies (Bowditch vol. 2 Table 14;
+    /// CONVENTIONS section 5). Beyond the sea horizon the sea dip applies, with a warning.
+    Shore { distance_nm: f64 },
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
@@ -617,6 +626,27 @@ pub enum Warning {
         id: String,
         latitude_deg: f64,
         azimuth_deg: f64,
+    },
+    // --- sailings agent (expansion programme): dip short, error logs -------------
+    /// A `shore` horizon farther than the sea horizon: the waterline is hidden below the
+    /// sea horizon, so the sea dip was applied instead of the dip short of the horizon.
+    ShoreBeyondSeaHorizon {
+        id: String,
+        distance_nm: f64,
+        /// Distance of the sea horizon for this height of eye, NM (where Bowditch's dip
+        /// short of the horizon is least, and equals the sea dip).
+        sea_horizon_nm: f64,
+    },
+    /// A sight outside the time span of an error log (`instrument.index_error_log` or
+    /// `clock.watch_log`): the nearest entry's value was held, not extrapolated.
+    ErrorLogOutsideSpan {
+        id: String,
+        /// `"index_error_log"` or `"watch_log"`.
+        log: String,
+        /// The value used: arcminutes for the index error log, seconds for the watch log.
+        held_value: f64,
+        /// How far outside the span the sight is, hours.
+        hours_outside: f64,
     },
 }
 

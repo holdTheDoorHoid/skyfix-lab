@@ -308,8 +308,9 @@ fn apparent_of(
     let ic = instrument.index_correction_arcmin / 60.0;
     let (ha, sigma) = match a.altitude_kind {
         AltitudeKind::SextantHs => match instrument.horizon {
-            HorizonMode::Sea => (
-                a.altitude_deg + ic - corrections::dip_arcmin(o.height_of_eye_m) / 60.0,
+            HorizonMode::Sea | HorizonMode::Shore { .. } => (
+                a.altitude_deg + ic
+                    - corrections::horizon_dip_arcmin(instrument.horizon, o.height_of_eye_m) / 60.0,
                 a.sigma_arcmin,
             ),
             HorizonMode::ArtificialReflected => ((a.altitude_deg + ic) / 2.0, a.sigma_arcmin / 2.0),

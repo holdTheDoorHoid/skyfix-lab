@@ -119,8 +119,9 @@ pub fn predict_sextant(
 fn reading_range_deg(observer: &SightObserver, instrument: &Instrument) -> (f64, f64) {
     let ic = instrument.index_correction_arcmin / 60.0;
     match instrument.horizon {
-        HorizonMode::Sea => {
-            let dip = corrections::dip_arcmin(observer.height_of_eye_m) / 60.0;
+        HorizonMode::Sea | HorizonMode::Shore { .. } => {
+            let dip = corrections::horizon_dip_arcmin(instrument.horizon, observer.height_of_eye_m)
+                / 60.0;
             (dip - ic, 90.0 + dip - ic)
         }
         HorizonMode::ArtificialReflected => (-ic, 180.0 - ic),

@@ -1,0 +1,43 @@
+{
+  "schema": "skyfix.reference/1",
+  "generator": {
+    "tool": "typed by hand from a published source (CONVENTIONS section 11)",
+    "source": "The American Practical Navigator (Bowditch), NGA Pub. No. 9, 2019 edition, Volume 2, Table 14 'Dip of the Sea Short of the Horizon' (page 128; the 2002 edition's Table 22). The formula it tabulates is printed in Volume 2, Chapter 4 'Calculations and Conversions', section 402: Ds = 60 tan^-1 (hf / (6076.1 ds) + ds / 8268), Ds in minutes of arc, hf the height of eye in feet, ds the distance to the waterline in nautical miles.",
+    "url": "https://msi.nga.mil/Publications/APN",
+    "copy_consulted": "https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_2/06-%20Piloting%20Tables/Table%2014-%20Dip%20of%20the%20Sea%20Short%20of%20the%20Horizon.pdf and .../Volume-_2/09-%20Mathematics%20For%20Navigation/Chapter%204-%20Calculations%20and%20Conversion.pdf",
+    "retrieved": "2026-09-24",
+    "licence": "U.S. Government work (National Geospatial-Intelligence Agency), not subject to copyright in the United States (17 U.S.C. 105). Only table entries are used.",
+    "rounding": "The table prints minutes of arc to 0.1'. Heights are in feet (the metres in parentheses are rounded to 0.1 m and are not used); the test converts with 1 ft = 0.3048 m exactly. Where the waterline is beyond the sea horizon the table repeats the sea dip (0.97' sqrt(h ft)), and SkyFix then applies its own sea dip (1.76' sqrt(h m), CONVENTIONS section 5), which rounds to the same tenth at every such entry below.",
+    "never_a_runtime_dependency": "Test data only. Never regenerated from Rust output."
+  },
+  "cases": [
+    {"height_ft": 5, "distance_nm": 0.2, "dip_arcmin": 14.2},
+    {"height_ft": 5, "distance_nm": 1.0, "dip_arcmin": 3.2},
+    {"height_ft": 5, "distance_nm": 2.0, "dip_arcmin": 2.2},
+    {"height_ft": 5, "distance_nm": 5.0, "dip_arcmin": 2.2, "beyond_horizon": true},
+    {"height_ft": 10, "distance_nm": 0.5, "dip_arcmin": 11.5},
+    {"height_ft": 10, "distance_nm": 3.0, "dip_arcmin": 3.1},
+    {"height_ft": 15, "distance_nm": 0.3, "dip_arcmin": 28.4},
+    {"height_ft": 20, "distance_nm": 1.5, "dip_arcmin": 8.2},
+    {"height_ft": 20, "distance_nm": 6.0, "dip_arcmin": 4.3, "beyond_horizon": true},
+    {"height_ft": 25, "distance_nm": 0.7, "dip_arcmin": 20.5},
+    {"height_ft": 30, "distance_nm": 2.5, "dip_arcmin": 7.8},
+    {"height_ft": 30, "distance_nm": 8.0, "dip_arcmin": 5.3, "beyond_horizon": true},
+    {"height_ft": 35, "distance_nm": 3.5, "dip_arcmin": 7.1},
+    {"height_ft": 40, "distance_nm": 0.9, "dip_arcmin": 25.5},
+    {"height_ft": 45, "distance_nm": 1.8, "dip_arcmin": 14.9},
+    {"height_ft": 50, "distance_nm": 3.0, "dip_arcmin": 10.7},
+    {"height_ft": 50, "distance_nm": 10.0, "dip_arcmin": 6.9, "beyond_horizon": true},
+    {"height_ft": 55, "distance_nm": 7.5, "dip_arcmin": 7.3},
+    {"height_ft": 60, "distance_nm": 0.2, "dip_arcmin": 169.7},
+    {"height_ft": 65, "distance_nm": 4.0, "dip_arcmin": 10.9},
+    {"height_ft": 70, "distance_nm": 9.0, "dip_arcmin": 8.1},
+    {"height_ft": 75, "distance_nm": 1.2, "dip_arcmin": 35.9},
+    {"height_ft": 80, "distance_nm": 6.5, "dip_arcmin": 9.7},
+    {"height_ft": 85, "distance_nm": 6.0, "dip_arcmin": 10.5},
+    {"height_ft": 90, "distance_nm": 8.0, "dip_arcmin": 9.7},
+    {"height_ft": 95, "distance_nm": 10.0, "dip_arcmin": 9.5},
+    {"height_ft": 100, "distance_nm": 0.2, "dip_arcmin": 282.3},
+    {"height_ft": 100, "distance_nm": 10.0, "dip_arcmin": 9.8}
+  ]
+}

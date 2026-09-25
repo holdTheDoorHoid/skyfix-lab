@@ -176,6 +176,7 @@ fn validate_inner(
         "instrument.index_correction_arcmin",
         session.instrument.index_correction_arcmin,
     )?;
+    corrections::check_horizon(session.instrument.horizon, "instrument.horizon")?;
     finite("clock.uncertainty_s", session.clock.uncertainty_s)?;
     if session.clock.uncertainty_s < 0.0 {
         return Err(SkyfixError::InvalidField {
@@ -216,6 +217,7 @@ fn validate_inner(
 
         finite(&at("altitude_deg"), obs.altitude_deg)?;
         let horizon = obs.horizon.unwrap_or(session.instrument.horizon);
+        corrections::check_horizon(horizon, &at("horizon"))?;
         // A reflected artificial-horizon sextant reading is the DOUBLE angle
         // (section 5), so it may legitimately run to 180 deg before halving.
         let double_angle = horizon == HorizonMode::ArtificialReflected
@@ -436,7 +438,7 @@ pub fn to_csv(session: &Session) -> String {
     );
     head(
         "instrument.horizon",
-        corrections::horizon_name(session.instrument.horizon).to_string(),
+        corrections::horizon_label(session.instrument.horizon),
     );
     head("clock.uncertainty_s", num(session.clock.uncertainty_s));
     head("clock.correction_s", num(session.clock.correction_s));
@@ -463,9 +465,8 @@ pub fn to_csv(session: &Session) -> String {
             num(obs.sigma_arcmin),
             corrections::limb_name(obs.limb).to_string(),
             obs.horizon
-                .map(corrections::horizon_name)
-                .unwrap_or("")
-                .to_string(),
+                .map(corrections::horizon_label)
+                .unwrap_or_default(),
             gha,
             dec,
             sd,
@@ -692,18 +693,13 @@ fn parse_limb(s: &str, field: &str) -> Result<Limb, SkyfixError> {
 }
 
 fn parse_horizon(s: &str, field: &str) -> Result<HorizonMode, SkyfixError> {
-    match s {
-        "sea" => Ok(HorizonMode::Sea),
-        "artificial_reflected" => Ok(HorizonMode::ArtificialReflected),
-        "electronic_vertical" => Ok(HorizonMode::ElectronicVertical),
-        other => Err(SkyfixError::InvalidField {
-            field: field.to_string(),
-            message: format!(
-                "unknown horizon {other:?}; expected sea, artificial_reflected or \
-                 electronic_vertical"
-            ),
-        }),
-    }
+    corrections::parse_horizon_label(s).ok_or_else(|| SkyfixError::InvalidField {
+        field: field.to_string(),
+        message: format!(
+            "unknown horizon {s:?}; expected sea, artificial_reflected, electronic_vertical or \
+             shore:<distance_nm>"
+        ),
+    })
 }
 
 fn parse_horizon_opt(s: &str, field: &str) -> Result<Option<HorizonMode>, SkyfixError> {
