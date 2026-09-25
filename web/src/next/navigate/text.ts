@@ -150,7 +150,7 @@ export const LUNAR_STEP_TEXT: Record<LunarClearingStep['kind'], { plain: string;
   parallax: { plain: 'Seen from the surface, not the centre', term: 'parallax removed (WGS84)' },
 };
 
-export type MethodId = 'fix' | 'noon' | 'polaris' | 'running' | 'average' | 'lunar' | 'plan' | 'compass';
+export type MethodId = 'fix' | 'noon' | 'polaris' | 'running' | 'average' | 'lunar' | 'plan' | 'compass' | 'passage';
 
 export interface MethodText {
   id: MethodId;
@@ -218,6 +218,13 @@ export const METHODS: readonly MethodText[] = [
     title: 'Check the compass by the sky',
     explain:
       'Take a compass bearing of the Sun, the Moon, a planet or a star; the sky says what the bearing really was, and the difference is the compass error. For a magnetic compass it splits in two: the variation (the Earth’s field here, the same for every compass, from a model or the chart) and the deviation (this compass’s own error, which changes with the ship’s heading).',
+  },
+  {
+    id: 'passage',
+    label: 'Passage',
+    title: 'Plan a passage',
+    explain:
+      'A route of waypoints, each leg sailed on a great circle (the shortest way, its course changing as you go) or a rhumb line (one compass course all the way, a little longer). You get the distance, the course and, at your speed, the time of every waypoint. The route is drawn on the map, and its dead-reckoning track can go straight to the running fix.',
   },
 ];
 

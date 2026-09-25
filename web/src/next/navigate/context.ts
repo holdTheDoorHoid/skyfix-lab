@@ -28,8 +28,11 @@ export interface NavCtx {
   readonly overlays: MapService | null;
   /** Bodies offered for sights: Sun, Moon, Venus, Mars, Jupiter, Saturn, the 58 stars. */
   readonly bodies: readonly SightBodyInfo[];
-  /** A short message in the view's status line (for example "Loaded example …"). */
-  say(text: string, level?: 'info' | 'caution' | 'error'): void;
+  /**
+   * A short message in the view's status line (for example "Loaded example …"), with an
+   * Undo button when `undo` is given (navigate2: the passage handed to the running fix).
+   */
+  say(text: string, level?: 'info' | 'caution' | 'error', undo?: () => void): void;
 }
 
 export function angleFormat(nc: NavCtx): AngleFormat {

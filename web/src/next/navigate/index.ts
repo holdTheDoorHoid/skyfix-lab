@@ -44,6 +44,7 @@ import { takeNavigateHandoff } from './handoff.js';
 import { fileStem } from './gpx.js';
 import { averageMethod } from './methods/average.js';
 import { compassMethod } from './methods/compass.js';
+import { passageMethod } from './methods/passage.js';
 import { fixMethod } from './methods/fix.js';
 import { lunarMethod } from './methods/lunar.js';
 import { noonMethod } from './methods/noon.js';
@@ -57,6 +58,7 @@ import { sessionPanel } from './session-panel.js';
 import { sightsPanel } from './sights.js';
 import { AUTOSAVE_TEXT, HONESTY, METHODS, type MethodId } from './text.js';
 import { btn, download, errorText, kids, notice, para, pickFile, uid, warningList } from './ui.js';
+import { installPassage } from './passage/page.js';
 import { sightTierAt } from './tier.js';
 import { seedFromExplorer, workingFor, type WorkingOptions } from './working.js';
 
@@ -79,6 +81,7 @@ const METHOD_MOUNT: Record<MethodId, (host: HTMLElement, nc: NavCtx) => Mounted>
   plan: planMethod,
   // Expansion programme (navigate2 agent).
   compass: compassMethod,
+  passage: passageMethod,
 };
 
 export function navigateView(options: NavigateOptions = {}): Component {
@@ -95,6 +98,8 @@ export function navigateView(options: NavigateOptions = {}): Component {
     root.append(h('p', { class: 'sfn-loading', role: 'status' }, 'Loading the navigation tools…'));
     const workingOptions: WorkingOptions = options.storage === undefined ? {} : { storage: options.storage };
     const working = workingFor(ctx.store, workingOptions);
+    // navigate2: the passage's page-level pieces (the measuring tool's "Add as a leg", the route on the map).
+    installPassage(ctx);
     let destroyed = false;
     d.add(() => {
       destroyed = true;
@@ -125,8 +130,12 @@ export function navigateView(options: NavigateOptions = {}): Component {
         reductions: reductions.store,
         overlays: overlayServiceFor(ctx),
         bodies: sightBodiesFor(ctx, nav),
-        say(text, level = 'info') {
-          statusLine.replaceChildren(notice(level, text));
+        say(text, level = 'info', undo) {
+          const button = undo ? btn('Undo', () => {
+            undo();
+            statusLine.replaceChildren(notice('info', 'Undone.'));
+          }, { variant: 'outline' }) : null;
+          statusLine.replaceChildren(notice(level, text, ...(button ? [' ', button] : [])));
         },
       };
 
