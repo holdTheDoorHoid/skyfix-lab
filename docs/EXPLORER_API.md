@@ -1244,8 +1244,8 @@ The new and full Moons are exactly `moon_phases`'s instants.
 
 Lunar occultations of stars and planets seen from one place, contacts at the Moon's
 **mean limb**, the window at most 400 days (clipped to the coverage). A year with the
-default bodies takes about 0.1 s natively (64 ms of CPU); down to magnitude 6.5 about
-0.6 s. `options_json` (all optional, `{}` or `null` for the defaults; an unknown key
+default bodies takes about 0.1 s natively (76 ms of CPU); down to magnitude 6.5 about
+0.5 s. `options_json` (all optional, `{}` or `null` for the defaults; an unknown key
 throws):
 
 | key | default | meaning |

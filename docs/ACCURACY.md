@@ -38,7 +38,7 @@ reproduce each row are in the numbered section named.
 | Navigation methods: seeded-coverage of the stated sigma | 93.8–96.0 % (Polaris very near the pole with a poor DR: 89.8 %, a documented limit, `polaris_near_pole`) | ≈95 % | 3, "Navigation methods" |
 | Moon in detail: libration, sub-solar point, axis (vs Skyfield + JPL's DE440 lunar orientation; Meeus 53.a) | 0.0052° / 0.0060° / 0.0061° over 1550–2650 (model), 0.0058° end to end for observers; Meeus 53.a to every printed digit | 0.05° | 14 |
 | Moon in detail: perigee, apogee, supermoons (vs Skyfield + DE440s) | instants within 11.2 s, distances 0.22 km; every supermoon/micromoon flag agrees | 2 min, 10 km | 14 |
-| Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s | 30 s | 14 |
+| Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s; a year at one place in 76 ms of CPU | 30 s; 200 ms | 14 |
 
 ## 1. What accuracy means here
 
@@ -1521,9 +1521,10 @@ list (`limb_note`). A lunar-limb pack (programme item P12) would be the remedy.
 
 Release build natively, CPU time on the shared machine (400 bare Moon positions cost
 30 ms there; `tests/perf.rs`, `moon_detail_budget`): a year of occultations at one place
-with the 58 stars within reach and the 7 planets **64 ms** (budget 200 ms), with the
-Bright Star Catalogue to magnitude 3.5 about the same (the extra stars cost a few ms), to
-magnitude 6.5 about 0.6 s; a year of apsides with supermoons 120 ms (mostly the phase
+with the default bodies (the 58 navigational stars, the Bright Star Catalogue to
+magnitude 3.5 and the 7 planets, 36 bodies within the Moon's reach at Philadelphia)
+**76 ms** (budget 200 ms), of which 30 ms is the Moon's daily track; to magnitude 6.5
+(965 bodies) 0.50 s; a year of apsides with supermoons 120 ms (mostly the phase
 search); `moon_orientation` and `moon_features` about 0.5 ms each. The Moon is evaluated
 once a day for the occultation search and interpolated (within 0.1 km, 0.06″); the
 planets every 4 (Mercury), 8 (Venus) or 16 days (the rest), measured to 0.02°, 0.005° and

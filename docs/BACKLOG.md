@@ -60,4 +60,4 @@ This file is the single list; the completion report links here.
 | Named features on the terminator | completed (engine) | 150 features from the USGS/IAU gazetteer (public domain), `moon_features`; the list and the inset are wave 2 (Q3, Q2) |
 | Perigee, apogee, supermoons, the year's largest and smallest full Moon | completed (engine) | `moon_apsides`, within 11 s and 0.22 km of DE440s; the Events list is wave 2 (Q4) |
 | Lunar occultations of bright stars and planets with local times | completed (engine), mean limb | `occultations`, within 1.4 s of Skyfield's geometry; the Events list and Selected card are wave 2 (Q4). Contacts are for the mean limb, labelled; correcting them (and deciding grazes) with the real limb profile waits on the lunar-limb pack (P12) |
-| Occultations of fainter stars and the Pleiades beyond Alcyone | available, not default | `max_magnitude` up to 6.5 (about 0.6 s a year natively); the default is 3.5 |
+| Occultations of fainter stars and the Pleiades beyond Alcyone | available, not default | `max_magnitude` up to 6.5 (about 0.5 s a year natively); the default is 3.5 |
