@@ -82,7 +82,9 @@ export function variationBlock(field0: MagneticField, where: string, format: Ret
 /** The result's facts, by azimuth or by amplitude. */
 function resultFacts(r: CompassError, z: ReturnType<typeof zone>, format: ReturnType<typeof angleFormat>): HTMLElement {
   const ang = (v: number): string => fmtAngle(v, format);
-  const jd = r.jd_utc;
+  // The whole second the engine's own sentence names (it truncates; a crossing is found to
+  // a fraction of a second).
+  const jd = Math.floor(r.jd_utc * 86_400 + 1e-6) / 86_400;
   const rows: (readonly [string, string] | null)[] = [
     ['True bearing', `${bearing1(r.true_bearing_deg)} (${r.method === 'azimuth' ? 'the body’s azimuth then' : 'its bearing as it crossed the horizon'})`],
     ['The compass read', bearing1(r.compass_bearing_deg)],
