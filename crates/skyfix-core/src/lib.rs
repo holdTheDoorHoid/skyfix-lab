@@ -19,6 +19,8 @@
 //! - [`misfit`]     sections 8-9: the solver's misfit on a lat/lon grid (residual heat map)
 //! - [`planner`]    observation planner (optional deliverable)
 //! - [`methods`]    noon sight, Polaris latitude, averaging a run (docs/NAVIGATION_METHODS.md)
+//! - [`sailings`]   great-circle, rhumb-line and composite sailing, dead reckoning, routes
+//!   (expansion programme, sailings agent; docs/NAVIGATION_METHODS.md section 9)
 
 pub mod corrections;
 pub mod error;
@@ -28,6 +30,7 @@ pub mod methods;
 pub mod misfit;
 pub mod planner;
 pub mod reduce;
+pub mod sailings;
 pub mod session;
 pub mod sights;
 pub mod solver;
