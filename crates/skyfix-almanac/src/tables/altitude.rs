@@ -176,8 +176,10 @@ pub struct AdditionalRow {
     pub corrections: Vec<ArcminCell>,
 }
 
-/// A temperature and pressure to evaluate exactly (`Conditions` in the request).
+/// A temperature and pressure to evaluate exactly (`Conditions` in the request). Any
+/// other key is refused, as EXPLORER_API says (verify2: it was silently ignored).
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
 pub struct Conditions {
     pub temperature_c: f64,
     pub pressure_hpa: f64,

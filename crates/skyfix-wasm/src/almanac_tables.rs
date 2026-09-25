@@ -66,6 +66,18 @@ pub mod native {
         increments(minute)
     }
 
+    /// The same from a JS number: a whole minute 0 to 59, else an error. (verify2: the
+    /// export took a `u32`, and wasm-bindgen's number conversion turned 58.7 into 58 and
+    /// NaN into 0 without a word.)
+    pub fn increments_minute_number(minute: f64) -> Result<IncrementsMinute, String> {
+        if !(minute.is_finite() && minute.fract() == 0.0 && (0.0..=59.0).contains(&minute)) {
+            return Err(format!(
+                "minute must be a whole number from 0 to 59, got {minute}"
+            ));
+        }
+        increments(minute as u32)
+    }
+
     pub fn arc_time() -> ArcToTime {
         arc_to_time()
     }
@@ -107,8 +119,8 @@ pub fn almanac_opening(date: &str, calendar: &str) -> Result<JsValue, JsValue> {
 
 /// The Increments and Corrections table for one minute of time (0 to 59).
 #[wasm_bindgen]
-pub fn almanac_increments(minute: u32) -> Result<JsValue, JsValue> {
-    to_js(&native::increments_minute(minute).map_err(err)?)
+pub fn almanac_increments(minute: f64) -> Result<JsValue, JsValue> {
+    to_js(&native::increments_minute_number(minute).map_err(err)?)
 }
 
 /// Conversion of Arc to Time.
@@ -178,6 +190,18 @@ mod tests {
                 .unwrap_err()
                 .contains("YYYY-MM-DD")
         );
+    }
+
+    #[test]
+    fn a_minute_must_be_whole_and_conditions_have_two_keys() {
+        // verify2: 58.7 and NaN reached the table as 58 and 0 through the u32 export.
+        assert!(increments_minute_number(58.0).is_ok());
+        for bad in [58.7, -1.0, 60.0, f64::NAN, f64::INFINITY] {
+            assert!(increments_minute_number(bad).is_err(), "{bad}");
+        }
+        assert!(altitude(r#"{"temperature_c": 30, "pressure_hpa": 1000}"#).is_ok());
+        let e = altitude(r#"{"temperature_c": 30, "pressure_hpa": 1000, "limit": 5}"#).unwrap_err();
+        assert!(e.contains("limit"), "{e}");
     }
 
     #[test]
