@@ -63,7 +63,7 @@ fn designations_and_names() {
     // B-V: Betelgeuse is red, Rigel blue-white.
     assert!(cat.bv[at(2061)] > 1.5 && cat.bv[at(1713)] < 0.0);
     // The star field's own names go to the brighter stars (the IAU WGSN names added by
-    // the deepsky package include fainter ones, down to V 6.5).
+    // the deepsky package include fainter ones, all brighter than V 7).
     let own: Vec<&str> = include_str!("../data/names.txt")
         .lines()
         .filter(|l| !l.starts_with('#') && !l.is_empty())
