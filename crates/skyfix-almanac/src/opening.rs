@@ -93,15 +93,18 @@ pub struct AlmanacOpening {
 }
 
 /// What the opening prints under its tables, after the daily pages' own notes.
-pub const OPENING_NOTES: [&str; 2] = [
-    "Three dates per opening, grouped from January 1 as the printed almanac groups them. \
-     Stars, the planets' magnitudes, v, d and meridian passages, Aries' meridian passage, \
-     the Sun's SD and d, and the twilight, sunrise and sunset table are for the middle date; \
-     the planets' SHA for 0h UT of the middle date; moonrise and moonset for the three \
-     dates and the next.",
-    "Before 1767 there was no Nautical Almanac: an opening for an earlier date is what its \
-     tables would have said, in its format, from today's ephemeris.",
-];
+pub const OPENING_NOTE: &str = "Three dates per opening, grouped from January 1 as the \
+     printed almanac groups them. Stars, the planets' magnitudes, v, d and meridian passages, \
+     Aries' meridian passage, the Sun's SD and d, and the twilight, sunrise and sunset table \
+     are for the middle date; the planets' SHA for 0h UT of the middle date; moonrise and \
+     moonset for the three dates and the next.";
+
+/// Added before 1767, the year of the first Nautical Almanac.
+pub const ANACHRONISM_NOTE: &str = "The first Nautical Almanac was for 1767: this opening is \
+     what its tables would have said, in its format, computed from today's ephemeris.";
+
+/// The year of the first Nautical Almanac.
+pub const FIRST_ALMANAC_YEAR: i64 = 1767;
 
 /// The calendar in force on a Julian day number: Julian before 1582-10-15.
 pub fn auto_calendar(jdn: i64) -> Calendar {
@@ -221,13 +224,17 @@ pub fn almanac_opening(
     let mut notes: Vec<String> = pages::NOTES.iter().map(|s| (*s).to_string()).collect();
     // The daily pages end with the honesty line; the opening's own notes go before it.
     let banner = notes.pop();
-    notes.extend(OPENING_NOTES.iter().map(|s| (*s).to_string()));
+    notes.push(OPENING_NOTE.to_string());
+    let dates: Vec<OpeningDay> = jdns.iter().map(|&j| opening_day(j, cal)).collect();
+    if dates[0].year < FIRST_ALMANAC_YEAR {
+        notes.push(ANACHRONISM_NOTE.to_string());
+    }
     notes.extend(banner);
     Ok(AlmanacOpening {
         date: asked.to_string(),
         calendar: shown,
         index,
-        dates: jdns.iter().map(|&j| opening_day(j, cal)).collect(),
+        dates,
         days,
         moon_dates,
         moon_rows,

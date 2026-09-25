@@ -15,6 +15,26 @@
 import { isoUtc, jdFromIso, jdFromMs, utcMs } from '../time.js';
 import { createMockNav } from './mock-nav.js';
 import { mockAlmanacDay } from './mock/almanac.js';
+// Expansion programme Q7 (almanac2 agent): the almanac's tables and three-day openings.
+import {
+  mockAlmanacOpening,
+  mockAltitudeTables,
+  mockArcToTime,
+  mockIncrements,
+  mockPlanetCorrections,
+  mockPolaris,
+} from './mock/almanac-tables.js';
+import type {
+  AlmanacCalendarChoice,
+  AlmanacOpening,
+  AlmanacTablesEngine,
+  AltitudeTables,
+  ArcToTime,
+  IncrementsMinute,
+  PlanetCorrections,
+  PolarisTable,
+  RefractionConditions,
+} from './types.js';
 // Expansion programme, geomag agent: magnetic field and compass error (mock/geomag.ts).
 import { mockCompassError, mockMagneticField, mockMagneticGrid } from './mock/geomag.js';
 import type { CompassError, CompassRequest, MagneticField, MagneticGrid, MagneticModelChoice } from './types.js';
@@ -1129,7 +1149,39 @@ export class MockEngine
   occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList {
     return mockOccultations(observer, jdStart, jdEnd, options);
   }
+
+  // --- almanac2: the almanac's tables and three-day openings (mock/almanac-tables.ts),
+  // illustrative like everything here.
+
+  almanacOpening(date: string, calendar: AlmanacCalendarChoice = ''): AlmanacOpening {
+    return rethrow('almanac_opening', () => mockAlmanacOpening((d) => this.almanacDay(d), date, calendar));
+  }
+
+  almanacIncrements(minute: number): IncrementsMinute {
+    return rethrow('almanac_increments', () => mockIncrements(minute));
+  }
+
+  almanacArcToTime(): ArcToTime {
+    return mockArcToTime();
+  }
+
+  almanacAltitudeTables(conditions?: RefractionConditions | null): AltitudeTables {
+    return mockAltitudeTables(conditions);
+  }
+
+  almanacPlanetCorrections(year: number, calendar: AlmanacCalendarChoice = ''): PlanetCorrections {
+    return mockPlanetCorrections(year, calendar);
+  }
+
+  almanacPolaris(year: number, calendar: AlmanacCalendarChoice = ''): PolarisTable {
+    return mockPolaris(year, calendar);
+  }
+  // --- end almanac2
 }
+
+// The mock has the almanac's tables (almanac2 agent; checked here, not in `implements`).
+const _mockIsAlmanacTables: (e: MockEngine) => AlmanacTablesEngine = (e) => e;
+void _mockIsAlmanacTables;
 
 // The mock is a Moon-detail engine (checked here rather than in its `implements` list,
 // so parallel additions to that line do not collide).

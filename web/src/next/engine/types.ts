@@ -3629,3 +3629,347 @@ export function isTidePackNotLoaded(error: unknown): boolean {
   const text = error instanceof Error ? error.message : String(error);
   return text.includes('pack_not_loaded');
 }
+
+// ---------------------------------------------------------------------------
+// Expansion programme Q7 — almanac tables and three-day openings (almanac2 agent).
+// docs/EXPLORER_API.md "Expansion programme — almanac tables and three-day pages";
+// crates/skyfix-wasm/src/almanac_tables.rs over skyfix_almanac::{tables, opening};
+// definitions CONVENTIONS 13.12. As with the daily pages, every tabulated value has its
+// number and, under `printed`, the text the table prints; views show `printed`.
+// ---------------------------------------------------------------------------
+
+/** How the dates of an opening or a year's table are grouped and shown: `''`/`'auto'` is Julian before 1582-10-15. */
+export type AlmanacCalendarChoice = '' | 'auto' | 'julian' | 'gregorian';
+
+/** A tabulated quantity in arcminutes and its printed text (`+15.3`, `0 14.3`, `62.5`). */
+export interface ArcminCell {
+  arcmin: number;
+  printed: string;
+}
+
+/** A tabulated angle in degrees (the Polaris azimuth, `359.3`). */
+export interface DegCell {
+  deg: number;
+  printed: string;
+}
+
+export interface CriticalArgument {
+  /** At the printed precision, in the table's unit (degrees, metres or feet). */
+  value: number;
+  /** `9 55`, `2.4`, `41`. */
+  printed: string;
+}
+
+/**
+ * A critical table: an argument above `boundaries[k]` and at most `boundaries[k + 1]`
+ * takes `values[k]` (one cell per column); one exactly on a boundary takes the value above
+ * it ("in critical cases ascend").
+ */
+export interface CriticalTable {
+  argument: string;
+  unit: 'deg_min' | 'deg' | 'm' | 'ft';
+  columns: string[];
+  boundaries: CriticalArgument[];
+  values: ArcminCell[][];
+}
+
+/** One date of an opening, in the calendar the opening is shown in. */
+export interface AlmanacOpeningDay {
+  /** Wire date, proleptic Gregorian (`2016-03-07`, `-0584-05-22`). */
+  date: string;
+  calendar: CalendarKind;
+  /** Astronomical year in `calendar`. */
+  year: number;
+  month: number;
+  day: number;
+  era_year: number;
+  era: 'BC' | 'AD';
+  weekday: string;
+}
+
+export interface AlmanacOpeningMoonRow {
+  lat_deg: number;
+  label: string;
+  /** For the four `moon_dates`. */
+  moonrise: AlmanacTime[];
+  moonset: AlmanacTime[];
+}
+
+export interface AlmanacPlanetSha {
+  body: string;
+  sha_deg: number;
+  printed: { gha: string };
+}
+
+/**
+ * The printed almanac's two facing pages for three UT dates. Once-per-opening values are
+ * the middle day's (`days[1]`): stars, the planets' magnitudes, v, d and meridian passages,
+ * Aries' meridian passage, the Sun's SD and d, and the twilight and sunrise table.
+ */
+export interface AlmanacOpening {
+  /** The date asked for (wire). */
+  date: string;
+  calendar: CalendarKind;
+  /** Which of the three dates was asked for. */
+  index: number;
+  dates: AlmanacOpeningDay[];
+  days: AlmanacDay[];
+  /** The three dates and the next (wire). */
+  moon_dates: string[];
+  moon_rows: AlmanacOpeningMoonRow[];
+  /** At 0h UT of the middle date. */
+  planet_sha_00h: AlmanacPlanetSha[];
+  notes: string[];
+  errors: BodyError[];
+}
+
+export interface IncrementRow {
+  /** 0 to 60. */
+  second: number;
+  sun_planets: ArcminCell;
+  aries: ArcminCell;
+  moon: ArcminCell;
+}
+
+export interface VdCorrection {
+  v_arcmin: number;
+  v_printed: string;
+  correction: ArcminCell;
+}
+
+/** One minute of the Increments and Corrections. */
+export interface IncrementsMinute {
+  minute: number;
+  /** 61 rows, seconds 00 to 60. */
+  rows: IncrementRow[];
+  /** 181 values of v or d, 0.0 to 18.0 (the page shows three columns of 61). */
+  corrections: VdCorrection[];
+  how_to_use: string;
+  example: string;
+  notes: string[];
+}
+
+export interface ArcDegreeRow {
+  deg: number;
+  /** Minutes of time. */
+  minutes: number;
+  /** `h m`. */
+  printed: string;
+}
+
+export interface ArcMinuteRow {
+  arcmin: number;
+  /** Seconds of time for 0′.00, 0′.25, 0′.50, 0′.75. */
+  seconds: number[];
+  /** `m s`. */
+  printed: string[];
+}
+
+export interface ArcToTime {
+  degrees: ArcDegreeRow[];
+  arcminutes: ArcMinuteRow[];
+  how_to_use: string;
+  example: string;
+  notes: string[];
+}
+
+/** One row of the 0°–10° table: lower and upper limb for each half-year, stars and planets. */
+export interface LowAltitudeRow {
+  alt_deg: number;
+  printed_alt: string;
+  sun_oct_mar: [ArcminCell, ArcminCell];
+  sun_apr_sep: [ArcminCell, ArcminCell];
+  stars_planets: ArcminCell;
+}
+
+export interface DipRow {
+  height: number;
+  printed_height: string;
+  dip: ArcminCell;
+}
+
+export interface DipTables {
+  metres: CriticalTable;
+  feet: CriticalTable;
+  more_metres: DipRow[];
+  more_feet: DipRow[];
+}
+
+export interface RefractionZone {
+  letter: string;
+  /** The air-density factor the zone's corrections use (its centre). */
+  factor: number;
+  factor_low: number;
+  factor_high: number;
+}
+
+export interface AdditionalRow {
+  alt_deg: number;
+  printed_alt: string;
+  standard_refraction_arcmin: number;
+  /** One per zone, A to N. */
+  corrections: ArcminCell[];
+}
+
+export interface RefractionConditions {
+  temperature_c: number;
+  pressure_hpa: number;
+}
+
+export interface RefractionConditionsResult extends RefractionConditions {
+  factor: number;
+  /** `null` beyond zones A to N. */
+  zone: string | null;
+  /** Exact, one per `AdditionalRefraction.rows`. */
+  corrections: ArcminCell[];
+}
+
+export interface AdditionalRefraction {
+  zones: RefractionZone[];
+  rows: AdditionalRow[];
+  /** The zone chart's axes: the zone lines are P = 1010 f (273 + T) / 283. */
+  chart: { temperature_c: [number, number]; pressure_hpa: [number, number] };
+  conditions: RefractionConditionsResult | null;
+}
+
+export interface MoonCorrectionColumn {
+  /** 0, 5, …, 85. */
+  from_deg: number;
+  /** 30 rows, every 10′: `(deg − from_deg) × 6 + minutes / 10`. */
+  upper: ArcminCell[];
+  lower_alt_deg: number;
+  /** One per `hp_rows`: L (lower limb), U (upper limb; subtract 30′ in use). */
+  lower_limb: ArcminCell[];
+  upper_limb: ArcminCell[];
+}
+
+export interface MoonCorrectionTable {
+  hp0_arcmin: number;
+  /** 54.0′ to 61.5′ every 0.3′. */
+  hp_rows: number[];
+  columns: MoonCorrectionColumn[];
+  how_to_use: string;
+  notes: string[];
+}
+
+export interface TableExample {
+  title: string;
+  text: string;
+}
+
+export interface AltitudeTables {
+  refraction: { model: string; pressure_hpa: number; temperature_c: number };
+  sun_sd_oct_mar_arcmin: number;
+  sun_sd_apr_sep_arcmin: number;
+  sun_hp_arcmin: number;
+  /** 10°–90°: lower and upper limb. */
+  sun_oct_mar: CriticalTable;
+  sun_apr_sep: CriticalTable;
+  stars_planets: CriticalTable;
+  /** 0°–10°. */
+  low: LowAltitudeRow[];
+  dip: DipTables;
+  additional: AdditionalRefraction;
+  moon: MoonCorrectionTable;
+  how_to_use: string[];
+  examples: TableExample[];
+  notes: string[];
+}
+
+export interface CivilDay {
+  year: number;
+  month: number;
+  day: number;
+}
+
+export interface ParallaxPeriod {
+  from: CivilDay;
+  to: CivilDay;
+  from_jd_utc: number;
+  to_jd_utc: number;
+  /** The parallax the corrections use, to 0.1′. */
+  hp_arcmin: number;
+  /** Apparent altitude in whole degrees. */
+  table: CriticalTable;
+}
+
+export interface PlanetCorrections {
+  year: number;
+  calendar: CalendarKind;
+  venus: ParallaxPeriod[];
+  mars: ParallaxPeriod[];
+  how_to_use: string;
+  notes: string[];
+  errors: BodyError[];
+}
+
+export interface PolarisMonthPlace {
+  month: number;
+  jd_utc: number;
+  sha_deg: number;
+  dec_deg: number;
+}
+
+export interface PolarisColumn {
+  /** 0, 10, …, 350. */
+  from_deg: number;
+  /** 11 rows, LHA Aries from_deg + 0 … + 10. */
+  a0: ArcminCell[];
+  /** One per `a1_latitudes`. */
+  a1: ArcminCell[];
+  /** January to December. */
+  a2: ArcminCell[];
+  /** One per `azimuth_latitudes`. */
+  azimuth: DegCell[];
+}
+
+export interface PolarisExample {
+  text: string;
+  lha_aries_deg: number;
+  a0_arcmin: number;
+  a1_arcmin: number;
+  a2_arcmin: number;
+  latitude_deg: number;
+  rigorous_latitude_deg: number;
+}
+
+export interface PolarisTable {
+  year: number;
+  calendar: CalendarKind;
+  mean_sha_deg: number;
+  mean_dec_deg: number;
+  printed_mean: { sha: string; dec: string };
+  polar_distance_arcmin: number;
+  /** The second-order formula's worst error this year; a warning above 0.1′. */
+  formula_error_arcmin: number;
+  a1_latitudes: number[];
+  azimuth_latitudes: number[];
+  months: PolarisMonthPlace[];
+  columns: PolarisColumn[];
+  how_to_use: string;
+  example: PolarisExample | null;
+  notes: string[];
+  warnings: string[];
+}
+
+/** The almanac's tables and three-day openings (almanac2 agent). */
+export interface AlmanacTablesEngine {
+  /** The opening containing the UT date (`YYYY-MM-DD`, expanded years allowed). About three daily pages of work. */
+  almanacOpening(date: string, calendar?: AlmanacCalendarChoice): AlmanacOpening;
+  /** One minute (0-59) of the Increments and Corrections. */
+  almanacIncrements(minute: number): IncrementsMinute;
+  almanacArcToTime(): ArcToTime;
+  /** The altitude correction tables; `conditions` adds exact corrections for one temperature and pressure. */
+  almanacAltitudeTables(conditions?: RefractionConditions | null): AltitudeTables;
+  /** Venus and Mars through a year (a year's parallax: tens of milliseconds). */
+  almanacPlanetCorrections(year: number, calendar?: AlmanacCalendarChoice): PlanetCorrections;
+  almanacPolaris(year: number, calendar?: AlmanacCalendarChoice): PolarisTable;
+}
+
+/** True when `engine` has the almanac's tables and openings. */
+export function isAlmanacTablesEngine(engine: unknown): engine is AlmanacTablesEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<AlmanacTablesEngine>;
+  return typeof e.almanacOpening === 'function' && typeof e.almanacIncrements === 'function';
+}
+// --- end almanac2

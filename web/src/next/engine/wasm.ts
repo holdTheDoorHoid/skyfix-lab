@@ -104,6 +104,18 @@ import type {
   SunHours,
   SunPath,
 } from './types.js';
+// Expansion programme Q7, almanac2 agent: the almanac's tables and three-day openings.
+import type {
+  AlmanacCalendarChoice,
+  AlmanacOpening,
+  AlmanacTablesEngine,
+  AltitudeTables,
+  ArcToTime,
+  IncrementsMinute,
+  PlanetCorrections,
+  PolarisTable,
+  RefractionConditions,
+} from './types.js';
 // Expansion programme, geomag agent: magnetic field and compass error (wasm-geomag.ts).
 import type { CompassError, CompassRequest, MagneticField, MagneticGrid, MagneticModelChoice } from './types.js';
 import { wasmCompassError, wasmMagneticField, wasmMagneticGrid, type GeomagWasmExports } from './wasm-geomag.js';
@@ -228,6 +240,16 @@ export interface ExplorerWasmExports {
   solar_day?(observerJson: string, jdStart: number, jdEnd: number, panelJson: string, stepMinutes: number): unknown;
   solar_year?(observerJson: string, requestJson: string): unknown;
   galactic_centre_windows?(observerJson: string, jdStart: number, jdEnd: number, optionsJson: string): unknown;
+  // Expansion programme Q7 — almanac tables and three-day openings (almanac2 agent;
+  // EXPLORER_API "Expansion programme — almanac tables and three-day pages"); absent in
+  // older builds.
+  almanac_opening?(date: string, calendar: string): unknown;
+  almanac_increments?(minute: number): unknown;
+  almanac_arc_to_time?(): unknown;
+  almanac_altitude_tables?(conditionsJson: string): unknown;
+  almanac_planet_corrections?(year: number, calendar: string): unknown;
+  almanac_polaris?(year: number, calendar: string): unknown;
+  // --- end almanac2
 }
 
 export function missingExports(module: object): { required: string[]; optional: string[] } {
@@ -843,7 +865,56 @@ export class WasmEngine
   }
 
   // --- end tides
+
+  // --- almanac2: the almanac's tables and three-day openings (EXPLORER_API "Expansion
+  // programme — almanac tables and three-day pages"). Each throws, saying so, when this
+  // build of the core predates it.
+
+  almanacOpening(date: string, calendar: AlmanacCalendarChoice = ''): AlmanacOpening {
+    const fn = this.x.almanac_opening;
+    if (typeof fn !== 'function') throw rebuildError('almanac_opening', 'three-day almanac pages');
+    return this.call('almanac_opening', () => fn.call(this.x, date, calendar));
+  }
+
+  almanacIncrements(minute: number): IncrementsMinute {
+    const fn = this.x.almanac_increments;
+    if (typeof fn !== 'function') throw rebuildError('almanac_increments', 'almanac tables');
+    return this.call('almanac_increments', () => fn.call(this.x, minute));
+  }
+
+  almanacArcToTime(): ArcToTime {
+    const fn = this.x.almanac_arc_to_time;
+    if (typeof fn !== 'function') throw rebuildError('almanac_arc_to_time', 'almanac tables');
+    return this.call('almanac_arc_to_time', () => fn.call(this.x));
+  }
+
+  almanacAltitudeTables(conditions?: RefractionConditions | null): AltitudeTables {
+    const fn = this.x.almanac_altitude_tables;
+    if (typeof fn !== 'function') throw rebuildError('almanac_altitude_tables', 'almanac tables');
+    const json = conditions
+      ? JSON.stringify({ temperature_c: conditions.temperature_c, pressure_hpa: conditions.pressure_hpa })
+      : '';
+    return this.call('almanac_altitude_tables', () => fn.call(this.x, json));
+  }
+
+  almanacPlanetCorrections(year: number, calendar: AlmanacCalendarChoice = ''): PlanetCorrections {
+    const fn = this.x.almanac_planet_corrections;
+    if (typeof fn !== 'function') throw rebuildError('almanac_planet_corrections', 'almanac tables');
+    return this.call('almanac_planet_corrections', () => fn.call(this.x, year, calendar));
+  }
+
+  almanacPolaris(year: number, calendar: AlmanacCalendarChoice = ''): PolarisTable {
+    const fn = this.x.almanac_polaris;
+    if (typeof fn !== 'function') throw rebuildError('almanac_polaris', 'almanac tables');
+    return this.call('almanac_polaris', () => fn.call(this.x, year, calendar));
+  }
+  // --- end almanac2
 }
+
+// The WASM engine has the almanac's tables (almanac2 agent; checked here, not in the
+// `implements` list, so parallel additions there do not collide).
+const _wasmIsAlmanacTables: (e: WasmEngine) => AlmanacTablesEngine = (e) => e;
+void _wasmIsAlmanacTables;
 
 // The WASM engine is a Moon-detail engine (checked here rather than in its `implements`
 // list, so parallel additions to that line do not collide).
