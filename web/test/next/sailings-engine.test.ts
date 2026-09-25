@@ -17,7 +17,7 @@ import { MockEngine } from '../../src/next/engine/mock.js';
 import { isSailingsEngine } from '../../src/next/engine/types.js';
 import { WasmEngine, type ExplorerWasmExports } from '../../src/next/engine/wasm.js';
 import { sanitizeSession } from '../../src/next/navigate/autosave.js';
-import { horizonFromSelect, horizonOptions, horizonText } from '../../src/next/navigate/text.js';
+import { DEFAULT_SHORE_NM, horizonFromSelect, horizonOptions, horizonText } from '../../src/next/navigate/text.js';
 import { asHorizon, horizonLabel, parseHorizonLabel, type Session } from '../../src/types.js';
 
 const EXPORTS = ['sailing', 'dr_advance', 'route_positions', 'star_identify', 'star_finder_geometry'];
@@ -148,12 +148,14 @@ describe('the shore horizon and the error logs in the session format', () => {
     expect('index_error_log' in plain.instrument).toBe(false);
   });
 
-  it('offers a shore horizon only when the session has one, and keeps it', () => {
+  // navigate2 (expansion programme): the sight form offers the shore horizon always, with
+  // its distance field; choosing it starts at DEFAULT_SHORE_NM and keeps one already set.
+  it('offers a shore horizon always, keeps the one set, and starts a new one at the default distance', () => {
     const shore = { shore: { distance_nm: 1.5 } };
-    expect(horizonOptions('sea').map((o) => o.value)).toEqual(['sea', 'artificial_reflected', 'electronic_vertical']);
-    expect(horizonOptions(shore).map((o) => o.value)).toContain('shore');
+    expect(horizonOptions('sea').map((o) => o.value)).toEqual(['sea', 'artificial_reflected', 'electronic_vertical', 'shore']);
+    expect(horizonOptions(shore).find((o) => o.value === 'shore')?.label).toContain('1.5 NM');
     expect(horizonFromSelect('shore', shore)).toBe(shore);
-    expect(horizonFromSelect('shore', 'sea')).toBeNull();
+    expect(horizonFromSelect('shore', 'sea')).toEqual({ shore: { distance_nm: DEFAULT_SHORE_NM } });
     expect(horizonText(shore).label).toContain('1.5 NM');
   });
 

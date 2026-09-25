@@ -15,14 +15,20 @@ import { defaultPlanOptions } from '../../api/adapter.js';
 import type { LatLon, Observation, Session, SolveOptions } from '../../types.js';
 import { defaultSolveOptions, SESSION_SCHEMA } from '../../types.js';
 import type {
+  AmplitudeHorizon,
   AveragingOptions,
   BodyBearing,
+  CompassKind,
+  CompassMethod,
+  DrMethod,
   DrPosition,
   EphemerisMode,
   LunarDistanceInput,
+  MeridionalParts,
   NoonCurvature,
   NoonSightOptions,
   PolarisOptions,
+  RiseSet,
   RunningFixRequest,
   SightLimb,
   SingleAltitudeMode,
@@ -133,6 +139,83 @@ export interface PlannerForm {
   baseSigma: number;
 }
 
+// --- Expansion programme (navigate2 agent): the compass and the passage --------------------
+
+/** The Compass tab's inputs (`compass_error`, EXPLORER_API "magnetic field and compass error"). */
+export interface CompassForm {
+  method: CompassMethod;
+  body: string;
+  /** When the bearing was taken (RFC 3339 UTC); null: the time bar's time. */
+  utc: string | null;
+  /** What the compass read, [0, 360); null until typed. */
+  bearingDeg: number | null;
+  compass: CompassKind;
+  /** The chart's variation, east positive; null: the magnetic model's. */
+  variationDeg: number | null;
+  /** 1-sigma of the compass reading; null: not stated (never guessed). */
+  bearingSigmaDeg: number | null;
+  /** Amplitude only. */
+  horizon: AmplitudeHorizon;
+  limb: SightLimb;
+  /** Amplitude only; null: from the body's side of the meridian. */
+  event: RiseSet | null;
+  /** The ship's heading by this compass when the bearing was taken (for the deviation table). */
+  headingDeg: number | null;
+}
+
+/** One line of the deviation table: this compass's deviation on one heading. */
+export interface DeviationEntry {
+  id: string;
+  /** The ship's heading by this compass, [0, 360). */
+  headingDeg: number;
+  /** East positive (compass error minus variation). */
+  deviationDeg: number;
+  /** When it was found (RFC 3339 UTC), or null when typed from elsewhere. */
+  utc: string | null;
+  /** Where it came from ("Sun by azimuth", "typed"). */
+  source: string;
+  note: string;
+}
+
+/** How a leg of the route is sailed. */
+export type LegKind = 'great_circle' | 'rhumb';
+
+export interface RouteWaypoint {
+  id: string;
+  name: string;
+  lat_deg: number;
+  lon_deg: number;
+  /** How the leg that arrives here is sailed (ignored on the first waypoint). */
+  leg: LegKind;
+}
+
+/** The forward dead-reckoning calculator (`dr_advance`). */
+export interface DrForm {
+  /** Null: the session's assumed position, or the map's place. */
+  from: LatLon | null;
+  courseDeg: number | null;
+  speedKn: number | null;
+  /** Hours run; negative: where the vessel was. */
+  hours: number | null;
+  /** When the run starts (RFC 3339 UTC), for the arrival time; null: none. */
+  startUtc: string | null;
+  method: DrMethod;
+}
+
+/** The Passage tab: a route of waypoints sailed at a speed from a departure time. */
+export interface PassageForm {
+  waypoints: RouteWaypoint[];
+  speedKn: number | null;
+  departureUtc: string | null;
+  /** Meridional parts for the rhumb-line legs (Mercator sailing). */
+  parts: MeridionalParts;
+  /** Draw the route on the explorer's map. */
+  showOnMap: boolean;
+  /** A dead-reckoning mark every so many hours along the route (0: none). */
+  tickHours: number;
+  dr: DrForm;
+}
+
 export interface Working {
   session: Session;
   /** Sight ids the fix and the running fix leave out ("use in fix" unticked). */
@@ -149,6 +232,12 @@ export interface Working {
   running: RunningForm;
   lunar: LunarForm;
   planner: PlannerForm;
+  /** Expansion programme (navigate2): the Compass tab. */
+  compass: CompassForm;
+  /** This compass's deviations by heading (the deviation table). */
+  deviations: DeviationEntry[];
+  /** Expansion programme (navigate2): the Passage tab. */
+  passage: PassageForm;
 }
 
 export interface SessionSeed {
@@ -216,6 +305,37 @@ export function defaultWorking(seed: SessionSeed = {}): Working {
       maxAlt: plan.max_altitude_deg,
       baseSigma: plan.base_sigma_arcmin,
     },
+    compass: defaultCompassForm(),
+    deviations: [],
+    passage: defaultPassageForm(),
+  };
+}
+
+export function defaultCompassForm(): CompassForm {
+  return {
+    method: 'azimuth',
+    body: 'Sun',
+    utc: null,
+    bearingDeg: null,
+    compass: 'magnetic',
+    variationDeg: null,
+    bearingSigmaDeg: null,
+    horizon: 'visible',
+    limb: 'center',
+    event: null,
+    headingDeg: null,
+  };
+}
+
+export function defaultPassageForm(): PassageForm {
+  return {
+    waypoints: [],
+    speedKn: null,
+    departureUtc: null,
+    parts: 'sphere',
+    showOnMap: true,
+    tickHours: 6,
+    dr: { from: null, courseDeg: null, speedKn: null, hours: null, startUtc: null, method: 'rhumb' },
   };
 }
 
@@ -266,7 +386,15 @@ export function hasOwnData(w: Working): boolean {
     w.lunar.moonAltitude.deg !== null ||
     w.lunar.bodyAltitude.deg !== null ||
     !untouchedLegs ||
-    w.session.meta.notes.trim() !== ''
+    w.session.meta.notes.trim() !== '' ||
+    // navigate2: a compass reading, the deviation table, a route or a DR worked out are
+    // the person's own entries too; the error logs are part of the session's settings.
+    w.compass.bearingDeg !== null ||
+    w.deviations.length > 0 ||
+    w.passage.waypoints.length > 0 ||
+    w.passage.dr.from !== null ||
+    (w.session.instrument.index_error_log?.length ?? 0) > 0 ||
+    (w.session.clock.watch_log?.length ?? 0) > 0
   );
 }
 

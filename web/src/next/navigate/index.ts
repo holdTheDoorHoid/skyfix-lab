@@ -30,6 +30,7 @@
 
 import '../theme/index.js';
 import './navigate.css';
+import './extras.css';
 import type { SkyfixApi } from '../../api/adapter.js';
 import { fromCsv, toCsv } from '../../csv.js';
 import { h } from '../../dom.js';
@@ -42,6 +43,7 @@ import { EXAMPLES, exampleById } from './examples.js';
 import { takeNavigateHandoff } from './handoff.js';
 import { fileStem } from './gpx.js';
 import { averageMethod } from './methods/average.js';
+import { compassMethod } from './methods/compass.js';
 import { fixMethod } from './methods/fix.js';
 import { lunarMethod } from './methods/lunar.js';
 import { noonMethod } from './methods/noon.js';
@@ -74,6 +76,8 @@ const METHOD_MOUNT: Record<MethodId, (host: HTMLElement, nc: NavCtx) => Mounted>
   average: averageMethod,
   lunar: lunarMethod,
   plan: planMethod,
+  // Expansion programme (navigate2 agent).
+  compass: compassMethod,
 };
 
 export function navigateView(options: NavigateOptions = {}): Component {

@@ -106,19 +106,24 @@ export function horizonText(h: HorizonMode): { label: string; explain: string } 
 }
 
 /**
- * Options for a horizon select: the three named horizons, and the current shore horizon
- * when there is one. (Its distance comes from a session file for now; choosing it here
- * keeps the one already set.)
+ * Options for a horizon select: the three named horizons and the shoreline nearer than
+ * the sea horizon (dip short), labelled with its distance when it is the current one.
  */
 export function horizonOptions(current: HorizonMode | null): { value: HorizonName; label: string }[] {
   const out: { value: HorizonName; label: string }[] = SIMPLE_HORIZONS.map((k) => ({ value: k, label: HORIZON_TEXT[k].label }));
-  if (current && isShoreHorizon(current)) out.push({ value: 'shore', label: horizonText(current).label });
+  out.push({ value: 'shore', label: current && isShoreHorizon(current) ? horizonText(current).label : HORIZON_TEXT.shore.label });
   return out;
 }
 
-/** The horizon a select's value stands for: `shore` keeps the current shore horizon. */
+/** The distance a newly chosen shore horizon starts at, NM (its field says so and asks for yours). */
+export const DEFAULT_SHORE_NM = 1;
+
+/**
+ * The horizon a select's value stands for: `shore` keeps the current shore horizon, or
+ * starts one at `DEFAULT_SHORE_NM` (the distance field beside it then asks for the real one).
+ */
 export function horizonFromSelect(value: string, current: HorizonMode | null): HorizonMode | null {
-  if (value === 'shore') return current && isShoreHorizon(current) ? current : null;
+  if (value === 'shore') return current && isShoreHorizon(current) ? current : { shore: { distance_nm: DEFAULT_SHORE_NM } };
   return (SIMPLE_HORIZONS as readonly string[]).includes(value) ? (value as SimpleHorizon) : null;
 }
 
@@ -145,7 +150,7 @@ export const LUNAR_STEP_TEXT: Record<LunarClearingStep['kind'], { plain: string;
   parallax: { plain: 'Seen from the surface, not the centre', term: 'parallax removed (WGS84)' },
 };
 
-export type MethodId = 'fix' | 'noon' | 'polaris' | 'running' | 'average' | 'lunar' | 'plan';
+export type MethodId = 'fix' | 'noon' | 'polaris' | 'running' | 'average' | 'lunar' | 'plan' | 'compass';
 
 export interface MethodText {
   id: MethodId;
@@ -206,7 +211,43 @@ export const METHODS: readonly MethodText[] = [
     explain:
       'Star sights need the stars and a sharp horizon at once: nautical twilight, the Sun 6° to 12° below the horizon. The planner finds tonight’s windows and picks three to five bodies spread round the horizon, with the sextant reading and bearing to expect.',
   },
+  // Expansion programme (navigate2 agent): the compass and passage planning.
+  {
+    id: 'compass',
+    label: 'Compass',
+    title: 'Check the compass by the sky',
+    explain:
+      'Take a compass bearing of the Sun, the Moon, a planet or a star; the sky says what the bearing really was, and the difference is the compass error. For a magnetic compass it splits in two: the variation (the Earth’s field here, the same for every compass, from a model or the chart) and the deviation (this compass’s own error, which changes with the ship’s heading).',
+  },
 ];
+
+/**
+ * Words for the expansion programme's additions to the view (navigate2 agent): the error
+ * logs, DUT1, the shore horizon, star identification, the printables.
+ */
+export const LOG_TEXT = {
+  index: {
+    title: 'Index-error log',
+    term: 'index correction measured over time',
+    explain:
+      'Measure the index error now and then (on the horizon or a star) and log it here. While the log has entries, each sight’s index correction is read from it at the sight’s time: interpolated between entries, and outside them the nearest entry held, never extrapolated. The single value above is then not used.',
+  },
+  watch: {
+    title: 'Watch log',
+    term: 'watch correction from time signals',
+    explain:
+      'Each time you compare the watch with a time signal, log the correction to ADD to it (watch slow by 4 s: +4). While the log has entries, each sight’s time is corrected from it: interpolated between comparisons (a watch’s rate is steady), and outside them the nearest comparison held, never extrapolated.',
+  },
+} as const;
+
+/** How a value was read from an error log, in words (CONVENTIONS section 10). */
+export const LOG_METHOD_TEXT = {
+  interpolated: 'interpolated between two entries',
+  at_entry: 'an entry at that very time',
+  only_entry: 'the only entry',
+  held_before_first: 'the first entry, held (the sight is before the log starts)',
+  held_after_last: 'the last entry, held (the sight is after the log ends)',
+} as const;
 
 export const RESULT_KIND_TEXT = {
   unique: { label: 'Unique fix', sentence: 'One position fits the sights clearly better than any other.' },

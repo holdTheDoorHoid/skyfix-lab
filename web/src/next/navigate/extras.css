@@ -1,0 +1,167 @@
+/*
+ * Navigate view: the expansion programme's additions (navigate2 agent). Design tokens
+ * only (theme/tokens.css), never a literal colour, so the three themes, the red night
+ * theme included, follow with no script. The printables' own sheet is print.css.
+ */
+
+/* ------------------------------------------------------------------------------------ */
+/* Session settings: DUT1, shore horizon, error logs                                     */
+
+.sfn-dut1-auto {
+  margin-top: calc(-1 * var(--space-1));
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--stage-line-strong);
+}
+
+.sfn-dut1-auto--caution {
+  border-left-color: var(--caution);
+  color: var(--ui-ink);
+}
+
+.sfn-shore__sentence {
+  margin-top: 2px;
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--stage-line-strong);
+  color: var(--ui-ink-2);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.sfn-shore__sentence--caution {
+  border-left-color: var(--caution);
+  color: var(--ui-ink);
+}
+
+.sfn-log__count {
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+}
+
+.sfn-log__table td,
+.sfn-log__table th {
+  vertical-align: middle;
+}
+
+.sfn-log__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sfn-log__add > .sfn-field {
+  flex: 1 1 8rem;
+}
+
+.sfn-log__time {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+  flex: 2 1 16rem;
+}
+
+.sfn-log__time > .sfn-field {
+  flex: 1 1 11rem;
+}
+
+.sfn-log__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding-bottom: 2px;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Compass                                                                               */
+
+.sfn-variation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfn-variation__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.sfn-variation__big {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+}
+
+.sfn-variation--none .sfn-variation__value {
+  color: var(--stage-ink-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-compass__sentence {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset 0 0 0 1px var(--stage-line);
+  background: var(--stage-surface-2);
+  color: var(--stage-ink);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: 1.35;
+}
+
+.sfn-devtable .sfn-table td,
+.sfn-devtable .sfn-table th {
+  vertical-align: middle;
+}
+
+.sfn-devchart-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.sfn-devchart {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.sfn-devchart__grid line {
+  stroke: var(--stage-line);
+  stroke-width: 1;
+}
+
+.sfn-devchart__grid line.sfn-devchart__zero {
+  stroke: var(--stage-line-strong);
+  stroke-width: 1.5;
+}
+
+.sfn-devchart__tick {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: 10.5px;
+}
+
+.sfn-devchart__curve {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.sfn-devchart__point {
+  fill: var(--stage-surface);
+  stroke: var(--stage-ink);
+  stroke-width: 2;
+}
+
+.sfn-devcoef li {
+  line-height: 1.4;
+}
+
+.sfn-devcard td,
+.sfn-devcard th {
+  padding: 2px 10px;
+}
