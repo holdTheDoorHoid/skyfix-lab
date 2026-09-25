@@ -320,6 +320,38 @@ describe('meteor radiants (meteors.ts)', () => {
     expect(lambdaFromPeak(shower, 120)).toBeCloseTo(5, 9);
   });
 
+  it('follows the Sun between the engine’s instants, over the longest run of the table (verify2)', () => {
+    // The Sun's longitude referred to the J2000 equinox (Meeus, Astronomical Algorithms,
+    // ch. 25, low precision: 0.01°), and the instants at which it reaches a shower's table
+    // values, as the engine finds them. The Southern Taurids of 2026 run 46 days to their
+    // peak: a straight line there was 0.15° off the Sun; the parabola must stay within 0.01°.
+    const sunLambda = (jd: number): number => {
+      const t = (jd - 2451545) / 36525;
+      const m = (357.52911 + 35999.05029 * t - 0.0001537 * t * t) * DEG;
+      const c = (1.914602 - 0.004817 * t) * Math.sin(m) + (0.019993 - 0.000101 * t) * Math.sin(2 * m) + 0.000289 * Math.sin(3 * m);
+      return (((280.46646 + 36000.76983 * t + 0.0003032 * t * t + c - 1.3969713 * t) % 360) + 360) % 360;
+    };
+    const when = (lambda: number, guess: number): number => {
+      let jd = guess;
+      for (let i = 0; i < 20; i += 1) jd -= ((((sunLambda(jd) - lambda + 540) % 360) - 180) / 360) * 365.2422;
+      return jd;
+    };
+    for (const [code, ls, lp, le, guess] of [['STA', 177, 223, 238, 2461350], ['PER', 114, 140, 151, 2461265]] as const) {
+      const s = {
+        shower: { lambda_start_deg: ls, lambda_peak_deg: lp, lambda_end_deg: le },
+        start: { jd_utc: when(ls, guess - 45), utc: '' },
+        peak: { jd_utc: when(lp, guess), utc: '' },
+        end: { jd_utc: when(le, guess + 15), utc: '' },
+      };
+      let worst = 0;
+      for (let jd = s.start.jd_utc; jd <= s.end.jd_utc; jd += 0.25) {
+        const truth = (((sunLambda(jd) - lp + 540) % 360) - 180);
+        worst = Math.max(worst, Math.abs(lambdaFromPeak(s, jd) - truth));
+      }
+      expect(worst, code).toBeLessThan(0.01);
+    }
+  });
+
   it('drifts the radiant from its place at the peak', () => {
     expect(radiantJ2000(shower.shower, 0)).toEqual({ ra: 100, dec: 20 });
     const r = radiantJ2000(shower.shower, 10);
