@@ -188,5 +188,6 @@ pub fn render(s: &SkyState, site: &Site) -> String {
         out.push_str(&line);
         out.push('\n');
     }
+    super::wire::push_tier_note(&mut out, s.jd_utc, s.jd_utc);
     out
 }

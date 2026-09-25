@@ -28,7 +28,7 @@ use super::sky::phase_words;
 use super::text;
 use super::wire::{
     Align, ClockFlag, SiteAirArgs, SiteArgs, Table, ZoneFlag, call, clock_cells, emit_json,
-    observer_line, push_field, push_note, shown_in, when_cells, when_headers,
+    observer_line, push_field, push_note, push_tier_note, shown_in, when_cells, when_headers,
 };
 use super::zone::ResolvedZone;
 use crate::exit;
@@ -234,6 +234,7 @@ fn render_hours(r: &SunHours, a: &HoursArgs, zone: &ResolvedZone) -> String {
          window cut by the day's edge runs to midnight; --format json says so (open_start, \
          open_end) and carries every crossing of the three altitudes.",
     );
+    push_tier_note(&mut out, r.jd_start, r.jd_end);
     out
 }
 
@@ -356,6 +357,7 @@ fn render_find_azimuth(
          app. alt the apparent one with the display refraction (CONVENTIONS 13.2), which the \
          band is on. A body passing through the zenith has no azimuth there.",
     );
+    push_tier_note(&mut out, s, e);
     out
 }
 
@@ -538,6 +540,7 @@ fn render_alignment(r: &AlignmentResult, a: &AlignmentArgs) -> String {
          altitude. Az is true; off deg is Az minus the bearing; alt is geometric. A skyline \
          raises the horizon, and with it moves the bearing a body rises or sets on.",
     );
+    push_tier_note(&mut out, r.jd_start, r.jd_end);
     out
 }
 
@@ -642,6 +645,7 @@ fn render_rise_set(r: &RiseSetAzimuths, a: &RiseSetArgs) -> String {
          set (the upper limb on the sea-level horizon, CONVENTIONS 13.3); alt is the \
          geometric altitude at the upper transit.",
     );
+    push_tier_note(&mut out, r.jd_start, r.jd_end);
     out
 }
 
@@ -769,6 +773,11 @@ fn render_analemma(r: &Analemma, a: &AnalemmaArgs) -> String {
         "The analemma's axes are the Sun's declination against the equation of time (EoT, \
          apparent minus mean solar time: positive when the sundial is fast). alt is \
          geometric, app. alt with the display refraction; Az is true.",
+    );
+    push_tier_note(
+        &mut out,
+        r.points.first().map_or(f64::NAN, |p| p.jd_utc),
+        r.points.last().map_or(f64::NAN, |p| p.jd_utc),
     );
     out
 }
@@ -900,6 +909,13 @@ fn render_sun_path(r: &SunPath, a: &SunPathArgs, zone: &ResolvedZone) -> String 
          alt with the display refraction; Az is true. The envelope's bearings are the first \
          point above and below the horizon, to the step.",
     );
+    // The envelope's days are the window's year's seasons: the report's times run over both.
+    let days = || std::iter::once(&r.path).chain(&r.envelope);
+    push_tier_note(
+        &mut out,
+        days().map(|d| d.jd_start).fold(f64::INFINITY, f64::min),
+        days().map(|d| d.jd_end).fold(f64::NEG_INFINITY, f64::max),
+    );
     out
 }
 
@@ -976,6 +992,11 @@ fn render_eot(r: &EquationOfTime) -> String {
         "The equation of time is apparent minus mean solar time: positive when a sundial is \
          ahead of the clock. Dec is the Sun's apparent declination. The extremes are to the \
          day.",
+    );
+    push_tier_note(
+        &mut out,
+        r.points.first().map_or(f64::NAN, |p| p.jd_utc),
+        r.points.last().map_or(f64::NAN, |p| p.jd_utc),
     );
     out
 }
@@ -1128,6 +1149,7 @@ fn render_solar_day(r: &SolarDay, a: &SolarDayArgs, zone: &ResolvedZone) -> Stri
          and the panel's normal, degrees.",
     );
     model_note(&mut out, &r.model);
+    push_tier_note(&mut out, r.jd_start, r.jd_end);
     out
 }
 
@@ -1245,6 +1267,7 @@ fn render_solar_year(r: &SolarYear, a: &SolarYearArgs) -> String {
         "--format json has every local day's energy as well.",
     );
     model_note(&mut out, &r.model);
+    push_tier_note(&mut out, r.jd_start, r.jd_end);
     out
 }
 
@@ -1358,5 +1381,6 @@ fn render_galactic(r: &GalacticCentreWindows, a: &GalacticArgs, zone: &ResolvedZ
          (the galactic equator) stands highest then. --format json adds the arch's ends and \
          the altitudes.",
     );
+    push_tier_note(&mut out, r.jd_start, r.jd_end);
     out
 }

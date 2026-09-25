@@ -105,6 +105,7 @@ pub fn run_phases(a: &PhasesArgs) -> Result<u8> {
     );
     note.push_str(&zone_note(&zone, true));
     push_wrapped(&mut out, &note);
+    super::wire::push_tier_note(&mut out, start, end);
     report::emit(&out)?;
     Ok(exit::OK)
 }
@@ -133,6 +134,9 @@ pub fn run_seasons(a: &SeasonsArgs) -> Result<u8> {
     );
     note.push_str(&zone_note(&zone, false));
     push_wrapped(&mut out, &note);
+    if let (Some(first), Some(last)) = (seasons.first(), seasons.last()) {
+        super::wire::push_tier_note(&mut out, first.jd_utc, last.jd_utc);
+    }
     report::emit(&out)?;
     Ok(exit::OK)
 }

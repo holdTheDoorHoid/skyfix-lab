@@ -79,6 +79,37 @@ pub fn validated_span() -> String {
     span(&c.validated_start_utc, &c.validated_end_utc)
 }
 
+/// Under a report whose times run from `first` to `last` and reach into the labelled tier
+/// (2000 BC to 1549, 2650 to AD 3000, CONVENTIONS 15.1), the sentence that says so, with
+/// Delta-T's standard uncertainty: the explorer never shows a labelled-tier time without
+/// it (15.6). The validated tier is one span, so a report inside it at both ends is inside
+/// it throughout and gets nothing; otherwise the uncertainty quoted is the larger of the
+/// two ends'.
+pub fn push_tier_note(out: &mut String, first: f64, last: f64) {
+    let worst = [first, last]
+        .into_iter()
+        .filter(|&jd| skyfix_wasm::coverage::native::tier_at(jd) == "labelled")
+        .filter_map(|jd| {
+            skyfix_core::time::time_info(jd, None)
+                .ok()
+                .map(|t| (jd, t.delta_t_sigma_s))
+        })
+        .max_by(|a, b| a.1.total_cmp(&b.1));
+    let Some((jd, sigma)) = worst else {
+        return;
+    };
+    push_note(
+        out,
+        &format!(
+            "A historical or far-future estimate (the labelled tier, CONVENTIONS 15.1): every \
+             time here carries Delta-T's standard uncertainty, {} at {} (skyfix time-info), \
+             and nothing is offered for sights.",
+            super::calendar::sigma_text(sigma),
+            text::utc(jd)
+        ),
+    );
+}
+
 /// `Label      text`, the text wrapped under itself at column 12: a report's header line.
 pub fn push_field(out: &mut String, label: &str, text: &str) {
     let indent = " ".repeat(11);

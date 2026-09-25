@@ -1752,3 +1752,114 @@ mod almanac_tables {
         assert_same(&v, &native::polaris(2016.0, "julian").unwrap(), "julian");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Deep time: the coverage tiers, and the display path in the labelled tier
+// ---------------------------------------------------------------------------
+
+mod deep_time {
+    use super::*;
+    use skyfix_ephemeris::tiers::{self, Tier, TierPolicy};
+
+    #[test]
+    fn explorer_coverage_and_tier_at_are_the_exports() {
+        let v = json_of(&["explorer-coverage"]);
+        assert_same(
+            &v,
+            &skyfix_wasm::coverage::native::explorer_coverage(),
+            "explorer-coverage",
+        );
+        assert_eq!(v["validated_start_utc"], tiers::VALIDATED_START_UTC);
+        assert_eq!(v["start_utc"], tiers::LABELLED_START_UTC);
+        assert_eq!(v["groups"][1]["tiers"][1]["tier"], "labelled");
+
+        for (when, tier) in [
+            ("2026-09-24T12:00:00Z", Tier::Validated),
+            ("1550-01-01T00:00:00Z", Tier::Validated),
+            ("1549-12-31T23:59:59Z", Tier::Labelled),
+            ("-0584-05-28T12:00:00Z", Tier::Labelled),
+            ("-2001-01-01T00:00:00Z", Tier::Outside),
+            ("3001-01-01T00:00:00Z", Tier::Outside),
+        ] {
+            // The wire's proleptic Gregorian dates, where the tiers' bounds are.
+            let v = json_of(&["tier-at", when, "--calendar", "gregorian"]);
+            assert_eq!(v, json!(tier.as_str()), "{when}");
+            assert_eq!(
+                v,
+                json!(skyfix_wasm::coverage::native::tier_at(jd(when))),
+                "{when}"
+            );
+        }
+        // A date as typed: Julian before the reform, as every CLI date.
+        assert_eq!(json_of(&["tier-at", "-0584-05-28"]), json!("labelled"));
+        assert_eq!(json_of(&["tier-at", "--jd", "0"]), json!("outside"));
+    }
+
+    #[test]
+    fn the_labelled_note_covers_every_time_a_report_shows() {
+        // 2650 leaves the validated tier on 22 January: a year that starts inside it is
+        // still noted, with the uncertainty of its last day, the larger.
+        skyfix(["equation-of-time", "--year", "2650"])
+            .expect_code(0)
+            .expect_stdout_flat("the labelled tier, CONVENTIONS 15.1")
+            .expect_stdout_flat("15 min at 2650-12-31T12:00:00 UT");
+        // Inside the validated tier at both ends: no note.
+        let plain = skyfix(["equation-of-time", "--year", "2649"]).expect_code(0);
+        assert!(!plain.stdout.contains("labelled tier"), "{}", plain.stdout);
+    }
+
+    #[test]
+    fn the_display_path_answers_the_labelled_tier_as_the_site_does() {
+        // Thales's eclipse day at Miletus: the golden and blue hours of 585 BC.
+        let miletus = ["--lat", "37.53", "--lon", "27.28"];
+        let v = run_json(&[&["sun-hours"], &miletus, &["--date", "-0584-05-28"]]);
+        let site = Site {
+            lat_deg: 37.53,
+            lon_deg: 27.28,
+            ..Site::default()
+        };
+        let s = jd("-0584-05-22T00:00:00Z");
+        let display = Sky::new().with_policy(TierPolicy::WithLabelled);
+        let want =
+            skyfix_almanac::sun_tools::hours::sun_hours(&display, &site, s, s + 1.0).unwrap();
+        assert_same(&v, &want, "sun-hours in 585 BC");
+        let obs = json!({"lat_deg": 37.53, "lon_deg": 27.28}).to_string();
+        assert_same(
+            &v,
+            &skyfix_wasm::suntools::native::sun_hours(&obs, s, s + 1.0).unwrap(),
+            "the export",
+        );
+        // The Moon's phases of that month, and the sky at noon, from the same sky.
+        let v = json_of(&["phases", "--from", "-0584-05-01", "--to", "-0584-06-30"]);
+        let (a, b) = (jd("-0584-04-25T00:00:00Z"), jd("-0584-06-25T00:00:00Z"));
+        assert_same(
+            &v,
+            &skyfix_wasm::explorer::native::moon_phases(a, b).unwrap(),
+            "phases in 585 BC",
+        );
+        let t = "-0584-05-22T12:00:00Z";
+        let v = run_json(&[&["sky"], &miletus, &["--utc", t, "--calendar", "gregorian"]]);
+        let want = skyfix_wasm::explorer::native::sky_state(&obs, jd(t), "\"all\"").unwrap();
+        assert_same(&v, &want, "sky in 585 BC");
+        // The text says what the numbers are.
+        skyfix(["seasons", "--year", "-584"])
+            .expect_code(0)
+            .expect_stdout_flat("the labelled tier, CONVENTIONS 15.1")
+            .expect_stdout_flat("standard uncertainty, 3 min");
+        // A navigation path keeps the validated tier: a prediction in 585 BC is refused.
+        skyfix([
+            "predict",
+            "--lat",
+            "37.53",
+            "--lon",
+            "27.28",
+            "--utc",
+            t,
+            "--body",
+            "Sun",
+            "--calendar",
+            "gregorian",
+        ])
+        .expect_code(1);
+    }
+}

@@ -296,6 +296,7 @@ pub fn render(
         out.push_str(&line);
         out.push('\n');
     }
+    super::wire::push_tier_note(&mut out, day.jd_start, day.jd_end);
     out
 }
 

@@ -103,7 +103,7 @@ pub fn list(engine: &Eclipses, start: f64, end: f64, kind: KindChoice) -> Result
     let mut list = engine.find(start, end).map_err(|e| anyhow!("{e}"))?;
     if list.jd_start > list.jd_end {
         bail!(
-            "{} to {} is outside the eclipses' coverage, {} to {} (the Moon's)",
+            "{} to {} is outside the eclipses' coverage, {} to {}, the years checked against NASA's canon",
             text::utc(start),
             text::utc(end),
             list.coverage_start_utc,

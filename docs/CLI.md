@@ -795,7 +795,10 @@ CONVENTIONS 3) are in the JSON, and `skyfix predict` turns them into a sextant r
 The constellations come from the display-only star field (CONVENTIONS 13.6): they label,
 and never enter a reduction, a fix or a plan. A body that cannot be computed at that
 instant is listed under "Not computed", named on stderr, and the exit code is 2; outside
-the Sun's coverage (1990 to 2060) there is no sky phase, so the command exits 1.
+the Sun's display coverage (-2000-01-01 to 3000-12-31, `skyfix explorer-coverage`) there
+is no sky phase, so the command exits 1. Outside the validated tier (1550-01-01 to
+2650-01-22) the sky is shown as the site shows it, with a note under the table (see "Deep
+time").
 
 ### `skyfix events --lat --lon --date [--zone] [--bodies] [--horizon standard|dip --height-of-eye M]`
 
@@ -888,7 +891,9 @@ SEASONS 2026
 ...
 ```
 
-A year or a window outside the providers' coverage (1990 to 2060) exits 1.
+A year or a window that reaches outside the display coverage (-2000-01-01 to
+3000-12-31) exits 1. One outside the validated tier is answered, with a note under the
+list (see "Deep time").
 
 With `--zone`, a date given to `--from` or `--to` is a date in that zone, and every
 instant is shown in it beside UTC. Off Sydney, in nautical zone -10, the December
@@ -1483,6 +1488,7 @@ reproduced, and scripted, without a browser:
 | magnetic field | `variation`, `magnetic-grid`, `compass-error` | `magnetic_field`, `magnetic_grid`, `compass_error` |
 | passage and sights | `sailing`, `dr-advance`, `route-positions`, `star-id`, `star-finder` | `sailing`, `dr_advance`, `route_positions`, `star_identify`, `star_finder_geometry` |
 | time | `time-info`, `calendar-convert` | `time_info`, `calendar_convert` |
+| deep time | `explorer-coverage`, `tier-at` | `explorer_coverage`, `tier_at` |
 | packs | `packs`, and `--pack FILE` on every command | `packs`, `load_pack` |
 | the Moon | `moon-orientation`, `moon-features`, `moon-apsides`, `occultations` | `moon_orientation`, `moon_features`, `moon_apsides`, `occultations` |
 | deep sky | `dso-catalog`, `dso-list`, `dso`, `showers`, `milky-way`, `search`, `tonight`, `extinction` | `dso_catalog`, `dso_list`, `dso_visibility`, `meteor_showers`, `milky_way_outline`, `sky_search`, `tonight`, `extinction_table` |
@@ -2031,6 +2037,75 @@ Julian date  2361221.500000  (MJD -38779.000000)
 Gregorian    1752-09-14  14 September 1752  00:00:00.000
 Julian       1752-09-03  3 September 1752  00:00:00.000
 ```
+
+## Deep time
+
+Since the deep-time work the core covers 2000 BC to AD 3000 in two tiers (CONVENTIONS
+15.1; `docs/ACCURACY.md`, "Historical accuracy"; the first day is -2000-01-01 in the
+astronomical years the CLI prints, 1 January 2001 BC): the **validated** tier, 1550-01-01
+to 2650-01-22, where the accuracy figures hold and bodies are offered for sights; and the
+**labelled** tier around it, display only, measured per century against JPL DE441, every
+time in it carrying Delta-T's uncertainty. As on the site, the display commands (`sky`,
+`events`, `phases`, `seasons` and the sun tools) answer both tiers. Everything that feeds
+a sight, a fix or a plan keeps the validated tier and refuses the rest, and so do the
+other engines, some over a narrower span of their own: the eclipse and planet-event
+searches 1990 to 2060, the years they were checked over against NASA's canon and
+Skyfield; the tide predictions 1900 to 2100; and the magnetic models 1900 to 2030,
+outside which `variation` says there is no variation to give. A report whose times fall
+in the labelled tier says so under its table, with Delta-T's standard uncertainty there.
+`skyfix coverage` remains the sight providers' own coverage.
+
+### `skyfix explorer-coverage`
+
+The explorer's coverage, per provider group and tier, with the worst error measured over
+each (the export `explorer_coverage`).
+
+```console
+$ skyfix explorer-coverage
+THE EXPLORER'S COVERAGE
+Display    -2000-01-01T00:00:00Z to 3000-12-31T23:59:59Z: the sky, the day's events, the
+           Moon's phases, the seasons and the sun tools answer both tiers
+Validated  1550-01-01T00:00:00Z to 2650-01-22T00:00:00Z: sights, predicted readings, the
+           planner and the other engines answer this tier only
+Packs      none loaded (no pack is needed for either tier)
+
+  group    tier       from                   to                    worst '  sights
+  Sun      validated  1550-01-01T00:00:00Z   2650-01-22T00:00:00Z     0.01  offered
+           labelled   -2000-01-01T00:00:00Z  3000-12-31T23:59:59Z     0.02  no
+  Moon     validated  1550-01-01T00:00:00Z   2650-01-22T00:00:00Z     0.02  offered
+           labelled   -2000-01-01T00:00:00Z  3000-12-31T23:59:59Z     0.05  no
+...
+```
+
+### `skyfix tier-at <DATE> | --jd JD`
+
+The tier of an instant (the export `tier_at`): `validated`, `labelled` or `outside`; its
+JSON is the name alone.
+
+```console
+$ skyfix tier-at -0584-05-28T12:00:00Z
+COVERAGE TIER
+Instant    -0584-05-28T12:00:00 UT (Julian)
+Tier       labelled: a historical or far-future estimate (-2000-01-01T00:00:00Z to
+           3000-12-31T23:59:59Z): positions for display, each time with its Delta-T
+           uncertainty (skyfix time-info); no sights, predicted readings or plans
+```
+
+The seasons of 585 BC, in the labelled tier, on the UT clock and in the Julian calendar:
+
+```console
+$ skyfix seasons --year -584
+SEASONS -584
+  -0584-03-27T04:49:57 UT (Julian)  March equinox
+  -0584-06-29T08:31:08 UT (Julian)  June solstice
+  -0584-09-29T08:00:36 UT (Julian)  September equinox
+  -0584-12-26T20:19:21 UT (Julian)  December solstice
+...
+A historical or far-future estimate (the labelled tier, CONVENTIONS 15.1): every time
+...
+```
+
+---
 
 ## The Moon in detail
 
@@ -2802,11 +2877,11 @@ are typed from Bowditch's sections 1910 and 1912 via
 `fixtures/reference/bowditch_worked_examples.json`, and `lunar_19.input.json` is the
 `lunar_distance` example of `docs/EXPLORER_API.md`. `tests/explorer_fixtures.rs` rebuilds
 them from those sources (`SKYFIX_WRITE_FIXTURES=1 cargo test -p skyfix-cli --test
-explorer_fixtures`), and `tests/explorer_golden.rs` holds thirty text reports, most of them
-the examples above, to the byte against `tests/golden/` (`SKYFIX_WRITE_GOLDEN=1` to
-regenerate after a deliberate change, then read the diff). Every example in this document
-between "The sky, almanac events and the navigation methods" and "Other things worth
-running" is run by the same test file, and its quoted lines must appear in its output in
-order. `tests/parity.rs` holds the expansion commands to their library calls and their
-WASM exports (above, "How they answer"); `ceres.elements.json` is the `parse_orbits`
-example of `docs/EXPLORER_API.md`.
+explorer_fixtures`), and `tests/explorer_golden.rs` holds thirty-three text reports, most
+of them the examples above, to the byte against `tests/golden/` (`SKYFIX_WRITE_GOLDEN=1`
+to regenerate after a deliberate change, then read the diff). Every example in this
+document between "The sky, almanac events and the navigation methods" and "Other things
+worth running" is run by the same test file, and its quoted lines must appear in its
+output in order. `tests/parity.rs` holds the expansion commands to their library calls
+and their WASM exports (above, "How they answer"); `ceres.elements.json` is the
+`parse_orbits` example of `docs/EXPLORER_API.md`.

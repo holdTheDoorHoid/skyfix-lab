@@ -421,6 +421,9 @@ const EXPANSION_CASES: &[(&str, &[&str])] = &[
         "almanac_increments_58m.txt",
         &["almanac-increments", "--minute", "58"],
     ),
+    // Deep time: the two tiers, and the display path in the labelled one.
+    ("explorer_coverage.txt", &["explorer-coverage"]),
+    ("seasons_585bc.txt", &["seasons", "--year", "-584"]),
 ];
 
 fn packs_dir() -> String {
