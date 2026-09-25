@@ -159,7 +159,10 @@ const PACKS = resolve(import.meta.dirname, '../../public/data/packs');
 const packFile = existsSync(PACKS) ? readdirSync(PACKS).find((f) => /^tides-us-[0-9a-f]{16}\.bin$/.test(f)) : undefined;
 const glueExports = existsSync(GLUE_FILE) ? readFileSync(GLUE_FILE, 'utf8') : '';
 const hasTides =
-  existsSync(WASM_FILE) && glueExports.includes('tide_extremes') && glueExports.includes('load_pack') && packFile !== undefined;
+  existsSync(WASM_FILE) &&
+  /export function tide_extremes\(/.test(glueExports) &&
+  /export function load_pack\(/.test(glueExports) &&
+  packFile !== undefined;
 
 describe.skipIf(!hasTides)('the built package with the shipped tides-us pack', () => {
   let engine: WasmEngine;

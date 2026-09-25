@@ -1868,7 +1868,8 @@ nearest stations 1.3-3 ms; decoding the pack 18-22 ms (once). Target: a month in
 ### Size
 
 The pack: 344 543 bytes (0.34 MB, target ≤ 0.5 MB), 234 KB deflated. The tides code in
-the core module: about 90 KB raw, 35 KB gzipped (the module 2.15 MB / 885 KB after it).
+the core module (`npm run wasm`): +88 KB raw, +35 KB gzipped, measured on the programme's
+base commit 28131c5 (2.06 MB / 849 KB before, 2.15 MB / 885 KB with tides).
 
 ### Reproduce
 

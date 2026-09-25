@@ -1769,7 +1769,7 @@ whose reference cannot be predicted), `outside_range` (instants from 1900-01-01 
 
 **`datum`** arguments are `"MLLW"`, `"MLW"`, `"MSL"`, `"MTL"`, `"MHW"`, `"MHHW"`,
 `"LAT"`, `"HAT"` or `"NAVD88"` (case-insensitive; `"NAVD"` accepted), or `""` for the
-station's `default_datum` (MLLW; MSL at the two stations without datums). Subordinate
+station's `default_datum` (MLLW; MSL where NOAA publishes no datums). Subordinate
 stations have MLLW only, as NOAA predicts them.
 
 ### `tide_stations_near(lat_deg, lon_deg, n) -> TideStationNear[]`
