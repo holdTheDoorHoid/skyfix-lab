@@ -326,6 +326,11 @@ export interface Layers {
 export type Theme = 'system' | 'light' | 'dark' | 'night';
 /** Which clock is primary on screen; the other is always shown beside it. */
 export type TimeDisplay = 'local' | 'utc';
+/**
+ * How a clock reads (packs agent, 2026-09-24): `h23` 18:40 (the default, and always for
+ * UTC), `h12` 6:40 PM. Applied by shell/format.ts's time functions.
+ */
+export type HourCycle = 'h23' | 'h12';
 /** `dm` = 39° 57.2′ (navigator), `dms` = 39° 57′ 09″, `decimal` = 39.9526°. */
 export type AngleFormat = 'dm' | 'dms' | 'decimal';
 /** metric: m, km · nautical: m, NM · imperial: ft, statute mi. */
@@ -335,6 +340,8 @@ export type HorizonOption = EventOptions['horizon'];
 export interface Settings {
   theme: Theme;
   timeDisplay: TimeDisplay;
+  /** 24-hour or 12-hour clock for local times; UTC is always 24-hour. */
+  hourCycle: HourCycle;
   angleFormat: AngleFormat;
   units: Units;
   /** Show navigator terms beside plain words ("Height above horizon · altitude"). */
@@ -398,6 +405,7 @@ export const DEFAULT_LAYERS: Layers = {
 export const DEFAULT_SETTINGS: Settings = {
   theme: 'system',
   timeDisplay: 'local',
+  hourCycle: 'h23',
   angleFormat: 'dm',
   units: 'metric',
   navigatorTerms: true,
@@ -470,6 +478,7 @@ export function safeLocalStorage(): Storage | null {
 
 const THEMES: readonly Theme[] = ['system', 'light', 'dark', 'night'];
 const TIME_DISPLAYS: readonly TimeDisplay[] = ['local', 'utc'];
+const HOUR_CYCLES: readonly HourCycle[] = ['h23', 'h12'];
 const ANGLE_FORMATS: readonly AngleFormat[] = ['dm', 'dms', 'decimal'];
 const UNITS: readonly Units[] = ['metric', 'nautical', 'imperial'];
 const HORIZONS: readonly HorizonOption[] = ['standard', 'dip'];
@@ -491,6 +500,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   return {
     theme: pick(r.theme, THEMES, d.theme),
     timeDisplay: pick(r.timeDisplay, TIME_DISPLAYS, d.timeDisplay),
+    hourCycle: pick(r.hourCycle, HOUR_CYCLES, d.hourCycle),
     angleFormat: pick(r.angleFormat, ANGLE_FORMATS, d.angleFormat),
     units: pick(r.units, UNITS, d.units),
     navigatorTerms: typeof r.navigatorTerms === 'boolean' ? r.navigatorTerms : d.navigatorTerms,

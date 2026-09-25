@@ -2,6 +2,10 @@
  * Share: the one way a position leaves the page, and only when the person asks
  * (EXPLORER_PLAN §1). The link is made when the panel opens and shown here; the address
  * bar is never changed and nothing is sent anywhere. OWNER: shell-design agent.
+ *
+ * Copy puts the link on the clipboard. Where the device has a share sheet (the Web Share
+ * API: phones, tablets, some desktops), "Share…" beside it hands the same link to it; what
+ * happens next is the person's choice in their own apps (packs agent, 2026-09-24).
  */
 
 import { h } from '../../dom.js';
@@ -16,6 +20,28 @@ export function sharePanel(ctx: Ctx): { el: HTMLElement; refresh(): void } {
   const link = h('input', { class: 'sf-input sf-num', readonly: true, 'aria-label': 'The link', id: 'sf-share-link' });
   const status = h('span', { class: 'sf-share__status', role: 'status', 'aria-live': 'polite' });
   const copy = button({ label: 'Copy', icon: 'copy', variant: 'primary', size: 'sm' });
+  const nav = globalThis.navigator as (Navigator & { share?: (data: ShareData) => Promise<void>; canShare?: (data: ShareData) => boolean }) | undefined;
+  const canShare = (url: string): boolean => {
+    if (typeof nav?.share !== 'function') return false;
+    try {
+      return typeof nav.canShare === 'function' ? nav.canShare({ url }) : true;
+    } catch {
+      return false;
+    }
+  };
+  const sheet = button({ label: 'Share…', icon: 'share', variant: 'secondary', size: 'sm', tip: 'Send the link with this device’s share sheet' });
+  sheet.hidden = !canShare(globalThis.location?.href ?? 'https://example.org/');
+  sheet.addEventListener('click', async () => {
+    if (!nav?.share) return;
+    try {
+      await nav.share({ title: 'SkyFix Lab', url: link.value });
+      status.textContent = 'Shared.';
+    } catch (error) {
+      // Closing the share sheet is not a failure.
+      if ((error as { name?: string } | null)?.name === 'AbortError') return;
+      status.textContent = 'This device could not share it: copy the link instead.';
+    }
+  });
 
   const refresh = (): void => {
     link.value = shareUrl(store.get(), globalThis.location.href, { place: place.checked, time: time.checked });
@@ -50,7 +76,7 @@ export function sharePanel(ctx: Ctx): { el: HTMLElement; refresh(): void } {
       h('label', { class: 'sf-check', for: 'sf-share-place' }, place, 'Include the place'),
       h('label', { class: 'sf-check', for: 'sf-share-time' }, time, 'Include the time'),
     ),
-    h('div', { class: 'sf-share__row' }, link, copy),
+    h('div', { class: 'sf-share__row' }, link, copy, sheet),
     status,
   );
   return { el, refresh };

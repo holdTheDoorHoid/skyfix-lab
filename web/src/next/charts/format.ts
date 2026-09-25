@@ -6,6 +6,7 @@
 
 import { splitDegMin } from '../../format.js';
 import type { AngleFormat } from '../state.js';
+import { eventTime } from '../shell/format.js';
 import { formatHours, formatTime, msFromJd, UTC_ZONE, zoneOffsetMs, zoneShortName, type Zone } from '../time.js';
 import type { LocalDate, LocalDay, LocalNight } from './windows.js';
 
@@ -49,9 +50,9 @@ export function dateLong(date: LocalDate): string {
   return `${WEEKDAYS_LONG[weekday(date)]} ${date.day} ${MONTHS_LONG[date.month - 1]} ${date.year}`;
 }
 
-/** `06:52` on the wall clock of `zone`. */
+/** `06:52` (or `6:52 AM` on the 12-hour clock) on the wall clock of `zone`. */
 export function clock(jd: number, zone: Zone): string {
-  return formatTime(jd, zone);
+  return eventTime(jd, zone);
 }
 
 /** `10:52 UTC` */
@@ -61,7 +62,7 @@ export function clockUtc(jd: number): string {
 
 /** `06:52 EDT` */
 export function clockZoned(jd: number, zone: Zone): string {
-  return `${formatTime(jd, zone)} ${zoneShortName(jd, zone)}`;
+  return `${eventTime(jd, zone)} ${zoneShortName(jd, zone)}`;
 }
 
 /** `06:52 EDT · 10:52 UTC`, or `10:52 UTC` when the zone is UTC. */

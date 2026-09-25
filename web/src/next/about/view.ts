@@ -8,6 +8,7 @@
 import './about.css';
 import { h } from '../../dom.js';
 import type { Component } from '../component.js';
+import { installControl, manualLink, repositoryLink } from '../shell/links.js';
 import { hasTour, openTour } from '../shell/tour.js';
 import { badge, button } from '../theme/primitives.js';
 
@@ -32,6 +33,7 @@ const view: Component = (host, ctx) => {
     coverageRows = [h('tr', {}, h('td', { colspan: 4 }, `The engine did not say: ${error instanceof Error ? error.message : String(error)}`))];
   }
 
+  const install = installControl();
   const el = h(
     'article',
     { class: 'sf-about sf-on-stage' },
@@ -88,13 +90,20 @@ const view: Component = (host, ctx) => {
       h(
         'ul',
         {},
-        h('li', {}, h('a', { href: 'classic/' }, 'The original workbench'), ', kept for reference for a while: Navigate and Learn now do everything it did (sights, corrections, the fix with its uncertainty, the simulator and the planner).'),
+        h('li', {}, manualLink(), ': how to use every view, how far each number can be trusted, the command-line tool, and where every piece of data comes from. Pages you have read stay readable offline.'),
+        h('li', {}, repositoryLink(), ' (MIT or Apache-2.0): the Rust core that does every calculation, this page, and the command-line tool.'),
         h('li', {}, 'Map data: Natural Earth (public domain). Stars: the Yale Bright Star Catalogue from NASA HEASARC. Fonts: Inter and JetBrains Mono (SIL Open Font License).'),
       ),
+      install.el,
     ),
   );
   host.replaceChildren(el);
-  return { destroy: () => el.remove() };
+  return {
+    destroy: () => {
+      install.destroy();
+      el.remove();
+    },
+  };
 };
 
 export default view;
