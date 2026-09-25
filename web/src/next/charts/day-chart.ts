@@ -18,7 +18,7 @@ import { h, s } from '../../dom.js';
 import { disposer, memoize, observerKey, watch, type Ctx } from '../component.js';
 import { SOLAR_SYSTEM } from '../engine/bodies.js';
 import type { BodyKind, BodyState, SkyPhase } from '../engine/types.js';
-import { setPlaying, setTime, stepTime } from '../playback.js';
+import { fastPlayback, setPlaying, setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { axisTime, endOfDay } from '../shell/format.js';
 import { zoneLabel, type Zone } from '../time.js';
@@ -912,6 +912,9 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     watch(
       ctx,
       (s) => {
+        // Faster than eight days a second (playback.ts `fastPlayback`) the chart keeps its data and
+        // asks the engine nothing: a new day every frame (verify2). It catches up once time slows.
+        if (fastPlayback(s)) return 'fast';
         const input = inputFor(s);
         return [
           observerKey(input.observer),
@@ -925,6 +928,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
         ].join('|');
       },
       () => {
+        if (fastPlayback(store.get())) return;
         dataDirty = true;
         frame();
       },

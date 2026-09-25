@@ -13,7 +13,7 @@
 
 import { h, s } from '../../dom.js';
 import { disposer, memoize, observerKey, watch, type Ctx } from '../component.js';
-import { setTime, stepTime } from '../playback.js';
+import { fastPlayback, setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, type ExplorerState } from '../state.js';
 import { zoneLabel, type Zone } from '../time.js';
 import { addDaysToDate } from '../time/civil.js';
@@ -785,10 +785,14 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     watch(
       ctx,
       (st) => {
+        // Faster than eight days a second (playback.ts `fastPlayback`) the chart keeps its data
+        // and asks the engine nothing (verify2). It catches up once time slows.
+        if (fastPlayback(st)) return 'fast';
         const input = inputFor(st);
         return `${observerKey(input.observer)}|${zoneKey(input.zone)}|${input.year}|${input.options.horizon}|${input.options.height_of_eye_m}`;
       },
       () => {
+        if (fastPlayback(ctx.store.get())) return;
         dataDirty = true;
         frame();
       },

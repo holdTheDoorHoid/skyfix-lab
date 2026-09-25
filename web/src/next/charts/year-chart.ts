@@ -14,7 +14,7 @@
 import { h, s } from '../../dom.js';
 import { disposer, memoize, observerKey, watch, type Ctx } from '../component.js';
 import type { PhaseEvent, SeasonEvent, SunEventKind } from '../engine/types.js';
-import { setTime, stepTime } from '../playback.js';
+import { fastPlayback, setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { zoneLabel, type Zone } from '../time.js';
 import {
@@ -807,10 +807,14 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     watch(
       ctx,
       (s2) => {
+        // Faster than eight days a second (playback.ts `fastPlayback`) the chart keeps its data
+        // and asks the engine nothing (verify2). It catches up once time slows.
+        if (fastPlayback(s2)) return 'fast';
         const input = inputFor(s2);
         return `${observerKey(input.observer)}|${zoneKey(input.zone)}|${input.year}|${input.options.horizon}|${input.options.height_of_eye_m}`;
       },
       () => {
+        if (fastPlayback(ctx.store.get())) return;
         dataDirty = true;
         frame();
       },

@@ -13,6 +13,7 @@
 
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
+import { fastPlayback } from '../playback.js';
 import type { ExplorerState, Store } from '../state.js';
 import type { Zone } from '../time.js';
 import { attachExport } from './export-menu.js';
@@ -283,8 +284,12 @@ export function mountChart<I, D>(host: HTMLElement, ctx: Ctx, ui: Store<ChartUi>
   d.add(
     watch(
       ctx,
-      (s) => spec.key(spec.input(s)),
+      // Faster than eight days a second (playback.ts `fastPlayback`) the chart keeps its data
+      // and asks the engine nothing (verify2): a heavy one ran every 0.7 s. It catches up once
+      // time slows.
+      (s) => (fastPlayback(s) ? 'fast' : spec.key(spec.input(s))),
       () => {
+        if (fastPlayback(ctx.store.get())) return;
         dataDirty = true;
         frame();
       },

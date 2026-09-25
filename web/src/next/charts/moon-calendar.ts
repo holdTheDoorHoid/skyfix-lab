@@ -23,7 +23,7 @@
 import { h } from '../../dom.js';
 import { disposer, memoize, observerKey, watch, type Ctx } from '../component.js';
 import { isMoonDetailEngine, type MoonApsides, type PhaseEvent } from '../engine/types.js';
-import { setTime, stepTime } from '../playback.js';
+import { fastPlayback, setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { wallClock, zoneLabel, type Zone } from '../time.js';
 import { phaseDisc } from '../theme/glyphs.js';
@@ -492,10 +492,14 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     watch(
       ctx,
       (st) => {
+        // Faster than eight days a second (playback.ts `fastPlayback`) the chart keeps its data
+        // and asks the engine nothing (verify2). It catches up once time slows.
+        if (fastPlayback(st)) return 'fast';
         const input = moonInputFor(st);
         return `${observerKey(input.observer)}|${zoneKey(input.zone)}|${input.year}|${input.month}|${input.options.horizon}|${input.options.height_of_eye_m}`;
       },
       () => {
+        if (fastPlayback(ctx.store.get())) return;
         dataDirty = true;
         frame();
       },
