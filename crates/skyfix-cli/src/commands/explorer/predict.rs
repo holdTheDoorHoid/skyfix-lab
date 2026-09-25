@@ -13,7 +13,7 @@ use skyfix_core::sights::predict::predict_sextant;
 use skyfix_core::types::{HorizonMode, LatLon, Limb, PredictedSight};
 use skyfix_ephemeris::AstroProvider;
 
-use super::args::{FormatArgs, LimbArg, PositionArgs, SightOpticsArgs, parse_instant};
+use super::args::{Dut1Args, FormatArgs, LimbArg, PositionArgs, SightOpticsArgs, parse_instant};
 use super::text;
 use crate::commands::reduce::{step_header, step_row};
 use crate::exit;
@@ -37,6 +37,8 @@ pub struct Args {
     #[command(flatten)]
     pub optics: SightOpticsArgs,
     #[command(flatten)]
+    pub dut1: Dut1Args,
+    #[command(flatten)]
     pub format: FormatArgs,
 }
 
@@ -49,7 +51,7 @@ pub fn predict(a: &Args) -> Result<PredictedSight> {
             a.body
         )
     })?;
-    let astro = provider::auto_provider();
+    let astro = provider::auto_provider_with_dut1(a.dut1.at(a.utc));
     let direction = astro.geocentric(name, a.utc).map_err(|e| anyhow!("{e}"))?;
     predict_sextant(
         &a.optics.observer(a.position.lat, a.position.lon),

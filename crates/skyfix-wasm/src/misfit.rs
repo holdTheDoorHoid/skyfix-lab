@@ -16,11 +16,9 @@ use wasm_bindgen::prelude::*;
 use skyfix_core::misfit::{
     self, DefaultBounds, GridBounds, GridNode, MisfitGrid, MisfitLevel, MisfitPoint, MisfitSight,
 };
-use skyfix_core::reduce::{DirectionSource, SuppliedOnly};
 use skyfix_core::types::{FixResult, Sight, SolveOptions};
-use skyfix_ephemeris::ProviderSource;
 
-use crate::{apply_session_position, auto_provider, err, to_js};
+use crate::{apply_session_position, err, to_js};
 
 /// A map is at most this many nodes along either axis.
 pub const MAX_AXIS: usize = misfit::MAX_AXIS;
@@ -220,7 +218,8 @@ fn solved(session_json: &str, ephemeris_mode: &str, options_json: &str) -> Resul
     if options.clock_uncertainty_s == 0.0 {
         options.clock_uncertainty_s = session.clock.uncertainty_s;
     }
-    let source = source_for(ephemeris_mode)?;
+    // The session's DUT1 as `solve` takes it (moonshape, expansion programme).
+    let source = crate::nav::session_source(ephemeris_mode, &session)?;
     let (reduced, rejected) =
         skyfix_core::reduce::reduce_session_partitioned(&session, source.as_ref());
     if reduced.is_empty() {
@@ -262,18 +261,6 @@ fn bounds_from(json: &str) -> Result<Option<GridBounds>, String> {
     b.normalized().map(Some)
 }
 
-/// The direction source for an `ephemeris_mode`, as `lib.rs` defines the modes, with a
-/// plain error so the `*_json` functions run natively.
-fn source_for(mode: &str) -> Result<Box<dyn DirectionSource>, String> {
-    match mode {
-        "supplied" => Ok(Box::new(SuppliedOnly)),
-        "auto" | "" => Ok(Box::new(ProviderSource(auto_provider()))),
-        other => Err(format!(
-            "unknown ephemeris_mode {other:?}: expected \"supplied\" or \"auto\""
-        )),
-    }
-}
-
 fn solve_kind(result: &FixResult) -> &'static str {
     match result {
         FixResult::Unique { .. } => "unique",
@@ -286,6 +273,7 @@ fn solve_kind(result: &FixResult) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auto_provider;
     use serde_json::{Value, json};
     use skyfix_core::geometry::{Point, angular_distance};
     use skyfix_core::types::{LatLon, Session};

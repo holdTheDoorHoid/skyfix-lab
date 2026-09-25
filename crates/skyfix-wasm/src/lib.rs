@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 use skyfix_core::types::{FixResult, Session, SolveOptions, Warning};
-use skyfix_ephemeris::{AstroProvider, ProviderSource};
+use skyfix_ephemeris::AstroProvider;
 use skyfix_sim::scenario::Scenario;
 
 // ---------------------------------------------------------------------------
@@ -104,15 +104,13 @@ fn planner_bodies() -> Vec<String> {
 /// The direction source `reduce` and `solve` use for a given `ephemeris_mode`.
 ///
 /// Both modes honour a supplied `geocentric` first: that is decided inside
-/// `skyfix_core::reduce::reduce_observation`, not here.
-fn direction_source(mode: &str) -> Result<Box<dyn skyfix_core::reduce::DirectionSource>, JsValue> {
-    match mode {
-        "supplied" => Ok(Box::new(skyfix_core::reduce::SuppliedOnly)),
-        "auto" | "" => Ok(Box::new(ProviderSource(auto_provider()))),
-        other => Err(err(format!(
-            "unknown ephemeris_mode {other:?}: expected \"supplied\" or \"auto\""
-        ))),
-    }
+/// `skyfix_core::reduce::reduce_observation`, not here. The `auto` providers take the
+/// session's DUT1 (`clock.dut1_s`; moonshape, expansion programme: `nav::session_source`).
+fn direction_source(
+    mode: &str,
+    session: &Session,
+) -> Result<Box<dyn skyfix_core::reduce::DirectionSource>, JsValue> {
+    nav::session_source(mode, session).map_err(err)
 }
 
 // ---------------------------------------------------------------------------
@@ -227,7 +225,7 @@ pub fn parse_session(json: &str) -> Result<JsValue, JsValue> {
 pub fn reduce(session_json: &str, ephemeris_mode: &str) -> Result<JsValue, JsValue> {
     let (session, _warnings) =
         skyfix_core::session::parse_session(session_json).map_err(|e| err(e.to_string()))?;
-    let source = direction_source(ephemeris_mode)?;
+    let source = direction_source(ephemeris_mode, &session)?;
     let entries: Vec<ReduceEntry> = skyfix_core::reduce::reduce_session(&session, source.as_ref())
         .into_iter()
         .zip(session.observations.iter())
@@ -296,7 +294,7 @@ pub fn solve(
         options.clock_uncertainty_s = session.clock.uncertainty_s;
     }
 
-    let source = direction_source(ephemeris_mode)?;
+    let source = direction_source(ephemeris_mode, &session)?;
     let (reduced, rejected) =
         skyfix_core::reduce::reduce_session_partitioned(&session, source.as_ref());
     if reduced.is_empty() {

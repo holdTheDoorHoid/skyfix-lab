@@ -14,7 +14,7 @@ use skyfix_core::sights::lunar::lunar_distance;
 use skyfix_core::types::{LatLon, LunarDistanceInput, LunarDistanceResult, LunarLimb};
 use skyfix_ephemeris::ProviderSource;
 
-use super::args::FormatArgs;
+use super::args::{Dut1Args, FormatArgs};
 use super::methods::labelled;
 use super::text;
 use crate::exit;
@@ -28,12 +28,17 @@ pub struct Args {
     /// reads it from standard input.
     pub input: PathBuf,
     #[command(flatten)]
+    pub dut1: Dut1Args,
+    #[command(flatten)]
     pub format: FormatArgs,
 }
 
 /// Read and parse the document, with the body name made canonical as the WASM export
 /// does.
-pub fn read_input(path: &Path) -> Result<LunarDistanceInput> {
+///
+/// Also returns the `observer.dut1_s` the document may carry (UT1 - UTC in seconds, as the
+/// WASM export reads it; expansion programme).
+pub fn read_input(path: &Path) -> Result<(LunarDistanceInput, Option<f64>)> {
     let text = if path.as_os_str() == "-" {
         let mut s = String::new();
         std::io::stdin()
@@ -52,12 +57,26 @@ pub fn read_input(path: &Path) -> Result<LunarDistanceInput> {
     input.body = skyfix_ephemeris::body::canonical(&input.body)
         .ok_or_else(|| anyhow!("unknown body {:?}", input.body))?
         .to_string();
-    Ok(input)
+    let dut1 = serde_json::from_str::<serde_json::Value>(text.trim())
+        .ok()
+        .and_then(|v| v["observer"]["dut1_s"].as_f64());
+    if let Some(d) = dut1 {
+        super::args::parse_dut1(&d.to_string()).map_err(|e| anyhow!("observer.dut1_s: {e}"))?;
+    }
+    Ok((input, dut1))
 }
 
 pub fn run(a: &Args) -> Result<u8> {
-    let input = read_input(&a.input)?;
-    let source = ProviderSource(provider::auto_provider());
+    let (input, document_dut1) = read_input(&a.input)?;
+    // `--dut1` wins over the document's `observer.dut1_s`; without either, the engine's
+    // value at the watch's time.
+    let dut1_s = match a.dut1.dut1.or(document_dut1) {
+        Some(d) => d,
+        None => skyfix_core::time::parse_utc(&input.utc_estimate)
+            .map(|jd| a.dut1.at(jd))
+            .unwrap_or(0.0),
+    };
+    let source = ProviderSource(provider::auto_provider_with_dut1(dut1_s));
     let r = lunar_distance(&input, &source).map_err(|e| anyhow!("{e}"))?;
     if a.format.is_json() {
         report::emit_line(&serde_json::to_string_pretty(&r)?)?;

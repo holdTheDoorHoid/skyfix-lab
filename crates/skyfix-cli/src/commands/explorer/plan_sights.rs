@@ -16,7 +16,7 @@ use skyfix_core::planner::PlanOptions;
 use skyfix_core::types::{LatLon, Limb, SightPlan, TwilightPlan};
 use skyfix_ephemeris::body::{SUN, Sky};
 
-use super::args::{FormatArgs, PositionArgs, SightOpticsArgs, When, parse_when};
+use super::args::{Dut1Args, FormatArgs, PositionArgs, SightOpticsArgs, When, parse_when};
 use super::methods::labelled;
 use super::text;
 use crate::exit;
@@ -37,6 +37,8 @@ pub struct Args {
     #[command(flatten)]
     pub optics: SightOpticsArgs,
     #[command(flatten)]
+    pub dut1: Dut1Args,
+    #[command(flatten)]
     pub format: FormatArgs,
 }
 
@@ -55,9 +57,11 @@ pub fn plan(a: &Args) -> Result<SightPlan> {
         .into_iter()
         .filter(|b| *b != SUN)
         .collect();
+    // One DUT1 for the whole span (a week at most), taken at its start.
+    let dut1_s = a.dut1.at(start);
     skyfix_ephemeris::visibility::plan_sights(
-        &Sky::new(),
-        &provider::auto_provider(),
+        &Sky::with_dut1_s(dut1_s),
+        &provider::auto_provider_with_dut1(dut1_s),
         &bodies,
         &a.optics.observer(a.position.lat, a.position.lon),
         start,

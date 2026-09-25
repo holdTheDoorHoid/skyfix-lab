@@ -63,11 +63,17 @@ impl EphemerisChoice {
 /// `SightPlanetProvider`: Venus, Mars, Jupiter and Saturn only, Venus at its centre of
 /// light (CONVENTIONS section 5).
 pub fn auto_provider() -> CompositeProvider {
+    auto_provider_with_dut1(0.0)
+}
+
+/// [`auto_provider`] with every member's Earth rotation taken at UT1 = UTC + `dut1_s`
+/// (moonshape, expansion programme: the `--dut1` flag and a session's `clock.dut1_s`).
+pub fn auto_provider_with_dut1(dut1_s: f64) -> CompositeProvider {
     CompositeProvider::new(AUTO_PROVIDER_NAME)
-        .with(SunProvider::new())
-        .with(MoonProvider::new())
-        .with(SightPlanetProvider::new())
-        .with(StarProvider::new())
+        .with(SunProvider::with_dut1_s(dut1_s))
+        .with(MoonProvider::with_dut1_s(dut1_s))
+        .with(SightPlanetProvider::with_dut1_s(dut1_s))
+        .with(StarProvider::with_dut1(dut1_s))
 }
 
 /// The direction source for a reduction.
@@ -75,11 +81,27 @@ pub fn auto_provider() -> CompositeProvider {
 /// A supplied `geocentric` block always wins over a provider — that rule lives in
 /// `skyfix_core::reduce::reduce_observation`, not here — so `auto` differs from
 /// `supplied` only in what happens when a block is absent.
-pub fn direction_source(choice: EphemerisChoice) -> Box<dyn DirectionSource> {
+///
+/// `dut1_s` (UT1 - UTC, seconds) is the Earth-rotation offset of the `auto` providers;
+/// commands that read a session use [`session_source`].
+pub fn direction_source_with_dut1(
+    choice: EphemerisChoice,
+    dut1_s: f64,
+) -> Box<dyn DirectionSource> {
     match choice {
-        EphemerisChoice::Auto => Box::new(ProviderSource(auto_provider())),
+        EphemerisChoice::Auto => Box::new(ProviderSource(auto_provider_with_dut1(dut1_s))),
         EphemerisChoice::Supplied => Box::new(SuppliedOnly),
     }
+}
+
+/// The direction source for reducing `session`: its DUT1 (the session's `clock.dut1_s`,
+/// which `--dut1` overrides first, else the engine's value) through the single lookup,
+/// once for the session (`skyfix_core::reduce::session_dut1_s`).
+pub fn session_source(
+    choice: EphemerisChoice,
+    session: &skyfix_core::types::Session,
+) -> Box<dyn DirectionSource> {
+    direction_source_with_dut1(choice, skyfix_core::reduce::session_dut1_s(session))
 }
 
 /// A provider and its self-declared coverage, for `skyfix coverage`.
@@ -220,7 +242,7 @@ mod tests {
     #[test]
     fn supplied_only_names_itself_supplied() {
         assert_eq!(
-            direction_source(EphemerisChoice::Supplied).name(),
+            direction_source_with_dut1(EphemerisChoice::Supplied, 0.0).name(),
             skyfix_core::reduce::SUPPLIED_DIRECTION_SOURCE
         );
     }
@@ -228,7 +250,7 @@ mod tests {
     #[test]
     fn auto_is_the_composite() {
         assert_eq!(
-            direction_source(EphemerisChoice::Auto).name(),
+            direction_source_with_dut1(EphemerisChoice::Auto, 0.0).name(),
             AUTO_PROVIDER_NAME
         );
         assert_eq!(
@@ -244,7 +266,7 @@ mod tests {
 
     #[test]
     fn auto_answers_for_the_sun_and_for_stars() {
-        let s = direction_source(EphemerisChoice::Auto);
+        let s = direction_source_with_dut1(EphemerisChoice::Auto, 0.0);
         let jd = skyfix_core::time::parse_utc("2026-10-01T01:30:00Z").unwrap();
         let sun = s.direction("Sun", jd).expect("the Sun provider is merged");
         assert!(sun.semidiameter_arcmin > 15.0, "{sun:?}");

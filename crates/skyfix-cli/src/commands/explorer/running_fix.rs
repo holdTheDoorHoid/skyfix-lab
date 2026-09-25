@@ -20,7 +20,7 @@ use skyfix_motion::request::{
     MotionUncertaintyInput, RunningFixLeg, RunningFixOutput, RunningFixRequest, running_fix_session,
 };
 
-use super::args::{FormatArgs, parse_instant, parse_leg};
+use super::args::{Dut1Args, FormatArgs, parse_instant, parse_leg};
 use super::methods::{self, labelled};
 use super::text;
 use crate::cli::SolveFlags;
@@ -70,6 +70,8 @@ pub struct Args {
     #[arg(long = "require-unique")]
     pub require_unique: bool,
     #[command(flatten)]
+    pub dut1: Dut1Args,
+    #[command(flatten)]
     pub format: FormatArgs,
 }
 
@@ -99,9 +101,10 @@ pub fn request(a: &Args, session: &skyfix_core::types::Session) -> Result<Runnin
 }
 
 pub fn run(a: &Args) -> Result<u8> {
-    let session = methods::load(&a.session)?;
+    let mut session = methods::load(&a.session)?;
+    a.dut1.apply(&mut session);
     let request = request(a, &session)?;
-    let source = provider::direction_source(a.solve.ephemeris);
+    let source = provider::session_source(a.solve.ephemeris, &session);
     let r = running_fix_session(&session, &request, source.as_ref()).map_err(|e| anyhow!(e))?;
 
     if a.format.is_json() {

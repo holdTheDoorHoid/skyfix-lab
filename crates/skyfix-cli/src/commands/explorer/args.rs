@@ -472,6 +472,57 @@ pub fn parse_bodies(s: &str) -> Result<BodyList, String> {
     Ok(BodyList(out))
 }
 
+// ---------------------------------------------------------------------------
+// --dut1 (moonshape, expansion programme): UT1 - UTC from the time signal
+// ---------------------------------------------------------------------------
+
+/// `--dut1 SECONDS`, on every command that reduces, predicts or plans.
+#[derive(clap::Args, Debug, Clone, Copy, Default)]
+pub struct Dut1Args {
+    /// UT1 - UTC in seconds, from the time signal or IERS Bulletin A (|DUT1| is at most
+    /// 0.9 s). Overrides a session's clock.dut1_s. Without either the engine's own
+    /// value is used (0 s for now): unknown by up to 0.9 s, 0.23' of longitude.
+    #[arg(long, value_name = "SECONDS", allow_negative_numbers = true, value_parser = parse_dut1)]
+    pub dut1: Option<f64>,
+}
+
+impl Dut1Args {
+    /// Put the flag into a session: the command line wins over the file.
+    pub fn apply(&self, session: &mut skyfix_core::types::Session) {
+        if let Some(d) = self.dut1 {
+            session.clock.dut1_s = Some(d);
+        }
+    }
+
+    /// DUT1 for an instant when there is no session: the flag, else the engine's value
+    /// (`skyfix_core::time::dut1_s`).
+    pub fn at(&self, jd_utc: f64) -> f64 {
+        skyfix_core::time::dut1_s(jd_utc, self.dut1)
+    }
+}
+
+/// A DUT1 in seconds: finite and at most `skyfix_core::session::DUT1_LIMIT_S`, the
+/// session's own rule. Beyond 0.9 s it is accepted and warned about on standard error.
+pub fn parse_dut1(s: &str) -> Result<f64, String> {
+    let v: f64 = s
+        .trim()
+        .parse()
+        .map_err(|_| format!("--dut1 {s:?} is not a number of seconds"))?;
+    if !v.is_finite() || v.abs() > skyfix_core::session::DUT1_LIMIT_S {
+        return Err(format!(
+            "--dut1 {s}: UT1 - UTC is within 0.9 s (IERS); give it in seconds, at most {} s",
+            skyfix_core::session::DUT1_LIMIT_S
+        ));
+    }
+    if v.abs() > 0.9 {
+        eprintln!(
+            "warning: --dut1 {v} s is outside the 0.9 s the IERS keeps UT1 - UTC within; used \
+             as given"
+        );
+    }
+    Ok(v)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -570,5 +621,25 @@ mod tests {
         let e = parse_bodies("Sun,Vulcan").unwrap_err();
         assert!(e.contains("Vulcan") && e.contains("skyfix catalog"), "{e}");
         assert!(parse_bodies("Sun,,Moon").is_err());
+    }
+
+    #[test]
+    fn dut1_is_seconds_within_the_sessions_limit() {
+        assert_eq!(parse_dut1("-0.2").unwrap(), -0.2);
+        assert_eq!(parse_dut1(" 0.35 ").unwrap(), 0.35);
+        assert_eq!(parse_dut1("1.5").unwrap(), 1.5);
+        for bad in ["", "fast", "NaN", "inf", "300", "-61"] {
+            assert!(parse_dut1(bad).is_err(), "{bad}");
+        }
+        let mut session: skyfix_core::types::Session = serde_json::from_str(
+            r#"{"schema": "skyfix.session/1", "clock": {"dut1_s": 0.1}, "observations": []}"#,
+        )
+        .unwrap();
+        Dut1Args { dut1: None }.apply(&mut session);
+        assert_eq!(session.clock.dut1_s, Some(0.1));
+        Dut1Args { dut1: Some(-0.3) }.apply(&mut session);
+        assert_eq!(session.clock.dut1_s, Some(-0.3));
+        assert_eq!(Dut1Args { dut1: Some(0.4) }.at(2.46e6), 0.4);
+        assert_eq!(Dut1Args { dut1: None }.at(2.46e6), 0.0);
     }
 }
