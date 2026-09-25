@@ -1000,3 +1000,42 @@ as built"):
   session. Nothing about the person is sent to fetch a pack.
 - Every committed pack must install into the core built from the same commit
   (`cargo test -p skyfix-wasm`, and the Pages workflow before it builds).
+
+### 15.6 Deep time in the interface (time-ui agent, wave 2)
+
+Normative for every view under `web/src/next/`; the helpers are in `web/src/next/time/`.
+
+- **Dates** go through the display calendar (`time/civil.ts`; `wallClock` in `time.ts`):
+  the Julian calendar before 1582-10-15 unless Settings → Calendar chose the proleptic
+  Gregorian (ISO). Years are astronomical in code and written as Settings → Years chose
+  (`formatYear`: `585 BC`, `−584`, `-0584`; "AD" is written below the year 1000). A date
+  before the reform that stands alone carries its calendar (the time bar's *Julian* tag,
+  `formatCivilDate(jd, zone, form, { calendar: true })`). The ten dates 1582-10-05 to
+  1582-10-14 are refused as typed input unless the calendar is named; steps pass over them.
+  Engine arguments that are civil dates or years (`almanac_day`, `seasons`, …) are the
+  wire's proleptic Gregorian ones, never wall-clock fields (`gregorianDateOfMs`).
+- **The clock's word** is the scale's: "UTC" from 1972-01-01 to 2035-12-31 and "UT" outside
+  (`scaleLabel(jd)`; `formatOffset(ms, jd)` writes `UT−5:00:40`). Never a literal "UTC" beside
+  a time that may lie outside those years.
+- **Zones:** before 1850 a zone that follows the place is local mean time at the observer's
+  longitude, to the second, named "LMT" (`resolveZone(choice, lon, jd)`; `lmtReason` gives
+  the sentence); a zone the person pinned stays as chosen. The tooltip of an IANA zone before
+  1970 says its offset may be approximate (tz database) (`zoneTooltip`).
+- **Uncertainty:** the ±ΔT chip (`uncertaintyChip`, `uncertaintyText`) stands beside a clock
+  time when the standard uncertainty of ΔT at that date exceeds 30 s (half the precision of a
+  time to the minute), and always in the labelled tier, written ±s below 90 s, ±min below an
+  hour, ±h above. It concerns clock times of events at a place and eclipse paths, never
+  positions on the sky, and says so.
+- **Tiers:** `tierAt` is the one source of a date's tier in the interface (the engine's own
+  `tierAt`, else `explorer_coverage()`'s `validated_*` fields, else `time_info.tier`).
+  Sights, predicted readings and the planner are offered only in the validated tier, and say
+  "Sights are offered only between 1550 and 2650 …" (`sightsOnlyText`) instead of results.
+  One notice names the tier (`time/services.ts`): a persistent *Historical estimate* or
+  *Far-future estimate* in the labelled tier, and outside it "… outside the years the
+  SkyFix Lab core covers (…)" with the real bounds; a view needing the Deep time pack calls
+  `ctx.packs.ensure('deep-time', packReason(jd, ctx))` (`packForDate` says whether one would
+  reach the date).
+- **Playback** runs to ten years a second. Faster than eight days a second
+  (`FAST_PLAYBACK_S`) the per-day events are not computed while time runs (`sunToday` and
+  `aroundToday` return null) and are drawn as soon as it stops or slows; a view with its own
+  per-day work does the same (`fastPlayback(state)`).
