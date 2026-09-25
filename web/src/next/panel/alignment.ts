@@ -59,6 +59,8 @@ export interface AlignmentRow {
   az: string;
   /** `0.03° right of the line`. */
   offset: string;
+  /** `0.03° right`, for the list. */
+  offsetShort: string;
   best: boolean;
   /** For assistive technology and the button's name. */
   label: string;
@@ -123,6 +125,7 @@ export function alignmentRows(
       what,
       az: `${m.az_deg.toFixed(1)}°`,
       offset,
+      offsetShort: offset.replace(/ of the line$/, ''),
       best: m.best,
       label: `Show ${date} ${time}: the ${body} ${what} at ${m.az_deg.toFixed(1)}°, ${offset}${m.best ? ', the closest day of its run' : ''}`,
     };
@@ -320,8 +323,10 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
   };
 
   const run = (): void => {
-    if (!last || busy) return;
-    const { s, body } = last;
+    if (busy) return;
+    // Before the card's first frame (a hidden tab draws none), from the store as it is.
+    const s = last?.s ?? store.get();
+    const body = last?.body ?? (s.selection.body === 'Moon' ? 'Moon' : 'Sun');
     if (!sunEngine) {
       setText(status, 'The alignment finder is not available in this engine: rebuild the WebAssembly package.');
       return;
@@ -367,7 +372,14 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
               { type: 'button', class: `sf-photo__row${row.best ? ' sf-photo__row--best' : ''}`, 'aria-label': row.label },
               h('span', { class: 'sf-photo__date' }, row.date),
               h('span', { class: 'sf-num' }, row.time),
-              h('span', { class: 'sf-photo__what' }, `${row.what} at `, h('span', { class: 'sf-num' }, row.az), `, ${row.offset}`),
+              // "sets" is in the sentence above; a height's crossing says which way.
+              h(
+                'span',
+                { class: 'sf-photo__what' },
+                /^(climbs|sinks)/.test(row.what) ? `${row.what.split(' ')[0]}, ` : '',
+                h('span', { class: 'sf-num' }, row.az),
+                `, ${row.offsetShort}`,
+              ),
               row.best ? h('span', { class: 'sf-photo__badge' }, 'best') : null,
             );
             b.addEventListener('click', () => setTime(store, row.jd));

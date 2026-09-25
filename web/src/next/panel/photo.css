@@ -78,6 +78,7 @@
 }
 
 .sf-photo-light .sf-table td {
+  padding-left: 10px;
   white-space: nowrap;
 }
 
@@ -153,19 +154,28 @@
 
 /* --- Lists of days and nights: press one to show it -------------------------------------- */
 
+/* Date, time, what, badge: the columns line up from row to row (subgrid). */
 .sf-photo__list {
   display: grid;
-  gap: 1px;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  row-gap: 1px;
   margin: 0 -8px;
   padding: 0;
   list-style: none;
 }
 
+.sf-photo__list > li {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+}
+
 .sf-photo__row {
   display: grid;
-  grid-template-columns: 8.5ch auto minmax(0, 1fr) auto;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  column-gap: 10px;
   align-items: baseline;
-  gap: 8px;
   width: 100%;
   min-height: 30px;
   padding: 4px 8px;
@@ -244,7 +254,7 @@
 }
 
 .sf-photo-moon__lib {
-  margin: 2px 0 4px 26px;
+  margin: -4px 0 4px 26px;
 }
 
 .sf-photo__press {

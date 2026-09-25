@@ -561,12 +561,16 @@ export function bearingSourceText(v: BearingValue, here: LatLonDeg): string {
 // The Milky Way planner
 // ---------------------------------------------------------------------------------
 
-/** The night the planner describes: local noon to the next local noon on the display clock. */
-export function nightWindow(jd: number, zone: Zone, sunUp: boolean): [number, number] {
+/**
+ * The night the planner describes: local noon to the next local noon on the display clock.
+ * `sunUp` is asked only before noon (it costs an engine call).
+ */
+export function nightWindow(jd: number, zone: Zone, sunUp: boolean | (() => boolean)): [number, number] {
   const w = wallClock(jd, zone);
   const noon = jdFromWallClock({ year: w.year, month: w.month, day: w.day, hour: 12 }, zone);
+  const up = (): boolean => (typeof sunUp === 'function' ? sunUp() : sunUp);
   // After noon: tonight. In the morning: last night while it is still dark, else tonight.
-  const start = jd >= noon ? noon : sunUp ? noon : jdFromWallClock({ year: w.year, month: w.month, day: w.day - 1, hour: 12 }, zone);
+  const start = jd >= noon ? noon : up() ? noon : jdFromWallClock({ year: w.year, month: w.month, day: w.day - 1, hour: 12 }, zone);
   const w2 = wallClock(start, zone);
   return [start, jdFromWallClock({ year: w2.year, month: w2.month, day: w2.day + 1, hour: 12 }, zone)];
 }
@@ -736,7 +740,7 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
     status.removeAttribute('data-stale');
     if (!isSunToolsEngine(engine)) return;
     const zone = displayZone(s);
-    const [a, b] = nightWindow(s.time.jd_utc, zone, sunUp(s));
+    const [a, b] = nightWindow(s.time.jd_utc, zone, () => sunUp(s));
     const span = clampToCoverage(ctx, a, b);
     let result: GalacticCentreWindows | null = null;
     let error = '';
@@ -781,7 +785,7 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
     month.removeAttribute('data-stale');
     if (!isSunToolsEngine(engine)) return;
     const zone = displayZone(s);
-    const [a] = nightWindow(s.time.jd_utc, zone, sunUp(s));
+    const [a] = nightWindow(s.time.jd_utc, zone, () => sunUp(s));
     const span = clampToCoverage(ctx, a, a + 30);
     let result: GalacticCentreWindows | null = null;
     let error = '';
@@ -826,7 +830,7 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
     if (!last || !el.open || unavailable) return;
     const s = last;
     const zone = displayZone(s);
-    const [a] = nightWindow(s.time.jd_utc, zone, sunUp(s));
+    const [a] = nightWindow(s.time.jd_utc, zone, () => sunUp(s));
     const place = `${s.observer.lat_deg}|${s.observer.lon_deg}|${s.observer.height_m}|${s.settings.angleFormat}|${s.settings.hourCycle}|${s.settings.timeDisplay}|${JSON.stringify(s.observer.zone)}`;
     nightSettler.request(`${a}|${place}`, lastMoving, () => drawNight(store.get()), () => status.setAttribute('data-stale', ''));
     monthSettler.request(`${a}|${place}`, lastMoving, () => drawMonth(store.get()), () => month.setAttribute('data-stale', ''));

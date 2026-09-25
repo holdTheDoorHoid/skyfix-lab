@@ -21,7 +21,7 @@ import type {
 import { mapServiceFor } from '../../src/next/map/overlays.js';
 import { createMapPicker, mapPickerFor } from '../../src/next/map/pick.js';
 import { alignmentRows, offsetWords } from '../../src/next/panel/alignment.js';
-import { axisWords, distanceWords, librationWords, nextApsides, sizeWords, supermoonNote } from '../../src/next/panel/moon-tools.js';
+import { axisWords, distanceWords, librationValue, librationWords, nextApsides, sizeWords, supermoonNote } from '../../src/next/panel/moon-tools.js';
 import {
   bestNights,
   coordText,
@@ -423,6 +423,8 @@ describe('the Moon card’s words', () => {
     expect(librationWords({ lon_deg: 6.1, lat_deg: 0 }).sentence).toBe('Tipped to show more of its eastern edge (the Mare Crisium side), by 6.1°.');
     expect(librationWords({ lon_deg: 0.05, lat_deg: 4.2 }).sentence).toBe('Tipped to show more of its north pole, by 4.2°.');
     expect(librationWords({ lon_deg: 0.3, lat_deg: -0.4 }).sentence).toMatch(/almost squarely/);
+    expect(librationValue({ lon_deg: -5.58, lat_deg: 0.8 })).toBe('5.6° W, 0.8° N');
+    expect(librationValue({ lon_deg: 6.1, lat_deg: -3.04 })).toBe('6.1° E, 3.0° S');
   });
 
   it('gives the axis from celestial north and as it looks from here', () => {

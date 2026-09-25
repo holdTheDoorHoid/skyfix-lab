@@ -81,6 +81,13 @@ export function librationWords(lib: Pick<LibrationAngles, 'lon_deg' | 'lat_deg'>
   return { sentence: `Tipped to show ${parts.join(', ')}.`, tip };
 }
 
+/** Libration in short, as the row's value: `4.8° W, 0.8° N` (selenographic, IAU east). */
+export function librationValue(lib: Pick<LibrationAngles, 'lon_deg' | 'lat_deg'>): string {
+  const lon = `${Math.abs(lib.lon_deg).toFixed(1)}° ${lib.lon_deg >= 0 ? 'E' : 'W'}`;
+  const lat = `${Math.abs(lib.lat_deg).toFixed(1)}° ${lib.lat_deg >= 0 ? 'N' : 'S'}`;
+  return `${lon}, ${lat}`;
+}
+
 /**
  * The Moon's axis in words: from celestial north (`axis_position_angle_deg`, P), and as it
  * looks from here with the zenith up (`north_pole_disc`, x right and y up).
@@ -152,7 +159,10 @@ export function moonTools(ctx: Ctx): MoonTools {
   const sizeWordsEl = h('span', {});
   const sizeTermEl = h('span', { 'data-term': '' });
   const sizeTerm = h('p', { class: 'sf-photo__sub' }, sizeWordsEl, sizeTermEl);
-  const lib = h('p', { class: 'sf-photo__line sf-photo-moon__lib', tabindex: 0 });
+  const libValue = h('span', {});
+  const libRow = kv('moon', 'Tipped toward us', libValue);
+  const libWordsEl = h('span', {});
+  const lib = h('p', { class: 'sf-photo__sub sf-photo-moon__lib', tabindex: 0 }, libWordsEl, h('span', { 'data-term': '' }, ' · libration'));
   const axisValue = h('span', {});
   const axisRow = kv('compass', 'Axis (north pole)', axisValue);
   const perigeeValue = h('span', {});
@@ -174,7 +184,7 @@ export function moonTools(ctx: Ctx): MoonTools {
     upClose,
   );
   const status = h('p', { class: 'sf-photo__note', hidden: true });
-  const el = h('div', { class: 'sf-photo-moon' }, status, sizeRow, sizeTerm, lib, axisRow, perigeeRow, apogeeRow, superNote, feats);
+  const el = h('div', { class: 'sf-photo-moon' }, status, sizeRow, sizeTerm, libRow, lib, axisRow, perigeeRow, apogeeRow, superNote, feats);
 
   const orientSettler = new Settler();
   const featSettler = new Settler();
@@ -183,7 +193,7 @@ export function moonTools(ctx: Ctx): MoonTools {
   let apsides: MoonApsides | null = null;
 
   if (!isMoonDetailEngine(engine)) {
-    for (const part of [sizeRow, sizeTerm, lib, axisRow, perigeeRow, apogeeRow, superNote, feats]) part.hidden = true;
+    for (const part of [sizeRow, sizeTerm, libRow, lib, axisRow, perigeeRow, apogeeRow, superNote, feats]) part.hidden = true;
     status.hidden = false;
     status.textContent = 'Libration, the Moon’s size and its nearest and farthest points are not available in this engine: rebuild the WebAssembly package.';
   }
@@ -194,8 +204,7 @@ export function moonTools(ctx: Ctx): MoonTools {
   };
 
   const drawOrientation = (s: ExplorerState, jd: number): void => {
-    sizeRow.removeAttribute('data-stale');
-    lib.removeAttribute('data-stale');
+    for (const r of [sizeRow, libRow, lib, axisRow]) r.removeAttribute('data-stale');
     if (!isMoonDetailEngine(engine)) return;
     let o: MoonOrientation;
     try {
@@ -215,8 +224,10 @@ export function moonTools(ctx: Ctx): MoonTools {
     setText(sizeWordsEl, `${sizeWords(o.diameter_vs_mean_percent).replace(/^./, (c) => c.toUpperCase())} seen from here`);
     setText(sizeTermEl, ` · apparent diameter; semi-diameter ${o.semidiameter_arcmin.toFixed(1)}′`);
     const words = librationWords(o.libration);
-    setText(lib, words.sentence);
+    setText(libValue, librationValue(o.libration));
+    setText(libWordsEl, words.sentence);
     setAttr(lib, 'data-tip', words.tip);
+    setAttr(libRow, 'data-tip', words.tip);
     const axis = axisWords(o);
     setText(axisValue, axis.value);
     setAttr(axisRow, 'data-tip', axis.tip);
@@ -310,8 +321,7 @@ export function moonTools(ctx: Ctx): MoonTools {
       // A quarter of an hour: the size and the libration change by less than the digits shown.
       const q = Math.floor(jd * 96) / 96;
       orientSettler.request(`${q}|${place}`, moving, () => drawOrientation(store.get(), Math.floor(store.get().time.jd_utc * 96) / 96), () => {
-        sizeRow.setAttribute('data-stale', '');
-        lib.setAttribute('data-stale', '');
+        for (const r of [sizeRow, libRow, lib, axisRow]) r.setAttribute('data-stale', '');
       });
       // An hour: the terminator moves half a degree an hour on the Moon.
       const hr = Math.floor(jd * 24) / 24;
