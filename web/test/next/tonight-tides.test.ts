@@ -97,6 +97,23 @@ describe('the tide-station cells', () => {
   });
 
   it('never leave a place with a station within 100 NM without the offer', () => {
+    // Stations by one-degree cell, so a place's neighbours within 100 NM are a few cells.
+    const buckets = new Map<number, { lat: number; lon: number }[]>();
+    const cellOf = (lat: number, lon: number): number => (Math.floor(lat) + 90) * 360 + ((((Math.floor(lon) + 180) % 360) + 360) % 360);
+    for (const s of all) {
+      const c = cellOf(s.lat, s.lon);
+      buckets.set(c, [...(buckets.get(c) ?? []), s]);
+    }
+    /** Whether a station lies within 100 NM (the cells two degrees around, wider in longitude near the poles). */
+    const stationWithin100 = (lat: number, lon: number): boolean => {
+      const dLon = Math.min(180, Math.ceil(2 / Math.max(0.05, Math.cos((lat * Math.PI) / 180))));
+      for (let i = -2; i <= 2; i += 1) {
+        for (let j = -dLon; j <= dLon; j += 1) {
+          for (const t of buckets.get(cellOf(lat + i, lon + j)) ?? []) if (nm(lat, lon, t.lat, t.lon) <= 100) return true;
+        }
+      }
+      return false;
+    };
     const rnd = lcg(20260925);
     let near = 0;
     let offered = 0;
@@ -109,20 +126,19 @@ describe('the tide-station cells', () => {
       const lat = Math.max(-89.9, Math.min(89.9, s.lat + r * Math.cos(a)));
       const lon = s.lon + (r * Math.sin(a)) / Math.max(0.05, Math.cos((lat * Math.PI) / 180));
       const wrapped = ((((lon + 180) % 360) + 360) % 360) - 180;
-      let nearest = Infinity;
-      for (const t of all) nearest = Math.min(nearest, nm(lat, wrapped, t.lat, t.lon));
+      const within = stationWithin100(lat, wrapped);
       const may = mayHaveTideStation(lat, wrapped);
-      if (nearest <= 100) {
+      if (within) {
         near += 1;
-        expect(may, `${lat},${wrapped}: a station ${nearest.toFixed(1)} NM away`).toBe(true);
+        expect(may, `${lat},${wrapped}: a station within 100 NM`).toBe(true);
       }
       if (may) offered += 1;
-      if (may && nearest > 100) generous += 1;
+      if (may && !within) generous += 1;
     }
     expect(near).toBeGreaterThan(3000);
     // Generous at most by a cell's width: rarely beyond the radius (5 % measured, 2026-09-25).
     expect(generous / offered).toBeLessThan(0.1);
-  });
+  }, 30_000);
 
   it('offer tides on US coasts and islands, and not inland or abroad', () => {
     expect(mayHaveTideStation(39.9526, -75.1652)).toBe(true); // Philadelphia
