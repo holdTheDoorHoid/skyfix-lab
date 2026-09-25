@@ -118,6 +118,26 @@ alpha Cen A's single-epoch one, which contains A's orbital motion (`acen_orbit.p
 `generate_all.py` runs them in that order and reports which steps failed
 without stopping at the first one.
 
+<!-- cli3 agent (expansion programme), 2026-09-25 -->
+It also runs the expansion programme's generators, which live beside the data they
+check (`--list` prints every step, and the generators run separately):
+
+| script | output | notes |
+|---|---|---|
+| `tools/timescales/gen_timescales.py` | `fixtures/reference/timescales.json` and `crates/skyfix-core/src/deltat/data.rs` | run **first**: every generator's clock reads that `data.rs` (`tools/timescales/skyfield_timescale.py`); from committed sources, so a rerun reproduces both files |
+| `gen_almanac_tables.py` | `fixtures/reference/almanac_tables.json` | the almanac's tables beyond the daily pages, computed from CONVENTIONS 13.9.1 alone |
+| `gen_planetdetail.py` | `fixtures/reference/planetdetail_*.json` | `--offline` first (the Skyfield parts; needs `de440.bsp`, and `jup365` excerpts cut over HTTP the first time), then each network part (`--part horizons`, `transits`, `apsides`, `orbits`) |
+| `tools/moon/gen_reference.py` | `fixtures/reference/moon_{libration,apsides,occultations}.json` | needs `de440.bsp` and the two NAIF lunar orientation files in `data/` |
+| `tools/limb/reference.py` | `fixtures/reference/eclipse_limb_skyfield.json`, `eclipse_limb_svs.json` | `skyfield` needs `tools/limb/data/ldem_16.img` (`python3 -m tools.limb.fetch`); `svs` **needs network** |
+| `tools/geomag/gen_fixtures.py` | `fixtures/reference/geomag_{wmm2025,igrf14}.json` | the models' published test values; downloads what `tools/geomag/data/` lacks (**network**) |
+| `tools/tides/fixtures.py` | `fixtures/reference/tides_noaa.json`, `tides_noaa_sweep.json` | NOAA's own predictions, after `make -C tools/tides fetch`; cached, the sweep's first run about 35 minutes (**network**) |
+| `tools/starfield/gen_fixtures.py` | `fixtures/reference/starfield_{apparent,constellations}.json` | older than the programme and not listed until now; after `python3 -m tools.starfield.fetch` |
+
+`dso_positions.json` and `showers_reference.json` come from the deep-sky data builders
+(`tools/starfield/dso.py`, `showers.py`), which also write the shipped tables, so they
+are listed with the other builders under `--list` rather than run here.
+<!-- end cli3 -->
+
 One more script produces **embedded data**, not a fixture, and is not part of
 `generate_all.py`:
 

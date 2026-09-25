@@ -25,9 +25,10 @@
 //!
 //! # Definitions (CONVENTIONS 13.9)
 //!
-//! - **UT** is UTC with DUT1 = 0 (CONVENTIONS 6), the convention of every GHA in this
-//!   project. The printed almanac's argument is UT1: the difference is up to 0.23' of GHA
-//!   (0.9 s of Earth rotation).
+//! - **UT** is UT1, as in the printed Nautical Almanac (CONVENTIONS 15.2): the page's
+//!   provider keeps DUT1 = 0, which makes each row's clock instant its UT1, and a navigator
+//!   enters the tables with UTC + DUT1. TT is then off by DUT1 (at most 0.5" of the Moon).
+//!   Outside 1972-2035 the app's clock is UT itself.
 //! - **Hourly values** are exact evaluations of the provider at each whole hour. `GHA
 //!   Aries` is the Sun's `GHA + RA` at that hour, so it is consistent with every other GHA.
 //! - **v** is the excess of a body's mean hourly increase of GHA over the rate the
@@ -76,7 +77,6 @@
 //!
 //! - One date per page instead of three; moonrise and moonset for the date and the next
 //!   instead of four days.
-//! - The argument is UTC with DUT1 = 0, not UT1 (up to 0.23' of GHA, 1 s of any time).
 //! - The once-a-day values are for 12h UT of the date rather than the middle day of three.
 //! - Rise and set use the WGS84 ellipsoid for the observer (CONVENTIONS 13.2); the printed
 //!   almanac's own reduction may differ by seconds of time.
@@ -147,8 +147,8 @@ const HOUR: f64 = 1.0 / 24.0;
 
 /// Sentences every page prints under its tables (the CLI and the UI show them verbatim).
 pub const NOTES: [&str; 7] = [
-    "UT is UTC with DUT1 = 0 (CONVENTIONS 6); the printed almanac's argument is UT1. The \
-     difference is up to 0.23' of GHA and 1 s of any time.",
+    "UT is UT1, as in the printed almanac: enter the tables with UTC + DUT1, the time \
+     signal's correction (CONVENTIONS 15.2). Outside 1972-2035 the clock is UT itself.",
     "v: the excess of the hourly increase of GHA over 15° (planets, mean over the day) or \
      14° 19.0' (Moon, from each hour to the next). d: the hourly change of declination, \
      printed without sign; take the sign from the trend of the column.",

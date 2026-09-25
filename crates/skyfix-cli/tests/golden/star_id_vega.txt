@@ -1,0 +1,29 @@
+WHAT DID I SHOOT?
+DR         39 57.00' N, 075 10.20' W (39.950000, -75.170000)
+Time       2026-10-01T00:30:00Z
+Observed   altitude +72 31.1 (after the corrections, airless topocentric), true bearing
+           273 30.0
+Sky        night, the Sun at -20 54.7: stars to magnitude 4.5 are visible
+
+Vega (1.2′ away: the sight is 0.1′ higher and its bearing 4.0′ less).
+
+  #  body     kind   mag       alt        Az  d alt '  d brg '  within
+  1  Vega     star  0.03  +72 31.0  273 34.0     +0.1     -4.0  yes
+  2  Eltanin  star  2.24  +64 39.2  308 01.9   +471.9  -2071.9  no
+  3  Deneb    star  1.25  +81 43.9   46 10.4   -552.8  -7960.4  no
+
+The corrections applied to the sextant reading
+  step                        applied   before deg   after deg  delta '  note
+  index_correction            yes        72.590000   72.570000    -1.20  index correction -1.200' added to the sextant reading
+  dip                         yes        72.570000   72.523620    -2.78  sea horizon, height of eye 2.500 m: dip 2.783' subtracted
+  artificial_horizon_halving  no         72.523620   72.523620     0.00  not applicable: the sea horizon reading is a single angle
+  refraction                  yes        72.523620   72.518403    -0.31  Bennett 1982 at Ha 72.5236 deg, 1010.0 hPa, 10.0 C: 0.313' subtracted
+  semidiameter                no         72.518403   72.518403     0.00  not applicable: a star has no disc (semidiameter is geocentric for the Sun only; the Moon's is augmented to its topocentric value)
+  parallax                    no         72.518403   72.518403     0.00  not applicable: a star has no parallax in altitude (0.000'); HP cos(Ha) is used for the Sun only, asin(sin HP cos h) for the Moon and the planets
+
+Brightness: bodies up to magnitude 4.5 are counted as visible with the Sun at -20.9°
+(night sky), a clear-sky heuristic with no allowance for moonlight, haze or a body low
+in the horizon's murk.
+alt is each body's airless topocentric altitude at the DR (the Moon's parallax removed),
+Az true; d alt and d brg are observed minus the body's, in arcminutes. Tolerances 2 deg
+in altitude, 5 deg in bearing. Candidates from skyfix-sky (Sun, Moon, planets, stars).

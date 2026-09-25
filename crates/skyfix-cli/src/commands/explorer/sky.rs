@@ -5,6 +5,10 @@
 //! joins it: the almanac crate must not depend on the star field (CONVENTIONS 13.6), so
 //! the adapters do the join. `--format json` prints that `SkyState` as serde emits it.
 //!
+//! The Earth's rotation is the site's: DUT1 from `--dut1` (the site's DUT1 field,
+//! `set_dut1`), else the IERS history, else 0 (CONVENTIONS 15.2), taken at the instant, as
+//! the WASM `sky_state` builds its `Sky` (`skyfix_wasm::explorer::native::sky_at`).
+//!
 //! The text table shows what the eye sees — the topocentric apparent altitude and the
 //! azimuth — beside the Almanac's GHA and declination. It never shows the two altitude
 //! families (CONVENTIONS 13.2) side by side as if they were comparable: a navigator's
@@ -13,7 +17,6 @@
 use anyhow::{Result, anyhow};
 use skyfix_almanac::sky::{self as almanac_sky, AlmanacError, SkyPhase, SkyState};
 use skyfix_core::types::LatLon;
-use skyfix_ephemeris::body::Sky;
 use skyfix_ephemeris::topocentric::Site;
 
 use super::args::{AirArgs, BodyList, FormatArgs, PositionArgs, parse_bodies, parse_instant};
@@ -35,7 +38,7 @@ pub struct Args {
     )]
     pub height: f64,
     /// The instant, RFC 3339 UTC with a trailing Z.
-    #[arg(long, value_name = "RFC3339", value_parser = parse_instant)]
+    #[arg(long, value_name = "RFC3339", value_parser = parse_instant, allow_hyphen_values = true)]
     pub utc: f64,
     /// `all`, `solar_system`, `navigational`, or a comma-separated list of names.
     #[arg(long, value_name = "LIST", default_value = "all", value_parser = parse_bodies)]
@@ -43,10 +46,13 @@ pub struct Args {
     #[command(flatten)]
     pub air: AirArgs,
     #[command(flatten)]
+    pub dut1: super::args::Dut1Args,
+    #[command(flatten)]
     pub format: FormatArgs,
 }
 
 pub fn run(a: &Args) -> Result<u8> {
+    super::wire::set_explorer_dut1(a.dut1.dut1)?;
     let site = Site {
         lat_deg: a.position.lat,
         lon_deg: a.position.lon,
@@ -71,11 +77,12 @@ pub fn run(a: &Args) -> Result<u8> {
 }
 
 /// `skyfix_almanac::sky::sky_state` on the explorer's astronomy (the Sun, the Moon, the
-/// planets and the stars, DUT1 = 0), with each body's constellation from
-/// `skyfix_starfield::constellation_at`; a direction the boundaries cannot place stays
-/// `None`. The same join the WASM `sky_state` export makes.
+/// planets and the stars, with the site's DUT1 at the instant), with each body's
+/// constellation from `skyfix_starfield::constellation_at`; a direction the boundaries
+/// cannot place stays `None`. The same join the WASM `sky_state` export makes.
 pub fn sky_state(site: &Site, jd_utc: f64, bodies: &[&str]) -> Result<SkyState, AlmanacError> {
-    let mut s = almanac_sky::sky_state(&Sky::new(), site, jd_utc, bodies)?;
+    let sky = skyfix_wasm::explorer::native::sky_at(jd_utc);
+    let mut s = almanac_sky::sky_state(&sky, site, jd_utc, bodies)?;
     for b in &mut s.bodies {
         b.constellation = skyfix_starfield::constellation_at(b.ra_deg, b.dec_deg, jd_utc)
             .ok()
@@ -181,5 +188,6 @@ pub fn render(s: &SkyState, site: &Site) -> String {
         out.push_str(&line);
         out.push('\n');
     }
+    super::wire::push_tier_note(&mut out, s.jd_utc, s.jd_utc);
     out
 }

@@ -25,11 +25,12 @@ use skyfix_almanac::eclipses::{
 };
 use skyfix_ephemeris::topocentric::Site;
 
-use super::args::OptionalSiteArgs;
+use super::args::{Dut1Args, OptionalSiteArgs};
 use super::eclipses::{
     alt_az, central_seen, event_code, event_words, find, percent, rise_set_words, site_words, title,
 };
 use super::text;
+use super::wire::{call, observer_json, set_explorer_dut1};
 use crate::exit;
 use crate::report;
 
@@ -64,6 +65,14 @@ pub struct Args {
     /// The same as --format json.
     #[arg(long, conflicts_with = "format")]
     pub json: bool,
+    /// With --lat --lon, a solar eclipse's contacts corrected for the Moon's mountains and
+    /// valleys, and Baily's beads: the site's eclipse_local_limb. It needs the lunar-limb
+    /// pack (--pack web/public/data/packs/lunar-limb); without it the result says the limb
+    /// is the mean one.
+    #[arg(long, requires = "lat", conflicts_with = "path")]
+    pub limb: bool,
+    #[command(flatten)]
+    pub dut1: Dut1Args,
 }
 
 /// What the flags ask to be printed.
@@ -121,7 +130,9 @@ fn refusal(e: EclipseError) -> anyhow::Error {
 
 pub fn run(a: &Args) -> Result<u8> {
     let out = output(a)?;
-    let engine = Eclipses::new();
+    // The site's DUT1 field (`set_dut1`): the flag, else the IERS history.
+    set_explorer_dut1(a.dut1.dut1)?;
+    let engine = Eclipses::with_user_dut1(skyfix_wasm::timescale::user_dut1());
     match out {
         Output::PathJson | Output::PathGeojson => {
             let path = engine.path(&a.id).map_err(refusal)?;
@@ -136,6 +147,13 @@ pub fn run(a: &Args) -> Result<u8> {
             let eclipse = engine.by_id(&a.id).map_err(refusal)?;
             let site = a.observer.site();
             let local = match &site {
+                Some(site) if a.limb => {
+                    Some(call(skyfix_wasm::limb::native::eclipse_local_limb_in(
+                        skyfix_wasm::limb::native::installed().as_deref(),
+                        &a.id,
+                        &observer_json(site),
+                    ))?)
+                }
                 Some(site) => Some(engine.local(&a.id, site).map_err(refusal)?),
                 None => None,
             };
@@ -212,7 +230,12 @@ pub fn render(e: &Eclipse, site: Option<&Site>, local: Option<&EclipseLocal>) ->
         out.push('\n');
         out.push_str(&format!("SEEN FROM  {}\n", site_words(site)));
         match local {
-            EclipseLocal::Solar(l) => solar_local(&mut out, l),
+            EclipseLocal::Solar(l) => {
+                solar_local(&mut out, l);
+                if let Some(limb) = &l.limb {
+                    limb_section(&mut out, limb);
+                }
+            }
             EclipseLocal::Lunar(l) => lunar_local(&mut out, l),
         }
     }
@@ -288,8 +311,10 @@ fn solar_global(out: &mut String, s: &SolarEclipse) {
         out,
         "Delta-T",
         &format!(
-            "{:.3} s (TT - UT1), assumed by every place and local time here",
-            s.delta_t_s
+            "{:.3} s (TT - UT1), standard uncertainty {}, assumed by every place and local time \
+             here",
+            s.delta_t_s,
+            super::calendar::sigma_text(s.delta_t_sigma_s)
         ),
     );
     out.push_str("\nThe shadow on the Earth\n");
@@ -384,9 +409,10 @@ fn lunar_global(out: &mut String, l: &LunarEclipse, with_contacts: bool) {
         out,
         "Delta-T",
         &format!(
-            "{:.3} s (TT - UT1): the contacts are the same instants everywhere; where the Moon \
-             is overhead depends on it",
-            l.delta_t_s
+            "{:.3} s (TT - UT1), standard uncertainty {}: the contacts are the same instants \
+             everywhere; where the Moon is overhead depends on it",
+            l.delta_t_s,
+            super::calendar::sigma_text(l.delta_t_sigma_s)
         ),
     );
     if !with_contacts {
@@ -413,9 +439,10 @@ fn lunar_global(out: &mut String, l: &LunarEclipse, with_contacts: bool) {
 /// The local table: every event with its UTC and the body's altitude and azimuth.
 fn event_table(out: &mut String, body: &str, events: &[LocalEvent], annular: bool, solar: bool) {
     out.push('\n');
+    let clock = events.first().map_or("UTC", |e| text::scale_word(e.jd_utc));
     let mut head = format!(
         "  {}{}{:>9}{:>10}",
-        report::pad("UTC", 22),
+        report::pad(clock, 22),
         report::pad("event", 30),
         format!("{body} alt"),
         "Az"
@@ -601,6 +628,46 @@ fn eye_safety(eclipse_type: SolarType, local: Option<&SolarLocal>) -> String {
         .filter(|l| l.local_type == LocalType::Total)
         .and_then(central_seen);
     let local_type = local.map(|l| l.local_type);
+    // With the lunar limb loaded (`--limb` and the pack), the real Moon's contacts decide:
+    // the smooth Moon's totality can be seconds longer than the real one, or a graze can let
+    // sunlight through a valley (CONVENTIONS 15.7). The naked-eye window follows the real
+    // limb, never the longer of the two.
+    if let Some(limb) = local.and_then(|l| l.limb.as_deref()).filter(|b| b.loaded) {
+        let contact = |kind: LocalEventKind| limb.contacts.iter().find(|c| c.kind == kind);
+        match (limb.local_type, limb.interrupted) {
+            (Some(LocalType::Total), false) => {
+                if let (Some(c2), Some(c3)) =
+                    (contact(LocalEventKind::C2), contact(LocalEventKind::C3))
+                    && c2.visible
+                    && c3.visible
+                {
+                    return format!(
+                        "{base} Only during totality itself, here from {} to {} with the Moon's \
+                         real limb, is it safe to look with the naked eye; the glasses go back on \
+                         as the first bright point reappears.",
+                        text::utc(c2.jd_utc),
+                        text::utc(c3.jd_utc)
+                    );
+                }
+            }
+            (Some(LocalType::Total), true) => {
+                return format!(
+                    "{base} Here sunlight returns through a valley at the Moon's edge during \
+                     totality (a graze, with the Moon's real limb), so there is no moment when it \
+                     is safe to look with the naked eye."
+                );
+            }
+            (Some(LocalType::Partial | LocalType::Annular), _)
+                if local_type == Some(LocalType::Total) =>
+            {
+                return format!(
+                    "{base} With the Moon's real limb the Sun is never completely covered here, \
+                     so there is no moment when it is safe to look with the naked eye."
+                );
+            }
+            _ => {}
+        }
+    }
     match (totality, local_type, eclipse_type) {
         (Some(seen), _, _) if seen.all => format!(
             "{base} Only during totality itself, here from {} to {}, is it safe to look with \
@@ -734,6 +801,92 @@ pub struct Properties<'a> {
     pub sun_az_deg: Option<f64>,
     /// TT - UT1 the ground positions assume.
     pub delta_t_s: f64,
+    /// Its standard uncertainty: DUT1's on the UTC scale, the Delta-T model's on the UT
+    /// scale (EXPLORER_API.md, "Eclipses").
+    pub delta_t_sigma_s: f64,
+}
+
+/// The lunar limb's corrections to the local contacts (`eclipse --limb`).
+fn limb_section(out: &mut String, limb: &skyfix_almanac::eclipses::SolarLimb) {
+    out.push_str("\nLunar limb\n");
+    let mut note = limb.note.clone();
+    if !limb.loaded {
+        note.push_str(" On the command line: --pack web/public/data/packs/lunar-limb.");
+    }
+    field(out, "Limb", &note);
+    if !limb.loaded {
+        return;
+    }
+    if let Some(t) = limb.local_type {
+        field(
+            out,
+            "Here",
+            &format!(
+                "{} with the real limb{}",
+                match t {
+                    LocalType::Total => "total",
+                    LocalType::Annular => "annular",
+                    LocalType::Partial => "partial",
+                    LocalType::None => "no eclipse",
+                },
+                if limb.interrupted {
+                    ", sunlight returning through a valley between second and third contact"
+                } else {
+                    ""
+                }
+            ),
+        );
+    }
+    if let (Some(d), Some(c)) = (limb.central_duration_s, limb.central_duration_correction_s) {
+        field(
+            out,
+            "Central",
+            &format!(
+                "{} ({} against the mean limb)",
+                text::duration_s(d),
+                text::signed_min_s(c)
+            ),
+        );
+    }
+    if !limb.contacts.is_empty() {
+        out.push_str(&format!(
+            "  {}{}{:>9}{:>12}{:>7}{:>8}{:>9}\n",
+            report::pad(text::scale_word(limb.contacts[0].jd_utc), 22),
+            report::pad("contact", 9),
+            "change",
+            "mean limb",
+            "PA",
+            "height",
+            "s per \""
+        ));
+        for c in &limb.contacts {
+            out.push_str(&format!(
+                "  {}{}{:>9}{:>12}{:>7.1}{:>8}{:>9.1}\n",
+                report::pad(&text::utc(c.jd_utc), 22),
+                report::pad(event_code(c.kind), 9),
+                c.correction_s
+                    .map_or_else(|| "gained".to_string(), text::signed_min_s),
+                c.mean_jd_utc
+                    .map_or_else(|| "-".to_string(), |m| text::clock(m, 0)),
+                c.position_angle_deg,
+                format!("{:+.2}\"", c.limb_height_arcsec),
+                c.seconds_per_arcsec
+            ));
+        }
+    }
+    if !limb.beads.is_empty() {
+        field(
+            out,
+            "Beads",
+            &format!(
+                "{} approximate Baily's beads, the first {} and the last {} (--format json \
+                 lists them)",
+                limb.beads.len(),
+                text::utc(limb.beads[0].jd_utc),
+                text::utc(limb.beads[limb.beads.len() - 1].jd_utc)
+            ),
+        );
+    }
 }
 
 fn solar_type_name(t: SolarType) -> &'static str {
@@ -789,6 +942,7 @@ fn solar_geojson(p: &SolarPath) -> Vec<Feature<'_>> {
             sun_alt_deg: Some(g.sun_alt_deg),
             sun_az_deg: Some(g.sun_az_deg),
             delta_t_s: p.delta_t_s,
+            delta_t_sigma_s: p.delta_t_sigma_s,
         },
     )];
     let lines: [(&'static str, String, &Polyline); 7] = [
@@ -860,6 +1014,7 @@ fn solar_geojson(p: &SolarPath) -> Vec<Feature<'_>> {
                 sun_alt_deg: None,
                 sun_az_deg: None,
                 delta_t_s: p.delta_t_s,
+                delta_t_sigma_s: p.delta_t_sigma_s,
             },
         ));
     }
@@ -890,6 +1045,7 @@ fn lunar_geojson(p: &LunarPath) -> Vec<Feature<'_>> {
                     sun_alt_deg: None,
                     sun_az_deg: None,
                     delta_t_s: p.delta_t_s,
+                    delta_t_sigma_s: p.delta_t_sigma_s,
                 },
             )
         })

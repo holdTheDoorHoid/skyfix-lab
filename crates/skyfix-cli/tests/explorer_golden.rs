@@ -156,6 +156,283 @@ const CASES: &[(&str, &[&str])] = &[
     ),
 ];
 
+/// The expansion programme's commands (cli3 agent): one or more reports per engine,
+/// each on inputs pinned to a reference elsewhere (EXPLORER_API.md's worked examples,
+/// docs/ACCURACY.md). `$P` is the committed packs folder, web/public/data/packs.
+const EXPANSION_CASES: &[(&str, &[&str])] = &[
+    (
+        "sun_hours_philadelphia.txt",
+        &[
+            "sun-hours",
+            "--lat",
+            "39.9526",
+            "--lon",
+            "-75.1652",
+            "--height",
+            "12",
+            "--date",
+            "2026-09-24",
+            "--zone",
+            "-04:00",
+        ],
+    ),
+    (
+        "alignment_manhattan_2026.txt",
+        &[
+            "alignment-days",
+            "--lat",
+            "40.758",
+            "--lon",
+            "-73.9855",
+            "--year",
+            "2026",
+            "--azimuth",
+            "299",
+            "--tolerance",
+            "0.3",
+            "--event",
+            "set",
+            "--zone",
+            "-04:00",
+        ],
+    ),
+    (
+        "galactic_centre_siding_spring.txt",
+        &[
+            "galactic-centre",
+            "--lat",
+            "-31.2733",
+            "--lon",
+            "149.0617",
+            "--height",
+            "1165",
+            "--from",
+            "2026-06-15",
+            "--to",
+            "2026-06-16",
+            "--zone",
+            "+10:00",
+        ],
+    ),
+    (
+        "variation_philadelphia.txt",
+        &[
+            "variation",
+            "--lat",
+            "39.9526",
+            "--lon",
+            "-75.1652",
+            "--height",
+            "12",
+            "--utc",
+            "2026-09-24T12:00:00Z",
+        ],
+    ),
+    (
+        "compass_error_sun.txt",
+        &[
+            "compass-error",
+            "--lat",
+            "39.9526",
+            "--lon",
+            "-75.1652",
+            "--height",
+            "12",
+            "--utc",
+            "2026-09-24T21:40:00Z",
+            "--body",
+            "Sun",
+            "--bearing",
+            "272",
+        ],
+    ),
+    (
+        "sailing_chesapeake_biscay.txt",
+        &[
+            "sailing",
+            "--from",
+            "36.9617,-75.7033",
+            "--to",
+            "45.6517,-1.4967",
+            "--every-deg-lon",
+            "10",
+            "--limiting-lat",
+            "47",
+            "--speed",
+            "12",
+            "--departure",
+            "2026-10-01T12:00:00Z",
+        ],
+    ),
+    (
+        "star_id_vega.txt",
+        &[
+            "star-id",
+            "--lat",
+            "39.95",
+            "--lon",
+            "-75.17",
+            "--height-of-eye",
+            "2.5",
+            "--ic",
+            "-1.2",
+            "--utc",
+            "2026-10-01T00:30:00Z",
+            "--altitude",
+            "72.59",
+            "--bearing",
+            "286",
+            "--bearing-kind",
+            "compass",
+            "--variation",
+            "-12.5",
+            "--deviation",
+            "0",
+        ],
+    ),
+    (
+        "time_info_thales.txt",
+        &["time-info", "-0584-05-28T12:00:00Z"],
+    ),
+    (
+        "moon_apsides_2026_q1.txt",
+        &["moon-apsides", "--from", "2026-01-01", "--to", "2026-03-31"],
+    ),
+    (
+        "occultations_philadelphia_2026.txt",
+        &[
+            "occultations",
+            "--lat",
+            "39.9526",
+            "--lon",
+            "-75.1652",
+            "--from",
+            "2026-01-01",
+            "--to",
+            "2026-06-30",
+            "--zone",
+            "-05:00",
+        ],
+    ),
+    (
+        "dso_m31_philadelphia.txt",
+        &[
+            "dso",
+            "M31",
+            "--lat",
+            "39.9526",
+            "--lon",
+            "-75.1652",
+            "--utc",
+            "2026-09-24T22:00:00Z",
+            "--zone",
+            "-04:00",
+            "--bortle",
+            "4",
+        ],
+    ),
+    (
+        "tonight_philadelphia.txt",
+        &[
+            "tonight",
+            "--lat",
+            "39.9526",
+            "--lon",
+            "-75.1652",
+            "--height",
+            "12",
+            "--utc",
+            "2026-09-24T22:00:00Z",
+            "--zone",
+            "-04:00",
+            "--limit",
+            "6",
+        ],
+    ),
+    (
+        "galilean_moons_2026_01_10.txt",
+        &["galilean-moons", "--utc", "2026-01-10T00:00:00Z"],
+    ),
+    (
+        "conjunctions_2020_12.txt",
+        &[
+            "conjunctions",
+            "--from",
+            "2020-12-01",
+            "--to",
+            "2020-12-31",
+            "--lat",
+            "39.9526",
+            "--lon",
+            "-75.1652",
+            "--zone",
+            "-05:00",
+        ],
+    ),
+    (
+        "transit_venus_2012.txt",
+        &[
+            "transits",
+            "--from",
+            "2012-06-05",
+            "--to",
+            "2012-06-07",
+            "--lat",
+            "39.9526",
+            "--lon",
+            "-75.1652",
+            "--height",
+            "12",
+        ],
+    ),
+    (
+        "tide_extremes_golden_gate.txt",
+        &[
+            "tide-extremes",
+            "9414290",
+            "--from",
+            "2026-09-24",
+            "--to",
+            "2026-09-25",
+            "--zone",
+            "-07:00",
+            "--pack",
+            "$P/tides-us",
+        ],
+    ),
+    (
+        "eclipse_2024_limb_dallas.txt",
+        &[
+            "eclipse",
+            "2024-04-08-solar",
+            "--lat",
+            "32.7767",
+            "--lon",
+            "-96.797",
+            "--height",
+            "150",
+            "--limb",
+            "--pack",
+            "$P/lunar-limb",
+        ],
+    ),
+    ("packs.txt", &["packs"]),
+    (
+        "almanac_increments_58m.txt",
+        &["almanac-increments", "--minute", "58"],
+    ),
+    // Deep time: the two tiers, and the display path in the labelled one.
+    ("explorer_coverage.txt", &["explorer-coverage"]),
+    ("seasons_585bc.txt", &["seasons", "--year", "-584"]),
+];
+
+fn packs_dir() -> String {
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../web/public/data/packs")
+        .to_string_lossy()
+        .into_owned()
+}
+
 fn golden_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/golden")
 }
@@ -164,9 +441,13 @@ fn golden_dir() -> PathBuf {
 fn text_reports_match_their_golden_files() {
     let write = std::env::var("SKYFIX_WRITE_GOLDEN").is_ok();
     let data = data_dir().to_string_lossy().into_owned();
+    let packs = packs_dir();
     let mut failures = Vec::new();
-    for (name, args) in CASES {
-        let args: Vec<String> = args.iter().map(|a| a.replace("$D", &data)).collect();
+    for (name, args) in CASES.iter().chain(EXPANSION_CASES) {
+        let args: Vec<String> = args
+            .iter()
+            .map(|a| a.replace("$D", &data).replace("$P", &packs))
+            .collect();
         let run = skyfix(&args).expect_code(0);
         let path = golden_dir().join(name);
         if write {
@@ -241,10 +522,11 @@ fn the_documented_explorer_examples_are_real_output() {
         }
         if let Some(cmd) = line.strip_prefix("$ ") {
             let mut cmd = cmd.to_string();
+            // A command may run over several lines, each ending in `\`.
             while cmd.ends_with('\\') {
                 cmd.pop();
-                cmd.push_str(lines.next().expect("a continued command").trim());
                 cmd.push(' ');
+                cmd.push_str(lines.next().expect("a continued command").trim());
             }
             cases.push((cmd, Vec::new()));
         } else if let Some((_, expected)) = cases.last_mut() {
@@ -255,7 +537,7 @@ fn the_documented_explorer_examples_are_real_output() {
         let args: Vec<String> = cmd
             .split_whitespace()
             .skip(1) // "skyfix"
-            .map(|a| a.replace("$D", &data))
+            .map(|a| a.replace("$D", &data).replace("$P", &packs_dir()))
             .collect();
         let run = skyfix(&args).expect_code(0);
         let mut got = run.stdout.lines();

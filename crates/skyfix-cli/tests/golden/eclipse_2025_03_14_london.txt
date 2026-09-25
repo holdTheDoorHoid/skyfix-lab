@@ -9,8 +9,8 @@ Saros      123 (lunation 311)
 Totality   1 h 05 min 24 s (u2 to u3, the Moon wholly in the umbra)
 Partial    3 h 38 min 16 s (u1 to u4, the Moon partly or wholly in the umbra)
 Penumbral  6 h 02 min 40 s (p1 to p4, the whole eclipse)
-Delta-T    69.141 s (TT - UT1): the contacts are the same instants everywhere; where the
-           Moon is overhead depends on it
+Delta-T    69.141 s (TT - UT1), standard uncertainty 0.001 s: the contacts are the same
+           instants everywhere; where the Moon is overhead depends on it
 
 SEEN FROM  51 30.44' N, 000 07.67' W (51.507400, -0.127800), 0 m above the WGS84 ellipsoid
 Here       partly seen: the Moon sets at 2025-03-14T06:22:57Z during it

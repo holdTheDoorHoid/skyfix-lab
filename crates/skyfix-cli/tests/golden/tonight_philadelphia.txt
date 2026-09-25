@@ -1,0 +1,44 @@
+TONIGHT
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84
+           ellipsoid
+Night      2026-09-24T17:00:40Z to 2026-09-25T17:00:40Z (local mean noon to noon), times
+           below in UTC-04:00
+Darkness   night (the Sun below -18 deg) from 20:24 to 05:20, 8 h 56 min
+Sun        set 18:54, civil dusk 19:21, nautical dusk 19:52, astronomical dusk 20:24,
+           astronomical dawn 05:20, nautical dawn 05:52, civil dawn 06:24, rise 06:51
+Moon       full, 97% lit, rises 17:54, sets 05:36; up 8 h 56 min of the dark window,
+           down 0 h 00 min
+Sky        naked-eye limit 5.8 at the zenith (Bortle 5), extinction k = 0.25 mag per air
+           mass, sky 20.47 mag/arcsec2 (the default, Bortle 5)
+
+Dark from 20:24 to 05:20 (8.9 hours). The Moon is full, 97% lit, and up all through the
+dark hours: faint objects will be hard. Planets: Mars (in the east, best near 06:21),
+Jupiter (in the east, best near 06:21), Saturn (in the south, best near 01:31), Uranus
+(high in the south, best near 05:01) and Neptune (in the south, best near 01:01). Best
+deep-sky sights: the Hyades, the Alpha Persei Cluster and the Pleiades.
+
+Planets
+  planet    mag  best                             up
+  Mercury  -0.2  19:21 at +2 36.7, 255 21.5 WSW   -               Mercury, magnitude −0.2: below 10° in the dark hours
+  Venus    -4.8  19:21 at +4 10.7, 239 37.0 WSW   -               Venus, magnitude −4.8: below 10° in the dark hours
+  Mars      1.2  06:21 at +54 02.1, 110 08.9 ESE  02:31 to 06:21  Mars, magnitude 1.2, in the east (54° at best)
+  Jupiter  -1.9  06:21 at +35 24.3, 99 08.6 E     04:11 to 06:21  Jupiter, magnitude −1.9, in the east (35° at best)
+  Saturn    0.4  01:31 at +52 19.2, 179 20.0 S    20:21 to 06:21  Saturn, magnitude 0.4, in the south (52° at best)
+  Uranus    5.7  05:01 at +71 08.0, 181 48.1 S    22:41 to 06:21  Uranus, magnitude 5.7, high in the south (71° at best)
+  Neptune   7.7  01:01 at +49 57.2, 181 19.3 S    19:51 to 06:01  Neptune, magnitude 7.7, in the south (50° at best)
+
+Deep sky, best first
+  object                       type          mag  best                             h > 20  with        score
+  Mel 25 Hyades                open cluster  0.5  05:12 at +65 59.0, 180 00.0 S       5.3  eye          68.9
+  Mel 20 Alpha Persei Cluster  open cluster  1.2  04:12 at +81 03.7, 0 00.0 N         8.2  eye          65.8
+  M45 Pleiades                 open cluster  1.6  04:32 at +74 15.2, 180 00.0 S       6.4  eye          65.7
+  M38 Starfish Cluster         open cluster  6.4  05:20 at +78 40.6, 106 50.2 ESE     5.3  binoculars   60.5
+  M36 Pinwheel Cluster         open cluster  6.0  05:20 at +76 30.5, 110 36.6 ESE     5.0  binoculars   59.9
+  M37                          open cluster  5.6  05:20 at +72 49.5, 109 25.9 ESE     4.7  binoculars   48.8
+
+Milky Way  The Milky Way's core stays below 20° in the dark hours (the core at its best
+           20:24 at +16 19.9, 205 20.3 SSW)
+
+Rankings and rates are estimates from stated rules (EXPLORER_API.md, "Deep sky").
+Moonlight from Krisciunas & Schaefer (1991); extinction from Pickering's air mass.
+Meteor rates: ZHR x sin(radiant altitude) x r^(LM - 6.5); real rates vary.

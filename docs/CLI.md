@@ -1,9 +1,12 @@
 # `skyfix` — the command line
 
 `skyfix` is the whole engine with a terminal in front of it. Every number it prints is
-computed by `skyfix-core`, `skyfix-ephemeris`, `skyfix-sim`, `skyfix-almanac` and
-`skyfix-motion` (and the constellation labels of `skyfix sky` by the display-only
-`skyfix-starfield`); this crate owns the argument parsing, the files and the words.
+computed by `skyfix-core`, `skyfix-ephemeris`, `skyfix-sim`, `skyfix-almanac`,
+`skyfix-motion`, `skyfix-geomag` and `skyfix-tides` (and the display-only
+`skyfix-starfield`: the constellation labels of `skyfix sky` and the deep sky); the
+expansion programme's commands reach them through the WASM adapter's native layer, so
+they print what the site's exports return (see "The expansion programme's engines").
+This crate owns the argument parsing, the files and the words.
 
 Two rules hold everywhere:
 
@@ -87,9 +90,12 @@ while leap seconds last) turns every Greenwich hour angle by 15.04″ per second
 Bulletin A, on every command that reduces, predicts or plans: `reduce`, `solve`,
 `predict`, `noon`, `polaris`, `average`, `running-fix`, `lunar`, `plan-sights` and
 `plan`. It overrides a session's `clock.dut1_s` (for `lunar`, the input document's
-`observer.dut1_s`); without either the engine's own value is used, 0 s until the IERS
-history is built in, and then the error above is unknown. A value beyond 0.9 s is used
-with a warning on standard error; beyond 60 s it is refused as not being in seconds.
+`observer.dut1_s`); without either the engine's own value is used: the IERS history
+(observed, then Bulletin A's prediction) where it reaches, else 0 s, and then the error
+above is unknown (CONVENTIONS 15.2). A value beyond 0.9 s is used with a warning on
+standard error; beyond 60 s it is refused as not being in seconds. The display commands
+`sky`, `events`, `eclipses`, `eclipse`, `compass-error`, `limb-profile` and `time-info`
+take it too, as the site's DUT1 field (below, "DUT1: `--dut1 SECONDS`").
 
 ```console
 $ skyfix predict --lat 39.9526 --lon -75.1652 --utc 2026-10-01T03:00:00Z --body Vega \
@@ -133,7 +139,11 @@ letter.
 
 For a Moon sight `Hc` and the intercept include the Earth-shape term (CONVENTIONS
 15.4), and the text says how much: `Hc includes the Moon's Earth-shape term, +0.057'`.
-The JSON carries it as `earth_shape_arcmin`; the CSV's `hc_deg` includes it.
+The JSON carries it as `earth_shape_arcmin`; the CSV's `hc_deg` includes it. When the
+session carries an index-error log or a watch log (CONVENTIONS section 10), the text
+names the value each sight took from it, in the core's sentence (`index-error log: …`,
+`watch log: …`), and the JSON carries it as `index_correction_from_log` and
+`clock_correction_from_log`.
 
 A rejected sight never discards the others. The rest are reduced and printed, the
 rejections are named, and the exit code is 2.
@@ -317,7 +327,7 @@ Nautical Almanac lays them out:
 
 | flag | meaning |
 |---|---|
-| `--date YYYY-MM-DD` | the UT date, 1990-01-01 to 2060-12-31. Required |
+| `--date YYYY-MM-DD` | the UT date, inside the ephemeris coverage (the help names it, from the engine). Typed like every CLI date: any year (`--date -0584-05-28` needs no `=`), Julian before 1582-10-15 unless `--calendar` says otherwise. Required |
 | `--format text \| json` | `text` (default): the two pages in columns; `json`: the `AlmanacDay` document of `docs/EXPLORER_API.md`, raw and printed values |
 
 Every number is exactly the `printed` value of the JSON: rounded as the printed almanac
@@ -684,10 +694,14 @@ Rules every one of them keeps:
   1582-10-15, as the explorer shows dates; the ten days between existed in neither where
   the reform was made, and are refused with a sentence saying so. `--calendar julian` or
   `--calendar gregorian` (proleptic, as ISO 8601; accepted by every command) makes every
-  typed and printed date use that one calendar. JSON output is always the wire's
-  proleptic Gregorian (`docs/EXPLORER_API.md`, "Dates and years on the wire"), so a
-  `utc` string from JSON goes back in with `--calendar gregorian`. The engine itself
-  covers 1990-2060 today; `skyfix calendar` works for any year.
+  typed and printed date use that one calendar, and `--calendar auto` is the default
+  rule. A leading minus needs no `=`: `--from -0584-05-01` is a date. JSON output is
+  always the wire's proleptic Gregorian (`docs/EXPLORER_API.md`, "Dates and years on the
+  wire"), so a `utc` string from JSON goes back in with `--calendar gregorian`. The
+  engine itself answers over its ephemeris coverage, which the help of `skyfix almanac
+  --date` and `skyfix seasons --year` names from the engine (`time-info` gives a date's
+  tier); `skyfix calendar` and `skyfix time-info` work for any year. Table headings say
+  `UT` over times printed as UT.
 - **The navigation methods read sessions exactly as `solve` does** — JSON or CSV,
   validated against the body list — and take `--ephemeris auto|supplied`. A sight the
   reducer rejects becomes a warning that names it, and the exit code is 2, as for
@@ -747,6 +761,7 @@ bright-limb angles.
 | `--bodies LIST` | default `all`: the Sun, the Moon, the seven planets and the 58 stars |
 | `--height M` | the site's height above the WGS84 ellipsoid (it moves the Moon by its parallax). Not the height of eye. Default 0 |
 | `--pressure HPA`, `--temperature C` | the air, for the display refraction. Defaults 1010 hPa, 10 C |
+| `--dut1 SECONDS` | UT1 − UTC, the site's DUT1 field. Default: the IERS history at the instant, as the site's `sky_state` uses it |
 
 ```console
 $ skyfix sky --lat 39.9526 --lon -75.1652 --utc 2026-10-01T01:30:00Z \
@@ -780,7 +795,10 @@ CONVENTIONS 3) are in the JSON, and `skyfix predict` turns them into a sextant r
 The constellations come from the display-only star field (CONVENTIONS 13.6): they label,
 and never enter a reduction, a fix or a plan. A body that cannot be computed at that
 instant is listed under "Not computed", named on stderr, and the exit code is 2; outside
-the Sun's coverage (1990 to 2060) there is no sky phase, so the command exits 1.
+the Sun's display coverage (-2000-01-01 to 3000-12-31, `skyfix explorer-coverage`) there
+is no sky phase, so the command exits 1. Outside the validated tier (1550-01-01 to
+2650-01-22) the sky is shown as the site shows it, with a note under the table (see "Deep
+time").
 
 ### `skyfix events --lat --lon --date [--zone] [--bodies] [--horizon standard|dip --height-of-eye M]`
 
@@ -796,6 +814,7 @@ day in its display zone.
 | `--horizon standard\|dip` | `standard` (default): rise and set when the centre is at -50' for the Sun, -34' - SD for the Moon, -34' for planets and stars. `dip`: all of those lowered by the dip of the sea horizon, 1.76' x sqrt(height of eye) |
 | `--height-of-eye M` | required by `--horizon dip`, and refused without it: on the standard horizon it would silently do nothing |
 | `--height M` | the site's height above the ellipsoid (the Moon's parallax). Default 0 |
+| `--dut1 SECONDS` | UT1 − UTC, the site's DUT1 field. Default: the IERS history at the day's middle, as the site's `day_events` uses it |
 
 ```console
 $ skyfix events --lat 39.9526 --lon -75.1652 --date 2026-09-24 --zone -04:00
@@ -872,7 +891,9 @@ SEASONS 2026
 ...
 ```
 
-A year or a window outside the providers' coverage (1990 to 2060) exits 1.
+A year or a window that reaches outside the display coverage (-2000-01-01 to
+3000-12-31) exits 1. One outside the validated tier is answered, with a note under the
+list (see "Deep time").
 
 With `--zone`, a date given to `--from` or `--to` is a date in that zone, and every
 instant is shown in it beside UTC. Off Sydney, in nautical zone -10, the December
@@ -916,6 +937,7 @@ sees (`Eclipses::local`): whether the eclipse is seen there, and its local maxim
 | `--kind solar\|lunar\|all` | which eclipses. Default `all` |
 | `--lat DEG --lon DEG` | an observer. Optional, but both or neither |
 | `--height M` | the observer's height above the WGS84 ellipsoid, with `--lat --lon`. Default 0 |
+| `--dut1 SECONDS` | UT1 − UTC, the site's DUT1 field. Default: the IERS history |
 
 ```console
 $ skyfix eclipses --from 2024-01-01 --to 2025-12-31 --lat 32.78 --lon -96.80
@@ -971,6 +993,8 @@ carries an eye-safety line, fitted to what the place sees.
 | `ID` | as `skyfix eclipses` lists it: `YYYY-MM-DD-solar` or `YYYY-MM-DD-lunar`, the UTC date of greatest eclipse. Required |
 | `--lat DEG --lon DEG [--height M]` | an observer, as for `eclipses` |
 | `--path` | print the lines on the map instead (`Eclipses::path`); not with an observer, since the path is the same for everyone |
+| `--limb` | with an observer, a solar eclipse's contacts corrected for the Moon's real limb (the `lunar-limb` pack: `--pack web/public/data/packs/lunar-limb`); see "The lunar limb" below |
+| `--dut1 SECONDS` | UT1 − UTC, the site's DUT1 field. Default: the IERS history |
 | `--format text\|json\|geojson` | `text` (default); `json`; `geojson` only with `--path`, whose default is `json` |
 
 ```console
@@ -1016,9 +1040,11 @@ sunset during the eclipse is a row of its own with the fraction of the Sun cover
 `P` and `V` say where on the Sun's disc the limbs touch, from its north point and from
 its top. A lunar eclipse lists its contacts p1 to p4 with the Moon's altitude at each,
 since those instants are the same everywhere and only the Moon's height differs; the
-eye-safety line is for solar eclipses only. For a future eclipse the true Delta-T will
-differ from the 69.184 s assumed, and each second of difference moves a local contact by
-up to about a second.
+eye-safety line is for solar eclipses only. The Delta-T line gives its standard
+uncertainty: DUT1's on the UTC scale (1972 to 2035), the Delta-T model's outside it,
+where an ancient eclipse's contacts carry minutes of it. For a future eclipse the true
+Delta-T will differ from the value assumed, and each second of difference moves a local
+contact by up to about a second.
 
 `--format json` is `{"eclipse": Eclipse, "local": EclipseLocal}`, each exactly as the
 engine returns it; `local` is there only with an observer. `--path` prints the engine's
@@ -1054,8 +1080,8 @@ $ skyfix eclipse 2024-04-08-solar --path --format geojson
 Every feature's `properties.feature` is the engine's name for it (`greatest_eclipse`,
 `central_line`, `umbra_north`, `umbra_south`, `umbra_horizon`, `penumbra_north`,
 `penumbra_south`, `penumbra_horizon`, or `sublunar_point` with its `contact`), with a
-one-line `description`, the vertex times in `jd_utc` and the `delta_t_s` the ground
-positions assume. Empty lines — a partial eclipse has no central line — are left out. An
+one-line `description`, the vertex times in `jd_utc`, and the `delta_t_s` the ground
+positions assume with its standard uncertainty `delta_t_sigma_s`. Empty lines — a partial eclipse has no central line — are left out. An
 id that is malformed or names no eclipse exits 1, and so do `--format geojson` without
 `--path`, `--format text` with it, and an observer with it.
 
@@ -1316,6 +1342,7 @@ Uranus and Neptune are refused, as they are for sights.
 | `--height-of-eye M` | the dip of the sea horizon. Default 0 |
 | `--ic ARCMIN` | index correction, ADDED to the reading (index error on the arc is negative). Default 0 |
 | `--horizon sea\|artificial\|electronic` | a reflected artificial horizon reads the double angle. Default `sea` |
+| `--shore NM`, `--ic-log UTC,ARCMIN` | a shoreline nearer than the sea horizon, and an index-error log (see "The sight optics" under `star-id` below) |
 | `--pressure HPA`, `--temperature C` | the air, for refraction. Defaults 1010 hPa, 10 C |
 
 ```console
@@ -1447,6 +1474,1358 @@ the same day.
 
 ---
 
+## The expansion programme's engines
+
+The expansion programme (`docs/EXPANSION_PLAN.md`) gave the engine the sun tools, the
+magnetic field, sailings, time scales and calendars, optional data packs, the Moon and
+the planets in detail, deep sky, tides and the lunar limb. Each is reachable from the
+command line with the JSON its WASM export returns, so a number on the site can be
+reproduced, and scripted, without a browser:
+
+| family | commands | the exports (`docs/EXPLORER_API.md`) |
+|---|---|---|
+| sun tools | `sun-hours`, `find-azimuth`, `alignment-days`, `rise-set-azimuths`, `analemma`, `sun-path`, `equation-of-time`, `solar-day`, `solar-year`, `galactic-centre` | `sun_hours`, `find_azimuth`, `alignment_days`, `rise_set_azimuths`, `analemma`, `sun_path`, `equation_of_time`, `solar_day`, `solar_year`, `galactic_centre_windows` |
+| magnetic field | `variation`, `magnetic-grid`, `compass-error` | `magnetic_field`, `magnetic_grid`, `compass_error` |
+| passage and sights | `sailing`, `dr-advance`, `route-positions`, `star-id`, `star-finder` | `sailing`, `dr_advance`, `route_positions`, `star_identify`, `star_finder_geometry` |
+| time | `time-info`, `calendar-convert` | `time_info`, `calendar_convert` |
+| deep time | `explorer-coverage`, `tier-at` | `explorer_coverage`, `tier_at` |
+| packs | `packs`, and `--pack FILE` on every command | `packs`, `load_pack` |
+| the Moon | `moon-orientation`, `moon-features`, `moon-apsides`, `occultations` | `moon_orientation`, `moon_features`, `moon_apsides`, `occultations` |
+| deep sky | `dso-catalog`, `dso-list`, `dso`, `showers`, `milky-way`, `search`, `tonight`, `extinction` | `dso_catalog`, `dso_list`, `dso_visibility`, `meteor_showers`, `milky_way_outline`, `sky_search`, `tonight`, `extinction_table` |
+| planets | `galilean-moons`, `galilean-events`, `saturn-rings`, `planet-disc`, `transits`, `conjunctions`, `stations`, `earth-apsides`, `orbit` | `galilean_moons`, `galilean_events`, `saturn_rings`, `planet_disc`, `transits`, `conjunctions`, `stations`, `earth_apsides`, `parse_orbits`, `custom_body_states`, `sample_custom_bodies` |
+| tides | `tide-stations`, `tide-station`, `tide-predict`, `tide-extremes`, `tide-now`, `tide-pack` | `tide_stations_near`, `tide_station`, `tide_predict`, `tide_extremes`, `tide_now`, `tide_pack_info` |
+| lunar limb | `eclipse --limb`, `limb-profile`, `limb-pack` | `eclipse_local_limb`, `lunar_limb_profile`, `lunar_limb_info` |
+| almanac tables | `almanac-opening`, `almanac-increments`, `almanac-arc-to-time`, `almanac-altitude`, `almanac-planets`, `almanac-polaris` | `almanac_opening`, `almanac_increments`, `almanac_arc_to_time`, `almanac_altitude_tables`, `almanac_planet_corrections`, `almanac_polaris` |
+
+**How they answer.** These commands call the WASM adapter's native layer
+(`skyfix_wasm::<module>::native`): the function each export calls, with the export's own
+arguments, returning what the export serialises. The flags build those arguments (the
+observer document, the request document, the Julian dates), and `--format json` prints
+the result as it is, so the JSON is the browser's by construction; the six exports that
+hand the page typed arrays (`dso_list`, `dso_catalog`, `milky_way_outline`,
+`extinction_table`, `magnetic_grid`, `sample_custom_bodies`) are rebuilt key for key,
+with the arrays as JSON arrays. `crates/skyfix-cli/tests/parity.rs` compares every
+command's JSON, to 1e-9, with the library call its export makes, computed there
+independently of the adapter, and most of them with the export's own answer too. The
+text is for a person: a header that says what was asked, a table, and the notes that
+say what the numbers are and are not.
+
+**The observer** is `--lat --lon [--height M]`, and `--pressure HPA --temperature C`
+where an answer has an apparent (refracted) altitude in it; where an observer is
+optional (the Moon's orientation, a list of objects, the transits), leaving `--lat
+--lon` out answers for the Earth's centre or without local circumstances, as the export
+does with `null`. **A day** is `--date` in `--zone` (as for `events`); **a window** is
+`--from --to` (as for `phases`); **a year** takes `--year`, and its dates are on
+`--zone` when given, else on local mean time at the observer's longitude, as the engine's
+default is. Errors are the engine's sentences, and exit 1.
+
+### Dates, years and calendars: `--calendar julian|gregorian|auto`
+
+Every date and instant takes any year, and a leading minus needs no `=`: `--date
+-0584-05-28` and `--from -0584-05-01` read as dates, not as options (so does `skyfix
+almanac --date -0584-05-28`). A typed date is in the Julian calendar up to 1582-10-04 and
+the Gregorian from 1582-10-15 (`auto`, the default), unless `--calendar julian` or
+`--calendar gregorian` names one; the ten days between are refused without it. The JSON
+is always the wire's proleptic Gregorian. `time-info` and `calendar-convert` print the
+engine's own documents for an instant: its clock (UTC from 1972 to 2035, UT outside),
+coverage tier, Delta-T and DUT1 with their standard uncertainties, and the date in both
+calendars.
+
+### DUT1: `--dut1 SECONDS`
+
+On the navigation commands `--dut1` is the session's UT1 − UTC (above, "UT1 − UTC").
+On the commands whose export reads the site's own DUT1 field (`set_dut1`) — `sky`,
+`events`, `eclipses`, `eclipse`, `compass-error`, `limb-profile`, `time-info` — it is
+that field: without it the IERS history applies, as on the site with the field empty. It
+turns every Greenwich hour angle by 15.04″ a second; beyond 1 s it is refused there, as
+the site refuses it.
+
+### Packs: `--pack FILE` and `skyfix packs`
+
+The tide commands need the `tides-us` pack, and `eclipse --limb` and `limb-profile` use
+the `lunar-limb` pack. `--pack FILE`, on any command and repeatable, loads a pack for the
+run as the site loads a saved one: the file's header and CRC-32 are checked and its
+payload handed to its producer (`skyfix_wasm::packs::load`), so a file the site would
+refuse is refused with the same sentence (exit 1). The committed copies are in
+`web/public/data/packs/`; `--pack DIR/NAME` loads the one `NAME-<rev>.bin` in `DIR`, so
+a script keeps working when a pack is rebuilt and its revision changes. `skyfix packs`
+lists what this build can install and what is loaded. The examples below run from the
+repository root with `$P` standing for `web/public/data/packs`.
+
+```console
+$ skyfix packs --pack $P/tides-us
+DATA PACKS
+
+  pack        loaded  version      bytes  provides
+  tides-us    yes     2026-09-25  344543  tides:us             US tides: Tide predictions for NOAA's tide stations, mostly in the United States
+  lunar-limb  no      -                -  eclipses:lunar-limb  Lunar limb: The mountains and valleys at the Moon's edge, for eclipse contact times and Baily's beads
+...
+```
+
+A pack changes what the engine can answer, never how (CONVENTIONS 15.5): without it a
+tide command says `pack_not_loaded: …` and how to load it, and `eclipse --limb` gives the
+mean limb with a note.
+
+## Sun tools
+
+`skyfix_almanac::sun_tools` (CONVENTIONS 13.10; validated in `docs/ACCURACY.md` section
+14), on the explorer's astronomy with DUT1 = 0, as the site's sun tools use it. Every
+altitude and azimuth is the topocentric one of CONVENTIONS 13.2.
+
+### `skyfix sun-hours --lat --lon --date [--zone] [--height]`
+
+Golden hour (the Sun's centre between −4 and +6 degrees, geometric) and blue hour (−6 to
+−4) on one local day, with the Sun's events and the sky phases.
+
+```console
+$ skyfix sun-hours --lat 39.9526 --lon -75.1652 --height 12 --date 2026-09-24 \
+      --zone -04:00
+GOLDEN AND BLUE HOUR
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84 ellipsoid
+Day        2026-09-24 in UTC-04:00: 2026-09-24T04:00:00Z to 2026-09-25T04:00:00Z
+
+  light        period   from      from UTC              until           lasts
+  blue hour    morning  06:23:15  2026-09-24T10:23:15Z  06:33:43  10 min 28 s
+  golden hour  morning  06:33:43  2026-09-24T10:33:43Z  07:26:00  52 min 17 s
+  golden hour  evening  18:18:38  2026-09-24T22:18:38Z  19:10:49  52 min 12 s
+  blue hour    evening  19:10:49  2026-09-24T23:10:49Z  19:21:16  10 min 26 s
+...
+```
+
+Blue hour ends exactly at civil dusk. A window cut by the day's edge runs to midnight,
+and `--format json` says so (`open_start`, `open_end`) and has every crossing of the
+three altitudes.
+
+### `skyfix find-azimuth --lat --lon --body --azimuth --from --to [--min-alt] [--max-alt] [--zone]`
+
+The instants a body stands on a bearing inside a band of apparent altitude (default:
+above the horizon): "when is it at…?".
+
+```console
+$ skyfix find-azimuth --lat 39.9526 --lon -75.1652 --body Moon --azimuth 120 \
+      --from 2026-09-24 --to 2026-09-27 --min-alt 5 --max-alt 60 --zone -04:00
+WHEN IS IT AT 120 00.0
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84 ellipsoid
+Body       Moon
+Window     2026-09-24T04:00:00Z to 2026-09-28T04:00:00Z, shown in UTC-04:00
+Band       apparent altitude 5 to 60 degrees
+
+  local                UTC                         Az       alt  app. alt
+  2026-09-24 19:58:27  2026-09-24T23:58:27Z  120 00.0  +21 17.0  +21 19.6  rising, moving clockwise
+  2026-09-25 21:06:27  2026-09-26T01:06:27Z  120 00.0  +29 58.8  +30 00.6  rising, moving clockwise
+...
+```
+
+### `skyfix alignment-days --lat --lon --year --azimuth --event rise|set|at-altitude [--altitude] [--tolerance] [--body] [--zone] [--horizon dip --height-of-eye]`
+
+The days of a year a body rises, sets, or stands at an apparent altitude along a bearing
+(within `--tolerance`, default 0.5 degree): Manhattanhenge, a window, a stone row.
+
+```console
+$ skyfix alignment-days --lat 40.758 --lon -73.9855 --year 2026 --azimuth 299 \
+      --tolerance 0.3 --event set --zone -04:00
+ALIGNMENT DAYS 2026
+Observer   40 45.48' N, 073 59.13' W (40.758000, -73.985500), 0 m above the WGS84 ellipsoid
+Question   the days Sun sets within 0.3 degrees of 299 00.0 true
+Clock      UTC-04:00
+Searched   365 set(s) from 2026-01-01T04:00:00Z to 2027-01-01T04:00:00Z
+
+  date        event  local     UTC                         Az  off deg       alt
+  2026-05-24  set    20:14:45  2026-05-25T00:14:45Z  298 56.2    -0.06  - 0 50.0  best of its run
+  2026-05-25  set    20:15:37  2026-05-26T00:15:37Z  299 11.2    +0.19  - 0 50.0
+  2026-07-17  set    20:24:41  2026-07-18T00:24:41Z  299 07.7    +0.13  - 0 50.0
+  2026-07-18  set    20:24:00  2026-07-19T00:24:00Z  298 52.7    -0.12  - 0 50.0  best of its run
+...
+```
+
+The best day of each run is marked, and `Closest of the year` follows, matching or not,
+so "never" can say by how much. `--horizon dip --height-of-eye M` lowers rise and set by
+the dip, as for `events`.
+
+### `skyfix rise-set-azimuths --lat --lon --year [--body] [--zone] [--horizon]`
+
+A body's rise and set bearings and its transit on every day of a year.
+
+```console
+$ skyfix rise-set-azimuths --lat 39.9526 --lon -75.1652 --year 2026 --zone -05:00
+RISE AND SET BEARINGS SUN 2026
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84 ellipsoid
+Clock      UTC-05:00
+
+  date        rise            Az  transit        alt  set             Az
+  2026-01-01  07:22:25  119 48.4  12:04:19  +27 05.2  16:46:22  240 14.4
+...
+  2026-06-21  04:32:11   57 55.3  12:02:31  +73 29.1  19:32:51  302 04.6
+...
+  2026-12-21  07:18:51  120 26.9  11:58:50  +26 36.5  16:38:48  239 33.1
+...
+```
+
+### `skyfix analemma --lat --lon --year [--time HH:MM] [--zone]`
+
+The Sun at one clock time every day of a year, local mean time by default or a fixed
+`--zone`: its altitude and azimuth, and the analemma's own axes, the declination and the
+equation of time.
+
+```console
+$ skyfix analemma --lat 39.9526 --lon -75.1652 --year 2026
+ANALEMMA 2026
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84 ellipsoid
+Time       12:00:00 every day on local mean time at the longitude (UTC-05:00:40)
+
+  date        UTC                        alt  app. alt        Az        Dec       EoT
+  2026-01-01  2026-01-01T17:00:40Z  +27 04.9  +27 06.8  179 03.2  S 22 57.5   -3m 40s
+  2026-01-02  2026-01-02T17:00:40Z  +27 10.2  +27 12.1  178 55.9  S 22 52.1   -4m 08s
+...
+  2026-06-21  2026-06-21T17:00:40Z  +73 28.8  +73 29.1  178 29.8  N 23 26.2   -1m 52s
+...
+```
+
+### `skyfix sun-path --lat --lon --date [--zone] [--step MIN]`
+
+The Sun's path across one day, and the envelope: the same local day moved to the
+year's equinoxes and solstices.
+
+```console
+$ skyfix sun-path --lat 39.9526 --lon -75.1652 --date 2026-12-21 --zone -05:00 \
+      --step 60
+SUN PATH
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84 ellipsoid
+Day        2026-12-21 in UTC-05:00, every 60 min
+
+  local     UTC                        alt  app. alt        Az
+  08:00:00  2026-12-21T13:00:00Z  + 5 42.8  + 5 51.5  127 14.9
+...
+  12:00:00  2026-12-21T17:00:00Z  +26 36.4  +26 38.4  180 18.0
+...
+The year's envelope: the same local day moved to the equinoxes and solstices
+  day                date         highest  Az at rise  Az at set
+  March equinox      2026-03-20  +50 02.4     98 27.1   278 33.5
+  June solstice      2026-06-21  +73 28.5     62 19.3   306 35.3
+  September equinox  2026-09-22  +50 07.9     90 53.8   271 06.1
+  December solstice  2026-12-21  +26 36.4    127 14.9   242 51.9
+...
+```
+
+### `skyfix equation-of-time --year [--hour H]`
+
+Apparent minus mean solar time and the Sun's declination on every UTC date of a year,
+at `--hour` (the almanac page's 12 by default), with the year's extremes.
+
+```console
+$ skyfix equation-of-time --year 2026
+EQUATION OF TIME 2026
+Time       12.00 h UT each date; the same for every observer
+
+Extremes
+  date                                                           EoT
+  2026-02-11  least: the sundial furthest behind the clock  -14m 10s
+  2026-05-13  greatest: the sundial furthest ahead           +3m 40s
+  2026-07-26  least: the sundial furthest behind the clock   -6m 34s
+  2026-11-03  greatest: the sundial furthest ahead          +16m 27s
+...
+```
+
+### `skyfix solar-day` and `skyfix solar-year --lat --lon [--tilt] [--panel-azimuth] [--albedo]`
+
+A **clear-sky estimate** of the sunlight on a panel: through one day (`solar-day --date
+[--zone] [--step]`), or by month through a year with the tilt that collects the most
+(`solar-year --year [--zone] [--optimise-tilt]`). The panel faces the equator unless
+`--panel-azimuth` says otherwise. Every report prints the model's own words: an upper
+bound, no clouds, no haze.
+
+```console
+$ skyfix solar-day --lat 39.9526 --lon -75.1652 --date 2026-09-24 --zone -04:00 \
+      --tilt 30 --step 60
+CLEAR-SKY SOLAR ESTIMATE, ONE DAY
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84 ellipsoid
+Day        2026-09-24 in UTC-04:00
+Panel      tilt 30 deg, facing 180 deg true, albedo 0.2
+Energy     7.028 kWh/m2 on the panel (peak 972.9 W/m2), 5.664 on the ground (GHI) and
+           8.143 toward the Sun (DNI)
+
+  local     UTC                   Sun app. alt        Az    GHI    DNI    DHI  panel  incidence
+  07:00:00  2026-09-24T11:00:00Z      + 1 23.6   91 36.4    2.6   16.0    2.2    2.6       88.0
+...
+  13:00:00  2026-09-24T17:00:00Z      +49 21.7  182 50.2  772.9  879.8  105.3  972.9       10.8
+...
+```
+
+```console
+$ skyfix solar-year --lat 39.9526 --lon -75.1652 --year 2026 --tilt 30 \
+      --optimise-tilt --zone -05:00
+CLEAR-SKY SOLAR ESTIMATE 2026
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84 ellipsoid
+Panel      tilt 30 deg, facing 180 deg true, albedo 0.2
+Clock      UTC-05:00, every 10 min
+Energy     2448.2 kWh/m2 on the panel in the year, 2098.8 on the ground (GHI)
+Best tilt  34.7 deg facing 180 deg: 2454.9 kWh/m2
+
+  month      days  panel kWh/m2  GHI kWh/m2  panel a day
+  January      31         146.5        88.1         4.73
+...
+  June         30         245.9       263.5         8.20
+...
+```
+
+### `skyfix galactic-centre --lat --lon --from --to [--min-alt] [--sun-max-alt] [--zone]`
+
+The Milky Way planner: the stretches of each night with the galactic centre at least
+`--min-alt` up (apparent, default 10 degrees) and the Sun at most `--sun-max-alt`
+(geometric, default −18), split where the Moon rises or sets.
+
+```console
+$ skyfix galactic-centre --lat -31.2733 --lon 149.0617 --height 1165 \
+      --from 2026-06-15 --to 2026-06-16 --zone +10:00
+THE GALACTIC CENTRE IN A DARK SKY
+Observer   31 16.40' S, 149 03.70' E (-31.273300, 149.061700), 1165 m above the WGS84 ellipsoid
+Window     2026-06-14T14:00:00Z to 2026-06-16T14:00:00Z, shown in UTC+10:00
+Rule       the centre at least 10 deg up (apparent), the Sun at most -18 deg (geometric)
+
+  from                 from UTC              hours  Moon     best           alt        Az  arch top Az
+  2026-06-15 00:00:00  2026-06-14T14:00:00Z   5.56  down 0%  00:19:33  +87 44.8    0 00.1     301 12.3
+  2026-06-15 18:34:33  2026-06-15T08:34:33Z  10.99  down 0%  00:15:37  +87 44.8    0 00.0     301 12.3
+  2026-06-16 18:34:41  2026-06-16T08:34:41Z   5.42  down 3%  00:00:00  +86 36.6   49 04.3     122 43.3
+
+...
+```
+
+## Magnetic variation and compass error
+
+`skyfix_geomag` (WMM2025 from 2025.0 to 2030.0, IGRF-14 from 1900.0) and
+`skyfix_core::methods::compass` (CONVENTIONS 14.1-14.2; `docs/NAVIGATION_METHODS.md`
+section 9).
+
+### `skyfix variation --lat --lon --utc [--height] [--model auto|wmm2025|igrf14]`
+
+The Earth's field at a place and instant: the declination (the navigator's variation,
+east positive), the inclination and the intensities, each with its rate of change and
+its standard uncertainty.
+
+```console
+$ skyfix variation --lat 39.9526 --lon -75.1652 --height 12 \
+      --utc 2026-09-24T12:00:00Z
+MAGNETIC VARIATION
+Place      39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84 ellipsoid
+Time       2026-09-24T12:00:00Z
+Model      WMM2025, decimal year 2026.7301, a forecast (after 2025.0)
+
+Variation 11.8° W ±0.4° (WMM2025), changing 1.6′ E a year.
+
+  element                         value      sigma  change a year
+  declination (variation)  -11.8053 deg  0.364 deg    +0.0267 deg
+  inclination (dip)         65.1704 deg  0.200 deg    -0.1039 deg
+  horizontal H               21219.2 nT     133 nT       +36.0 nT
+  north X                    20770.4 nT     137 nT       +37.3 nT
+  east Y                     -4341.2 nT      89 nT        +2.3 nT
+  down Z                     45860.4 nT     141 nT      -140.4 nT
+  total F                    50531.5 nT     138 nT      -112.3 nT
+...
+Zone       normal
+...
+```
+
+A date no model covers is an answer, not an error: before 1900 or after 2030 the report
+(and the JSON, `available: false`) says why, and the exit code is 0.
+
+### `skyfix magnetic-grid --utc --lat-range MIN,MAX --lon-range MIN,MAX --rows N --cols M [--height]`
+
+Declination and horizontal intensity on a grid, for isogonic lines; the JSON is the
+export's object with its arrays, row by row from the southern edge, or `null` when no
+model covers the date.
+
+```console
+$ skyfix magnetic-grid --utc 2026-09-24T12:00:00Z --lat-range 30,40 \
+      --lon-range -80,-70 --rows 2 --cols 2
+MAGNETIC GRID
+Time       2026-09-24T12:00:00Z (decimal year 2026.7301), WMM2025
+Grid       2 rows x 2 columns, 0 m above the ellipsoid
+
+      lat       lon  declination   H nT  zone
+  30.0000  -80.0000       -7.956  24249
+  30.0000  -70.0000      -12.790  25081
+  40.0000  -80.0000       -9.162  20722
+  40.0000  -70.0000      -13.888  21808
+...
+```
+
+### `skyfix compass-error --lat --lon --utc --body --bearing [--method azimuth|amplitude] [--compass magnetic|gyro] [--variation DEG [--variation-sigma]] [--bearing-sigma]`
+
+Compass error from a body's true bearing: by its azimuth at the instant, or by its
+amplitude as it rises or sets (`--method amplitude`, with `--horizon visible|celestial`,
+`--height-of-eye`, `--limb`, `--event rising|setting`, `--pressure`, `--temperature`).
+A magnetic compass's error splits into the variation (the model's unless `--variation`
+gives the chart's) and the deviation.
+
+```console
+$ skyfix compass-error --lat 39.9526 --lon -75.1652 --height 12 \
+      --utc 2026-09-24T21:40:00Z --body Sun --bearing 272
+COMPASS ERROR BY AZIMUTH
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84 ellipsoid
+Time       2026-09-24T21:40:00Z
+
+Compass error 14.4° W; variation 11.8° W; deviation 2.6° W.
+The Sun bore 257.6° true at 21:40:00 UTC, 13.3° high; the compass read 272.0°.
+
+                       deg  sigma
+  true bearing     257.552      -  from skyfix-auto (Sun, Moon, planets, stars)
+  compass bearing  272.000      -  as read
+  compass error    -14.448      -  14.4° W
+  variation        -11.805  0.364  11.8° W (WMM2025)
+  deviation         -2.642  0.364  2.6° W
+...
+```
+
+## Passage planning and sight extras
+
+`skyfix_core::sailings`, `methods::starid` and `methods::starfinder`
+(`docs/NAVIGATION_METHODS.md` sections 9-11). Positions are `LAT,LON` in degrees.
+
+### `skyfix sailing --from --to [--every-nm N | --every-deg-lon M] [--limiting-lat] [--meridional-parts sphere|wgs84] [--speed KN [--departure]]`
+
+Every sailing between two points: the great circle with its vertex and waypoints, the
+rhumb line, mid-latitude sailing, and composite sailing below a limiting parallel; with a
+speed the hours under way, and with a departure time the ETAs.
+
+```console
+$ skyfix sailing --from 36.9617,-75.7033 --to 45.6517,-1.4967 --every-deg-lon 10 \
+      --limiting-lat 47 --speed 12 --departure 2026-10-01T12:00:00Z
+SAILINGS
+From       36 57.70' N, 075 42.20' W (36.961700, -75.703300)
+To         45 39.10' N, 001 29.80' W (45.651700, -1.496700)
+Speed      12 kn, departing 2026-10-01T12:00:00.000Z
+
+  sailing                                      course      NM      km  under way
+  great circle              55.8 initial, 109.0 final  3264.5  6045.9  272.2 h, arriving 2026-10-12T20:12:22Z
+  rhumb line (sphere)                            81.1  3376.9  6254.0  281.4 h, arriving 2026-10-13T05:24:31Z
+  mid-latitude                                   81.1  3385.0       -  282.1 h, arriving 2026-10-13T06:04:54Z
+  composite (limit 47 deg)                     3 legs  3271.3  6058.4  272.7 h, arriving 2026-10-12T20:44:22Z
+
+Saving     the great circle is 112.4 NM shorter than the rhumb line
+Vertex     48 37.78' N, 027 12.70' W (48.629720, -27.211739), 2205.2 NM from the
+...
+```
+
+The waypoints of each track follow, with the rhumb line to steer to the next.
+
+### `skyfix dr-advance --from --course --speed --hours [--method rhumb|mid-latitude|great-circle] [--start]`
+
+Forward (or, with negative hours, backward) dead reckoning.
+
+```console
+$ skyfix dr-advance --from 44.605,-31.305 --course 270 --speed 17 --hours 4.5 \
+      --start 2026-10-01T15:30:00Z
+DEAD RECKONING
+From       44 36.30' N, 031 18.30' W (44.605000, -31.305000)
+Run        course 270 at 17 kn for 4.5 h: 76.50 NM, rhumb sailing (sphere meridional parts)
+DR         44 36.30' N, 033 05.75' W (44.605000, -33.095819)
+Heading    270 on arrival
+Time       2026-10-01T20:00:00Z
+```
+
+### `skyfix route-positions --start --start-utc --leg [START,]COURSE,SPEED ... [--end-utc] [--at T ...] [--step MIN]`
+
+Positions along a route of legs, in the running fix's leg shape (`--leg` as for
+`running-fix`), at given instants and every `--step` minutes.
+
+```console
+$ skyfix route-positions --start 40,-70 --start-utc 2026-10-01T00:00:00Z --leg 90,10 \
+      --leg 2026-10-01T03:00:00Z,0,10 --end-utc 2026-10-01T06:00:00Z \
+      --at 2026-10-01T02:00:00Z --at 2026-10-01T07:00:00Z
+ROUTE
+Method     rhumb sailing (sphere meridional parts)
+
+Legs
+  #  from UTC              to UTC                course  kn    NM  ends at
+  0  2026-10-01T00:00:00Z  2026-10-01T03:00:00Z     090  10  30.0  40 00.00' N, 069 20.84' W
+  1  2026-10-01T03:00:00Z  2026-10-01T06:00:00Z     000  10  30.0  40 30.00' N, 069 20.84' W
+
+Positions
+  UTC                   lat          lon           leg  run NM
+  2026-10-01T02:00:00Z  40 00.00' N  069 33.89' W    0   20.00  under way
+  2026-10-01T07:00:00Z  40 30.00' N  069 20.84' W    -   60.00  after the end
+...
+Made good  42.35 NM in 7.00 h, course 44.9, 6.05 kn
+...
+```
+
+### `skyfix star-id --lat --lon --utc --altitude --bearing [--altitude-kind] [--bearing-kind true|magnetic|compass] [--variation] [--deviation]`
+
+Which body was shot, from its altitude and bearing: the reading is corrected as a sight
+is (the sight optics below), and every star, planet and the Moon within the tolerances
+(2 degrees of altitude, 5 of bearing by default) is ranked.
+
+```console
+$ skyfix star-id --lat 39.95 --lon -75.17 --height-of-eye 2.5 --ic -1.2 \
+      --utc 2026-10-01T00:30:00Z --altitude 72.59 --bearing 286 \
+      --bearing-kind compass --variation -12.5 --deviation 0
+WHAT DID I SHOOT?
+DR         39 57.00' N, 075 10.20' W (39.950000, -75.170000)
+Time       2026-10-01T00:30:00Z
+Observed   altitude +72 31.1 (after the corrections, airless topocentric), true bearing
+           273 30.0
+Sky        night, the Sun at -20 54.7: stars to magnitude 4.5 are visible
+
+Vega (1.2′ away: the sight is 0.1′ higher and its bearing 4.0′ less).
+...
+  #  body     kind   mag       alt        Az  d alt '  d brg '  within
+  1  Vega     star  0.03  +72 31.0  273 34.0     +0.1     -4.0  yes
+...
+```
+
+**The sight optics** of `predict`, `plan-sights` and `star-id` are `--height-of-eye`,
+`--ic`, `--horizon`, `--pressure` and `--temperature`, and two more from the programme:
+`--shore NM`, the waterline of a shore that near, nearer than the sea horizon (the dip
+short of the horizon, Bowditch Table 14), and `--ic-log UTC,ARCMIN`, repeated, an
+index-error log: the index correction at the sight's time is then interpolated from it,
+as a session's `instrument.index_error_log` is (CONVENTIONS section 10). `skyfix reduce`
+prints which value a log gave each sight.
+
+### `skyfix star-finder --lat [--utc]`
+
+A rotating star finder (2102-D) for a latitude: the template of its 10-degree band, and
+the stars' places on the base (J2000.0, or the apparent places of `--utc`). The JSON has
+both sides of the base, the Aries index and the template's lines for drawing.
+
+```console
+$ skyfix star-finder --lat 39.95
+STAR FINDER
+Template   for 35 deg N (latitude 39.95 asked), the north side of the base; stars at
+           their J2000.0 catalogue place
+Setting    turn the template anticlockwise by LHA Aries degrees about the centre and
+           read each star's altitude and azimuth off its grid
+
+  star                  SHA        Dec    mag        x        y
+  Acamar           315 26.1  S 40 18.3   2.88  +0.5158  +0.5080
+  Achernar         335 34.3  S 57 14.2   0.45  +0.7448  +0.3383
+...
+```
+
+## Time scales
+
+`skyfix_core::{time, deltat, calendar}` (CONVENTIONS 15.2-15.3). `skyfix calendar` (above)
+prints both documents for a person in one report; these print each export's own.
+
+### `skyfix time-info <DATE> | --jd JD [--dut1]`
+
+```console
+$ skyfix time-info -0584-05-28T12:00:00Z
+TIME
+Instant      -0584-05-28T12:00:00 UT (Julian) (JD 1507900.000000 on the app's clock)
+Wire         -0584-05-22T12:00:00.000Z (proleptic Gregorian, as JSON carries it)
+Clock        UT, Universal Time (UT1): outside the UTC years 1972-2035
+Tier         labelled
+Delta-T      18213.2 s (5 h 03 min 33 s), standard uncertainty 3 min: Stephenson,
+             Morrison & Hohenkerk 2016, 2020 revision (TT - UT1)
+TT - clock   18213.2 s (5 h 03 min 33 s)
+UT1 - UTC    none: the clock is UT1
+Calendar     Julian (the calendar the explorer shows for this date)
+Date         -0584-05-28  28 May 585 BC, astronomical year -0584  12:00:00.000
+Julian       -0584-05-28  28 May 585 BC, astronomical year -0584  12:00:00.000
+...
+```
+
+### `skyfix calendar-convert <DATE> | --jd JD`
+
+The date as typed goes to the engine as the site's date entry sends it, a civil date in
+its calendar; `--jd` sends the Julian date.
+
+```console
+$ skyfix calendar-convert 1752-09-03 --calendar julian
+CALENDAR CONVERSION
+Julian date  2361221.500000  (MJD -38779.000000)
+Gregorian    1752-09-14  14 September 1752  00:00:00.000
+Julian       1752-09-03  3 September 1752  00:00:00.000
+```
+
+## Deep time
+
+Since the deep-time work the core covers 2000 BC to AD 3000 in two tiers (CONVENTIONS
+15.1; `docs/ACCURACY.md`, "Historical accuracy"; the first day is -2000-01-01 in the
+astronomical years the CLI prints, 1 January 2001 BC): the **validated** tier, 1550-01-01
+to 2650-01-22, where the accuracy figures hold and bodies are offered for sights; and the
+**labelled** tier around it, display only, measured per century against JPL DE441, every
+time in it carrying Delta-T's uncertainty. As on the site, the display commands (`sky`,
+`events`, `phases`, `seasons` and the sun tools) answer both tiers. Everything that feeds
+a sight, a fix or a plan keeps the validated tier and refuses the rest, and so do the
+other engines, some over a narrower span of their own: the eclipse and planet-event
+searches 1990 to 2060, the years they were checked over against NASA's canon and
+Skyfield; the tide predictions 1900 to 2100; and the magnetic models 1900 to 2030,
+outside which `variation` says there is no variation to give. A report whose times fall
+in the labelled tier says so under its table, with Delta-T's standard uncertainty there.
+`skyfix coverage` remains the sight providers' own coverage.
+
+### `skyfix explorer-coverage`
+
+The explorer's coverage, per provider group and tier, with the worst error measured over
+each (the export `explorer_coverage`).
+
+```console
+$ skyfix explorer-coverage
+THE EXPLORER'S COVERAGE
+Display    -2000-01-01T00:00:00Z to 3000-12-31T23:59:59Z: the sky, the day's events, the
+           Moon's phases, the seasons and the sun tools answer both tiers
+Validated  1550-01-01T00:00:00Z to 2650-01-22T00:00:00Z: sights, predicted readings, the
+           planner and the other engines answer this tier only
+Packs      none loaded (no pack is needed for either tier)
+
+  group    tier       from                   to                    worst '  sights
+  Sun      validated  1550-01-01T00:00:00Z   2650-01-22T00:00:00Z     0.01  offered
+           labelled   -2000-01-01T00:00:00Z  3000-12-31T23:59:59Z     0.02  no
+  Moon     validated  1550-01-01T00:00:00Z   2650-01-22T00:00:00Z     0.02  offered
+           labelled   -2000-01-01T00:00:00Z  3000-12-31T23:59:59Z     0.05  no
+...
+```
+
+### `skyfix tier-at <DATE> | --jd JD`
+
+The tier of an instant (the export `tier_at`): `validated`, `labelled` or `outside`; its
+JSON is the name alone. The tiers' bounds are proleptic Gregorian dates, as JSON writes
+them, while a date is typed and shown in the Julian calendar before 1582-10-15 (above,
+"Dates, years and calendars"): so an instant shown as Julian is given in the Gregorian
+calendar too, and `skyfix tier-at 1549-12-25` is validated, being 1550-01-04 there.
+
+```console
+$ skyfix tier-at -0584-05-28T12:00:00Z
+COVERAGE TIER
+Instant    -0584-05-28T12:00:00 UT (Julian)
+Gregorian  -0584-05-22T12:00:00Z (proleptic, as are the bounds below)
+Tier       labelled: a historical or far-future estimate (-2000-01-01T00:00:00Z to
+           3000-12-31T23:59:59Z): positions for display, each time with its Delta-T
+           uncertainty (skyfix time-info); no sights, predicted readings or plans
+```
+
+The seasons of 585 BC, in the labelled tier, on the UT clock and in the Julian calendar:
+
+```console
+$ skyfix seasons --year -584
+SEASONS -584
+  -0584-03-27T04:49:57 UT (Julian)  March equinox
+  -0584-06-29T08:31:08 UT (Julian)  June solstice
+  -0584-09-29T08:00:36 UT (Julian)  September equinox
+  -0584-12-26T20:19:21 UT (Julian)  December solstice
+...
+A historical or far-future estimate (the labelled tier, CONVENTIONS 15.1): every time
+...
+```
+
+---
+
+## The Moon in detail
+
+`skyfix_almanac::{libration, lunar_features, apsides, occultations}` (CONVENTIONS 13.10;
+`docs/ACCURACY.md` section 14). Selenographic longitudes are east positive, toward Mare
+Crisium.
+
+### `skyfix moon-orientation [--lat --lon [--height]] --utc`
+
+How the Moon is turned and lit: libration (and its optical, physical and diurnal parts),
+the sub-solar point, colongitude and terminator, the axis's position angle, distance and
+apparent size. Without an observer, for the Earth's centre.
+
+```console
+$ skyfix moon-orientation --lat 39.9526 --lon -75.1652 --height 10 \
+      --utc 2026-09-25T02:24:00Z
+THE MOON'S ORIENTATION
+Seen from  39 57.16' N, 075 09.91' W (39.952600, -75.165200), 10 m above the WGS84
+           ellipsoid
+Time       2026-09-25T02:24:00Z
+
+Libration  longitude -5.096 deg, latitude -0.785 deg (optical -5.087, -1.531; physical
+           +0.016, +0.050; diurnal -0.024, +0.717): the point at the disc's centre
+Phase      97.1% lit, waxing, phase angle 19.69 deg; colongitude 75.39 deg (the morning
+           terminator at selenographic longitude -75.39, the evening one at +104.61)
+Sun over   selenographic latitude -0.840, longitude +14.614 (the sub-solar point)
+Axis       the Moon's north pole at position angle 339.08 deg (north through east;
+           339.10 from the Earth's centre); the bright limb at 250.81 deg
+Size       382095 km away, 31.28' across (+0.6% against its size at the mean distance);
+           from the Earth's centre 386267 km
+In the sky altitude +40 23.3 (geometric), azimuth 155 12.9, parallactic angle -18.87 deg
+...
+```
+
+### `skyfix moon-features [--lat --lon] --utc [--all]`
+
+The 150 named features at an instant: which are lit, and which are near the terminator
+tonight, where the relief shows.
+
+```console
+$ skyfix moon-features --lat 39.9526 --lon -75.1652 --utc 2026-09-20T01:00:00Z
+THE MOON'S NAMED FEATURES
+Seen from  39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84
+           ellipsoid
+Time       2026-09-20T01:00:00Z
+Phase      61.2% lit, waxing, colongitude 13.78 deg
+...
+Tonight    Oceanus Procellarum, Mare Imbrium, Clavius, Plato, Tycho, Rupes Recta, Montes
+...
+  feature              kind     rank    lat    lon    km  Sun alt
+  Oceanus Procellarum  oceanus     1  +20.7  -56.7  2592    -39.9  dark, morning, near the terminator
+  Mare Imbrium         mare        1  +34.7  -14.9  1146     -1.3  dark, morning, near the terminator
+...
+```
+
+### `skyfix moon-apsides --from --to [--zone]`
+
+Perigees and apogees, and the new and full Moons with supermoons and micromoons.
+
+```console
+$ skyfix moon-apsides --from 2026-01-01 --to 2026-03-31
+PERIGEE, APOGEE AND SUPERMOONS  2026-01-01T00:00:00Z to 2026-04-01T00:00:00Z
+
+Perigees and apogees
+  UTC                                km  diameter '  vs mean
+  2026-01-01T21:44:26Z  perigee  360348       33.16    +6.7%
+  2026-01-13T20:47:08Z  apogee   405438       29.47    -5.2%
+  2026-01-29T21:46:00Z  perigee  365871       32.66    +5.1%
+...
+New and full Moons
+  UTC                                  km  diameter '  to perigee
+  2026-01-03T10:02:55Z  full moon  362312       32.98         96%  supermoon
+...
+```
+
+### `skyfix occultations --lat --lon --from --to [--max-magnitude] [--no-stars] [--no-planets] [--below-horizon] [--no-near-misses] [--body NAME ...] [--zone]`
+
+Lunar occultations of the 58 navigational stars, the catalogue's stars brighter than
+`--max-magnitude` (3.5) and the planets, seen from one place, with each contact's
+position angle on the limb; at the Moon's mean limb, as the note says.
+
+```console
+$ skyfix occultations --lat 39.9526 --lon -75.1652 --from 2026-01-01 --to 2026-06-30 \
+      --zone -05:00
+LUNAR OCCULTATIONS
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84
+           ellipsoid
+Window     2026-01-01T05:00:00Z to 2026-07-01T05:00:00Z, shown in UTC-05:00
+Searched   36 bodies near the Moon's path (stars within 7 deg of the ecliptic)
+
+  body       mag  disappears           disappears UTC        PA, limb    reappears  PA, limb
+  τ Sgr     3.32  2026-01-17 13:03:25  2026-01-17T18:03:25Z  120 bright  13:54:10   198 dark    day
+  Regulus   1.36  2026-02-02 20:53:17  2026-02-03T01:53:17Z  149 bright  21:51:06   266 dark    night
+  τ Sgr     3.32  2026-03-13 03:52:47  2026-03-13T08:52:47Z   94 bright  05:11:32   259 dark    night
+  Fang      2.89  -                    -                     -           -          -           near miss, 0.87' outside the limb, graze
+  Regulus   1.36  2026-04-25 19:52:53  2026-04-26T00:52:53Z   54 dark    20:14:47    23 dark    graze, nautical twilight
+  Venus    -4.01  2026-06-17 14:51:31  2026-06-17T19:51:31Z  101 dark    16:11:16   320 bright  day
+  Fang      2.89  -                    -                     -           -          -           near miss, 0.54' outside the limb, graze
+...
+```
+
+## Deep sky
+
+`skyfix_starfield::{dso, showers, milkyway, search, tonight, extinction}`: display only
+(CONVENTIONS 13.6). Rankings, meteor rates, limiting magnitudes and the instrument guide
+are estimates from stated rules, and the reports say so. The observer's sky is
+`--bortle N` (1 to 9, default 5) or `--nelm MAG`, and `--extinction K`.
+
+### `skyfix dso-catalog`
+
+The 213 objects: Messier's 110 and 103 others by a stated rule.
+
+```console
+$ skyfix dso-catalog
+DEEP-SKY OBJECTS: 213
+
+  id        name                         type                 con  RA J2000  Dec J2000   mag       size '
+  M1        Crab Nebula                  supernova remnant    Tau   83.6331   +22.0145   8.4        7 x 5
+...
+  M31       Andromeda Galaxy             spiral galaxy        And   10.6847   +41.2687   3.4     200 x 71
+...
+  M45       Pleiades                     open cluster         Tau   56.7500   +24.1167   1.6    110 x 110
+...
+```
+
+### `skyfix dso-list [--lat --lon] --utc [--kind KINDS] [--max-magnitude] [--above-horizon]`
+
+Every object's place at an instant (RA and Dec of date; with an observer, altitude and
+azimuth), filtered.
+
+```console
+$ skyfix dso-list --lat 39.9526 --lon -75.1652 --utc 2026-09-25T02:00:00Z \
+      --kind galaxy --max-magnitude 7 --above-horizon
+DEEP-SKY OBJECTS AT AN INSTANT
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84
+           ellipsoid
+Time       2026-09-25T02:00:00Z
+
+  id   name               mag        RA       Dec  app. alt        Az
+  M31  Andromeda Galaxy   3.4   11.0591  +41.4175  +50 56.0   70 16.8
+  M33  Triangulum Galaxy  5.7   23.8469  +30.7993  +37 19.6   78 22.6
+  M81  Bode's Galaxy      6.9  149.4261  +68.9360  +19 13.5  355 57.4
+
+...
+```
+
+### `skyfix dso <ID> --lat --lon --utc [--bortle | --nelm] [--zone]`
+
+One object through the night the instant belongs to (local mean noon to noon): when it is
+best placed, how long it is high, the Moon's light on it, and what shows it.
+
+```console
+$ skyfix dso M31 --lat 39.9526 --lon -75.1652 --utc 2026-09-24T22:00:00Z \
+      --zone -04:00 --bortle 4
+M31, Andromeda Galaxy
+Object     spiral galaxy in And, magnitude 3.4, 200' x 71'; RA 10.6847, Dec +41.2687
+...
+Best       01:28 at +88 32.1, 0 00.0 N (highest in the dark window)
+Transit    01:28 at +88 32.1, 0 00.0 N
+High       8 h 56 min above 20 deg in the dark window
+Moonlight  the Moon 52.3 deg away at altitude +38 08.9, brightening the sky there by
+...
+Limit      stars to magnitude 4.5 at the object at its best
+See it     with binoculars (10x50) (a rule of thumb)
+...
+```
+
+### `skyfix showers --year [--lat --lon] [--bortle | --nelm] [--zone]`
+
+The year's meteor showers from this project's table, their dates from our Sun, and with
+an observer the expected rate on the night nearest each peak.
+
+```console
+$ skyfix showers --year 2026 --lat 39.9526 --lon -75.1652 --zone -04:00
+METEOR SHOWERS 2026
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84
+           ellipsoid
+
+  shower                      code  peak                 ZHR  active                    Moon  rate/h here  best
+...
+  Perseids                    PER   2026-08-12 22:08     100  2026-07-16 to 2026-08-24    0%         48.4  04:27 at +61 14.7, 39 06.2 NE
+...
+  Geminids                    GEM   2026-12-14 09:49     150  2026-12-03 to 2026-12-21   25%         66.0  02:59 at +83 02.6, 183 46.8 S
+...
+```
+
+### `skyfix milky-way`
+
+The Milky Way's outline for drawing: closed rings at four brightness levels; the JSON
+has every point.
+
+```console
+$ skyfix milky-way
+THE MILKY WAY'S OUTLINE
+
+  level  threshold MJy/sr  rings  points
+      0              0.32      4     328
+      1              0.50     10     363
+      2              0.80      8     155
+      3              1.30      2      34
+
+...
+```
+
+### `skyfix search <QUERY> [--lat --lon] [--utc] [--limit N]`
+
+Find a star, object, constellation, planet or shower by name, Bayer or Flamsteed
+designation or catalogue number, best first.
+
+```console
+$ skyfix search andromeda --lat 39.9526 --lon -75.1652 --utc 2026-09-25T02:00:00Z \
+      --limit 3
+SEARCH "andromeda"
+Time       2026-09-25T02:00:00Z
+
+  kind           label             detail                                                                                  score       RA      Dec  app. alt        Az
+  constellation  Andromeda         Constellation · And · genitive Andromedae                                                 100   8.2096  39.1548  +52 22.2   74 46.5
+  deep sky       Andromeda Galaxy  M31 · NGC 224 · The nearest large galaxy, 2.5 million light-years away · magnitude 3.4     80  11.0591  41.4175  +50 56.0   70 16.8
+  star           Alpheratz         α And · HR 15 · HIP 677 · magnitude 2.1                                                    59   2.4509  29.2411  +52 52.8   92 54.4
+...
+```
+
+### `skyfix tonight --lat --lon --utc [--bortle | --nelm] [--limit N] [--zone]`
+
+What a night offers: its darkness, the Moon, the planets, the best-placed deep-sky
+objects, meteor showers and the Milky Way's core. The engine's summary writes its times
+as tokens; the text writes them in `--zone`.
+
+```console
+$ skyfix tonight --lat 39.9526 --lon -75.1652 --height 12 --utc 2026-09-24T22:00:00Z \
+      --zone -04:00 --limit 6
+TONIGHT
+...
+Darkness   night (the Sun below -18 deg) from 20:24 to 05:20, 8 h 56 min
+...
+Moon       full, 97% lit, rises 17:54, sets 05:36; up 8 h 56 min of the dark window,
+...
+Dark from 20:24 to 05:20 (8.9 hours). The Moon is full, 97% lit, and up all through the
+...
+Planets
+  planet    mag  best                             up
+...
+  Saturn    0.4  01:31 at +52 19.2, 179 20.0 S    20:21 to 06:21  Saturn, magnitude 0.4, in the south (52° at best)
+...
+Deep sky, best first
+  object                       type          mag  best                             h > 20  with        score
+  Mel 25 Hyades                open cluster  0.5  05:12 at +65 59.0, 180 00.0 S       5.3  eye          68.9
+...
+```
+
+### `skyfix extinction [--bortle | --nelm] [--extinction K]`
+
+Air mass, extinction and the limiting magnitude by altitude.
+
+```console
+$ skyfix extinction --bortle 3
+EXTINCTION AND THE LIMITING MAGNITUDE
+Sky        naked-eye limit 6.8 at the zenith (Bortle 3), extinction k = 0.25 mag per air
+           mass, sky 22.00 mag/arcsec2 (from --bortle)
+
+  app. alt  air mass  extinction mag  limiting mag
+         0     38.75            9.69         -2.64
+         1     26.64            6.66          0.39
+...
+        20      2.90            0.73          6.32
+...
+        45      1.41            0.35          6.70
+...
+        90      1.00            0.25          6.80
+...
+```
+
+## Planets in detail
+
+`skyfix_almanac::{satellites, rings, discs, transits, conjunctions, earth_apsides,
+orbits}` (CONVENTIONS 13.12; `docs/ACCURACY.md` section 17).
+
+### `skyfix galilean-moons --utc` and `skyfix galilean-events --from --to [--zone]`
+
+Jupiter's four moons as the Earth sees them, and their transits, shadow transits,
+occultations and eclipses.
+
+```console
+$ skyfix galilean-moons --utc 2026-01-10T00:00:00Z
+JUPITER'S GALILEAN MOONS
+Time       2026-01-10T00:00:00Z
+Jupiter    4.2318 au away (light 2112 s), disc 46.59" x 43.57", pole at PA 10.00 deg,
+           179.5 deg from the Sun
+
+  moon        x Rj    y Rj  east "  north "
+  Io        +5.492  -0.056  -126.2    +20.9  in front
+  Europa    +0.157  +0.166    -2.9     +4.4  behind, hidden behind Jupiter, in Jupiter's shadow
+  Ganymede  +8.956  +0.324  -204.1    +43.6  behind
+  Callisto  -3.740  -0.522   +83.7    -27.1  in front
+...
+```
+
+```console
+$ skyfix galilean-events --from 2026-01-10 --to 2026-01-10
+JUPITER'S MOONS: TRANSITS, SHADOWS, OCCULTATIONS, ECLIPSES
+Window     2026-01-10T00:00:00Z to 2026-01-11T00:00:00Z
+
+  moon      event           UTC                   ends      seen   from Sun
+  Europa    eclipse         2026-01-09T22:47:10Z  01:37:50  start       179
+  Europa    occultation     2026-01-09T22:48:18Z  01:38:55  end         179
+  Callisto  transit         2026-01-10T07:01:36Z  10:57:17  both        180
+...
+```
+
+### `skyfix saturn-rings --utc`
+
+```console
+$ skyfix saturn-rings --utc 2026-09-24T00:00:00Z
+SATURN'S RINGS
+Time       2026-09-24T00:00:00Z
+Tilt       B = -7.8127 deg (the Earth's latitude on Saturn over the ring plane: the
+           south face is seen), B' = -7.5468 deg (the Sun's), dU = 1.1928 deg; the lit
+           face is toward us
+Rings      44.630" x 6.067" (outer edge of ring A), the northern semi-minor axis at PA
+           3.16 deg
+Saturn     8.4514 au away (9.4368 au from the Sun), magnitude 0.38 (Mallama & Hilton
+           2018; 0.35 by the 1984 formula)
+...
+```
+
+### `skyfix planet-disc --body --utc`
+
+Any planet's disc: its size, phase, pole, the points under the Earth and the Sun, and the
+central meridians (Jupiter's Systems I, II and III).
+
+```console
+$ skyfix planet-disc --body Jupiter --utc 2026-01-10T00:00:00Z
+JUPITER'S DISC
+Time       2026-01-10T00:00:00Z
+Size       46.587" x 43.567" (equatorial x polar, as seen), 4.231756 au away (light
+           2111.7 s)
+Phase      100.00% lit, phase angle 0.091 deg, defect 0.000", bright limb at PA 66.62
+           deg
+Pole       north pole at PA 9.995 deg
+Earth over latitude +1.389 (planetographic +1.589), longitude 252.753 (west positive)
+Sun over   latitude +1.441 (planetographic +1.647), longitude 252.830
+Central    meridian: System I 193.230, System II 2.646, System III 252.753
+Magnitude  -2.68
+
+The Great Red Spot is not tracked: its System II longitude drifts by tens of degrees a
+...
+```
+
+### `skyfix transits --from --to [--lat --lon [--height]] [--zone]`
+
+Transits of Mercury and Venus: the contacts from the Earth's centre, and with an observer
+what that place sees.
+
+```console
+$ skyfix transits --from 2012-06-05 --to 2012-06-07 --lat 39.9526 --lon -75.1652 \
+      --height 12
+TRANSITS OF MERCURY AND VENUS
+Window     2012-06-05T00:00:00Z to 2012-06-08T00:00:00Z
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84
+           ellipsoid
+
+2012-06-06-venus  Venus: least separation 554.3" (the Sun's radius 945.7"), 6 h 39 min 51 s
+  from the Earth's centre
+  contact   UTC                      PA  sep "
+  c1        2012-06-05T22:09:42Z   40.7  974.6
+  c2        2012-06-05T22:27:30Z   38.2  916.8
+  greatest  2012-06-06T01:29:37Z  345.4  554.3
+  c3        2012-06-06T04:31:44Z  292.7  916.8
+...
+  from here: partly below horizon
+  event     UTC                    Sun alt        Az     PA  seen
+  c1        2012-06-05T22:03:54Z  +24 37.5  279 43.3   41.2  yes
+  c2        2012-06-05T22:21:26Z  +21 19.9  282 15.9   38.7  yes
+  sunset    2012-06-06T00:26:17Z  - 0 50.0  300 59.9    8.8  yes
+...
+```
+
+### `skyfix conjunctions --from --to [--planets] [--no-moon] [--stars] [--max-separation] [--lat --lon] [--zone]`
+
+Closest approaches of planets to each other, to the Moon and to bright stars; with an
+observer, the best moment within 12 hours to see the pair in a dark sky.
+
+```console
+$ skyfix conjunctions --from 2020-12-01 --to 2020-12-31 --lat 39.9526 --lon -75.1652 \
+      --zone -05:00
+CONJUNCTIONS
+Window     2020-12-01T05:00:00Z to 2021-01-01T05:00:00Z, shown in UTC-05:00
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84
+           ellipsoid
+
+  local                UTC                   pair               sep deg   PA  from Sun  mags        best seen here
+  2020-12-06 14:43:39  2020-12-06T19:43:39Z  Moon - Regulus       4.513   19       105  - / 1.4     2020-12-06 05:13 +67 01.6 / +61 53.3
+...
+  2020-12-21 13:21:22  2020-12-21T18:21:22Z  Jupiter - Saturn     0.102  168        30  -2.0 / 0.7  2020-12-21 17:21 +14 42.5 / +14 45.7
+...
+```
+
+### `skyfix stations --from --to [--zone]` and `skyfix earth-apsides --year`
+
+```console
+$ skyfix stations --from 2024-11-01 --to 2025-02-28
+PLANETARY STATIONS
+Window     2024-11-01T00:00:00Z to 2025-03-01T00:00:00Z
+
+  UTC                   planet                      in                    at deg  from Sun    mag
+  2024-11-15T14:20:19Z  Saturn   retrograde ends    ecliptic longitude  342.6927     109.0   0.87
+  2024-11-16T05:57:00Z  Saturn   retrograde ends    right ascension     344.8575     108.3   0.88
+  2024-11-26T02:42:21Z  Mercury  retrograde begins  ecliptic longitude  262.6717      18.4   0.33
+  2024-11-26T04:26:15Z  Mercury  retrograde begins  right ascension     261.9238      18.3   0.35
+...
+```
+
+```console
+$ skyfix earth-apsides --year 2026
+THE EARTH'S PERIHELION AND APHELION 2026
+
+  UTC                                     au         km
+  2026-01-03T17:15:40Z  perihelion  0.983302  147099893
+  2026-07-06T17:30:19Z  aphelion    1.016644  152087774
+```
+
+### `skyfix orbit <FILE> [--lat --lon (--utc | --from --to [--step])]`
+
+Comets and asteroids from orbital elements (lines in the Minor Planet Center's formats,
+or JSON; `-` reads standard input): the elements read, where the bodies are at `--utc`,
+or their tracks from `--from` to `--to`. `$D/ceres.elements.json` is the API's example,
+the Minor Planet Center's elements of (1) Ceres (Source: Minor Planet Center).
+
+```console
+$ skyfix orbit $D/ceres.elements.json --lat 39.9526 --lon -75.1652 --height 12 \
+      --utc 2026-09-24T12:00:00Z
+CUSTOM BODIES
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84
+           ellipsoid
+Time       2026-09-24T12:00:00Z
+
+  body       kind      app. alt        Az        RA      Dec   mag      au  con
+  (1) Ceres  asteroid  +72 59.7  188 13.8  105.5640  23.0870  8.69  2.7161  Gem
+...
+```
+
+## Tides
+
+`skyfix_tides` on the `tides-us` pack (CONVENTIONS 13.11; `docs/ACCURACY.md` section 16):
+NOAA's 3499 US stations. Predictions, not observations: weather and surge are not
+included, and every report says so. Heights are metres and feet above `--datum` (the
+station's own, MLLW, by default).
+
+### `skyfix tide-stations --lat --lon [--count N]` and `skyfix tide-station <ID>`
+
+```console
+$ skyfix tide-stations --lat 37.8 --lon -122.4 --count 3 --pack $P/tides-us
+TIDE STATIONS NEAR 37 48.00' N, 122 24.00' W (37.800000, -122.400000)
+
+  id       station                              state   NM   km  bearing  kind         curve
+  9414305  San Francisco, North Point, Pier 41  CA     0.9  1.6      314  subordinate  interpolated
+  9414317  Rincon Point, Pier 22 1/2            CA     0.9  1.6      134  harmonic     harmonic
+  9414792  Alcatraz Island                      CA     1.8  3.3      333  subordinate  interpolated
+...
+```
+
+```console
+$ skyfix tide-station 9414290 --pack $P/tides-us
+TIDE STATION
+Station    San Francisco (Golden Gate), CA, NOAA 9414290
+Place      37 48.38' N, 122 27.95' W (37.806306, -122.465889)
+Kind       harmonic; mixed semidiurnal tide (form number 0.84)
+Datums     HAT, MHHW, MHW, MTL, MSL, MLW, MLLW, LAT, NAVD88 (default MLLW)
+Curve      harmonic
+```
+
+### `skyfix tide-extremes <ID> --from --to [--datum] [--zone]`
+
+High and low water: a tide table. With `--zone nautical` the zone is the station's.
+
+```console
+$ skyfix tide-extremes 9414290 --from 2026-09-24 --to 2026-09-25 --zone -07:00 \
+      --pack $P/tides-us
+HIGH AND LOW WATER
+Station    San Francisco (Golden Gate), CA, NOAA 9414290
+Place      37 48.38' N, 122 27.95' W (37.806306, -122.465889)
+Kind       harmonic; mixed semidiurnal tide (form number 0.84)
+Datums     HAT, MHHW, MHW, MTL, MSL, MLW, MLLW, LAT, NAVD88 (default MLLW)
+Window     2026-09-24T07:00:00Z to 2026-09-26T07:00:00Z, shown in UTC-07:00; harmonic
+           prediction
+
+  local                UTC                   tide      m    ft
+  2026-09-24 04:25:49  2026-09-24T11:25:49Z  low   0.101  0.33
+  2026-09-24 11:11:56  2026-09-24T18:11:56Z  high  1.574  5.16
+  2026-09-24 16:41:43  2026-09-24T23:41:43Z  low   0.526  1.73
+  2026-09-24 22:47:35  2026-09-25T05:47:35Z  high  1.684  5.52
+...
+```
+
+### `skyfix tide-predict <ID> --from --to [--step MIN] [--datum] [--zone]`
+
+```console
+$ skyfix tide-predict 9414290 --from 2026-09-24T18:00:00Z --to 2026-09-24T20:00:00Z \
+      --step 30 --pack $P/tides-us
+TIDE CURVE
+Station    San Francisco (Golden Gate), CA, NOAA 9414290
+Place      37 48.38' N, 122 27.95' W (37.806306, -122.465889)
+Kind       harmonic; mixed semidiurnal tide (form number 0.84)
+Datums     HAT, MHHW, MHW, MTL, MSL, MLW, MLLW, LAT, NAVD88 (default MLLW)
+Window     2026-09-24T18:00:00Z to 2026-09-24T20:00:00Z, every 30 min; harmonic
+           prediction
+
+  UTC                       m    ft
+  2026-09-24T18:00:00Z  1.570  5.15
+  2026-09-24T18:30:00Z  1.566  5.14
+  2026-09-24T19:00:00Z  1.518  4.98
+  2026-09-24T19:30:00Z  1.431  4.69
+  2026-09-24T20:00:00Z  1.312  4.30
+...
+```
+
+### `skyfix tide-now <ID> --utc [--datum]` and `skyfix tide-pack`
+
+```console
+$ skyfix tide-now 9414290 --utc 2026-09-24T19:00:00Z --pack $P/tides-us
+THE TIDE NOW
+Station    San Francisco (Golden Gate), CA, NOAA 9414290
+Place      37 48.38' N, 122 27.95' W (37.806306, -122.465889)
+Kind       harmonic; mixed semidiurnal tide (form number 0.84)
+Datums     HAT, MHHW, MHW, MTL, MSL, MLW, MLLW, LAT, NAVD88 (default MLLW)
+Time       2026-09-24T19:00:00Z
+Tide       1.518 m (4.98 ft) above MLLW, falling at -0.137 m an hour
+
+  UTC                   tide      m    ft
+  2026-09-24T18:11:56Z  high  1.574  5.16
+  2026-09-24T23:41:43Z  low   0.526  1.73
+  2026-09-25T05:47:35Z  high  1.684  5.52
+...
+```
+
+```console
+$ skyfix tide-pack --pack $P/tides-us
+TIDES PACK
+Pack       tides-us 2026-09-25, 344515 bytes of data, provides tides:us
+Stations   3499 (1256 harmonic, 2243 subordinate)
+```
+
+## The lunar limb
+
+`skyfix_almanac::eclipses::limb` on the `lunar-limb` pack (CONVENTIONS 15.7;
+`docs/ACCURACY.md` section 19): the Moon's mountains and valleys at its edge, from LRO
+LOLA topography.
+
+### `skyfix eclipse <ID> --lat --lon --limb`
+
+The eclipse's local circumstances with the limb-corrected contacts, the central duration
+against the mean limb's, and approximate Baily's beads (the JSON's `local.limb`, the
+site's `eclipse_local_limb`). With the pack loaded the eye-safety line quotes the real
+limb's totality, never the longer of the two.
+
+```console
+$ skyfix eclipse 2024-04-08-solar --lat 32.7767 --lon -96.797 --height 150 --limb \
+      --pack $P/lunar-limb
+SEEN FROM  32 46.60' N, 096 47.82' W (32.776700, -96.797000), 150 m above the WGS84 ellipsoid
+...
+Totality   2024-04-08T18:40:43Z to 2024-04-08T18:44:35Z, 3 min 51 s
+...
+Lunar limb
+...
+Here       total with the real limb
+Central    3 min 48 s (-3 s against the mean limb)
+  UTC                   contact     change   mean limb     PA  height  s per "
+...
+  2024-04-08T18:40:43Z  c2            -1 s    18:40:43   21.9  -0.17"      2.7
+  2024-04-08T18:44:31Z  c3            -4 s    18:44:35  253.4  -1.83"      2.7
+...
+Eye safety: never look at the Sun, even when it is mostly covered, without certified
+eclipse glasses (ISO 12312-2) or a pinhole projector. Only during totality itself, here
+from 2024-04-08T18:40:43Z to 2024-04-08T18:44:31Z with the Moon's real limb, is it safe
+...
+```
+
+### `skyfix limb-profile --lat --lon --utc [--every DEG]` and `skyfix limb-pack`
+
+The Moon's outline as a place sees it at an instant: heights above the 1737.4 km sphere
+by position angle (the JSON has every 1/16 degree).
+
+```console
+$ skyfix limb-profile --lat 32.7767 --lon -96.797 --height 150 \
+      --utc 2024-04-08T18:42:39Z --every 45 --pack $P/lunar-limb
+THE MOON'S LIMB
+Observer   32 46.60' N, 096 47.82' W (32.776700, -96.797000), 150 m above the WGS84
+           ellipsoid
+Time       2024-04-08T18:42:39Z
+Moon       354061 km away; the 1737.4 km sphere is 1012.160" in radius here; libration
+           +1.798, -0.107 deg; its north pole at PA 339.28 deg, the zenith at 6.79 deg
+Sun        radius 958.218", centre -16.915" east and +18.420" north of the Moon's
+Mean limb  NASA's k1 Moon +0.330", k2 Moon -0.440" against the sphere
+
+  PA deg  height "
+...
+```
+
+```console
+$ skyfix limb-pack --pack $P/lunar-limb
+LUNAR LIMB PACK
+Pack       lunar-limb 2026-09-25: LRO LOLA LDEM_16 V3.1 (LRO-L-LOLA-4-GDR-V1.0), NASA PDS Geosciences Node
+Ring       every 0.0625 deg (1.895 km), -12 to 12 deg from the mean limb, heights -7305 m to 6905 m above 1737.4 km
+```
+
+---
+
+## The almanac's other tables
+
+The rest of the printed Nautical Almanac beside its daily pages (`skyfix almanac`):
+three-date openings, Increments and Corrections, the Altitude Correction Tables, the
+additional corrections for Venus and Mars, the Polaris tables and Conversion of Arc to
+Time (`skyfix_almanac::{opening, tables}`; CONVENTIONS 13.9.1; `docs/ACCURACY.md`,
+"Almanac tables and three-day pages"). Display and teaching only: sight reduction never
+reads them. The text prints each table's `printed` values, rounded as the printed tables
+round; `--format json` is the export's document, with the numbers beside them.
+
+### `skyfix almanac-opening --date`
+
+The two facing pages for the three UT dates of an opening: the three daily pages as
+`skyfix almanac` prints them, then moonrise and moonset for the three dates and the
+next, and the planets' SHA. The dates are grouped from 1 January in the date's calendar
+(`--calendar`, as for every date).
+
+```console
+$ skyfix almanac-opening --date 2016-03-08
+THE NAUTICAL ALMANAC'S OPENING  2016-03-08
+Dates      2016-03-07 Monday, 2016-03-08 Tuesday, 2016-03-09 Wednesday (Gregorian
+           calendar)
+
+...
+MOONRISE AND MOONSET  2016-03-07 to 2016-03-10, by day of the month
+  Lat   rise 07  set 07  rise 08  set 08  rise 09  set 09  rise 10  set 10
+  N 72    07 13   14 32    07 08   16 33    07 03   18 34    06 58   20 34
+...
+```
+
+### `skyfix almanac-increments --minute M`
+
+```console
+$ skyfix almanac-increments --minute 58
+INCREMENTS AND CORRECTIONS  58m
+
+   s  Sun and planets    Aries     Moon
+  00          14 30.0  14 32.4  13 50.4
+  01          14 30.3  14 32.6  13 50.6
+  02          14 30.5  14 32.9  13 50.8
+...
+```
+
+### `skyfix almanac-arc-to-time`
+
+```console
+$ skyfix almanac-arc-to-time
+CONVERSION OF ARC TO TIME
+
+Degrees (h m)
+  deg   h m  deg   h m  deg    h m  deg    h m  deg    h m  deg    h m
+    0  0 00   60  4 00  120   8 00  180  12 00  240  16 00  300  20 00
+    1  0 04   61  4 04  121   8 04  181  12 04  241  16 04  301  20 04
+...
+```
+
+### `skyfix almanac-altitude [--temperature C --pressure HPA]`
+
+The Sun's, the stars' and planets' and the dip's critical tables; with the air's
+temperature and pressure, the exact additional corrections for them (and their zone).
+The JSON adds the Moon's two-part table and every zone's corrections.
+
+```console
+$ skyfix almanac-altitude --temperature 31.1 --pressure 982
+ALTITUDE CORRECTION TABLES
+Refraction Bennett (1982), CONVENTIONS 5 at 1010 hPa and 10 C; the Sun's SD 16.15'
+(October to March) and 15.9' (April to September), HP 0.147'.
+
+Sun, October to March (apparent altitude)
+  apparent altitude  Lower limb  Upper limb
+  9 53 to 10 05           +10.9       -21.4
+  10 05 to 10 17          +11.0       -21.3
+...
+Additional corrections for 31.1 C and 982 hPa (factor 0.9048, zone M)
+  app. alt  corr
+  0 00      +3.3
+...
+```
+
+### `skyfix almanac-planets --year` and `skyfix almanac-polaris --year`
+
+```console
+$ skyfix almanac-planets --year 2016
+ADDITIONAL CORRECTIONS FOR VENUS AND MARS 2016
+
+Venus, 2016-01-01 to 2016-12-03: HP 0.1'
+  apparent altitude  Corr
+  0 to 59            +0.1
+  59 to 90            0.0
+
+...
+```
+
+```console
+$ skyfix almanac-polaris --year 2016
+POLARIS (POLE STAR) TABLES 2016
+Mean place SHA 316 48.9, Dec N 89 19.9; polar distance 40.089'; the formula's own error up to 0.0068'
+
+LHA Aries
+                  0-9   10-19   20-29   30-39   40-49   50-59
+  a0 0         0 29.7  0 25.3  0 22.0  0 19.8  0 18.8  0 19.0
+  a0 1         0 29.2  0 25.0  0 21.7  0 19.6  0 18.7  0 19.1
+...
+  a1 lat 0        0.5     0.5     0.6     0.6     0.6     0.6
+...
+```
+
+---
+
 ## Other things worth running
 
 ```console
@@ -1502,6 +2881,11 @@ are typed from Bowditch's sections 1910 and 1912 via
 `fixtures/reference/bowditch_worked_examples.json`, and `lunar_19.input.json` is the
 `lunar_distance` example of `docs/EXPLORER_API.md`. `tests/explorer_fixtures.rs` rebuilds
 them from those sources (`SKYFIX_WRITE_FIXTURES=1 cargo test -p skyfix-cli --test
-explorer_fixtures`), and `tests/explorer_golden.rs` holds twelve text reports, most of them
-the examples above, to the byte against `tests/golden/` (`SKYFIX_WRITE_GOLDEN=1` to
-regenerate after a deliberate change, then read the diff).
+explorer_fixtures`), and `tests/explorer_golden.rs` holds thirty-three text reports, most
+of them the examples above, to the byte against `tests/golden/` (`SKYFIX_WRITE_GOLDEN=1`
+to regenerate after a deliberate change, then read the diff). Every example in this
+document between "The sky, almanac events and the navigation methods" and "Other things
+worth running" is run by the same test file, and its quoted lines must appear in its
+output in order. `tests/parity.rs` holds the expansion commands to their library calls
+and their WASM exports (above, "How they answer"); `ceres.elements.json` is the
+`parse_orbits` example of `docs/EXPLORER_API.md`.

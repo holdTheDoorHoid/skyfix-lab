@@ -32,7 +32,11 @@ pub struct Args {
     #[arg(long, value_name = "COURSE,SPEED", value_parser = parse_vessel)]
     pub vessel: Option<VesselMotion>,
     /// The instant a combined latitude refers to, RFC 3339 UTC. Default: the last sight.
-    #[arg(long = "reference-utc", value_name = "RFC3339")]
+    #[arg(
+        long = "reference-utc",
+        value_name = "RFC3339",
+        allow_hyphen_values = true
+    )]
     pub reference_utc: Option<String>,
     /// Where body directions come from when an observation has no geocentric block.
     #[arg(long, value_enum, default_value_t = EphemerisChoice::Auto, value_name = "MODE")]
@@ -122,7 +126,7 @@ pub fn render(r: &PolarisResult) -> String {
     out.push_str(&format!(
         "  {}{}{:>9}{:>10}{:>10}  {}{:>8}\n",
         report::pad("id", 10),
-        report::pad("UTC", 21),
+        report::pad(text::scale_word(r.reference_jd_utc), 21),
         "Ho",
         "LHA",
         "Zn",

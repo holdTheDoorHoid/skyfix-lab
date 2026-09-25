@@ -25,7 +25,7 @@ pub struct Args {
     #[command(flatten)]
     pub position: PositionArgs,
     /// The instant, RFC 3339 UTC with a trailing Z.
-    #[arg(long, value_name = "RFC3339", value_parser = parse_instant)]
+    #[arg(long, value_name = "RFC3339", value_parser = parse_instant, allow_hyphen_values = true)]
     pub utc: f64,
     /// The body: the Sun, the Moon, Venus, Mars, Jupiter, Saturn or a navigational star
     /// (`skyfix catalog`).

@@ -188,6 +188,25 @@ fn sight_block(s: &ReducedSight, session: &Session) -> String {
         "  Ho {:.6} deg   sigma {:.2}'\n",
         s.ho_deg, s.sigma_arcmin
     ));
+    // The index-error and watch logs (CONVENTIONS section 10): which value a log gave this
+    // sight, in the core's own sentence.
+    for (what, logged) in [
+        ("index-error log", &s.index_correction_from_log),
+        ("watch log", &s.clock_correction_from_log),
+    ] {
+        if let Some(l) = logged {
+            for (i, line) in report::wrap(&format!("{what}: {}", l.note), 84, "      ")
+                .into_iter()
+                .enumerate()
+            {
+                if i == 0 {
+                    out.push_str(&format!("  {}\n", line.trim_start()));
+                } else {
+                    out.push_str(&format!("{line}\n"));
+                }
+            }
+        }
+    }
     match (s.hc_deg, s.zn_deg, s.intercept_nm) {
         (Some(hc), Some(zn), Some(a)) => {
             out.push_str(&format!(

@@ -1,0 +1,9 @@
+DATA PACKS
+
+  pack        loaded  version  bytes  provides
+  tides-us    no      -            -  tides:us             US tides: Tide predictions for NOAA's tide stations, mostly in the United States
+  lunar-limb  no      -            -  eclipses:lunar-limb  Lunar limb: The mountains and valleys at the Moon's edge, for eclipse contact times and Baily's beads
+
+A pack is loaded for one run with --pack FILE, a file from web/public/data/packs/ (the
+site's copies), or --pack DIR/NAME for the one NAME-<rev>.bin in DIR. It changes what
+the engine can answer, never how (CONVENTIONS 15.5).
