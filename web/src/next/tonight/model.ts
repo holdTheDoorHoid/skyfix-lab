@@ -22,13 +22,17 @@ import type {
   ShowerNight,
   SunLightWindow,
 } from '../engine/types.js';
-import { dateLong, formatMagnitude } from '../shell/format.js';
+import { formatMagnitude } from '../shell/format.js';
+import { moonPhaseName } from '../theme/glyphs.js';
+import { formatCivilDate } from '../time/format.js';
 import { wallClock } from '../time.js';
 import { darknessOf, nightMiddle, type NightCore, type NightDetail } from './data.js';
 import {
   cap,
   clock,
+  clockOn,
   clockRange,
+  dayTitle,
   degrees,
   directionWords,
   distanceText,
@@ -106,13 +110,16 @@ export interface HeaderModel {
   sentences: string[];
 }
 
-/** The evening's date: the local date at sunset (or at 18:00 local mean time without one). */
+/**
+ * The evening's date: the local date at sunset (or at 18:00 local mean time without one), in
+ * the display calendar (Julian before 1582-10-15, tagged) with the year as Settings write it,
+ * which is left out in the present year.
+ */
 export function eveningDate(core: NightCore, f: Fmt, nowJd: number): string {
   const { set } = sunsetSunrise(core);
   const at = set ?? core.q.n + 0.25;
-  // time-ui: the calendar formatter (Julian dates before 1582, BC years) once it lands.
-  const text = dateLong(at, f.zone);
-  return wallClock(at, f.zone).year === wallClock(nowJd, f.zone).year ? text.replace(/ -?\d+$/, '') : text;
+  if (wallClock(at, f.zone).year === wallClock(nowJd, f.zone).year) return dayTitle(at, f.zone);
+  return formatCivilDate(at, f.zone, 'long', { calendar: true });
 }
 
 /** How the night stands to the real present: `Tonight`, `Tomorrow night`, `Last night`, `The night of`. */
@@ -275,12 +282,17 @@ export function moonModel(core: NightCore, detail: NightDetail | null, f: Fmt): 
   const k = m?.illuminated_fraction ?? detail?.moon?.illuminated_fraction ?? null;
   if (k === null) return null;
   const waxing = m?.waxing ?? true;
-  const name = m ? cap(m.phase) : 'The Moon';
+  // The design system's names, as the Selected card writes them.
+  const name = moonPhaseName(k, waxing);
   const words = phaseWords(detail?.phases ?? null, nightMiddle(core));
   const rows: MoonModel['rows'] = [];
-  for (const e of moonEvents(core)) rows.push({ key: e.kind === 'rise' ? 'Moonrise' : 'Moonset', value: clock(e.jd, f), jd: e.jd });
   const moonBody = bodyEvents(core, 'Moon');
-  if (!rows.length) rows.push({ key: 'Rise and set', value: moonBody?.always_above ? 'Up all night' : moonBody?.always_below ? 'Down all night' : 'None between sunset and sunrise' });
+  const evening = sunsetSunrise(core).set ?? core.q.n + 0.25;
+  for (const e of moonBody?.events ?? []) {
+    if (e.kind !== 'rise' && e.kind !== 'set') continue;
+    rows.push({ key: e.kind === 'rise' ? 'Moonrise' : 'Moonset', value: clockOn(e.jd_utc, evening, f), jd: e.jd_utc });
+  }
+  if (!rows.length) rows.push({ key: 'Rise and set', value: moonBody?.always_above ? 'Up all night' : moonBody?.always_below ? 'Down all night' : 'Neither tonight' });
   const o = detail?.orientation;
   if (o) {
     const pct = o.diameter_vs_mean_percent;
@@ -362,7 +374,17 @@ export function planetLine(core: NightCore, p: PlanetTonight, f: Fmt): string {
   const parts = [p.body, directionWords(best.direction, best.az_deg)];
   const times: { jd: number; text: string }[] = [];
   if (ev.rise !== null) times.push({ jd: ev.rise, text: `rises ${clock(ev.rise, f)}` });
-  times.push({ jd: best.jd_utc, text: `highest ${clock(best.jd_utc, f)} at ${degrees(best.alt_deg)}` });
+  // The engine's best is the highest point while the Sun is 6° down: at an edge of that
+  // stretch the planet is still climbing (or already sinking) as the sky brightens.
+  const w = planetWindow(core);
+  const edge = 12 / 1440;
+  const high =
+    w && best.jd_utc - w[0] <= edge
+      ? `${degrees(best.alt_deg)} up at dusk (${clock(best.jd_utc, f)}), then lower`
+      : w && w[1] - best.jd_utc <= edge
+        ? `${degrees(best.alt_deg)} up by ${clock(best.jd_utc, f)}, as dawn comes`
+        : `highest ${clock(best.jd_utc, f)} at ${degrees(best.alt_deg)}`;
+  times.push({ jd: best.jd_utc, text: high });
   if (ev.set !== null) times.push({ jd: ev.set, text: `sets ${clock(ev.set, f)}` });
   times.sort((a, b) => a.jd - b.jd);
   parts.push(...times.map((t) => t.text));
@@ -512,8 +534,8 @@ export interface MilkyWayModel {
   /** The first sentence: whether the core is up in the dark, and when. */
   headline: string;
   lines: string[];
-  /** The best moment, or null. */
-  best: { jd: number; alt: number; az: number } | null;
+  /** The best moment, or null; `text` follows its time: `the core 16° up in the south-south-west`. */
+  best: { jd: number; alt: number; az: number; text: string } | null;
 }
 
 export function milkyWayModel(core: NightCore, f: Fmt): MilkyWayModel | null {
@@ -531,15 +553,20 @@ export function milkyWayModel(core: NightCore, f: Fmt): MilkyWayModel | null {
     }
     const total = ws.reduce((sum, w) => sum + (w.jd_end - w.jd_start), 0);
     const best = ws.reduce((a, w) => (w.best.alt_deg > a.best.alt_deg ? w : a), ws[0]!);
-    const spans = ws.map((w: GalacticWindow) => `${clockRange(w.jd_start, w.jd_end, f)}${w.moon_up ? ` with the Moon up (${percentLit(w.moon_illuminated_fraction)} lit)` : ', Moon down'}`);
+    const spans = ws.map((w: GalacticWindow) => `${clockRange(w.jd_start, w.jd_end, f)} ${w.moon_up ? `with the Moon up (${percentLit(w.moon_illuminated_fraction)} lit)` : 'with the Moon down'}`);
     const [e1, e2] = best.best.arch_ends_az_deg;
+    const all = ws.length > 1 ? `: ${duration(total)} in all` : '';
     return {
-      headline: `The core is up in the dark ${spans.join('; ')} (${duration(total)} in all).`,
+      headline: `The core is ${g.min_altitude_deg}° or more up in full darkness ${listWords(spans)}${all}.`,
       lines: [
-        `Best at ${clock(best.best.jd_utc, f)}: the core ${degrees(best.best.alt_apparent_deg)} up in the ${directionWords(compass16(best.best.az_deg), best.best.az_deg)}.`,
-        `The arch then rises from the ${directionWords(compass16(e1), e1)} horizon to ${degrees(best.best.arch_top_alt_deg)} up in the ${directionWords(compass16(best.best.arch_top_az_deg), best.best.arch_top_az_deg)} and comes down in the ${directionWords(compass16(e2), e2)}.`,
+        `The arch of the Milky Way then rises from the ${directionWords(compass16(e1), e1)} horizon to ${degrees(best.best.arch_top_alt_deg)} up in the ${directionWords(compass16(best.best.arch_top_az_deg), best.best.arch_top_az_deg)} and comes down in the ${directionWords(compass16(e2), e2)}.`,
       ],
-      best: { jd: best.best.jd_utc, alt: best.best.alt_apparent_deg, az: best.best.az_deg },
+      best: {
+        jd: best.best.jd_utc,
+        alt: best.best.alt_apparent_deg,
+        az: best.best.az_deg,
+        text: `the core ${degrees(best.best.alt_apparent_deg)} up in the ${directionWords(compass16(best.best.az_deg), best.best.az_deg)}`,
+      },
     };
   }
   const c = core.tonight?.milky_way_core;
@@ -547,7 +574,7 @@ export function milkyWayModel(core: NightCore, f: Fmt): MilkyWayModel | null {
   return {
     headline: `${c.reason}.`,
     lines: [],
-    best: c.best ? { jd: c.best.jd_utc, alt: c.best.alt_deg, az: c.best.az_deg } : null,
+    best: c.best ? { jd: c.best.jd_utc, alt: c.best.alt_deg, az: c.best.az_deg, text: `the core ${degrees(c.best.alt_deg)} up in the ${directionWords(c.best.direction, c.best.az_deg)}` } : null,
   };
 }
 

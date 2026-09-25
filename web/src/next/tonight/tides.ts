@@ -117,9 +117,3 @@ export function stationWhere(st: TideStationNear, units: Units, point: string): 
 export function datumWords(datum: string): string {
   return datum === 'MLLW' ? 'mean lower low water (MLLW), the datum of US charts' : datum;
 }
-
-/** `0.3 MB`, `1.3 MB`, `45 KB`. */
-export function sizeText(bytes: number | null): string {
-  if (!bytes) return '';
-  return bytes >= 1e5 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} KB`;
-}

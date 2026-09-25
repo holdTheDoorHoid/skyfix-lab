@@ -51,7 +51,7 @@ export const VIEW_META: Record<ViewId, ViewMeta> = {
     tab: 'charts',
     label: 'Charts',
     icon: 'charts',
-    tip: 'Heights through the day, twilight through the year',
+    tip: 'Heights through the day and the year, the Sun’s path, the Moon, the planets and the tides',
     title: 'Charts',
   },
   navigate: {

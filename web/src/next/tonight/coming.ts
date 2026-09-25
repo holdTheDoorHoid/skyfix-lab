@@ -28,7 +28,7 @@ import {
 import { formatMagnitude } from '../shell/format.js';
 import { wallClock } from '../time.js';
 import type { NightQuery } from './data.js';
-import { cap, clock, degrees, distanceText, percentLit, type Fmt } from './format.js';
+import { cap, clock, clockOn, degrees, distanceText, percentLit, type Fmt } from './format.js';
 
 /** How far ahead the list looks, days (the brief: the next 14 days). */
 export const COMING_DAYS = 14;
@@ -200,6 +200,11 @@ const eclipses: ComingSource = {
   },
 };
 
+/** The planets a conjunction is listed for. */
+export const NAKED_EYE = ['Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn'] as const;
+/** The lower of the two must stand this high at the best moment to be worth going out for, degrees. */
+export const MIN_CONJUNCTION_ALT = 5;
+
 function pointWords(pa: number): string {
   const a = ((pa % 360) + 360) % 360;
   return a < 45 || a >= 315 ? 'north' : a < 135 ? 'east' : a < 225 ? 'south' : 'west';
@@ -219,9 +224,11 @@ const conjunctions: ComingSource = {
   run(ctx, q, f) {
     if (!isPlanetDetailEngine(ctx.engine)) return { items: [] };
     const [a, b] = span(q);
+    // The naked-eye planets only (the engine's four default stars stay): a conjunction with
+    // Uranus or Neptune is not a sight, and the search is quicker.
     const items = ctx.engine
-      .conjunctions(a, b, { observer: q.observer })
-      .conjunctions.filter((c) => c.visible && c.local?.best)
+      .conjunctions(a, b, { observer: q.observer, planets: [...NAKED_EYE] })
+      .conjunctions.filter((c) => c.visible && c.local?.best && Math.min(c.local.best.body_alt_deg, c.local.best.other_alt_deg) >= MIN_CONJUNCTION_ALT)
       .map((c) => {
         const best = c.local!.best!;
         const low = Math.min(best.body_alt_deg, best.other_alt_deg);
@@ -229,7 +236,7 @@ const conjunctions: ComingSource = {
           kind: 'conjunction' as const,
           jd: best.jd_utc,
           title: conjunctionTitle(c),
-          detail: `Best seen at ${clock(best.jd_utc, f)}, ${degrees(low)} up or more; closest at ${clock(c.jd_utc, f)}.`,
+          detail: `Best seen at ${clock(best.jd_utc, f)}, both ${degrees(low)} up or more; closest at ${clockOn(c.jd_utc, best.jd_utc, f)}.`,
           body: c.body,
           seen: true,
         };
@@ -320,10 +327,14 @@ const planets: ComingSource = {
     if (!isPlanetEventsEngine(ctx.engine)) return { items: [] };
     const [a, b] = span(q);
     return {
-      items: ctx.engine.planetEvents(a, b).events.map((e) => {
-        const [title, detail, seen] = PLANET_WORDS[e.kind](e);
-        return { kind: 'planet' as const, jd: e.jd_utc, title, detail, body: e.body, seen };
-      }),
+      items: ctx.engine
+        .planetEvents(a, b)
+        // A closest approach matters for Mars; for the others it is the opposition's twin or lost in the Sun.
+        .events.filter((e) => e.kind !== 'perigee' || e.body === 'Mars')
+        .map((e) => {
+          const [title, detail, seen] = PLANET_WORDS[e.kind](e);
+          return { kind: 'planet' as const, jd: e.jd_utc, title, detail, body: e.body, seen };
+        }),
     };
   },
 };

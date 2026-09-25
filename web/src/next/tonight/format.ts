@@ -7,30 +7,49 @@
 import type { CompassPoint, DsoInstrument, DsoType, PhaseEvent } from '../engine/types.js';
 import { compassWords, eventTime, formatDistance, formatMagnitude, MINUS, otherDay } from '../shell/format.js';
 import type { AngleFormat, Units } from '../state.js';
-import type { Zone } from '../time.js';
+import { withUncertainty, type ChipInfo } from '../time/chip.js';
+import { MONTHS_LONG, WEEKDAYS_LONG } from '../time/format.js';
+import { wallClock, type Zone } from '../time.js';
 
 /** How the view writes things: the display zone and the person's settings. */
 export interface Fmt {
+  /** The display zone (local mean time before 1850 for a zone that follows the place). */
   zone: Zone;
   angle: AngleFormat;
   units: Units;
+  /**
+   * The night's `time_info` (time-ui's chip rule): when the Earth's rotation at that date is
+   * uncertain by more than 30 s, or the night is in the labelled tier, every time written
+   * carries the uncertainty (`±12 min`). Null or absent: nothing is added.
+   */
+  dt?: ChipInfo | null;
 }
 
-/** `18:40` (or `6:40 PM`), rounded to the minute like every event time. */
-export function clock(jd: number, f: Pick<Fmt, 'zone'>): string {
-  // time-ui: the display calendar's clock (LMT before 1850) once time-ui's helpers land.
+/** `18:40` (or `6:40 PM`) on the display clock, rounded to the minute: no uncertainty (a button carries the chip beside it). */
+export function clockPlain(jd: number, f: Pick<Fmt, 'zone'>): string {
   return eventTime(jd, f.zone);
 }
 
-/** `18:40`, with the weekday when it falls on another local date than `ref`: `01:10 Fri`. */
-export function clockOn(jd: number, ref: number, f: Pick<Fmt, 'zone'>): string {
-  const day = otherDay(jd, ref, f.zone);
-  return day ? `${clock(jd, f)} ${day}` : clock(jd, f);
+/** `18:40`, and `18:40 ±12 min` when the night's times are that uncertain (time-ui's rule). */
+export function clock(jd: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
+  return withUncertainty(eventTime(jd, f.zone), f.dt);
 }
 
-/** `20:12–05:02`. */
-export function clockRange(a: number, b: number, f: Pick<Fmt, 'zone'>): string {
-  return `${clock(a, f)}–${clock(b, f)}`;
+/** `18:40`, with the weekday when it falls on another local date than `ref`: `01:10 Fri`. */
+export function clockOn(jd: number, ref: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
+  const day = otherDay(jd, ref, f.zone);
+  return withUncertainty(day ? `${clockPlain(jd, f)} ${day}` : clockPlain(jd, f), f.dt);
+}
+
+/** `20:12–05:02` (one uncertainty for the pair). */
+export function clockRange(a: number, b: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
+  return withUncertainty(`${clockPlain(a, f)}–${clockPlain(b, f)}`, f.dt);
+}
+
+/** `Thursday 24 September`: the local date in the display calendar, without the year. */
+export function dayTitle(jd: number, zone: Zone): string {
+  const w = wallClock(jd, zone);
+  return `${WEEKDAYS_LONG[w.weekday]} ${w.day} ${MONTHS_LONG[w.month - 1]}`;
 }
 
 /** A duration: `45 min`, `3 h 50 min`, `11 h`. */

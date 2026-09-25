@@ -46,7 +46,7 @@ import {
   type SkyChoice,
 } from './data.js';
 import { COMING_SOURCES, groupByDay, mergeComing, type ComingItem, type ComingResult } from './coming.js';
-import { clock, type Fmt } from './format.js';
+import { clock, clockPlain, dayTitle, type Fmt } from './format.js';
 import {
   dsoRows,
   headerModel,
@@ -59,9 +59,12 @@ import {
 } from './model.js';
 import { MINUTE } from './night.js';
 import { showInSky } from './sky-link.js';
-import { datumWords, markDeclined, sizeText, stationWhere, tideCard, tideHeight, TIDES_PACK, TIDES_REASON, type TideCard } from './tides.js';
+import { datumWords, markDeclined, stationWhere, tideCard, tideHeight, TIDES_PACK, TIDES_REASON, type TideCard } from './tides.js';
+import { formatBytes } from '../packs/manifest.js';
 import { timelineModel, timelineView, type TimelineModel } from './timeline.js';
-import { dateLong } from '../shell/format.js';
+import { timeInfoForSpan, uncertaintyChip, type ChipInfo } from '../time/chip.js';
+import { scaleLabel } from '../time/scale.js';
+import { UTC_ZONE, zoneShortName } from '../time.js';
 
 // -------------------------------------------------------------------------------------
 // The view's own memory (per explorer, while the page lives)
@@ -104,8 +107,8 @@ export const SETTLE_MS = 200;
 /** While the time keeps moving (the time bar dragged, playback), a new night at least this often, ms. */
 export const MAX_WAIT_MS = 4000;
 
-function fmtOf(s: ExplorerState): Fmt {
-  return { zone: displayZone(s), angle: s.settings.angleFormat, units: s.settings.units };
+function fmtWith(s: ExplorerState, dt: ChipInfo | null): Fmt {
+  return { zone: displayZone(s), angle: s.settings.angleFormat, units: s.settings.units, dt };
 }
 
 function fmtKey(s: ExplorerState): string {
@@ -123,12 +126,15 @@ function card(id: string, title: string, iconName: Parameters<typeof icon>[0]): 
   return { el, head, body, aside };
 }
 
-/** A time that sets the explorer's time: the local clock, UTC in its name and tooltip. */
-function timeButton(jd: number, f: Fmt, text?: string): HTMLButtonElement {
-  const local = text ?? clock(jd, f);
-  const utc = `${clock(jd, { zone: { kind: 'fixed', offsetMs: 0, name: 'UTC' } })} UTC`;
-  // time-ui: the ±ΔT chip beside this time once time-ui's helpers land (uncertaintyChip).
-  return h('button', { type: 'button', class: 'sft-time', 'data-jd': String(jd), title: `${local} · ${utc}: show this moment`, 'aria-label': `${local}, ${utc}. Show this moment.` }, local);
+/**
+ * A time that sets the explorer's time: the local clock, UTC (or UT outside 1972-2035) in its
+ * name and tooltip, and time-ui's ±ΔT chip beside it when the night's times are uncertain.
+ */
+function timeButton(jd: number, f: Fmt, text?: string): HTMLElement {
+  const local = text ?? clockPlain(jd, f);
+  const utc = `${clockPlain(jd, { zone: UTC_ZONE })} ${scaleLabel(jd)}`;
+  const b = h('button', { type: 'button', class: 'sft-time', 'data-jd': String(jd), title: `${local} · ${utc}: show this moment`, 'aria-label': `${local}, ${utc}. Show this moment.` }, local);
+  return f.dt ? h('span', { class: 'sft-timewrap' }, b, uncertaintyChip(f.dt)) : b;
 }
 
 /** `replaceChildren` that skips the parts a card leaves out. */
@@ -226,6 +232,22 @@ const view: Component = (host, ctx) => {
     if (html.dataset.printView === 'tonight') delete html.dataset.printView;
   });
 
+  // The sheet prints every moment of the night (a closed <details> would print closed).
+  let wasOpen = false;
+  const beforePrint = (): void => {
+    wasOpen = tlTable.open;
+    tlTable.open = true;
+  };
+  const afterPrint = (): void => {
+    tlTable.open = wasOpen;
+  };
+  window.addEventListener('beforeprint', beforePrint);
+  window.addEventListener('afterprint', afterPrint);
+  d.add(() => {
+    window.removeEventListener('beforeprint', beforePrint);
+    window.removeEventListener('afterprint', afterPrint);
+  });
+
   // Every time on the page sets the explorer's time (one delegated handler).
   const onTime = (event: Event): void => {
     const target = (event.target as Element | null)?.closest?.('.sft-time[data-jd]');
@@ -246,6 +268,7 @@ const view: Component = (host, ctx) => {
   let comingMissing: string[] = [];
   let tides: TideCard | null = null;
   let tidePending = false;
+  let manifestAsked = false;
   let tlModel: TimelineModel | null = null;
   let shownKey = '';
   let shownFmt = '';
@@ -253,6 +276,8 @@ const view: Component = (host, ctx) => {
   let realNight: number | null = null;
   let catalog: readonly Dso[] | null = null;
   let constellations: Map<string, string> | null = null;
+  /** How to write things now: the settings, and the shown night's Earth-rotation uncertainty (time-ui's chip rule). */
+  const fmtOf = (s: ExplorerState): Fmt => fmtWith(s, core?.covered ? timeInfoForSpan(ctx, core.q.n, core.q.n + 1) : null);
 
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const later = (fn: () => void, ms = 0): void => {
@@ -270,7 +295,8 @@ const view: Component = (host, ctx) => {
   // --- drawing --------------------------------------------------------------------------------
   const drawHeader = (s: ExplorerState, f: Fmt): void => {
     const o = s.observer;
-    placeEl.textContent = `${o.label || 'Your place'} · ${formatLat(o.lat_deg, s.settings.angleFormat)} ${formatLon(o.lon_deg, s.settings.angleFormat)}`;
+    const zoneName = core?.covered ? ` · times in ${zoneShortName(core.q.n + 0.5, f.zone)}` : '';
+    placeEl.textContent = `${o.label || 'Your place'} · ${formatLat(o.lat_deg, s.settings.angleFormat)} ${formatLon(o.lon_deg, s.settings.angleFormat)}${zoneName}`;
     if (!core) return;
     if (!core.covered) {
       kicker.textContent = 'Tonight';
@@ -280,9 +306,9 @@ const view: Component = (host, ctx) => {
     }
     const m = headerModel(core, detail, f, Date.now() / 86_400_000 + 2_440_587.5, realNight);
     kicker.textContent = m.kicker;
-    dateEl.textContent = m.date;
+    // The night's Earth-rotation uncertainty beside its date (time-ui's chip: shown only when it matters).
+    dateEl.replaceChildren(m.date, f.dt ? uncertaintyChip(f.dt) : '');
     tonightBtn.hidden = m.kicker === 'Tonight';
-    // time-ui: the ±ΔT chip after the date when the night is in the labelled tier.
     summaryEl.replaceChildren(...m.sentences.map((t) => para(t, 'sft-lead')));
   };
 
@@ -456,7 +482,7 @@ const view: Component = (host, ctx) => {
     if (!rows.length) {
       fill(body, 
         para('No meteor shower is active tonight: only the few sporadic meteors of any night.'),
-        nextPeak ? para(`Next: ${nextPeak.title.replace(/ peak$/, '')} at their peak, ${dateLong(nextPeak.jd, f.zone).replace(/ -?\d+$/, '')}.`, 'sft-p sft-muted') : null,
+        nextPeak ? para(`Next: the ${nextPeak.title.replace(/ peak$/, '')} at their peak, ${dayTitle(nextPeak.jd, f.zone)}.`, 'sft-p sft-muted') : null,
       );
       return;
     }
@@ -519,23 +545,20 @@ const view: Component = (host, ctx) => {
           onClick: () => showInSky(ctx, { kind: 'direction', label: 'The Milky Way’s core', alt_deg: best.alt, az_deg: best.az }, best.jd),
         })
       : null;
-    fill(body, 
+    fill(
+      body,
       para(m.headline, 'sft-p sft-lead2'),
+      best ? h('p', { class: 'sft-p' }, 'Best at ', timeButton(best.jd, f), `: ${best.text} (bearing ${bearing3(best.az)}).`) : null,
       ...m.lines.map((x) => para(x)),
-      best ? para(`Best moment: `, 'sft-p') : null,
       h('div', { class: 'sft-actions' }, plan, look),
     );
-    if (best) {
-      const bestLine = body.querySelectorAll('p')[m.lines.length + 1];
-      bestLine?.append(timeButton(best.jd, f), ` (bearing ${bearing3(best.az)})`);
-    }
   };
 
   const drawComing = (f: Fmt): void => {
     const body = comingCard.body;
     if (!core?.covered) return void fill(body, );
     const items = mergeComing(coming ?? new Map());
-    const groups = groupByDay(items, f, (jd) => dateLong(jd, f.zone).replace(/ -?\d+$/, ''));
+    const groups = groupByDay(items, f, (jd) => dayTitle(jd, f.zone));
     const list = h(
       'div',
       { class: 'sft-coming' },
@@ -587,7 +610,12 @@ const view: Component = (host, ctx) => {
     if (t.kind === 'loading') return void fill(body, para('Loading the tides pack…', 'sft-p sft-muted'));
     if (t.kind === 'error') return void fill(body, para(`Tides could not be worked out: ${t.message}`, 'sft-p sft-muted'));
     if (t.kind === 'offer') {
-      const size = sizeText(t.bytes);
+      // The size is the site's list's (the pack service reads it once, when first needed).
+      if (!t.bytes && !manifestAsked) {
+        manifestAsked = true;
+        void ctx.packs.refresh();
+      }
+      const size = t.bytes ? formatBytes(t.bytes) : '';
       const get = button({
         label: `Get tide predictions (US stations${size ? `, ${size}` : ''})`,
         icon: 'plus',
@@ -620,6 +648,19 @@ const view: Component = (host, ctx) => {
         'sft-p sft-muted sft-small',
       ),
       st.kind === 'subordinate' ? para(`A subordinate station: times and heights are offsets from ${st.reference_name ?? 'a reference station'}, as NOAA’s tables give them.`, 'sft-p sft-muted sft-small') : null,
+      h(
+        'div',
+        { class: 'sft-actions' },
+        button({
+          label: 'Tides chart',
+          icon: 'charts',
+          size: 'sm',
+          variant: 'secondary',
+          tip: 'The predicted tide curve for this station in Charts',
+          // Loaded when asked: the Charts view's code stays out of this view's.
+          onClick: () => void import('../charts/index.js').then((m) => m.showCharts(store, 'tides')),
+        }),
+      ),
     );
     tidesCard.el.title = t.label;
   };
