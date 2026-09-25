@@ -16,14 +16,18 @@
  *      sight is entered in Navigate;
  *   6. dragging the time bar on each view: frame times, reported (not judged: a headless
  *      browser draws WebGL and canvas in software, so the map and sky are far slower here
- *      than on a real screen).
+ *      than on a real screen);
+ *   7. Navigate's Compass and Passage tabs, the star finder and the print preview of the
+ *      worksheets and plotting sheet (navigate2, expansion programme): each works, lays out
+ *      without overlap or cut-off text, keeps the console clean, and in the night theme
+ *      shows no blue, green or white light (the preview's paper included).
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
  * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
  *
  *   npm run build --prefix web && node web/scripts/ui-check.mjs
  *   SITE=site node web/scripts/ui-check.mjs          # the assembled Pages site
- *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub
+ *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,navigate2
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
  * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
@@ -49,7 +53,7 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,navigate2').split(','));
 const SWITCHES = Number(process.env.SWITCHES ?? 50);
 const DIMS = { desktop: [1440, 900, false], phone: [390, 844, true] };
 const MOMENT = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&t=2026-09-24T16:00:00Z&body=Moon';
@@ -421,6 +425,81 @@ async function main() {
       const s = JSON.parse(await evaluate(`JSON.stringify({ url: location.href, keys: Object.keys(localStorage), values: Object.values(localStorage).join(' ') })`));
       check('the address bar never carries the place', !/lat|lon|-?\d{1,3}\.\d{3,}/.test(new URL(s.url).hash + new URL(s.url).search), s.url);
       check('storage holds settings and the tour flag, never a position', !s.keys.includes('skyfix.navigate.working.v1') && !/lat_deg|lon_deg/.test(s.values), s.keys.join(', '));
+    }
+
+    // 7. Navigate's expansion (navigate2): Compass, Passage, the star finder, the printables.
+    if (ONLY.has('navigate2')) {
+      const tab = (name) => `(() => { const t = [...document.querySelectorAll('.sfn-tabs [role=tab]')].find((x) => x.textContent === ${JSON.stringify(name)}); t?.click(); return !!t; })()`;
+      const setField = (root, label, value) =>
+        `(() => { const r = document.querySelector(${JSON.stringify(root)}); const l = r && [...r.querySelectorAll('label')].find((x) => x.textContent.startsWith(${JSON.stringify(label)})); const i = l && document.getElementById(l.getAttribute('for')); if (!i) return false; i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); return true; })()`;
+      for (const size of SIZES) {
+        const [w, h, mobile] = DIMS[size];
+        await viewport(w, h, mobile);
+        for (const theme of ['light', 'night']) {
+          const tag = `navigate2, ${theme}, ${size}`;
+          const nightCheck = async (png, what) => {
+            if (theme !== 'night') return;
+            const n = lightNotRed(decodePng(png));
+            check(`${tag}: ${what}: no blue, green or white light`, n.count < 50, n.count ? `${n.count} px, worst ${JSON.stringify(n.worst)}` : '');
+          };
+          const layout = async (what) => {
+            const L = JSON.parse(await evaluate(LAYOUT));
+            check(`${tag}: ${what}: no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+          };
+          messages.length = 0;
+          await open(`${MOMENT}&view=navigate`, { theme });
+          await waitFor(`!!document.querySelector('.sfn-tabs')`);
+          // Compass: the variation here, then a bearing of the Sun.
+          await evaluate(tab('Compass'));
+          const variation = await waitFor(`/Variation .* \\(WMM2025\\)/.test(document.querySelector('.sfn-variation')?.textContent ?? '')`, 15000);
+          check(`${tag}: Compass: the variation at the place, with its model`, variation);
+          await evaluate(setField('.sfn-method--compass', 'The compass read', '100'));
+          const sentence = await waitFor(`/^Compass error .*; variation .*; deviation .*\\.$/.test(document.querySelector('.sfn-compass__sentence')?.textContent ?? '')`, 15000);
+          check(`${tag}: Compass: a bearing gives compass error, variation and deviation`, sentence, await evaluate(`document.querySelector('.sfn-compass__sentence')?.textContent ?? ''`));
+          await sleep(300);
+          await layout('Compass');
+          await nightCheck(await shot(`navigate2-compass-${size}-${theme}`), 'Compass');
+          // Passage: two waypoints, a speed, a departure.
+          await evaluate(tab('Passage'));
+          await waitFor(`!!document.querySelector('.sfn-method--passage')`);
+          for (const [pos, name] of [['36 55.6 N, 076 00.2 W', 'Cape Henry'], ['32 22.8 N, 064 40.8 W', 'Bermuda']]) {
+            await evaluate(setField('.sfn-method--passage', 'Add a waypoint', pos));
+            await evaluate(setField('.sfn-method--passage', 'Its name', name));
+            await evaluate(`[...document.querySelectorAll('.sfn-method--passage button')].find((b) => b.textContent.trim() === 'Add')?.click(); true`);
+            await sleep(250);
+          }
+          await evaluate(setField('.sfn-method--passage', 'Speed (knots)', '6'));
+          await evaluate(setField('.sfn-method--passage', 'Departure (UTC)', '2026-09-24 12:00:00'));
+          const planned = await waitFor(`/NM in 1 leg, .* at 6 kn: arriving/.test(document.querySelector('.sfn-method--passage .sfn-compass__sentence')?.textContent ?? '')`, 15000);
+          check(`${tag}: Passage: a great-circle leg with its distance, time and arrival`, planned, await evaluate(`document.querySelector('.sfn-method--passage .sfn-compass__sentence')?.textContent ?? ''`));
+          await sleep(300);
+          await layout('Passage');
+          await nightCheck(await shot(`navigate2-passage-${size}-${theme}`), 'Passage');
+          // The star finder, in the Plan tab.
+          await evaluate(tab('Plan sights'));
+          const finder = await waitFor(`document.querySelectorAll('.sfn-sfcard .sfn-sf__star').length === 58`, 15000);
+          check(`${tag}: the star finder draws the 58 stars and its template`, finder && (await evaluate(`!!document.querySelector('.sfn-sf__turn[transform^="rotate("]')`)));
+          await evaluate(`document.querySelector('.sfn-sfcard')?.scrollIntoView({ block: 'start' }); true`);
+          await sleep(300);
+          await layout('Plan sights with the star finder');
+          await nightCheck(await shot(`navigate2-starfinder-${size}-${theme}`), 'star finder');
+          // The printables: an example's fix, then its worksheets and plotting sheet.
+          await evaluate(`(() => { const s = document.querySelector('.sfn-head select'); s.value = 'x:dusk-stars'; s.dispatchEvent(new Event('change')); [...document.querySelectorAll('.sfn-head button')].find((b) => b.textContent.trim() === 'Load')?.click(); return true; })()`);
+          await evaluate(tab('Fix'));
+          await waitFor(`!!document.querySelector('.sfn-method--fix .sfn-method__results .sf-btn') && [...document.querySelectorAll('button')].some((b) => b.textContent.includes('Print worksheets and plotting sheet') && !b.disabled)`, 20000);
+          await evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Print worksheets and plotting sheet'))?.click(); true`);
+          const sheets = await waitFor(`document.querySelectorAll('.sfn-print-root .sfn-sheet').length === 6 && document.documentElement.dataset.printView === 'navigate-sheet'`, 10000);
+          check(`${tag}: Print: the plotting sheet and five worksheets in the preview`, sheets);
+          await sleep(300);
+          await nightCheck(await shot(`navigate2-print-${size}-${theme}`), 'print preview');
+          await evaluate(`document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true`);
+          await sleep(200);
+          check(`${tag}: Print: Esc closes the preview and clears the print view`, await evaluate(`!document.querySelector('.sfn-print-root') && !document.documentElement.dataset.printView`));
+          const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+          check(`${tag}: console clean`, noise.length === 0, noise.slice(0, 3).join(' | '));
+        }
+      }
+      await viewport(1440, 900, false);
     }
 
     // 6. Dragging the time bar.

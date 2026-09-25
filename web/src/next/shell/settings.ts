@@ -2,7 +2,8 @@
  * The settings popover: theme, how times, angles and units are shown, navigator terms,
  * the horizon used for rise and set, and the data packs saved on this device. Changes apply
  * at once and are remembered on this device (settings only; never the place). OWNER:
- * shell-design agent; the 12/24-hour clock and Data packs: packs agent.
+ * shell-design agent; the 12/24-hour clock and Data packs: packs agent; the Sights
+ * section's index correction: navigate2 agent.
  */
 
 import { h } from '../../dom.js';
@@ -96,6 +97,14 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
     const m = lengthToMetres(Number(eye.value), store.get().settings.units);
     if (Number.isFinite(m) && m >= 0 && m <= 500) set('height_of_eye_m', Number(m.toFixed(2)));
   });
+  // Sights section, navigate2 (expansion programme): the stored index correction, added to
+  // every reading (on the arc 1.5′ → −1.5), used by Tonight's sights and new sessions.
+  const ic = h('input', { class: 'sf-input sf-num', type: 'number', min: -60, max: 60, step: 0.1, inputmode: 'decimal', id: 'sf-set-ic' });
+  ic.addEventListener('change', () => {
+    const v = Number(ic.value);
+    if (ic.value.trim() !== '' && Number.isFinite(v) && v >= -60 && v <= 60) set('index_correction_arcmin', Number(v.toFixed(2)));
+    else ic.value = String(store.get().settings.index_correction_arcmin);
+  });
 
   const row = (label: string, control: HTMLElement, hint?: string): HTMLElement =>
     h('div', { class: 'sf-settings__row' }, h('span', { class: 'sf-settings__label' }, label), control, hint ? h('span', { class: 'sf-settings__hint' }, hint) : null);
@@ -117,6 +126,13 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
       h('label', { class: 'sf-settings__label', for: 'sf-set-eye' }, 'Height of eye'),
       h('div', { class: 'sf-editor__with-unit' }, eye, eyeUnit),
     ),
+    h(
+      'div',
+      { class: 'sf-settings__row' },
+      h('label', { class: 'sf-settings__label', for: 'sf-set-ic' }, 'Index correction'),
+      h('div', { class: 'sf-editor__with-unit' }, ic, h('span', { class: 'sf-editor__unit' }, '′ added')),
+    ),
+    h('p', { class: 'sf-settings__note' }, 'Index correction: on the arc 1.5′ → −1.5. Used by tonight’s sights and new sessions in Navigate.'),
     h('p', { class: 'sf-settings__note' }, 'Settings are remembered on this device. Your place is not.'),
     packs.el,
   );
@@ -137,6 +153,7 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
         for (const [seg, pick] of segs) seg.set(pick(s));
         terms.setAttribute('aria-checked', String(s.navigatorTerms));
         if (document.activeElement !== eye) eye.value = String(Number(metresToUnits(s.height_of_eye_m, s.units).toFixed(2)));
+        if (document.activeElement !== ic) ic.value = String(s.index_correction_arcmin);
         eyeUnit.textContent = s.units === 'imperial' ? 'ft' : 'm';
       },
       { equals: shallowEqual },
