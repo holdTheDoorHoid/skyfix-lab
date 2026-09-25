@@ -141,13 +141,74 @@ constellations" — and never affects a fix.
 
 ### Charts
 
-Four charts, each also available as a plain table (**View as** → **Table**, top right):
-**Day** (the height of each body through the day, over the twilight bands), **Year**
-(sunrise, sunset and twilight for every day of the year, with the Moon's phase along the
-top), **Moon** (a monthly phase calendar with moonrise and moonset), and **Planets** (when
-each is up in the dark, through the year).
+Six tabs of charts, each also available as a plain table (**View as** → **Table**, top
+right), and each with a **Save** menu (see [Saving, printing and sharing a
+chart](#saving-printing-and-sharing-a-chart) below). The place and the time are the
+explorer's own: clicking a time or a day on any chart moves the whole explorer there.
+
+- **Day**: the height of each body through the day, over the twilight bands.
+- **Year**: sunrise, sunset and twilight for every day of the year, with the Moon's phase
+  along the top.
+- **Sun**: five charts of the Sun, chosen from the second row of tabs.
+  - **Sun path**: the Sun's path across the sky today, with its hours marked, between its
+    paths on the June and December solstices and at the equinoxes; every day's path lies
+    between the two solstices. **From above** shows the sky dome as a map does, north up,
+    the zenith in the middle and the horizon round the edge; **Along the horizon** shows
+    bearing across and height up, as you see it facing the equator. Sunrise and sunset are
+    marked with their times; click the path to go to that moment.
+  - **Analemma**: where the Sun stands at one clock time — 12:00 unless you choose another
+    — on every day of the year: the figure-8 a camera fixed to one spot would record.
+    **Local mean time** is the clock of your longitude (at 12:00 the figure sits on the
+    meridian); **Zone time** is your zone's standard time all year, what a watch without
+    daylight saving reads. The first of each month is marked, and the explorer's date.
+  - **Sunrise bearings**: where on the horizon the Sun rises and sets on every day of the
+    year (north up in both panels), and how high it stands at solar noon.
+  - **Equation of time**: how far a sundial runs ahead of or behind the clock through the
+    year (up to about 16 minutes either way), and how far north or south of the equator
+    the Sun is overhead (its declination). The navigator knows both from the almanac.
+  - **Solar panel**: a **clear-sky estimate** of the sunlight reaching a panel, day by day
+    through the year and hour by hour on the explorer's day, for a tilt and a direction
+    you choose (it starts tilted at your latitude, facing the equator). It gives the year's
+    total, the same on flat ground, and the tilt that would collect the most, with a
+    button to use it. Clouds are not modelled, nor haze, snow, shading, dirt, heat or the
+    panel's own efficiency: the numbers are the ceiling on a clear day, not a forecast, and
+    the page says so beside every one, with the model's typical error.
+- **Moon**: **Phases** is a monthly calendar with each day's Moon, moonrise and moonset,
+  and the days the Moon is **nearest** (perigee) and **farthest** (apogee), with the
+  distance; supermoons and micromoons are marked on their full Moons. **Through the
+  year** shows how high the Moon stands, and in which direction, at one hour of the
+  evening (21:00 unless you choose another) on every day of the year: it comes back to
+  the same part of the sky only about once a month.
+- **Planets**: when each planet is up in the dark, through the year.
+- **Tides**: predicted high and low water and the tide curve for the day or the week at
+  the US tide station nearest your place, or another of the twelve nearest, with the
+  explorer's time as a moving cursor and night shown along the bottom. Heights are above a
+  datum you choose — mean lower low water (MLLW, the chart datum of US charts) unless you
+  choose another the station has. **Show on the map** marks the station on the map; a link
+  opens NOAA's own page for it. Tides are **predictions, not observations**: weather,
+  surge and river flow are not included, and the page says so. They come from NOAA's
+  harmonic constants for its 3 499 US stations, an optional data pack of 0.34 MB that the
+  tab offers to download the first time (see [Working offline](#working-offline)); some
+  stations give only high and low water, and the curve between is then an estimate,
+  drawn dashed. Predictions are offered for 1900 to 2100.
 
 ![The Year chart: a whole year of sunrise, sunset and twilight bands for Philadelphia, with the solstices, equinoxes and Moon phases marked.](design/charts-year-light.png)
+
+#### Saving, printing and sharing a chart
+
+Every chart's **Save** menu offers:
+
+- **Save picture (PNG)**: the chart as you see it, always in the light colours so it
+  prints and reads anywhere, with a caption underneath saying what it shows, for where and
+  when, what the numbers are and how far to trust them.
+- **Save table (CSV)**: the chart's Table view as a spreadsheet file. Angles are decimal
+  degrees and heights plain numbers (the column headings give the units); the first lines,
+  starting with `#`, say what the file is.
+- **Print**: this chart alone, as wide as the page (across the page when the chart is wide).
+- **Share picture…**, on phones and tablets that have a share sheet.
+
+Files are made in your browser and saved or shared only when you choose; nothing is sent
+anywhere.
 
 ### Almanac
 

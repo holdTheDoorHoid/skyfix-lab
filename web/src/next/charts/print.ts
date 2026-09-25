@@ -38,7 +38,8 @@ export function printCard(card: HTMLElement, options: { landscape?: boolean; tit
   for (const old of doc.querySelectorAll(`.${ROOT_CLASS}, style[data-sfc-print]`)) old.remove();
 
   const root = doc.createElement('div');
-  root.className = `sfc ${ROOT_CLASS}`;
+  // `sf-on-stage`: the design system's --ui-* tokens take the stage's colours, as on screen.
+  root.className = `sfc sf-on-stage ${ROOT_CLASS}`;
   root.setAttribute('aria-hidden', 'true');
   applyTokens(root, lightTokens(doc));
   const copy = card.cloneNode(true) as HTMLElement;

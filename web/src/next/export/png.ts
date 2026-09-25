@@ -269,7 +269,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 /** An off-screen holder with the light theme's tokens, for computing styles on copies. */
 function holder(doc: Document, width: number): HTMLElement {
   const el = doc.createElement('div');
-  el.className = 'sfc sfx-export-holder';
+  el.className = 'sfc sf-on-stage sfx-export-holder';
   el.setAttribute('aria-hidden', 'true');
   el.style.cssText = `position:fixed;left:-100000px;top:0;width:${Math.max(1, Math.ceil(width))}px;height:auto;overflow:visible;padding:0;pointer-events:none;contain:layout style;`;
   applyTokens(el, lightTokens(doc));

@@ -137,3 +137,17 @@ This file is the single list; the completion report links here.
 | Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
 | Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
 | Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |
+
+## Expansion programme Q5 — Charts: Sun, Tides, the Moon through the year, Save (charts2 agent)
+
+| item | status | notes |
+|---|---|---|
+| Sun tab: sun path (from above, along the horizon), analemma, sunrise and sunset bearings, equation of time and declination, solar panel (clear-sky estimate) | completed | `web/src/next/charts/{sun-path,analemma,sun-bearings,eot,solar}.ts` over the suntools engine; `EXPLORER_GUIDE.md` "Charts" |
+| Tides tab: nearest stations, day or week curve with the app's time, high and low water, datums, the pack's Get state, "Show on the map" | completed | `charts/tides.ts`; the cursor's readout is read off the curve (`docs/ACCURACY.md`, "Charts") |
+| Moon tab: the Moon at one hour through the year; perigee, apogee, supermoons and micromoons on the month grid | completed | `charts/moon-year.ts`, `moon-calendar.ts` |
+| Save menu on every chart: PNG with a caption strip (light colours), CSV of the Table view, print one chart per page, Web Share | completed | `web/src/next/export/{png,csv}.ts` (shared), `charts/export-menu.ts`, `charts/print.ts` |
+| Tier chips on chart tables and captions | waiting | `// time-ui:` comments mark the places (the chart shell's tables, the tides table); merged when time-ui's helpers land |
+| Sun path hour lines (the figure-8 of each clock hour through the year) | unstarted | the classic architect's diagram; needs the analemma at each hour (24 calls of about 10 ms natively), best computed once per place and year |
+| Tides map layer (stations on the map, the nearest highlighted) | unstarted | EXPANSION_PLAN names a map layer; this package only marks the chosen station ("Show on the map") |
+| Moon's rise and set bearings through the year | unstarted | `rise_set_azimuths` with `body: "Moon"` is ready (0.3 s natively a year); a panel beside the Moon through the year |
+| Print from the browser's own menu (Ctrl+P) | partial | Save → Print prints one chart; the browser's own print prints the whole app |

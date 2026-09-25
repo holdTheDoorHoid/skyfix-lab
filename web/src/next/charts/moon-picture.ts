@@ -65,7 +65,7 @@ function cell(md: MoonDay, x: number, y: number, zone: MoonMonth['input']['zone'
   disc.setAttribute('x', String(round(x + CELL_W / 2 - size / 2)));
   disc.setAttribute('y', String(round(y + 22)));
   g.append(disc);
-  const name = md.principal ? PHASE_NAMES[md.principal.kind] : md.name;
+  const name = md.principal ? `${PHASE_NAMES[md.principal.kind]} ${clockAt(md.principal.jd_utc, offsetOn(md.day, md.principal.jd_utc, zone))}` : md.name;
   g.append(svgText(x + CELL_W / 2, y + 76, name, { 'text-anchor': 'middle', class: md.principal ? 'sfc-px-name sfc-px-name--principal' : 'sfc-px-name' }));
   const times: string[] = [];
   for (const jd of md.rises) times.push(`↑${clockAt(jd, offsetOn(md.day, jd, zone))}`);

@@ -212,10 +212,9 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
       if (!d) return ['Predicted, not observed.', TIDE_LABEL];
       const units = ctx.store.get().settings.units;
       return [
-        'Predicted, not observed.',
-        d.extremes.label,
+        `Predicted, not observed: ${d.extremes.label.replace(/; predictions, not observations/, '')}.`,
         `Station ${d.station.name}${d.station.state ? `, ${d.station.state}` : ''} (NOAA ${d.station.id}), ${formatDistance(d.station.distance_km, units)} from the place.`,
-        `Heights in ${heightUnit(units).unit} above ${d.datum} (${DATUM_WORDS[d.datum]}).`,
+        `Heights in ${heightUnit(units).unit} above ${d.datum}: ${DATUM_WORDS[d.datum]}.`,
         ...d.station.notes,
         ...d.extremes.notes,
       ];

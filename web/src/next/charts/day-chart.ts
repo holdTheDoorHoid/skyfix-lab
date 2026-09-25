@@ -873,6 +873,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
         ),
       );
     }
+    // time-ui: the tier chip belongs beside each table's caption (the ±ΔT band outside the validated tier).
     c.tableWrap.replaceChildren(ev.table, ph.table, hourly.table);
     c.root.dataset.ready = '1';
   }

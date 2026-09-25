@@ -2264,3 +2264,31 @@ base commit 28131c5 (2.06 MB / 849 KB before, 2.15 MB / 885 KB with tides).
   perf -- --ignored --nocapture` for the timings.
 - The data and fixtures: `tools/tides/README.md` (NOAA's API, about 4 800 requests,
   cached).
+
+## Charts: what the Sun, Tides and Moon charts compute themselves (charts2 agent, expansion programme Q5)
+
+Every number on the Sun, Tides and Moon charts is an engine's (sections 9, 14, 16 and "Moon in
+detail"): `sun_path`, `analemma`, `rise_set_azimuths`, `equation_of_time`, `solar_day`,
+`solar_year`, `day_events`, `sky_state`, `sample_bodies`, `moon_apsides`, `tide_predict`,
+`tide_extremes` and `tide_stations_near`. The charts compute only these on top of them,
+checked against the engine in `web/test/next/charts-real-engine.test.ts` (runs when the
+WebAssembly package and the `tides-us` pack are built; `--reporter=verbose` prints the
+figures) and with the mock engine in `charts-sun.test.ts` and `charts-tides-moon.test.ts`:
+
+| what the chart does | against | worst |
+|---|---|---|
+| the tide height under the moving cursor, read off the 6-minute predicted curve (the cubic through the four nearest samples) instead of calling `tide_now` every frame | `tide_now` at 97 instants of a day and 157 of a week, at Anchorage (9455920, range about 9 m), Boston and San Francisco, 2026-09-24 | **0.02 mm** (Anchorage), under 0.01 mm elsewhere |
+| the rate of rise under the cursor, the same cubic's slope | `tide_now`'s rate | **0.09 cm/h** (Anchorage) |
+| the Moon at one hour through the year: `sample_bodies`, one exact sample a day, in two or three runs a year (a clock change starts a run) | `sky_state` at the same instants (Philadelphia, 21:00, 2026) | **0.72″**: a run takes the Earth's rotation (DUT1) at its middle (EXPLORER_API `set_dut1`); displayed to 0.1′ |
+| the sun path's whole hours on the local clock | the engine's own samples (identical values) | exact |
+
+Drawn but never shown as a number: the sun path's crossing of the horizon between two
+10-minute samples (linear; the rise and set shown are the event finder's), and the
+analemma's sky projection (stereographic, a picture only). The solar panel's energy is the
+engine's clear-sky estimate and is labelled as one everywhere, with the model's typical
+error (section 14); the tides are labelled "predicted, not observed" everywhere.
+
+Speed (Chrome, the explorer's own `data-compute` timings on the shared development machine,
+`node web/scripts/ui-check.mjs` with `ONLY=charts`): see the planner's report for the
+figures of the run; every year chart computes once per place, year and setting, after the
+time settles when it is dragged, and is kept for the page's lifetime.

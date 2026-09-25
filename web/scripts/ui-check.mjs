@@ -17,13 +17,18 @@
  *   6. dragging the time bar on each view: frame times, reported (not judged: a headless
  *      browser draws WebGL and canvas in software, so the map and sky are far slower here
  *      than on a real screen).
+ *   7. (charts2) every Charts tab and sub-view (Day, Year, the five Sun charts, the two Moon
+ *      charts, Planets, Tides) in each theme and size: drawn, no overlap or cut-off text, no
+ *      sideways scroll, a clean console, no blue or white light in the night theme; the
+ *      tides pack's one prompt and Get; the Save menu writing a real PNG and CSV; each
+ *      chart's compute time and the frame times of a drag on the Sun path, reported.
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
  * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
  *
  *   npm run build --prefix web && node web/scripts/ui-check.mjs
  *   SITE=site node web/scripts/ui-check.mjs          # the assembled Pages site
- *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub
+ *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
  * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
@@ -49,7 +54,9 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts').split(','));
+/** charts2: the Charts view's tabs and sub-views, `tab` or `tab/sub`. */
+const CHART_VIEWS = (process.env.CHARTS ?? 'day,year,sun/path,sun/analemma,sun/bearings,sun/eot,sun/solar,moon/phases,moon/year,planets,tides').split(',');
 const SWITCHES = Number(process.env.SWITCHES ?? 50);
 const DIMS = { desktop: [1440, 900, false], phone: [390, 844, true] };
 const MOMENT = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&t=2026-09-24T16:00:00Z&body=Moon';
@@ -446,6 +453,102 @@ async function main() {
         summary.scrub[view] = r;
         console.log(`info  dragging the time bar on ${view}: ${JSON.stringify(r)}`);
       }
+    }
+    // 7. The Charts view (charts2): every tab and sub-view, the tides pack, the Save menu.
+    if (ONLY.has('charts')) {
+      summary.charts = { views: [], timings: {}, exports: [], scrub: null };
+      const openChart = async (spec) => {
+        const [tab, sub] = spec.split('/');
+        await evaluate(`document.querySelector('.sfc-tabs [data-tab=${tab}]')?.click(); true`);
+        if (sub) {
+          await waitFor(`!!document.querySelector('.sfc-subtabs [data-sub=${sub}]')`, 5000);
+          await evaluate(`document.querySelector('.sfc-subtabs [data-sub=${sub}]')?.click(); true`);
+        }
+        return waitFor(`(() => { const c = document.querySelector('.sfc-card'); return !!c && c.dataset.ready === '1' && !c.hasAttribute('data-computing'); })()`, 20000);
+      };
+      let packChecked = false;
+      for (const size of SIZES) {
+        const [w, h, mobile] = DIMS[size];
+        await viewport(w, h, mobile);
+        for (const theme of THEMES) {
+          for (const spec of CHART_VIEWS) {
+            messages.length = 0;
+            await open(`${MOMENT}&view=charts`, { theme });
+            const tag = `charts ${spec}, ${theme}, ${size}`;
+            if (spec === 'tides' && !packChecked) {
+              // The first visit asks once for the pack; Get downloads it and draws the tides.
+              await evaluate(`document.querySelector('.sfc-tabs [data-tab=tides]')?.click(); true`);
+              const asked = await waitFor(`[...document.querySelectorAll('.sf-packs-prompt button')].some((b) => /^Get/.test(b.textContent.trim()))`, 10000);
+              check(`${tag}: the tides pack is offered once, with its size`, asked);
+              await evaluate(`[...document.querySelectorAll('.sf-packs-prompt button')].find((b) => /^Get/.test(b.textContent.trim()))?.click(); true`);
+              const loaded = await waitFor(`!!document.querySelector('.sfc-card--tides .sfc-plot svg')`, 30000);
+              check(`${tag}: Get downloads the pack and the tides are drawn`, loaded);
+              packChecked = true;
+            }
+            const drawn = await openChart(spec);
+            await sleep(500);
+            const info = JSON.parse(await evaluate(`JSON.stringify((() => { const c = document.querySelector('.sfc-card'); return { compute: c?.dataset.compute ?? '', message: c?.querySelector('.sfc-message')?.textContent ?? '', svg: !!c?.querySelector('.sfc-plot svg, .sfc-cal') }; })())`));
+            const L = JSON.parse(await evaluate(LAYOUT));
+            const png = await shot(`charts-${size}-${theme}-${spec.replace('/', '-')}`);
+            const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+            check(`${tag}: drawn`, drawn && info.svg && !info.message, info.message);
+            check(`${tag}: no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+            if (mobile) check(`${tag}: the view ends where the sheet begins`, L.underSheet <= 0, `${L.underSheet}px under the sheet`);
+            check(`${tag}: console clean`, noise.length === 0, noise.slice(0, 3).join(' | '));
+            if (theme === 'night') {
+              const n = lightNotRed(decodePng(png));
+              check(`${tag}: no blue, green or white light`, n.count < 50, n.count ? `${n.count} px, worst ${JSON.stringify(n.worst)}` : '');
+            }
+            if (info.compute) summary.charts.timings[`${spec} ${size} ${theme}`] = info.compute;
+            summary.charts.views.push({ spec, size, theme, layout: L, messages: noise, compute: info.compute });
+          }
+        }
+      }
+      await viewport(1440, 900, false);
+
+      // The Save menu writes a real picture and a real CSV file (into a scratch folder).
+      const downloads = join(scratch, 'downloads');
+      mkdirSync(downloads, { recursive: true });
+      await send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: downloads });
+      for (const spec of ['sun/path', 'tides', 'moon/phases', 'day']) {
+        await open(`${MOMENT}&view=charts`, { theme: 'night' });
+        await openChart(spec);
+        for (const action of ['png', 'csv']) {
+          await evaluate(`document.querySelector('.sfc-card .sfc-save').click(); true`);
+          await sleep(250);
+          await evaluate(`document.querySelector('[data-action=${action}]').click(); true`);
+          const saved = await waitFor(`/^Saved /.test(document.querySelector('.sfc-card .sfc-status')?.textContent ?? '')`, 15000);
+          const status = await evaluate(`document.querySelector('.sfc-card .sfc-status')?.textContent ?? ''`);
+          const name = (/^Saved (.+)\.$/.exec(status) ?? [])[1] ?? '';
+          await sleep(700);
+          const file = join(downloads, name);
+          const ok = saved && name && existsSync(file);
+          const head = ok ? readFileSync(file).subarray(0, 16) : Buffer.alloc(0);
+          const valid = action === 'png' ? head.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])) : head.toString('utf8').startsWith('\uFEFF# SkyFix Lab');
+          check(`Save ${action.toUpperCase()} on ${spec}: a real file`, ok && valid, `${status} ${ok ? statSync(file).size + ' bytes' : ''}`);
+          summary.charts.exports.push({ spec, action, name, bytes: ok ? statSync(file).size : 0 });
+        }
+      }
+
+      // Dragging the time bar over the sun path: frame times, reported.
+      await open(`${MOMENT}&view=charts`);
+      await openChart('sun/path');
+      const hb = JSON.parse(await evaluate(`JSON.stringify((() => { const r = document.querySelector('.sf-ribbon__handle').getBoundingClientRect(); const t = document.querySelector('.sf-ribbon').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: t.left, right: t.right }; })())`));
+      await evaluate(`window.__f = []; (function loop(t) { window.__f.push(t); if (window.__f.length < 100000) requestAnimationFrame(loop); })(performance.now()); true`);
+      const f0 = await evaluate('window.__f.length');
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: hb.x, y: hb.y, button: 'left', clickCount: 1 });
+      for (let i = 1; i <= 60; i++) {
+        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hb.x + (hb.right - 40 - hb.x) * (i / 60), y: hb.y, button: 'left', buttons: 1 });
+        await sleep(16);
+      }
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: hb.right - 40, y: hb.y, button: 'left', clickCount: 1 });
+      await sleep(300);
+      const ts = JSON.parse(await evaluate(`JSON.stringify(window.__f.slice(${f0}))`));
+      const d = ts.slice(1).map((x, i) => x - ts[i]).sort((a, b) => a - b);
+      const q = (p) => +(d[Math.min(d.length - 1, Math.floor(p * d.length))] ?? 0).toFixed(1);
+      summary.charts.scrub = { frames: d.length, medianMs: q(0.5), p95Ms: q(0.95) };
+      console.log(`info  dragging the time bar on the sun path: ${JSON.stringify(summary.charts.scrub)}`);
+      console.log(`info  chart compute times: ${JSON.stringify(summary.charts.timings)}`);
     }
   } finally {
     page.close();

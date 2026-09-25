@@ -387,8 +387,8 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
     const t = table(`The Moon, ${MONTHS_LONG[data.input.month - 1]} ${data.input.year} (local times, ${zoneLabel(data.days[0]!.day.jd_start + 0.5, zone)}; UTC on hover)`, [
       'Date',
       'Phase at noon',
-      'Lit',
-      'Age',
+      'Lit (%)',
+      'Age (days)',
       'Moonrise',
       'Moonset',
       'Principal phase',
@@ -413,8 +413,8 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
           { class: sameDate(md.day.date, currentKey) ? 'sfc-row-current' : '' },
           h('th', { scope: 'row' }, dateShort(md.day.date)),
           h('td', { class: 'sfc-text' }, md.error ? `— (${md.error})` : md.name),
-          h('td', {}, md.illuminated === null ? '—' : percent(md.illuminated)),
-          h('td', {}, md.ageDays === null ? '—' : `${md.ageDays.toFixed(1)} d`),
+          h('td', { 'data-csv': md.illuminated === null ? '' : (md.illuminated * 100).toFixed(1) }, md.illuminated === null ? '—' : percent(md.illuminated)),
+          h('td', { 'data-csv': md.ageDays === null ? '' : md.ageDays.toFixed(2) }, md.ageDays === null ? '—' : `${md.ageDays.toFixed(1)} d`),
           h('td', {}, ...times(md.rises, noneText)),
           h('td', {}, ...times(md.sets, noneText)),
           h(
@@ -470,6 +470,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
       }
       tables.push(at.table);
     }
+    // time-ui: the tier chip belongs beside each table's caption (the ±ΔT band outside the validated tier).
     c.tableWrap.replaceChildren(...tables);
     c.root.dataset.ready = '1';
   }
@@ -554,7 +555,7 @@ export const moonCalendar: ChartComponent = (host, ctx, ui) => {
         renderTable();
         return [...c.tableWrap.querySelectorAll('table')];
       },
-      labels: () => ['Each disc is the Moon at local noon. Perigee and apogee: centre-to-centre distance (the moondetail engine).'],
+      labels: () => ['Each disc is the Moon at local noon. Nearest and farthest: the Moon’s perigee and apogee, centre-to-centre distance.'],
     }),
   );
 

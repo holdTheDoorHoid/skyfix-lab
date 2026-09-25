@@ -769,6 +769,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       }
       tables.push(cc.table);
     }
+    // time-ui: the tier chip belongs beside each table's caption (the ±ΔT band outside the validated tier).
     c.tableWrap.replaceChildren(...tables);
     if (sky) c.root.dataset.ready = '1';
     else setTimeout(loadSky, 0);

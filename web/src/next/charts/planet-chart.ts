@@ -661,6 +661,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
 
   function renderTable(): void {
     if (!job) {
+      // time-ui: the tier chip belongs beside each table's caption (the ±ΔT band outside the validated tier).
       c.tableWrap.replaceChildren(h('p', { class: 'sfc-message' }, failure ?? 'Nothing to show.'));
       return;
     }

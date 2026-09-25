@@ -438,9 +438,18 @@ export const solarChart: ChartComponent = (host, ctx, ui) => {
       );
     }
     const out: HTMLElement[] = [months.table];
-    const sd = dayCache?.value;
+    const day = dayOf(st.time.jd_utc, zone);
+    let sd = dayCache?.value ?? null;
+    if (!sd) {
+      // The Table view shown first: the day's hours have not been drawn yet.
+      try {
+        const engine = ctx.engine;
+        if (isSunToolsEngine(engine)) sd = computeSolarDay(engine, shell.input.observer, day, shell.input.panel);
+      } catch {
+        sd = null;
+      }
+    }
     if (sd) {
-      const day = dayOf(st.time.jd_utc, zone);
       const hours = table(`${dateLong(day.date)}, every ${sd.step_minutes} minutes (watts per square metre; local times, ${zoneLabel(day.jd_start + 0.5, zone)})`, [
         'Time',
         'On the panel',

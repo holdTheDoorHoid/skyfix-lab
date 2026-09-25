@@ -282,9 +282,10 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
 
   // --- pictures --------------------------------------------------------------------------
   function drawPolar(shell: Shell<SunPathInput, PathChartData>, data: PathChartData): Picture {
-    const W = shell.width;
+    // As wide as the dome, centred in the card (and so in a picture of it).
+    const W = Math.min(shell.width, 640);
     const pad = W < 420 ? 24 : 30;
-    const size = Math.min(W, 640);
+    const size = W;
     const R = size / 2 - pad;
     const cx = W / 2;
     const cy = pad + R;
@@ -298,6 +299,7 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
       return [cx + r * Math.sin(a), cy - r * Math.cos(a)];
     };
     const svg = svgRoot(W, H, `The Sun’s path across the sky seen from above. ${summary(data, shell.input.zone)}`);
+    svg.classList.add('sfc-centred');
     const boxes: Box[] = [];
 
     // The dome: altitude rings every 15°, spokes every 15° (every 45° stronger), compass points.

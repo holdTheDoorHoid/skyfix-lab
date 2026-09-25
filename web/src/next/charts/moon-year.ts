@@ -14,7 +14,7 @@ import { h, s } from '../../dom.js';
 import { observerKey } from '../component.js';
 import type { PhaseEvent } from '../engine/types.js';
 import { setTime, stepTime } from '../playback.js';
-import { axisTime } from '../shell/format.js';
+import { axisTime, currentHourCycle } from '../shell/format.js';
 import { displayZone, engineObserver, type ExplorerState } from '../state.js';
 import { jdFromWallClock, zoneLabel } from '../time.js';
 import { localDayCache, mountChart, placeName, type Shell } from './chart-shell.js';
@@ -45,6 +45,7 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
   let skyKey = '';
   let geom: { axis: YearAxis; top: number; bottom: number; svg: SVGSVGElement; months: MonthLabel[]; data: MoonYearData } | null = null;
   const hourSelect = h('select', { class: 'sfc-select', 'aria-label': 'Hour of the local clock' });
+  let hoursKey = '';
 
   const inputFor = (state: ExplorerState): MoonYearInput => {
     const zone = displayZone(state);
@@ -61,12 +62,7 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     failureText: (error, input) => `The engine could not follow the Moon through ${input.year}: ${errorText(error)}`,
     setup(shell) {
       stepperNav(shell.c.nav, 'Previous year', 'Next year', (dir) => stepTime(ctx.store, { unit: 'year', count: dir }));
-      const zone = displayZone(ctx.store.get());
-      for (let hr = 0; hr < 24; hr += 1) {
-        // The option's text on the person's clock (24- or 12-hour): any date will do.
-        const jd = jdFromWallClock({ year: 2001, month: 1, day: 1, hour: hr }, zone);
-        hourSelect.append(h('option', { value: String(hr), selected: hr === chosenHour }, axisTime(jd, zone)));
-      }
+      fillHours(displayZone(ctx.store.get()));
       hourSelect.addEventListener('change', () => {
         chosenHour = Number(hourSelect.value);
         shell.refresh();
@@ -91,6 +87,7 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
       shell.c.subtitle.textContent = `${placeName(st)} · the Moon at ${axisTime(jd, i.zone)} every day on the local clock (${clockName})`;
       const label = shell.c.nav.querySelector('.sfc-nav-label');
       if (label) label.textContent = String(i.year);
+      fillHours(i.zone);
       hourSelect.value = String(i.hour);
     },
     draw: (shell) => draw(shell),
@@ -100,6 +97,21 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     fileParts: (shell) => ['moon-through-the-year', shell.input.year, `${String(shell.input.hour).padStart(2, '0')}h`],
     labels: () => ['Heights are what the eye sees (apparent altitude, refraction included); bearings from true north.'],
   });
+
+  /** The hour picker's options, written on the person's clock (24- or 12-hour). */
+  function fillHours(zone: MoonYearInput['zone']): void {
+    const key = `${zoneKey(zone)}|${currentHourCycle()}`;
+    if (key === hoursKey) return;
+    hoursKey = key;
+    const options: HTMLOptionElement[] = [];
+    for (let hr = 0; hr < 24; hr += 1) {
+      // Any winter date will do: only the clock's form matters.
+      const jd = jdFromWallClock({ year: 2001, month: 1, day: 1, hour: hr }, zone);
+      options.push(h('option', { value: String(hr), selected: hr === chosenHour }, axisTime(jd, zone)));
+    }
+    hourSelect.replaceChildren(...options);
+    hourSelect.value = String(chosenHour);
+  }
 
   function draw(shell: Shell<MoonYearInput, MoonYearData>): SVGSVGElement {
     const data = shell.data!;

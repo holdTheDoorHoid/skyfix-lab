@@ -168,7 +168,11 @@ export function mountChart<I, D>(host: HTMLElement, ctx: Ctx, ui: Store<ChartUi>
 
   function run(k: string, inp: I): void {
     try {
+      const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
       const value = spec.compute(inp);
+      const ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0;
+      // For the developer page and ui-check.mjs, as the other charts publish theirs.
+      c.root.dataset.compute = `${spec.kind} ${ms.toFixed(0)} ms`;
       remember(k, value);
       if (k === key) {
         data = value;
@@ -221,18 +225,21 @@ export function mountChart<I, D>(host: HTMLElement, ctx: Ctx, ui: Store<ChartUi>
 
   function draw(): void {
     header();
+    const tableShown = ui.get().mode === 'table';
     if (failure !== null) {
       message(c.plot, failure);
       svg = null;
       c.caption.replaceChildren();
+      if (tableShown) renderTable();
       c.root.dataset.ready = '1';
       delete c.root.dataset.computing;
       return;
     }
-    if (width <= 0 || data === null) return;
-    svg = spec.draw(shell);
-    if (shell.current) c.root.dataset.ready = '1';
-    if (ui.get().mode === 'table') renderTable();
+    if (data === null) return;
+    // The table does not need the plot's width: with the chart hidden it has none.
+    if (tableShown) renderTable();
+    if (width > 0) svg = spec.draw(shell);
+    if (shell.current && (width > 0 || tableShown)) c.root.dataset.ready = '1';
   }
 
   function renderTable(): void {
@@ -241,7 +248,7 @@ export function mountChart<I, D>(host: HTMLElement, ctx: Ctx, ui: Store<ChartUi>
       return;
     }
     c.tableWrap.replaceChildren(...spec.table(shell));
-    // time-ui: the tier chip belongs beside each table's caption.
+    // time-ui: the tier chip belongs beside each table's caption (the ±ΔT band outside the validated tier).
   }
 
   let dataDirty = true;

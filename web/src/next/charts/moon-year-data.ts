@@ -5,8 +5,11 @@
  *
  * `sample_bodies` for the Moon, one sample a day. Local days are grouped into runs whose
  * chosen hour falls exactly a day apart (a clock change starts a new run), so a year is two
- * or three calls instead of 365; every sample is an exact evaluation (the engine interpolates
- * only for dense sampling). Heights are apparent (what the eye sees).
+ * or three calls instead of 365; every sample is an exact evaluation of the ephemeris (the
+ * engine interpolates only for dense sampling), and a run takes the Earth's rotation
+ * (DUT1) at its middle, so a sample differs from `sky_state` at the same instant by under
+ * 1″ (0.7″ measured over 2026; test/next/charts-real-engine.test.ts). Heights are apparent
+ * (what the eye sees).
  */
 
 import type { ExplorerEngine, Observer } from '../engine/types.js';

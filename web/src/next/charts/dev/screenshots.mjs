@@ -98,6 +98,17 @@ const SHOTS = {
   'tides-phone': [`place=sanfrancisco&date=2026-09-24T13:00&theme=light&tab=tides&packs=tides-us`, PHONE],
   'tides-nopack': [`place=sanfrancisco&date=2026-09-24T13:00&theme=light&tab=tides`, DESKTOP],
   'tides-table': [`place=sanfrancisco&date=2026-09-24T13:00&theme=light&tab=tides&mode=table&packs=tides-us`, DESKTOP],
+  // Save → Print, seen as print media on an A4-sized page (the print dialog stubbed).
+  'print-sun-path': [`${PHILLY}&theme=night&tab=sun&sub=path`, DESKTOP],
+  'print-bearings': [`${PHILLY}&theme=dark&tab=sun&sub=bearings`, TALL],
+  'print-tides-table': [`place=sanfrancisco&date=2026-09-24T13:00&theme=light&tab=tides&mode=table&packs=tides-us`, DESKTOP],
+  // Files made by each card's Save menu (picture and CSV), saved into OUT by the browser.
+  'export-sun-path': [`${PHILLY}&theme=night&tab=sun&sub=path`, DESKTOP],
+  'export-analemma': [`${PHILLY}&theme=dark&tab=sun&sub=analemma`, TALL],
+  'export-solar': [`${PHILLY}&theme=light&tab=sun&sub=solar`, TALL],
+  'export-tides': [`place=sanfrancisco&date=2026-09-24T13:00&theme=dark&tab=tides&packs=tides-us`, DESKTOP],
+  'export-moon': [`${PHILLY}&theme=light&tab=moon&sub=phases`, TALL],
+  'export-year': [`${PHILLY}&theme=light&tab=year`, DESKTOP],
   // Not a picture: warm and cold timings in this browser, printed (see harness.ts `bench`).
   bench: [`${PHILLY}&bench=1`, DESKTOP],
 };
@@ -180,6 +191,42 @@ async function shoot(name, fragment, view) {
     if (name === 'bench') {
       console.log(timing?.result?.value ?? '(no bench output)');
       ws.close();
+      return;
+    }
+    if (name.startsWith('print-')) {
+      // charts2: Save → Print, with the browser's print dialog stubbed, seen as print media.
+      await send('Runtime.evaluate', { expression: "window.print = () => {}; document.querySelector('.sfc-card .sfc-save').click(); true", returnByValue: true });
+      await sleep(250);
+      await send('Runtime.evaluate', { expression: "document.querySelector('[data-action=print]').click(); true", returnByValue: true });
+      await sleep(300);
+      await send('Emulation.setEmulatedMedia', { media: 'print' });
+      await send('Emulation.setDeviceMetricsOverride', { width: 794, height: 1123, deviceScaleFactor: 1, mobile: false });
+      await sleep(600);
+      const printed = await send('Page.captureScreenshot', { format: 'png' });
+      writeFileSync(join(OUT, `charts-${name}.png`), Buffer.from(printed.data, 'base64'));
+      ws.close();
+      console.log(`charts-${name}.png`);
+      return;
+    }
+    if (name.startsWith('export-')) {
+      // charts2: use the card's own Save menu, and let the browser save the files here.
+      await send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: OUT });
+      const done = [];
+      for (const action of ['png', 'csv']) {
+        await send('Runtime.evaluate', { expression: "document.querySelector('.sfc-card .sfc-save').click(); true", returnByValue: true });
+        await sleep(250);
+        await send('Runtime.evaluate', { expression: `document.querySelector('[data-action=${action}]').click(); true`, returnByValue: true });
+        let status = '';
+        for (let i = 0; i < 40 && !/^Saved/.test(status); i += 1) {
+          await sleep(250);
+          const r = await send('Runtime.evaluate', { expression: "document.querySelector('.sfc-card .sfc-status')?.textContent ?? ''", returnByValue: true });
+          status = r?.result?.value ?? '';
+        }
+        done.push(status || `${action}: no status`);
+      }
+      await sleep(800);
+      ws.close();
+      console.log(`${name}: ${done.join(' | ')}`);
       return;
     }
     const shot = await send('Page.captureScreenshot', { format: 'png' });

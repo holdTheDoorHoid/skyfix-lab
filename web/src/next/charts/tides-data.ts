@@ -6,8 +6,9 @@
  * Every height and instant is the engine's (`TidesEngine`, EXPLORER_API "Expansion
  * programme — tides", the `tides-us` pack). This module chooses the window (local days of
  * the display zone), the station and the datum, and reads heights off the predicted curve
- * between its samples for the moving cursor (linear interpolation of a 6-minute curve: under
- * a millimetre from the engine's own value; see the test).
+ * between its samples for the moving cursor (the cubic through the nearest four samples of
+ * the 6-minute curve: a fraction of a millimetre from the engine's own `tide_now`; see
+ * test/next/charts-real-engine.test.ts).
  */
 
 import type {
@@ -34,8 +35,8 @@ export type TideSpan = 'day' | 'week';
 export const NEAREST_STATIONS = 12;
 /** Beyond this the nearest station says little about the tide here (a caution is shown). */
 export const FAR_STATION_KM = 60;
-/** Sample step of the curve, minutes: 240 samples a day, 672 a week. */
-export const TIDE_STEP_MIN: Record<TideSpan, number> = { day: 6, week: 15 };
+/** Sample step of the curve, minutes: 240 samples a day, 1 680 a week. */
+export const TIDE_STEP_MIN: Record<TideSpan, number> = { day: 6, week: 6 };
 /** High and low water are looked for this far either side of the window, for "next" and "previous". */
 export const EXTREMES_MARGIN_DAYS = 1.5;
 
@@ -157,26 +158,52 @@ function sampleBefore(jd: Float64Array, t: number): number {
   return lo;
 }
 
-/** The predicted height at `t` read off the curve (linear between samples); null outside it. */
-export function heightAt(curve: Pick<TideCurve, 'jd_utc' | 'height_m'>, t: number): number | null {
-  const i = sampleBefore(curve.jd_utc, t);
-  if (i < 0) return null;
-  const n = curve.jd_utc.length;
-  if (i === n - 1) return t === curve.jd_utc[i] ? curve.height_m[i]! : null;
-  const a = curve.jd_utc[i]!;
-  const b = curve.jd_utc[i + 1]!;
-  const f = (t - a) / (b - a);
-  return curve.height_m[i]! + f * (curve.height_m[i + 1]! - curve.height_m[i]!);
+/**
+ * The cubic through the four samples around `t` (three or two at the curve's ends): its
+ * value and its slope per day. Null outside the curve.
+ */
+function cubicAt(curve: Pick<TideCurve, 'jd_utc' | 'height_m'>, t: number): { h: number; dh: number } | null {
+  const jd = curve.jd_utc;
+  const hm = curve.height_m;
+  const n = jd.length;
+  const i = sampleBefore(jd, t);
+  if (i < 0 || (i === n - 1 && t !== jd[i])) return null;
+  if (n === 1) return { h: hm[0]!, dh: 0 };
+  const first = Math.max(0, Math.min(i - 1, n - 4));
+  const last = Math.min(n - 1, first + 3);
+  // Lagrange form, and its derivative, over the nodes first..last.
+  let h = 0;
+  let dh = 0;
+  for (let a = first; a <= last; a += 1) {
+    let w = 1;
+    let dw = 0;
+    for (let b = first; b <= last; b += 1) {
+      if (b === a) continue;
+      const denom = jd[a]! - jd[b]!;
+      let term = 1 / denom;
+      for (let c = first; c <= last; c += 1) if (c !== a && c !== b) term *= (t - jd[c]!) / (jd[a]! - jd[c]!);
+      dw += term;
+      w *= (t - jd[b]!) / denom;
+    }
+    h += w * hm[a]!;
+    dh += dw * hm[a]!;
+  }
+  return { h, dh };
 }
 
-/** The rate of rise at `t`, metres per hour, from the samples either side; null outside the curve. */
+/**
+ * The predicted height at `t` read off the curve: the cubic through the four samples
+ * around it (within a fraction of a millimetre of the engine's own `tide_now` on the
+ * 6-minute curve; ACCURACY.md, "Charts"). Null outside the curve.
+ */
+export function heightAt(curve: Pick<TideCurve, 'jd_utc' | 'height_m'>, t: number): number | null {
+  return cubicAt(curve, t)?.h ?? null;
+}
+
+/** The rate of rise at `t`, metres per hour, the same cubic's slope; null outside the curve. */
 export function rateAt(curve: Pick<TideCurve, 'jd_utc' | 'height_m'>, t: number): number | null {
-  const i = sampleBefore(curve.jd_utc, t);
-  const n = curve.jd_utc.length;
-  if (i < 0 || n < 2) return null;
-  const k = Math.min(i, n - 2);
-  const dt = (curve.jd_utc[k + 1]! - curve.jd_utc[k]!) * 24;
-  return dt > 0 ? (curve.height_m[k + 1]! - curve.height_m[k]!) / dt : null;
+  const c = cubicAt(curve, t);
+  return c ? c.dh / 24 : null;
 }
 
 /** The high or low water before and after `t` (and the next high and the next low). */
