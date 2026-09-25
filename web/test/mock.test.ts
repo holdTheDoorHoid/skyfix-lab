@@ -7,7 +7,16 @@ import { MockApi, emptySession, withDefaults } from '../src/api/mock.js';
 import { MOCK_DEMOS } from '../src/api/mockDemos.js';
 import { defaultSolveOptions, SESSION_SCHEMA, TRUTH_SCHEMA, CORRECTION_ORDER } from '../src/types.js';
 import type { Scenario } from '../src/api/adapter.js';
-import { offsetMetres, truthInsideEllipse } from '../src/views/simulator.js';
+import type { LatLon } from '../src/types.js';
+
+/** North and east offsets of `p` from `origin`, metres, on the sphere (1′ = 1852 m). */
+function offsetMetres(origin: LatLon, p: LatLon): { north: number; east: number } {
+  const north = (p.lat_deg - origin.lat_deg) * 60 * 1852;
+  let dLon = p.lon_deg - origin.lon_deg;
+  if (dLon > 180) dLon -= 360;
+  if (dLon < -180) dLon += 360;
+  return { north, east: dLon * 60 * 1852 * Math.cos((origin.lat_deg * Math.PI) / 180) };
+}
 
 const api = new MockApi();
 
@@ -240,36 +249,5 @@ describe('simulation and solving', () => {
     const points = await api.circlePoints(38.79, -123.45, 28.77, 8);
     expect(points).toHaveLength(8);
     expect(points[0]![0]).toBeCloseTo(38.79 + 28.77, 6);
-  });
-});
-
-describe('truth versus the ellipse', () => {
-  const ellipse = {
-    semi_major_m: 2000,
-    semi_minor_m: 1000,
-    orientation_deg: 0,
-    confidence: 0.95,
-    model: 'nominal 95 %, independent-noise model',
-  };
-  const fix = { lat_deg: 40, lon_deg: -75 };
-
-  it('accepts a point inside along the major axis (north)', () => {
-    const truth = { lat_deg: 40 + 1500 / (60 * 1852), lon_deg: -75 };
-    expect(truthInsideEllipse(fix, truth, ellipse)).toBe(true);
-  });
-
-  it('rejects a point outside along the minor axis (east)', () => {
-    const east = 1500 / (60 * 1852 * Math.cos((40 * Math.PI) / 180));
-    expect(truthInsideEllipse(fix, { lat_deg: 40, lon_deg: -75 + east }, ellipse)).toBe(false);
-  });
-
-  it('measures east-west offsets with the cos(latitude) factor', () => {
-    const { east } = offsetMetres(fix, { lat_deg: 40, lon_deg: -74 });
-    expect(east).toBeCloseTo(60 * 1852 * Math.cos((40 * Math.PI) / 180), 6);
-  });
-
-  it('measures across the antimeridian without a 360-degree jump', () => {
-    const { east } = offsetMetres({ lat_deg: 0, lon_deg: 179.5 }, { lat_deg: 0, lon_deg: -179.5 });
-    expect(east).toBeCloseTo(60 * 1852, 6);
   });
 });

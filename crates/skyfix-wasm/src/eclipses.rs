@@ -5,7 +5,8 @@
 //!
 //! Thin: parse the arguments, call `skyfix_almanac::eclipses`, serialise its types as
 //! they are (JSON-compatible: `None` is `null`). The model, its validation and its
-//! conventions live in that module.
+//! conventions live in that module. DUT1 is the explorer-wide value of
+//! `timescale::set_dut1`, else the IERS history (`Eclipses::with_user_dut1`).
 
 use skyfix_almanac::eclipses::Eclipses;
 use wasm_bindgen::prelude::*;
@@ -17,11 +18,16 @@ use crate::{err, to_js};
 /// range-checked).
 pub use crate::explorer::native::parse_observer;
 
+/// The engine with the explorer-wide DUT1 (`timescale::set_dut1`), else the history.
+fn engine() -> Eclipses {
+    Eclipses::with_user_dut1(crate::timescale::user_dut1())
+}
+
 /// Every solar and lunar eclipse with greatest eclipse in `[jd_start, jd_end]` (UTC
 /// Julian dates), clipped to the coverage: `EclipseList`.
 #[wasm_bindgen]
 pub fn eclipses(jd_start: f64, jd_end: f64) -> Result<JsValue, JsValue> {
-    let list = Eclipses::new()
+    let list = engine()
         .find(jd_start, jd_end)
         .map_err(|e| err(e.to_string()))?;
     to_js(&list)
@@ -32,9 +38,7 @@ pub fn eclipses(jd_start: f64, jd_end: f64) -> Result<JsValue, JsValue> {
 #[wasm_bindgen]
 pub fn eclipse_local(id: &str, observer_json: &str) -> Result<JsValue, JsValue> {
     let site = parse_observer(observer_json).map_err(err)?;
-    let local = Eclipses::new()
-        .local(id, &site)
-        .map_err(|e| err(e.to_string()))?;
+    let local = engine().local(id, &site).map_err(|e| err(e.to_string()))?;
     to_js(&local)
 }
 
@@ -42,7 +46,7 @@ pub fn eclipse_local(id: &str, observer_json: &str) -> Result<JsValue, JsValue> 
 /// `EclipsePath`.
 #[wasm_bindgen]
 pub fn eclipse_path(id: &str) -> Result<JsValue, JsValue> {
-    let path = Eclipses::new().path(id).map_err(|e| err(e.to_string()))?;
+    let path = engine().path(id).map_err(|e| err(e.to_string()))?;
     to_js(&path)
 }
 

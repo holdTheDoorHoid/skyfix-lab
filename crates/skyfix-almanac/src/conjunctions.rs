@@ -2,7 +2,7 @@
 //! planet or the Moon with one of the four bright stars near the ecliptic) and the
 //! stations of the planets, where their apparent motion turns retrograde and back.
 //!
-//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.10; wire format
+//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.12; wire format
 //! `docs/EXPLORER_API.md`, "Planet detail"; accuracy `docs/ACCURACY.md`, "Planet
 //! detail".
 //!

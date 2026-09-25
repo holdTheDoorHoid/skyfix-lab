@@ -12,8 +12,8 @@
  * row and one row per observation.
  */
 
-import type { AltitudeKind, HorizonMode, Limb, Observation, Session } from './types.js';
-import { SESSION_SCHEMA } from './types.js';
+import type { AltitudeKind, IndexErrorLogEntry, Limb, Observation, Session, WatchLogEntry } from './types.js';
+import { horizonLabel, parseHorizonLabel, SESSION_SCHEMA } from './types.js';
 
 export const CSV_COLUMNS = [
   'id',
@@ -76,9 +76,16 @@ export function toCsv(session: Session): string {
     ['observer.assumed_position_sigma_nm', role.role === 'prior' ? String(role.sigma_nm) : ''],
     ['instrument.name', session.instrument.name],
     ['instrument.index_correction_arcmin', String(session.instrument.index_correction_arcmin)],
-    ['instrument.horizon', session.instrument.horizon],
+    ['instrument.horizon', horizonLabel(session.instrument.horizon)],
     ['clock.uncertainty_s', String(session.clock.uncertainty_s)],
     ['clock.correction_s', String(session.clock.correction_s)],
+    // UT1 − UTC (expansion programme): written only when given, as the core does.
+    ...(typeof session.clock.dut1_s === 'number' ? [['clock.dut1_s', String(session.clock.dut1_s)]] : []),
+    // The error logs (CONVENTIONS 10), one JSON array each, only when they have entries.
+    ...(session.instrument.index_error_log?.length
+      ? [['instrument.index_error_log', JSON.stringify(session.instrument.index_error_log)]]
+      : []),
+    ...(session.clock.watch_log?.length ? [['clock.watch_log', JSON.stringify(session.clock.watch_log)]] : []),
   ]
     .map(([k, v]) => `# ${quote(k!)},${quote(v!)}`)
     .join('\n');
@@ -92,7 +99,7 @@ export function toCsv(session: Session): string {
       o.altitude_kind,
       String(o.sigma_arcmin),
       o.limb,
-      o.horizon ?? '',
+      o.horizon ? horizonLabel(o.horizon) : '',
       o.geocentric ? String(o.geocentric.gha_deg) : '',
       o.geocentric ? String(o.geocentric.dec_deg) : '',
       o.geocentric ? String(o.geocentric.semidiameter_arcmin) : '',
@@ -108,7 +115,15 @@ export function toCsv(session: Session): string {
 
 const ALTITUDE_KINDS: AltitudeKind[] = ['sextant_hs', 'apparent_ha', 'observed_ho'];
 const LIMBS: Limb[] = ['center', 'lower', 'upper'];
-const HORIZONS: HorizonMode[] = ['sea', 'artificial_reflected', 'electronic_vertical'];
+
+/** `clock.dut1_s`: a number, or absent/empty for "automatic" (the base's value, if any). */
+function dut1Of(value: string | undefined, base: number | null | undefined): { dut1_s?: number | null } {
+  if (value === undefined) return base === undefined ? {} : { dut1_s: base };
+  const t = value.trim();
+  if (t === '') return { dut1_s: null };
+  const v = Number(t);
+  return Number.isFinite(v) ? { dut1_s: v } : { dut1_s: null };
+}
 
 function num(value: string | undefined, fallback: number): number {
   if (value === undefined || value.trim() === '') return fallback;
@@ -162,9 +177,7 @@ export function fromCsv(text: string, base: Session): CsvParseResult {
     const limbRaw = (get('limb') ?? '').trim();
     const limb = LIMBS.includes(limbRaw as Limb) ? (limbRaw as Limb) : 'center';
     const horizonRaw = (get('horizon') ?? '').trim();
-    const horizon = HORIZONS.includes(horizonRaw as HorizonMode)
-      ? (horizonRaw as HorizonMode)
-      : null;
+    const horizon = parseHorizonLabel(horizonRaw);
     const gha = get('gha_deg');
     const dec = get('dec_deg');
     const hasDirection = gha !== undefined && gha.trim() !== '' && dec !== undefined && dec.trim() !== '';
@@ -187,6 +200,22 @@ export function fromCsv(text: string, base: Session): CsvParseResult {
         : null,
       notes: (get('notes') ?? '').trim(),
     });
+  }
+
+  /** An error log from its JSON header line, else the base session's; absent when empty. */
+  function logField<T>(key: string, name: string, fallback: T[] | undefined): Record<string, T[]> {
+    const raw = meta.get(key);
+    let log = fallback;
+    if (raw) {
+      try {
+        const parsed: unknown = JSON.parse(raw);
+        if (Array.isArray(parsed)) log = parsed as T[];
+        else messages.push(`${key} is not a JSON array; ignored`);
+      } catch {
+        messages.push(`${key} is not valid JSON; ignored`);
+      }
+    }
+    return log && log.length > 0 ? { [name]: log } : {};
   }
 
   const roleName = meta.get('observer.assumed_position_role') ?? base.observer.assumed_position_role.role;
@@ -224,13 +253,14 @@ export function fromCsv(text: string, base: Session): CsvParseResult {
         meta.get('instrument.index_correction_arcmin'),
         base.instrument.index_correction_arcmin,
       ),
-      horizon: HORIZONS.includes((meta.get('instrument.horizon') ?? '') as HorizonMode)
-        ? (meta.get('instrument.horizon') as HorizonMode)
-        : base.instrument.horizon,
+      horizon: parseHorizonLabel(meta.get('instrument.horizon') ?? '') ?? base.instrument.horizon,
+      ...logField<IndexErrorLogEntry>('instrument.index_error_log', 'index_error_log', base.instrument.index_error_log),
     },
     clock: {
       uncertainty_s: num(meta.get('clock.uncertainty_s'), base.clock.uncertainty_s),
       correction_s: num(meta.get('clock.correction_s'), base.clock.correction_s),
+      ...dut1Of(meta.get('clock.dut1_s'), base.clock.dut1_s),
+      ...logField<WatchLogEntry>('clock.watch_log', 'watch_log', base.clock.watch_log),
     },
     observations,
   };

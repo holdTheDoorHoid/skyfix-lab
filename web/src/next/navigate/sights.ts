@@ -13,8 +13,8 @@
 
 import type { ReduceEntry } from '../../api/adapter.js';
 import { h } from '../../dom.js';
-import type { AltitudeKind, HorizonMode, Limb, Observation, Warning } from '../../types.js';
-import { WARNING_SEVERITY } from '../../types.js';
+import type { AltitudeKind, HorizonMode, HorizonName, Limb, Observation, Warning } from '../../types.js';
+import { horizonName, WARNING_SEVERITY } from '../../types.js';
 import { disposer, type Mounted } from '../component.js';
 import type { SightBodyInfo, SightLimb } from '../engine/types.js';
 import { bodyGlyph } from '../theme/glyphs.js';
@@ -33,7 +33,7 @@ import {
 } from './format.js';
 import { nextObservationId, patchSession, sortedByTime, withObservation, withoutObservation, type PlannedSight } from './model.js';
 import { parseAngle, parseNumber, parseUtcInput } from './parse.js';
-import { HORIZON_TEXT, KIND_TEXT, LIMB_TEXT } from './text.js';
+import { horizonFromSelect, horizonOptions, horizonText, KIND_TEXT, LIMB_TEXT } from './text.js';
 import { btn, card, checkbox, debounce, errorText, field, notice, para, selectInput, textInput, uid, warningList, type FieldParts } from './ui.js';
 import { sightWorkings } from './workings.js';
 
@@ -125,11 +125,17 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   const icField = field('Instrument error to add', icInput, { term: 'index correction, IC (′)', help: 'Index error “on the arc” is a minus correction: on the arc 2.0′ → −2.0.' });
   const hoeInput = textInput({ inputmode: 'decimal', size: 6 });
   const hoeField = field('Height of eye (m)', hoeInput, { term: 'dip', help: 'Your eye above the sea.' });
-  const horizonSelect = selectInput<HorizonMode>(
-    (Object.keys(HORIZON_TEXT) as HorizonMode[]).map((k) => ({ value: k, label: HORIZON_TEXT[k].label })),
-    store.get().session.instrument.horizon,
+  const horizonSelect = selectInput<HorizonName>(
+    horizonOptions(store.get().session.instrument.horizon),
+    horizonName(store.get().session.instrument.horizon),
   );
-  const horizonField = field('Horizon', horizonSelect, { help: HORIZON_TEXT[store.get().session.instrument.horizon].explain });
+  const horizonField = field('Horizon', horizonSelect, { help: horizonText(store.get().session.instrument.horizon).explain });
+  /** Rebuild a horizon select's options (a shore horizon brings its own). */
+  const setHorizonOptions = (select: HTMLSelectElement, options: { value: string; label: string }[]): void => {
+    select.replaceChildren(...options.map((o) => h('option', { value: o.value }, o.label)));
+  };
+  /** The horizon of the sight being edited: a shore horizon is kept as it is. */
+  let editingHorizon: HorizonMode | null = null;
   const instrument = h(
     'fieldset',
     { class: 'sfn-entry__instrument' },
@@ -145,10 +151,8 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     'sextant_hs',
   );
   const kindField = field('What the number is', kindSelect, { term: 'altitude kind', help: 'Corrections run only from this point on, never twice (CONVENTIONS 4).' });
-  const overrideSelect = selectInput<HorizonMode | 'inherit'>(
-    [{ value: 'inherit', label: 'Same as the instrument' }, ...(Object.keys(HORIZON_TEXT) as HorizonMode[]).map((k) => ({ value: k, label: HORIZON_TEXT[k].label }))],
-    'inherit',
-  );
+  const inheritOption = { value: 'inherit' as const, label: 'Same as the instrument' };
+  const overrideSelect = selectInput<HorizonName | 'inherit'>([inheritOption, ...horizonOptions(null)], 'inherit');
   const overrideField = field('Horizon for this sight only', overrideSelect, { term: 'horizon override' });
   const supplied = checkbox('Use my own almanac values for this sight', false, () => {
     suppliedBox.hidden = !supplied.input.checked;
@@ -220,11 +224,13 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     }
     const jd = jdFromIso(parsed.value)!;
     const z = zone(nc);
-    timeField.setHelp(`= ${fmtZoneClock(jd, z)} on ${formatDate(jd, z)} (${z.kind === 'iana' ? z.zone : z.name})`);
+    // A time typed without seconds is taken, not refused, and the help says what that
+    // assumed (parse.ts, SECONDS_OMITTED_WARNING).
+    timeField.setHelp(`= ${fmtZoneClock(jd, z)} on ${formatDate(jd, z)} (${z.kind === 'iana' ? z.zone : z.name})${parsed.warning ? `. ${parsed.warning}` : ''}`);
   }
 
   function hsRule(): { min: number; max: number } {
-    const horizon = overrideSelect.value === 'inherit' ? store.get().session.instrument.horizon : (overrideSelect.value as HorizonMode);
+    const horizon = overrideSelect.value === 'inherit' ? store.get().session.instrument.horizon : horizonFromSelect(overrideSelect.value, editingHorizon);
     return kindSelect.value === 'sextant_hs' && horizon === 'artificial_reflected' ? { min: 0, max: 180 } : { min: -90, max: 90 };
   }
 
@@ -270,7 +276,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
         altitude_kind: kind,
         sigma_arcmin: (sigma as { value: number }).value,
         limb: hasDisc(kindOfBody) ? limbSeg.value() : 'center',
-        horizon: overrideSelect.value === 'inherit' ? null : (overrideSelect.value as HorizonMode),
+        horizon: overrideSelect.value === 'inherit' ? null : horizonFromSelect(overrideSelect.value, editingHorizon),
         geocentric,
         notes: notesInput.value.trim(),
       },
@@ -300,6 +306,8 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     for (const i of [ghaInput, decInput, sdInput, hpInput]) i.value = '';
     if (everything || wasEditing) {
       kindSelect.value = 'sextant_hs';
+      editingHorizon = null;
+      setHorizonOptions(overrideSelect, [inheritOption, ...horizonOptions(null)]);
       overrideSelect.value = 'inherit';
     }
     if (everything) timeInput.value = '';
@@ -325,7 +333,9 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     remember(sigmaInput, String(obs.sigma_arcmin), obs.sigma_arcmin);
     limbSeg.set(obs.limb);
     kindSelect.value = obs.altitude_kind;
-    overrideSelect.value = obs.horizon ?? 'inherit';
+    editingHorizon = obs.horizon;
+    setHorizonOptions(overrideSelect, [inheritOption, ...horizonOptions(obs.horizon)]);
+    overrideSelect.value = obs.horizon ? horizonName(obs.horizon) : 'inherit';
     supplied.input.checked = obs.geocentric !== null;
     suppliedBox.hidden = obs.geocentric === null;
     for (const i of [ghaInput, decInput, sdInput, hpInput]) i.value = '';
@@ -453,15 +463,18 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   commitNumber(hoeInput, hoeField, 'The height of eye', 0, (v) =>
     store.patch({ session: patchSession(store.get().session, { observer: { height_of_eye_m: v } }) }),
   );
-  horizonSelect.addEventListener('change', () =>
-    store.patch({ session: patchSession(store.get().session, { instrument: { horizon: horizonSelect.value as HorizonMode } }) }),
-  );
+  horizonSelect.addEventListener('change', () => {
+    const chosen = horizonFromSelect(horizonSelect.value, store.get().session.instrument.horizon);
+    if (chosen) store.patch({ session: patchSession(store.get().session, { instrument: { horizon: chosen } }) });
+  });
   const syncInstrument = (): void => {
     const s = store.get().session;
     if (document.activeElement !== icInput) icInput.value = String(s.instrument.index_correction_arcmin);
     if (document.activeElement !== hoeInput) hoeInput.value = String(s.observer.height_of_eye_m);
-    horizonSelect.value = s.instrument.horizon;
-    horizonField.setHelp(HORIZON_TEXT[s.instrument.horizon].explain);
+    const options = horizonOptions(s.instrument.horizon);
+    if (options.length !== horizonSelect.options.length) setHorizonOptions(horizonSelect, options);
+    horizonSelect.value = horizonName(s.instrument.horizon);
+    horizonField.setHelp(horizonText(s.instrument.horizon).explain);
     const supplied = store.get().mode === 'supplied';
     modeLine.hidden = !supplied;
     modeLine.textContent = supplied

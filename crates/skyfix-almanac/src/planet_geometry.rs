@@ -1,7 +1,7 @@
 //! Shared geometry for the planet-detail modules (`discs`, `rings`, `satellites`,
 //! `transits`, `conjunctions`, `earth_apsides`, `orbits`).
 //!
-//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.10.
+//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.12.
 //!
 //! - Small `[f64; 3]` vector and matrix helpers.
 //! - The frames the chapters of Meeus and the IAU rotation models are written in:

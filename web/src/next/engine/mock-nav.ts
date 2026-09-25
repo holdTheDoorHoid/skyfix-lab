@@ -37,7 +37,8 @@ import type {
   SkyfixApi,
 } from '../../api/adapter.js';
 import { eigen2, MockApi } from '../../api/mock.js';
-import { dipArcmin, refractionArcmin } from '../../corrections.js';
+import { horizonDipArcmin, refractionArcmin } from '../../corrections.js';
+import { isShoreHorizon } from '../../types.js';
 import {
   altitudeAzimuthDeg,
   circleOfPosition,
@@ -124,6 +125,36 @@ function bodyClass(name: string): BodyClass {
   if (n === 'moon') return 'moon';
   for (const p of PLANETS) if (p.toLowerCase() === n) return 'planet';
   return 'star';
+}
+
+/**
+ * The Moon's Earth-shape term, arcminutes (CONVENTIONS 15.4): the altitude a perfect Moon
+ * sight reduces to on the WGS84 Earth minus the sphere's Hc, at geodetic `latDeg`,
+ * `lonDeg` (east). The same geometry as `skyfix_core::sights::wgs84::EarthShape`; 0
+ * without a horizontal parallax.
+ */
+export function mockEarthShapeArcmin(latDeg: number, lonDeg: number, ghaDeg: number, decDeg: number, hpArcmin: number): number {
+  if (!(hpArcmin > 0)) return 0;
+  const a = 6378.137;
+  const f = 1 / 298.257223563;
+  const e2 = f * (2 - f);
+  const sphi = Math.sin(latDeg * D2R);
+  const cphi = Math.cos(latDeg * D2R);
+  const sdec = Math.sin(decDeg * D2R);
+  const cdec = Math.cos(decDeg * D2R);
+  const lha = (ghaDeg + lonDeg) * D2R;
+  const up = sphi * sdec + cphi * cdec * Math.cos(lha);
+  const north = cphi * sdec - sphi * cdec * Math.cos(lha);
+  const east = -cdec * Math.sin(lha);
+  const sinHp = Math.sin((hpArcmin / 60) * D2R);
+  const k = sinHp / 6378.14;
+  const w = Math.sqrt(1 - e2 * sphi * sphi);
+  const upT = up - k * a * w;
+  const northT = north + k * (a / w) * e2 * sphi * cphi;
+  const horizontalT = Math.hypot(northT, east);
+  const hT = Math.atan2(upT, horizontalT);
+  const parallax = Math.asin(sinHp * (horizontalT / Math.hypot(upT, horizontalT)));
+  return (hT - Math.atan2(up, Math.hypot(north, east)) + parallax) * R2D * 60;
 }
 
 function wrap180(x: number): number {
@@ -222,10 +253,11 @@ export function mockChain(p: ChainParams): CorrectionBreakdown {
     h = after;
   } else steps.push(step('index_correction', false, h, h, skipKind));
 
-  if (raw && p.horizon === 'sea') {
-    const dip = dipArcmin(p.height_of_eye_m);
+  if (raw && (p.horizon === 'sea' || isShoreHorizon(p.horizon))) {
+    const dip = horizonDipArcmin(p.horizon, p.height_of_eye_m);
     const after = h - dip / 60;
-    steps.push(step('dip', true, h, after, `sea horizon, height of eye ${p.height_of_eye_m.toFixed(3)} m: dip ${dip.toFixed(3)}' subtracted`));
+    const what = isShoreHorizon(p.horizon) ? `shore horizon ${p.horizon.shore.distance_nm} NM away` : 'sea horizon';
+    steps.push(step('dip', true, h, after, `${what}, height of eye ${p.height_of_eye_m.toFixed(3)} m: dip ${dip.toFixed(3)}' subtracted`));
     h = after;
   } else {
     const note = !raw
@@ -357,12 +389,15 @@ export function mockReduceObservation(
   });
   warnings.push(...corrections.warnings);
   const ap = session.observer.assumed_position;
+  const moonTerm = bodyClass(obs.body) === 'moon' && direction.horizontal_parallax_arcmin > 0;
   let hc: number | null = null;
   let zn: number | null = null;
   let intercept: number | null = null;
+  let earthShape: number | null = null;
   if (ap) {
     const r = altitudeAzimuthDeg(ap, direction.gha_deg, direction.dec_deg);
-    hc = r.altitude_deg;
+    earthShape = moonTerm ? mockEarthShapeArcmin(ap.lat_deg, ap.lon_deg, direction.gha_deg, direction.dec_deg, direction.horizontal_parallax_arcmin) : null;
+    hc = r.altitude_deg + (earthShape ?? 0) / 60;
     zn = r.azimuth_deg;
     intercept = (corrections.ho_deg - hc) * 60;
   }
@@ -381,6 +416,8 @@ export function mockReduceObservation(
     zn_deg: zn,
     intercept_nm: intercept,
     warnings,
+    horizontal_parallax_arcmin: direction.horizontal_parallax_arcmin,
+    earth_shape_arcmin: earthShape,
   };
 }
 
@@ -1158,7 +1195,10 @@ export function createMockNav(engine: ExplorerEngine): NavTools {
     predictSextant(observer: SightObserver, instrument: SightInstrument, body: string, limb: SightLimb, jdUtc: number): PredictedSight {
       const name = canonical(engine, body);
       const dir = mockDirection(engine, name, jdUtc);
-      const at = altitudeAzimuthDeg({ lat_deg: observer.lat_deg, lon_deg: observer.lon_deg }, dir.gha_deg, dir.dec_deg);
+      const sphere = altitudeAzimuthDeg({ lat_deg: observer.lat_deg, lon_deg: observer.lon_deg }, dir.gha_deg, dir.dec_deg);
+      // The Moon's model altitude carries its Earth-shape term (CONVENTIONS 15.4).
+      const earthShape = bodyClass(name) === 'moon' ? mockEarthShapeArcmin(observer.lat_deg, observer.lon_deg, dir.gha_deg, dir.dec_deg, dir.horizontal_parallax_arcmin) : 0;
+      const at = { ...sphere, altitude_deg: sphere.altitude_deg + earthShape / 60 };
       const horizon = instrument.horizon ?? 'sea';
       const params = (hs: number): ChainParams => ({
         id: 'predicted',
@@ -1216,6 +1256,7 @@ export function createMockNav(engine: ExplorerEngine): NavTools {
         ha_deg: ha,
         corrections: corrections as PredictedSight['corrections'],
         warnings: corrections.warnings as SightWarning[],
+        earth_shape_arcmin: earthShape,
       };
     },
 
@@ -1234,7 +1275,7 @@ export function createMockNav(engine: ExplorerEngine): NavTools {
       const place = { lat_deg: obsr.lat_deg, lon_deg: obsr.lon_deg };
       const pressure = obsr.pressure_hpa ?? 1010;
       const temp = obsr.temperature_c ?? 10;
-      const dip = (input.instrument?.horizon ?? 'sea') === 'sea' ? dipArcmin(obsr.height_of_eye_m ?? 0) : 0;
+      const dip = horizonDipArcmin(input.instrument?.horizon ?? 'sea', obsr.height_of_eye_m ?? 0);
       const geo = (jd: number): { m: GeocentricDirection; b: GeocentricDirection } => ({
         m: mockDirection(engine, 'Moon', jd),
         b: mockDirection(engine, body, jd),
@@ -1399,7 +1440,7 @@ export function createMockNav(engine: ExplorerEngine): NavTools {
       if (!(jdEnd > jdStart)) throw new Error('plan_sights: jd_end must be after jd_start');
       if (jdEnd - jdStart > 7) throw new Error('plan_sights: the span is at most 7 days');
       const place = { lat_deg: observer.lat_deg, lon_deg: observer.lon_deg };
-      const full: Required<SightObserver> = {
+      const full: Required<Omit<SightObserver, 'dut1_s'>> = {
         lat_deg: observer.lat_deg,
         lon_deg: observer.lon_deg,
         height_of_eye_m: observer.height_of_eye_m ?? 0,

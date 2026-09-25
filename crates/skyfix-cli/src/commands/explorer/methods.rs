@@ -30,9 +30,10 @@ pub fn load(path: &Path) -> Result<Session> {
     Ok(loaded.session)
 }
 
-/// The direction source for `--ephemeris`, as `reduce` and `solve` use it.
-pub fn source(choice: EphemerisChoice) -> Box<dyn DirectionSource> {
-    provider::direction_source(choice)
+/// The direction source for `--ephemeris`, as `reduce` and `solve` use it, with the
+/// session's DUT1 (apply `--dut1` to the session first; expansion programme).
+pub fn source(choice: EphemerisChoice, session: &Session) -> Box<dyn DirectionSource> {
+    provider::session_source(choice, session)
 }
 
 /// `Session`, `Ephemeris` and `DR` lines. `dr` is the DR the method used: the flag's,

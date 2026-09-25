@@ -184,7 +184,9 @@ fn the_listing_text_has_one_row_per_eclipse_and_says_what_dallas_sees() {
         )
         .expect_stdout_flat("here: total for 3 min 51 s, with the Sun up throughout")
         .expect_stdout_flat("here: no eclipse: the Moon's shadow misses this place")
-        .expect_stdout_flat("here: partly seen: the Moon sets at 2026-03-03T12:55:56Z")
+        // 12:55:56Z with DUT1 = 0; the IERS UT1 - UTC of that day moves it across the
+        // rounding to the second.
+        .expect_stdout_flat("here: partly seen: the Moon sets at 2026-03-03T12:55:55Z")
         .expect_stdout_flat("12 eclipses in the window: 6 solar, 6 lunar.")
         .expect_stdout_flat("Seen from the observer, in whole or in part: 6 of 12.");
 }

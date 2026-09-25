@@ -611,3 +611,105 @@ fn a_csv_session_validates_like_a_json_one() {
     let csv_warnings = skyfix_core::session::validate_without_body_catalog(&s).unwrap();
     assert_eq!(csv_warnings, json_warnings);
 }
+
+// ---------------------------------------------------------------------------
+// clock.dut1_s (expansion programme, moonshape): UT1 - UTC from the time signal
+// ---------------------------------------------------------------------------
+
+#[test]
+fn dut1_is_optional_and_a_session_without_it_is_written_as_before() {
+    let mut s = session(vec![with_direction(observation(
+        "a",
+        "Vega",
+        "2026-10-01T01:30:00Z",
+        40.0,
+    ))]);
+    // Absent: not written, in JSON or CSV, so older files and outputs are unchanged.
+    let json = serde_json::to_string(&s).unwrap();
+    assert!(!json.contains("dut1_s"), "{json}");
+    assert!(!to_csv(&s).contains("dut1_s"));
+    // An older file loads, with the automatic value.
+    let (back, _) = parse_session(&json).unwrap();
+    assert_eq!(back.clock.dut1_s, None);
+    // `null` means automatic too.
+    let with_null = json.replace(
+        "\"correction_s\":0.0",
+        "\"correction_s\":0.0,\"dut1_s\":null",
+    );
+    assert!(with_null.contains("dut1_s"));
+    assert_eq!(parse_session(&with_null).unwrap().0.clock.dut1_s, None);
+
+    // Given: it round-trips through both formats.
+    s.clock.dut1_s = Some(-0.2);
+    let json = serde_json::to_string(&s).unwrap();
+    assert!(json.contains("\"dut1_s\":-0.2"), "{json}");
+    assert_eq!(parse_session(&json).unwrap().0, s);
+    let csv = to_csv(&s);
+    assert!(csv.contains("# clock.dut1_s=-0.2"), "{csv}");
+    let from = from_csv(&csv).unwrap();
+    assert_eq!(from, s);
+    // An empty CSV value is "automatic".
+    let empty = csv.replace("# clock.dut1_s=-0.2", "# clock.dut1_s=");
+    assert_eq!(from_csv(&empty).unwrap().clock.dut1_s, None);
+}
+
+#[test]
+fn dut1_beyond_the_iers_bound_warns_and_nonsense_is_refused() {
+    let base = session(vec![with_direction(observation(
+        "a",
+        "Vega",
+        "2026-10-01T01:30:00Z",
+        40.0,
+    ))]);
+    let with = |d: f64| {
+        let mut s = base.clone();
+        s.clock.dut1_s = Some(d);
+        validate(&s, &KNOWN)
+    };
+    let quiet = with(0.3).unwrap();
+    assert!(
+        !quiet
+            .iter()
+            .any(|w| matches!(w, Warning::Other { message } if message.contains("dut1_s"))),
+        "{quiet:?}"
+    );
+    let loud = with(-1.4).unwrap();
+    assert!(
+        loud.iter().any(|w| matches!(
+            w,
+            Warning::Other { message } if message.contains("clock.dut1_s") && message.contains("0.9 s")
+        )),
+        "{loud:?}"
+    );
+    for bad in [120.0, -61.0, f64::NAN, f64::INFINITY] {
+        let e = with(bad).unwrap_err();
+        assert!(e.to_string().contains("dut1_s"), "{bad}: {e}");
+    }
+}
+
+#[test]
+fn the_dut1_lookup_takes_the_users_value_and_the_sessions_reference_instant() {
+    // The single lookup (EXPLORER_API.md, "Expansion programme"): a user value wins;
+    // without one the engine's own value answers (the IERS history inside its span,
+    // CONVENTIONS 15.2), which the IERS keeps within 0.9 s.
+    let jd = 2_461_314.5;
+    assert_eq!(skyfix_core::time::dut1_s(jd, Some(-0.31)), -0.31);
+    let automatic = skyfix_core::time::dut1_s(jd, None);
+    assert_eq!(automatic, skyfix_core::time::dut1_info(jd, None).value_s);
+    assert!(automatic.abs() <= 0.9, "{automatic}");
+    let mut s = session(vec![
+        with_direction(observation("b", "Vega", "2026-10-01T01:35:00Z", 40.0)),
+        with_direction(observation("a", "Vega", "2026-10-01T01:30:00Z", 41.0)),
+    ]);
+    // Without a session value: the engine's own value at the earliest sight (01:30).
+    let earliest = skyfix_core::time::parse_utc("2026-10-01T01:30:00Z").unwrap();
+    assert_eq!(
+        skyfix_core::reduce::session_dut1_s(&s),
+        skyfix_core::time::dut1_s(earliest, None)
+    );
+    s.clock.dut1_s = Some(0.12);
+    assert_eq!(skyfix_core::reduce::session_dut1_s(&s), 0.12);
+    // No sights at all: still an answer.
+    s.observations.clear();
+    assert_eq!(skyfix_core::reduce::session_dut1_s(&s), 0.12);
+}

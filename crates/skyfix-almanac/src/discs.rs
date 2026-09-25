@@ -2,7 +2,7 @@
 //! defect of illumination, the position angles of the bright limb and of the north
 //! pole, the sub-Earth and sub-solar points and the central-meridian longitudes.
 //!
-//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.10; wire format
+//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.12; wire format
 //! `docs/EXPLORER_API.md`, "Planet detail"; accuracy `docs/ACCURACY.md`, "Planet
 //! detail".
 //!

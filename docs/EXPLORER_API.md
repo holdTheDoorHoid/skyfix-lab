@@ -633,7 +633,8 @@ ignored with a `limb_ignored_for_star` warning).
 | `body`, `jd_utc`, `utc`, `limb`, `horizon` | as asked (canonical name) |
 | `direction_source` | the provider that gave the direction |
 | `gha_deg`, `dec_deg`, `semidiameter_arcmin`, `horizontal_parallax_arcmin` | apparent geocentric (Venus: centre of light) |
-| `hc_deg`, `zn_deg` | computed altitude and true azimuth at the observer (CONVENTIONS §3) |
+| `hc_deg`, `zn_deg` | computed altitude and true azimuth at the observer (CONVENTIONS §3; the Moon's altitude includes `earth_shape_arcmin`, §15.4) |
+| `earth_shape_arcmin` | the Moon's Earth-shape term included in `hc_deg`, arcminutes; 0 for every other body (expansion programme) |
 | `hs_deg` | **the sextant reading** (the double angle with a reflected artificial horizon) |
 | `ha_deg` | apparent altitude after index correction and dip (or halving) |
 | `corrections` | a `CorrectionBreakdown` (the existing session type): the forward chain from `hs_deg`, six steps, `ho_deg` equal to `hc_deg` to 1e-9 deg |
@@ -1142,3 +1143,1378 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+## Expansion programme — sun tools (`suntools.rs`, suntools agent)
+
+Work package P7 (EXPANSION_PLAN §5), 2026-09-24. Engine: `skyfix_almanac::sun_tools`;
+definitions CONVENTIONS 13.10; validation `docs/ACCURACY.md` section 14. TypeScript: the
+`SunToolsEngine` interface, `isSunToolsEngine` and the `Sun*`, `Alignment*`, `Analemma*`,
+`RiseSet*`, `Eot*`, `Solar*` and `Galactic*` types at the end of `types.ts`; the mock is
+`web/src/next/engine/mock-suntools.ts`. Every export throws a string for malformed input
+and when the Sun (or the body asked about) cannot be computed; the window rules are the
+event finder's (finite, ordered, at most 400 days). Every altitude and azimuth is the
+topocentric one of CONVENTIONS 13.2 and equals `sky_state`'s at the same instant.
+Timings are native release builds on a shared machine; WebAssembly runs about four times
+slower.
+
+### `sun_hours(observer_json, jd_start, jd_end) -> SunHours`
+
+Golden and blue hours over a window (the UI passes one local day), with the Sun's
+`day_events` (rise, set, transits, twilight) and the sky phases of the same window, in
+one object. About 1 ms.
+
+```json
+{"jd_start": 2461307.6667, "jd_end": 2461308.6667,
+ "windows": [
+   {"kind": "blue", "period": "morning", "jd_start": 2461307.932812, "utc_start": "2026-09-24T10:23:14.924Z",
+    "jd_end": 2461307.940077, "utc_end": "2026-09-24T10:33:42.679Z", "duration_min": 10.5,
+    "open_start": false, "open_end": false},
+   {"kind": "golden", "period": "morning", "utc_start": "2026-09-24T10:33:42.679Z", "utc_end": "2026-09-24T11:25:59.592Z", …},
+   {"kind": "golden", "period": "evening", "utc_start": "2026-09-24T22:18:37.868Z", "utc_end": "2026-09-24T23:10:49.475Z", …},
+   {"kind": "blue", "period": "evening", "utc_start": "2026-09-24T23:10:49.475Z", "utc_end": "2026-09-24T23:21:15.916Z", …}],
+ "boundaries": [
+   {"altitude_deg": -6, "crossings": [AltitudeCrossing], "always_above": false, "always_below": false},
+   {"altitude_deg": -4, …},
+   {"altitude_deg": 6, "crossings": [{"jd_utc": 2461307.976384, "utc": "2026-09-24T11:25:59.592Z",
+                                      "alt_deg": 6, "az_deg": 95.81, "rising": true}, …], …}],
+ "sun": BodyEvents, "phases": [PhaseSegment]}
+```
+
+- `kind`: `golden` (Sun's centre above −4° and not above +6°, geometric) or `blue` (above
+  −6°, not above −4°). Blue hour ends exactly at civil dusk.
+- `period`: `morning` / `evening` (the Sun climbs / sinks through the band), `midday` (it
+  culminates inside it: high-latitude winter), `midnight` (its lower culmination is inside
+  it: high-latitude summer), `all_day` (in the band the whole window).
+- `open_start` / `open_end`: the band was entered before / left after the window; the
+  instant is the window's edge, not a crossing.
+- `boundaries`: every crossing of −6, −4 and +6 degrees (in that order) with twilight's
+  polar vocabulary: a threshold never crossed is `always_above` or `always_below`.
+
+### `find_azimuth(observer_json, body, jd_start, jd_end, azimuth_deg, band_json) -> AzimuthCrossing[]`
+
+The sibling of `find_altitude`: every instant the body's topocentric azimuth crosses
+`azimuth_deg` while the body is inside an altitude band, time-ordered. `band_json` is
+`{"min_deg": 10, "max_deg": 30}` on the **apparent** altitude of the centre; empty,
+`null` or a missing `min_deg` means "above the horizon" exactly as `above_horizon` says
+(upper limb above the sea-level horizon); a missing `max_deg` means no upper limit.
+Under 1 ms a day; a year for the Sun about 50 ms.
+
+```json
+[{"jd_utc": 2461310.594616, "utc": "2026-09-27T02:16:14.844Z", "az_deg": 120,
+  "alt_deg": 38.914, "alt_apparent_deg": 38.935, "rising": true, "clockwise": true}]
+```
+
+`rising`: the altitude is increasing; `clockwise`: the azimuth is increasing. A body
+passing exactly through the zenith has no azimuth there and crosses no bearing.
+
+### `alignment_days(observer_json, request_json) -> AlignmentResult`
+
+The days of a year a body rises or sets along a bearing, or stands at an apparent
+altitude on it (Manhattanhenge, a window, a stone row). One search over the local year
+(about 60 ms for the Sun, 0.3 s for the Moon).
+
+```json
+{"body": "Sun", "year": 2026, "azimuth_deg": 299.0, "tolerance_deg": 0.3,
+ "event": {"kind": "set"}, "utc_offset_hours": -4}
+```
+
+- `body` (default `Sun`), `tolerance_deg` (default 0.5, at most 90), `utc_offset_hours`
+  (the clock the dates are on; default local mean time), `options` (`EventOptions`, rise
+  and set only).
+- `event`: `{"kind": "rise"}` or `{"kind": "set"}` — the event finder's rise and set
+  (upper limb on the sea-level horizon, CONVENTIONS 13.3); or
+  `{"kind": "at_altitude", "altitude_deg": h}` — the centre at apparent altitude `h`,
+  rising and setting.
+
+```json
+{"body": "Sun", "year": 2026, "azimuth_deg": 299, "tolerance_deg": 0.3, "event": {"kind": "set"},
+ "utc_offset_hours": -4, "jd_start": 2461041.666667, "jd_end": 2461406.666667, "truncated": false,
+ "events_considered": 365,
+ "matches": [
+   {"date": "2026-05-24", "kind": "set", "jd_utc": 2461185.510246, "utc": "2026-05-25T00:14:45.243Z",
+    "az_deg": 298.936, "offset_deg": -0.064, "alt_deg": -0.833, "best": true},
+   {"date": "2026-05-25", "kind": "set", "utc": "2026-05-26T00:15:36.741Z", "az_deg": 299.187, "offset_deg": 0.187, "best": false, …},
+   {"date": "2026-07-17", …, "best": false}, {"date": "2026-07-18", …, "best": true}],
+ "closest": AlignmentMatch}
+```
+
+`kind` is `rise`, `set`, `rising` or `setting`; `date` is the local date on the request's
+clock; `best` marks the closest day of each run of consecutive matches; `closest` is the
+year's nearest event whether or not it matches (`null` when the body never has one), so
+"never" can say by how much. A local year reaching outside the coverage is clipped
+(`truncated`).
+
+### `analemma(observer_json, request_json) -> Analemma`
+
+The Sun at one clock time on every day of a year. `{"year": 2026, "time_h": 12, "clock":
+"lmt"}` (local mean time at the observer's longitude) or `{"clock": "zone",
+"utc_offset_hours": -5}` (a fixed offset all year, no daylight saving). About 10 ms.
+
+```json
+{"year": 2026, "time_h": 12, "clock": "lmt", "utc_offset_hours": -5.011013,
+ "points": [{"date": "2026-01-01", "jd_utc": 2461042.208792, "utc": "2026-01-01T17:00:39.648Z",
+             "alt_deg": 27.081, "alt_apparent_deg": 27.114, "az_deg": 179.053, "dec_deg": -22.958,
+             "eot_s": -219.8}, …],
+ "errors": []}
+```
+
+`dec_deg` and `eot_s` are the analemma's own axes (declination against the equation of
+time). Days outside the coverage are left out and counted in `errors`.
+
+### `sun_path(observer_json, jd_start, jd_end, step_minutes) -> SunPath`
+
+The Sun's path over a window (at most two days; the UI passes one local day) every
+`step_minutes` (1 to 60; the TypeScript default is 10), and the envelope: the same local
+day shifted by whole days to the year's March equinox, June solstice, September equinox
+and December solstice. About 4 ms.
+
+```json
+{"step_minutes": 10,
+ "path": {"day": "day", "jd_start": 2461307.6667, "jd_end": 2461308.6667, "season_jd_utc": null,
+          "points": [{"jd_utc": 2461308.2222, "alt_deg": 48.898, "alt_apparent_deg": 48.913, "az_deg": 190.451}, …]},
+ "envelope": [{"day": "march_equinox", "jd_start": 2461119.6667, "season_jd_utc": 2461120.115231, "points": […], …},
+              {"day": "june_solstice", …}, {"day": "september_equinox", …}, {"day": "december_solstice", …}],
+ "errors": []}
+```
+
+### `rise_set_azimuths(observer_json, request_json) -> RiseSetAzimuths`
+
+Azimuth through the year: `{"body": "Sun", "year": 2026, "utc_offset_hours": -5,
+"options": EventOptions}` (body default `Sun`, clock default local mean time). One
+`day_events` over the local year, split into local days. About 60 ms for the Sun, 0.3 s
+for the Moon.
+
+```json
+{"body": "Sun", "year": 2026, "utc_offset_hours": -5, "jd_start": 2461041.7083, "jd_end": 2461406.7083,
+ "truncated": false,
+ "days": [{"date": "2026-06-21", "jd_start": 2461212.7083, "jd_end": 2461213.7083,
+           "rises": [{"jd_utc": 2461212.89735, "utc": "2026-06-21T09:32:11.038Z", "az_deg": 57.922, "alt_deg": -0.833}],
+           "sets": [{"utc": "2026-06-22T00:32:51.423Z", "az_deg": 302.076, …}],
+           "transit": {"utc": "2026-06-21T17:02:31.439Z", "az_deg": 180.0, "alt_deg": 73.484, …},
+           "always_above": false, "always_below": false}, …]}
+```
+
+`rises` and `sets` are usually one each; none when the body does not cross its rise/set
+altitude that day (`always_above` / `always_below` then say which), two on rare days for
+the Moon at high latitude.
+
+### `equation_of_time(year, utc_hour) -> EquationOfTime`
+
+Apparent minus mean solar time (seconds; positive: the sundial is fast) and the Sun's
+apparent declination on every UTC date of `year`, evaluated at `utc_hour` (the TypeScript
+default is 12, the almanac page's `eot_12h`). The same for every observer. About 12 ms.
+
+```json
+{"year": 2026, "utc_hour": 12,
+ "points": [{"date": "2026-01-01", "jd_utc": 2461042.0, "utc": "2026-01-01T12:00:00.000Z",
+             "eot_s": -213.9, "dec_deg": -22.976}, …],
+ "extremes": [{"kind": "minimum", "date": "2026-02-11", "jd_utc": 2461083.0, "eot_s": -850.5},
+              {"kind": "maximum", "date": "2026-05-13", "eot_s": 220.5, …},
+              {"kind": "minimum", "date": "2026-07-26", "eot_s": -393.9, …},
+              {"kind": "maximum", "date": "2026-11-03", "eot_s": 986.8, …}],
+ "errors": []}
+```
+
+`extremes` are to the day (the day of the largest or smallest value).
+
+### `solar_day(observer_json, jd_start, jd_end, panel_json, step_minutes) -> SolarDay`
+
+A **clear-sky estimate** of the irradiance on a panel through a window (at most two
+days) every `step_minutes` (1 to 60; TypeScript default 10), and the window's energy.
+`panel_json`: `{"tilt_deg": 30, "azimuth_deg": 180, "albedo": 0.2}`; empty or `null` is a
+flat panel; `azimuth_deg` defaults to facing the equator, `albedo` to 0.2. Under 1 ms.
+
+```json
+{"jd_start": 2461307.6667, "jd_end": 2461308.6667, "step_minutes": 10,
+ "panel": {"tilt_deg": 30, "azimuth_deg": 180, "albedo": 0.2},
+ "samples": [{"jd_utc": 2461308.292, "sun_alt_apparent_deg": 40.055, "sun_az_deg": 223.572,
+              "ghi_w_m2": 646.7, "dni_w_m2": 836.2, "dhi_w_m2": 108.5, "poa_w_m2": 807.9,
+              "incidence_deg": 33.43}, …],
+ "poa_kwh_m2": 7.032, "ghi_kwh_m2": 5.668, "dni_kwh_m2": 8.181, "peak_poa_w_m2": 973.4,
+ "model": SolarModel}
+```
+
+`incidence_deg` is `null` with the Sun down (then every irradiance is 0). `model` says
+what the numbers are, always to be shown with them: `{"label": "clear-sky estimate",
+"clear_sky", "diffuse_split", "transposition", "typical_error", "not_modelled"}` (plain
+sentences; CONVENTIONS 13.10).
+
+### `solar_year(observer_json, request_json) -> SolarYear`
+
+Clear-sky energy for every local day of a year, by month and in total, and optionally
+the tilt that collects the most for the panel's azimuth.
+`{"year": 2026, "panel": {"tilt_deg": 30}, "utc_offset_hours": -5, "step_minutes": 10,
+"optimise_tilt": true}` (defaults: flat panel, local mean time, 10 minutes, no search).
+About 60 ms with the search.
+
+```json
+{"year": 2026, "utc_offset_hours": -5, "step_minutes": 10,
+ "panel": {"tilt_deg": 30, "azimuth_deg": 180, "albedo": 0.2},
+ "jd_start": 2461041.7083, "jd_end": 2461406.7083, "truncated": false,
+ "days": [{"date": "2026-01-01", "jd_start": 2461041.7083, "poa_kwh_m2": 4.362, "ghi_kwh_m2": 2.513}, …],
+ "months": [{"month": 1, "days": 31, "poa_kwh_m2": 146.5, "ghi_kwh_m2": 88.1}, …],
+ "poa_kwh_m2": 2448.2, "ghi_kwh_m2": 2098.8,
+ "optimal": {"tilt_deg": 34.7, "azimuth_deg": 180, "poa_kwh_m2": 2454.9},
+ "model": SolarModel}
+```
+
+`optimal` is `null` unless asked for. Days outside the coverage are left out
+(`truncated`).
+
+### `galactic_centre_windows(observer_json, jd_start, jd_end, options_json) -> GalacticCentreWindows`
+
+For the Milky Way planner: the stretches of a window (the UI passes a night, noon to
+noon, or a month of them; at most 400 days) during which the galactic centre's apparent
+altitude is at least `min_altitude_deg` (default 10) and the Sun's geometric altitude at
+most `sun_max_altitude_deg` (default −18, astronomical night), split where the Moon rises
+or sets. `options_json`: `{"min_altitude_deg": 15, "sun_max_altitude_deg": -15}`, or
+empty / `null` for the defaults. About 1 ms a night, 40 ms a month.
+
+```json
+{"jd_start": 2461206.5833, "jd_end": 2461207.5833, "min_altitude_deg": 10, "sun_max_altitude_deg": -18,
+ "galactic_centre": {"ra_j2000_deg": 266.416833, "dec_j2000_deg": -29.007806},
+ "galactic_pole": {"ra_j2000_deg": 192.8595, "dec_j2000_deg": 27.128333},
+ "windows": [{"jd_start": 2461206.857322, "utc_start": "2026-06-15T08:34:32.610Z",
+              "jd_end": 2461207.315313, "utc_end": "2026-06-15T19:34:03.068Z", "duration_h": 10.99,
+              "moon_up": false, "moon_illuminated_fraction": 0.005,
+              "best": {"jd_utc": 2461207.09, "utc": "2026-06-15T14:15:36.979Z",
+                       "alt_deg": 87.75, "alt_apparent_deg": 87.75, "az_deg": 359.99,
+                       "arch_top_alt_deg": 88.78, "arch_top_az_deg": 301.21,
+                       "arch_ends_az_deg": [31.21, 211.21]}}]}
+```
+
+- `moon_up`: the Moon is above its rise/set altitude throughout the window;
+  `moon_illuminated_fraction` is at the window's middle, given either way.
+- `best`: the galactic centre at its highest in the window; there, `arch_top_*` is the
+  highest point of the galactic equator (the Milky Way's arch) and `arch_ends_az_deg`
+  where the galactic equator meets the horizon. Geometric directions (no refraction).
+
+## Expansion programme — moonshape (P1): the Moon's Earth-shape term and DUT1
+
+Implemented 2026-09-24 in `agent/moonshape`. Additive throughout: no field was renamed or
+removed, and a document without the new fields reads as before.
+
+### The Moon's Earth-shape term (CONVENTIONS §15.4)
+
+- **`ReducedSight`** (`reduce` entries, every method's `sights`) gains
+  `horizontal_parallax_arcmin: number` (the direction's HP, 0 for a star) and
+  `earth_shape_arcmin: number | null` — the Moon's Earth-shape term included in `hc_deg`
+  and `intercept_nm` at the assumed position; `null` for every other body, without an
+  assumed position, and for a Moon direction without HP (the reduction then warns, a
+  `{"code": "other"}` naming the term). `corrections` and `ho_deg` never include it.
+- **`PredictedSight`** (`predict_sextant`, every `plan_sights` recommendation) gains
+  `earth_shape_arcmin: number` (0 for every body but the Moon); `hc_deg` includes it, so
+  the predicted reading is the real (WGS84) Earth's and `corrections.ho_deg` still equals
+  `hc_deg` to 1e-9°.
+- **`FixResult`**: every `Residual.hc_deg` and `intercept_nm` of a Moon sight is the model
+  altitude with the term at the fix; a Moon `CircleOfPosition.zenith_distance_deg` is
+  `90 − (Ho − term)` with the term at the fix (the best candidate when ambiguous, the
+  initializer when there is no point fix, none without one), so the plotted circle passes
+  through the fix.
+- **`NoonSightResult`** for the Moon: `meridian_altitude_deg` is an `Ho` (the sphere's
+  plus the term), `zenith_distance_deg` is `90 − (meridian altitude − term)` (so
+  `latitude = declination ± zenith distance` still holds exactly), and `latitude_rule`
+  states the term. `AveragedSight.observation` of an all-supplied Moon run keeps the
+  Moon's HP in its `geocentric` direction.
+- **Misfit grid**: the mapped misfit includes the term at every node, exactly as the
+  solver evaluates it. **Planner** (`plan`, `plan_sights`): the Moon's candidate altitude
+  includes it.
+
+### DUT1 (UT1 − UTC)
+
+- **Session**: `clock.dut1_s: number | null`, seconds, optional (contract above). Omitted
+  from a session the core writes when absent; CSV header `# clock.dut1_s=` (empty =
+  automatic). `parse_session` refuses a non-finite value or one beyond 60 s, and warns
+  beyond 0.9 s.
+- **Every session export** — `reduce`, `solve`, `misfit_grid`, `misfit_default_bounds`,
+  `noon_sight`, `polaris_latitude`, `average_sights`, `running_fix` — builds its `auto`
+  providers once per call with `time::dut1_s(earliest sight, clock.dut1_s)`
+  (`skyfix_wasm::nav::session_source`). A GHA moves by 15.04″ per second of DUT1,
+  whatever the body.
+- **`predict_sextant`, `plan_sights`, `lunar_distance`** take no session: the observer
+  document (for `lunar_distance`, the input's `observer`) may carry
+  `"dut1_s": number | null`, read at the boundary (it is not a field of the Rust
+  `SightObserver`, and a plan does not echo it); `plan_sights` takes one value for its
+  whole span, at `jd_start`. Refused like the session's.
+- **TypeScript**: `Clock.dut1_s?`, `ReducedSight.horizontal_parallax_arcmin` and
+  `earth_shape_arcmin`, `PredictedSight.earth_shape_arcmin`, `SightObserver.dut1_s?`
+  (`web/src/types.ts`, `web/src/next/engine/types.ts`); `sightObserverJson` passes
+  `dut1_s` on.
+
+## Expansion programme — magnetic field and compass error (`geomag.rs`, geomag agent)
+
+Normative definitions: CONVENTIONS 14.1-14.2 and `docs/NAVIGATION_METHODS.md` section 9.
+The Rust is `skyfix_geomag` (the models) and `skyfix_core::methods::compass` (the method);
+the exports are `crates/skyfix-wasm/src/geomag.rs`. TypeScript: `GeomagEngine`, behind
+`isGeomagEngine`, in `web/src/next/engine/types.ts` (search "Expansion programme —
+magnetic field"). All three exports are optional: a build without them has no
+`magneticField`, and the UI checks with the guard.
+
+### `magnetic_field(lat_deg, lon_deg, height_m, jd_utc, model?) -> MagneticField`
+
+The Earth's main field at a WGS84 point (`height_m` above the ellipsoid, as an observer's)
+and instant. `model` is optional: `"auto"` (default: WMM2025 from 2025.0 to 2030.0,
+IGRF-14 from 1900.0 up to 2025.0), `"wmm2025"` or `"igrf14"`. Philadelphia, 24 September
+2026:
+
+```json
+{"available": true, "jd_utc": 2461308.0, "utc": "2026-09-24T12:00:00.000Z",
+ "model": "WMM2025", "decimal_year": 2026.7301,
+ "lat_deg": 39.9526, "lon_deg": -75.1652, "height_m": 12.0,
+ "declination_deg": -11.8053, "inclination_deg": 65.1704,
+ "horizontal_nt": 21219.2, "north_nt": 20770.4, "east_nt": -4341.2, "down_nt": 45860.4,
+ "total_nt": 50531.5,
+ "annual_change": {"declination_deg_per_year": 0.0267, "inclination_deg_per_year": -0.1039,
+                   "horizontal_nt_per_year": 36.0, "north_nt_per_year": 37.3,
+                   "east_nt_per_year": 2.3, "down_nt_per_year": -140.4,
+                   "total_nt_per_year": -112.3},
+ "uncertainty": {"declination_deg": 0.364, "inclination_deg": 0.2, "horizontal_nt": 133.0,
+                 "north_nt": 137.0, "east_nt": 89.0, "down_nt": 141.0, "total_nt": 138.0,
+                 "basis": "WMM2025 error model (NOAA NCEI): …"},
+ "zone": "normal", "forecast": true, "notes": [],
+ "variation_text": "11.8° W", "annual_change_text": "1.6′ E a year",
+ "sentence": "Variation 11.8° W ±0.4° (WMM2025), changing 1.6′ E a year."}
+```
+
+| field | meaning |
+|---|---|
+| `available` | `true` here; see below for `false` |
+| `model` | `"WMM2025"` or `"IGRF-14"` |
+| `decimal_year` | `Y + (jd - JD(Y-01-01T00:00)) / days in Y` (CONVENTIONS 14.1) |
+| `lon_deg` | normalised to (-180, 180] |
+| `declination_deg` | **magnetic variation**, true north to magnetic north, east positive |
+| `inclination_deg` | dip below the horizontal, down positive |
+| `north_nt`, `east_nt`, `down_nt` | X, Y, Z in the geodetic frame; `horizontal_nt` H, `total_nt` F |
+| `annual_change` | rate of each element per year (declination and inclination in degrees) |
+| `uncertainty` | one standard deviation of each element, with `basis` saying where the numbers come from: WMM2025's published error model (declination `sqrt(0.26² + (5417/H)²)` degrees, so it grows near the magnetic poles), or for IGRF-14 Beggan (2022)'s figures widened for the model's own error in that era (CONVENTIONS 14.1) |
+| `zone` | `"normal"`, `"caution"` (H < 6000 nT: compass accuracy may be degraded) or `"blackout"` (H < 2000 nT: compass unreliable, the variation can be wrong by tens of degrees), WMM2025 technical report 1.8 |
+| `forecast` | the date is after 2025.0: the value extrapolates a forecast rate of change (always for WMM2025; IGRF-14 after 2025.0) |
+| `notes` | plain sentences: the zone, a less certain era (IGRF-14 before 1965), a forecast |
+| `variation_text`, `annual_change_text`, `sentence` | the words to show beside the numbers |
+
+A date or height no model covers is **not an error**; the answer says why and carries no
+field values (the UI shows the reason and no variation):
+
+```json
+{"available": false, "jd_utc": 2396758.5, "utc": "1850-01-01T00:00:00.000Z",
+ "decimal_year": 1850.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "height_m": 12.0,
+ "reason": "No magnetic variation for 1850.0: the models start in 1900 (IGRF-14), and the field's earlier changes are not known well enough to show one."}
+```
+
+Before 1900.0 and after 2030.0 there is never a value (the brief's rule: variation is not
+predictable for deep time and is not shown there); `"wmm2025"` outside 2025.0-2030.0 is
+unavailable too; heights outside -1 km to 850 km are unavailable. Malformed input throws a
+string: a non-finite number, a latitude beyond ±90, an unknown `model`.
+
+### `magnetic_grid(jd_utc, lat_min, lat_max, n_lat, lon_min, lon_max, n_lon, height_m) -> MagneticGrid | null`
+
+Declination and horizontal intensity on an evenly spaced grid, for isogonic lines and the
+blackout zone on the map (the auto model). `n_lat` rows from `lat_min` to `lat_max`,
+`n_lon` columns from `lon_min` to `lon_max`, both ends included (a count of 1 gives the
+minimum only); at most 70 000 points. About 1 µs a point natively (a 1-degree global grid
+in 70 ms).
+
+```ts
+{ model: 'WMM2025' | 'IGRF-14', decimal_year: number,
+  lat_deg: Float64Array,          // n_lat
+  lon_deg: Float64Array,          // n_lon
+  declination_deg: Float64Array,  // n_lat * n_lon, row by row from lat_min, west to east
+  horizontal_nt: Float64Array }   // same layout; < 2000 blackout, < 6000 caution
+```
+
+`null` when no model covers the date. Throws a string for non-finite numbers, a latitude
+beyond ±90, `lat_max < lat_min`, `lon_max < lon_min` or too many points.
+
+### `compass_error(request_json) -> CompassError`
+
+Compass error by the azimuth of a body, or by its amplitude as it rises or sets, and for a
+magnetic compass its split into variation and deviation (CONVENTIONS 14.2). The Sun from
+Philadelphia, a magnetic compass reading 272.0°:
+
+```json
+{"method": "azimuth", "body": "Sun", "utc": "2026-09-24T21:40:00Z",
+ "observer": {"lat_deg": 39.9526, "lon_deg": -75.1652, "height_m": 12},
+ "compass_bearing_deg": 272.0, "compass": "magnetic"}
+```
+
+gives (abridged) `true_bearing_deg` 257.552, `compass_error_deg` −14.448,
+`variation.deg` −11.805 (WMM2025, `sigma_deg` 0.364), `deviation_deg` −2.642 and
+
+> Compass error 14.4° W; variation 11.8° W; deviation 2.6° W.
+
+Request fields (only `body`, a time, `observer` and `compass_bearing_deg` are required):
+
+| field | meaning |
+|---|---|
+| `method` | `"azimuth"` (default) or `"amplitude"` |
+| `body` | a body `auto` ephemeris mode can place: Sun, Moon, Venus, Mars, Jupiter, Saturn, the 58 stars (any case) |
+| `utc` or `jd_utc` | when the bearing was taken (one of them). For an amplitude, roughly: the crossing nearest it within 12 hours is used |
+| `observer` | `{lat_deg, lon_deg, height_m?}` (WGS84; height above the ellipsoid, default 0) |
+| `compass_bearing_deg` | what the compass read, [0, 360) |
+| `compass` | `"magnetic"` (default) or `"gyro"` (no variation; the sentence says "Gyro error") |
+| `variation_deg`, `variation_sigma_deg` | a chart's variation (east positive) and its sigma; `null` (default): the model's at the observer and the instant |
+| `magnetic_model` | which model fills a missing variation: `"auto"` (default), `"wmm2025"`, `"igrf14"` |
+| `bearing_sigma_deg` | 1-sigma of the compass reading, when the navigator states it |
+| `horizon` | amplitude: `"visible"` (default: the chosen limb on the sea horizon) or `"celestial"` (the centre at geocentric altitude 0) |
+| `height_of_eye_m` | amplitude on the visible horizon: for the dip (default 0) |
+| `limb` | amplitude on the visible horizon: `"center"` (default), `"lower"`, `"upper"` |
+| `event` | amplitude: `"rising"` or `"setting"`; `null` (default): from the body's side of the meridian at the given time |
+| `pressure_hpa`, `temperature_c` | refraction on the visible horizon (defaults 1010, 10) |
+
+Result:
+
+| field | meaning |
+|---|---|
+| `method`, `body` (canonical), `compass` | as requested |
+| `jd_utc`, `utc` | the instant of the true bearing: the bearing's (azimuth) or the horizon crossing's (amplitude) |
+| `true_bearing_deg` | azimuth: the topocentric azimuth of the centre on the WGS84 ellipsoid; amplitude: the exact bearing at the crossing |
+| `compass_bearing_deg` | as given |
+| `compass_error_deg`, `compass_error_text` | true minus compass, (-180, 180], east positive ("compass least, error east"); `"14.4° W"` |
+| `compass_error_sigma_deg` | the stated bearing sigma, else `null` |
+| `variation` | magnetic compass only: `{deg, sigma_deg, source: "WMM2025" \| "IGRF-14" \| "given", text, notes}`; `null` for a gyro, or when no model covers the date (a note says why) |
+| `deviation_deg`, `deviation_sigma_deg`, `deviation_text` | compass error minus variation, east positive; its sigma is the variation's combined with the bearing's when stated; `null` without a variation |
+| `sentence` | `"Compass error 14.4° W; variation 11.8° W; deviation 2.6° W."`, or `"Compass error 3.2° W."` without a variation, or `"Gyro error 0.8° W."` |
+| `explanation` | `"The Sun bore 257.6° true at 21:40:00 UTC, 13.3° high; the compass read 272.0°."` |
+| `azimuth` | azimuth only: `{gha_deg, dec_deg, altitude_deg, zn_spherical_deg, azimuth_rate_deg_per_min}` (`zn_spherical_deg` is CONVENTIONS 3's Zn, what the tables give; equal to `true_bearing_deg` within 0.001° for the Sun and the stars) |
+| `amplitude` | amplitude only: `{event, horizon, dec_deg, amplitude_deg (north positive; null if the body never reaches the celestial horizon), amplitude_text ("W 1.0° S"), celestial_bearing_deg, altitude_deg (geocentric, of the centre, when the bearing was taken), visible_horizon_correction_deg (visible minus celestial bearing; Bowditch's Table 23 correction is its negative, applied to the observed bearing), dip_arcmin, refraction_arcmin, semidiameter_arcmin, parallax_arcmin, bearing_per_altitude, minutes_from_given_time}` |
+| `direction_source` | the provider that placed the body |
+| `notes` | plain sentences: a body below the horizon, a fast-changing bearing, a crossing far from the given time, a shallow crossing at high latitude, the variation model's own notes |
+
+Throws a string for malformed JSON, a missing or double time, a non-finite number, a
+latitude beyond ±90, a compass bearing outside [0, 360), a negative height of eye, a sigma
+of 0 or less, an unknown body, a body the ephemeris cannot place at that time, or an
+amplitude when the body does not rise or set within 12 hours of the given time.
+
+### Packs — the mechanism as built (packs agent, 2026-09-24)
+
+Implements "Packs" above. **Contract changes, all additive or clarifying:**
+
+1. **Producers register with one table entry, not a match arm.** `skyfix_wasm::packs::PRODUCERS`
+   holds one `Producer { name, label, description, provides, install }` per pack; `install`
+   is the producer's `install_<pack>(payload: &[u8]) -> Result<PackInfo, String>`. The
+   contract's `install(name, payload)` exists and dispatches through the table, so `packs()`
+   and the "no such pack" sentence come from the same list. Each producer adds its entry
+   between the `producer entries start` / `end` comments; nothing else in `packs.rs` changes.
+2. **`packs()`**: `version` and `bytes` describe the *loaded* pack (`""` and `0` before
+   one is loaded); `label`, `description` and `provides` come from the registry. The version
+   and size of the file the site offers are the manifest's (below).
+3. **`PackInfo.bytes`** is the size of the whole pack file, header included; the dispatcher
+   sets it, whatever the producer reported.
+4. **`PackService`** (TypeScript) gains `get(name)` (Settings → Get: download and load with no
+   prompt), `subscribe(listener)` and `refresh()`; `status()` returns `PackState[]`, which
+   extends `PackStatus` with `offered`, `supported`, `saved`, `savedBytes`, `stale`,
+   `removedInUse`, `progress` and `error`.
+
+**The file.** Header as above; the name is `[a-z0-9][a-z0-9-]*`, at most 64 bytes; the
+format version is 1; nothing may follow the checksum; the CRC is CRC-32/ISO-HDLC (zlib's
+`crc32`: reflected polynomial 0xEDB88320, initial value and final XOR 0xFFFFFFFF; check
+value `crc32("123456789") = 0xCBF43926`). `load_pack(name, bytes)` refuses, each with its
+own sentence: a file that does not start with `SKYFIXPK`, is cut short, has another format
+version, a malformed name, a payload length that does not fit the file, trailing bytes, a
+checksum that does not hold, a header naming another pack than `name`, a name no producer
+registered ("no pack called "x" in this build: it can install …"), or a payload the
+producer refuses ("the deep-time pack: …"). It is idempotent: the same pack again (same
+name, CRC and payload length) returns the first `PackInfo` without running the producer;
+different bytes for the same name run it again, and the producer must replace what it
+installed (a newer revision). A refused file changes nothing. `skyfix_wasm::packs::encode`
+writes the layout for Rust generators; `web/plugins/packs.ts` `encodePack` does the same
+in Node.
+
+**The site's list: `data/packs/manifest.json`, schema `skyfix.packs/1`.**
+
+```json
+{"schema": "skyfix.packs/1",
+ "packs": [{"name": "deep-time", "version": "2026-09-24", "rev": "0123456789abcdef",
+            "file": "deep-time-0123456789abcdef.bin", "bytes": 412000, "label": "Deep time",
+            "description": "Positions from 2000 BC to AD 3000",
+            "provides": ["ephemeris:-2000..3000"]}]}
+```
+
+Written at build time by `web/plugins/packs.ts` from the producers' files in
+`web/public/data/packs/`: `<name>-<rev>.bin` (rev = the first 16 hex digits of the file's
+SHA-256, as the precache names revisions) and a sidecar `<name>.json` with `{name, version,
+bytes, label, description, provides}`. The build refuses a sidecar without exactly one
+file, a file without a sidecar, a file whose hash is not its name's rev, whose size is not
+the sidecar's `bytes`, whose header names another pack or whose CRC fails, a committed
+`manifest.json`, and anything else in the folder. The sidecars are not deployed. The
+manifest is precached; with no packs it is `{"schema": "skyfix.packs/1", "packs": []}`.
+The development server answers the same file, built on each request.
+`cargo test -p skyfix-wasm` (`every_pack_committed_to_the_site_installs`) installs every
+committed pack into the core, and the Pages workflow runs it before building.
+
+**The service worker** leaves `data/packs/*.bin` to the network (`SwBuild.networkOnly`:
+no precache, no runtime copy) and never deletes the page's packs cache (`isStaleCache`).
+
+**The page** (`web/src/next/packs/`, reached as `ctx.packs`):
+
+- Saved packs live in the Cache API cache `skyfix-lab-packs-1@<site path>`
+  (`packsCacheName`), keyed by the file's absolute address, so name and revision are read
+  back from the key; `content-length` is kept. Older packs-cache schemas of the same site
+  are deleted at start-up.
+- **Start-up:** before the first view mounts (at most 3 s), every saved pack the site still
+  offers is loaded into the engine; a saved pack the site no longer offers is deleted; a
+  saved copy the engine refuses is deleted and the reason shown in Settings. A visitor with
+  nothing saved pays one cache lookup and no manifest fetch. Chosen over loading lazily so
+  that `explorer_coverage()` and every view are right from the first frame, and because a
+  pack loads in milliseconds.
+- **`ensure(name, reason)`:** loaded → true (and, if the site now offers a newer revision,
+  it is fetched in the background, loaded, saved, and the old copy deleted); saved → loaded,
+  true; declined this page session → false; the site does not offer it, or the core cannot
+  install it → false, no prompt. Otherwise one prompt: `reason` (a sentence), the pack's
+  label and description, its size, "downloaded once and saved on this device", **Get** /
+  **Not now** (offline: "You are offline, and it is not saved on this device yet", **Try
+  again**). Get downloads with progress and **Stop**, checks the size and the SHA-256
+  revision against the manifest, calls `loadPack`, and only then saves the file. A failure
+  is shown in words with **Try again**. Not now, Stop, Esc, × and closing after a failure
+  are all remembered for the page session. Concurrent calls share one prompt.
+- **`remove(name)`** deletes the saved copy; a loaded pack stays in the engine (there is no
+  unloading) until the page is reloaded, and Settings says so.
+- After every load the explorer's memoised engine forgets its results
+  (`memoEngine(...).invalidate()`), the WASM wrapper asks `explorer_coverage()` again, and
+  every view draws again once (`redrawEverything()` in `component.ts`: each live `watch`
+  re-renders with its current value), so nothing keeps saying "not computed" for what the
+  engine now answers. `ctx.packs.subscribe` hears every change (progress included).
+- Developer harnesses pass `NO_PACKS`; the mock engine lists `deep-time`, `tides-us` and
+  `lunar-limb` and accepts any bytes (`engine/mock/packs.ts`).
+
+### Time scales, Delta-T and calendars (timescales agent)
+
+Implemented 2026-09-24 in `crates/skyfix-wasm/src/timescale.rs` over
+`skyfix_core::{time, deltat, calendar}`; definitions in CONVENTIONS 15.2-15.3; TypeScript:
+`TimeEngine` (implemented by `WasmEngine` and the mock) and the additive
+`delta_t_sigma_s` fields at the end of `types.ts`.
+
+**`time_info(jd_utc) -> TimeInfo`**, the shape above, about 5 µs natively (debug build;
+the interface may call it every frame). Throws for a non-finite `jd_utc`.
+
+- `delta_t_s`/`delta_t_sigma_s`/`delta_t_source` are the ΔT **model** at the instant: its
+  best estimate of TT − UT1. On the UT scale it is exactly `tt_minus_clock_s`. On the UTC
+  scale the engine does not use it: TT − UTC is `tt_minus_clock_s` (exact) and UT1 − UTC
+  is `dut1_s`, so the TT − UT1 the engine uses is `tt_minus_clock_s − dut1_s`, which equals
+  `delta_t_s` (to 2 ms) while `dut1_source` is `iers`. Between the table's end and 2035
+  the two differ by the model's own prediction of DUT1 (−0.5 s in 2030, −1.6 s at the end
+  of 2035, by when a leap second would have intervened), which the engine does not use:
+  it assumes 0 ± 0.9 s there.
+- `delta_t_source`: `iers` 1973-01-02 to 2026-09-24 (observed), `prediction` from then to
+  2800 (IERS Bulletin A's year, then the join to the parabola), `smh2016` −720 to 1973,
+  `parabola` before −720 and after 2800. `delta_t_sigma_s`: 0.001 s observed, 0.3 s in
+  2030, 10 s in 2060, 32 s in 2100, 15 min in 2650, 30 min in 3000; 0.11 s to 15 s on the
+  splines back to 1000, 90 s at year 0, 180 s at −720, an hour at −2000.
+- `dut1_source`: `iers` (the table; past 2026-09-24 its values are Bulletin A's
+  prediction, with the growing `dut1_sigma_s`), `user` (`set_dut1`, σ 0.05 s), `assumed`
+  (UTC scale, no value: 0 ± 0.9 s; 1972, and 2027-09-29 to 2035), `model` (UT scale).
+- `tier`: until the deeptime agent's `coverage::tier_at` is merged (one line, marked
+  `MERGE` in `timescale.rs`), `validated` inside the providers' coverage and `outside`
+  elsewhere; the mock does the same over its 1990-2060.
+- `notes`: plain sentences for the interface — the clock is UT and why; leap seconds after
+  June 2027 not yet announced; DUT1 unknown or a prediction; a user DUT1 that does not
+  apply on the UT scale; ΔT uncertain by more than 30 s ("±m min"); the Julian calendar;
+  the BC year.
+
+**`set_dut1(seconds | null)`**: the explorer-wide UT1 − UTC, |value| ≤ 1 s (throws
+otherwise; a refused value changes nothing). It applies on the UTC scale only. It is read
+by `sky_state`, `sample_bodies`, `day_events`, `day_events_batch`, `find_altitude` and
+`sidereal` (a window takes the DUT1 of its middle; across a leap second one side is off
+by up to 1 s of UT1, 15″) and by `eclipses`, `eclipse_local`, `eclipse_path`. Without it
+they use the IERS history, and with neither 0. Not read by `almanac_day`, whose argument
+is UT1 as in the printed almanac (CONVENTIONS 15.2), nor by `moon_phases` and `seasons`,
+which do not depend on the Earth's rotation. A session's `clock.dut1_s` overrides it for
+that session (the navigation exports).
+
+**`calendar_convert(request_json) -> CalendarConversion`**: `{"jd_utc": 2461308.0}` or
+`{"civil": {"calendar": "julian"|"gregorian", "year", "month", "day", "hour"?, "minute"?,
+"second"?, "era_year"?, "era"?}}`, exactly one of the two. `year` is astronomical; when
+`era_year` and `era` are given they must name the same year. Throws for an impossible date
+(`1500-02-29` Gregorian), a time of day out of range, both or neither key, or an unknown
+key. The result carries `jd_utc` and the civil date in both calendars (the `CivilDate` of
+`time_info`), rounded to the millisecond.
+
+**Wire strings** from every export now use ISO expanded years outside 0000-9999
+(`-0584-05-22T12:00:00.000Z`, `+12345-…`) and are always proleptic Gregorian;
+`parse_utc` accepts both forms and any year, and the four-digit form exactly as before.
+
+**Eclipses**: `delta_t_s` is TT − UT1 as the engine used it: on the UTC scale 32.184 s +
+ΔAT − DUT1 with DUT1 from `set_dut1`, else the IERS history, else 0 (so 69.201 s for
+2024-04-08, not the 69.184 s of the section above); on the UT scale the ΔT model. Every
+`SolarEclipse`, `LunarEclipse`, `SolarLocal`, `LunarLocal`, `SolarPath` and `LunarPath`
+gains **`delta_t_sigma_s`**: DUT1's standard uncertainty on the UTC scale (0.001 s from the
+history), the ΔT model's on the UT scale. `conventions.delta_t` says so. Saros numbers
+follow each series for any epoch (CONVENTIONS 15.3).
+
+**For the interface agents** (from the data audit): the browser's `Intl` time zones work
+offline, but zones merged in tzdata (Oslo, Amsterdam, Reykjavik, …) can be off by up to an
+hour before 1970, and before standard time a zone's offset is its city's local mean time,
+not the observer's. `Date` and `Intl` are proleptic Gregorian only, and `Date.UTC` maps
+years 0-99 to 1900-1999 (`setUTCFullYear` does not). Show Julian dates and years BC from
+`time_info.civil` and `calendar_convert`, and compute an observer's local mean time from
+the longitude (CONVENTIONS 15.3), rather than through `Date`/`Intl`.
+
+## Expansion programme — sailings, dead reckoning, star identification, star finder (sailings agent)
+
+Rust: `crates/skyfix-core/src/sailings/`, `crates/skyfix-core/src/methods/{starid,starfinder}.rs`,
+`crates/skyfix-core/src/error_logs.rs`; WASM: `crates/skyfix-wasm/src/sailings.rs`. TypeScript:
+`SailingsEngine` and `isSailingsEngine` at the end of `web/src/next/engine/types.ts`; the
+WASM wrapper's methods are on `WasmEngine` (`web/src/next/engine/wasm.ts`), the mock's in
+`web/src/next/engine/mock-sailings.ts`, and the memoised engine forwards them. Methods and
+validation: `docs/NAVIGATION_METHODS.md` sections 9–13. Every request is a JSON document;
+malformed input throws a string naming the field. Angles in degrees, distances in nautical
+miles (with kilometres beside the main ones), times as `jd_utc` and RFC 3339 `utc`.
+
+| export | TypeScript | takes | returns |
+|---|---|---|---|
+| `sailing(request_json)` | `sailing(request)` | `PassageRequest` | `PassageReport` |
+| `dr_advance(request_json)` | `drAdvance(request)` | `DrRequest` | `DrReport` |
+| `route_positions(request_json)` | `routePositions(request)` | `RouteRequest` | `RouteReport` |
+| `star_identify(request_json)` | `starIdentify(request)` | `StarIdRequest` | `StarIdResult` |
+| `star_finder_geometry(lat_band, jd_utc?)` | `starFinderGeometry(latBand, jdUtc?)` | a latitude (snapped to its template band), an optional date | `StarFinderGeometry` |
+
+### `sailing(request_json) -> PassageReport`
+
+```json
+{"from": {"lat_deg": 36.9617, "lon_deg": -75.7033}, "to": {"lat_deg": 45.6517, "lon_deg": -1.4967},
+ "waypoints": {"every_deg_lon": 10}, "limiting_latitude_deg": 47,
+ "meridional_parts": "sphere", "speed_kn": 12, "departure_utc": "2026-10-01T12:00:00Z"}
+```
+
+Only `from` and `to` are required. `waypoints` is `{"every_nm": N}` or
+`{"every_deg_lon": M}` (at most 2000); `limiting_latitude_deg` asks for composite sailing
+(north positive); `meridional_parts` is `"sphere"` (default) or `"wgs84"` (Bowditch's
+Table 6, for the rhumb line only); `speed_kn` (0 to 1000) gives hours under way, and with
+`departure_utc` ETAs. The answer (abbreviated):
+
+```json
+{"from": {...}, "to": {...},
+ "great_circle": {"distance_nm": 3264.54, "distance_km": 6045.92, "distance_deg": 54.409,
+   "initial_course_deg": 55.807, "final_course_deg": 109.003,
+   "vertex": {"lat_deg": 48.6297, "lon_deg": -27.2117, "distance_from_start_nm": 2205.18, "on_route": true},
+   "highest_latitude_deg": 48.6297, "equator_crossing": null,
+   "waypoints": [{"index": 0, "lat_deg": 36.9617, "lon_deg": -75.7033, "distance_from_start_nm": 0.0,
+                  "track_course_deg": 55.807, "leg_course_deg": 57.549, "leg_distance_nm": 317.81,
+                  "sailed_nm": 0.0, "eta_utc": "2026-10-01T12:00:00.000Z", "eta_jd_utc": 2461315.0},
+                 {"index": 1, "lat_deg": 39.8038, "lon_deg": -70.0, "...": "..."}, "...",
+                 {"index": 8, "...": "...", "leg_course_deg": null, "leg_distance_nm": null}],
+   "waypoint_route_nm": 3266.47, "track": [{"lat_deg": ..., "lon_deg": ...}, "..."],
+   "arrival": {"hours": 272.206, "utc": "2026-10-12T20:12:21.898Z", "jd_utc": 2461326.3419}},
+ "rhumb_line": {"course_deg": 81.118, "distance_nm": 3376.90, "distance_km": 6254.02,
+   "dlat_arcmin": 521.4, "dlo_arcmin": 4452.396, "departure_nm": 3336.41,
+   "meridional_difference_arcmin": 695.80, "meridional_parts": "sphere", "track": [...], "arrival": {...}},
+ "mid_latitude": {"course_deg": 81.139, "distance_nm": 3384.98, "mean_latitude_deg": 41.3067,
+   "dlat_arcmin": 521.4, "dlo_arcmin": 4452.396, "departure_nm": 3344.58, "arrival": {...}},
+ "composite": {"limiting_latitude_deg": 47.0, "applies": true, "distance_nm": 3271.27,
+   "distance_km": 6058.39, "extra_distance_nm": 6.73,
+   "legs": [{"kind": "great_circle", "from": {...}, "to": {"lat_deg": 47.0, "lon_deg": -30.2688},
+             "distance_nm": 2081.98, "initial_course_deg": 58.597, "final_course_deg": 90.0},
+            {"kind": "parallel", "...": "...", "distance_nm": 463.25},
+            {"kind": "great_circle", "...": "...", "distance_nm": 726.04}],
+   "waypoints": [...], "waypoint_route_nm": 3272.87, "track": [...], "arrival": {...},
+   "note": "the great circle would reach 48.6297°; the composite track follows ..."},
+ "great_circle_saving_nm": 112.37, "speed_kn": 12.0, "departure_utc": "2026-10-01T12:00:00.000Z",
+ "notes": ["Distances are on the sphere of 1′ = 1 NM. On the WGS84 ellipsoid ... at most 0.52 % ...",
+           "Steering the rhumb lines between the waypoints sails 3266.5 NM, 1.9 NM more than ..."]}
+```
+
+- `great_circle.vertex` is Bowditch's vertex (the departure's hemisphere; the one ahead
+  for a departure on the equator), `null` for a track along the equator;
+  `distance_from_start_nm` is negative when it lies behind the departure.
+- Each waypoint carries the rhumb line to the next (`leg_course_deg`, `leg_distance_nm`,
+  `null` at the destination) and `sailed_nm`, the sum of those legs to it; ETAs are along
+  them. `waypoints` is empty when none were asked for (then `waypoint_route_nm` is the
+  great circle's own length).
+- `track` arrays are for drawing, at most 60 NM apart.
+- `mid_latitude` is `null` across the equator; `composite` is `null` unless a limit was
+  given, and `applies: false` (with the great circle as its one leg) when the great circle
+  stays within the limit. An end beyond the limit, antipodal ends, a rhumb line through a
+  pole and a spacing that is not positive throw.
+
+### `dr_advance(request_json) -> DrReport`
+
+```json
+{"from": {"lat_deg": 44.605, "lon_deg": -31.305}, "course_deg": 270, "speed_kn": 17, "hours": 4.5,
+ "method": "rhumb", "meridional_parts": "sphere", "start_utc": "2026-10-01T15:30:00Z"}
+```
+
+`method` is `"rhumb"` (default), `"mid_latitude"` or `"great_circle"` (the running fix's
+leg model); negative `hours` give where the vessel was. Returns
+
+```json
+{"from": {...}, "to": {"lat_deg": 44.605, "lon_deg": -33.095819}, "course_deg": 270.0,
+ "speed_kn": 17.0, "hours": 4.5, "distance_nm": 76.5, "method": "rhumb", "meridional_parts": "sphere",
+ "final_course_deg": 270.0, "arrival_utc": "2026-10-01T20:00:00.000Z", "arrival_jd_utc": 2461315.3333}
+```
+
+(`final_course_deg` is the direction of travel on arrival: the course itself, except on a
+great-circle leg, where it turns.)
+
+### `route_positions(request_json) -> RouteReport`
+
+```json
+{"start": {"lat_deg": 40.0, "lon_deg": -70.0}, "start_utc": "2026-10-01T00:00:00Z",
+ "legs": [{"course_deg": 90, "speed_kn": 10},
+          {"start_utc": "2026-10-01T03:00:00Z", "course_deg": 0, "speed_kn": 10}],
+ "end_utc": "2026-10-01T06:00:00Z", "method": "rhumb",
+ "times_utc": ["2026-10-01T02:00:00Z", "2026-10-01T07:00:00Z"], "step_minutes": null}
+```
+
+The legs are the running fix's `RunningFixLeg` shape, so `request.legs` can be passed to
+`running_fix` as they are. The first leg's `start_utc` may be omitted (it starts with the
+route); later legs need one, in increasing order. `step_minutes` adds a position every so
+many minutes from the start to `end_utc` (required then); at most 20 000 positions.
+Returns
+
+```json
+{"method": "rhumb", "meridional_parts": "sphere",
+ "legs": [{"index": 0, "start_utc": "2026-10-01T00:00:00.000Z", "start_jd_utc": 2461314.5,
+           "end_utc": "2026-10-01T03:00:00.000Z", "end_jd_utc": 2461314.625,
+           "from": {"lat_deg": 40.0, "lon_deg": -70.0}, "to": {"lat_deg": 40.0, "lon_deg": -69.347296},
+           "course_deg": 90.0, "speed_kn": 10.0, "distance_nm": 30.0}, {...}],
+ "points": [{"utc": "2026-10-01T02:00:00.000Z", "jd_utc": 2461314.5833, "lat_deg": 40.0,
+             "lon_deg": -69.564864, "leg": 0, "status": "under_way", "distance_run_nm": 20.0},
+            {"utc": "2026-10-01T07:00:00.000Z", "...": "...", "leg": null, "status": "after_end",
+             "distance_run_nm": 60.0}],
+ "made_good": {"course_deg": 44.894, "distance_nm": 42.348, "hours": 7.0, "speed_kn": 6.05},
+ "notes": ["Some instants are after the route's end: the vessel is taken to have stopped there."]}
+```
+
+`status` is `under_way`, `waiting` (at the start before a later first leg), `before_start`
+(the start position is reported, not extrapolated) or `after_end`. A leg with no end (the
+last, when the route has none) has `end_utc`, `to` and `distance_nm` `null`.
+
+### `star_identify(request_json) -> StarIdResult`
+
+```json
+{"utc": "2026-10-01T00:30:00Z",
+ "observer": {"lat_deg": 39.95, "lon_deg": -75.17, "height_of_eye_m": 2.5},
+ "instrument": {"index_correction_arcmin": -1.2},
+ "altitude_deg": 72.59, "altitude_kind": "sextant_hs",
+ "bearing_deg": 286, "bearing_kind": "compass", "variation_deg": -12.5, "deviation_deg": 0,
+ "altitude_tolerance_deg": 2, "bearing_tolerance_deg": 5}
+```
+
+`observer` and `instrument` are the `predict_sextant` shapes (the instrument's
+`index_error_log` and `horizon`, a shore horizon included, apply). `altitude_kind` is
+`sextant_hs` (default), `apparent_ha` or `observed_ho` (corrected as for a star);
+`bearing_kind` is `true` (default), `magnetic` (the variation is added) or `compass` (the
+deviation and the variation). The tolerances default to 2° and 5°. Returns
+
+```json
+{"utc": "2026-10-01T00:30:00.000Z", "jd_utc": 2461314.5208,
+ "observed_altitude_deg": 72.5184, "observed_bearing_deg": 273.5,
+ "corrections": {"input_kind": "sextant_hs", "input_deg": 72.59, "steps": [...], "ho_deg": 72.5184, ...},
+ "altitude_tolerance_deg": 2.0, "bearing_tolerance_deg": 5.0,
+ "sun_altitude_deg": -20.91, "sky": "night", "limiting_magnitude": 4.5,
+ "candidates": [{"rank": 1, "body": "Vega", "kind": "star", "navigational": true,
+                 "altitude_deg": 72.5162, "azimuth_deg": 273.566, "delta_altitude_deg": 0.0023,
+                 "delta_bearing_deg": -0.066, "separation_deg": 0.020, "score": 0.0100,
+                 "within_tolerance": true, "magnitude": 0.03, "bright_enough": true},
+                {"rank": 2, "body": "Eltanin", "...": "...", "within_tolerance": false}, "..."],
+ "best": "Vega", "ambiguous": false,
+ "message": "Vega (1.2′ away: the sight is 0.1′ higher and its bearing 4.0′ less).",
+ "source": "skyfix-sky (Sun, Moon, planets, stars)", "warnings": [], "notes": ["Brightness: ..."]}
+```
+
+`candidates` lists every body within the tolerances, best first, then (when fewer than
+three match) the nearest others with `within_tolerance: false`; `best` is `null` when
+nothing matches and `message` then names the nearest. `altitude_deg` is the body's airless
+topocentric altitude at the DR (the Moon's parallax removed); `delta_*` are observed minus
+the body's. The candidates are the 58 stars, Mercury to Saturn and the Moon; `kind` is
+`star`, `planet` or `moon`. `sky` is the CONVENTIONS 13.4 phase at the DR. Outside the
+ephemeris coverage the call throws the provider's sentence.
+
+### `star_finder_geometry(lat_band, jd_utc?) -> StarFinderGeometry`
+
+`lat_band` is any latitude (degrees, south negative); it picks the template of its 10°
+band (5° to 85°, signed; 0 counts as north). `jd_utc`, when given, plots apparent places
+of that date; otherwise the J2000.0 catalogue places. Every point is on the unit disc,
+`x` right, `y` up, the base seen from outside the celestial sphere (about 100 kB).
+
+```json
+{"requested_latitude_deg": 39.95, "template_latitude_deg": 35.0, "side": "north",
+ "rotation_sign": 1.0, "equator_radius": 0.5, "epoch": "J2000.0 catalogue place",
+ "stars": [{"name": "Acamar", "sha_deg": 315.4347, "dec_deg": -40.3047, "magnitude": 2.88,
+            "north": [0.515754, 0.507987], "south": [0.196697, -0.193735]}, "..."],
+ "aries_index": [{"lha_aries_deg": 0.0, "north": [1.0, 0.0], "south": [1.0, -0.0], "kind": "label"},
+                 {"lha_aries_deg": 1.0, "north": [0.999848, 0.017452], "south": [0.999848, -0.017452],
+                  "kind": "minor"}, "..."],
+ "template": {"latitude_deg": 35.0, "side": "north", "zenith": [0.305556, 0.0],
+              "horizon": [[x, y], ...],
+              "altitude_circles": [{"value_deg": 5.0, "points": [[x, y], ...]}, "... every 5° to 85°"],
+              "azimuth_lines": [{"value_deg": 0.0, "points": [[x, y], ...]}, "... every 10°"]},
+ "notes": ["Azimuthal equidistant projection centred on the celestial pole ...", "..."]}
+```
+
+To set the finder: draw the base side `side` (the stars' `north` or `south` points and
+the `aries_index`), then draw the template rotated anticlockwise by
+`rotation_sign × LHA ♈` degrees about the centre; the template's arrow is its `+x` axis
+through `zenith`. The 58 stars are the 57 and Polaris. Template circles are closed (73
+points, every 5° of azimuth); azimuth lines run from the horizon to the zenith (37
+points). `kind` of an index graduation is `label` every 10°, `major` every 5°, `minor`
+every degree.
+
+### Session and reduction additions (additive; older files load unchanged)
+
+- **Shore horizon.** `instrument.horizon` and an observation's `horizon` may be
+  `{"shore": {"distance_nm": 1.2}}` besides the three strings (TypeScript `ShoreHorizon`;
+  `HorizonName` and `horizonName()` give its kind as a string). CSV cells write it
+  `shore:1.2`. The distance must be positive.
+- **Error logs.** `instrument.index_error_log: [{"utc", "ic_arcmin", "note"}]` and
+  `clock.watch_log: [{"utc", "correction_s", "note"}]`, absent when empty (so older
+  outputs are byte-identical). In CSV each rides in the header block as one JSON array
+  (`# instrument.index_error_log=[...]` in the Rust dialect).
+- **Reduced sight.** `ReducedSight` gains `index_correction_from_log` and
+  `clock_correction_from_log` when a log was used:
+  `{"value", "method": "interpolated"|"at_entry"|"only_entry"|"held_before_first"|"held_after_last", "from": {"utc", "value"}|null, "to": {...}|null, "hours_outside", "note"}`;
+  absent otherwise.
+- **Warnings** (appended to `Warning`): `shore_beyond_sea_horizon {id, distance_nm,
+  sea_horizon_nm}` (a note: the sea dip was used) and `error_log_outside_span {id, log,
+  held_value, hours_outside}` (a caution: a logged value was held, not extrapolated).
+- `SightHorizon` (the `predict_sextant` and `plan_sights` instrument's horizon) is now the
+  session's `HorizonMode`, a shore horizon included.
+
+## Expansion programme P8 — the Moon in detail (`moondetail.rs`, moondetail agent)
+
+Specified by the moondetail agent (2026-09-25). Engines: `skyfix_almanac::{libration,
+lunar_features, apsides, occultations}`; definitions in CONVENTIONS 13.10; validation in
+`docs/ACCURACY.md`, "Moon in detail". TypeScript: `MoonDetailEngine` and
+`isMoonDetailEngine` at the end of `types.ts`, implemented by the WASM engine, the mock and
+the memoised wrapper. Every export throws a string for malformed input or an instant the
+Moon or the Sun cannot be computed at; the astronomy is the explorer's (DUT1 = 0,
+CONVENTIONS 13.2). `observer_json` is as in "Common rules"; where it may be `null` (or
+empty), the answer is for the Earth's centre.
+
+Selenographic places are latitude north-positive and **east** longitude (toward Mare
+Crisium, IAU), `(-180, 180]`, in the mean Earth/polar axis frame of IAU coordinates and of
+the named features. `DiscPoint` is where a point of the Moon appears on its disc, in disc
+radii: `{east, north, x, y, visible}` — `east`/`north` along celestial east (position angle
+90°) and north; `x`/`y` as the observer sees the Moon with the zenith up (`x` right, `y`
+up), or with celestial north up and east to the left when there is no observer; `visible`
+when the point faces the observer.
+
+### `moon_orientation(observer_json | null, jd_utc) -> MoonOrientation`
+
+How the Moon is turned and lit (about 0.5 ms natively):
+
+```ts
+{ jd_utc, utc, topocentric: boolean,
+  libration: { lon_deg, lat_deg,                        // total, as the observer sees it
+               optical_lon_deg, optical_lat_deg,         // Meeus l', b' (geocentric)
+               physical_lon_deg, physical_lat_deg,       // Meeus l'', b'' (geocentric)
+               diurnal_lon_deg, diurnal_lat_deg },       // observer minus geocentre; 0 without one
+  sub_observer: Selenographic,  // = libration lon/lat: the point at the disc's centre
+  sub_earth: Selenographic,     // the same from the Earth's centre
+  sub_solar: Selenographic,     // where the Sun is overhead
+  colongitude_deg,              // 90 − sub_solar.lon_deg, [0, 360): ~270 new, 0 first quarter, 90 full, 180 last
+  axis_position_angle_deg,      // the Moon's north pole on the sky, north through east (observer)
+  geocentric_axis_position_angle_deg,
+  bright_limb_angle_deg,        // the ephemeris's (geocentric, CONVENTIONS 13.5)
+  illuminated_fraction, phase_angle_deg, waxing: boolean,
+  terminator: { pole: Selenographic,                    // the sub-solar point
+                morning_lon_deg, evening_lon_deg,        // where the sunrise/sunset terminators cross the equator
+                points: [lat_deg, lon_deg][],            // the great circle every 5°, 72 points
+                disc: [x, y][] },                        // the visible half, cusp to cusp, 1° steps
+  distance_km, semidiameter_arcmin, apparent_diameter_arcmin,   // observer to Moon
+  diameter_vs_mean_percent,     // against the mean distance 384 400 km
+  geocentric_distance_km, geocentric_semidiameter_arcmin,
+  alt_deg | null, az_deg | null,           // topocentric geometric (CONVENTIONS 13.2)
+  parallactic_angle_deg | null,            // position angle of the zenith at the Moon, (-180, 180]
+  north_pole_disc: DiscPoint, sub_solar_disc: DiscPoint }
+```
+
+`optical + physical + diurnal` differs from the total by the fixed 78.7″ between the pole
+of Meeus's figure frame and the mean rotation pole (at most 0.022°; CONVENTIONS 13.10).
+
+### `moon_features(observer_json | null, jd_utc) -> MoonFeatures`
+
+The 150 named features (maria, craters, ranges, rilles, valleys, capes, one albedo swirl,
+the six Apollo sites) at an instant, about 0.5 ms natively:
+
+```ts
+{ jd_utc, utc, topocentric, colongitude_deg, sub_solar, sub_observer,
+  axis_position_angle_deg, parallactic_angle_deg | null, illuminated_fraction, waxing,
+  terminator_band_deg: 10,
+  tonight: string[],        // visible relief features near the terminator: rank 1 first, then lowest Sun
+  features: [{ name, kind, lat_deg, lon_deg, diameter_km, rank: 1 | 2 | 3, description,
+               sun_altitude_deg,            // the Sun's altitude over the feature (negative: night)
+               lit, morning,                // lunar morning: the Sun is climbing there
+               near_terminator,             // faces the observer, Sun between −r and 10° + r (r its angular radius)
+               visible, angle_from_disc_centre_deg, disc: DiscPoint }],   // 150, table order
+  source: string }          // "USGS/IAU Gazetteer … (U.S. Public Domain); selection … SkyFix Lab"
+```
+
+`kind`: `mare | oceanus | lacus | sinus | palus | mons | montes | rupes | rima | vallis |
+dorsum | promontorium | albedo | crater | landing_site`. `diameter_km` is the gazetteer's
+(the length for rilles, valleys and ranges), 0 for a landing site. Rank: 1 a showpiece,
+2 notable, 3 more to find. An albedo marking has no relief and is never in `tonight`.
+
+### `moon_apsides(jd_start, jd_end) -> MoonApsides`
+
+Perigees, apogees, new and full Moons with supermoon flags, instants in the window clipped
+to the Moon's coverage (`truncated` says so). At most a century; about 0.1 s of CPU a year
+natively (most of it the phase search). Throws for a non-finite or reversed window.
+
+```ts
+{ jd_start, jd_end, truncated, coverage_start_utc, coverage_end_utc,
+  apsides: [{ kind: 'perigee' | 'apogee', jd_utc, utc, distance_km,   // centre to centre, geometric
+              semidiameter_arcmin, diameter_arcmin, diameter_vs_mean_percent }],
+  syzygies: [{ kind: 'new_moon' | 'full_moon', jd_utc, utc, distance_km, diameter_arcmin,
+               diameter_vs_mean_percent,
+               perigee: { jd_utc, utc, distance_km },   // the perigee and apogee on either side of it in time
+               apogee: { jd_utc, utc, distance_km },
+               hours_from_perigee, perigee_fraction,    // 0 at apogee, 1 at perigee
+               supermoon, micromoon,                    // fraction >= 0.9 / <= 0.1 (Nolle)
+               largest_of_year, smallest_of_year }],    // full Moons of the UTC calendar year
+  definitions: { apsis, supermoon, micromoon, largest_of_year, mean_distance_km } }
+```
+
+The new and full Moons are exactly `moon_phases`'s instants.
+
+### `occultations(observer_json, jd_start, jd_end, options_json) -> OccultationList`
+
+Lunar occultations of stars and planets seen from one place, contacts at the Moon's
+**mean limb**, the window at most 400 days (clipped to the coverage). A year with the
+default bodies takes about 0.1 s natively (76 ms of CPU); down to magnitude 6.5 about
+0.5 s. `options_json` (all optional, `{}` or `null` for the defaults; an unknown key
+throws):
+
+| key | default | meaning |
+|---|---|---|
+| `max_magnitude` | 3.5 | Bright Star Catalogue stars brighter than this join the 58 navigational stars; −2 .. 6.5 |
+| `stars`, `planets` | true | search them |
+| `include_below_horizon` | false | keep events with the Moon below the horizon at every contact |
+| `include_near_misses` | true | keep bodies that pass outside the mean limb within 1′ |
+| `bodies` | null | only these names (as results spell them; an unknown name throws) |
+
+```ts
+{ jd_start, jd_end, truncated, coverage_start_utc, coverage_end_utc,
+  limb_note: string,        // show it beside the times: mean limb, real limb differs by seconds, up to a minute near the Moon's poles
+  bodies_searched,          // after the ecliptic filter (stars within 7° of the ecliptic)
+  events: [{ body, kind: 'star' | 'planet', designation | null, hr | null, magnitude | null,
+             navigational, occulted,        // false: a near miss
+             graze,                         // passes within 1′ of the mean limb, inside or out
+             disappearance: Contact | null, reappearance: Contact | null,
+             closest: { jd_utc, utc, limb_distance_arcmin,   // negative inside the disc
+                        position_angle_deg, moon_alt_deg },
+             duration_s | null, body_semidiameter_arcsec,    // 0 for a star
+             moon_illuminated_fraction, waxing,
+             visible }],                    // the Moon is up at a contact (at closest approach for a near miss)
+  errors: BodyError[] }
+
+Contact = { kind: 'disappearance' | 'reappearance', jd_utc, utc,
+            position_angle_deg,   // on the limb, from celestial north through east
+            vertex_angle_deg,     // the same from the zenith
+            cusp_angle_deg,       // from the nearer cusp, positive on the dark limb, negative on the bright
+            cusp: 'N' | 'S', limb: 'dark' | 'bright',
+            moon_alt_deg, moon_az_deg, moon_above_horizon,
+            sun_alt_deg, sky_phase,   // CONVENTIONS 13.4
+            crossing_s }              // planets: seconds for the disc to cross the limb; 0 for a star
+```
+
+Events are sorted by their first contact. A planet's contacts are those of its centre. A
+star's name is its proper name, else its designation, else `"HR n"`.
+
+## Expansion programme — deep sky (`deepsky.rs`, deepsky agent)
+
+Rust: `crates/skyfix-wasm/src/deepsky.rs` (a `native` layer, tested natively, and the
+exports) over `skyfix_starfield::{dso, showers, milkyway, names, search, extinction,
+tonight, observe}`. TypeScript: `DeepSkyEngine` in `web/src/next/engine/types.ts` (search
+"Expansion programme — deep sky"), implemented by `WasmEngine`, the mock
+(`engine/mock/deepsky.ts`, illustrative: 24 objects, 7 showers, two bands for the Milky
+Way) and forwarded by `memoEngine`; views check `isDeepSkyEngine(engine)`. The exports are
+optional: a package built before them still loads, and a call then throws
+"`<export>`: … Rebuild it with: npm run wasm".
+
+**Display only** (CONVENTIONS 13.6): nothing here reaches `reduce`, `solve`, the planner or
+an accuracy claim. Rankings, meteor rates, limiting magnitudes and the instrument guide are
+**estimates from the stated rules below**, and the wire says so (`notes`, `rate_model`,
+`model`).
+
+**Names against the brief's sketch.** The module's exports share one flat namespace, so
+the generic names are prefixed by subject, as `starfield_*`, `planet_events` and
+`eclipse_path` are; the static table is its own call, as `starfield_catalog` is beside
+`starfield_apparent`; the sky's conditions are an argument wherever they change a number.
+
+| brief | export | `DeepSkyEngine` |
+|---|---|---|
+| — (added) | `dso_catalog()` | `dsoCatalog()` |
+| `dso_list(observer, jd, options)` | `dso_list(observer_json, jd_utc, options_json)` | `dsoList(observer \| null, jd, options?)` |
+| `dso_visibility(id, observer, night)` | `dso_visibility(id, observer_json, jd_utc, conditions_json)` | `dsoVisibility(id, observer, jd, conditions?)` |
+| `showers(year, observer?)` | `meteor_showers(year, observer_json, conditions_json)` | `meteorShowers(year, observer?, conditions?)` |
+| `milky_way_outline()` | `milky_way_outline()` | `milkyWayOutline()` |
+| `search(query, observer?, jd?)` | `sky_search(query, observer_json, jd_utc?, limit?)` | `skySearch(query, observer?, jd?, limit?)` |
+| `tonight(observer, jd)` | `tonight(observer_json, jd_utc, options_json)` | `tonight(observer, jd, options?)` |
+| `extinction(...)` | `extinction_table(conditions_json)` | `extinction(conditions?)` |
+
+### Common arguments
+
+- `observer_json`: the common observer. Where it is optional, `""`, `"null"` or
+  `"undefined"` mean none (the TypeScript wrapper sends `""`).
+- `conditions_json`: the observer's sky, `{"bortle": 1..9, "nelm": 1..8, "k": 0.2..0.4}`,
+  every field optional, `""` for all defaults. `nelm` (naked-eye limiting magnitude at the
+  zenith) wins over `bortle`; with neither, Bortle 5. `k` is the V extinction coefficient in
+  magnitudes per air mass (default 0.25). Unknown fields and out-of-range values throw
+  (`"conditions: …"`). Results echo the resolved sky as `conditions: {bortle, nelm, k,
+  sky_brightness_mpsas, source: "nelm" | "bortle" | "default"}`; a Bortle class stands for
+  the middle of its naked-eye range (1: 7.8, 2: 7.3, 3: 6.8, 4: 6.3, 5: 5.8, 6: 5.3,
+  7: 4.8, 8: 4.3, 9: 4.0).
+- Instants out are `{jd_utc, utc}`. A *sighting* is `{jd_utc, utc, alt_deg, az_deg,
+  direction}`: apparent (refracted) altitude, azimuth, and a 16-point compass word
+  (`"NNE"`).
+- **The night** (`NightSummary`, shared by `dso_visibility`, `meteor_showers` with an
+  observer, and `tonight`): the 24 hours from local mean noon to local mean noon at the
+  observer's longitude. A time belongs to the night starting at the local mean noon at or
+  before it, or to the next one once the Sun has risen that morning (asked at 10:00, the
+  coming night; at 02:00, the current one). `darkness` is the **observing window**: the Sun
+  below −18° (`kind: "night"`), or where it never gets there the darkest stretch
+  (`"astronomical_twilight"`: below −12°; `"nautical_twilight"`: below −6°); `null` when the
+  Sun never goes below −6°. "In darkness" below always means inside that window. `sun`
+  holds the night's set, dusks, dawns and rise, `moon` its rise, set, the phase at the
+  window's middle (`illuminated_fraction`, `phase_angle_deg`, `phase` in eight words,
+  `waxing`) and `up_hours`/`down_hours` of the window. Events are the events crate's
+  (CONVENTIONS 13.3).
+
+### `dso_catalog() -> DsoCatalog`
+
+Called once (the wrapper caches it). `{objects: Dso[], source}`, 213 objects in a fixed
+order (indices are stable for a build): the 110 Messier objects, then 103 others chosen by
+a stated rule (open clusters V ≤ 5.0, globulars V ≤ 7.5, galaxies V ≤ 9.5 and the
+Magellanic Clouds, planetary nebulae V ≤ 9.5, named emission or reflection nebulae and
+supernova remnants at least 30′ across, and the Hyades, α Persei Cluster, Coma Star
+Cluster and Coathanger).
+
+```ts
+{ id: "M31",                 // stable: M1..M110, NGC869, IC2602, Mel25, Mel20, Mel111, Cr399, LMC, SMC
+  label: "M31",              // as printed: "NGC 869"
+  name: "Andromeda Galaxy" | null,
+  type: "spiral_galaxy",     // open_cluster, globular_cluster, cluster_with_nebula, planetary_nebula,
+                             // emission_nebula, reflection_nebula, supernova_remnant, spiral_galaxy,
+                             // elliptical_galaxy, lenticular_galaxy, irregular_galaxy, double_star,
+                             // asterism, star_cloud
+  category: "galaxy",        // cluster | nebula | galaxy | other: what the Sky view draws
+  constellation: "And",      // IAU abbreviation: the constellation the J2000 place lies in
+  ra_j2000_deg, dec_j2000_deg,   // ICRS
+  magnitude: 3.4 | null,     // integrated V; null for 12 nebulae without a meaningful one
+  major_arcmin, minor_arcmin,    // rounded apparent size (display)
+  description: "…",          // one line in our own words
+  cross_ids: ["NGC 224"] }
+```
+
+### `dso_list(observer_json, jd_utc, options_json) -> DsoPositions`
+
+Every object (or those `options_json` keeps) at one instant, as parallel typed arrays:
+`{jd_utc, index: Int32Array, ra_deg, dec_deg: Float64Array, alt_deg, az_deg,
+alt_apparent_deg: Float64Array | null}`. `index` points into `dso_catalog().objects`.
+RA/Dec are **apparent geocentric of date in degrees**, the frame of `sky_state` and of
+`starfield_apparent` (which is in radians). With an observer, the topocentric geometric
+altitude, the azimuth and the apparent (refracted) altitude as in CONVENTIONS 13.2; without
+one the three are `null`. `options_json`: `{"kinds": ["galaxy", "open_cluster", …]
+(categories or types; empty keeps all), "max_magnitude": 8.0 (objects without a magnitude
+are kept), "above_horizon": true (apparent altitude above 0; ignored without an
+observer)}`; unknown fields throw. About 0.1 ms natively.
+
+### `dso_visibility(id, observer_json, jd_utc, conditions_json) -> DsoVisibility`
+
+One object through the night `jd_utc` belongs to. `id` matches the id or any cross
+identification, ignoring case and spaces (`"m 31"`, `"NGC 224"`); an unknown id throws.
+
+```ts
+{ object: Dso, night: NightSummary, conditions,
+  visibility: {
+    best: Sighting | null,     // highest point in the observing window
+    transit: Sighting | null,  // upper transit inside the night, dark or not
+    hours_above_20: number,    // hours of the window with the apparent altitude ≥ 20°
+    moon: { moon_alt_deg, separation_deg, brightening_mag } | null,   // at `best`
+    limiting_mag: number | null,   // at the object at `best`: NELM − k (X − 1), less what the Moon's light takes
+    instrument: "eye" | "binoculars" | "telescope" | "camera" | null },
+  track: { jd_utc: number[], alt_deg: number[] } }   // apparent altitude every 10 min, noon to noon (145)
+```
+
+**The instrument guide** (a rule of thumb, stated so it can be argued with): an object
+"looks like" a point of magnitude `m = V + 0.75 log10(max(size′, 1))`. Against the
+limiting magnitude `LM` at the object: the eye if `m ≤ LM − 0.5`; 10×50 binoculars if
+`m ≤ LM + 3`; a 100 mm telescope if `m ≤ LM + 5`; otherwise, or without a magnitude, a
+camera. The Moon's light is Krisciunas & Schaefer (1991): it brightens the sky at the
+object by `brightening_mag`, and the limiting magnitude drops by what Schaefer's (1990)
+relation gives for that brighter sky. Extinction is Pickering's air mass (below). About
+5 ms natively.
+
+### `meteor_showers(year, observer_json, conditions_json) -> ShowerYear`
+
+Every shower of this project's 32-shower table whose peak falls in `year` (UTC calendar
+year; a whole number), in order of peak:
+
+```ts
+{ year, source, rate_model,
+  showers: [{ shower: MeteorShower,
+              peak, start, end,            // instants; start and end may fall in the adjacent year
+              moon_illuminated_fraction,   // geocentric, at the peak
+              at_site: ShowerNight | null }],
+  errors: [{ code, message }] }            // a shower that could not be computed (coverage)
+```
+
+`MeteorShower`: `{iau, code, name, lambda_start_deg, lambda_peak_deg, lambda_end_deg,
+ra_deg, dec_deg, dra_deg, ddec_deg, v_inf_kms, r, zhr, variable, parent}`. Activity is
+stored as **solar longitude** λ☉ (the Sun's apparent geocentric longitude on the mean
+ecliptic and equinox of J2000), so every year's instants come from this project's Sun
+(CONVENTIONS 13.6 addition); the radiant is J2000 at the peak and drifts by `dra_deg`,
+`ddec_deg` per degree of λ☉.
+
+With an observer, `at_site` is the night starting at the local mean noon before the peak
+(its local midnight is nearest the peak), `null` when the shower is not active in its
+observing window. `ShowerNight`: `{code, name, lambda_deg, zhr, days_from_peak,
+radiant_ra_deg, radiant_dec_deg, best: Sighting | null, expected_rate_per_hour,
+limiting_mag, hours_radiant_above_20, variable, reason}`, where `lambda_deg` and `zhr` are
+at the middle of the window, `best` is the moment of the highest expected rate, and
+`reason` is one sentence without clock times. **Rate model (an estimate):** the ZHR falls
+off exponentially from the peak to `min(2, ZHR/2)` at the activity limits; the expected
+rate is `ZHR × sin(radiant altitude) × r^(LM − 6.5)`, `LM` the zenith limiting magnitude
+with the Moon's light. Throws only when no shower can be computed. About 35 ms natively
+without an observer, 0.2 s with one (32 nights).
+
+### `milky_way_outline() -> MilkyWayOutline`
+
+Called once (cached). `{levels: number[], rings: {level, ra_deg: Float64Array, dec_deg:
+Float64Array}[], source}`: this project's own isophotes from NASA COBE/DIRBE, four levels
+(`levels` are the thresholds in DIRBE 1.25 µm MJy/sr: level 0, the faintest glow, on the
+map before the dust weighting, so it outlines the whole band; levels 1 to 3 after it, so
+the dark lanes and star clouds show), 24 rings, ICRS (J2000) degrees, RA `[0, 360)`.
+Every ring is **closed** (the last point repeats the first, as the constellation
+boundaries do) and **oriented**: for consecutive points `a`, `b` as unit vectors the
+brighter side is the one `a × b` points to. Rings of one level may nest (a darker hole
+inside a brighter region); filling each level by the even-odd rule, or by the
+orientation, gives the same region, and drawing the levels in order stacks them. Draw
+them with the boundary machinery: rotate with `starfield_frame_matrix` into the frame of
+date, and handle RA jumps across 0°/360° when projecting. The rings were simplified on the
+sphere to 0.2°, so consecutive points can be up to 14° apart along a nearly straight
+stretch: each step is a great-circle arc, to be interpolated where the projection would
+otherwise cut the corner. 856 points in all (3.2 KB embedded).
+
+### `sky_search(query, observer_json, jd_utc?, limit?) -> SearchResult`
+
+`{query, hits: SearchHit[]}`, best first; `limit` defaults to 20 and is clamped to 1–100.
+
+```ts
+{ kind: "star" | "deep_sky" | "constellation" | "sun" | "moon" | "planet" | "shower",
+  id: "HR 2491" | "M31" | "CMa" | "Mars" | "PER",
+  label: "Sirius",            // a star's name, else its designation, else "HR n"
+  detail: "α CMa · HR 2491 · HIP 32349 · V −1.46",
+  magnitude: number | null,
+  index: number | null,       // stars: index into starfield_catalog()
+  ra_deg, dec_deg: number | null,        // with jd_utc: apparent geocentric of date
+  alt_deg, az_deg, alt_apparent_deg: number | null, above_horizon: boolean | null,  // with an observer
+  score: number }             // 100 exact, 80 prefix, 60 words, 40 contains
+```
+
+Matching folds case, accents, Greek letters (α and "alpha"), superscripts and
+punctuation; a key scores 100 when it equals the query with spaces ignored ("alpha1 cen" is
+"α¹ Cen", "alnair" is "Al Na'ir"), 80 when it starts with it, 60 when every query word
+starts a word of the key (less one per key word left over), 40 when it contains it (three
+letters or more). Ties go to the Sun, Moon and planets, then names, then designations,
+then brightness. Keys: star names (the star field's own and the IAU WGSN's), Bayer and
+Flamsteed designations with the abbreviation or the genitive ("alpha cma", "alf cma",
+"alpha canis majoris", "61 cygni"), `HR n` and, where known, `HIP n`; the objects' ids,
+catalogue numbers and names; constellation names, abbreviations and genitives; shower
+names, codes and "… radiant". Positions: a shower hit is its radiant of date; a
+constellation hit its label point. An observer without `jd_utc` throws; a body the
+ephemeris cannot give at that time is returned without a position. About 2.5 ms natively.
+
+### `tonight(observer_json, jd_utc, options_json) -> Tonight`
+
+What the night `jd_utc` belongs to offers. `options_json`: the conditions fields plus
+`"limit"`, the number of deep-sky objects (default 12, clamped to 1–60).
+
+```ts
+{ night: NightSummary, conditions,
+  planets: [{ body, magnitude, best, up_from, up_until, hours_up, reason }],
+  deep_sky: [{ id, label, name, type, category, constellation, magnitude,
+               best: Sighting, hours_above_20, moon, instrument, score, reason }],
+  showers: ShowerNight[],
+  milky_way_core: { best: Sighting | null, hours_above_20, reason },
+  summary: string, notes: string[], errors: string[] }
+```
+
+- **Planets**: all seven, Mercury to Neptune, sampled every 10 minutes while the Sun is
+  below −6°: the highest point (`best`, `null` when the planet is not up then), the first
+  and last moment 10° up, the hours up, and a reason that says which.
+- **Deep sky**: every object that spends some of the observing window above 20°, scored
+  `100 × base × sin(best altitude) × (0.5 + 0.5 min(1, hours above 20° / 4)) ×
+  10^(−0.2 × moon brightening) × 1.2 if it has a common name`, `base` = 1.0 eye, 0.8
+  binoculars, 0.5 telescope, 0.35 camera (the instrument guide above); the best `limit`.
+- **Showers** active in the window, listed when the expected rate reaches 0.5 an hour or
+  the shower is variable.
+- **The Milky Way's core** (Sagittarius A*): its best moment and hours above 20° in
+  darkness.
+- **`summary`**: plain sentences in which times are tokens `{jd:2461308.517173}` (a UTC
+  Julian date, six decimals) for the interface to replace in its own zone and format
+  (`formatSummaryTimes(summary, format)` in types.ts). `errors` lists bodies the ephemeris
+  could not give; `notes` names the models.
+
+About 20 ms natively (`tests/deepsky_timing.rs`, budget 50 ms).
+
+### `extinction_table(conditions_json) -> ExtinctionTable`
+
+`{conditions, alt_deg, airmass, extinction_mag, limiting_mag: Float64Array, model}`, one
+row per degree of apparent altitude, 0 to 90 (91 rows). Air mass
+`X = 1 / sin(h + 244 / (165 + 47 h^1.1))` (Pickering 2002; 38.7 at the horizon);
+`extinction_mag = k X`; `limiting_mag = NELM − k (X − 1)` (extinction only: light domes
+and the sky's own brightening toward the horizon are not modelled). The zenith sky
+brightness `sky_brightness_mpsas` comes from NELM by Schaefer's (1990) relation,
+`NELM = 7.93 − 5 log10(10^(4.316 − B/5) + 1)`, capped at 22.0 mag/arcsec². For the Sky
+view's magnitude cut and the rankings.
+
+### Additive change to `starfield_catalog()`
+
+`names` grows from 252 to **472** entries: the IAU WGSN names of 220 more catalogue stars
+(joined by HR number, checked by position or designation). The star field's 252 names are
+unchanged, including the Almanac spellings (Navi, not the WGSN's Tiansi; Al Na'ir). Still
+sorted by `index`; no name is used twice.
+
+## Expansion programme — tides (`tides.rs`, tides agent)
+
+Tide predictions for NOAA's 3 499 tide stations, from the optional **`tides-us`** pack
+(CONVENTIONS 13.11 for the definitions, `docs/ACCURACY.md` section 16 for the measured
+agreement with NOAA's own predictions). The engine is `skyfix_tides`; the exports are in
+`crates/skyfix-wasm/src/tides.rs`; the TypeScript mirror is `TidesEngine` and
+`isTidesEngine` in `web/src/next/engine/types.ts` ("Expansion programme — tides"); the
+memoised engine forwards the methods (`component.ts`). Every result carries
+`label: "US stations (NOAA); predictions, not observations; weather and surge not
+included"` and `notes`, plain sentences for the interface.
+
+**Errors** are strings beginning with a code and a colon: `pack_not_loaded` (every call
+until the pack is installed; `isTidePackNotLoaded(error)` in `types.ts`),
+`unknown_station`, `datum_unavailable` (lists the datums the station has),
+`no_prediction` (a station NOAA lists but gives no constants for, or a subordinate one
+whose reference cannot be predicted), `outside_range` (instants from 1900-01-01 to
+2100-12-31 only), `bad_request`. The WASM wrapper prefixes the export's name
+(`tide_extremes: pack_not_loaded: …`).
+
+**`datum`** arguments are `"MLLW"`, `"MLW"`, `"MSL"`, `"MTL"`, `"MHW"`, `"MHHW"`,
+`"LAT"`, `"HAT"` or `"NAVD88"` (case-insensitive; `"NAVD"` accepted), or `""` for the
+station's `default_datum` (MLLW; MSL where NOAA publishes no datums). Subordinate
+stations have MLLW only, as NOAA predicts them.
+
+### `tide_stations_near(lat_deg, lon_deg, n) -> TideStationNear[]`
+
+The `n` stations nearest to a place (`n` clamped to 1..100), nearest first, harmonic and
+subordinate alike: each `TideStation` below plus `distance_km`, `distance_nm` (1852 m)
+and `bearing_deg` (initial great-circle bearing from the place, degrees true), on the
+sphere of mean radius 6371.0088 km. 1-3 ms natively.
+
+### `tide_station(station_id) -> TideStation`
+
+```ts
+{ id: "9414290", name: "San Francisco (Golden Gate)", state: "CA" | null,
+  lat_deg: 37.806305, lon_deg: -122.46589,
+  kind: "harmonic" | "subordinate",
+  reference_id: null | "8518750", reference_name: null | "New York (The Battery)",
+  tide_type: "semidiurnal" | "mixed_semidiurnal" | "mixed_diurnal" | "diurnal" | null,
+  form_number: 0.84 | null,            // (K1 + O1)/(M2 + S2); a subordinate station's is its reference's
+  datums: ["HAT", "MHHW", "MHW", "MTL", "MSL", "MLW", "MLLW", "LAT", "NAVD88"],
+  default_datum: "MLLW",
+  curve: "harmonic" | "interpolated" | "none",
+  flags: ("noaa_differs" | "no_datums" | "no_constants" | "reference_unusable" | "non_navigational")[],
+  notes: string[] }
+```
+
+`state` is NOAA's two-letter code; NOAA leaves it empty for foreign ports and for many
+U.S. stations too, so `null` does not mean "outside the United States". `curve` says
+what `tide_predict` can give: `harmonic` a true curve, `interpolated` (subordinate
+stations) the cosine curve between high and low water, an estimate, `none` nothing.
+
+### `tide_extremes(station_id, jd_start, jd_end, datum) -> TideExtremes`
+
+High and low water with instants in `[jd_start, jd_end]` (at most 400 days), sorted:
+
+```ts
+{ station: TideStation, datum: "MLLW", method: "harmonic" | "subordinate_offsets",
+  jd_start: number, jd_end: number,
+  extremes: [{ kind: "high" | "low", jd_utc: number, utc: "2026-09-24T05:07:12.345Z", height_m: number }],
+  label: string, notes: string[] }
+```
+
+The tide table's rule applies: a high and a low less than 2 hours apart and less than
+0.1 ft apart in height are left out, as in NOAA's tables (CONVENTIONS 13.11). A month
+takes 4-11 ms natively.
+
+### `tide_predict(station_id, jd_start, jd_end, step_min, datum) -> TideCurve`
+
+Heights at `jd_start + k·step_min` for `k = 0, 1, …` while not after `jd_end`;
+`step_min` from 0.5 to 1440, at most 20 000 samples:
+
+```ts
+{ station: TideStation, datum: "MLLW", method: "harmonic" | "interpolated",
+  jd_start: number, jd_end: number, step_min: number,
+  jd_utc: Float64Array, height_m: Float64Array,
+  label: string, notes: string[] }
+```
+
+For a subordinate station (`method: "interpolated"`) the curve is the cosine
+interpolation between its high and low waters (NOAA Tide Tables, Table 3) and the notes
+say so; samples before its first or after its last extreme in reach are left out, so the
+arrays can be shorter than the step implies.
+
+### `tide_now(station_id, jd_utc, datum) -> TideNow`
+
+```ts
+{ station: TideStation, datum: "MLLW", method: "harmonic" | "interpolated",
+  jd_utc: number, utc: string, height_m: number,
+  rate_m_per_h: number,                // negative when falling
+  state: "rising" | "falling",
+  previous: TideEvent | null, next: TideEvent | null,
+  next_high: TideEvent | null, next_low: TideEvent | null,
+  label: string, notes: string[] }
+```
+
+The extremes are the tide table's (above), searched 1.5 days back and 3 days ahead.
+About 1.5 ms.
+
+### Loading the pack
+
+- Through the pack mechanism: `load_pack("tides-us", bytes)` (EXPLORER_API "Packs")
+  checks the common header and the CRC-32 and calls the producer
+  `skyfix_wasm::tides::install_tides_us(payload)` (the `tides-us` entry of
+  `packs::PRODUCERS`: label "US tides", provides `["tides:us"]`), which decodes the
+  payload and installs the stations; a malformed payload changes nothing, a second
+  install replaces the first. `packs()` then reports `tides-us` loaded.
+- `tide_pack_info() -> TidesPackInfo | null`: the installed pack's summary, `{name:
+  "tides-us", version, bytes (payload), provides: ["tides:us"], stations, harmonic,
+  subordinate}`.
+- The mock engine answers for its synthetic station from the start
+  (`MockEngineOptions.tidesLoaded: false` makes it wait for `loadPack("tides-us", …)`).
+
+### The `tides-us` pack: file and payload
+
+File `web/public/data/packs/tides-us-<rev>.bin` (rev = the first 16 hex digits of the
+file's SHA-256), with the sidecar `web/public/data/packs/tides-us.json` (`name`,
+`version`, `rev`, `file`, `bytes`, `sha256`, `label`, `description`, `provides`, station
+counts, source). The file is the common pack header with name `tides-us`; 344 543 bytes
+(0.34 MB), 234 KB deflated. Built by `tools/tides/build.py`; decoded (and re-encoded, in
+the tests) by `skyfix_tides::pack`. The payload, little-endian and byte-packed (`str8`
+is a u8 length then bytes):
+
+```text
+"TIDE"                      4 bytes
+u16                         payload format (1)
+str8                        data version: the NOAA retrieval date, YYYY-MM-DD
+u8 K, K × str8              constituent names: NOAA's 37 standard ones in NOAA's order,
+                            then NOAA's extended set (120 in all)
+u8 B                        how many leading names the per-station bitmap covers (37)
+u32 S                       station count, then S records sorted by id:
+  str8 id, str8 name (UTF-8), str8 state (may be empty)
+  i32 latitude, i32 longitude          microdegrees, east positive
+  u8 kind                              0 harmonic, 1 subordinate
+  u8 flags                             1 noaa_differs, 2 no_datums, 4 no_constants,
+                                       8 reference_unusable, 16 non_navigational
+  harmonic:
+    8 × i16                            MHHW, MHW, MTL, MLW, MLLW, LAT, HAT, NAVD88 in mm
+                                       relative to MSL; -32768 = not published
+    ceil(B/8) bytes                    bitmap of names 0..B (name k: bit k%8 of byte k/8)
+    per set bit, in order:             u16 amplitude (mm), u16 Greenwich phase (0.01°)
+    u8 E, then E × (u8 name index ≥ B, u16 amplitude, u16 phase)
+  subordinate:
+    u16 reference                      index of the reference station in this list
+    i16 high, i16 low                  time differences, minutes
+    u8 height type                     0 ratio, 1 additive
+    i16 high, i16 low                  ratio × 1000, or additive difference in mm
+```
+
+A reader maps constituent names to its own table and refuses an unknown one; nothing
+may follow the last station.

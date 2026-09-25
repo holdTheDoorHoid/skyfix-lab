@@ -100,8 +100,12 @@ fn sextant_session(c: &Value, name: &str, notes: &str, body: Option<&str>) -> St
 /// Parse through the core's own session codec and write it back out, so the committed
 /// file is exactly what `skyfix convert` would write for it.
 fn canonical(v: Value) -> String {
-    let (session, _) =
+    let (mut session, _) =
         skyfix_core::session::parse_session(&v.to_string()).expect("the fixture is a session");
+    // The fixtures' truths were computed with UT1 = UTC (Skyfield; Bowditch's worked
+    // examples know no DUT1), so the sessions say so; otherwise the engine's IERS DUT1
+    // would apply (CONVENTIONS 15.2).
+    session.clock.dut1_s.get_or_insert(0.0);
     support::to_json(&session)
 }
 

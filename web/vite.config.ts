@@ -1,6 +1,7 @@
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { defineConfig, type Plugin } from 'vitest/config';
+import { PACKS_DIR, skyfixPacks } from './plugins/packs.ts';
 import { skyfixPwa } from './plugins/pwa.ts';
 
 const WASM_ENTRY = resolve(import.meta.dirname, 'src/wasm-pkg/skyfix_wasm.js');
@@ -27,22 +28,35 @@ function requireWasmPackage(): Plugin {
 }
 
 /**
- * The pages the site ships (docs/EXPLORER_PLAN.md; switched over on 2026-09-24): the
- * explorer at the site's home page, and the original workbench at /classic/, kept for
- * reference for a transition period. Both work offline (plugins/pwa.ts).
+ * The page the site ships: the explorer, at the site's home page (switched over on
+ * 2026-09-24). It works offline (plugins/pwa.ts).
  */
 const APP_PAGES = {
   explorer: resolve(import.meta.dirname, 'index.html'),
-  classic: resolve(import.meta.dirname, 'classic/index.html'),
 };
 
 /**
- * Addresses that moved. /next/ was the explorer's address while it was built; its page
- * (next/index.html) now only forwards to the home page, keeping the fragment that share
- * links carry, and the service worker answers the same redirect offline.
+ * The original workbench's views, and where each went when it was retired
+ * (docs/EXPANSION_PLAN.md §2.4): observations, corrections, the fix and the planner are
+ * Navigate; the simulator is Learn; anything else, the bare address included, Navigate.
+ */
+export const CLASSIC_VIEWS = {
+  map: { observations: 'navigate', corrections: 'navigate', fix: 'navigate', planner: 'navigate', simulator: 'learn', about: 'about' },
+  fallback: 'navigate',
+} as const;
+
+/**
+ * Addresses that moved. Each page only forwards to the home page, and the service worker
+ * answers the same forward itself, offline too.
+ *
+ * - /next/ was the explorer's address while it was built: its fragment (share links carry
+ *   the place in it) is kept as it is.
+ * - /classic/ was the original workbench, retired in the expansion programme: its views'
+ *   fragments are mapped to the explorer's (`CLASSIC_VIEWS`), and the query is kept.
  */
 const REDIRECT_PAGES = {
   next: { file: 'next/index.html', from: 'next/', to: './' },
+  classic: { file: 'classic/index.html', from: 'classic/', to: './', fragments: CLASSIC_VIEWS },
 };
 
 /**
@@ -76,18 +90,22 @@ export default defineConfig(({ command }) => {
     base: './',
     plugins: [
       requireWasmPackage(),
+      // Before the pwa plugin: it writes data/packs/manifest.json, which is precached.
+      skyfixPacks(),
       skyfixPwa({
-        pages: [
-          { file: 'index.html', label: 'SkyFix Lab explorer' },
-          { file: 'classic/index.html', label: 'The original SkyFix Lab workbench' },
-        ],
+        pages: [{ file: 'index.html', label: 'SkyFix Lab explorer' }],
         redirects: Object.values(REDIRECT_PAGES),
+        // The data packs: downloaded only when a person asks, and kept by the page itself.
+        networkOnly: [`${PACKS_DIR}/`],
+        // The manual (mdBook, added by the Pages workflow): pages read online stay readable.
+        links: [{ url: 'docs/', label: 'The SkyFix Lab manual (the pages you have read before)' }],
         // Chunks that only developers load: `?engine=mock` (the mock engine and its
         // navigation tools) and `?harness` on the explorer.
         devModules: ['src/next/engine/mock.ts', 'src/next/engine/mock-nav.ts', 'src/next/harness/harness.ts'],
         manifests: ['data/basemap/manifest.json'],
         extra: [
           'data/gazetteer.json',
+          `${PACKS_DIR}/manifest.json`,
           'manifest.webmanifest',
           'icons/icon.svg',
           'icons/icon-maskable.svg',

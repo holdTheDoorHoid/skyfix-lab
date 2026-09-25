@@ -4,7 +4,7 @@
 //! two-body propagator in universal variables (any eccentricity); and the apparent
 //! place, distance, elongation and magnitude that feed the explorer's body pipeline.
 //!
-//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.10; wire format
+//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.12; wire format
 //! `docs/EXPLORER_API.md`, "Planet detail"; accuracy `docs/ACCURACY.md`, "Planet
 //! detail". No dataset ships: the Minor Planet Center's files go stale in days and must
 //! be credited, so the person brings the elements.

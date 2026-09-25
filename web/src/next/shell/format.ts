@@ -6,11 +6,14 @@
  * Minus signs are the true minus (U+2212). Angles follow the person's setting
  * (`settings.angleFormat`): `dm` 26° 02.3′ (the navigator's form), `dms` 26° 02′ 17″,
  * `decimal` 26.0381°. "Coarse" is for big readouts, "fine" for details.
+ *
+ * Times follow `settings.hourCycle` (`setHourCycle`, kept in step by the shell): 18:40, or
+ * 6:40 PM. UTC is always written on the 24-hour clock, as navigators and almanacs write it.
  */
 
 import { formatLatitude, formatLongitude, type CoordStyle } from '../geo/coords.js';
-import type { AngleFormat, Units } from '../state.js';
-import { formatTime, wallClock, type Zone } from '../time.js';
+import type { AngleFormat, HourCycle, Units } from '../state.js';
+import { formatTime, roundToMinute, roundToSecond, wallClock, type WallClock, type Zone } from '../time.js';
 
 export const MINUS = '−';
 /** Groups digits: 386 920 (a narrow no-break space). */
@@ -265,22 +268,107 @@ export function monthName(month: number): string {
   return MONTHS_LONG[month - 1] ?? '';
 }
 
+// --- the 12- or 24-hour clock -------------------------------------------------------
+
+let hourCycle: HourCycle = 'h23';
+
+/** The clock times are written on (shell.ts keeps it equal to `settings.hourCycle`). */
+export function setHourCycle(cycle: HourCycle): void {
+  hourCycle = cycle;
+}
+
+export function currentHourCycle(): HourCycle {
+  return hourCycle;
+}
+
+/** A no-break space before AM and PM, so a time never wraps between its parts. */
+const NBSP = '\u00a0';
+
+function isUtc(zone: Zone): boolean {
+  return zone.kind === 'fixed' && zone.offsetMs === 0;
+}
+
+/** Hours, minutes, optional seconds and AM/PM of a wall clock, in the chosen cycle. */
+export interface ClockParts {
+  /** `16:30` or `4:30`. */
+  hm: string;
+  /** `:05`, or '' without seconds. */
+  seconds: string;
+  /** ` PM` (with a no-break space), or '' on the 24-hour clock. */
+  suffix: string;
+}
+
+function parts(w: WallClock, zone: Zone, seconds: boolean): ClockParts {
+  const mm = pad2(w.minute);
+  const ss = seconds ? `:${pad2(w.second)}` : '';
+  if (hourCycle === 'h23' || isUtc(zone)) return { hm: `${pad2(w.hour)}:${mm}`, seconds: ss, suffix: '' };
+  const h12 = w.hour % 12 === 0 ? 12 : w.hour % 12;
+  return { hm: `${h12}:${mm}`, seconds: ss, suffix: `${NBSP}${w.hour < 12 ? 'AM' : 'PM'}` };
+}
+
 /**
- * `16:30`: the reading of a clock showing the current time without its seconds (the
- * minute it is in), so it agrees with `clockSeconds` shown beside it.
+ * The parts of a clock showing `jd`: to the second, truncated (as a clock reads, so the
+ * minute and the seconds beside it agree). The time bar draws them at different sizes.
+ */
+export function clockParts(jd: number, zone: Zone): ClockParts {
+  return parts(wallClock(roundToSecond(jd), zone), zone, true);
+}
+
+/**
+ * `16:30` or `4:30 PM`: the reading of a clock showing the current time without its seconds
+ * (the minute it is in), so it agrees with `clockSeconds` shown beside it.
  */
 export function clock(jd: number, zone: Zone): string {
-  return formatTime(jd, zone, { seconds: true }).slice(0, 5);
+  if (hourCycle === 'h23' || isUtc(zone)) return formatTime(jd, zone, { seconds: true }).slice(0, 5);
+  const p = clockParts(jd, zone);
+  return `${p.hm}${p.suffix}`;
 }
 
-/** `16:30:05`. */
+/** `16:30:05` or `4:30:05 PM`. */
 export function clockSeconds(jd: number, zone: Zone): string {
-  return formatTime(jd, zone, { seconds: true });
+  if (hourCycle === 'h23' || isUtc(zone)) return formatTime(jd, zone, { seconds: true });
+  const p = clockParts(jd, zone);
+  return `${p.hm}${p.seconds}${p.suffix}`;
 }
 
-/** An event's time rounded to the nearest minute, as almanacs print it: `06:50` (time.ts `formatTime`). */
+/** An event's time rounded to the nearest minute, as almanacs print it: `06:50` or `6:50 AM` (time.ts `formatTime`). */
 export function eventTime(jd: number, zone: Zone): string {
-  return formatTime(jd, zone);
+  if (hourCycle === 'h23' || isUtc(zone)) return formatTime(jd, zone);
+  const p = parts(wallClock(roundToMinute(jd), zone), zone, false);
+  return `${p.hm}${p.suffix}`;
+}
+
+/** The end of a day on a time axis or in a range: `24:00`, or `12:00 AM` on the 12-hour clock. */
+export function endOfDay(zone: Zone): string {
+  return hourCycle === 'h23' || isUtc(zone) ? '24:00' : `12:00${NBSP}AM`;
+}
+
+/** An hour mark on a time axis: `06:00`, or `6 AM` on the 12-hour clock. */
+export function axisTime(jd: number, zone: Zone): string {
+  if (hourCycle === 'h23' || isUtc(zone)) return formatTime(jd, zone);
+  const w = wallClock(roundToMinute(jd), zone);
+  const h12 = w.hour % 12 === 0 ? 12 : w.hour % 12;
+  return `${h12}${w.minute ? `:${pad2(w.minute)}` : ''}${NBSP}${w.hour < 12 ? 'AM' : 'PM'}`;
+}
+
+/**
+ * A time of day typed by a person, on either clock: `18:40`, `18:40:05`, `6:40 pm`,
+ * `6:40:05 PM`, `6.40pm`, `12:00 am` (midnight). Null for anything else.
+ */
+export function parseClock(text: string): { hour: number; minute: number; second: number } | null {
+  const m = /^\s*(\d{1,2})[:.h](\d{2})(?:[:.](\d{2}))?\s*(?:([ap])\.?\s*m?\.?)?\s*$/i.exec(text);
+  if (!m) return null;
+  let hour = Number(m[1]);
+  const minute = Number(m[2]);
+  const second = Number(m[3] ?? 0);
+  if (minute > 59 || second > 59) return null;
+  if (m[4]) {
+    if (hour < 1 || hour > 12) return null;
+    hour = (hour % 12) + (m[4].toLowerCase() === 'p' ? 12 : 0);
+  } else if (hour > 23) {
+    return null;
+  }
+  return { hour, minute, second };
 }
 
 /** The short weekday of `jd` when its local date differs from `ref`'s (`Fri`), else ''. */

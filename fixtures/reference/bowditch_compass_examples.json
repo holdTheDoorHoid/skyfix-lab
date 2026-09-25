@@ -1,0 +1,106 @@
+{
+ "schema": "skyfix.reference/1",
+ "generator": {
+  "tool": "typed from a published source (no program)",
+  "source": "The American Practical Navigator (Bowditch), NGA Pub. No. 9, 2019 edition, volume 1, chapter 15 'Azimuths and Amplitudes', sections 1501-1506 (numbered chapter 17 in the 2002 edition)",
+  "url": "https://msi.nga.mil/Publications/APN",
+  "copy_read": "https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2015-%20Azimuths%20And%20Amplitudes.pdf",
+  "copy_sha256": "1c045ae8029c80c2dba3dfcf55b537b9e758a25da81514733961e7bcd1f7f407",
+  "retrieved": "2026-09-24",
+  "licence": "U.S. Government work (National Geospatial-Intelligence Agency), not subject to copyright in the United States (17 U.S.C. 105)",
+  "rounding": "The book works to 0.1 degree with Pub. No. 229 (triple interpolation), the Nautical Almanac's Polaris table and Bowditch Tables 22 and 23; angles given in degrees and minutes are converted exactly.",
+  "signs": "latitude and declination north positive, longitude east positive, errors east positive (gyro error W is negative)"
+ },
+ "cases": [
+  {
+   "name": "bowditch-1501-azimuth-sun",
+   "section": "1501, figure 1501 (azimuth by Pub. No. 229)",
+   "input": {
+    "lat_deg": 23.916666667,
+    "dec_deg": -8.79,
+    "lha_deg": 317.623333333,
+    "gyro_bearing_deg": 124.0,
+    "printed": "DR lat 23°55.0' N, dec 8°47.4' S, LHA 317°37.4', 124.0° pgc"
+   },
+   "expected": {
+    "zn_deg": 123.2,
+    "gyro_error_deg": -0.8,
+    "printed": "Zn 123.2°, gyro error 0.8° W"
+   }
+  },
+  {
+   "name": "bowditch-1502-azimuth-polaris",
+   "section": "1502 (Polaris table of the Nautical Almanac, 2016)",
+   "input": {
+    "utc": "2016-02-23T04:21:15Z",
+    "lat_deg": 29.516666667,
+    "lon_deg": -74.5,
+    "gyro_bearing_deg": 359.9,
+    "printed": "23 February 2016, 04-21-15 GMT, LAT 29°31.0' N, LON 074°30.0' W, Polaris 359.9° pgc"
+   },
+   "expected": {
+    "gha_aries_deg": 217.821666667,
+    "lha_aries_deg": 143.321666667,
+    "zn_deg": 359.2,
+    "gyro_error_deg": -0.7,
+    "printed": "GHA Aries 217°49.3', LHA Aries 143°19.3', tabulated azimuth 359.2° T, error 0.7° W"
+   }
+  },
+  {
+   "name": "bowditch-1504-amplitude-celestial",
+   "section": "1504, figure 1504 (Table 22 interpolated)",
+   "input": {
+    "lat_deg": 51.41,
+    "dec_deg": 19.673333333,
+    "event": "setting",
+    "horizon": "celestial",
+    "gyro_bearing_deg": 303.0,
+    "printed": "DR lat 51°24.6' N, dec N 19°40.4', setting Sun on the celestial horizon, 303° pgc"
+   },
+   "expected": {
+    "amplitude_deg": 32.6,
+    "zn_deg": 302.6,
+    "gyro_error_deg": -0.4,
+    "printed": "amplitude 32.6° (W 32.6° N), true bearing 302.6°, error 0.4° W"
+   }
+  },
+  {
+   "name": "bowditch-1505-amplitude-visible",
+   "section": "1505 (Tables 22 and 23)",
+   "input": {
+    "lat_deg": 59.783333333,
+    "dec_deg": -5.188333333,
+    "event": "rising",
+    "horizon": "visible",
+    "gyro_bearing_deg": 98.5,
+    "printed": "DR lat 59°47' N, dec 5°11.3' S, sunrise on the visible horizon, 098.5° pgc"
+   },
+   "expected": {
+    "amplitude_deg": -10.3,
+    "celestial_zn_deg": 100.3,
+    "table23_correction_deg": 1.2,
+    "corrected_bearing_deg": 99.7,
+    "gyro_error_deg": 0.6,
+    "printed": "amplitude 10.3° S, true 100.3° on the celestial horizon; Table 23 brings 098.5° pgc to 099.7° pgc; error 0.6° E"
+   }
+  },
+  {
+   "name": "bowditch-1506-amplitude-by-calculation",
+   "section": "1506 (the formula, Hc = -0.7° for the Sun on the visible horizon)",
+   "input": {
+    "lat_deg": 59.783333333,
+    "dec_deg": -5.188333333,
+    "hc_deg": -0.7,
+    "event": "rising",
+    "gyro_bearing_deg": 98.5,
+    "printed": "the example of 1505 by the formula with Hc = -0.7°"
+   },
+   "expected": {
+    "amplitude_deg": -9.1,
+    "zn_deg": 99.1,
+    "gyro_error_deg": 0.6,
+    "printed": "amplitude 9.1° (south of east), azimuth 99.1°, error 0.6° E"
+   }
+  }
+ ]
+}

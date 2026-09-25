@@ -56,13 +56,83 @@ export interface Observer {
   assumed_position_role: AssumedPositionRole;
 }
 
-export type HorizonMode = 'sea' | 'artificial_reflected' | 'electronic_vertical';
+/**
+ * A shoreline (or any waterline) nearer than the sea horizon: the dip short of the horizon
+ * applies (CONVENTIONS section 5, step 2; sailings agent). Serialised as
+ * `{"shore": {"distance_nm": 1.2}}`.
+ */
+export interface ShoreHorizon {
+  shore: { distance_nm: number };
+}
+
+/** The horizon a sextant altitude was measured from: a string, or a shore horizon. */
+export type HorizonMode = 'sea' | 'artificial_reflected' | 'electronic_vertical' | ShoreHorizon;
+
+/** The kind of a horizon, a string in every case (for labels and lookups). */
+export type HorizonName = 'sea' | 'artificial_reflected' | 'electronic_vertical' | 'shore';
+
+export function isShoreHorizon(h: HorizonMode | null | undefined): h is ShoreHorizon {
+  return typeof h === 'object' && h !== null && 'shore' in h;
+}
+
+export function horizonName(h: HorizonMode): HorizonName {
+  return isShoreHorizon(h) ? 'shore' : h;
+}
+
+/** The horizons a form can offer by name alone (a shore horizon also needs its distance). */
+export type SimpleHorizon = Exclude<HorizonMode, ShoreHorizon>;
+export const SIMPLE_HORIZONS: readonly SimpleHorizon[] = ['sea', 'artificial_reflected', 'electronic_vertical'];
+
+/** One text cell for a horizon: its name, or `shore:<distance_nm>` (as the Rust CSV writes it). */
+export function horizonLabel(h: HorizonMode): string {
+  return isShoreHorizon(h) ? `shore:${h.shore.distance_nm}` : h;
+}
+
+/** The inverse of `horizonLabel`: null for anything that is not a horizon. */
+export function parseHorizonLabel(s: string): HorizonMode | null {
+  const t = s.trim();
+  if ((SIMPLE_HORIZONS as readonly string[]).includes(t)) return t as SimpleHorizon;
+  const m = /^shore:(.+)$/.exec(t);
+  if (!m) return null;
+  const d = Number(m[1]);
+  return Number.isFinite(d) && d > 0 ? { shore: { distance_nm: d } } : null;
+}
+
+/** A horizon from anything (a stored or imported session), or null when it is not one. */
+export function asHorizon(x: unknown): HorizonMode | null {
+  if (typeof x === 'string') return parseHorizonLabel(x);
+  if (typeof x === 'object' && x !== null && 'shore' in x) {
+    const s = (x as { shore: unknown }).shore;
+    const d = typeof s === 'object' && s !== null ? (s as { distance_nm?: unknown }).distance_nm : undefined;
+    return typeof d === 'number' && Number.isFinite(d) && d > 0 ? { shore: { distance_nm: d } } : null;
+  }
+  return null;
+}
+
+/** One measurement of the index correction (signed, added, arcminutes; CONVENTIONS 10). */
+export interface IndexErrorLogEntry {
+  utc: string;
+  ic_arcmin: number;
+  note?: string;
+}
+
+/** One comparison of the watch with a time signal (seconds added to the watch). */
+export interface WatchLogEntry {
+  utc: string;
+  correction_s: number;
+  note?: string;
+}
 
 export interface Instrument {
   name: string;
   /** Signed arcminutes, ADDED to the reading. On the arc => negative. */
   index_correction_arcmin: number;
   horizon: HorizonMode;
+  /**
+   * Index-error log: when it has entries, each sight's index correction is interpolated
+   * from it at the sight's time instead of `index_correction_arcmin`. Absent when empty.
+   */
+  index_error_log?: IndexErrorLogEntry[];
 }
 
 export interface Clock {
@@ -70,6 +140,36 @@ export interface Clock {
   uncertainty_s: number;
   /** Known chronometer correction, seconds, ADDED to every recorded time. */
   correction_s: number;
+  /**
+   * UT1 − UTC in seconds, from the time signal or IERS Bulletin A (CONVENTIONS 6 and
+   * 15.2). Absent or null: automatic (the engine's history or model). Expansion
+   * programme (moonshape); the core omits it from a session it writes when absent.
+   */
+  dut1_s?: number | null;
+  /**
+   * Watch log: when it has entries, each sight's chronometer correction is interpolated
+   * from it at the sight's recorded time instead of `correction_s`. Absent when empty.
+   */
+  watch_log?: WatchLogEntry[];
+}
+
+/** How a value was read from an error log at a sight's time. */
+export type LogMethod = 'interpolated' | 'at_entry' | 'only_entry' | 'held_before_first' | 'held_after_last';
+
+export interface LogPoint {
+  utc: string;
+  value: number;
+}
+
+/** A value read from an index-error or watch log (arcminutes or seconds). */
+export interface LoggedValue {
+  value: number;
+  method: LogMethod;
+  from: LogPoint | null;
+  to: LogPoint | null;
+  /** Hours outside the log's span (0 inside it). */
+  hours_outside: number;
+  note: string;
 }
 
 export type AltitudeKind = 'sextant_hs' | 'apparent_ha' | 'observed_ho';
@@ -170,11 +270,25 @@ export interface ReducedSight {
   ho_deg: number;
   sigma_arcmin: number;
   corrections: CorrectionBreakdown;
+  /** At the assumed position; for the Moon it includes `earth_shape_arcmin`. */
   hc_deg: number | null;
   zn_deg: number | null;
   /** Ho - Hc in nautical miles, positive toward the body. */
   intercept_nm: number | null;
   warnings: Warning[];
+  /** The direction's horizontal parallax, arcminutes (0 for a star). Expansion programme. */
+  horizontal_parallax_arcmin: number;
+  /**
+   * The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4):
+   * the WGS84 geometry at the assumed position minus the sphere's. Null for every other
+   * body, without an assumed position, and for a Moon direction without HP. The
+   * correction chain never includes it. Expansion programme.
+   */
+  earth_shape_arcmin: number | null;
+  /** Present when the index correction came from `instrument.index_error_log`. */
+  index_correction_from_log?: LoggedValue;
+  /** Present when the chronometer correction came from `clock.watch_log`. */
+  clock_correction_from_log?: LoggedValue;
 }
 
 // ---------------------------------------------------------------------------
@@ -431,7 +545,18 @@ export type Warning =
       z: number;
     }
   | { code: 'run_outlier'; id: string; normalized_residual: number; rejected: boolean }
-  | { code: 'polaris_near_pole'; id: string; latitude_deg: number; azimuth_deg: number };
+  | { code: 'polaris_near_pole'; id: string; latitude_deg: number; azimuth_deg: number }
+  // Sailings agent (expansion programme): dip short, error logs
+  | { code: 'shore_beyond_sea_horizon'; id: string; distance_nm: number; sea_horizon_nm: number }
+  | {
+      code: 'error_log_outside_span';
+      id: string;
+      /** `index_error_log` or `watch_log`. */
+      log: string;
+      /** Arcminutes (index error) or seconds (watch). */
+      held_value: number;
+      hours_outside: number;
+    };
 
 export type WarningCode = Warning['code'];
 
@@ -465,6 +590,8 @@ export const WARNING_CODES = [
   'slope_inconsistent',
   'run_outlier',
   'polaris_near_pole',
+  'shore_beyond_sea_horizon',
+  'error_log_outside_span',
 ] as const satisfies readonly WarningCode[];
 
 /** "caution" changes what you should believe; "note" records what the code did. */
@@ -495,12 +622,15 @@ export const WARNING_SEVERITY: Record<WarningCode, WarningSeverity> = {
   slope_inconsistent: 'caution',
   run_outlier: 'caution',
   polaris_near_pole: 'caution',
+  shore_beyond_sea_horizon: 'note',
+  error_log_outside_span: 'caution',
 };
 
-const HORIZON_PHRASE: Record<HorizonMode, string> = {
+const HORIZON_PHRASE: Record<HorizonName, string> = {
   sea: 'natural sea horizon',
   artificial_reflected: 'reflected artificial horizon',
   electronic_vertical: 'electronic local vertical',
+  shore: 'shoreline nearer than the sea horizon',
 };
 
 const ALTITUDE_KIND_PHRASE: Record<AltitudeKind, string> = {
@@ -536,7 +666,7 @@ export function warningSentence(w: Warning): string {
       );
     case 'dip_not_applicable':
       return (
-        `No dip was applied to sight ${w.id}: with a ${HORIZON_PHRASE[w.horizon]} ` +
+        `No dip was applied to sight ${w.id}: with a ${HORIZON_PHRASE[horizonName(w.horizon)]} ` +
         `the height of eye does not enter the correction.`
       );
     case 'already_corrected':
@@ -651,6 +781,19 @@ export function warningSentence(w: Warning): string {
         `Sight ${w.id}: at latitude ${n(w.latitude_deg, 2)} deg Polaris bears ` +
         `${n(w.azimuth_deg, 1)} deg, well away from north, so the latitude depends strongly on ` +
         `the longitude and the time, and its stated uncertainty is only approximate.`
+      );
+    case 'shore_beyond_sea_horizon':
+      return (
+        `Sight ${w.id} was taken to a shoreline ${n(w.distance_nm, 2)} NM away, beyond the sea ` +
+        `horizon ${n(w.sea_horizon_nm, 2)} NM away at this height of eye: the sea horizon is the ` +
+        `one seen, so the sea dip was applied instead of the dip short of the horizon.`
+      );
+    case 'error_log_outside_span':
+      return (
+        `Sight ${w.id} is ${n(w.hours_outside, 1)} h outside the times the ` +
+        `${w.log === 'watch_log' ? 'watch log' : 'index-error log'} covers, so its nearest entry ` +
+        `(${n(w.held_value, 2)}${w.log === 'watch_log' ? ' s' : ' arcmin'}) was used as it stands, ` +
+        `not extrapolated. Add an entry nearer the sight.`
       );
     default: {
       const exhaustive: never = w;

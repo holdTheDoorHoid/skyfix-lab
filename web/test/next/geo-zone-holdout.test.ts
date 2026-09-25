@@ -84,5 +84,5 @@ describe('time-zone guess, hold-out on the gazetteer', () => {
     expect(all.n).toBeGreaterThan(6000);
     expect(all.sameClock / all.n).toBeGreaterThanOrEqual(0.975);
     expect(all.exact / all.n).toBeGreaterThanOrEqual(0.9);
-  });
+  }, 30_000); // the hold-out runs 7 342 places through the polygons: slow on a loaded machine
 });

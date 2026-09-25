@@ -43,7 +43,10 @@ function session(name: string, notes: string, parts: Partial<Omit<Session, 'meta
       assumed_position_role: { role: 'initializer' },
     },
     instrument: parts.instrument ?? { name: '', index_correction_arcmin: 0, horizon: 'sea' },
-    clock: parts.clock ?? { uncertainty_s: 0, correction_s: 0 },
+    // Every example's truth was computed with UT1 = UTC (the Skyfield fixtures, and
+    // Bowditch's worked examples know no DUT1), so the examples declare `dut1_s: 0`;
+    // a real session leaves it blank and gets the IERS history (CONVENTIONS 15.2).
+    clock: parts.clock ?? { uncertainty_s: 0, correction_s: 0, dut1_s: 0 },
     observations: parts.observations,
   };
 }
@@ -158,17 +161,17 @@ export const EXAMPLES: readonly Example[] = [
         method: 'fix',
         session: session(
           'Moon, Venus and planets, Timor Sea (Skyfield)',
-          'fixtures/sessions/reference-moon-venus-timor-sphere.json: raw sextant readings built by tools/reference/gen_moon_sights.py from Skyfield + JPL DE440s on a spherical Earth, zero noise. The true position is 12° 12.0′ S, 128° 30.0′ E.',
+          'fixtures/sessions/reference-moon-venus-timor.json: raw sextant readings built by tools/reference/gen_moon_sights.py from Skyfield + JPL DE440s on the real (WGS84) Earth, zero noise; the Moon’s computed altitude includes the Earth’s-shape term (CONVENTIONS 15.4). The true position is 12° 12.0′ S, 128° 30.0′ E.',
           {
             observer: { height_of_eye_m: 4.5, pressure_hpa: 1010, temperature_c: 10, assumed_position: { lat_deg: -11.7, lon_deg: 129.3 }, assumed_position_role: { role: 'initializer' } },
             instrument: { name: 'synthetic sextant', index_correction_arcmin: 0.8, horizon: 'sea' },
             observations: [
-              obs('obs-1', 'Canopus', '2026-11-26T19:52:00Z', 40.3507822173, { sigma_arcmin: 0.2, notes: note }),
-              obs('obs-2', 'Acrux', '2026-11-26T19:54:00Z', 26.5501166585, { sigma_arcmin: 0.2, notes: note }),
-              obs('obs-3', 'Moon', '2026-11-26T19:56:00Z', 36.4047376087, { sigma_arcmin: 0.2, limb: 'upper', notes: note }),
-              obs('obs-4', 'Jupiter', '2026-11-26T19:58:00Z', 60.2913711924, { sigma_arcmin: 0.2, notes: note }),
-              obs('obs-5', 'Mars', '2026-11-26T20:00:00Z', 58.2945486807, { sigma_arcmin: 0.2, notes: note }),
-              obs('obs-6', 'Venus', '2026-11-26T20:02:00Z', 21.8481495342, { sigma_arcmin: 0.2, notes: note }),
+              obs('obs-1', 'Canopus', '2026-11-26T19:52:00Z', 40.3507822213, { sigma_arcmin: 0.2, notes: note }),
+              obs('obs-2', 'Acrux', '2026-11-26T19:54:00Z', 26.5501166563, { sigma_arcmin: 0.2, notes: note }),
+              obs('obs-3', 'Moon', '2026-11-26T19:56:00Z', 36.4054861869, { sigma_arcmin: 0.2, limb: 'upper', notes: note }),
+              obs('obs-4', 'Jupiter', '2026-11-26T19:58:00Z', 60.2913717139, { sigma_arcmin: 0.2, notes: note }),
+              obs('obs-5', 'Mars', '2026-11-26T20:00:00Z', 58.294550725, { sigma_arcmin: 0.2, notes: note }),
+              obs('obs-6', 'Venus', '2026-11-26T20:02:00Z', 21.8481500979, { sigma_arcmin: 0.2, notes: note }),
             ],
           },
         ),

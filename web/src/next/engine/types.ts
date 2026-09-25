@@ -634,9 +634,17 @@ export interface SightObserver {
   height_of_eye_m?: number;
   pressure_hpa?: number;
   temperature_c?: number;
+  /**
+   * UT1 − UTC in seconds for the directions (expansion programme, moonshape): read by
+   * the WASM boundary of `predict_sextant`, `plan_sights` and `lunar_distance` to build
+   * the providers, as a session's `clock.dut1_s` is for the methods. Absent or null:
+   * automatic. Not part of the Rust `SightObserver`.
+   */
+  dut1_s?: number | null;
 }
 
-export type SightHorizon = 'sea' | 'artificial_reflected' | 'electronic_vertical';
+/** Any horizon the core's chain takes, a shore horizon included (sailings agent). */
+export type SightHorizon = import('../../types.js').HorizonMode;
 export type SightLimb = 'center' | 'lower' | 'upper';
 export type SightAltitudeKind = 'sextant_hs' | 'apparent_ha' | 'observed_ho';
 
@@ -699,7 +707,7 @@ export interface PredictedSight {
   dec_deg: number;
   semidiameter_arcmin: number;
   horizontal_parallax_arcmin: number;
-  /** Computed altitude and azimuth at the observer (CONVENTIONS §3). */
+  /** Computed altitude and azimuth at the observer (CONVENTIONS §3; the Moon's altitude includes `earth_shape_arcmin`, §15.4). */
   hc_deg: number;
   zn_deg: number;
   /** The sextant reading (the double angle with a reflected artificial horizon). */
@@ -709,6 +717,12 @@ export interface PredictedSight {
   /** The forward chain from `hs_deg`, landing on `hc_deg`. */
   corrections: SightCorrectionBreakdown;
   warnings: SightWarning[];
+  /**
+   * The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4); 0
+   * for every other body. The reading is then the real (WGS84) Earth's. Expansion
+   * programme.
+   */
+  earth_shape_arcmin: number;
 }
 
 export type LunarLimb = 'near' | 'far' | 'center';
@@ -872,7 +886,8 @@ export interface TwilightPlan {
 }
 
 export interface SightPlan {
-  observer: Required<SightObserver>;
+  /** The observer as the plan used it (`dut1_s` is read at the boundary and not echoed). */
+  observer: Required<Omit<SightObserver, 'dut1_s'>>;
   jd_start: number;
   utc_start: string;
   jd_end: number;
@@ -1642,9 +1657,11 @@ export function isTimeEngine(engine: unknown): engine is TimeEngine {
 
 export interface PackStatus {
   name: string;
+  /** The loaded pack's data version; '' until one is loaded (the manifest has the offered file's). */
   version: string;
   label: string;
   description: string;
+  /** The loaded pack file's size; 0 until one is loaded. */
   bytes: number;
   provides: string[];
   loaded: boolean;
@@ -1653,6 +1670,7 @@ export interface PackStatus {
 export interface PackInfo {
   name: string;
   version: string;
+  /** The whole pack file's size, header included. */
   bytes: number;
   provides: string[];
 }
@@ -1672,19 +1690,1951 @@ export function isPackEngine(engine: unknown): engine is PackEngine {
   );
 }
 
+/**
+ * One pack as the page sees it (packs agent, 2026-09-24): what the engine says
+ * (`PackStatus`), what the site offers (its manifest) and what this device has saved.
+ * `version`, `bytes`, `label` and `description` are the offered file's when the site
+ * offers it, else the saved or loaded copy's.
+ */
+export interface PackState extends PackStatus {
+  /** Listed in the site's `data/packs/manifest.json`: it can be downloaded. */
+  offered: boolean;
+  /** This build of the core can install it (its name is in `packs()`). */
+  supported: boolean;
+  /** A copy is saved on this device. */
+  saved: boolean;
+  savedBytes: number;
+  /** The saved copy is an older revision than the site's; it is replaced on next use. */
+  stale: boolean;
+  /** Removed from this device while loaded: still in use until the page is reloaded. */
+  removedInUse: boolean;
+  /** A download in progress. */
+  progress: { received: number; total: number } | null;
+  /** The last thing that went wrong with this pack, in a sentence. */
+  error: string | null;
+}
+
 /** The pack service every component reaches through `Ctx.packs` (packs agent). */
 export interface PackService {
-  /** Makes sure a pack is loaded, prompting once with `reason`; false when declined or offline without a copy. */
+  /**
+   * Makes sure a pack is loaded: at once when it is loaded or saved, otherwise after one
+   * prompt that starts with `reason` (a sentence: "Positions before 1550 need the Deep time
+   * pack.") and gives the size. False when declined (remembered for the page session), when
+   * offline without a saved copy, or when the site does not offer it.
+   */
   ensure(name: string, reason: string): Promise<boolean>;
-  status(): PackStatus[];
+  /** Every pack the site offers, and any other saved or loaded one. */
+  status(): PackState[];
+  /** Deletes the saved copy (a loaded pack stays in use until the page is reloaded). */
   remove(name: string): Promise<void>;
+  /** Downloads, saves and loads a pack with no prompt (Settings → Data packs: Get). */
+  get(name: string): Promise<boolean>;
+  /** Called after every change: loaded, saved, removed, download progress. Returns the stop function. */
+  subscribe(listener: () => void): () => void;
+  /** Reads the site's pack list and this device's saved packs again. */
+  refresh(): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — sun tools (suntools agent, P7). Rust: crates/skyfix-wasm/src/
+// suntools.rs over skyfix_almanac::sun_tools. Wire format: docs/EXPLORER_API.md,
+// "Expansion programme — sun tools"; definitions: CONVENTIONS 13.10. Every altitude is
+// the topocentric one of CONVENTIONS 13.2 (`alt_deg` geometric, `alt_apparent_deg` with
+// the display refraction) and agrees with `skyState` at the same instant.
+// ---------------------------------------------------------------------------------
+
+/** Golden hour: the Sun's centre between -4° and +6° (geometric); blue hour: -6° to -4°. */
+export type SunLightKind = 'golden' | 'blue';
+/**
+ * `morning`/`evening`: the Sun climbs/sinks through the band; `midday`: it culminates
+ * inside it (high-latitude winter); `midnight`: its lower culmination is inside it
+ * (high-latitude summer); `all_day`: it stays in the band for the whole window.
+ */
+export type SunLightPeriod = 'morning' | 'evening' | 'midday' | 'midnight' | 'all_day';
+
+export interface SunLightWindow {
+  kind: SunLightKind;
+  period: SunLightPeriod;
+  jd_start: number;
+  utc_start: string;
+  jd_end: number;
+  utc_end: string;
+  duration_min: number;
+  /** The Sun was already in the band when the requested window began (not a crossing). */
+  open_start: boolean;
+  /** The Sun was still in the band when the requested window ended. */
+  open_end: boolean;
+}
+
+/** One threshold (-6, -4 or +6 degrees), with the twilight vocabulary for none. */
+export interface SunHourBoundary {
+  altitude_deg: number;
+  /** `alt_deg` of each is the threshold (geometric). */
+  crossings: AltitudeCrossing[];
+  always_above: boolean;
+  always_below: boolean;
+}
+
+export interface SunHours {
+  jd_start: number;
+  jd_end: number;
+  /** Golden and blue hours, time-ordered. */
+  windows: SunLightWindow[];
+  /** The -6, -4 and +6 degree thresholds, in that order. */
+  boundaries: SunHourBoundary[];
+  /** The Sun's rise, set, transits and twilight: `dayEvents` for the Sun. */
+  sun: BodyEvents;
+  phases: PhaseSegment[];
+}
+
+/**
+ * Apparent altitude limits of a bearing crossing, degrees. `min_deg` absent or null:
+ * "above the horizon" exactly as `above_horizon` says (upper limb above the sea-level
+ * horizon); `max_deg` absent or null: no upper limit.
+ */
+export interface AzimuthAltitudeBand {
+  min_deg?: number | null;
+  max_deg?: number | null;
+}
+
+export interface AzimuthCrossing {
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  /** The altitude is increasing. */
+  rising: boolean;
+  /** The azimuth is increasing (east to south to west, seen from above). */
+  clockwise: boolean;
+}
+
+/** Rise and set are the event finder's (upper limb on the sea-level horizon); `at_altitude` is the centre's apparent altitude. */
+export type AlignmentEvent = { kind: 'rise' } | { kind: 'set' } | { kind: 'at_altitude'; altitude_deg: number };
+
+export interface AlignmentRequest {
+  /** Default `Sun`. */
+  body?: string;
+  year: number;
+  azimuth_deg: number;
+  /** Default 0.5. */
+  tolerance_deg?: number;
+  event: AlignmentEvent;
+  /** The clock the dates are written on; absent or null: local mean time. */
+  utc_offset_hours?: number | null;
+  /** Rise and set only. */
+  options?: EventOptions | null;
+}
+
+export type AlignmentKind = 'rise' | 'set' | 'rising' | 'setting';
+
+export interface AlignmentMatch {
+  /** Local date on the request's clock. */
+  date: string;
+  kind: AlignmentKind;
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  /** `az_deg - azimuth_deg`, wrapped into (-180, 180]. */
+  offset_deg: number;
+  alt_deg: number;
+  /** The closest day of its run of consecutive matching days. */
+  best: boolean;
+}
+
+export interface AlignmentResult {
+  body: string;
+  year: number;
+  azimuth_deg: number;
+  tolerance_deg: number;
+  event: AlignmentEvent;
+  utc_offset_hours: number;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  events_considered: number;
+  matches: AlignmentMatch[];
+  /** The year's event nearest the bearing, matching or not; null when there is none. */
+  closest: AlignmentMatch | null;
+}
+
+/** `lmt`: local mean time at the observer's longitude; `zone`: a fixed offset all year (no daylight saving). */
+export type AnalemmaClock = 'lmt' | 'zone';
+
+export interface AnalemmaRequest {
+  year: number;
+  /** Clock time of day, hours in [0, 24). */
+  time_h: number;
+  clock: AnalemmaClock;
+  /** Required for `zone`, refused for `lmt`. */
+  utc_offset_hours?: number | null;
+}
+
+export interface AnalemmaPoint {
+  date: string;
+  jd_utc: number;
+  utc: string;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+  dec_deg: number;
+  /** Equation of time, seconds (CONVENTIONS 13.9). */
+  eot_s: number;
+}
+
+export interface Analemma {
+  year: number;
+  time_h: number;
+  clock: AnalemmaClock;
+  utc_offset_hours: number;
+  points: AnalemmaPoint[];
+  errors: BodyError[];
+}
+
+export type SunPathDayKind = 'day' | 'march_equinox' | 'june_solstice' | 'september_equinox' | 'december_solstice';
+
+export interface SunPathPoint {
+  jd_utc: number;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+}
+
+export interface SunPathDay {
+  day: SunPathDayKind;
+  jd_start: number;
+  jd_end: number;
+  /** The equinox or solstice instant; null for the requested day. */
+  season_jd_utc: number | null;
+  points: SunPathPoint[];
+}
+
+export interface SunPath {
+  step_minutes: number;
+  path: SunPathDay;
+  /** The same local day on the year's equinoxes and solstices, in calendar order. */
+  envelope: SunPathDay[];
+  errors: BodyError[];
+}
+
+export interface RiseSetAzimuthRequest {
+  /** Default `Sun`. */
+  body?: string;
+  year: number;
+  utc_offset_hours?: number | null;
+  options?: EventOptions | null;
+}
+
+export interface RiseSetEventRef {
+  jd_utc: number;
+  utc: string;
+  az_deg: number;
+  alt_deg: number;
+}
+
+export interface RiseSetDay {
+  date: string;
+  jd_start: number;
+  jd_end: number;
+  rises: RiseSetEventRef[];
+  sets: RiseSetEventRef[];
+  transit: RiseSetEventRef | null;
+  always_above: boolean;
+  always_below: boolean;
+}
+
+export interface RiseSetAzimuths {
+  body: string;
+  year: number;
+  utc_offset_hours: number;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  days: RiseSetDay[];
+}
+
+export interface EotPoint {
+  /** UTC date. */
+  date: string;
+  jd_utc: number;
+  utc: string;
+  /** Apparent minus mean solar time, seconds (positive: the sundial is fast). */
+  eot_s: number;
+  dec_deg: number;
+}
+
+export interface EotExtreme {
+  kind: 'minimum' | 'maximum';
+  date: string;
+  jd_utc: number;
+  eot_s: number;
+}
+
+export interface EquationOfTime {
+  year: number;
+  utc_hour: number;
+  points: EotPoint[];
+  extremes: EotExtreme[];
+  errors: BodyError[];
+}
+
+export interface SolarPanel {
+  /** Degrees from horizontal, 0 to 90; default 0. */
+  tilt_deg?: number;
+  /** The direction the panel faces; default toward the equator. */
+  azimuth_deg?: number | null;
+  /** Ground reflectance; default 0.2. */
+  albedo?: number | null;
+}
+
+export interface SolarPanelUsed {
+  tilt_deg: number;
+  azimuth_deg: number;
+  albedo: number;
+}
+
+/** What the solar model is and how far to trust it: show `label` and `typical_error` with every number. */
+export interface SolarModel {
+  label: string;
+  clear_sky: string;
+  diffuse_split: string;
+  transposition: string;
+  typical_error: string;
+  not_modelled: string;
+}
+
+export interface SolarSample {
+  jd_utc: number;
+  sun_alt_apparent_deg: number;
+  sun_az_deg: number;
+  ghi_w_m2: number;
+  dni_w_m2: number;
+  dhi_w_m2: number;
+  poa_w_m2: number;
+  /** Null with the Sun down. */
+  incidence_deg: number | null;
+}
+
+export interface SolarDay {
+  jd_start: number;
+  jd_end: number;
+  step_minutes: number;
+  panel: SolarPanelUsed;
+  samples: SolarSample[];
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+  dni_kwh_m2: number;
+  peak_poa_w_m2: number;
+  model: SolarModel;
+}
+
+export interface SolarYearRequest {
+  year: number;
+  panel?: SolarPanel;
+  utc_offset_hours?: number | null;
+  /** Default 10. */
+  step_minutes?: number | null;
+  optimise_tilt?: boolean;
+}
+
+export interface SolarDayTotal {
+  date: string;
+  jd_start: number;
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+}
+
+export interface SolarMonth {
+  month: number;
+  days: number;
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+}
+
+export interface SolarOptimalTilt {
+  tilt_deg: number;
+  azimuth_deg: number;
+  poa_kwh_m2: number;
+}
+
+export interface SolarYear {
+  year: number;
+  utc_offset_hours: number;
+  step_minutes: number;
+  panel: SolarPanelUsed;
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  days: SolarDayTotal[];
+  months: SolarMonth[];
+  poa_kwh_m2: number;
+  ghi_kwh_m2: number;
+  optimal: SolarOptimalTilt | null;
+  model: SolarModel;
+}
+
+export interface GalacticOptions {
+  /** Default 10 (apparent altitude of the galactic centre). */
+  min_altitude_deg?: number | null;
+  /** Default -18 (geometric altitude of the Sun). */
+  sun_max_altitude_deg?: number | null;
+}
+
+export interface GalacticMoment {
+  jd_utc: number;
+  utc: string;
+  alt_deg: number;
+  alt_apparent_deg: number;
+  az_deg: number;
+  /** The galactic equator's highest point above the horizon. */
+  arch_top_alt_deg: number;
+  arch_top_az_deg: number;
+  /** Where the galactic equator meets the horizon, the smaller first. */
+  arch_ends_az_deg: [number, number];
+}
+
+export interface GalacticWindow {
+  jd_start: number;
+  utc_start: string;
+  jd_end: number;
+  utc_end: string;
+  duration_h: number;
+  moon_up: boolean;
+  moon_illuminated_fraction: number;
+  /** The galactic centre at its highest in the window. */
+  best: GalacticMoment;
+}
+
+export interface J2000Direction {
+  ra_j2000_deg: number;
+  dec_j2000_deg: number;
+}
+
+export interface GalacticCentreWindows {
+  jd_start: number;
+  jd_end: number;
+  min_altitude_deg: number;
+  sun_max_altitude_deg: number;
+  galactic_centre: J2000Direction;
+  galactic_pole: J2000Direction;
+  windows: GalacticWindow[];
+}
+
+/** Sun tools (suntools agent). Each method throws a string-derived Error on malformed input or outside the coverage. */
+export interface SunToolsEngine {
+  /** Golden and blue hours over a window (one local day), with the Sun's events. About 1 ms. */
+  sunHours(observer: Observer, jdStart: number, jdEnd: number): SunHours;
+  /** When a body crosses a bearing inside an altitude band (window at most 400 days). */
+  findAzimuth(
+    observer: Observer,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    band?: AzimuthAltitudeBand,
+  ): AzimuthCrossing[];
+  /** The days of a year a body rises, sets or stands at an altitude on a bearing. About 60 ms (the Moon 0.3 s). */
+  alignmentDays(observer: Observer, request: AlignmentRequest): AlignmentResult;
+  /** The Sun at one clock time on every day of a year. About 10 ms. */
+  analemma(observer: Observer, request: AnalemmaRequest): Analemma;
+  /** A day's sun path (default 10-minute steps) and the equinox and solstice envelope. */
+  sunPath(observer: Observer, jdStart: number, jdEnd: number, stepMinutes?: number): SunPath;
+  /** Daily rise and set azimuths over a local year. About 60 ms (the Moon 0.3 s). */
+  riseSetAzimuths(observer: Observer, request: RiseSetAzimuthRequest): RiseSetAzimuths;
+  /** The equation of time and the Sun's declination each UTC day of a year, at `utcHour` (default 12). */
+  equationOfTime(year: number, utcHour?: number): EquationOfTime;
+  /** Clear-sky irradiance on a panel through a window (at most two days), and its energy. */
+  solarDay(observer: Observer, jdStart: number, jdEnd: number, panel?: SolarPanel, stepMinutes?: number): SolarDay;
+  /** Clear-sky energy for every local day of a year, and optionally the best tilt. About 60 ms. */
+  solarYear(observer: Observer, request: SolarYearRequest): SolarYear;
+  /** The galactic centre's dark-sky windows over a span of nights (at most 400 days). */
+  galacticCentreWindows(
+    observer: Observer,
+    jdStart: number,
+    jdEnd: number,
+    options?: GalacticOptions,
+  ): GalacticCentreWindows;
+}
+
+const SUN_TOOLS_METHODS = [
+  'sunHours',
+  'findAzimuth',
+  'alignmentDays',
+  'analemma',
+  'sunPath',
+  'riseSetAzimuths',
+  'equationOfTime',
+  'solarDay',
+  'solarYear',
+  'galacticCentreWindows',
+] as const;
+
+/** True when `engine` has the sun tools (the WASM engine of a new enough build, or the mock). */
+export function isSunToolsEngine(engine: unknown): engine is SunToolsEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Record<string, unknown>;
+  return SUN_TOOLS_METHODS.every((m) => typeof e[m] === 'function');
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — magnetic field and compass error (geomag agent). Rust:
+// crates/skyfix-wasm/src/geomag.rs over skyfix_geomag (WMM2025, IGRF-14) and
+// skyfix_core::methods::compass. Wire format: EXPLORER_API.md, "Expansion programme —
+// magnetic field and compass error"; CONVENTIONS 14.1-14.2; NAVIGATION_METHODS §9.
+// ---------------------------------------------------------------------------------
+
+export type MagneticModelName = 'WMM2025' | 'IGRF-14';
+/** Which model answers: WMM2025 in 2025.0–2030.0 and IGRF-14 before (`auto`), or one of them. */
+export type MagneticModelChoice = 'auto' | 'wmm2025' | 'igrf14';
+/** By the horizontal intensity: `blackout` < 2000 nT (compass unreliable), `caution` < 6000 nT. */
+export type MagneticZone = 'normal' | 'caution' | 'blackout';
+
+/** Annual rate of change of each element. */
+export interface MagneticAnnualChange {
+  declination_deg_per_year: number;
+  inclination_deg_per_year: number;
+  horizontal_nt_per_year: number;
+  north_nt_per_year: number;
+  east_nt_per_year: number;
+  down_nt_per_year: number;
+  total_nt_per_year: number;
+}
+
+/** One standard deviation of each element, and where the numbers come from (CONVENTIONS 14.1). */
+export interface MagneticUncertainty {
+  declination_deg: number;
+  inclination_deg: number;
+  horizontal_nt: number;
+  north_nt: number;
+  east_nt: number;
+  down_nt: number;
+  total_nt: number;
+  basis: string;
+}
+
+/** `magnetic_field` when a model answers. */
+export interface MagneticFieldValue {
+  available: true;
+  jd_utc: number;
+  utc: string;
+  model: MagneticModelName;
+  decimal_year: number;
+  lat_deg: number;
+  /** Normalised to (−180, 180]. */
+  lon_deg: number;
+  height_m: number;
+  /** Magnetic variation: true north to magnetic north, east positive. */
+  declination_deg: number;
+  /** Dip below the horizontal, down positive. */
+  inclination_deg: number;
+  horizontal_nt: number;
+  /** X, Y, Z in the geodetic frame. */
+  north_nt: number;
+  east_nt: number;
+  down_nt: number;
+  total_nt: number;
+  annual_change: MagneticAnnualChange;
+  uncertainty: MagneticUncertainty;
+  zone: MagneticZone;
+  /** After 2025.0 the value extrapolates a forecast rate of change. */
+  forecast: boolean;
+  /** Plain sentences (zones, less certain eras, forecasts). */
+  notes: string[];
+  /** `11.8° W`. */
+  variation_text: string;
+  /** `1.6′ E a year`. */
+  annual_change_text: string;
+  /** `Variation 11.8° W ±0.4° (WMM2025), changing 1.6′ E a year.` */
+  sentence: string;
+}
+
+/** `magnetic_field` when no model covers the date (before 1900, after 2030) or height. */
+export interface MagneticFieldUnavailable {
+  available: false;
+  jd_utc: number;
+  utc: string;
+  decimal_year: number;
+  lat_deg: number;
+  lon_deg: number;
+  height_m: number;
+  reason: string;
+}
+
+export type MagneticField = MagneticFieldValue | MagneticFieldUnavailable;
+
+/** `magnetic_grid`: row by row from the first latitude, west to east. */
+export interface MagneticGrid {
+  model: MagneticModelName;
+  decimal_year: number;
+  lat_deg: Float64Array;
+  lon_deg: Float64Array;
+  declination_deg: Float64Array;
+  horizontal_nt: Float64Array;
+}
+
+export type CompassMethod = 'azimuth' | 'amplitude';
+export type CompassKind = 'magnetic' | 'gyro';
+export type AmplitudeHorizon = 'visible' | 'celestial';
+export type RiseSet = 'rising' | 'setting';
+
+/** `compass_error` request (EXPLORER_API.md). Give `utc` or `jd_utc`. */
+export interface CompassRequest {
+  method?: CompassMethod;
+  body: string;
+  utc?: string;
+  jd_utc?: number;
+  observer: { lat_deg: number; lon_deg: number; height_m?: number };
+  /** What the compass read, [0, 360). */
+  compass_bearing_deg: number;
+  compass?: CompassKind;
+  /** A chart's variation, east positive; null: the model's. */
+  variation_deg?: number | null;
+  variation_sigma_deg?: number | null;
+  bearing_sigma_deg?: number | null;
+  magnetic_model?: MagneticModelChoice;
+  horizon?: AmplitudeHorizon;
+  height_of_eye_m?: number;
+  limb?: SightLimb;
+  event?: RiseSet | null;
+  pressure_hpa?: number;
+  temperature_c?: number;
+}
+
+export interface CompassVariation {
+  /** East positive. */
+  deg: number;
+  sigma_deg: number | null;
+  source: MagneticModelName | 'given';
+  text: string;
+  notes: string[];
+}
+
+export interface CompassAzimuthDetails {
+  gha_deg: number;
+  dec_deg: number;
+  /** Topocentric geometric altitude of the centre. */
+  altitude_deg: number;
+  /** CONVENTIONS 3 Zn, what the sight-reduction tables give. */
+  zn_spherical_deg: number;
+  azimuth_rate_deg_per_min: number;
+}
+
+export interface CompassAmplitudeDetails {
+  event: RiseSet;
+  horizon: AmplitudeHorizon;
+  dec_deg: number;
+  /** On the celestial horizon, north positive; null when the body never reaches it. */
+  amplitude_deg: number | null;
+  /** `W 1.0° S`. */
+  amplitude_text: string | null;
+  celestial_bearing_deg: number | null;
+  /** Geocentric altitude of the centre when the bearing was taken. */
+  altitude_deg: number;
+  /** Visible minus celestial bearing; Bowditch's Table 23 correction is its negative. */
+  visible_horizon_correction_deg: number;
+  dip_arcmin: number;
+  refraction_arcmin: number;
+  semidiameter_arcmin: number;
+  parallax_arcmin: number;
+  /** Degrees of bearing per degree of misjudged altitude. */
+  bearing_per_altitude: number;
+  minutes_from_given_time: number;
+}
+
+/** `compass_error` result (EXPLORER_API.md; CONVENTIONS 14.2). */
+export interface CompassError {
+  method: CompassMethod;
+  body: string;
+  compass: CompassKind;
+  jd_utc: number;
+  utc: string;
+  true_bearing_deg: number;
+  compass_bearing_deg: number;
+  /** True minus compass, (−180, 180], east positive. */
+  compass_error_deg: number;
+  compass_error_text: string;
+  compass_error_sigma_deg: number | null;
+  variation: CompassVariation | null;
+  /** Compass error minus variation, east positive. */
+  deviation_deg: number | null;
+  deviation_sigma_deg: number | null;
+  deviation_text: string | null;
+  /** `Compass error 14.4° W; variation 11.8° W; deviation 2.6° W.` */
+  sentence: string;
+  explanation: string;
+  azimuth: CompassAzimuthDetails | null;
+  amplitude: CompassAmplitudeDetails | null;
+  direction_source: string;
+  notes: string[];
+}
+
+/** Magnetic variation and compass error (geomag agent). */
+export interface GeomagEngine {
+  /** Never throws for a date or height no model covers: `available: false` with the reason. */
+  magneticField(
+    latDeg: number,
+    lonDeg: number,
+    heightM: number,
+    jdUtc: number,
+    model?: MagneticModelChoice,
+  ): MagneticField;
+  /** Declination on a grid for isogonic lines (≤ 70 000 points); null when no model covers the date. */
+  magneticGrid(
+    jdUtc: number,
+    latMin: number,
+    latMax: number,
+    nLat: number,
+    lonMin: number,
+    lonMax: number,
+    nLon: number,
+    heightM?: number,
+  ): MagneticGrid | null;
+  /** Throws a string for malformed input or a body the engine cannot place. */
+  compassError(request: CompassRequest): CompassError;
+}
+
+/** True when `engine` has the magnetic field and compass error (the memoised engine forwards them). */
+export function isGeomagEngine(engine: unknown): engine is GeomagEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<GeomagEngine>;
+  return (
+    typeof e.magneticField === 'function' &&
+    typeof e.magneticGrid === 'function' &&
+    typeof e.compassError === 'function'
+  );
+}
+
+// ---------------------------------------------------------------------------------
+// Timescales agent (expansion wave 1): additive fields by declaration merging. See
+// EXPLORER_API.md, "Time scales, Delta-T and calendars (timescales agent)".
+// ---------------------------------------------------------------------------------
+
+/**
+ * Standard uncertainty of `delta_t_s`, seconds (CONVENTIONS 15.2): DUT1's on the UTC
+ * scale (0.001 s from the IERS table, 0.05 s for a value the user set, 0.9 s when
+ * unknown), the Delta-T model's on the UT scale. Every eclipse output from this core
+ * on carries it; an older build does not, hence optional.
+ */
+export interface SolarEclipse {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipse {
+  delta_t_sigma_s?: number;
+}
+export interface SolarEclipseLocal {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipseLocal {
+  delta_t_sigma_s?: number;
+}
+export interface SolarEclipsePath {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipsePath {
+  delta_t_sigma_s?: number;
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — sailings, dead reckoning, star identification, star finder
+// (sailings agent, 2026-09-24). Rust: crates/skyfix-core/src/sailings/,
+// crates/skyfix-core/src/methods/{starid,starfinder}.rs, crates/skyfix-wasm/src/sailings.rs.
+// Wire format: docs/EXPLORER_API.md, "Expansion programme — sailings"; methods:
+// docs/NAVIGATION_METHODS.md sections 9-11. Behind `isSailingsEngine`.
+// ---------------------------------------------------------------------------------
+
+/** The figure Mercator sailing's meridional parts are computed on (default `sphere`). */
+export type MeridionalParts = 'sphere' | 'wgs84';
+/** How a leg of constant course is run (default `rhumb`). */
+export type DrMethod = 'rhumb' | 'mid_latitude' | 'great_circle';
+/** Waypoints every so many NM, or on every whole multiple of so many degrees of longitude. */
+export type WaypointSpacing = { every_nm: number } | { every_deg_lon: number };
+
+export interface PassageRequest {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  waypoints?: WaypointSpacing | null;
+  /** Composite sailing: north positive (47 keeps the track south of 47° N). */
+  limiting_latitude_deg?: number | null;
+  meridional_parts?: MeridionalParts;
+  speed_kn?: number | null;
+  departure_utc?: string | null;
+}
+
+export interface SailingVertex {
+  lat_deg: number;
+  lon_deg: number;
+  /** Along the track from the departure; negative when behind it. */
+  distance_from_start_nm: number;
+  on_route: boolean;
+}
+
+export interface SailingWaypoint {
+  index: number;
+  lat_deg: number;
+  lon_deg: number;
+  /** Along the great circle (or composite track). */
+  distance_from_start_nm: number;
+  track_course_deg: number;
+  /** The rhumb line to the next waypoint; null at the destination. */
+  leg_course_deg: number | null;
+  leg_distance_nm: number | null;
+  /** Rhumb-line legs sailed to here. */
+  sailed_nm: number;
+  eta_utc: string | null;
+  eta_jd_utc: number | null;
+}
+
+export interface SailingArrival {
+  hours: number;
+  utc: string | null;
+  jd_utc: number | null;
+}
+
+export interface GreatCircleReport {
+  distance_nm: number;
+  distance_km: number;
+  distance_deg: number;
+  initial_course_deg: number | null;
+  final_course_deg: number | null;
+  vertex: SailingVertex | null;
+  highest_latitude_deg: number;
+  equator_crossing: LatLonDeg | null;
+  waypoints: SailingWaypoint[];
+  waypoint_route_nm: number;
+  /** For drawing, at most 60 NM apart. */
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+}
+
+export interface RhumbReport {
+  course_deg: number | null;
+  distance_nm: number;
+  distance_km: number;
+  dlat_arcmin: number;
+  dlo_arcmin: number;
+  departure_nm: number;
+  /** Null when an end is at a pole. */
+  meridional_difference_arcmin: number | null;
+  meridional_parts: MeridionalParts;
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+}
+
+export interface MidLatitudeReport {
+  course_deg: number | null;
+  distance_nm: number;
+  mean_latitude_deg: number;
+  dlat_arcmin: number;
+  dlo_arcmin: number;
+  departure_nm: number;
+  arrival: SailingArrival | null;
+}
+
+export interface CompositeLegReport {
+  kind: 'great_circle' | 'parallel';
+  from: LatLonDeg;
+  to: LatLonDeg;
+  distance_nm: number;
+  initial_course_deg: number | null;
+  final_course_deg: number | null;
+}
+
+export interface CompositeReport {
+  limiting_latitude_deg: number;
+  /** False when the great circle stays within the limit (then it is the track). */
+  applies: boolean;
+  distance_nm: number;
+  distance_km: number;
+  extra_distance_nm: number;
+  legs: CompositeLegReport[];
+  waypoints: SailingWaypoint[];
+  waypoint_route_nm: number;
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+  note: string;
+}
+
+export interface PassageReport {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  great_circle: GreatCircleReport;
+  rhumb_line: RhumbReport;
+  /** Null across the equator. */
+  mid_latitude: MidLatitudeReport | null;
+  composite: CompositeReport | null;
+  great_circle_saving_nm: number;
+  speed_kn: number | null;
+  departure_utc: string | null;
+  notes: string[];
+}
+
+export interface DrRequest {
+  from: LatLonDeg;
+  course_deg: number;
+  speed_kn: number;
+  /** Negative: where the vessel was that long before. */
+  hours: number;
+  method?: DrMethod;
+  meridional_parts?: MeridionalParts;
+  start_utc?: string | null;
+}
+
+export interface DrReport {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  course_deg: number;
+  speed_kn: number;
+  hours: number;
+  distance_nm: number;
+  method: DrMethod;
+  meridional_parts: MeridionalParts;
+  /** The course on arrival: turns along a great circle, constant on a rhumb line. */
+  final_course_deg: number;
+  arrival_utc: string | null;
+  arrival_jd_utc: number | null;
+}
+
+/** The running fix's leg shape (`RunningFixLeg`): a route's legs go to `runningFix` as they are. */
+export interface RouteLeg {
+  start_utc?: string | null;
+  course_deg: number;
+  speed_kn: number;
+}
+
+export interface RouteRequest {
+  start: LatLonDeg;
+  start_utc: string;
+  legs: RouteLeg[];
+  end_utc?: string | null;
+  method?: DrMethod;
+  meridional_parts?: MeridionalParts;
+  times_utc?: string[];
+  /** Needs `end_utc`. */
+  step_minutes?: number | null;
+}
+
+export type RouteStatus = 'before_start' | 'waiting' | 'under_way' | 'after_end';
+
+export interface RoutePoint {
+  utc: string;
+  jd_utc: number;
+  lat_deg: number;
+  lon_deg: number;
+  leg: number | null;
+  status: RouteStatus;
+  distance_run_nm: number;
+}
+
+export interface RouteLegReport {
+  index: number;
+  start_utc: string;
+  start_jd_utc: number;
+  end_utc: string | null;
+  end_jd_utc: number | null;
+  from: LatLonDeg;
+  to: LatLonDeg | null;
+  course_deg: number;
+  speed_kn: number;
+  distance_nm: number | null;
+}
+
+export interface RouteMadeGood {
+  course_deg: number | null;
+  distance_nm: number;
+  hours: number;
+  speed_kn: number | null;
+}
+
+export interface RouteReport {
+  method: DrMethod;
+  meridional_parts: MeridionalParts;
+  legs: RouteLegReport[];
+  points: RoutePoint[];
+  made_good: RouteMadeGood | null;
+  notes: string[];
+}
+
+export type BearingKind = 'true' | 'magnetic' | 'compass';
+
+export interface StarIdRequest {
+  /** RFC 3339 UTC, already corrected for the watch. */
+  utc: string;
+  observer: SightObserver;
+  instrument?: SightInstrument & { index_error_log?: import('../../types.js').IndexErrorLogEntry[] };
+  altitude_deg: number;
+  altitude_kind?: SightAltitudeKind;
+  bearing_deg: number;
+  bearing_kind?: BearingKind;
+  /** Degrees, east positive. */
+  variation_deg?: number | null;
+  deviation_deg?: number | null;
+  /** Default 2. */
+  altitude_tolerance_deg?: number;
+  /** Default 5. */
+  bearing_tolerance_deg?: number;
+}
+
+export type StarIdCandidateKind = 'star' | 'planet' | 'moon';
+
+export interface StarIdMatch {
+  rank: number;
+  body: string;
+  kind: StarIdCandidateKind;
+  navigational: boolean;
+  /** Airless topocentric altitude at the DR (the Moon's parallax removed). */
+  altitude_deg: number;
+  azimuth_deg: number;
+  /** Observed minus the body's. */
+  delta_altitude_deg: number;
+  delta_bearing_deg: number;
+  separation_deg: number;
+  score: number;
+  within_tolerance: boolean;
+  magnitude: number | null;
+  bright_enough: boolean | null;
+}
+
+export interface StarIdResult {
+  utc: string;
+  jd_utc: number;
+  observed_altitude_deg: number;
+  observed_bearing_deg: number;
+  corrections: SightCorrectionBreakdown;
+  altitude_tolerance_deg: number;
+  bearing_tolerance_deg: number;
+  sun_altitude_deg: number;
+  sky: SkyPhase;
+  limiting_magnitude: number;
+  candidates: StarIdMatch[];
+  best: string | null;
+  ambiguous: boolean;
+  message: string;
+  source: string;
+  warnings: SightWarning[];
+  notes: string[];
+}
+
+export type StarFinderSide = 'north' | 'south';
+export type StarFinderPoint = [number, number];
+
+export interface StarFinderStar {
+  name: string;
+  sha_deg: number;
+  dec_deg: number;
+  magnitude: number;
+  north: StarFinderPoint;
+  south: StarFinderPoint;
+}
+
+export interface AriesTick {
+  lha_aries_deg: number;
+  north: StarFinderPoint;
+  south: StarFinderPoint;
+  kind: 'label' | 'major' | 'minor';
+}
+
+export interface StarFinderLine {
+  value_deg: number;
+  points: StarFinderPoint[];
+}
+
+export interface StarFinderTemplate {
+  latitude_deg: number;
+  side: StarFinderSide;
+  zenith: StarFinderPoint;
+  horizon: StarFinderPoint[];
+  altitude_circles: StarFinderLine[];
+  azimuth_lines: StarFinderLine[];
+}
+
+/** Unit-disc coordinates, x right, y up, the base seen from outside the sphere. */
+export interface StarFinderGeometry {
+  requested_latitude_deg: number;
+  template_latitude_deg: number;
+  side: StarFinderSide;
+  /** Rotate the template anticlockwise by rotation_sign × LHA ♈ degrees. */
+  rotation_sign: number;
+  equator_radius: number;
+  epoch: string;
+  stars: StarFinderStar[];
+  aries_index: AriesTick[];
+  template: StarFinderTemplate;
+  notes: string[];
+}
+
+/** Sailings, dead reckoning, routes, star identification and the star finder. */
+export interface SailingsEngine {
+  sailing(request: PassageRequest): PassageReport;
+  drAdvance(request: DrRequest): DrReport;
+  routePositions(request: RouteRequest): RouteReport;
+  starIdentify(request: StarIdRequest): StarIdResult;
+  /** `latBand`: any latitude, snapped to its template (5° to 85°, signed); `jdUtc` plots apparent places of that date. */
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry;
+}
+
+export function isSailingsEngine(engine: unknown): engine is SailingsEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<SailingsEngine>;
+  return (
+    typeof e.sailing === 'function' &&
+    typeof e.drAdvance === 'function' &&
+    typeof e.routePositions === 'function' &&
+    typeof e.starIdentify === 'function' &&
+    typeof e.starFinderGeometry === 'function'
+  );
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme P8 — the Moon in detail (moondetail agent). Rust:
+// crates/skyfix-wasm/src/moondetail.rs over skyfix_almanac::{libration, lunar_features,
+// apsides, occultations}. Wire format: docs/EXPLORER_API.md, "Moon in detail";
+// definitions: CONVENTIONS 13.10.
+// ---------------------------------------------------------------------------------
+
+/** A place on the Moon, or a direction from its centre: selenographic latitude and east
+ * longitude (toward Mare Crisium, IAU), degrees, longitude in (-180, 180]. */
+export interface Selenographic {
+  lat_deg: number;
+  lon_deg: number;
+}
+
+/** Where a point of the Moon appears on its disc, in disc radii. */
+export interface DiscPoint {
+  /** Toward celestial east (position angle 90°) and north (0°). */
+  east: number;
+  north: number;
+  /** As the observer sees it with the zenith up: x to the right, y up. Without an
+   * observer: celestial north up, east to the left. */
+  x: number;
+  y: number;
+  /** On the hemisphere facing the observer. */
+  visible: boolean;
+}
+
+/** Libration, degrees: the selenographic place at the centre of the disc. */
+export interface LibrationAngles {
+  /** As the observer sees it (topocentric with an observer, else geocentric). */
+  lon_deg: number;
+  lat_deg: number;
+  /** Meeus's optical (orbit) and physical (the Moon's own rocking) parts, geocentric. */
+  optical_lon_deg: number;
+  optical_lat_deg: number;
+  physical_lon_deg: number;
+  physical_lat_deg: number;
+  /** The observer's own offset from the Earth's centre (up to about 1°); 0 without one. */
+  diurnal_lon_deg: number;
+  diurnal_lat_deg: number;
+}
+
+export interface MoonTerminator {
+  /** The sub-solar point, the circle's pole. */
+  pole: Selenographic;
+  /** Where the sunrise and sunset terminators cross the lunar equator. */
+  morning_lon_deg: number;
+  evening_lon_deg: number;
+  /** The whole great circle every 5°, `[lat_deg, lon_deg]`. */
+  points: [number, number][];
+  /** The half the observer sees, cusp to cusp, `[x, y]` in disc radii (DiscPoint x/y). */
+  disc: [number, number][];
+}
+
+export interface MoonOrientation {
+  jd_utc: number;
+  utc: string;
+  topocentric: boolean;
+  libration: LibrationAngles;
+  sub_observer: Selenographic;
+  sub_earth: Selenographic;
+  sub_solar: Selenographic;
+  /** Selenographic colongitude of the Sun: ~270 new, 0 first quarter, 90 full, 180 last. */
+  colongitude_deg: number;
+  /** Position angle of the Moon's north pole as the observer sees it (north through east). */
+  axis_position_angle_deg: number;
+  geocentric_axis_position_angle_deg: number;
+  /** Position angle of the bright limb's midpoint (the ephemeris's, geocentric). */
+  bright_limb_angle_deg: number;
+  illuminated_fraction: number;
+  phase_angle_deg: number;
+  waxing: boolean;
+  terminator: MoonTerminator;
+  /** Observer (or geocentre) to the Moon's centre. */
+  distance_km: number;
+  semidiameter_arcmin: number;
+  apparent_diameter_arcmin: number;
+  /** Size against the mean distance of 384 400 km, percent. */
+  diameter_vs_mean_percent: number;
+  geocentric_distance_km: number;
+  geocentric_semidiameter_arcmin: number;
+  /** Topocentric geometric; null without an observer. */
+  alt_deg: number | null;
+  az_deg: number | null;
+  /** Position angle of the zenith at the Moon; null without an observer. */
+  parallactic_angle_deg: number | null;
+  north_pole_disc: DiscPoint;
+  sub_solar_disc: DiscPoint;
+}
+
+export type LunarFeatureKind =
+  | 'mare'
+  | 'oceanus'
+  | 'lacus'
+  | 'sinus'
+  | 'palus'
+  | 'mons'
+  | 'montes'
+  | 'rupes'
+  | 'rima'
+  | 'vallis'
+  | 'dorsum'
+  | 'promontorium'
+  | 'albedo'
+  | 'crater'
+  | 'landing_site';
+
+export interface LunarFeatureState {
+  name: string;
+  kind: LunarFeatureKind;
+  lat_deg: number;
+  lon_deg: number;
+  /** km; 0 for a landing site. */
+  diameter_km: number;
+  /** 1 showpiece, 2 notable, 3 more to find. */
+  rank: 1 | 2 | 3;
+  description: string;
+  /** The Sun's altitude over the feature (negative: night). */
+  sun_altitude_deg: number;
+  lit: boolean;
+  /** Lunar morning there (the Sun climbing). */
+  morning: boolean;
+  /** Faces the observer and the terminator crosses it or lies within the band: best relief. */
+  near_terminator: boolean;
+  visible: boolean;
+  /** 0 at the disc's centre, 90 at the limb. */
+  angle_from_disc_centre_deg: number;
+  disc: DiscPoint;
+}
+
+export interface MoonFeatures {
+  jd_utc: number;
+  utc: string;
+  topocentric: boolean;
+  colongitude_deg: number;
+  sub_solar: Selenographic;
+  sub_observer: Selenographic;
+  axis_position_angle_deg: number;
+  parallactic_angle_deg: number | null;
+  illuminated_fraction: number;
+  waxing: boolean;
+  terminator_band_deg: number;
+  /** Visible relief features near the terminator, best first (names). */
+  tonight: string[];
+  /** All 150, in table order. */
+  features: LunarFeatureState[];
+  source: string;
+}
+
+export interface MoonApsis {
+  kind: 'perigee' | 'apogee';
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+  semidiameter_arcmin: number;
+  diameter_arcmin: number;
+  diameter_vs_mean_percent: number;
+}
+
+export interface MoonApsisRef {
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+}
+
+export interface MoonSyzygy {
+  kind: 'new_moon' | 'full_moon';
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+  diameter_arcmin: number;
+  diameter_vs_mean_percent: number;
+  /** The perigee and apogee on either side of it in time. */
+  perigee: MoonApsisRef;
+  apogee: MoonApsisRef;
+  hours_from_perigee: number;
+  /** 0 at apogee, 1 at perigee. */
+  perigee_fraction: number;
+  /** perigee_fraction >= 0.9 (Nolle). */
+  supermoon: boolean;
+  /** perigee_fraction <= 0.1. */
+  micromoon: boolean;
+  /** Full Moons: nearest and farthest of the UTC calendar year. */
+  largest_of_year: boolean;
+  smallest_of_year: boolean;
+}
+
+export interface MoonApsides {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  apsides: MoonApsis[];
+  syzygies: MoonSyzygy[];
+  definitions: {
+    apsis: string;
+    supermoon: string;
+    micromoon: string;
+    largest_of_year: string;
+    mean_distance_km: number;
+  };
+}
+
+/** `occultations` options (all optional; defaults in brackets). */
+export interface OccultationOptions {
+  /** Catalogue stars brighter than this join the 58 navigational stars [3.5], at most 6.5. */
+  max_magnitude?: number;
+  /** Search stars [true] and planets [true]. */
+  stars?: boolean;
+  planets?: boolean;
+  /** Keep events with the Moon below the horizon at every contact [false]. */
+  include_below_horizon?: boolean;
+  /** Keep near misses within 1′ of the mean limb [true]. */
+  include_near_misses?: boolean;
+  /** Only these bodies (names as results spell them). */
+  bodies?: string[] | null;
+}
+
+export interface OccultationContact {
+  kind: 'disappearance' | 'reappearance';
+  jd_utc: number;
+  utc: string;
+  /** On the limb, from celestial north through east. */
+  position_angle_deg: number;
+  /** The same from the zenith. */
+  vertex_angle_deg: number;
+  /** From the nearer cusp, positive on the dark limb, negative on the bright. */
+  cusp_angle_deg: number;
+  cusp: 'N' | 'S';
+  limb: 'dark' | 'bright';
+  moon_alt_deg: number;
+  moon_az_deg: number;
+  moon_above_horizon: boolean;
+  sun_alt_deg: number;
+  sky_phase: SkyPhase;
+  /** Planets: seconds for the disc to cross the limb; 0 for a star. */
+  crossing_s: number;
+}
+
+export interface Occultation {
+  body: string;
+  kind: 'star' | 'planet';
+  designation: string | null;
+  hr: number | null;
+  magnitude: number | null;
+  navigational: boolean;
+  /** Hidden by the mean limb; false for a near miss. */
+  occulted: boolean;
+  /** Passes within 1′ of the mean limb. */
+  graze: boolean;
+  disappearance: OccultationContact | null;
+  reappearance: OccultationContact | null;
+  closest: {
+    jd_utc: number;
+    utc: string;
+    /** From the mean limb, arcminutes, negative inside. */
+    limb_distance_arcmin: number;
+    position_angle_deg: number;
+    moon_alt_deg: number;
+  };
+  duration_s: number | null;
+  body_semidiameter_arcsec: number;
+  moon_illuminated_fraction: number;
+  waxing: boolean;
+  /** The Moon is up at a contact (at closest approach for a near miss). */
+  visible: boolean;
+}
+
+export interface OccultationList {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  /** Say this beside the times: mean limb, real limb differs. */
+  limb_note: string;
+  bodies_searched: number;
+  /** Sorted by the first contact. */
+  events: Occultation[];
+  errors: BodyError[];
+}
+
+/** The Moon in detail (moondetail agent). */
+export interface MoonDetailEngine {
+  /** Libration, axis, terminator and disc geometry; `null` observer = the Earth's centre. */
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation;
+  /** The 150 named features at an instant (about a millisecond natively). */
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures;
+  /** Perigees, apogees, supermoons in a window (about 0.1 s a year natively). */
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides;
+  /** Occultations for one place, at most 400 days (about 0.1 s a year natively). */
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList;
+}
+
+export function isMoonDetailEngine(engine: unknown): engine is MoonDetailEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<MoonDetailEngine>;
+  return (
+    typeof e.moonOrientation === 'function' &&
+    typeof e.moonFeatures === 'function' &&
+    typeof e.moonApsides === 'function' &&
+    typeof e.occultations === 'function'
+  );
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — deep sky (deepsky agent, 2026-09-24). Rust:
+// crates/skyfix-wasm/src/deepsky.rs over skyfix_starfield::{dso, showers, milkyway,
+// search, extinction, tonight}. Wire format: EXPLORER_API.md, "Expansion programme —
+// deep sky". Display-only data (CONVENTIONS 13.6): nothing here is a sight, and every
+// ranking, rate and limiting magnitude is a labelled estimate.
+// ---------------------------------------------------------------------------------
+
+export type DsoType =
+  | 'open_cluster'
+  | 'globular_cluster'
+  | 'planetary_nebula'
+  | 'emission_nebula'
+  | 'reflection_nebula'
+  | 'supernova_remnant'
+  | 'cluster_with_nebula'
+  | 'spiral_galaxy'
+  | 'elliptical_galaxy'
+  | 'lenticular_galaxy'
+  | 'irregular_galaxy'
+  | 'double_star'
+  | 'asterism'
+  | 'star_cloud';
+
+/** What the Sky view draws a symbol for. */
+export type DsoCategory = 'cluster' | 'nebula' | 'galaxy' | 'other';
+
+/** One deep-sky object (the 110 Messier objects and 103 others). */
+export interface Dso {
+  /** Stable id: "M31", "NGC869", "IC2602", "Mel25", "LMC". */
+  id: string;
+  /** As printed: "M31", "NGC 869". */
+  label: string;
+  name: string | null;
+  type: DsoType;
+  category: DsoCategory;
+  /** IAU abbreviation. */
+  constellation: string;
+  /** ICRS (J2000). */
+  ra_j2000_deg: number;
+  dec_j2000_deg: number;
+  /** Integrated V; null for nebulae without a meaningful one. */
+  magnitude: number | null;
+  /** Rounded apparent size, arcminutes (display only). */
+  major_arcmin: number;
+  minor_arcmin: number;
+  description: string;
+  /** Other catalogue numbers: ["NGC 224"]. */
+  cross_ids: string[];
+}
+
+export interface DsoCatalog {
+  objects: Dso[];
+  source: string;
+}
+
+export interface DsoListOptions {
+  /** Categories or types to keep; empty keeps everything. */
+  kinds?: (DsoCategory | DsoType)[];
+  /** Keep objects at least this bright (objects without a magnitude are kept). */
+  max_magnitude?: number | null;
+  /** With an observer: only objects above the horizon now. */
+  above_horizon?: boolean;
+}
+
+/** Places at one instant, aligned with `index` (positions in `dsoCatalog().objects`). */
+export interface DsoPositions {
+  jd_utc: number;
+  index: Int32Array;
+  /** Apparent geocentric of date, the frame of `sky_state`. */
+  ra_deg: Float64Array;
+  dec_deg: Float64Array;
+  /** With an observer; null without one. */
+  alt_deg: Float64Array | null;
+  az_deg: Float64Array | null;
+  alt_apparent_deg: Float64Array | null;
+}
+
+/** The observer's sky: `nelm` wins over `bortle`; with neither, Bortle 5. */
+export interface SkyConditionsInput {
+  /** 1 (darkest) to 9. */
+  bortle?: number | null;
+  /** Naked-eye limiting magnitude at the zenith, 1 to 8. */
+  nelm?: number | null;
+  /** Extinction coefficient in V, 0.2 to 0.4 mag per air mass (default 0.25). */
+  k?: number | null;
+}
+
+export interface SkyConditions {
+  bortle: number | null;
+  nelm: number;
+  k: number;
+  /** Dark-sky zenith brightness, V mag/arcsec² (Schaefer's relation, capped at 22.0). */
+  sky_brightness_mpsas: number;
+  source: 'nelm' | 'bortle' | 'default';
+}
+
+export interface DeepSkyInstant {
+  jd_utc: number;
+  utc: string;
+}
+
+export type CompassPoint =
+  | 'N' | 'NNE' | 'NE' | 'ENE' | 'E' | 'ESE' | 'SE' | 'SSE'
+  | 'S' | 'SSW' | 'SW' | 'WSW' | 'W' | 'WNW' | 'NW' | 'NNW';
+
+/** An instant with where the thing is then: apparent altitude, azimuth, compass point. */
+export interface DeepSkySighting {
+  jd_utc: number;
+  utc: string;
+  alt_deg: number;
+  az_deg: number;
+  direction: CompassPoint;
+}
+
+export type DarknessKind = 'night' | 'astronomical_twilight' | 'nautical_twilight' | 'none';
+
+export interface DarkWindow {
+  /** Full darkness (Sun below −18°), or the darkest the night gets. */
+  kind: DarknessKind;
+  start: DeepSkyInstant;
+  end: DeepSkyInstant;
+  hours: number;
+}
+
+export interface SunNight {
+  set: DeepSkyInstant | null;
+  civil_dusk: DeepSkyInstant | null;
+  nautical_dusk: DeepSkyInstant | null;
+  astronomical_dusk: DeepSkyInstant | null;
+  astronomical_dawn: DeepSkyInstant | null;
+  nautical_dawn: DeepSkyInstant | null;
+  civil_dawn: DeepSkyInstant | null;
+  rise: DeepSkyInstant | null;
+}
+
+export type MoonPhaseName =
+  | 'new'
+  | 'waxing crescent'
+  | 'first quarter'
+  | 'waxing gibbous'
+  | 'full'
+  | 'waning gibbous'
+  | 'last quarter'
+  | 'waning crescent';
+
+export interface MoonNight {
+  illuminated_fraction: number;
+  phase_angle_deg: number;
+  phase: MoonPhaseName;
+  waxing: boolean;
+  rise: DeepSkyInstant | null;
+  set: DeepSkyInstant | null;
+  /** Hours of the observing window with the Moon up / down. */
+  up_hours: number;
+  down_hours: number;
+}
+
+/** A night: local mean noon to the next. */
+export interface NightSummary {
+  start: DeepSkyInstant;
+  end: DeepSkyInstant;
+  /** null when the Sun never goes below −6°. */
+  darkness: DarkWindow | null;
+  sun: SunNight;
+  moon: MoonNight;
+}
+
+export interface MoonEffect {
+  moon_alt_deg: number;
+  separation_deg: number;
+  /** Sky brightening at the object, magnitudes (Krisciunas & Schaefer 1991). */
+  brightening_mag: number;
+}
+
+export type DsoInstrument = 'eye' | 'binoculars' | 'telescope' | 'camera';
+
+export interface DsoVisibilityDetail {
+  /** Highest point in the observing window. */
+  best: DeepSkySighting | null;
+  transit: DeepSkySighting | null;
+  hours_above_20: number;
+  moon: MoonEffect | null;
+  /** Limiting magnitude at the object at the best time: extinction and moonlight. */
+  limiting_mag: number | null;
+  instrument: DsoInstrument | null;
+}
+
+export interface DsoVisibility {
+  object: Dso;
+  night: NightSummary;
+  conditions: SkyConditions;
+  visibility: DsoVisibilityDetail;
+  /** Apparent altitude every 10 minutes from local noon to noon (145 values). */
+  track: { jd_utc: number[]; alt_deg: number[] };
+}
+
+export interface MeteorShower {
+  iau: number;
+  code: string;
+  name: string;
+  /** Solar longitude (J2000) of the start, peak and end of activity. */
+  lambda_start_deg: number;
+  lambda_peak_deg: number;
+  lambda_end_deg: number;
+  /** Radiant at the peak, J2000, and its drift per degree of solar longitude. */
+  ra_deg: number;
+  dec_deg: number;
+  dra_deg: number;
+  ddec_deg: number;
+  v_inf_kms: number;
+  r: number;
+  zhr: number;
+  variable: boolean;
+  parent: string | null;
+}
+
+/** One shower through one night at one place (an estimate). */
+export interface ShowerNight {
+  code: string;
+  name: string;
+  lambda_deg: number;
+  zhr: number;
+  days_from_peak: number;
+  radiant_ra_deg: number;
+  radiant_dec_deg: number;
+  best: DeepSkySighting | null;
+  /** ZHR × sin(radiant altitude) × r^(LM − 6.5). */
+  expected_rate_per_hour: number;
+  limiting_mag: number | null;
+  hours_radiant_above_20: number;
+  variable: boolean;
+  /** One sentence without clock times. */
+  reason: string;
+}
+
+export interface ShowerDates {
+  shower: MeteorShower;
+  peak: DeepSkyInstant;
+  start: DeepSkyInstant;
+  end: DeepSkyInstant;
+  /** Geocentric, at the peak. */
+  moon_illuminated_fraction: number;
+  /** With an observer: the night nearest the peak. */
+  at_site: ShowerNight | null;
+}
+
+export interface ShowerYear {
+  year: number;
+  /** In order of peak. */
+  showers: ShowerDates[];
+  errors: { code: string; message: string }[];
+  source: string;
+  rate_model: string;
+}
+
+/** A closed ring (first point repeated), ICRS degrees; the brighter side is where a × b points. */
+export interface MilkyWayRing {
+  /** 0 the faintest glow … levels.length − 1 the brightest. */
+  level: number;
+  ra_deg: Float64Array;
+  dec_deg: Float64Array;
+}
+
+export interface MilkyWayOutline {
+  levels: number[];
+  rings: MilkyWayRing[];
+  source: string;
+}
+
+export type SearchHitKind = 'star' | 'deep_sky' | 'constellation' | 'sun' | 'moon' | 'planet' | 'shower';
+
+export interface SearchHit {
+  kind: SearchHitKind;
+  /** "HR 2491", "M31", "CMa", "Mars", "PER". */
+  id: string;
+  label: string;
+  detail: string;
+  magnitude: number | null;
+  /** Stars: index into `starfieldCatalog()`. */
+  index: number | null;
+  /** Apparent of date at the time asked (a shower: its radiant); null without a time. */
+  ra_deg: number | null;
+  dec_deg: number | null;
+  alt_deg: number | null;
+  az_deg: number | null;
+  alt_apparent_deg: number | null;
+  above_horizon: boolean | null;
+  score: number;
+}
+
+export interface SearchResult {
+  query: string;
+  hits: SearchHit[];
+}
+
+export interface ExtinctionTable {
+  conditions: SkyConditions;
+  /** 0, 1, … 90 degrees of apparent altitude. */
+  alt_deg: Float64Array;
+  airmass: Float64Array;
+  extinction_mag: Float64Array;
+  limiting_mag: Float64Array;
+  model: string;
+}
+
+export interface PlanetTonight {
+  body: string;
+  magnitude: number | null;
+  best: DeepSkySighting | null;
+  up_from: DeepSkyInstant | null;
+  up_until: DeepSkyInstant | null;
+  hours_up: number;
+  reason: string;
+}
+
+export interface DsoTonight {
+  id: string;
+  label: string;
+  name: string | null;
+  type: DsoType;
+  category: DsoCategory;
+  constellation: string;
+  magnitude: number | null;
+  best: DeepSkySighting;
+  hours_above_20: number;
+  moon: MoonEffect | null;
+  instrument: DsoInstrument;
+  score: number;
+  reason: string;
+}
+
+export interface CoreTonight {
+  best: DeepSkySighting | null;
+  hours_above_20: number;
+  reason: string;
+}
+
+export interface Tonight {
+  night: NightSummary;
+  conditions: SkyConditions;
+  planets: PlanetTonight[];
+  deep_sky: DsoTonight[];
+  showers: ShowerNight[];
+  milky_way_core: CoreTonight;
+  /** Plain sentences; `{jd:2461308.517173}` tokens stand for times (see `formatSummaryTimes`). */
+  summary: string;
+  notes: string[];
+  errors: string[];
+}
+
+export interface TonightOptions extends SkyConditionsInput {
+  /** Deep-sky objects to list, 1 to 60 (default 12). */
+  limit?: number;
+}
+
+/** Deep sky (deepsky agent). Separate from `ExplorerEngine`, like the eclipse engine. */
+export interface DeepSkyEngine {
+  dsoCatalog(): DsoCatalog;
+  dsoList(observer: Observer | null, jdUtc: number, options?: DsoListOptions): DsoPositions;
+  dsoVisibility(id: string, observer: Observer, jdUtc: number, conditions?: SkyConditionsInput): DsoVisibility;
+  meteorShowers(year: number, observer?: Observer | null, conditions?: SkyConditionsInput): ShowerYear;
+  milkyWayOutline(): MilkyWayOutline;
+  /** An observer needs a time. */
+  skySearch(query: string, observer?: Observer | null, jdUtc?: number | null, limit?: number): SearchResult;
+  tonight(observer: Observer, jdUtc: number, options?: TonightOptions): Tonight;
+  extinction(conditions?: SkyConditionsInput): ExtinctionTable;
+}
+
+/** True when `engine` has the deep-sky calls (the memoised engine forwards them). */
+export function isDeepSkyEngine(engine: unknown): engine is DeepSkyEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<DeepSkyEngine>;
+  return (
+    typeof e.dsoCatalog === 'function' &&
+    typeof e.dsoList === 'function' &&
+    typeof e.tonight === 'function' &&
+    typeof e.skySearch === 'function'
+  );
+}
+
+/** Replace the `{jd:...}` time tokens of a `tonight` summary with `format(jd)`. */
+export function formatSummaryTimes(summary: string, format: (jdUtc: number) => string): string {
+  return summary.replace(/\{jd:(-?\d+(?:\.\d+)?)\}/g, (_, jd: string) => format(Number(jd)));
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — tides (tides agent, work package P5). Rust:
+// crates/skyfix-wasm/src/tides.rs over skyfix_tides. Wire format: EXPLORER_API.md,
+// "Tides (tides agent)"; definitions: CONVENTIONS 13.11. Every call needs the optional
+// `tides-us` pack and throws `pack_not_loaded: …` without it.
+// ---------------------------------------------------------------------------------
+
+/** Datums heights can be given on; `''` means the station's default (MLLW where published). */
+export type TideDatum = 'MLLW' | 'MLW' | 'MSL' | 'MTL' | 'MHW' | 'MHHW' | 'LAT' | 'HAT' | 'NAVD88';
+
+/** The character of the tide by the form number F = (K1 + O1)/(M2 + S2). */
+export type TideType = 'semidiurnal' | 'mixed_semidiurnal' | 'mixed_diurnal' | 'diurnal';
+
+export type TideStationFlag =
+  | 'noaa_differs'
+  | 'no_datums'
+  | 'no_constants'
+  | 'reference_unusable'
+  | 'non_navigational';
+
+/** One NOAA tide station. */
+export interface TideStation {
+  /** NOAA's id: `9414290`, `TEC4623`. */
+  id: string;
+  name: string;
+  /** Two-letter U.S. state or territory code; null when NOAA gives none (many foreign ports, some U.S. ones). */
+  state: string | null;
+  lat_deg: number;
+  lon_deg: number;
+  /** `harmonic`: a true curve from harmonic constants; `subordinate`: high and low water from a reference station. */
+  kind: 'harmonic' | 'subordinate';
+  reference_id: string | null;
+  reference_name: string | null;
+  /** From the form number (the reference station's for a subordinate one). */
+  tide_type: TideType | null;
+  form_number: number | null;
+  /** Datums heights can be given on here, highest first. */
+  datums: TideDatum[];
+  default_datum: TideDatum;
+  /** `harmonic` (true curve), `interpolated` (subordinate: cosine curve between high and low water, an estimate) or `none`. */
+  curve: 'harmonic' | 'interpolated' | 'none';
+  flags: TideStationFlag[];
+  /** Plain sentences to show with the station. */
+  notes: string[];
+}
+
+/** A station with its distance and bearing from a place. */
+export interface TideStationNear extends TideStation {
+  distance_km: number;
+  distance_nm: number;
+  /** Initial great-circle bearing from the place to the station, degrees true. */
+  bearing_deg: number;
+}
+
+/** One high or low water. */
+export interface TideEvent {
+  kind: 'high' | 'low';
+  jd_utc: number;
+  utc: string;
+  /** Above the result's datum, metres. */
+  height_m: number;
+}
+
+/** The label every tide result carries. */
+export const TIDE_LABEL =
+  'US stations (NOAA); predictions, not observations; weather and surge not included';
+
+export interface TideExtremes {
+  station: TideStation;
+  datum: TideDatum;
+  method: 'harmonic' | 'subordinate_offsets';
+  jd_start: number;
+  jd_end: number;
+  /** Sorted by time, all inside the window. */
+  extremes: TideEvent[];
+  label: string;
+  notes: string[];
+}
+
+export interface TideCurve {
+  station: TideStation;
+  datum: TideDatum;
+  method: 'harmonic' | 'interpolated';
+  jd_start: number;
+  jd_end: number;
+  step_min: number;
+  jd_utc: Float64Array;
+  height_m: Float64Array;
+  label: string;
+  notes: string[];
+}
+
+export interface TideNow {
+  station: TideStation;
+  datum: TideDatum;
+  method: 'harmonic' | 'interpolated';
+  jd_utc: number;
+  utc: string;
+  height_m: number;
+  /** Rate of rise, metres per hour (negative when falling). */
+  rate_m_per_h: number;
+  state: 'rising' | 'falling';
+  previous: TideEvent | null;
+  next: TideEvent | null;
+  next_high: TideEvent | null;
+  next_low: TideEvent | null;
+  label: string;
+  notes: string[];
+}
+
+/** `tidePackInfo()`: the contract's PackInfo fields and the station counts. */
+export interface TidesPackInfo {
+  name: 'tides-us';
+  version: string;
+  bytes: number;
+  provides: string[];
+  stations: number;
+  harmonic: number;
+  subordinate: number;
+}
+
+/**
+ * Tide predictions (tides agent). Separate from `ExplorerEngine`; the WASM engine and
+ * the mock implement it. Errors throw with a leading code: `pack_not_loaded`,
+ * `unknown_station`, `datum_unavailable`, `no_prediction`, `outside_range` (1900-2100),
+ * `bad_request`.
+ */
+export interface TidesEngine {
+  /** The `n` (1-100) stations nearest to a place, nearest first. */
+  tideStationsNear(latDeg: number, lonDeg: number, n: number): TideStationNear[];
+  tideStation(stationId: string): TideStation;
+  /** Heights every `stepMin` (0.5-1440) minutes from `jdStart`, at most 20 000 samples. */
+  tidePredict(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum?: TideDatum | ''): TideCurve;
+  /** High and low water in the window (at most 400 days). A month takes a few milliseconds. */
+  tideExtremes(stationId: string, jdStart: number, jdEnd: number, datum?: TideDatum | ''): TideExtremes;
+  /** Height, rate, rising or falling, and the high and low waters around an instant. */
+  tideNow(stationId: string, jdUtc: number, datum?: TideDatum | ''): TideNow;
+  /** The installed pack's summary, or null when the pack is not loaded (`loadPack('tides-us', bytes)`). */
+  tidePackInfo(): TidesPackInfo | null;
+}
+
+/** True when `engine` can predict tides (the memoised engine forwards the methods). */
+export function isTidesEngine(engine: unknown): engine is TidesEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<TidesEngine>;
+  return typeof e.tideExtremes === 'function' && typeof e.tideStationsNear === 'function';
+}
+
+/** True when a tides call failed only because the `tides-us` pack is not loaded. */
+export function isTidePackNotLoaded(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error);
+  return text.includes('pack_not_loaded');
 }
 
 // ---------------------------------------------------------------------------------
 // Expansion programme — planet detail (planetdetail agent, P9). Rust:
 // crates/skyfix-wasm/src/planetdetail.rs over skyfix_almanac::{discs, rings,
 // satellites, transits, conjunctions, earth_apsides, orbits}. Wire format:
-// docs/EXPLORER_API.md, "Planet detail"; definitions: CONVENTIONS §13.10.
+// docs/EXPLORER_API.md, "Planet detail"; definitions: CONVENTIONS §13.12.
 // ---------------------------------------------------------------------------------
 
 export type GalileanMoonName = 'Io' | 'Europa' | 'Ganymede' | 'Callisto';

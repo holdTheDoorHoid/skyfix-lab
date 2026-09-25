@@ -276,6 +276,8 @@ export const SAMPLE_REDUCED_SIGHT: ReducedSight = {
   zn_deg: 281.4,
   intercept_nm: -1.58,
   warnings: [{ code: 'supplied_direction_used', id: 'obs-1' }],
+  horizontal_parallax_arcmin: 0,
+  earth_shape_arcmin: null,
 };
 
 export const SAMPLE_REDUCE_ENTRIES: ReduceEntry[] = [
@@ -336,4 +338,6 @@ export const ALL_WARNING_EXAMPLES: Warning[] = [
   },
   { code: 'run_outlier', id: 'obs-3', normalized_residual: 5.4, rejected: true },
   { code: 'polaris_near_pole', id: 'obs-1', latitude_deg: 88.9, azimuth_deg: 342 },
+  { code: 'shore_beyond_sea_horizon', id: 'obs-4', distance_nm: 6, sea_horizon_nm: 3.66 },
+  { code: 'error_log_outside_span', id: 'obs-6', log: 'watch_log', held_value: -2, hours_outside: 36 },
 ];

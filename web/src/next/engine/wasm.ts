@@ -16,6 +16,8 @@ import type {
   AlmanacEngine,
   AltitudeCrossing,
   BodyInfo,
+  CalendarConversion,
+  CalendarConvertRequest,
   BodySelection,
   ConstellationBoundary,
   DayEvents,
@@ -27,6 +29,9 @@ import type {
   ExplorerCoverage,
   ExplorerEngine,
   Observer,
+  PackEngine,
+  PackInfo,
+  PackStatus,
   PhaseEvent,
   PlanetEventList,
   PlanetEventsEngine,
@@ -34,8 +39,50 @@ import type {
   SeasonEvent,
   SkyState,
   StarfieldCatalog,
+  TimeEngine,
+  TimeInfo,
 } from './types.js';
 import type { MisfitEngine } from './types.js';
+import type {
+  DrReport,
+  DrRequest,
+  PassageReport,
+  PassageRequest,
+  RouteReport,
+  RouteRequest,
+  SailingsEngine,
+  StarFinderGeometry,
+  StarIdRequest,
+  StarIdResult,
+  MoonApsides,
+  MoonDetailEngine,
+  MoonFeatures,
+  MoonOrientation,
+  OccultationList,
+  OccultationOptions,
+  TideCurve,
+  TideDatum,
+  TideExtremes,
+  TideNow,
+  TidesPackInfo,
+  TideStation,
+  TideStationNear,
+} from './types.js';
+// Deep sky (deepsky agent).
+import type {
+  DeepSkyEngine,
+  DsoCatalog,
+  DsoListOptions,
+  DsoPositions,
+  DsoVisibility,
+  ExtinctionTable,
+  MilkyWayOutline,
+  SearchResult,
+  ShowerYear,
+  SkyConditionsInput,
+  Tonight,
+  TonightOptions,
+} from './types.js';
 // Planet detail (expansion programme P9, planetdetail agent).
 import type {
   ConjunctionList,
@@ -46,12 +93,36 @@ import type {
   GalileanEvents,
   GalileanMoons,
   OrbitalElements,
+  PlanetDetailEngine,
   PlanetDisc,
   PlanetStationList,
   PlanetTransitList,
   SaturnRings,
 } from './types.js';
 import { createWasmMisfit } from './wasm-misfit.js';
+// Expansion programme — sun tools (suntools agent).
+import type {
+  AlignmentRequest,
+  AlignmentResult,
+  Analemma,
+  AnalemmaRequest,
+  AzimuthAltitudeBand,
+  AzimuthCrossing,
+  EquationOfTime,
+  GalacticCentreWindows,
+  GalacticOptions,
+  RiseSetAzimuthRequest,
+  RiseSetAzimuths,
+  SolarDay,
+  SolarPanel,
+  SolarYear,
+  SolarYearRequest,
+  SunHours,
+  SunPath,
+} from './types.js';
+// Expansion programme, geomag agent: magnetic field and compass error (wasm-geomag.ts).
+import type { CompassError, CompassRequest, MagneticField, MagneticGrid, MagneticModelChoice } from './types.js';
+import { wasmCompassError, wasmMagneticField, wasmMagneticGrid, type GeomagWasmExports } from './wasm-geomag.js';
 
 /** Exports the explorer cannot run without. */
 export const REQUIRED_EXPORTS = [
@@ -113,7 +184,66 @@ export interface ExplorerWasmExports {
   eclipse_path?(id: string): unknown;
   /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
   planet_events?(jdStart: number, jdEnd: number): unknown;
+  /** Expansion programme, magnetic field and compass error (wasm-geomag.ts); absent in older builds. */
+  magnetic_field?: GeomagWasmExports['magnetic_field'];
+  magnetic_grid?: GeomagWasmExports['magnetic_grid'];
+  compass_error?: GeomagWasmExports['compass_error'];
+  /** Expansion programme, data packs (EXPLORER_API "Packs"); absent in older builds. */
+  packs?(): unknown;
+  load_pack?(name: string, bytes: Uint8Array): unknown;
+  /** Expansion wave 1, time scales (EXPLORER_API "time_info"); absent in older builds. */
+  time_info?(jdUtc: number): unknown;
+  set_dut1?(seconds: number | null | undefined): unknown;
+  calendar_convert?(requestJson: string): unknown;
+  /** Expansion programme, sailings agent (EXPLORER_API "Expansion programme — sailings"). */
+  sailing?(requestJson: string): unknown;
+  dr_advance?(requestJson: string): unknown;
+  route_positions?(requestJson: string): unknown;
+  star_identify?(requestJson: string): unknown;
+  star_finder_geometry?(latBand: number, jdUtc?: number): unknown;
+  /** Expansion P8, the Moon in detail (EXPLORER_API "Moon in detail"); absent in older builds. */
+  moon_orientation?(observerJson: string, jdUtc: number): unknown;
+  moon_features?(observerJson: string, jdUtc: number): unknown;
+  moon_apsides?(jdStart: number, jdEnd: number): unknown;
+  occultations?(observerJson: string, jdStart: number, jdEnd: number, optionsJson: string): unknown;
+  // Expansion programme — deep sky (EXPLORER_API "Expansion programme — deep sky");
+  // absent in older builds.
+  dso_catalog?(): unknown;
+  dso_list?(observerJson: string, jdUtc: number, optionsJson: string): unknown;
+  dso_visibility?(id: string, observerJson: string, jdUtc: number, conditionsJson: string): unknown;
+  meteor_showers?(year: number, observerJson: string, conditionsJson: string): unknown;
+  milky_way_outline?(): unknown;
+  sky_search?(query: string, observerJson: string, jdUtc?: number, limit?: number): unknown;
+  tonight?(observerJson: string, jdUtc: number, optionsJson: string): unknown;
+  extinction_table?(conditionsJson: string): unknown;
+  // --- Tides (tides agent, EXPLORER_API "Tides"); absent in builds before the tides work.
+  tide_stations_near?(latDeg: number, lonDeg: number, n: number): unknown;
+  tide_station?(stationId: string): unknown;
+  tide_predict?(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum: string): unknown;
+  tide_extremes?(stationId: string, jdStart: number, jdEnd: number, datum: string): unknown;
+  tide_now?(stationId: string, jdUtc: number, datum: string): unknown;
+  tide_pack_info?(): unknown;
+  // --- end tides
   version?(): string;
+  // Expansion programme — sun tools (suntools agent; EXPLORER_API "Expansion programme —
+  // sun tools"); absent in older builds.
+  sun_hours?(observerJson: string, jdStart: number, jdEnd: number): unknown;
+  find_azimuth?(
+    observerJson: string,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    bandJson: string,
+  ): unknown;
+  alignment_days?(observerJson: string, requestJson: string): unknown;
+  analemma?(observerJson: string, requestJson: string): unknown;
+  sun_path?(observerJson: string, jdStart: number, jdEnd: number, stepMinutes: number): unknown;
+  rise_set_azimuths?(observerJson: string, requestJson: string): unknown;
+  equation_of_time?(year: number, utcHour: number): unknown;
+  solar_day?(observerJson: string, jdStart: number, jdEnd: number, panelJson: string, stepMinutes: number): unknown;
+  solar_year?(observerJson: string, requestJson: string): unknown;
+  galactic_centre_windows?(observerJson: string, jdStart: number, jdEnd: number, optionsJson: string): unknown;
 }
 
 // ---------------------------------------------------------------------------
@@ -207,7 +337,29 @@ function rebuildError(name: string, what: string): Error {
   );
 }
 
-export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine {
+/** Deep-sky sky conditions / options as the exports take them: JSON with only known fields. */
+export function conditionsJson(c: SkyConditionsInput | TonightOptions | undefined): string {
+  if (!c) return '';
+  const out: Record<string, number> = {};
+  for (const key of ['bortle', 'nelm', 'k', 'limit'] as const) {
+    const v = (c as Record<string, number | null | undefined>)[key];
+    if (typeof v === 'number') out[key] = v;
+  }
+  return JSON.stringify(out);
+}
+
+export class WasmEngine
+  implements
+    ExplorerEngine,
+    AlmanacEngine,
+    EclipseEngine,
+    PlanetEventsEngine,
+    PackEngine,
+    TimeEngine,
+    SailingsEngine,
+    MoonDetailEngine,
+    DeepSkyEngine
+{
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -218,6 +370,8 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
   private coverageCache: ExplorerCoverage | null = null;
   private catalogCache: StarfieldCatalog | null = null;
   private boundariesCache: ConstellationBoundary[] | null = null;
+  private dsoCatalogCache: DsoCatalog | null = null;
+  private milkyWayCache: MilkyWayOutline | null = null;
 
   /** The residual heat map (wasm-misfit.ts); absent when the package predates its exports. */
   readonly misfit?: MisfitEngine;
@@ -402,6 +556,355 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
   }
 
   // -------------------------------------------------------------------------
+  // Expansion programme — sun tools (suntools agent). `SunToolsEngine` in types.ts; each
+  // throws "rebuild" when this build of the core predates the export.
+  // -------------------------------------------------------------------------
+
+  private sunTool<K extends keyof ExplorerWasmExports>(name: K): NonNullable<ExplorerWasmExports[K]> {
+    const fn = this.x[name];
+    if (typeof fn !== 'function') throw rebuildError(String(name), 'sun tools');
+    return fn as NonNullable<ExplorerWasmExports[K]>;
+  }
+
+  /** Golden and blue hours over one local day, with the Sun's events (`sun_hours`). */
+  sunHours(observer: Observer, jdStart: number, jdEnd: number): SunHours {
+    const fn = this.sunTool('sun_hours');
+    return this.call('sun_hours', () => fn.call(this.x, observerJson(observer), jdStart, jdEnd));
+  }
+
+  /** When a body crosses a bearing inside an altitude band (`find_azimuth`). */
+  findAzimuth(
+    observer: Observer,
+    body: string,
+    jdStart: number,
+    jdEnd: number,
+    azimuthDeg: number,
+    band?: AzimuthAltitudeBand,
+  ): AzimuthCrossing[] {
+    const fn = this.sunTool('find_azimuth');
+    return this.call('find_azimuth', () =>
+      fn.call(this.x, observerJson(observer), body, jdStart, jdEnd, azimuthDeg, band ? JSON.stringify(band) : ''),
+    );
+  }
+
+  /** The days of a year a body rises, sets or stands at an altitude on a bearing (`alignment_days`). */
+  alignmentDays(observer: Observer, request: AlignmentRequest): AlignmentResult {
+    const fn = this.sunTool('alignment_days');
+    return this.call('alignment_days', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The Sun at one clock time on every day of a year (`analemma`). */
+  analemma(observer: Observer, request: AnalemmaRequest): Analemma {
+    const fn = this.sunTool('analemma');
+    return this.call('analemma', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** A day's sun path and the equinox and solstice envelope (`sun_path`). */
+  sunPath(observer: Observer, jdStart: number, jdEnd: number, stepMinutes = 10): SunPath {
+    const fn = this.sunTool('sun_path');
+    return this.call('sun_path', () => fn.call(this.x, observerJson(observer), jdStart, jdEnd, stepMinutes));
+  }
+
+  /** Daily rise and set azimuths over a local year (`rise_set_azimuths`). */
+  riseSetAzimuths(observer: Observer, request: RiseSetAzimuthRequest): RiseSetAzimuths {
+    const fn = this.sunTool('rise_set_azimuths');
+    return this.call('rise_set_azimuths', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The equation of time and the Sun's declination on every UTC date of a year (`equation_of_time`). */
+  equationOfTime(year: number, utcHour = 12): EquationOfTime {
+    const fn = this.sunTool('equation_of_time');
+    return this.call('equation_of_time', () => fn.call(this.x, year, utcHour));
+  }
+
+  /** Clear-sky irradiance on a panel through a day, and the energy (`solar_day`). */
+  solarDay(observer: Observer, jdStart: number, jdEnd: number, panel?: SolarPanel, stepMinutes = 10): SolarDay {
+    const fn = this.sunTool('solar_day');
+    return this.call('solar_day', () =>
+      fn.call(this.x, observerJson(observer), jdStart, jdEnd, panel ? JSON.stringify(panel) : '', stepMinutes),
+    );
+  }
+
+  /** Clear-sky energy for every local day of a year, and optionally the best tilt (`solar_year`). */
+  solarYear(observer: Observer, request: SolarYearRequest): SolarYear {
+    const fn = this.sunTool('solar_year');
+    return this.call('solar_year', () => fn.call(this.x, observerJson(observer), JSON.stringify(request)));
+  }
+
+  /** The galactic centre's dark-sky windows over a span of nights (`galactic_centre_windows`). */
+  galacticCentreWindows(
+    observer: Observer,
+    jdStart: number,
+    jdEnd: number,
+    options?: GalacticOptions,
+  ): GalacticCentreWindows {
+    const fn = this.sunTool('galactic_centre_windows');
+    return this.call('galactic_centre_windows', () =>
+      fn.call(this.x, observerJson(observer), jdStart, jdEnd, options ? JSON.stringify(options) : ''),
+    );
+  }
+
+  // --- Expansion programme: magnetic field and compass error (geomag agent) -----------
+  // `GeomagEngine` (types.ts), delegated to wasm-geomag.ts; each throws "rebuild" when this
+  // build of the core predates the export.
+
+  /** The field at a place and instant, or `available: false` with the reason (`magnetic_field`). */
+  magneticField(
+    latDeg: number,
+    lonDeg: number,
+    heightM: number,
+    jdUtc: number,
+    model?: MagneticModelChoice,
+  ): MagneticField {
+    return wasmMagneticField(this.x, latDeg, lonDeg, heightM, jdUtc, model);
+  }
+
+  /** Declination and horizontal intensity on a grid (`magnetic_grid`); null outside 1900–2030. */
+  magneticGrid(
+    jdUtc: number,
+    latMin: number,
+    latMax: number,
+    nLat: number,
+    lonMin: number,
+    lonMax: number,
+    nLon: number,
+    heightM = 0,
+  ): MagneticGrid | null {
+    return wasmMagneticGrid(this.x, jdUtc, latMin, latMax, nLat, lonMin, lonMax, nLon, heightM);
+  }
+
+  /** Compass error by azimuth or amplitude (`compass_error`). */
+  compassError(request: CompassRequest): CompassError {
+    return wasmCompassError(this.x, request);
+  }
+
+  /** The data packs this build can install, and which are loaded (`packs`); none in older builds. */
+  packs(): PackStatus[] {
+    const fn = this.x.packs;
+    if (typeof fn !== 'function') return [];
+    return this.call('packs', () => fn.call(this.x));
+  }
+
+  /**
+   * Parse, verify and install a data pack (`load_pack`). Throws with the core's sentence
+   * when the file is wrong. The coverage it reports changes, so it is asked again.
+   */
+  loadPack(name: string, bytes: Uint8Array): PackInfo {
+    const fn = this.x.load_pack;
+    if (typeof fn !== 'function') throw rebuildError('load_pack', 'data packs');
+    const info = this.call<PackInfo>('load_pack', () => fn.call(this.x, name, bytes));
+    this.coverageCache = null;
+    return info;
+  }
+
+  /** Scale, tier, Delta-T, DUT1 and the civil dates of an instant (`time_info`). */
+  timeInfo(jdUtc: number): TimeInfo {
+    const fn = this.x.time_info;
+    if (typeof fn !== 'function') throw rebuildError('time_info', 'time scales');
+    return this.call('time_info', () => fn.call(this.x, jdUtc));
+  }
+
+  /** The explorer-wide UT1 - UTC in seconds, or null for the IERS history (`set_dut1`). */
+  setDut1(seconds: number | null): void {
+    const fn = this.x.set_dut1;
+    if (typeof fn !== 'function') throw rebuildError('set_dut1', 'time scales');
+    this.call('set_dut1', () => fn.call(this.x, seconds));
+  }
+
+  /** A JD or a civil date in either calendar, converted both ways (`calendar_convert`). */
+  calendarConvert(request: CalendarConvertRequest): CalendarConversion {
+    const fn = this.x.calendar_convert;
+    if (typeof fn !== 'function') throw rebuildError('calendar_convert', 'time scales');
+    return this.call('calendar_convert', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  // --- Expansion programme: sailings, DR, routes, star identification, star finder ---
+
+  /** Great-circle, rhumb-line, mid-latitude and composite sailing between two points (`sailing`). */
+  sailing(request: PassageRequest): PassageReport {
+    const fn = this.x.sailing;
+    if (typeof fn !== 'function') throw rebuildError('sailing', 'sailings');
+    return this.call('sailing', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** One leg of dead reckoning (`dr_advance`). */
+  drAdvance(request: DrRequest): DrReport {
+    const fn = this.x.dr_advance;
+    if (typeof fn !== 'function') throw rebuildError('dr_advance', 'dead reckoning');
+    return this.call('dr_advance', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** Positions along a route of legs (`route_positions`). */
+  routePositions(request: RouteRequest): RouteReport {
+    const fn = this.x.route_positions;
+    if (typeof fn !== 'function') throw rebuildError('route_positions', 'routes');
+    return this.call('route_positions', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** Which body a sight was of, from its altitude and bearing (`star_identify`). */
+  starIdentify(request: StarIdRequest): StarIdResult {
+    const fn = this.x.star_identify;
+    if (typeof fn !== 'function') throw rebuildError('star_identify', 'star identification');
+    return this.call('star_identify', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** The star finder's base plate, Aries index and template (`star_finder_geometry`). */
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry {
+    const fn = this.x.star_finder_geometry;
+    if (typeof fn !== 'function') throw rebuildError('star_finder_geometry', 'star finder');
+    return this.call('star_finder_geometry', () => fn.call(this.x, latBand, jdUtc));
+  }
+
+  // Expansion programme P8 (moondetail agent): the Moon in detail. `null` observer = the
+  // Earth's centre (orientation and features only).
+
+  /** Libration, axis, terminator and disc geometry (`moon_orientation`). */
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation {
+    const fn = this.x.moon_orientation;
+    if (typeof fn !== 'function') throw rebuildError('moon_orientation', 'Moon detail');
+    const o = observer ? observerJson(observer) : 'null';
+    return this.call('moon_orientation', () => fn.call(this.x, o, jdUtc));
+  }
+
+  /** The 150 named features at an instant (`moon_features`). */
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures {
+    const fn = this.x.moon_features;
+    if (typeof fn !== 'function') throw rebuildError('moon_features', 'Moon detail');
+    const o = observer ? observerJson(observer) : 'null';
+    return this.call('moon_features', () => fn.call(this.x, o, jdUtc));
+  }
+
+  /** Perigees, apogees, supermoons (`moon_apsides`). */
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides {
+    const fn = this.x.moon_apsides;
+    if (typeof fn !== 'function') throw rebuildError('moon_apsides', 'Moon detail');
+    return this.call('moon_apsides', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  /** Lunar occultations for one place (`occultations`). */
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList {
+    const fn = this.x.occultations;
+    if (typeof fn !== 'function') throw rebuildError('occultations', 'Moon detail');
+    const opts = JSON.stringify(options ?? {});
+    return this.call('occultations', () => fn.call(this.x, observerJson(observer), jdStart, jdEnd, opts));
+  }
+
+  // --- deep sky (deepsky agent) ---
+
+  private deep<K extends keyof ExplorerWasmExports>(name: K): NonNullable<ExplorerWasmExports[K]> {
+    const fn = this.x[name];
+    if (typeof fn !== 'function') throw rebuildError(name, 'deep-sky objects, meteor showers or search');
+    return fn as NonNullable<ExplorerWasmExports[K]>;
+  }
+
+  /** The deep-sky table, once (`dso_catalog`). */
+  dsoCatalog(): DsoCatalog {
+    const fn = this.deep('dso_catalog');
+    this.dsoCatalogCache ??= this.call<DsoCatalog>('dso_catalog', () => fn.call(this.x));
+    return this.dsoCatalogCache;
+  }
+
+  /** Places of the (filtered) objects at `jdUtc`, typed arrays aligned with `index` (`dso_list`). */
+  dsoList(observer: Observer | null, jdUtc: number, options?: DsoListOptions): DsoPositions {
+    const fn = this.deep('dso_list');
+    return this.call('dso_list', () =>
+      fn.call(this.x, observer ? observerJson(observer) : '', jdUtc, options ? JSON.stringify(options) : ''),
+    );
+  }
+
+  /** One object through the night `jdUtc` belongs to (`dso_visibility`). */
+  dsoVisibility(id: string, observer: Observer, jdUtc: number, conditions?: SkyConditionsInput): DsoVisibility {
+    const fn = this.deep('dso_visibility');
+    return this.call('dso_visibility', () =>
+      fn.call(this.x, id, observerJson(observer), jdUtc, conditionsJson(conditions)),
+    );
+  }
+
+  /** Every shower's dates in `year`; with an observer, the night nearest each peak (`meteor_showers`). */
+  meteorShowers(year: number, observer?: Observer | null, conditions?: SkyConditionsInput): ShowerYear {
+    const fn = this.deep('meteor_showers');
+    return this.call('meteor_showers', () =>
+      fn.call(this.x, year, observer ? observerJson(observer) : '', conditionsJson(conditions)),
+    );
+  }
+
+  /** The Milky Way outline, once (`milky_way_outline`). */
+  milkyWayOutline(): MilkyWayOutline {
+    const fn = this.deep('milky_way_outline');
+    this.milkyWayCache ??= this.call<MilkyWayOutline>('milky_way_outline', () => fn.call(this.x));
+    return this.milkyWayCache;
+  }
+
+  /** Search by name or designation (`sky_search`); an observer needs a time. */
+  skySearch(query: string, observer?: Observer | null, jdUtc?: number | null, limit?: number): SearchResult {
+    const fn = this.deep('sky_search');
+    return this.call('sky_search', () =>
+      fn.call(this.x, query, observer ? observerJson(observer) : '', jdUtc ?? undefined, limit),
+    );
+  }
+
+  /** What the night `jdUtc` belongs to offers at the observer (`tonight`). */
+  tonight(observer: Observer, jdUtc: number, options?: TonightOptions): Tonight {
+    const fn = this.deep('tonight');
+    return this.call('tonight', () => fn.call(this.x, observerJson(observer), jdUtc, conditionsJson(options)));
+  }
+
+  /** The extinction and limiting-magnitude table (`extinction_table`). */
+  extinction(conditions?: SkyConditionsInput): ExtinctionTable {
+    const fn = this.deep('extinction_table');
+    return this.call('extinction_table', () => fn.call(this.x, conditionsJson(conditions)));
+  }
+  // ---------------------------------------------------------------------------------
+  // Tides (tides agent; EXPLORER_API "Tides"; TidesEngine in types.ts). Each throws
+  // `pack_not_loaded: …` until the tides-us pack is installed (`loadPack('tides-us', …)`).
+  // ---------------------------------------------------------------------------------
+
+  private tideFn<K extends keyof ExplorerWasmExports>(name: K): NonNullable<ExplorerWasmExports[K]> {
+    const fn = this.x[name];
+    if (typeof fn !== 'function') throw rebuildError(name, 'tide predictions');
+    return fn as NonNullable<ExplorerWasmExports[K]>;
+  }
+
+  /** The `n` stations nearest to a place (`tide_stations_near`). */
+  tideStationsNear(latDeg: number, lonDeg: number, n: number): TideStationNear[] {
+    const fn = this.tideFn('tide_stations_near');
+    return this.call('tide_stations_near', () => fn.call(this.x, latDeg, lonDeg, n));
+  }
+
+  /** One station by NOAA id (`tide_station`). */
+  tideStation(stationId: string): TideStation {
+    const fn = this.tideFn('tide_station');
+    return this.call('tide_station', () => fn.call(this.x, stationId));
+  }
+
+  /** Heights every `stepMin` minutes (`tide_predict`); typed arrays pass through. */
+  tidePredict(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum: TideDatum | '' = ''): TideCurve {
+    const fn = this.tideFn('tide_predict');
+    return this.call('tide_predict', () => fn.call(this.x, stationId, jdStart, jdEnd, stepMin, datum));
+  }
+
+  /** High and low water in the window (`tide_extremes`). */
+  tideExtremes(stationId: string, jdStart: number, jdEnd: number, datum: TideDatum | '' = ''): TideExtremes {
+    const fn = this.tideFn('tide_extremes');
+    return this.call('tide_extremes', () => fn.call(this.x, stationId, jdStart, jdEnd, datum));
+  }
+
+  /** The tide at an instant (`tide_now`). */
+  tideNow(stationId: string, jdUtc: number, datum: TideDatum | '' = ''): TideNow {
+    const fn = this.tideFn('tide_now');
+    return this.call('tide_now', () => fn.call(this.x, stationId, jdUtc, datum));
+  }
+
+  /** The installed pack's summary, or null (`tide_pack_info`). */
+  tidePackInfo(): TidesPackInfo | null {
+    const fn = this.x.tide_pack_info;
+    if (typeof fn !== 'function') return null;
+    return this.call('tide_pack_info', () => fn.call(this.x));
+  }
+
+  // --- end tides
+
+  // -------------------------------------------------------------------------
   // Planet detail (expansion programme P9, planetdetail agent): `PlanetDetailEngine`.
   // -------------------------------------------------------------------------
 
@@ -470,6 +973,15 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
     ]);
   }
 }
+
+// The WASM engine is a Moon-detail engine (checked here rather than in its `implements`
+// list, so parallel additions to that line do not collide).
+const _wasmIsMoonDetail: (e: WasmEngine) => MoonDetailEngine = (e) => e;
+void _wasmIsMoonDetail;
+
+// Planet detail (planetdetail agent), checked the same way.
+const _wasmIsPlanetDetail: (e: WasmEngine) => PlanetDetailEngine = (e) => e;
+void _wasmIsPlanetDetail;
 
 export type WasmLoad =
   | { status: 'ready'; engine: WasmEngine; missingOptional: string[] }

@@ -127,10 +127,13 @@ fn session_from(observations: Vec<skyfix_core::types::Observation>, notes: Strin
             name: "simulated camera sextant".to_string(),
             index_correction_arcmin: 0.0,
             horizon: HorizonMode::ElectronicVertical,
+            index_error_log: Vec::new(),
         },
         clock: Clock {
             uncertainty_s: 0.0,
             correction_s: 0.0,
+            dut1_s: None,
+            watch_log: Vec::new(),
         },
         observations,
     }

@@ -17,6 +17,7 @@ use skyfix_core::types::{
     AssumedPositionRole, CorrectionStep, ReducedSight, Session, SessionKind, Warning,
 };
 
+use crate::commands::explorer::args::Dut1Args;
 use crate::exit;
 use crate::input;
 use crate::provider::{self, EphemerisChoice};
@@ -29,14 +30,16 @@ pub enum Output {
     Csv,
 }
 
-pub fn run(path: &Path, ephemeris: EphemerisChoice, output: Output) -> Result<u8> {
+pub fn run(path: &Path, ephemeris: EphemerisChoice, output: Output, dut1: Dut1Args) -> Result<u8> {
     let bodies = provider::known_bodies();
-    let loaded = input::load(path, &bodies)?;
+    let mut loaded = input::load(path, &bodies)?;
     for w in &loaded.warnings {
         eprintln!("warning: {}", warning_sentence(w));
     }
 
-    let source = provider::direction_source(ephemeris);
+    // `--dut1` wins over the session's clock.dut1_s (expansion programme).
+    dut1.apply(&mut loaded.session);
+    let source = provider::session_source(ephemeris, &loaded.session);
     let results = reduce::reduce_session(&loaded.session, source.as_ref());
 
     let mut failures = 0usize;
@@ -186,10 +189,17 @@ fn sight_block(s: &ReducedSight, session: &Session) -> String {
         s.ho_deg, s.sigma_arcmin
     ));
     match (s.hc_deg, s.zn_deg, s.intercept_nm) {
-        (Some(hc), Some(zn), Some(a)) => out.push_str(&format!(
-            "  Hc {hc:.6} deg   Zn {zn:.1} deg   intercept {}\n",
-            report::intercept(a)
-        )),
+        (Some(hc), Some(zn), Some(a)) => {
+            out.push_str(&format!(
+                "  Hc {hc:.6} deg   Zn {zn:.1} deg   intercept {}\n",
+                report::intercept(a)
+            ));
+            if let Some(term) = s.earth_shape_arcmin {
+                out.push_str(&format!(
+                    "  Hc includes the Moon's Earth-shape term, {term:+.3}' (CONVENTIONS 15.4)\n"
+                ));
+            }
+        }
         _ => {
             if session.observer.assumed_position.is_none() {
                 out.push_str("  Hc, Zn and intercept: no assumed position in this session\n");

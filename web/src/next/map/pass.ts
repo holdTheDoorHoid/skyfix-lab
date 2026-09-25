@@ -9,8 +9,8 @@
  */
 
 import type { Passage } from '../shell/sky.js';
-import { otherDay } from '../shell/format.js';
-import { formatTime, wallClock, type Zone } from '../time.js';
+import { eventTime, otherDay } from '../shell/format.js';
+import { wallClock, type Zone } from '../time.js';
 import type { DialEvent } from './compass.js';
 
 /** Minutes between path samples; the sampling starts on a whole hour, so every twelfth is one. */
@@ -53,7 +53,7 @@ export function dialEvents(body: string, passage: Passage, jd: number, zone: Zon
   ] as const) {
     if (!e) continue;
     const day = otherDay(e.jd_utc, jd, zone);
-    const time = `${formatTime(e.jd_utc, zone)}${day ? ` ${day}` : ''}`;
+    const time = `${eventTime(e.jd_utc, zone)}${day ? ` ${day}` : ''}`;
     events.push({ kind, alt: e.alt_deg, az: e.az_deg, label: `${eventWords(body, kind)} ${time}`, time });
   }
   return events;

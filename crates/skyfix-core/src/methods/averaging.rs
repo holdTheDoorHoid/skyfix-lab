@@ -36,7 +36,7 @@
 
 use super::{
     BodyTrack, MINUTES_PER_DAY, SECONDS_PER_DAY, THREE_SIGMA, check_dr, check_vessel, dr_move,
-    hc_zn, nothing_usable, one_body, reduce_all, resolve_dr,
+    nothing_usable, one_body, reduce_all, resolve_dr,
 };
 use crate::SkyfixError;
 use crate::geometry::{Point, apply_tangent_step};
@@ -86,10 +86,11 @@ pub fn average_sights(
     let n = sights.len();
     let t_mid = sights.iter().map(|s| s.jd_utc).sum::<f64>() / n as f64;
     let dr_point = Point::from_deg(dr.lat_deg, dr.lon_deg);
-    // The predicted altitude curve at the DR, arcminutes.
+    // The predicted altitude curve at the DR, arcminutes: the model altitude, so the
+    // Moon's includes its Earth-shape term (CONVENTIONS 15.4).
     let predict_at = |p: Point, t: f64| -> f64 {
         let at = dr_move(p, options.vessel, (t - t_mid) * 24.0);
-        rad_to_arcmin(hc_zn(at, &track.direction(t)).0)
+        rad_to_arcmin(track.model_hc_zn(at, t).0)
     };
     let predict = |t: f64| predict_at(dr_point, t);
     let ho: Vec<f64> = sights.iter().map(|s| s.ho_deg * 60.0).collect();
@@ -332,7 +333,7 @@ pub fn average_sights(
         &sights,
         &used,
         t_ref,
-        session.clock.correction_s,
+        crate::error_logs::clock_correction_for_corrected(&session.clock, t_ref),
         ho_avg / 60.0,
         sigma,
         slope,
@@ -483,7 +484,14 @@ fn averaged_observation(
                 gha_deg: d.gha_deg,
                 dec_deg: d.dec_deg,
                 semidiameter_arcmin: 0.0,
-                horizontal_parallax_arcmin: 0.0,
+                // The Moon's HP travels with it: an averaged Moon sight solved later
+                // needs it for its Earth-shape term (CONVENTIONS 15.4). The chain does not
+                // run on an `observed_ho` record, so it corrects nothing a second time.
+                horizontal_parallax_arcmin: if track.is_moon() {
+                    d.horizontal_parallax_arcmin
+                } else {
+                    0.0
+                },
             })
         } else {
             None
@@ -510,6 +518,7 @@ fn averaged_observation(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::methods::hc_zn;
     use crate::types::{
         Clock, DrPosition, Instrument, LatLon, Observer, SESSION_SCHEMA, SessionMeta,
     };

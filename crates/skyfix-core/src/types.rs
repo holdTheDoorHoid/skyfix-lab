@@ -108,9 +108,42 @@ pub struct Instrument {
     pub index_correction_arcmin: f64,
     #[serde(default)]
     pub horizon: HorizonMode,
+    /// Index-error log (sailings agent; CONVENTIONS section 10): when it has entries, a
+    /// sight's index correction is interpolated from it at the sight's time instead of
+    /// `index_correction_arcmin`. Absent in older files; not written when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub index_error_log: Vec<IndexErrorLogEntry>,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+/// One measurement of the index correction (CONVENTIONS section 10): signed, added,
+/// arcminutes, the same sign convention as `index_correction_arcmin` (section 5).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IndexErrorLogEntry {
+    /// When it was measured, RFC 3339 UTC.
+    pub utc: String,
+    pub ic_arcmin: f64,
+    #[serde(default)]
+    pub note: String,
+}
+
+/// One comparison of the watch with a time signal (CONVENTIONS section 10): the
+/// correction ADDED to the watch's reading, seconds, as `clock.correction_s`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WatchLogEntry {
+    /// When the comparison was made, RFC 3339 UTC (the watch's reading will do: the
+    /// difference moves the interpolated value by the rate times the error, microseconds).
+    pub utc: String,
+    pub correction_s: f64,
+    #[serde(default)]
+    pub note: String,
+}
+
+/// The horizon a sextant altitude was measured from (CONVENTIONS section 5, step 2).
+///
+/// Serialised as a string for the modes without parameters (`"sea"`, ...) and as
+/// `{"shore": {"distance_nm": 1.2}}` for a shoreline nearer than the sea horizon (not
+/// `Eq`: it carries a distance).
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum HorizonMode {
     /// Natural sea horizon: dip applies.
@@ -120,9 +153,13 @@ pub enum HorizonMode {
     ArtificialReflected,
     /// Electronic local vertical (inclinometer / camera attitude): no dip.
     ElectronicVertical,
+    /// The waterline of a shore (or any object afloat) `distance_nm` away, nearer than
+    /// the sea horizon: the dip short of the horizon applies (Bowditch vol. 2 Table 14;
+    /// CONVENTIONS section 5). Beyond the sea horizon the sea dip applies, with a warning.
+    Shore { distance_nm: f64 },
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Clock {
     /// 1-sigma uncertainty of the recorded UTC, seconds. Propagated, never estimated.
     #[serde(default)]
@@ -130,6 +167,19 @@ pub struct Clock {
     /// Known chronometer correction, seconds, ADDED to every recorded time.
     #[serde(default)]
     pub correction_s: f64,
+    /// UT1 - UTC in seconds, from the time signal or IERS Bulletin A (CONVENTIONS 6 and
+    /// 15.2). `None` (absent, or `null`) means "automatic": the engine's history or
+    /// model through [`crate::time::dut1_s`]. Added by the expansion programme
+    /// (moonshape agent); older files load unchanged, and a session without it is
+    /// written without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dut1_s: Option<f64>,
+    /// Watch log (sailings agent; CONVENTIONS section 10): when it has entries, a sight's
+    /// chronometer correction is interpolated from it at the sight's recorded time
+    /// instead of `correction_s`. Absent in older files; not written when empty. (The
+    /// struct is no longer `Copy` because of it.)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub watch_log: Vec<WatchLogEntry>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -240,13 +290,73 @@ pub struct ReducedSight {
     /// The final sigma the solver uses; always equal to `corrections.sigma_ho_arcmin`.
     pub sigma_arcmin: f64,
     pub corrections: CorrectionBreakdown,
-    /// Computed at the assumed position (if any).
+    /// Computed at the assumed position (if any): CONVENTIONS section 3, plus
+    /// `earth_shape_arcmin` for the Moon (section 15.4).
     pub hc_deg: Option<f64>,
     pub zn_deg: Option<f64>,
     /// `Ho - Hc` in nautical miles, positive toward the body.
     pub intercept_nm: Option<f64>,
     /// The complete list for this sight: a superset of `corrections.warnings`.
     pub warnings: Vec<Warning>,
+    /// The direction's horizontal parallax, arcminutes (0 for a star): what the Moon's
+    /// Earth-shape term needs wherever the model altitude is evaluated (CONVENTIONS
+    /// 15.4). Added by the expansion programme.
+    #[serde(default)]
+    pub horizontal_parallax_arcmin: f64,
+    /// The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4):
+    /// the WGS84 geometry at the assumed position minus the sphere's. `None` for every
+    /// other body, without an assumed position, and for a Moon direction without a
+    /// horizontal parallax. The correction chain (`corrections`, `ho_deg`) never
+    /// includes it. Added by the expansion programme.
+    #[serde(default)]
+    pub earth_shape_arcmin: Option<f64>,
+    /// Present when the index correction came from `instrument.index_error_log`: the
+    /// value used (arcminutes) and how it was obtained. Absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index_correction_from_log: Option<LoggedValue>,
+    /// Present when the chronometer correction came from `clock.watch_log`: the value
+    /// used (seconds) and how it was obtained. Absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clock_correction_from_log: Option<LoggedValue>,
+}
+
+/// How a value was read from an error log at a sight's time (CONVENTIONS section 10).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LogMethod {
+    /// Linear between the entries either side.
+    Interpolated,
+    /// The sight is at an entry's instant.
+    AtEntry,
+    /// The log has one entry; it holds at every time.
+    OnlyEntry,
+    /// Before the first entry: its value held, not extrapolated.
+    HeldBeforeFirst,
+    /// After the last entry: its value held, not extrapolated.
+    HeldAfterLast,
+}
+
+/// One entry of an error log as used.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LogPoint {
+    pub utc: String,
+    pub value: f64,
+}
+
+/// A value read from an error log at a sight's time.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LoggedValue {
+    /// Arcminutes for the index-error log, seconds for the watch log.
+    pub value: f64,
+    pub method: LogMethod,
+    /// The entry at or before the sight (the held one when outside the log).
+    pub from: Option<LogPoint>,
+    /// The entry after the sight, when interpolating.
+    pub to: Option<LogPoint>,
+    /// Hours outside the log's span (0 inside it).
+    pub hours_outside: f64,
+    /// One sentence: which value, from which entries.
+    pub note: String,
 }
 
 /// Solver input, radians. Built by `reduce`; never deserialised from user JSON.
@@ -260,6 +370,11 @@ pub struct Sight {
     pub sigma_rad: f64,
     /// Rate of GHA change for clock-uncertainty propagation (section 6).
     pub gha_rate_rad_per_s: f64,
+    /// The Moon's horizontal parallax, arcminutes, when this is a Moon sight whose
+    /// direction carries one: the model altitude then includes the Earth-shape term at
+    /// the trial position (CONVENTIONS 15.4, `sights::wgs84::EarthShape`). `None` for
+    /// every other body. Set by `reduce::to_sights`.
+    pub moon_hp_arcmin: Option<f64>,
 }
 
 // ---------------------------------------------------------------------------
@@ -617,6 +732,27 @@ pub enum Warning {
         id: String,
         latitude_deg: f64,
         azimuth_deg: f64,
+    },
+    // --- sailings agent (expansion programme): dip short, error logs -------------
+    /// A `shore` horizon farther than the sea horizon: the waterline is hidden below the
+    /// sea horizon, so the sea dip was applied instead of the dip short of the horizon.
+    ShoreBeyondSeaHorizon {
+        id: String,
+        distance_nm: f64,
+        /// Distance of the sea horizon for this height of eye, NM (where Bowditch's dip
+        /// short of the horizon is least, and equals the sea dip).
+        sea_horizon_nm: f64,
+    },
+    /// A sight outside the time span of an error log (`instrument.index_error_log` or
+    /// `clock.watch_log`): the nearest entry's value was held, not extrapolated.
+    ErrorLogOutsideSpan {
+        id: String,
+        /// `"index_error_log"` or `"watch_log"`.
+        log: String,
+        /// The value used: arcminutes for the index error log, seconds for the watch log.
+        held_value: f64,
+        /// How far outside the span the sight is, hours.
+        hours_outside: f64,
     },
 }
 
@@ -1139,7 +1275,8 @@ pub struct PredictedSight {
     pub dec_deg: f64,
     pub semidiameter_arcmin: f64,
     pub horizontal_parallax_arcmin: f64,
-    /// Computed altitude and true azimuth at the observer (section 3).
+    /// Computed altitude and true azimuth at the observer (section 3; for the Moon the
+    /// altitude includes `earth_shape_arcmin`, section 15.4).
     pub hc_deg: f64,
     pub zn_deg: f64,
     /// The sextant reading: the double angle with a reflected artificial horizon.
@@ -1149,6 +1286,10 @@ pub struct PredictedSight {
     /// The forward chain from `hs_deg`: every correction, landing on `hc_deg`.
     pub corrections: CorrectionBreakdown,
     pub warnings: Vec<Warning>,
+    /// The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4);
+    /// 0 for every other body. Added by the expansion programme.
+    #[serde(default)]
+    pub earth_shape_arcmin: f64,
 }
 
 /// Which edge of a disc a lunar distance was measured to.

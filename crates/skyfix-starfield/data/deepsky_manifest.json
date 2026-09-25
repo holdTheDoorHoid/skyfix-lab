@@ -1,0 +1,321 @@
+{
+  "dso": {
+    "authored_sha256": "faeb14b1c639644846f38f408b2b7482ef1184a2184b329091ee09bd1a69c940",
+    "generator": "tools/starfield/dso.py",
+    "inputs": {
+      "corwin_ngcic_pos.tsv": {
+        "retrieved_utc": "2026-09-25T03:27:00Z",
+        "sha256": "ea0845ccdbdb6f5566dc332b17a90329e56ea8b7caec233eb9584a319a7a5466",
+        "size_bytes": 1053860,
+        "url": "https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=VII%2F239A%2Ficpos&-out.max=unlimited&-out=Cat%2CNGC%2FIC%2Cn_NGC%2FIC%2CRAJ2000%2CDEJ2000%2CqPos%2CN%2Ce_RAJ2000%2Ce_DEJ2000"
+      },
+      "heasarc_globclust.txt": {
+        "retrieved_utc": "2026-09-25T03:33:38Z",
+        "sha256": "b4e4ecbb8f9193663e71cf3003bb24e93bf03a6790b29e58feafa0c21e815bf8",
+        "size_bytes": 8578,
+        "url": "https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync"
+      },
+      "heasarc_rc3.txt": {
+        "retrieved_utc": "2026-09-25T03:33:40Z",
+        "sha256": "3cba0768ccba83b694ebfa34054f8bde91d4843680ae2232ff63d21b57d39bb0",
+        "size_bytes": 91475,
+        "url": "https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync"
+      },
+      "simbad_dso.csv": {
+        "retrieved_utc": "2026-09-25T03:26:56Z",
+        "sha256": "1774b51702fc2f2920462b0247b8f187c18b01a98a540da483e1af89d7d07dce",
+        "size_bytes": 25201,
+        "url": "https://simbad.u-strasbg.fr/simbad/sim-tap/sync"
+      },
+      "wikidata_items.csv": {
+        "retrieved_utc": "2026-09-25T03:29:33Z",
+        "sha256": "8f08928d66ff511d9b835ef3b16cf5dec35258c364f2a66c87f5980bd1801530",
+        "size_bytes": 6577,
+        "url": "https://query.wikidata.org/sparql"
+      },
+      "wikidata_messier.csv": {
+        "retrieved_utc": "2026-09-25T03:29:32Z",
+        "sha256": "34a330a7d8503675232af74e7adca4a868c2b8d7dfd73ae11d051bdcbd32f58a",
+        "size_bytes": 105884,
+        "url": "https://query.wikidata.org/sparql"
+      },
+      "wikidata_ngcic.csv": {
+        "retrieved_utc": "2026-09-25T03:29:33Z",
+        "sha256": "d2f9771bd06f5d541c745d796fb78514a960e62c07f9aa5dca621e29a0313806",
+        "size_bytes": 61192,
+        "url": "https://query.wikidata.org/sparql"
+      }
+    },
+    "summary": {
+      "by_type": {
+        "as": 2,
+        "cn": 2,
+        "ds": 1,
+        "eg": 11,
+        "en": 22,
+        "gc": 43,
+        "ig": 4,
+        "lg": 6,
+        "oc": 50,
+        "pn": 19,
+        "rn": 3,
+        "sc": 1,
+        "sg": 45,
+        "snr": 4
+      },
+      "bytes": 19017,
+      "descriptions_left_to_the_engine": 29,
+      "galaxies_with_rc3_colour": 61,
+      "median_galaxy_colour_bv": 0.81,
+      "messier": 110,
+      "notes": [
+        "M3: Wikidata Q78384126 has RA [205.548417, 205.55] and Dec [28.377278, 28.383] (0.353' apart); the values nearest SIMBAD's ship",
+        "M10: adopted V 6.60 (harris); Wikidata has [4.98]",
+        "M14: adopted V 7.59 (harris); Wikidata has [5.73]",
+        "M19: adopted V 6.77 (harris); Wikidata has [5.57]",
+        "M22: adopted V 5.10 (harris); Wikidata has [6.17]",
+        "M27: adopted V 7.50 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [14.089]",
+        "M34: Wikidata Q13729 has RA [40.5208, 40.521] and Dec [42.76167, 42.7617] (0.009' apart); the values nearest SIMBAD's ship",
+        "M35: Wikidata Q13736 has RA [92.225] and Dec [24.3333, 24.33333] (0.002' apart); the values nearest SIMBAD's ship",
+        "M39: Wikidata Q13883 has RA [322.95] and Dec [48.4333, 48.43333] (0.002' apart); the values nearest SIMBAD's ship",
+        "M42: Wikidata Q13903 has RA [83.81042, 83.82208] and Dec [-5.39111, -5.375] (1.191' apart); the values nearest SIMBAD's ship",
+        "M48: Wikidata Q13951 has RA [123.429, 123.4292] and Dec [-5.75] (0.012' apart); the values nearest SIMBAD's ship",
+        "M49: adopted V 8.41 (rc3); Wikidata has [12.17]",
+        "M50: Wikidata Q13956 has RA [105.6979, 105.69792] and Dec [-8.33778] (0.001' apart); the values nearest SIMBAD's ship",
+        "M57: adopted V 8.80 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [15.769]",
+        "M70: adopted V 7.87 (harris); Wikidata has [9.06]",
+        "M71: adopted V 8.19 (harris); Wikidata has [6.1]",
+        "M74: Wikidata Q14013 has RA [24.173917, 24.17405] and Dec [15.7834611, 15.783583] (0.011' apart); the values nearest SIMBAD's ship",
+        "M76: adopted V 10.10 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [17.48]",
+        "M84: Wikidata Q92258118 has RA [186.25, 186.265597208] and Dec [12.867, 12.886983139] (1.507' apart); the values nearest SIMBAD's ship",
+        "M84: adopted V 9.11 (rc3); Wikidata has [10.49, 20.0]",
+        "M86: Wikidata Q92258250 has RA [186.549225, 186.55] and Dec [12.9, 12.9459694] (2.759' apart); the values nearest SIMBAD's ship",
+        "M88: adopted V 9.63 (rc3); Wikidata has [13.18]",
+        "M90: Wikidata Q14343 has RA [189.207458, 189.2075667] and Dec [13.1628694, 13.162944] (0.008' apart); the values nearest SIMBAD's ship",
+        "M91: adopted V 10.15 (rc3); Wikidata has [13.57]",
+        "M92: Wikidata Q78262275 has RA [259.2807167, 259.280792] and Dec [43.1358389, 43.135944] (0.007' apart); the values nearest SIMBAD's ship",
+        "M97: adopted V 9.90 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [15.777]",
+        "M100: Wikidata Q14365 has RA [185.7288828545226, 185.729167] and Dec [15.822303972823, 15.822639] (0.026' apart); the values nearest SIMBAD's ship",
+        "M104: Wikidata Q91461627 has RA [189.997632708, 190.0] and Dec [-11.623054278, -11.617] (0.389' apart); the values nearest SIMBAD's ship",
+        "NGC2451: adopted V 2.80 (authored: integrated magnitude as commonly quoted (Wikidata gives 9.5)); Wikidata has [9.5]",
+        "NGC5139: adopted V 3.68 (harris); Wikidata has [5.33]",
+        "NGC2808: Wikidata Q939452 has RA [138.012917, 138.01542] and Dec [-64.8635, -64.8625] (0.088' apart); the values nearest SIMBAD's ship",
+        "NGC6541: adopted V 6.30 (harris); Wikidata has [7.32]",
+        "NGC3201: Wikidata Q840010 has RA [154.4, 154.403417] and Dec [-46.417, -46.412472] (0.306' apart); the values nearest SIMBAD's ship",
+        "NGC3201: adopted V 6.75 (harris); Wikidata has [8.24]",
+        "NGC1851: adopted V 7.14 (harris); Wikidata has [9.403]",
+        "NGC5286: Wikidata Q915535 has RA [206.611708, 206.625] and Dec [-51.383, -51.37425] (0.723' apart); the values nearest SIMBAD's ship",
+        "NGC4945: adopted V 8.49 (rc3_bt_median_colour); Wikidata has [14.4]",
+        "NGC7293: Wikidata Q97017154 has RA [337.4083, 337.4106054491761] and Dec [-20.83722, -20.8371516925291] (0.129' apart); the values nearest SIMBAD's ship",
+        "NGC7293: adopted V 7.60 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [13.524]",
+        "NGC7009: adopted V 8.00 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [12.07]",
+        "NGC3242: adopted V 7.70 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [12.15]",
+        "NGC6543: adopted V 8.10 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [11.28]",
+        "NGC6572: adopted V 8.10 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [10.8]",
+        "NGC6210: adopted V 8.80 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [11.7]",
+        "NGC7027: Wikidata Q85518442 has RA [316.7561042, 316.7573] and Dec [42.2361, 42.2362556] (0.054' apart); the values nearest SIMBAD's ship",
+        "NGC7027: adopted V 8.50 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [9.68, 10.9]",
+        "IC418: adopted V 9.00 (authored: SIMBAD (Wikidata gives 13.0, the central star)); Wikidata has [13.0]",
+        "NGC1360: adopted V 9.40 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [11.16]",
+        "IC2944: Wikidata Q79642350 has RA [174.58333, 174.585] and Dec [-63.37278] (0.045' apart); the values nearest SIMBAD's ship"
+      ],
+      "objects": 213,
+      "sep_corwin_arcmin": {
+        "count": 203,
+        "max": 58.141,
+        "median": 0.034
+      },
+      "sep_simbad_arcmin": {
+        "max": 77.052,
+        "median": 0.0
+      },
+      "size_sources": {
+        "authored": 57,
+        "simbad": 156
+      },
+      "southern": 110,
+      "v_sources": {
+        "authored: SIMBAD (Wikidata gives 13.0, the central star)": 1,
+        "authored: integrated magnitude as commonly quoted (Wikidata gives 9.5)": 1,
+        "authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)": 18,
+        "harris": 43,
+        "none": 12,
+        "rc3": 61,
+        "rc3_bt_median_colour": 5,
+        "wikidata": 72
+      }
+    }
+  },
+  "milkyway": {
+    "bytes": 3236,
+    "checks": {
+      "galactic_vs_pixel_file_max_deg": 0.000632,
+      "pixels_masked_as_point_sources": 18444
+    },
+    "generator": "tools/starfield/milkyway.py",
+    "inputs": {
+      "DIRBE_BAND08_ZSMA.FITS": {
+        "retrieved_utc": "2026-09-25T03:22:48Z",
+        "sha256": "907a62a76f1347141affd2124af27c071ead27a0629689b578a3d0a1c1943eaa",
+        "size_bytes": 6701760,
+        "url": "https://lambda.gsfc.nasa.gov/data/cobe/dirbe/zsma/DIRBE_BAND08_ZSMA.FITS"
+      },
+      "DIRBE_BAND1A_ZSMA.FITS": {
+        "retrieved_utc": "2026-09-25T03:22:45Z",
+        "sha256": "5686cf768467fa595aea2e1fad9cfc1b0231d5c5736073fde05333bfcd895a76",
+        "size_bytes": 6701760,
+        "url": "https://lambda.gsfc.nasa.gov/data/cobe/dirbe/zsma/DIRBE_BAND1A_ZSMA.FITS"
+      },
+      "DIRBE_SKYMAP_INFO.FITS": {
+        "retrieved_utc": "2026-09-25T03:22:53Z",
+        "sha256": "391a2f839e67c8b074c1666eeb29928c7dcfcaab5b12a10be1dedae75bb67cc4",
+        "size_bytes": 12620160,
+        "url": "https://lambda.gsfc.nasa.gov/data/cobe/dirbe/ancil/skyinfo/DIRBE_SKYMAP_INFO.FITS"
+      }
+    },
+    "levels": [
+      {
+        "level_mjy_sr": 0.32,
+        "points": 324,
+        "points_before": 2010,
+        "rings": 4,
+        "rings_dropped_small": 0
+      },
+      {
+        "level_mjy_sr": 0.5,
+        "points": 353,
+        "points_before": 2580,
+        "rings": 10,
+        "rings_dropped_small": 0
+      },
+      {
+        "level_mjy_sr": 0.8,
+        "points": 147,
+        "points_before": 1154,
+        "rings": 8,
+        "rings_dropped_small": 0
+      },
+      {
+        "level_mjy_sr": 1.3,
+        "points": 32,
+        "points_before": 250,
+        "rings": 2,
+        "rings_dropped_small": 0
+      }
+    ],
+    "parameters": {
+      "av_per_mjy_sr_100um": 0.05,
+      "grid_deg": 0.5,
+      "levels_mjy_sr": [
+        0.32,
+        0.5,
+        0.8,
+        1.3
+      ],
+      "masked_l_b_radius_deg": [
+        [
+          280.47,
+          -32.89,
+          6.0
+        ],
+        [
+          302.81,
+          -44.33,
+          3.5
+        ]
+      ],
+      "min_ring_deg": 3.0,
+      "point_source_box_deg": 3.5,
+      "point_source_sigma": 4.0,
+      "screen_fraction": 0.5,
+      "simplify_deg": 0.2,
+      "smooth_sigma_deg": 1.5,
+      "tau_j_over_tau_v": 0.28,
+      "tau_v_cap": 30.0,
+      "unit_deg": 0.01
+    },
+    "sha256": "58202e2139d51c4cb081fd3b380ba8129a0a15bbdf5f02024e71acf1be9c441c"
+  },
+  "names": {
+    "bytes": 7169,
+    "differences_from_the_2022_file": [],
+    "existing_agreeing_with_wgsn": 237,
+    "existing_names": 252,
+    "generator": "tools/starfield/wgsn.py",
+    "hr_not_in_display_catalogue": [
+      "Blaze Star (HR 5958)"
+    ],
+    "inputs": {
+      "wgsn_exopla.html": {
+        "retrieved_utc": "2026-09-25T03:22:42Z",
+        "sha256": "8a5be8fb41a408f745782fbc52d2f5e43cd2210de84460a529d5b4e4ea628008",
+        "size_bytes": 661844,
+        "url": "https://exopla.net/star-names/modern-iau-star-names/"
+      },
+      "wgsn_iau_csn_2022.txt": {
+        "retrieved_utc": "2026-09-25T03:22:42Z",
+        "sha256": "84fac0c90f1b19abc491c2793469e0caa7b003ad1bc93a790ca41147010d0eb0",
+        "size_bytes": 71800,
+        "url": "https://www.pas.rochester.edu/~emamajek/WGSN/IAU-CSN.txt"
+      }
+    },
+    "joined": 458,
+    "joined_by_a_check_other_than_the_live_position": [
+      "Bodu (HR 6730): designation",
+      "Alsephina (HR 3485): 2022 file position",
+      "Nganurganity (HR 2646): 2022 file position",
+      "Tegmine (HR 3208): 2022 file position",
+      "Alkalurops (HR 5733): 2022 file position",
+      "Copernicus (HR 3522): 2022 file position",
+      "Tonatiuh (HR 4609): 2022 file position",
+      "Mira (HR 681): 2022 file position",
+      "Mizar (HR 5054): 2022 file position",
+      "Chalawan (HR 4277): 2022 file position",
+      "Errai (HR 8974): 2022 file position",
+      "Veritate (HR 8930): 2022 file position"
+    ],
+    "names_added": 220,
+    "position_or_duplicate_rejections": [],
+    "sha256": "cad07acd247e6da8f2d57de2633a16012b94ed36d8d0610388e45e2531acba3d",
+    "spelling_differences_kept_ours": [
+      "HR 264: ours 'Navi', WGSN 'Tiansi' (ours kept)",
+      "HR 8425: ours \"Al Na'ir\", WGSN 'Alnair' (same name; ours kept)"
+    ],
+    "wgsn_names": 641,
+    "wgsn_names_ours_uses_for_another_star": [],
+    "with_hr_designation": 459
+  },
+  "showers": {
+    "bytes": 2509,
+    "exceptions": {
+      "KCG imo_radiant": "Table 5 of the IMO calendars gives (286, +59); their own Table 6 and the MDC give a radiant drifting north 0.67 deg/day that stands at (288, +54) on the peak date, which we use",
+      "PHO mdc_lambda": "the MDC's two Phoenicid parameter sets average 251.65 deg; we keep the IMO's peak, 249.5",
+      "PHO mdc_radiant": "the MDC's two parameter sets for the Phoenicids lie 9 deg apart; we keep the IMO's radiant"
+    },
+    "generator": "tools/starfield/showers.py",
+    "inputs": {
+      "iau_mdc_established_2026.txt": {
+        "retrieved_utc": "2026-09-25T03:22:36Z",
+        "sha256": "61c2be3ff17e0d3e5db54512b8d164e0343e484261f7861a8c29ae1a356e7344",
+        "size_bytes": 426134,
+        "url": "https://www.ta3.sk/IAUC22DB/MDC2022/Etc/streamestablisheddata2026.txt"
+      },
+      "imo_calendar_2026.pdf": {
+        "retrieved_utc": "2026-09-25T03:22:37Z",
+        "sha256": "fde5388889ebda9fe13436d793da5e9935ae46b99edf20e0b19f7fe32ce1ed9f",
+        "size_bytes": 988146,
+        "url": "http://web.archive.org/web/20260308033848id_/https://imo.net/files/meteor-shower/cal2026.pdf"
+      },
+      "imo_calendar_2027.pdf": {
+        "retrieved_utc": "2026-09-25T03:22:36Z",
+        "sha256": "9e6b9a1609fb89ebb8571756b15670b2ccf22e64ed22ae999ff604705d773eec",
+        "size_bytes": 837985,
+        "url": "https://www.imo.net/ShCal27s.pdf"
+      }
+    },
+    "max_radiant_sep_vs_imo_2026_deg": 5.12,
+    "max_radiant_sep_vs_mdc_deg": 7.59,
+    "showers": 32,
+    "table_sha256": "e73bb04ca2b3c94a1b2b0d1e552382b1e9c63bc08de98574b2ea782a3b415442"
+  }
+}

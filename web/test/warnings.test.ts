@@ -76,6 +76,19 @@ const EXAMPLES: Record<WarningCode, Warning> = {
   },
   run_outlier: { code: 'run_outlier', id: 'obs-3', normalized_residual: 5.4, rejected: true },
   polaris_near_pole: { code: 'polaris_near_pole', id: 'obs-1', latitude_deg: 88.9, azimuth_deg: 342 },
+  shore_beyond_sea_horizon: {
+    code: 'shore_beyond_sea_horizon',
+    id: 'obs-4',
+    distance_nm: 6,
+    sea_horizon_nm: 3.66,
+  },
+  error_log_outside_span: {
+    code: 'error_log_outside_span',
+    id: 'obs-6',
+    log: 'watch_log',
+    held_value: -2,
+    hours_outside: 36,
+  },
 };
 
 describe('Warning vocabulary', () => {

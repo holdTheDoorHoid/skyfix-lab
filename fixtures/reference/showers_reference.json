@@ -1,0 +1,972 @@
+{
+ "schema": "skyfix.reference/1",
+ "generator": "tools/starfield/showers.py",
+ "description": "Meteor-shower cross-check: the IMO 2026 and 2027 calendars' peak and activity dates and the IAU MDC medians for every shower in SkyFix Lab's table. Display-only data.",
+ "exceptions": {
+  "KCG imo_radiant": "Table 5 of the IMO calendars gives (286, +59); their own Table 6 and the MDC give a radiant drifting north 0.67 deg/day that stands at (288, +54) on the peak date, which we use",
+  "PHO mdc_lambda": "the MDC's two Phoenicid parameter sets average 251.65 deg; we keep the IMO's peak, 249.5",
+  "PHO mdc_radiant": "the MDC's two parameter sets for the Phoenicids lie 9 deg apart; we keep the IMO's radiant"
+ },
+ "showers": [
+  {
+   "code": "QUA",
+   "iau": 10,
+   "mdc_sets": 8,
+   "imo_2026": {
+    "peak": "2026-01-03",
+    "start": "2025-12-28",
+    "end": "2026-01-12",
+    "peak_lambda_deg": 283.15
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-01-04",
+    "start": "2026-12-28",
+    "end": "2027-01-12",
+    "peak_lambda_deg": 283.15
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.36,
+   "mdc_lambda_diff_deg": 0.0,
+   "mdc_vinf_kms": 42.4,
+   "mdc_median": {
+    "LoS": 283.15,
+    "Ra": 230.1,
+    "De": 49.35,
+    "dRa": 0.72,
+    "dDe": -0.25,
+    "Vg": 40.95
+   }
+  },
+  {
+   "code": "GUM",
+   "iau": 404,
+   "mdc_sets": 5,
+   "imo_2026": {
+    "peak": "2026-01-18",
+    "start": "2026-01-10",
+    "end": "2026-01-22",
+    "peak_lambda_deg": 298.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-01-18",
+    "start": "2027-01-10",
+    "end": "2027-01-22",
+    "peak_lambda_deg": 298.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.66,
+   "mdc_lambda_diff_deg": -1.5,
+   "mdc_vinf_kms": 31.4,
+   "mdc_median": {
+    "LoS": 299.5,
+    "Ra": 229.0,
+    "De": 67.6,
+    "dRa": 0.99,
+    "dDe": -0.7,
+    "Vg": 29.4
+   }
+  },
+  {
+   "code": "LYR",
+   "iau": 6,
+   "mdc_sets": 9,
+   "imo_2026": {
+    "peak": "2026-04-22",
+    "start": "2026-04-14",
+    "end": "2026-04-30",
+    "peak_lambda_deg": 32.32
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-04-23",
+    "start": "2027-04-14",
+    "end": "2027-04-30",
+    "peak_lambda_deg": 32.32
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.23,
+   "mdc_lambda_diff_deg": 0.02,
+   "mdc_vinf_kms": 48.1,
+   "mdc_median": {
+    "LoS": 32.3,
+    "Ra": 272.2,
+    "De": 33.31,
+    "dRa": 0.8,
+    "dDe": -0.25,
+    "Vg": 46.8
+   }
+  },
+  {
+   "code": "PPU",
+   "iau": 137,
+   "mdc_sets": 2,
+   "imo_2026": {
+    "peak": "2026-04-24",
+    "start": "2026-04-15",
+    "end": "2026-04-28",
+    "peak_lambda_deg": 33.5
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-04-24",
+    "start": "2027-04-15",
+    "end": "2027-04-28",
+    "peak_lambda_deg": 33.5
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 2.4,
+   "mdc_lambda_diff_deg": 1.6,
+   "mdc_vinf_kms": 19.2,
+   "mdc_median": {
+    "LoS": 31.900000000000002,
+    "Ra": 110.24,
+    "De": -45.724999999999994,
+    "dRa": 1.59,
+    "dDe": -0.43,
+    "Vg": 15.629999999999999
+   }
+  },
+  {
+   "code": "ETA",
+   "iau": 31,
+   "mdc_sets": 11,
+   "imo_2026": {
+    "peak": "2026-05-06",
+    "start": "2026-04-19",
+    "end": "2026-05-28",
+    "peak_lambda_deg": 45.5
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-05-06",
+    "start": "2027-04-19",
+    "end": "2027-05-28",
+    "peak_lambda_deg": 45.5
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.21,
+   "mdc_lambda_diff_deg": -1.0,
+   "mdc_vinf_kms": 66.7,
+   "mdc_median": {
+    "LoS": 46.5,
+    "Ra": 338.5,
+    "De": -0.7,
+    "dRa": 0.71,
+    "dDe": 0.335,
+    "Vg": 65.80000000000001
+   }
+  },
+  {
+   "code": "ELY",
+   "iau": 145,
+   "mdc_sets": 6,
+   "imo_2026": {
+    "peak": "2026-05-11",
+    "start": "2026-05-03",
+    "end": "2026-05-14",
+    "peak_lambda_deg": 50.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-05-11",
+    "start": "2027-05-05",
+    "end": "2027-05-14",
+    "peak_lambda_deg": 50.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.45,
+   "mdc_lambda_diff_deg": 0.1,
+   "mdc_vinf_kms": 45.2,
+   "mdc_median": {
+    "LoS": 49.9,
+    "Ra": 291.0,
+    "De": 43.45,
+    "dRa": 0.2,
+    "dDe": 0.03,
+    "Vg": 43.8
+   }
+  },
+  {
+   "code": "JBO",
+   "iau": 170,
+   "mdc_sets": 5,
+   "imo_2026": {
+    "peak": "2026-06-22",
+    "start": "2026-06-22",
+    "end": "2026-07-02",
+    "peak_lambda_deg": 90.3
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-06-22",
+    "start": "2027-06-22",
+    "end": "2027-07-02",
+    "peak_lambda_deg": 90.3
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.61,
+   "mdc_lambda_diff_deg": -1.93,
+   "mdc_vinf_kms": 17.8,
+   "mdc_median": {
+    "LoS": 92.23,
+    "Ra": 223.4,
+    "De": 47.5,
+    "dRa": 0.019999999999999962,
+    "dDe": -0.12,
+    "Vg": 13.9
+   }
+  },
+  {
+   "code": "JPE",
+   "iau": 175,
+   "mdc_sets": 7,
+   "imo_2026": {
+    "peak": "2026-07-10",
+    "start": "2026-07-01",
+    "end": "2026-07-20",
+    "peak_lambda_deg": 108.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-07-10",
+    "start": "2027-07-01",
+    "end": "2027-07-20",
+    "peak_lambda_deg": 108.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.56,
+   "mdc_lambda_diff_deg": -2.9,
+   "mdc_vinf_kms": 65.0,
+   "mdc_median": {
+    "LoS": 110.9,
+    "Ra": 349.6,
+    "De": 11.3,
+    "dRa": 0.85,
+    "dDe": 0.29,
+    "Vg": 64.0
+   }
+  },
+  {
+   "code": "GDR",
+   "iau": 184,
+   "mdc_sets": 6,
+   "imo_2026": {
+    "peak": "2026-07-28",
+    "start": "2026-07-25",
+    "end": "2026-07-31",
+    "peak_lambda_deg": 125.13
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-07-28",
+    "start": "2027-07-25",
+    "end": "2027-07-31",
+    "peak_lambda_deg": 125.13
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.41,
+   "mdc_lambda_diff_deg": -0.0,
+   "mdc_vinf_kms": 29.6,
+   "mdc_median": {
+    "LoS": 125.13499999999999,
+    "Ra": 280.1,
+    "De": 50.6,
+    "dRa": -0.09,
+    "dDe": 0.07,
+    "Vg": 27.45
+   }
+  },
+  {
+   "code": "SDA",
+   "iau": 5,
+   "mdc_sets": 10,
+   "imo_2026": {
+    "peak": "2026-07-31",
+    "start": "2026-07-12",
+    "end": "2026-08-23",
+    "peak_lambda_deg": 128.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-07-31",
+    "start": "2027-07-12",
+    "end": "2027-08-23",
+    "peak_lambda_deg": 128.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.22,
+   "mdc_lambda_diff_deg": 0.6,
+   "mdc_vinf_kms": 42.2,
+   "mdc_median": {
+    "LoS": 127.4,
+    "Ra": 340.8,
+    "De": -16.2,
+    "dRa": 0.78,
+    "dDe": 0.26,
+    "Vg": 40.7
+   }
+  },
+  {
+   "code": "CAP",
+   "iau": 1,
+   "mdc_sets": 12,
+   "imo_2026": {
+    "peak": "2026-07-31",
+    "start": "2026-07-03",
+    "end": "2026-08-15",
+    "peak_lambda_deg": 128.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-07-31",
+    "start": "2027-07-03",
+    "end": "2027-08-15",
+    "peak_lambda_deg": 128.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.12,
+   "mdc_lambda_diff_deg": 2.05,
+   "mdc_vinf_kms": 25.2,
+   "mdc_median": {
+    "LoS": 125.94999999999999,
+    "Ra": 306.1,
+    "De": -9.45,
+    "dRa": 0.61,
+    "dDe": 0.25,
+    "Vg": 22.65
+   }
+  },
+  {
+   "code": "ERI",
+   "iau": 191,
+   "mdc_sets": 5,
+   "imo_2026": {
+    "peak": "2026-08-07",
+    "start": "2026-07-31",
+    "end": "2026-08-19",
+    "peak_lambda_deg": 135.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-08-08",
+    "start": "2027-07-31",
+    "end": "2027-08-19",
+    "peak_lambda_deg": 135.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 2.09,
+   "mdc_lambda_diff_deg": -2.5,
+   "mdc_vinf_kms": 65.3,
+   "mdc_median": {
+    "LoS": 137.5,
+    "Ra": 44.5,
+    "De": -11.9,
+    "dRa": 0.855,
+    "dDe": 0.28500000000000003,
+    "Vg": 64.4
+   }
+  },
+  {
+   "code": "PER",
+   "iau": 7,
+   "mdc_sets": 8,
+   "imo_2026": {
+    "peak": "2026-08-13",
+    "start": "2026-07-17",
+    "end": "2026-08-24",
+    "peak_lambda_deg": 140.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-08-13",
+    "start": "2027-07-17",
+    "end": "2027-08-24",
+    "peak_lambda_deg": 140.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.18,
+   "mdc_lambda_diff_deg": 0.4,
+   "mdc_vinf_kms": 60.1,
+   "mdc_median": {
+    "LoS": 139.6,
+    "Ra": 47.535000000000004,
+    "De": 57.745000000000005,
+    "dRa": 1.4,
+    "dDe": 0.21,
+    "Vg": 59.1
+   }
+  },
+  {
+   "code": "KCG",
+   "iau": 12,
+   "mdc_sets": 12,
+   "imo_2026": {
+    "peak": "2026-08-17",
+    "start": "2026-08-03",
+    "end": "2026-08-28",
+    "peak_lambda_deg": 144.0
+   },
+   "imo_2026_radiant_sep_deg": 5.12,
+   "imo_2027": {
+    "peak": "2027-08-17",
+    "start": "2027-08-03",
+    "end": "2027-08-28",
+    "peak_lambda_deg": 144.0
+   },
+   "imo_2027_radiant_sep_deg": 5.12,
+   "mdc_radiant_sep_deg": 1.13,
+   "mdc_lambda_diff_deg": 2.45,
+   "mdc_vinf_kms": 25.1,
+   "mdc_median": {
+    "LoS": 141.55,
+    "Ra": 285.8,
+    "De": 51.45,
+    "dRa": 0.45,
+    "dDe": 0.665,
+    "Vg": 22.48
+   }
+  },
+  {
+   "code": "AUR",
+   "iau": 206,
+   "mdc_sets": 6,
+   "imo_2026": {
+    "peak": "2026-09-01",
+    "start": "2026-08-28",
+    "end": "2026-09-05",
+    "peak_lambda_deg": 158.6
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-09-01",
+    "start": "2027-08-28",
+    "end": "2027-09-05",
+    "peak_lambda_deg": 158.6
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.19,
+   "mdc_lambda_diff_deg": 0.3,
+   "mdc_vinf_kms": 66.7,
+   "mdc_median": {
+    "LoS": 158.3,
+    "Ra": 90.80000000000001,
+    "De": 39.15,
+    "dRa": 1.15,
+    "dDe": -0.01,
+    "Vg": 65.73
+   }
+  },
+  {
+   "code": "SPE",
+   "iau": 208,
+   "mdc_sets": 4,
+   "imo_2026": {
+    "peak": "2026-09-09",
+    "start": "2026-09-05",
+    "end": "2026-09-21",
+    "peak_lambda_deg": 166.7
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-09-10",
+    "start": "2027-09-05",
+    "end": "2027-09-21",
+    "peak_lambda_deg": 166.7
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.77,
+   "mdc_lambda_diff_deg": -1.0,
+   "mdc_vinf_kms": 65.4,
+   "mdc_median": {
+    "LoS": 167.7,
+    "Ra": 48.400000000000006,
+    "De": 39.55,
+    "dRa": 1.1549999999999998,
+    "dDe": 0.055,
+    "Vg": 64.44999999999999
+   }
+  },
+  {
+   "code": "OCT",
+   "iau": 281,
+   "mdc_sets": 4,
+   "imo_2026": {
+    "peak": "2026-10-06",
+    "start": "2026-10-05",
+    "end": "2026-10-06",
+    "peak_lambda_deg": 192.58
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-10-06",
+    "start": "2027-10-05",
+    "end": "2027-10-06",
+    "peak_lambda_deg": 192.58
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.67,
+   "mdc_lambda_diff_deg": -0.18,
+   "mdc_vinf_kms": 47.2,
+   "mdc_median": {
+    "LoS": 192.765,
+    "Ra": 166.95,
+    "De": 78.6,
+    "dRa": -0.21000000000000002,
+    "dDe": -0.305,
+    "Vg": 45.9
+   }
+  },
+  {
+   "code": "DRA",
+   "iau": 9,
+   "mdc_sets": 5,
+   "imo_2026": {
+    "peak": "2026-10-09",
+    "start": "2026-10-06",
+    "end": "2026-10-10",
+    "peak_lambda_deg": 195.4
+   },
+   "imo_2026_radiant_sep_deg": 1.16,
+   "imo_2027": {
+    "peak": "2027-10-09",
+    "start": "2027-10-06",
+    "end": "2027-10-10",
+    "peak_lambda_deg": 195.4
+   },
+   "imo_2027_radiant_sep_deg": 1.0,
+   "mdc_radiant_sep_deg": 0.11,
+   "mdc_lambda_diff_deg": 0.0,
+   "mdc_vinf_kms": 22.6,
+   "mdc_median": {
+    "LoS": 195.4,
+    "Ra": 262.8,
+    "De": 55.0,
+    "dRa": 0.255,
+    "dDe": 0.02,
+    "Vg": 19.7
+   }
+  },
+  {
+   "code": "EGE",
+   "iau": 23,
+   "mdc_sets": 4,
+   "imo_2026": {
+    "peak": "2026-10-18",
+    "start": "2026-10-14",
+    "end": "2026-10-27",
+    "peak_lambda_deg": 205.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-10-19",
+    "start": "2027-10-14",
+    "end": "2027-10-27",
+    "peak_lambda_deg": 205.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.26,
+   "mdc_lambda_diff_deg": -1.12,
+   "mdc_vinf_kms": 70.3,
+   "mdc_median": {
+    "LoS": 206.125,
+    "Ra": 102.0,
+    "De": 27.799999999999997,
+    "dRa": 0.84,
+    "dDe": -0.12000000000000001,
+    "Vg": 69.4
+   }
+  },
+  {
+   "code": "ORI",
+   "iau": 8,
+   "mdc_sets": 8,
+   "imo_2026": {
+    "peak": "2026-10-21",
+    "start": "2026-10-02",
+    "end": "2026-11-07",
+    "peak_lambda_deg": 208.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-10-22",
+    "start": "2027-10-02",
+    "end": "2027-11-07",
+    "peak_lambda_deg": 208.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.32,
+   "mdc_lambda_diff_deg": -0.85,
+   "mdc_vinf_kms": 67.2,
+   "mdc_median": {
+    "LoS": 208.85,
+    "Ra": 95.7,
+    "De": 15.7,
+    "dRa": 0.78,
+    "dDe": 0.02,
+    "Vg": 66.3
+   }
+  },
+  {
+   "code": "LMI",
+   "iau": 22,
+   "mdc_sets": 5,
+   "imo_2026": {
+    "peak": "2026-10-24",
+    "start": "2026-10-19",
+    "end": "2026-10-27",
+    "peak_lambda_deg": 211.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-10-25",
+    "start": "2027-10-19",
+    "end": "2027-10-27",
+    "peak_lambda_deg": 211.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.93,
+   "mdc_lambda_diff_deg": 2.0,
+   "mdc_vinf_kms": 62.8,
+   "mdc_median": {
+    "LoS": 209.0,
+    "Ra": 160.1,
+    "De": 36.7,
+    "dRa": 1.02,
+    "dDe": -0.31,
+    "Vg": 61.8
+   }
+  },
+  {
+   "code": "STA",
+   "iau": 2,
+   "mdc_sets": 13,
+   "imo_2026": {
+    "peak": "2026-11-05",
+    "start": "2026-09-20",
+    "end": "2026-11-20",
+    "peak_lambda_deg": 223.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-11-06",
+    "start": "2027-09-20",
+    "end": "2027-11-20",
+    "peak_lambda_deg": 223.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.4,
+   "mdc_lambda_diff_deg": 5.7,
+   "mdc_vinf_kms": 29.9,
+   "mdc_median": {
+    "LoS": 217.3,
+    "Ra": 48.7,
+    "De": 13.0,
+    "dRa": 0.74,
+    "dDe": 0.16,
+    "Vg": 27.8
+   }
+  },
+  {
+   "code": "NTA",
+   "iau": 17,
+   "mdc_sets": 12,
+   "imo_2026": {
+    "peak": "2026-11-12",
+    "start": "2026-10-20",
+    "end": "2026-12-10",
+    "peak_lambda_deg": 230.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-11-13",
+    "start": "2027-10-20",
+    "end": "2027-12-10",
+    "peak_lambda_deg": 230.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.52,
+   "mdc_lambda_diff_deg": 6.4,
+   "mdc_vinf_kms": 30.3,
+   "mdc_median": {
+    "LoS": 223.6,
+    "Ra": 52.85,
+    "De": 21.3,
+    "dRa": 0.855,
+    "dDe": 0.175,
+    "Vg": 28.15
+   }
+  },
+  {
+   "code": "LEO",
+   "iau": 13,
+   "mdc_sets": 10,
+   "imo_2026": {
+    "peak": "2026-11-17",
+    "start": "2026-11-06",
+    "end": "2026-11-30",
+    "peak_lambda_deg": 235.27
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-11-18",
+    "start": "2027-11-06",
+    "end": "2027-11-30",
+    "peak_lambda_deg": 235.27
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.65,
+   "mdc_lambda_diff_deg": -0.28,
+   "mdc_vinf_kms": 71.2,
+   "mdc_median": {
+    "LoS": 235.55,
+    "Ra": 153.95,
+    "De": 21.79,
+    "dRa": 0.63,
+    "dDe": -0.39,
+    "Vg": 70.28
+   }
+  },
+  {
+   "code": "AMO",
+   "iau": 246,
+   "mdc_sets": 3,
+   "imo_2026": {
+    "peak": "2026-11-22",
+    "start": "2026-11-15",
+    "end": "2026-11-25",
+    "peak_lambda_deg": 239.32
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-11-22",
+    "start": "2027-11-15",
+    "end": "2027-11-25",
+    "peak_lambda_deg": 239.32
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.17,
+   "mdc_lambda_diff_deg": -0.28,
+   "mdc_vinf_kms": 63.1,
+   "mdc_median": {
+    "LoS": 239.6,
+    "Ra": 117.3,
+    "De": 0.8,
+    "dRa": 0.97,
+    "dDe": -0.1,
+    "Vg": 62.1
+   }
+  },
+  {
+   "code": "NOO",
+   "iau": 250,
+   "mdc_sets": 7,
+   "imo_2026": {
+    "peak": "2026-11-28",
+    "start": "2026-11-13",
+    "end": "2026-12-06",
+    "peak_lambda_deg": 246.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-11-28",
+    "start": "2027-11-14",
+    "end": "2027-12-06",
+    "peak_lambda_deg": 246.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.2,
+   "mdc_lambda_diff_deg": -1.0,
+   "mdc_vinf_kms": 44.1,
+   "mdc_median": {
+    "LoS": 247.0,
+    "Ra": 90.7,
+    "De": 15.3,
+    "dRa": 0.74,
+    "dDe": -0.04,
+    "Vg": 42.7
+   }
+  },
+  {
+   "code": "PHO",
+   "iau": 254,
+   "mdc_sets": 2,
+   "imo_2026": {
+    "peak": "2026-12-02",
+    "start": "2026-12-01",
+    "end": "2026-12-05",
+    "peak_lambda_deg": 249.5
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-12-02",
+    "start": "2027-11-20",
+    "end": "2027-12-05",
+    "peak_lambda_deg": 249.5
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 7.59,
+   "mdc_lambda_diff_deg": -2.15,
+   "mdc_vinf_kms": 15.1,
+   "mdc_median": {
+    "LoS": 251.64999999999998,
+    "Ra": 11.485000000000007,
+    "De": -36.335,
+    "dRa": 0.08,
+    "dDe": -1.07,
+    "Vg": 10.3
+   }
+  },
+  {
+   "code": "MON",
+   "iau": 19,
+   "mdc_sets": 8,
+   "imo_2026": {
+    "peak": "2026-12-09",
+    "start": "2026-12-01",
+    "end": "2026-12-19",
+    "peak_lambda_deg": 257.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-12-09",
+    "start": "2027-12-01",
+    "end": "2027-12-19",
+    "peak_lambda_deg": 257.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.8,
+   "mdc_lambda_diff_deg": -3.95,
+   "mdc_vinf_kms": 42.9,
+   "mdc_median": {
+    "LoS": 260.95,
+    "Ra": 102.05,
+    "De": 8.1,
+    "dRa": 0.67,
+    "dDe": -0.11,
+    "Vg": 41.4
+   }
+  },
+  {
+   "code": "HYD",
+   "iau": 16,
+   "mdc_sets": 6,
+   "imo_2026": {
+    "peak": "2026-12-09",
+    "start": "2026-12-03",
+    "end": "2026-12-20",
+    "peak_lambda_deg": 257.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-12-09",
+    "start": "2027-12-03",
+    "end": "2027-12-20",
+    "peak_lambda_deg": 257.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.74,
+   "mdc_lambda_diff_deg": -0.9,
+   "mdc_vinf_kms": 59.9,
+   "mdc_median": {
+    "LoS": 257.905,
+    "Ra": 126.44999999999999,
+    "De": 2.05,
+    "dRa": 0.85,
+    "dDe": -0.27,
+    "Vg": 58.9
+   }
+  },
+  {
+   "code": "GEM",
+   "iau": 4,
+   "mdc_sets": 7,
+   "imo_2026": {
+    "peak": "2026-12-14",
+    "start": "2026-12-04",
+    "end": "2026-12-20",
+    "peak_lambda_deg": 262.2
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-12-14",
+    "start": "2027-12-04",
+    "end": "2027-12-20",
+    "peak_lambda_deg": 262.2
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.54,
+   "mdc_lambda_diff_deg": 0.6,
+   "mdc_vinf_kms": 36.2,
+   "mdc_median": {
+    "LoS": 261.6,
+    "Ra": 112.9,
+    "De": 32.3,
+    "dRa": 1.1,
+    "dDe": -0.17,
+    "Vg": 34.5
+   }
+  },
+  {
+   "code": "URS",
+   "iau": 15,
+   "mdc_sets": 6,
+   "imo_2026": {
+    "peak": "2026-12-22",
+    "start": "2026-12-17",
+    "end": "2026-12-26",
+    "peak_lambda_deg": 270.7
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-12-23",
+    "start": "2027-12-17",
+    "end": "2027-12-26",
+    "peak_lambda_deg": 270.7
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 0.78,
+   "mdc_lambda_diff_deg": 0.45,
+   "mdc_vinf_kms": 35.0,
+   "mdc_median": {
+    "LoS": 270.25,
+    "Ra": 219.2,
+    "De": 75.65,
+    "dRa": 1.025,
+    "dDe": -0.18,
+    "Vg": 33.2
+   }
+  },
+  {
+   "code": "COM",
+   "iau": 20,
+   "mdc_sets": 7,
+   "imo_2026": {
+    "peak": "2026-12-23",
+    "start": "2026-12-04",
+    "end": "2027-01-30",
+    "peak_lambda_deg": 271.0
+   },
+   "imo_2026_radiant_sep_deg": 0.0,
+   "imo_2027": {
+    "peak": "2027-12-23",
+    "start": "2027-12-04",
+    "end": "2028-01-30",
+    "peak_lambda_deg": 271.0
+   },
+   "imo_2027_radiant_sep_deg": 0.0,
+   "mdc_radiant_sep_deg": 1.02,
+   "mdc_lambda_diff_deg": -2.15,
+   "mdc_vinf_kms": 64.3,
+   "mdc_median": {
+    "LoS": 273.15,
+    "Ra": 167.0,
+    "De": 28.0,
+    "dRa": 0.86,
+    "dDe": -0.39,
+    "Vg": 63.3
+   }
+  }
+ ]
+}

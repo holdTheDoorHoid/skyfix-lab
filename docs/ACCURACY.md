@@ -29,13 +29,26 @@ reproduce each row are in the numbered section named.
 | Topocentric altitude/azimuth (any body, WGS84 site) | stars worst 0.0052′; the Sun's larger figure is the parallax itself being restored, residual 0.0034′ | 0.1′ | 2, "Spherical model…" |
 | Events: rise, set, twilight, transits (vs Skyfield, same threshold / vs USNO) | worst 0.420 s vs Skyfield; worst 29.4 s vs USNO's own 1-minute rounding | 10 s / 1 min | 9 |
 | Star field, display only (9,095 stars, apparent places vs Skyfield) | worst 0.307″ = 0.0051′; separately, BSC5P vs Hipparcos catalogue positions can disagree by up to 8.6″ = 0.14′ (Rigil Kentaurus, proper motion, at the edges of 1990-2060) | 0.1′ (exceeded for this one star; display only, never reaches a sight) | 8 |
-| Moon and planet sights (raw sextant readings vs Skyfield) | spherical-Earth chain worst 0.0063′; the one un-modelled term (the real Earth's shape) reaches 0.22′ for the Moon, median 0.09′, under 0.005′ for planets | matches ephemeris tolerance; Earth's-shape term not modelled (section 5) | 10 |
+| Moon and planet sights (raw sextant readings vs Skyfield) | on the real (WGS84) Earth every reduced Ho within 0.0064′ of its model altitude, the Moon's with its Earth-shape term (0.22′ in this sample, median 0.09′; CONVENTIONS 15.4); WGS84 Moon sessions fix 2.6 m and 5.1 m from the truth; the Moon's parallax through the model within 0.0004′ of USNO's | matches ephemeris tolerance | 10 |
 | Lunar distance (UTC recovered, vs Skyfield) | within 0.74 s (altitudes computed from the DR) / 0.63 s (observed) / 2.1 s (one observed, one computed) | 5 s | 10 |
 | Almanac pages, tabulated values (vs Skyfield) | 99.2 % of printed values exact to the last digit; worst raw value 0.0197′ (a star's SHA) | 0.1′ angles/v/d/HP/SD, 1 min times | 11 |
 | Eclipses (vs NASA's canon / vs USNO local circumstances) | greatest eclipse worst 1.4 s (solar) / 11.3 s (lunar) vs NASA; local contacts within 2.0 s vs USNO | 2 min / 1 min | 12 |
 | Planet events: oppositions, conjunctions, greatest elongations, closest approaches (vs Skyfield + DE440s, all 2266 of 1990-2060; list vs NASA SKYCAL) | every event matched one for one; conjunctions and oppositions within 55 s (Neptune's slow motion), elongations and closest approaches within 68 s; the 12 transits are NASA's | 1 min / 10 min | 13 |
 | Navigation methods: noon sight, Polaris, averaging, running fix (noise-free vs Skyfield truth; Bowditch's worked examples) | within 0.0001–0.0013′ of truth; running fix within 0.4–36 m; Bowditch reproduced to 0.02–0.19′ | — (numerical regression) | 3, "Navigation methods" |
 | Navigation methods: seeded-coverage of the stated sigma | 93.8–96.0 % (Polaris very near the pole with a poor DR: 89.8 %, a documented limit, `polaris_near_pole`) | ≈95 % | 3, "Navigation methods" |
+| Sun tools: equation of time, bearing crossings, galactic centre, analemma (vs Skyfield + DE440s; EoT vs Meeus 28.a) | EoT within 0.012 s (Meeus 0.18 s); bearing crossings 0.21″ on the sky; galactic centre 0.31″; golden/blue hour at their thresholds to 1e-6°; solar energy a labelled clear-sky estimate (model RMSE 6.6 %) | 1 s / 0.01° | 14 |
+| Magnetic variation, WMM2025 (vs NOAA NCEI's 100 official test values, the technical report's Table 6 and numerical example) | declination and inclination within half their 0.01° printing (worst 0.005°); X, Y, Z within 0.0007 nT; the numerical example to 1e-6 nT | 0.01° | 15 |
+| Magnetic variation, IGRF-14, 1900–2030 (vs IAGA's 12 test values; the BGS calculator at 25 points; NOAA's Geomag 7.0 sample) | IAGA within their 0.01 nT printing; BGS declination and inclination within 0.0005° (their printing), intensities 0.5 nT | 0.1° | 15 |
+| Compass error by azimuth and amplitude (vs Bowditch ch. 15; vs the engine's own azimuth) | Bowditch's five examples within 0.013–0.066° (its tables print 0.1°); the azimuth equals `sky_state`'s to 0.00001° (Venus 0.006°: centre of light) | 0.1° / 0.01° | 15 |
+| Sailings: great-circle, rhumb-line, mid-latitude, composite, plane, traverse and parallel sailing (Bowditch 2019 ch. 12, every worked example: 26 cases, 77 quantities) | all to the printed precision, or to the book's own four-decimal rounding carried through (worst such 0.62′ of longitude, §1213); two errata found and recorded | printed precision | 14 |
+| Sailings: the sphere of 1′ = 1 NM against WGS84 (Vincenty geodesic, WGS84 loxodrome; 19 806 random pairs) | worst 0.502 % (great circle and rhumb line), 0.514 % on 10 NM legs | a stated bound | 14 |
+| Dip short of the horizon (Bowditch 2019 vol. 2 Table 14, 28 entries, 5–100 ft, 0.2–10 NM) | worst 0.046′ (the table prints 0.1′) | 0.1′ | 14 |
+| Star identification (each of the 58 stars from its own predicted Hs and Zn, 5 random places and times each; 400 sights with 1′, 1.5° and 10 NM of error) | 290/290 ranked first (worst separation < 0.00001°); with errors 400/400 within tolerance, 400/400 first | every star recovered | 14 |
+| Star finder geometry (a set template against section 3, 20 000 random cases) | every star on its altitude and azimuth to 1e-9 of the disc's radius | exact | 14 |
+| Moon in detail: libration, sub-solar point, axis (vs Skyfield + JPL's DE440 lunar orientation; Meeus 53.a) | 0.0052° / 0.0060° / 0.0061° over 1550–2650 (model), 0.0058° end to end for observers; Meeus 53.a to every printed digit | 0.05° | 14 |
+| Moon in detail: perigee, apogee, supermoons (vs Skyfield + DE440s) | instants within 11.2 s, distances 0.22 km; every supermoon/micromoon flag agrees | 2 min, 10 km | 14 |
+| Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s; a year at one place in 76 ms of CPU | 30 s; 200 ms | 14 |
+| Tides, `tides-us` pack (vs NOAA's own predictions: 20 harmonic stations × 30 days, 6 subordinate, and a 3-day sweep of all 3 492 predictable stations) | high and low water within 1.10 min and 1.08 cm (20 stations, 2 087 extremes; Anchorage the 1.08 cm, the others ≤ 0.12 cm); curve within 1.38 cm (others ≤ 0.29 cm); sweep 39 120 extremes within 1.36 min and 0.99 cm | 2 min, 5 cm | 16 |
 
 ## 1. What accuracy means here
 
@@ -549,11 +562,14 @@ categories a real error would have fallen into.
 |---|---|---|---|
 | sextant sigma (realistic instrument, independent noise) | 1.0′ per sight (0.1′ is the tightest anywhere in this project's fixtures) | yes — the solver's whole uncertainty model is built on a declared per-sight sigma | this document, section 2, "Why 0.05′ for the ephemeris"; `docs/CONVENTIONS.md` section 10 example session |
 | refraction model (Bennett 1982) | own residual against the standard atmosphere ≤ 0.07′ | yes, as the correction chain's step 3 | `docs/CONVENTIONS.md` section 5 |
-| DUT1 (UT1 − UTC) assumed zero | up to 0.23′ of GHA for the everyday case (\|DUT1\| < 0.9 s); up to 0.88′ in Skyfield's extrapolated worst case at 2055 | no — DUT1 is assumed 0 everywhere unless a provider is given one | `docs/CONVENTIONS.md` section 6; this document, section 2, "ΔT and DUT1" |
+| DUT1 (UT1 − UTC) | up to 0.23′ of GHA (a quarter of a mile of longitude) when unknown, for the everyday case (\|DUT1\| < 0.9 s); up to 0.88′ in Skyfield's extrapolated worst case at 2055 | **an input** (expansion programme): the session's `clock.dut1_s`, the CLI's `--dut1`, the Navigate field "UT1 − UTC from the time signal"; each moves every GHA by 15.04″ per second, whatever the body (`crates/skyfix-cli/tests/dut1.rs`, `crates/skyfix-wasm/src/nav.rs` tests). Without one the engine uses 0 until the IERS history lands (timescales work), and the Navigate field says "Unknown: ±0.9 s, up to ±0.23′ of longitude" | `docs/CONVENTIONS.md` sections 6 and 15.2; this document, section 2, "ΔT and DUT1" |
+| a sight time typed without seconds | a whole minute of time is 15′ of GHA; `HH:MM` means `:00` | guarded: the Navigate sight form says "Seconds omitted: :00 assumed; each second is 0.25′ of longitude" and takes the time (`web/src/next/navigate/parse.ts`) | `web/test/next/navigate-input.test.ts` |
 | diurnal aberration | up to 0.32″ (0.0052′) for an equatorial observer, worst case measured; 0.21″ across the five `reference-philadelphia-5star` sights specifically | no — CONVENTIONS section 7 defines the frame as geocentric of date, with diurnal aberration explicitly excluded | this document, section 2, "Spherical model vs full topocentric computation", and section 3, "The session fixtures"; measured from `fixtures/reference/topocentric_altaz.json` |
 | ephemeris (Sun and stars vs the independent Skyfield/JPL/USNO reference) | declared 0.01′ (Sun) / 0.02′ (stars); worst measured 0.0026′ (Sun GHA) / 0.0011′ (star separation) | yes, to the tolerance shown — this is what section 2 measures in full | `skyfix coverage` (command run in this worktree); this document, section 2 |
-| sphere vs ellipsoid | Earth's flattening is about 0.3 %, "irrelevant at the tens-of-metres level" against this project's targets | no — the model is a sphere everywhere, no ellipsoid correction | `docs/CONVENTIONS.md` section 1 ("the model is a sphere; no ellipsoid correction is applied anywhere"); `docs/ARCHITECTURE.md`, "Why these choices" |
-| the Earth's shape in the Moon's parallax | up to 0.22′ (median 0.09′) per Moon sight; under 0.005′ for planets | no in sight reduction and predicted readings (the sphere of CONVENTIONS section 1); **yes** in the lunar-distance clearing (WGS84 observer) | section 10; `docs/CONVENTIONS.md` section 5 step 5 |
+| sphere vs ellipsoid | Earth's flattening is about 0.3 %, "irrelevant at the tens-of-metres level" against this project's targets | no — the model is a sphere (1′ = 1 NM, geodetic coordinates), with the three exceptions of CONVENTIONS section 1: the display's topocentric values, the lunar-distance clearing and the Moon's model altitude (next row) | `docs/CONVENTIONS.md` section 1; `docs/ARCHITECTURE.md`, "Why these choices" |
+| the Earth's shape in the Moon's parallax | up to 0.24′ (median 0.09′ over 104 Skyfield sights, 0.05′ over random observable sights); at most 0.0021′ for a planet (Venus at inferior conjunction), 0.0006′ for the Sun | **yes** for the Moon (expansion programme): in its model altitude wherever one is evaluated (CONVENTIONS 15.4), leaving a perfect WGS84 Moon sight within 0.0064′ of it; and in the lunar-distance clearing. Not applied to the planets or the Sun | section 10; `crates/skyfix-core/tests/moon_earth_shape.rs`; `docs/CONVENTIONS.md` section 15.4 |
+| dip anomaly (the air–sea temperature difference bending the line to the horizon) | 1–2′ is common, more in extremes (looming, a mirage at the horizon) | no — physical, and no model of the air over the sea is worth having. The remedy is the shared-bias estimate: `SolveOptions.estimate_shared_bias` (CLI `solve --bias`) solves a common altitude error as a third unknown, which a dip error is, given three or more sights spread round the horizon (the sight planner picks them that way). Section 3 measures it: coverage stays 95.5 % with a shared 2′ bias estimated, and falls to 42 % when it is not | `docs/CONVENTIONS.md` sections 5 step 2 and 8; section 3, "The Monte Carlo coverage results" |
+| anomalous refraction near the horizon | several ′ below 5° of altitude, about 0.1–0.2′ at 10° | flagged below 10°, 1′ added to the sigma below 5°, refused below 0° (CONVENTIONS section 5 step 3); the anomaly itself is physical and not modelled. Its common part is absorbed by the shared-bias estimate as above; the rest is avoided by sights above 10–15° (the planner's floor is 15°) | `docs/CONVENTIONS.md` section 5 step 3; `docs/PLANNER.md` |
 | Venus's centre of light | up to 0.41′ between the disc's centre and its light; the model agrees with USNO to 0.003′ | yes — Venus's sight direction is its centre of light, as in the Nautical Almanac | section 10; `docs/CONVENTIONS.md` section 7 |
 
 Two of these rows are worth reading together: DUT1 and diurnal aberration are
@@ -565,13 +581,14 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
 
 ## 5. Known limitations and things deliberately not modelled
 
-* **Moon and planet sights reduce on the spherical Earth.** The Moon, Venus, Mars,
-  Jupiter and Saturn are offered for sights (section 10, `docs/NAVIGATION_SKY.md`):
-  the Moon's augmented semidiameter and rigorous parallax, the planets' parallax,
-  Venus at its centre of light, and each body's own GHA rate for the clock term.
-  The one thing left out is the Earth's shape in the Moon's parallax: up to 0.22′
-  (median 0.09′) on the real Earth, a few tens of metres in the fixes of section 10.
-  Mercury, Uranus and Neptune are shown but never offered for sights.
+* **Moon and planet sights reduce on the spherical Earth, the Moon's model altitude
+  on the real one.** The Moon, Venus, Mars, Jupiter and Saturn are offered for sights
+  (section 10, `docs/NAVIGATION_SKY.md`): the Moon's augmented semidiameter and rigorous
+  parallax, the planets' parallax, Venus at its centre of light, and each body's own GHA
+  rate for the clock term. The Earth's shape in the Moon's parallax (up to 0.24′) is in
+  its model altitude (CONVENTIONS 15.4). Left out: the observer's height in that term
+  (30 m is 0.0003′) and the planets' term (at most 0.0021′). Mercury, Uranus and Neptune
+  are shown but never offered for sights.
 * **The core solver assumes a stationary observer.** `skyfix-core::solver`
   has no motion model. `skyfix-motion::running_fix` (see `docs/MOTION.md`)
   handles a moving observer by advancing each sight's geographic position to
@@ -623,7 +640,9 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
   WGS84 ellipsoid normal.
 * **Refraction below Ha = 0** is rejected, and Bennett's own residual (≤ 0.07′)
   is inside the sigma floor and not modelled. Real anomalous refraction near
-  the horizon is far larger than either and is not represented in any fixture.
+  the horizon is far larger than either and is not represented in any fixture;
+  section 4 gives its size, and the dip anomaly's, with the shared-bias estimate as
+  the remedy for the part the sights share.
 
 ## 6. How to reproduce every number here
 
@@ -655,7 +674,8 @@ Owner: Moon agent. The provider is `skyfix_ephemeris::moon::MoonProvider`: ELP 2
 (CDS VI/79, 2023 of 37 872 terms) through the project's IAU 2006/2000B frame chain; see
 the module documentation for the model and `docs/THIRD_PARTY.md`, "Moon model", for the
 data. It declares **`accuracy_arcmin` = 0.02′**, excluding (like the Sun and the stars)
-the DUT1 = 0 assumption of CONVENTIONS section 6, which is worth up to 0.23′ of GHA.
+the DUT1 of CONVENTIONS section 6 (0 unless the session or the caller gives it), which
+is worth up to 0.23′ of GHA when unknown.
 
 ### Geocentric, against Skyfield + JPL DE440s
 
@@ -995,21 +1015,40 @@ positions with the CONVENTIONS refraction, dip and index error;
 | Rust chain vs the chain transcribed in Python from the text | 1.1e-10′ (all bodies) | | | |
 | sphere Earth, supplied DE440s directions | 0.0059′ | 0.0048′ | 0.0038′ | 0.0039′ |
 | sphere Earth, the providers' own directions | 0.0063′ | 0.0053′ | 0.0041′ | 0.0035′ |
-| WGS84 Earth | **0.2202′** (median 0.088′) | 0.0048′ | 0.0023′ | 0.0045′ |
+| WGS84 Earth, Ho against the sphere's geocentric altitude | 0.2202′ (median 0.088′) | 0.0048′ | 0.0023′ | 0.0045′ |
+| **WGS84 Earth, Ho against the model altitude** (CONVENTIONS 15.4) | **0.0064′** | 0.0048′ | 0.0023′ | 0.0045′ |
 
 The sphere residuals are the diurnal aberration Skyfield includes; the WGS84 Moon
-residual is the Earth's shape, which the sphere of CONVENTIONS section 1 leaves out.
+residual against the sphere is the Earth's shape, which the Moon's model altitude now
+carries (the expansion programme's Earth-shape term: its size over these 104 Moon sights,
+median 0.088′, worst 0.222′).
 
 **End to end** (`fixtures/sessions/reference-moon-*.json`, ephemeris `auto`, raw sextant
-readings, solved with the unchanged solver): 2.7 m and 5.2 m from truth on the sphere,
-17.9 m and 34.9 m on the WGS84 Earth.
+readings): the WGS84 sessions fix **2.6 m** and **5.1 m** from the truth (17.9 m and 34.9 m
+on the sphere alone; the test bound, 60 m and 80 m before, is now 15 m). The `*-sphere`
+sessions, built on a sphere of radius 6378.14 km, recover their truth to 2.7 m and 5.2 m
+solved with the term switched off, the model they were built for, and miss by 22.7 m and
+30.4 m with it on.
+
+**The term itself** (`crates/skyfix-core/src/sights/wgs84.rs` and
+`tests/moon_earth_shape.rs`): the component form the solver uses equals the explicit
+vector form to 1.5e-12′ and an independent Python computation to 1e-11′; the first-order
+formula `HP f (sin²φ cos h − sin 2φ sin h cos Z)` with the observed altitude matches it to
+0.00018′ below 84°; worst case 0.2382′ (φ 54.9°, the Moon toward the equator at 55°,
+HP 61.5′). A Moon and three stars on the real Earth fix to 0.00 m (137 m on the sphere
+alone); a Moon noon latitude (term +0.22′ there) to 1e-6′, single maximum 0.001′,
+ex-meridian 4e-6′; a running fix with a Moon sight to 0.03 m (266 m without the term).
+The solver keeps the sphere's Jacobian row: measured, the term's own slope is 0.9e-4 of
+the main term's below 45°, 1.8e-4 below 70° and 7e-4 at 85°.
 
 **Against USNO** (`fixtures/reference/usno_celnav_venus_phase.json`,
 `tests/usno_venus_phase.rs`, USNO's 10.36 s lag allowed for): Venus's centre of light
 within 0.0031′ at twelve phase angles from 15° to 157° (the geometric centre misses by up
 to 0.41′; fitted coefficient 0.4403 against the 0.44 used); Mars within 0.0007′ (no phase
-correction, as in USNO); the WGS84 Moon parallax within 0.004′ of USNO's, and the
-sphere's up to 0.22′ from it; the Moon's semidiameter 0.006′ larger than USNO's (k).
+correction, as in USNO); the Moon's parallax implied by the sight model (the sphere's
+less the Earth-shape term) within **0.0004′** of USNO's at eight positions, the WGS84
+display within 0.004′, and the sphere's alone up to 0.22′ from it; the Moon's
+semidiameter 0.006′ larger than USNO's (k).
 
 **Lunar distances** (`fixtures/reference/lunar_distances.json`, 22 cases to the Sun, ten
 stars and four planets, measured between refracted limbs found numerically on the WGS84
@@ -1399,3 +1438,829 @@ each.
   about five minutes).
 - `cargo test --release -p skyfix-almanac --test planet_events -- --include-ignored
   --nocapture` prints the numbers for 2019-2026 and 1990-2060.
+
+## 14. Sun tools
+
+Owner: suntools agent (expansion programme P7). The engine is `skyfix_almanac::sun_tools`
+(definitions CONVENTIONS 13.10; wire format `docs/EXPLORER_API.md`, "Expansion programme —
+sun tools"). It is built on the event finder and `sky_state` (sections 2 and 9), so its
+positions are theirs; what is new is checked here: the searches, the clocks, the formulas.
+Reference fixture: `fixtures/reference/sun_tools_skyfield.json` (Skyfield 1.55 + JPL
+DE440s, UT1 = UTC by construction), tests `crates/skyfix-almanac/tests/sun_tools_*.rs`.
+
+### Against Skyfield + JPL DE440s
+
+`tests/sun_tools_reference.rs` (`--nocapture` prints every figure).
+
+| quantity | cases | target | worst |
+|---|---|---|---|
+| equation of time | 480 instants, 1990-2060 | 1 s | **0.012 s** |
+| the Sun's declination beside it | same | 0.01° | 0.108″ |
+| galactic centre, apparent RA/Dec of date | 72 (6 sites, 1995-2055) | 0.01° | 0.020″ |
+| galactic centre, topocentric altitude / azimuth | same | 0.01° | 0.262″ / 0.310″ |
+| the arch's highest point, against a brute-force search along Skyfield's galactic equator | same | 0.01° | 28.6″ altitude, 31.0″ azimuth |
+| bearing crossings of the Sun and the Moon, error on the sky | 11 crossings, 6 sites | 0.01° | **0.21″** |
+| bearing crossings, instant, where the bearing is swept faster than 1°/h | 10 | 1 s | 0.015 s |
+| Manhattan's sunsets (h0 = −50′), instant / azimuth | 26 evenings, May and July 2026 | 1 s / 0.01° | 0.005 s / 0.21″ |
+| analemma at 12:00 local mean time (Philadelphia) | 24 dates of 2026 | 0.01° | 0.218″ |
+
+The arch's 29″ is not an error of either side: the formula (CONVENTIONS 13.10) takes the
+great circle 90° from the *aberrated* pole, while the fixture aberrates each point of the
+band; annual aberration (20.5″) moves the two differently, by at most √2 × 20.5″ = 29″.
+Both are far inside what a Milky Way band 10-20° wide can show. One bearing crossing is
+ill-conditioned: at Quito at the equinox the Sun climbs almost straight up at azimuth 90°
+(the bearing is swept at 0.06°/h), so its instant differs from Skyfield's by 1.0 s while
+the direction differs by 0.063″; the test judges every crossing by its error on the sky
+and the instant only where the sweep exceeds 1°/h.
+
+### Against published values
+
+- **Meeus, *Astronomical Algorithms* example 28.a** (1992 October 13.0 TD): the book gives
+  the equation of time as +13m 42.6s (3.427351° = 822.564 s); this engine gives 822.385 s
+  (**−0.18 s**). The difference is the definition of the mean sun: the engine uses the
+  almanac page's `GHA − 15° (UT − 12 h)` (CONVENTIONS 13.9), Meeus the Sun's mean
+  longitude, which runs 0.21 s ahead (`skyfix_ephemeris::sun::equation_of_time_min`
+  follows Meeus and reproduces the book within 0.1 s). The yearly series equals the
+  almanac pages' `eot_12h` exactly.
+- **Manhattanhenge** (the American Museum of Natural History's published dates for 2026:
+  half sun 28 May, full sun 29 May, full sun 11 July, half sun 12 July), with Manhattan's
+  grid at azimuth 299.0° and the engine's clock EDT (`tests/sun_tools_logic.rs`,
+  `manhattanhenge_as_the_engine_sees_it`):
+
+  | definition | May | July |
+  |---|---|---|
+  | the engine's sunset: upper limb on a sea-level horizon, standard refraction | 24 May | 18 July |
+  | "half sun", the centre at 0° apparent | 25 May | 16 July |
+  | "half sun", the centre at 0° **geometric** (no refraction) | **28 May** | 14 July |
+  | "full sun", the lower limb at 0° geometric | **29 May** | 13 July |
+
+  AMNH's May dates are reproduced exactly when refraction is left out; its July dates
+  are two days earlier than the engine's. The engine's May and July dates have the same
+  solar declination (checked: within 0.15°), as they must for the same azimuth at the same
+  altitude and latitude, so the difference is in the published July computation or its
+  horizon, not in the Sun's position. Real streets end at a raised horizon (buildings, New
+  Jersey), which the sea-level model does not know; `at_altitude` lets a user give it.
+- **The clear-sky model** is a labelled estimate, not a validated number: the formulas are
+  checked against their printed form (Reno, Hansen & Stein 2012, SAND2012-2389, eqs. 18
+  and 22-23, and the isotropic plane of array; 67 cases to 1e-5 W/m²), and its typical
+  error is the report's: **RMSE 6.6 %** of measured clear-sky global irradiance averaged
+  over 30 U.S. sites (about 300 site-years) with a small mean bias, underestimating at
+  high-elevation sites and varying with season and time of day. Clouds are not modelled.
+  Sanity: a clear day at Philadelphia (40° N) gives 8.8 kWh/m² on the ground at
+  midsummer and 2.4 kWh/m² at midwinter; Philadelphia's
+  clear-sky year is 2099 kWh/m² flat, 2448 kWh/m² at 30° facing south, best tilt 34.7°
+  (2455 kWh/m²).
+
+### Consistency with the rest of the engine
+
+`tests/sun_tools_logic.rs`, by dense brute-force sampling of `sky_state`:
+
+- golden and blue hours at ten place-days (Philadelphia at the solstices and an equinox,
+  Tromsø at midwinter, midsummer, January and November, Quito, Sydney, 89.9° N): every
+  crossing at its threshold to **9e-7°**; the band of the Sun sampled every 2 minutes
+  agrees with the windows everywhere; the −6° crossings are `day_events`' civil dawn and
+  dusk within 5 ms; morning windows climb and evening windows sink;
+- a bearing of 180° is the meridian passage of the Sun, the Moon and Jupiter within 5 ms;
+  every crossing of five bodies at eight bearings is on its bearing in `sky_state` to
+  1e-4°;
+- the analemma, the sun path and rise and set azimuths are `sky_state`, `sample_bodies`
+  and `day_events` at the same instants (to 1e-5° and 10 ms);
+- the Milky Way windows hold their conditions at every 5-minute sample, are maximal
+  (10 s outside each edge a condition fails or the Moon rises or sets), and their best
+  moment is the highest sample.
+
+### Speed
+
+Release build, x86-64, on the shared 8-core machine under heavy load from the other
+agents (load average about 20), `cargo test --release -p skyfix-almanac --test
+sun_tools_perf -- --ignored --nocapture`:
+
+| call | native |
+|---|---|
+| `sun_hours`, one day | 0.7 ms |
+| `find_azimuth`, the Sun, a year | 47 ms |
+| `alignment_days`, sunsets of a year / the Sun at 5° | 60 ms / 56 ms |
+| `analemma`, `equation_of_time`, a year | 10 ms / 12 ms |
+| `sun_path` with its envelope | 4 ms |
+| `rise_set_azimuths`, the Sun, a year | 58 ms |
+| `solar_year`, with the best-tilt search | 52-90 ms |
+| `galactic_centre_windows`, a night / 30 nights | 1.3 ms / 41 ms |
+| the Moon's year series (`rise_set_azimuths`, moonrise alignments) | 0.27-0.33 s |
+
+Every year-long series of the Sun is under the 200 ms budget. The Moon's are dominated by
+the provider: a year of the event finder's 3-hour track nodes is about 2900 exact
+evaluations of ELP 2000-82B at about 0.1 ms each. WebAssembly (Node, the same shared
+machine) ran the Sun's year series in 0.15-0.6 s, about four times native, the same ratio
+as the existing `day_events`.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python -m tools.reference.gen_sun_tools` regenerates the
+  fixture (offline, about 10 s).
+- `cargo test --release -p skyfix-almanac --test sun_tools_reference --test
+  sun_tools_logic -- --nocapture` prints every figure above.
+
+## 15. Magnetic variation and compass error
+
+Owner: geomag agent (expansion programme). The models are `crates/skyfix-geomag`
+(CONVENTIONS 14.1), the method `crates/skyfix-core/src/methods/compass.rs`
+(CONVENTIONS 14.2, NAVIGATION_METHODS 9), the exports `crates/skyfix-wasm/src/geomag.rs`.
+
+**Two different accuracies.** The numbers below say how exactly SkyFix evaluates the
+published models: to a millionth of a degree. How well the models describe the real field
+is a different, much larger number, and it is the one the interface shows beside every
+variation (`uncertainty.declination_deg`): for WMM2025, NCEI's error model, 0.29° where
+the horizontal field is strongest, about 0.36° at Philadelphia, growing like `5417/H`
+toward the magnetic poles (2.7° at H = 2000 nT, the edge of the blackout zone); for
+IGRF-14, Beggan (2022)'s 0.39° global standard deviation for 1980-2020, widened for less
+certain eras (×1.49 in 1945). Local magnetic anomalies of a few degrees are common over
+small areas and are in no global model.
+
+### WMM2025 against its official test values
+
+`crates/skyfix-geomag/tests/wmm2025_official.rs`, against
+`fixtures/reference/geomag_wmm2025.json` (NOAA NCEI's `WMM2025_TestValues.txt` and the
+technical report's tables; `tools/geomag/gen_fixtures.py`):
+
+| quantity | 100 official test values (2025.0-2029.5, 0-98 km) | Table 6 (12 rows) |
+|---|---|---|
+| declination, as printed (0.01°) | **0.0050°** | 0.0046° |
+| inclination, as printed (0.01°) | **0.0050°** | 0.0050° |
+| declination from the file's own X, Y (6 decimals) | 1.4e-6° | — |
+| X (north) | 7.2e-4 nT | 0.048 nT (printed 0.1) |
+| Y (east), Z (down) | 5.0e-7 nT, 2.2e-6 nT | 0.044, 0.049 nT |
+| H, F | 7.0e-4, 4.3e-4 nT | 0.050, 0.045 nT |
+| rates of X, Y, Z, H, F | ≤ 1.5e-6 nT/yr | ≤ 0.050 nT/yr |
+| rates of D, I | 5.0e-7 °/yr | 0.0049 °/yr |
+
+The X differences, and only they (Z moves by `sin psi` of them), are the file's: its X′
+carries noise of about 1e-8 of the field, while its Y′ and Z′, and the report's
+high-precision numerical example (Tables 3a-3b, reproduced step by step to 1e-6 nT,
+`src/reference_tests.rs`), agree with SkyFix to a few micro-nT; SkyFix's Legendre
+derivatives satisfy the exact identity to 1e-12. The WMM's licence to use its name asks
+for 0.1 nT and 0.1 nT/yr. At the report's dip poles (Table 4, 2025.0) the horizontal
+field is under 30 nT, as the rounding of their positions to 0.01° allows.
+
+### IGRF-14 against IAGA, BGS and NOAA
+
+`crates/skyfix-geomag/tests/igrf14_reference.rs` and `src/reference_tests.rs`, against
+`fixtures/reference/geomag_igrf14.json`:
+
+- **IAGA's own test values** (the twelve cases of its `pyIGRF14` package, geocentric, one
+  every 15 years from 1900 and at 2010-2030): every X, Y, Z within 0.0099 nT; the package
+  prints to 0.01 nT, rounding before 2010 and cutting off from 2010 (17529.4899 is printed
+  17529.48).
+- **The British Geological Survey's IGRF-14 calculator** at 25 points from 1900 to
+  2029-12-31: London, Philadelphia, Cape Town, Tokyo, Buenos Aires, Anchorage, Reykjavik,
+  Honolulu, Singapore, Svalbard, McMurdo, Mumbai, Moscow, Lima, Nairobi at 1.7 km (during the
+  1995-2000 change of degree), Nova Scotia, New Zealand, the Canadian Arctic (H 3500 nT),
+  the Gulf of Mexico, the Southern Ocean, Paris, Mauritius, the mid-Atlantic at 10 km in
+  2027 (forecast) and 85° N in 2029. Worst **declination 0.0005°, inclination 0.0005°**
+  (the service prints 0.001°), intensities 0.50 nT (printed 1 nT), rates 0.05 nT/yr and
+  0.05′/yr (printed 0.1). The brief's target is 0.1°. The service reads a date as its
+  middle (it reports 2030-01-01 as 2030.001), so each case is compared at 12:00 UTC.
+  NOAA's own calculator answers only with a registered key and was not used.
+- **NOAA's Geomag 7.0 sample output** at 2015 (+1/365), where IGRF-13 and IGRF-14 share the
+  definitive 2015 field: declination within 0.48′ (printed to 1′), inclination 0.25′,
+  intensities 0.04 nT (printed 0.1).
+- The coefficient tables are the published files, number for number
+  (`models::tests::the_tables_are_the_published_files`).
+- The automatic switch from IGRF-14 to WMM2025 at 2025.0 moves the declination by at most
+  0.014° at four mid-latitude cities, a twentieth of either model's uncertainty.
+
+### Compass error
+
+`crates/skyfix-core/tests/compass_reference.rs` and `crates/skyfix-wasm/src/geomag.rs`:
+Bowditch's five worked examples of chapter 15 (1501 Sun's azimuth 123.187° against the
+book's 123.2°; 1502 Polaris through the engine 359.250° against the Almanac table's
+359.2°; 1504 amplitude 32.666° against 32.6°; 1505 Table 23's correction +1.219° against
++1.2° and the gyro error 0.633° E against 0.6° E; 1506 99.133° against 99.1°), all within
+the 0.1° its tables print; the azimuth method equals the explorer's topocentric `az_deg`
+to 0.00001° for the Sun, the Moon, Jupiter and three stars at 16 place-dates (Venus
+0.006°, by design: its centre of light); amplitude bearings equal the topocentric azimuth
+at the crossing to 0.0000° (Sun) and 0.003° (Moon). The full table is in
+`docs/NAVIGATION_METHODS.md` section 9.4.
+
+### Speed and size
+
+Release build, x86-64, on the shared 8-core machine: 9-12 µs for one full `field` (with
+rates, uncertainty and notes); a 1-degree global grid of declination (65 341 points) in
+71 ms, 1.1 µs a point. The
+coefficients add about 11 KB to the binary (integer tables; the IGRF-14 epochs before 2000
+are whole nanotesla and fit in 16 bits). Against the programme's base commit (3030e4f) the core
+WASM module (`npm run wasm`) grows from 2 060 798 to 2 130 258 bytes, 849 019 to 878 239
+gzipped (-9): +69 KB and +29 KB, the rest being the code of the models, the compass method
+and their wire formats. With the sun tools merged as well it is 2 249 383 bytes, 923 851
+gzipped, against the 2.5 MB / 1 MB budget.
+
+## 14. Sailings, dip short, star identification, star finder (expansion programme)
+
+*Sailings agent, 2026-09-24. Methods: `docs/NAVIGATION_METHODS.md` sections 9–13.*
+
+### Sailings against Bowditch
+
+`fixtures/reference/bowditch_sailings.json` types every numbered worked example of Bowditch
+2019 vol. 1 ch. 12 "The Sailings" (26 cases, 77 compared quantities), and
+`crates/skyfix-core/tests/sailings_worked_examples.rs` runs each through
+`skyfix_core::sailings`. Everything agrees to the printed precision (0.1′, 0.1 NM, 0.1° of
+course; 0.01° where the book prints it) except where the book's own arithmetic moves the
+printed number: it rounds trigonometric values to four decimals (up to 0.43′ on a vertex
+longitude from a ratio of two such values, 0.62′ where an arc-cosine near 1 magnifies one),
+and it rounds a course to 0.1° before taking the distance from it (up to 1.5 NM at the
+courses of its examples). Each such tolerance is that rounding carried through, and each
+case says why. Two errata: §1208 example 3's final course (printed 287.4°; the book's own
+formula with its own inputs gives 289.35°, which SkyFix matches to 0.0014°), and Table
+1209b's last column (its arc and distance should be 70° and 4200 NM, as its declination
+entry says, and its longitude east, not west). The Mercator examples use the WGS84
+meridional parts, as the book's Table 6 does; on the sphere their courses move by 0.12° and
+0.16°. The full table is in `docs/NAVIGATION_METHODS.md` section 9.9.
+
+### The sphere against WGS84
+
+`crates/skyfix-core/tests/sailings_wgs84.rs`: Vincenty's inverse (checked against the
+Geocentric Datum of Australia's worked example, 54 972.271 m to 1 mm, and the WGS84 quarter
+meridian, 10 001 965.729 m) and the WGS84 loxodrome (isometric latitude and meridian arc)
+against the sphere's great-circle and rhumb-line distances over 19 806 random pairs
+(latitudes within 80°, up to 170° apart): worst **0.502 %** for both; on 10 NM legs at
+latitudes 0°–89°, **0.514 %**. A minute of latitude is 1842.9 m at the equator and 1861.6 m
+at the poles against the sphere's 1852 m. The passage's notes state the bound.
+
+### Dip short of the horizon
+
+`crates/skyfix-core/tests/dip_short.rs` against 28 entries of Bowditch 2019 vol. 2 Table 14
+(`fixtures/reference/bowditch_dip_short.json`), 5 to 100 ft and 0.2 to 10 NM, four of them
+beyond the sea horizon where the table repeats the sea dip: worst **0.046′**, inside the
+table's own 0.05′ rounding. The arctangent form is needed at the table's corner (100 ft,
+0.2 NM: 282.3′ printed; the linear form's 282.97′ would miss by 0.67′). Predicted readings to
+a shore horizon reduce back to their `Hc` exactly; the shore horizon round-trips through
+JSON and CSV.
+
+### Star identification
+
+`crates/skyfix-wasm/src/sailings.rs` tests, with the explorer's sky (58 stars, Mercury to
+Saturn, the Moon): each of the 58 stars, from its own predicted sextant reading and azimuth
+(`predict_sextant`, height of eye 3 m, index correction −1.2′) at five random places and
+times each, 10° to 80° high, is ranked first: **290 of 290**, worst separation under
+0.00001°. With 1′ of altitude error, 1.5° of bearing error and a DR 10 NM out (1 sigma each),
+the true star is within the default tolerances in **400 of 400** sights and first in all
+400. The Moon is found from its own lower-limb reading. The brightness rule
+(`limiting_magnitude`) is a labelled heuristic, equal to the planner's in nautical twilight
+by test; it is not validated against observations.
+
+### Star finder
+
+`crates/skyfix-core/src/methods/starfinder.rs` tests: at 20 000 random template latitudes,
+hour angles of Aries and stars, the template set on the Aries index places each star above
+the horizon at its CONVENTIONS section 3 altitude and azimuth to **1e-9** of the disc's
+radius; the same holds for the real 58 stars at a real time. The grid is geometric (no
+refraction, no dip), like the printed 2102-D, and a template serves ±5° of latitude, where
+readings are good to a few degrees: that is the instrument's accuracy, stated, not tested.
+
+### Index-error and watch logs
+
+`crates/skyfix-core/tests/error_logs.rs`: the interpolated values, the held values and their
+warning, the reduced sight's record of the value used, JSON and CSV round trips, a
+predicted reading that reduces back to its `Hc` with a logged index correction, and an
+averaged sight written on the logged watch that reduces back to its own instant (to 1 ms).
+Sessions without logs reduce byte-identically.
+
+### Reproduce
+
+```console
+python3 -m tools.geomag.gen_fixtures            # the two fixtures (BGS needs the network)
+python3 -m tools.geomag.gen_coeffs              # crates/skyfix-geomag/src/coeffs.rs
+cargo test -p skyfix-geomag -- --nocapture
+cargo test -p skyfix-core --test compass_reference -- --nocapture
+cargo test -p skyfix-wasm geomag -- --nocapture
+```
+
+## 14. Time scales: Delta-T, UT1 and calendars
+
+Model and definitions: CONVENTIONS 15.2-15.3 and `skyfix_core::{time, deltat, calendar}`
+(timescales agent, 2026-09-24; UT1 − UTC from IERS `finals2000A.all` of 2026-09-25). Tests: `crates/skyfix-core/tests/timescales_reference.rs`
+against `fixtures/reference/timescales.json` (`tools/timescales/gen_timescales.py`,
+Skyfield 1.55), the unit tests of those modules, and `web/test/next/timescale.test.ts`.
+
+**What changed, and what it is worth.** Before, TT − UTC was 32.184 s + ΔAT everywhere
+(42.184 s for any date before 1972, 69.184 s for any date after 2016) and UT1 was UTC. That
+made ΔT 153 s wrong in 1550 (the Moon 1.4′), 13 hours wrong at 2000 BC, and ignored UT1 −
+UTC, up to 0.9 s (0.23′ of GHA) on every date. Now the clock is UT outside 1972-2035 with
+TT = UT + ΔT from the model below, and inside it UT1 = UTC + DUT1 from the IERS history.
+
+### Delta-T against Skyfield (targets from the brief)
+
+Three references, all Skyfield 1.55: its `build_delta_t` run on this project's weekly table
+(the Python twin), its timescale built from the same `finals2000A.all` at daily resolution
+(`skyfield.data.iers`, as `load.timescale(builtin=False)` does), and its shipped timescale,
+whose bundled table is an earlier `finals2000A.all` (it matches this one to 0.05 ms
+through 2026-01-16 and is Skyfield's own January-2026 prediction after that).
+
+| span | compared with | worst difference | target |
+|---|---|---|---|
+| −2000 to 3000, 1 075 epochs | the Python twin | **5 × 10⁻¹⁰ s** | 1 µs |
+| 1973-01-02 to 2026-09-24, IERS observed | Skyfield from the same `finals2000A.all` | **1.5 ms** (the weekly table's interpolation) | 0.01 s |
+| 2026-09-25 to 2027-09-28, IERS Bulletin A's prediction | the same | **1.2 ms** | 0.01 s |
+| 1973-01-02 to 2026-01-16, where the bundle is observed | Skyfield's shipped timescale | **1.5 ms** | 0.01 s |
+| −720 to 1972, the SMH 2016 splines (2020 revision) | both | **0** (identical tables; under 10⁻⁴ s in 1971-1973 from the adjusted last segment) | 1 s |
+| −2000 to −720 and after 2800, the parabola and the left join | both | **0** | equal |
+| 2026-01-17 to 2026-09-24 | Skyfield's shipped timescale, whose table is its January prediction there | 0.10 s | none: the bundle's own prediction error (0.4 ms by 01-23, 5.6 ms by 02-28, 0.11 s by 09-24) |
+| 2026-09-25 to 2027-09-28 | the same | 0.31 s (2027.4) | none: two predictions eight months apart |
+| 2027-09-28 to 2800, the join to the parabola | Skyfield from the same file | 0.21 s at 2290 | inside σ (230 s there): the joins start six days apart (ours at the last weekly sample) |
+| the same | Skyfield's shipped timescale | 16 s at 2280 (5 s in 2060) | inside σ (220 s at 2280, 10 s in 2060): its join starts from its January prediction |
+
+UT → TT inverts ΔT(TT) exactly as Skyfield's `ut1_jd` does; the round trip is exact to
+10⁻⁵ s over −2000..3000. Reference fixtures built with `tools/timescales/skyfield_timescale.py`
+share this ΔT to 5 × 10⁻¹⁰ s, so ΔT never counts as ephemeris error in them.
+
+### The standard uncertainty of Delta-T
+
+| epoch | ΔT | σ | source of σ |
+|---|---|---|---|
+| −2000 | 13 h 07 min | 1.04 h (3 732 s) | Huber (2000) from −500, NASA's rule; NASA's Table 3 value to 1 s |
+| −1000 | 7 h 02 min | 622 s | the same (NASA: 622 s) |
+| −500 | 4 h 42 min | 150 s | Stephenson, Morrison & Hohenkerk's published error |
+| 0 | 2 h 54 min | 90 s | the same |
+| 1000 | 1 650 s | 15 s | the same |
+| 1600 | 109 s | 15 s | the same |
+| 1900 | −2.0 s | 0.11 s | the splines' measured rms against IERS 1973-2019 (their published 0.05 s is the observations' error; the spline itself is off by up to 0.27 s) |
+| 1990-2026 | IERS | 0.001 s | the weekly table (at most 1.9 ms, 0.5 ms rms) |
+| 2030 | 69.6 s | 0.30 s | Huber from 2026-09-24 (Bulletin A's own formula for the first 112 days) |
+| 2060 | 78.7 s | 9.8 s | the same |
+| 2100 | 104.5 s | 32 s | the same |
+| 2650 | 31 min | 15 min | the same |
+| 3000 | 69 min | 30 min | the same |
+
+The future curve is a model, not a forecast: Stephenson, Morrison & Hohenkerk's own
+extrapolation gives 70 ± 6 s for 2050 and 80 ± 10 s for 2100, Skyfield's 97 s for 2100,
+Espenak & Meeus's 204 s. All lie inside this model's 2100 band (104.5 ± 32 s) but for
+Espenak & Meeus. The data audit suggested SMH's own errors until 2500 (±10 s in 2100);
+they describe SMH's extrapolated curve, which already misses 2026 by 1.3 s, not this one,
+and would jump to Huber's 570 s at 2500, so Huber is used throughout the future. For the
+display, a σ above 30 s is shown beside every time ("±m min"); 15″ of longitude per second.
+
+### UT1 − UTC: the IERS history
+
+The table is IERS `finals2000A.all` of 2026-09-25 (observed, flag `I`, to 2026-09-24;
+IERS Bulletin A of 2026-09-24's prediction, flag `P`, to 2027-10-02), sampled weekly.
+
+| check | result |
+|---|---|
+| weekly samples (i16, 0.1 ms) against the daily series they come from, 343 dates 1973-2027 | worst **1.6 ms**; interpolation linear in UT1 − TAI, so leap seconds do not smear (the 2016-12-31 step is +1 s to 2 ms) |
+| the IERS formal errors of the observed values | at most 1.5 ms (1973-1984), 0.27 ms (1985-1989), 0.06 ms since 1990: σ = 1 ms stands |
+| the text of IERS Bulletin A of 2026-09-24 | its observed week to 0.4 µs, its year of predictions to 5 µs (its printed rounding) |
+| the leap seconds implied by the file's +1 s steps | exactly the 25 of `skyfix_core::time` from 1974 on |
+| Bulletin A's predictions to 2027-09-28 | σ = max(0.00025 n^0.75 s, Huber): 3 ms after 30 days, 0.05 s after a year |
+
+With the history the DUT1 term of a GHA is 1 ms (0.015″) up to 2026-09-24 and a few
+hundredths of a second in the predicted year, against up to 0.9 s (0.23′) before. After
+2027-09-28 and in 1972 it is unknown again (0 ± 0.9 s) unless the navigator enters the
+time signal's value. The section 4 row "DUT1 (UT1 − UTC) assumed zero" is superseded by
+this (the moonshape agent owns that row).
+
+Before this refresh (the first version of this section) the table was Skyfield 1.55's
+bundle to 2026-01-23 and Bulletin A's observed week, with the bundle's January prediction
+corrected to meet both between them. Against the observations now in hand that corrected
+span was off by at most 20 ms (11 ms rms), inside the standard uncertainty it claimed
+(0.052 s at mid-span) on every day; the refresh changed no CLI golden and no other test.
+1962-1972 is still missing (`finals2000A.all` starts in 1973; IERS EOP 20 C04 would fill it).
+
+### What changed in the other checks
+
+- **The canon, USNO and Skyfield eclipse comparisons are unchanged**: they compare TT
+  quantities or adopt the reference's ΔT. Three CLI goldens moved by the real UT1 − UTC
+  (2024-04-08: ΔT 69.201 s, not 69.184; greatest eclipse 0.00007° of longitude; one
+  moonset now rounds to :55 not :56).
+- **The Moon, planet, topocentric and almanac-page fixtures** were generated with TT = UTC
+  + 69.184 s and UT1 = UTC after 2035; the clock is UT there now, with TT 1.5 s later in
+  2036 and 10 s later by 2060 (the Moon up to 6″). Those tests evaluate the fixture's own TT and UT1
+  (`time::legacy_fixture_instant`): every residual they print is unchanged to the last
+  digit. The four almanac pages after 2035 are left out until `almanac_days.json` is
+  regenerated on the new scale.
+- **Saros numbers** agree with the old rule for every eclipse of AD 1 to 3000 and follow
+  each series through −1999..3000 (solar series −14 to 190, lunar −20 to 183), where the
+  old rule gave the earliest series numbers 223 too high. NASA's canon over −1999..3000 is
+  not yet a fixture; the deeptime agent's canon fixtures will check the numbers.
+
+### Calendars and timestamps
+
+- Julian day numbers in both calendars match Skyfield's `compute_calendar_date` at 210
+  days over −7450..17190; every day of −5000..5000 round-trips in both calendars; Meeus's
+  chapter 7 examples reproduce; the mock's calendars agree with JavaScript's proleptic
+  Gregorian `Date` over −9999..9999.
+- `parse_utc`/`format_utc` round-trip every year −2000..3000 (five dates each, awkward
+  times, every Gregorian leap day) and give the same bits as the old chrono parser for
+  0000-9999.
+
+### Speed
+
+`time_info` takes about 7 µs natively (release, 2 000 calls over −2000..3000, notes
+included); the interface's budget is 50 µs. `jd_tt` on the UTC scale costs what it did (a
+binary search of the leap-second table); on the UT scale two ΔT evaluations.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python tools/timescales/gen_timescales.py` rebuilds
+  `crates/skyfix-core/src/deltat/data.rs` and `fixtures/reference/timescales.json`,
+  byte-identical, from the committed sources (the full `finals2000A.all` is not needed:
+  `tools/timescales/sources/finals2000A-ut1-2026-09-25.txt` holds the columns used).
+- `tools/reference/.venv/bin/python tools/timescales/skyfield_timescale.py` checks the
+  Python twin against the fixture.
+- `cargo test --release -p skyfix-core --test timescales_reference -- --nocapture` prints
+  every worst case above.
+cargo test -p skyfix-core --test sailings_worked_examples -- --nocapture
+cargo test -p skyfix-core --test sailings_wgs84 -- --nocapture
+cargo test -p skyfix-core --test dip_short -- --nocapture
+cargo test -p skyfix-core --test error_logs
+cargo test -p skyfix-wasm sailings -- --nocapture
+```
+
+## 14. Moon in detail: libration, named features, apsides and supermoons, occultations
+
+Owner: moondetail agent (expansion programme P8, 2026-09-25). Engines
+`skyfix_almanac::{libration, lunar_features, apsides, occultations}` (definitions in
+CONVENTIONS 13.10; wire format in `docs/EXPLORER_API.md`, "Expansion programme P8 — the
+Moon in detail"). Everything here is display: none of it enters a sight.
+
+### Libration and orientation (target 0.05°)
+
+The model is Meeus's chapter 53 (Eckhardt's physical libration with every term of
+0.0001°, the IAU `I = 1°32′32.7″`) built as one rotation matrix, plus the published
+78.6944″ tilt from the figure pole to the mean rotation pole (CONVENTIONS 13.10). The
+reference is **Skyfield with JPL's own lunar orientation**: NAIF's binary PCK
+`moon_pa_de440_200625.bpc` (the principal-axes frame integrated with DE440, 1550–2650) and
+frame kernel `moon_de440_250416.tf` (to `MOON_ME_DE440_ME421`), whose worked example the
+generator reproduces to a millimetre. `tests/moon_libration.rs` against
+`fixtures/reference/moon_libration.json`:
+
+| check | cases | sub-observer point | sub-solar point | axis position angle |
+|---|---|---|---|---|
+| the model alone, Skyfield's apparent places in, 1550–2650 (DE440) | 330 | **0.0052°** (longitude 0.0024°, latitude 0.0052°) | **0.0060°** | **0.0061°** |
+| the whole chain, the geocentre and six observers (equator to 70° N and 60° S, one at 4000 m), 1990–2060, UT1 = UTC | 300 | **0.0052°** | **0.0054°** (colongitude 0.0021°) | **0.0058°** |
+
+The topocentric distance agrees to 0.24 km and the semidiameter to 0.00005′; the largest
+diurnal libration in the sample is 1.008°. Before the figure-to-mean-pole tilt was applied
+the sub-Earth latitude carried a steady +0.0223° (measured, and within 1.7″ of the tilt
+DE440 publishes); the tilt removes it, and what is left (0.0024° rms in latitude, 0.0007°
+in longitude) is the difference between Eckhardt's analytic theory and DE440's integrated
+librations.
+
+**Meeus's example 53.a** (1992 April 12, 0h TD): with his own λ, β and Δψ the closed
+formulas reproduce his printed `l′ = −1.206°`, `b′ = +4.194°`, `l″ = −0.025°`,
+`b″ = +0.006°`, `ρ = −0.01042°`, `σ = −0.01574°`, `τ = +0.02673°` to their last digit; from
+this project's own Moon and Sun (whose λ differs from his chapter-47 value by 0.0005°) the
+figure-frame totals `l = −1.23°`, `b = +4.20°`, `P = 15.08°` and the Sun's `l0 = 67.89°`,
+`b0 = +1.46°`, `c0 = 22.11°` all agree to their printed rounding.
+
+### Named features
+
+Positions, diameters and names are the USGS/IAU gazetteer's (0.01° precision; `docs/
+THIRD_PARTY.md`); the Sun's altitude over each is exact geometry on the frame above, so
+its error is the orientation's (0.006°, about 0.2 km on the ground). What the numbers do
+not include: the Sun's radius (0.27°: the terminator is a band, not a line), the local
+slope and the height of the feature (a peak catches the light before the plain around
+it), and irregular outlines (a mare's "centre" and "diameter" are the gazetteer's
+nominal figures). `lunar_features` tests: the table's integrity (150 unique rows, ranges,
+the Apollo sites), every near-side feature lit at full Moon and dark at new Moon, and the
+central features on the terminator at first quarter.
+
+### Perigee, apogee and supermoons (target 2 min, 10 km)
+
+`tests/moon_apsides.rs` against `fixtures/reference/moon_apsides.json` (every perigee
+and apogee of 1990–2060 from Skyfield + DE440s by the generator's own sampling and
+golden-section search — Skyfield's `find_maxima` returned a spurious duplicate apogee in
+2022 and was not used — and every new and full Moon with its distance):
+
+| quantity | cases (1990–93, 2024–27, 2057–60) | worst |
+|---|---|---|
+| perigee and apogee instants (in TT) | 317 | **11.2 s** |
+| distances at the extremes | 317 | **0.22 km** |
+| distance at new and full Moon | 296 | **0.25 km** |
+| perigee fraction (Nolle's measure) | 296 | **0.00001** |
+| supermoon, micromoon, largest and smallest of the year | 296 | every flag agrees |
+
+Every fixture event inside the three windows is found, and nothing else. **Meeus's
+example 50.a** (the apogee of 1988 October 7, searched on the embedded ELP series since
+1988 is outside this build's coverage): **−0.8 s and −0.18 km** from Skyfield, and 8.7 s
+from Meeus's own chapter-50 series (JDE 2447442.3543, 20h30m TD).
+
+The supermoon count is a consequence of the definition, not a property of the sky:
+Nolle's rule with the orbit's own extremes flags 568 of the 1756 new and full Moons of
+1990–2060 (32 %); a rule against a fixed distance or "within 24 h of perigee" flags fewer.
+The result carries both distances so the interface can say what it means.
+
+### Lunar occultations (target 30 s against Skyfield's own geometry)
+
+`tests/moon_occultations.rs` against `fixtures/reference/moon_occultations.json`: 27
+events chosen by the generator (the first close approaches from 2017 of Aldebaran,
+Regulus, Spica, Antares, Alcyone, Venus, Mars, Jupiter and Saturn, at most one a year, at
+the first of twelve places worldwide that sees both contacts with the Moon 5° up),
+Skyfield's topocentric apparent places (DE440s, Hipparcos, UT1 = UTC), mean limb:
+
+| quantity | worst over 48 contacts (24 events) |
+|---|---|
+| contact time | **1.42 s** |
+| position angle on the limb | **0.033°** |
+| Moon's altitude | **0.0018°** |
+| Sun's altitude | **0.0034°** |
+
+Three of the 27 are shallow (the body passes 0.24′, 0.54′ and 0.63′ inside the limb):
+flagged as grazes, their least limb distance matches, and their contacts agree within 1 s
+too, though near a graze a contact moves by tens of seconds per arcsecond of position.
+Alcyone is searched from its catalogue place (the path the Bright Star Catalogue stars
+take), the others through the engine's own providers.
+
+**Against published predictions** (`fixtures/reference/moon_occultations_published.json`,
+transcribed by hand, retrieved 2026-09-25; the sources give city names, not the exact
+points, so each place is the city's usual centre):
+
+| event | source | places | our contacts minus theirs |
+|---|---|---|---|
+| Saturn, 2024-08-21 | British Astronomical Association (Foulkes), UT to 0.1 min | Greenwich, Edinburgh | −5 to +5 s |
+| Aldebaran, 2017-12-31 | EarthSky (McClure), from IOTA, UT to the second | London, Reykjavik | −4 to +18 s |
+| Mars, 2025-01-14 | Astronomy magazine (Bakich) and J. L. Hunt, from IOTA, local times to the minute | New York, Chicago | −5 to +48 s |
+
+Everything is inside the rounding of the published time plus a minute for the unstated
+observing point and the prediction's own limb and ephemeris.
+
+**What the numbers are not.** They are the mean limb's. The real limb's mountains and
+valleys (±2 km, about ±1″) shift a contact by seconds where the body meets the limb
+squarely and by up to a minute where it meets it obliquely, near the Moon's poles; a
+graze's very existence depends on the real profile. The result says so beside every
+list (`limb_note`). A lunar-limb pack (programme item P12) would be the remedy.
+
+### Speed
+
+Release build natively, CPU time on the shared machine (400 bare Moon positions cost
+30 ms there; `tests/perf.rs`, `moon_detail_budget`): a year of occultations at one place
+with the default bodies (the 58 navigational stars, the Bright Star Catalogue to
+magnitude 3.5 and the 7 planets, 36 bodies within the Moon's reach at Philadelphia)
+**76 ms** (budget 200 ms), of which 30 ms is the Moon's daily track; to magnitude 6.5
+(965 bodies) 0.50 s; a year of apsides with supermoons 120 ms (mostly the phase
+search); `moon_orientation` and `moon_features` about 0.5 ms each. The Moon is evaluated
+once a day for the occultation search and interpolated (within 0.1 km, 0.06″); the
+planets every 4 (Mercury), 8 (Venus) or 16 days (the rest), measured to 0.02°, 0.005° and
+0.01°.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python -m tools.moon.gen_reference [libration] [apsides]
+  [occultations]` regenerates the three Skyfield fixtures (about 1, 3 and 10 minutes;
+  needs `de440.bsp`, `de440s.bsp`, `hip_main.dat` and the two NAIF lunar kernels in
+  `tools/reference/data/`).
+- `cargo test -p skyfix-almanac --test moon_libration --test moon_apsides --test
+  moon_occultations -- --nocapture` prints every number above.
+
+## Deep sky (display only; expansion programme, deepsky agent, 2026-09-24)
+
+Owner: deepsky agent (`crates/skyfix-starfield/src/{dso,showers,milkyway,names,search,
+extinction,tonight,observe}.rs`, wire format `docs/EXPLORER_API.md`, "Expansion programme —
+deep sky"). Everything here is display-only (CONVENTIONS 13.6): none of it is a direction
+for a sight or an accuracy claim for navigation. What can be checked against a reference is
+checked below; the rest (meteor rates, limiting magnitudes, the instrument guide, the
+rankings, the Milky Way picture) is a **labelled estimate** from stated rules, and the wire
+says so. Sources and licences: `docs/THIRD_PARTY.md`, "Expansion programme — deep sky".
+
+### Apparent places: the same chain as `sky_state`
+
+A deep-sky object, a meteor radiant and the galactic centre are carried to the apparent
+place of date and to altitude and azimuth by `observe::Frame` and `observe::SiteFrame`,
+which compute the per-instant quantities once. `tests/observe_matches_sky_state.rs` pushes
+the 58 navigational stars (with their proper motion and parallax) through the same code at
+4 sites and 3 instants: **696 of 696 altitudes and azimuths identical to `sky_state`'s**
+(difference 0.0″). So an object's place is as good as its catalogue position; the chain
+adds nothing measurable.
+
+### Deep-sky object positions against two references
+
+`tests/dso_reference.rs` re-checks the shipped table (`data/dso.txt`, 213 objects)
+against `fixtures/reference/dso_positions.json`, written by `tools/starfield/dso.py`
+from SIMBAD and Corwin's (2004) NGC/IC positions (VizieR VII/239A). Each object has a
+tolerance of `max(1′, 0.25 × major axis)`, `0.5 × major axis` for open clusters,
+asterisms, star clouds and nebulae 30′ or larger, whose centres are a matter of
+definition.
+
+| check | objects | median | 90 % | worst |
+|---|---|---|---|---|
+| table vs the adopted Wikidata value | 213 | — | — | < 0.01′ (rounding) |
+| vs SIMBAD | 213 | 0.003′ | 2.8′ | 77′ (the Hyades, 330′ across; tolerance 165′) |
+| vs Corwin (2004) | 203 (10 have none) | 0.035′ | 3.1′ | 58′ (IC 2118, the Witch Head, 180′ across) |
+| vs Corwin, well-centred objects (globulars, planetary nebulae, galaxies under 20′) | 108 | — | — | **0.37′** |
+
+Wikidata's positions are largely SIMBAD's (hence the 0.003′ median), so Corwin is the
+independent check. Where Wikidata held two positions for one object the build takes the
+one nearer SIMBAD (recorded per object in `data/deepsky_manifest.json`); one candidate,
+the Lobster Nebula (NGC 6357), was left out because Wikidata's position is 22′ from both
+references.
+
+**Magnitudes and sizes are labelled, not validated.** Wikidata's V is sometimes a
+nucleus or a planetary nebula's central star, so the build adopts integrated V from
+Harris's globular-cluster catalogue (43 objects), RC3's V_T for galaxies (61; five more
+from B_T less the median B−V of 0.81), Wikidata for 72, and authored visual magnitudes
+for all 19 planetary nebulae (IC 418's from SIMBAD) and one open cluster (NGC 2451); 12
+nebulae have none (`null`). Sizes are
+SIMBAD's rounded (156) or authored where SIMBAD gives a cluster's full extent (57).
+Integrated magnitudes of extended objects say little about how easy they are to see;
+the instrument guide's size term is there for that, and it is a rule of thumb.
+
+### Meteor-shower dates against the IMO calendars
+
+`tests/showers_reference.rs` computes every shower's start, peak and end from this
+project's Sun (the instant the J2000 solar longitude reaches the table's value, Newton's
+method to 0.01 s) and compares the UTC dates with Table 5 of the IMO's calendars
+(`fixtures/reference/showers_reference.json`):
+
+| year | peaks | starts and ends |
+|---|---|---|
+| 2026 | **32 of 32 on the IMO's date** | every one within 1 day (the acceptance) |
+| 2027 | 32 of 32 on the IMO's date | printed, not asserted: the 2027 calendar revised two limits, the η Lyrids' start (3 May ours, 5 May IMO) and the Phoenicids' (30 Nov ours, 20 Nov IMO) |
+
+The solar longitude itself: at the 2026 March equinox it is −0.366°, the precession since
+J2000, within 0.01° (`showers::tests::the_solar_longitude_is_zero_at_the_march_equinox`).
+Radiants are compiled values: `tools/starfield/showers.py` holds every peak radiant within
+2° of the IMO's (the κ Cygnids excepted, 5.1°: the IMO's own Table 6 and the MDC put the
+drifting radiant elsewhere on the peak date) and within 7.6° of the MDC's median radiant
+moved along its drift to our peak; the three places where the sources disagree are
+recorded in the manifest (the κ Cygnids' radiant, the Phoenicids' radiant and peak).
+
+**Rates are estimates**, not validated: the activity profile (exponential from the peak
+to `min(2, ZHR/2)` at the limits) is a rough shape, and `ZHR × sin(h) × r^(LM − 6.5)` is
+the standard conversion from a zenithal hourly rate. Real rates vary from year to year;
+showers the table flags `variable` can be far above or below their ZHR.
+
+### Extinction, limiting magnitude and moonlight: published models, checked by hand
+
+- Pickering's (2002) air mass: 1 at the zenith, 1.995 at 30°, 38.7 at the horizon,
+  monotonic (`extinction::tests::pickering_air_mass_…`).
+- Schaefer's (1990) NELM–sky-brightness relation: 21.0 mag/arcsec² gives 6.12 and 19.0
+  gives 4.77 by hand; the inverse round-trips; the sky is capped at 22.0 mag/arcsec².
+- Krisciunas & Schaefer (1991) moonlight: a full Moon 60° up, a target 30° away at 45°,
+  k = 0.172, a 21.587 mag/arcsec² zenith: **3 189 nL added to 103.0 nL, 3.76 mag**, the
+  value of a hand evaluation of their equations
+  (`moonlight_matches_a_hand_evaluation_of_the_published_equations`).
+- Bortle classes stand for the middle of each class's naked-eye range (Bortle 2001).
+
+These check the implementation, not the sky: a real sky's extinction coefficient,
+light domes and airglow vary, and the limiting magnitude is a person's, not a
+measurement. The Sky view and the rankings use them as guides.
+
+### The Milky Way outline
+
+A picture, not a measurement: four isophotes of NASA COBE/DIRBE's 1.25 µm starlight,
+weakened by the 100 µm dust so the dark lanes show, smoothed 1.5°, simplified on the
+sphere to 0.2° (processing in `docs/THIRD_PARTY.md`). The build checks its galactic
+coordinates against DIRBE's own pixel file (0.0006°). `milkyway::tests` hold the rings
+closed and within range, and the glow where it belongs: the faintest level covers Cygnus,
+the anticentre, Crux, Carina and the Sagittarius Star Cloud, and not the galactic poles,
+Leo or the (masked) Large Magellanic Cloud; south of the dust lane toward the centre
+(Baade's window) the glow reaches level 2. **Known limitation:** the dust screen darkens
+the whole plane where the 100 µm emission is strong, so low-dust windows on the plane,
+such as the Sagittarius Star Cloud (M24), come out darker in the brighter levels than the
+eye sees them; 1.25 µm is not the visual band either.
+
+### Star names
+
+`tools/starfield/wgsn.py` joins the IAU WGSN list (641 names, 459 with an HR designation)
+to the display catalogue by HR number and accepts a join only when the position (the live
+table's or the 2022 file's) or the designation agrees: **458 joined** (the 459th, the
+Blaze Star T CrB, is not in the display catalogue). **237 of the star field's 252 names
+agree** with the WGSN (Al Na'ir, the Almanac's spelling, only as a spelling of Alnair), one
+differs (Navi for γ Cas, which the WGSN calls Tiansi), and the other 14 are on stars the
+WGSN has not named; ours are kept in every case. **220 names are added** (`names::tests`,
+`tests/catalog.rs`).
+
+### Speed and size
+
+Release build, native, the fastest of repeated calls on the shared 8-core machine under a
+load of about 34 (`tests/deepsky_timing.rs`): `tonight` **14.8 ms** (budget 50 ms),
+`dso_list` 0.13 ms, `dso_visibility` 5.4 ms, `sky_search` 2.5 ms, `meteor_showers` 45 ms
+for a year, 181 ms with an observer (32 nights).
+
+The release WebAssembly module (`npm run wasm`) is **2 225 532 bytes raw, 922 137
+gzipped** (`gzip -9`), against 2 060 798 and 849 019 for `main` at 28131c5: **+164 734
+bytes raw (+161 KiB), +73 118 gzipped**, over the package's 80 KB budget and inside the
+module's limits (2.5 MB, 1 MB gzipped). Embedded data is 31 931 bytes (`dso.txt` 19 017,
+`names_wgsn.txt` 7 169, `milkyway.bin` 3 236, `showers.txt` 2 509); the rest is code,
+largest first: search, showers, `tonight`, the night and place machinery, the DSO calls,
+the adapter and the serialisation of the results.
+
+### Reproduce
+
+```
+python3 -m tools.starfield.deepsky_fetch                  # network: raw inputs (git-ignored)
+python3 -m tools.starfield.dso                            # table, fixture and checks
+python3 -m tools.starfield.showers                        # table, fixture and checks
+tools/reference/.venv/bin/python -m tools.starfield.milkyway
+python3 -m tools.starfield.wgsn
+cargo test -p skyfix-starfield -- --nocapture
+cargo test --release -p skyfix-starfield --test deepsky_timing -- --nocapture
+```
+
+## 16. Tides
+
+Owner: tides agent (expansion programme, work package P5). The engine is
+`skyfix_tides` over the optional `tides-us` pack; the definitions are CONVENTIONS 13.11;
+the wire format is EXPLORER_API "Expansion programme — tides"; the pipeline and what it
+found are `tools/tides/README.md`. **These are predictions of the astronomical tide:
+weather, storm surge and river flow change the real water level by more than every
+number below, and NOAA's datums are those of the 1983-2001 epoch (sea level has risen
+since at most stations).** The comparison is with NOAA's own predictions made from the
+same published constants, so it measures the reproduction of NOAA's method, not the
+tide.
+
+### Against NOAA's own predictions, 20 harmonic stations × 30 days
+
+`tests/noaa_fixtures.rs` against `fixtures/reference/tides_noaa.json` (NOAA CO-OPS
+predictions API: high and low water and the hourly curve on MLLW, GMT, metres), built
+from the constants NOAA publishes, embedded in the fixture as NOAA served them. Five
+30-day windows from 2025-12-17 to 2027-12-19, including one across a new year and
+one at each end of a year. NOAA rounds times to the minute and heights to the millimetre.
+
+| station | tide | extremes | time worst | height worst | curve worst |
+|---|---|---|---|---|---|
+| Eastport, ME | semidiurnal, 5.5 m range | 116 | 0.57 min | 0.09 cm | 0.29 cm |
+| Boston, MA | semidiurnal | 116 | 0.57 min | 0.08 cm | 0.16 cm |
+| The Battery, NY | semidiurnal | 116 | 0.55 min | 0.06 cm | 0.11 cm |
+| Sewells Point, VA | semidiurnal | 116 | 0.56 min | 0.05 cm | 0.08 cm |
+| Wilmington, NC | semidiurnal, river | 116 | 0.59 min | 0.06 cm | 0.12 cm |
+| Key West, FL | mixed | 116 | 0.60 min | 0.06 cm | 0.07 cm |
+| Pensacola, FL | diurnal (F = 11) | 64 | 0.65 min | 0.06 cm | 0.07 cm |
+| Grand Isle, LA | diurnal | 60 | 1.10 min | 0.05 cm | 0.06 cm |
+| Galveston, TX | mixed, mainly diurnal | 90 | 0.60 min | 0.05 cm | 0.07 cm |
+| Charlotte Amalie, VI | mixed, mainly diurnal | 74 | 0.77 min | 0.05 cm | 0.06 cm |
+| San Diego, CA | mixed | 116 | 0.59 min | 0.07 cm | 0.12 cm |
+| San Francisco, CA | mixed | 116 | 0.67 min | 0.07 cm | 0.12 cm |
+| Astoria, OR | mixed, Columbia River | 116 | 0.59 min | 0.08 cm | 0.14 cm |
+| Seattle, WA | mixed | 116 | 0.61 min | 0.08 cm | 0.20 cm |
+| Juneau, AK | mixed, mainly semidiurnal | 116 | 0.61 min | 0.12 cm | 0.26 cm |
+| Anchorage, AK | 9 m range, NOAA's 120 constituents | 116 | 0.67 min | **1.08 cm** | **1.38 cm** |
+| Adak, AK | diurnal | 82 | 0.66 min | 0.07 cm | 0.10 cm |
+| Unalaska, AK | mixed, mainly diurnal | 92 | 0.90 min | 0.07 cm | 0.10 cm |
+| Honolulu, HI | mixed | 117 | 0.56 min | 0.06 cm | 0.07 cm |
+| Apra Harbor, Guam | mixed | 116 | 0.56 min | 0.06 cm | 0.07 cm |
+
+**All 2 087 extremes within 1.10 min (target 2 min) and 1.08 cm (target 5 cm); the
+curve within 1.38 cm (target 5 cm).** Every extreme is paired both ways (none missing,
+none extra). Outside Anchorage the agreement is at NOAA's own rounding (heights ≤ 0.12
+cm, curves ≤ 0.29 cm). Anchorage's residual, 0.7 cm rms, sits in the diurnal band near
+σ1 and 2Q1; no convention for those two (or for any other of the 83 extended
+constituents tried) reduces it further.
+
+The validation rules (`skyfix_tides::validation`) also allow, at a flat turn of the
+tide, three times the time uncertainty that the rounding of NOAA's published constants
+(1 mm, 0.1°) alone implies there; **no extreme needed that allowance**.
+
+**Node factors: at mid-year, not at each instant.** With f and u evaluated at the
+instant instead (`NodalMode::Instant`), the same comparison gives times up to 21.2 min
+(Charlotte Amalie), heights up to 11.3 cm and curves up to 18.0 cm (Anchorage; 0.1-7.3
+cm elsewhere). NOAA's predictions follow the mid-year convention (the test asserts the
+difference).
+
+### Six subordinate stations × 30 days
+
+Hell Gate and Hudson, NY (ratio, from The Battery, +3 h and +7 h), Farmdale, FL (ratio,
+from diurnal Pensacola), Haleiwa, HI (ratio), Security Cove, AK (additive, from Sitka),
+Christmas Island (additive, from Honolulu): **644 extremes within 0.80 min and 0.57 cm.**
+The curve between them is NOAA's cosine interpolation, an estimate labelled as such; NOAA
+publishes no curve to compare it with.
+
+### Every station: a 3-day sweep
+
+`tests/pack_real.rs` against `fixtures/reference/tides_noaa_sweep.json` (NOAA's high and
+low water for 2026-02-01 to 2026-02-03 at every station of its list): **3 492 stations,
+39 120 extremes, all within 1.36 min and 0.99 cm**, every extreme paired both ways but
+one: at Clear Lake, TX (8770933), a double high whose peaks differ by 1 mm, where NOAA's
+table keeps one peak and ours the other (counted as a stand). NOAA refuses predictions
+for 7 stations: 6 that the pack also cannot predict on MLLW (no constants, or no datums)
+and 8661558, Holly Grove Plantation, which it lists with usable offsets; that one is
+flagged `noaa_differs`. A debug build checks every 7th station (`TIDES_FULL_SWEEP=1` for
+all).
+
+### Schureman's printed tables
+
+`tests/schureman_tables.rs`: I, ν, ξ, ν′, 2ν″ within 0.011° of Table 6; the speeds of
+Tables 2 and 2a within 5 × 10⁻⁷ °/h; node factors within 0.0011 of Table 14 for
+1990-1999 (0.004 for K2, L2 and OO1, 0.009 for M1, whose tabulated values were
+interpolated from tables per 0.1° of I: under 0.2 mm of height at any station);
+V0 + u within 0.16° of Table 15 for 1990-1997 (M1 within 0.5°).
+
+### Speed
+
+Release build, x86-64, natively (WASM is typically 1.5-3 times slower): a month of high
+and low water 4.5 ms at Boston (34 constituents), 11 ms at Anchorage (120), 4.5 ms at a
+subordinate station; a week's curve at 6 minutes 0.3-0.7 ms; the tide now 1.4 ms; the ten
+nearest stations 1.3-3 ms; decoding the pack 18-22 ms (once). Target: a month in under
+20 ms.
+
+### Size
+
+The pack: 344 543 bytes (0.34 MB, target ≤ 0.5 MB), 234 KB deflated. The tides code in
+the core module (`npm run wasm`): +88 KB raw, +35 KB gzipped, measured on the programme's
+base commit 28131c5 (2.06 MB / 849 KB before, 2.15 MB / 885 KB with tides).
+
+### Reproduce
+
+- `cargo test -p skyfix-tides -- --nocapture` (the sweep in full with
+  `TIDES_FULL_SWEEP=1` or `--release`); `cargo test --release -p skyfix-tides --test
+  perf -- --ignored --nocapture` for the timings.
+- The data and fixtures: `tools/tides/README.md` (NOAA's API, about 4 800 requests,
+  cached).

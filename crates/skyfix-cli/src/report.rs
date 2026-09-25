@@ -367,6 +367,26 @@ pub fn warning_sentence(w: &Warning) -> String {
              {azimuth_deg:.1} degrees, well away from north, so the latitude depends \
              strongly on the longitude and the time"
         ),
+        // sailings agent (expansion programme): dip short, error logs
+        Warning::ShoreBeyondSeaHorizon {
+            id,
+            distance_nm,
+            sea_horizon_nm,
+        } => format!(
+            "Sight {id} was taken to a shoreline {distance_nm:.2} NM away, beyond the sea \
+             horizon {sea_horizon_nm:.2} NM away at this height of eye: the sea horizon is \
+             the one seen, so the sea dip was applied instead of the dip short of the horizon"
+        ),
+        Warning::ErrorLogOutsideSpan {
+            id,
+            log,
+            held_value,
+            hours_outside,
+        } => format!(
+            "Sight {id} is {hours_outside:.1} hours outside the times the {log} covers, so its \
+             nearest entry ({held_value}) was used as it stands, not extrapolated; add an entry \
+             nearer the sight"
+        ),
     };
     ensure_period(s)
 }

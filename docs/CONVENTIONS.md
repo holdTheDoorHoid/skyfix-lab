@@ -28,8 +28,12 @@ section it implements.
   it. Those values never feed the navigation chain. **One exception for a time
   method:** clearing a lunar distance (`skyfix_core::sights::lunar`) places the observer
   on the WGS84 ellipsoid at the DR position, because a lunar's time needs the Moon's
-  parallax to 0.03' and the sphere is up to 0.22' out for the Moon. Sight reduction, the
-  solver, the planner's geometry and the predicted sextant readings stay on the sphere.
+  parallax to 0.03' and the sphere is up to 0.22' out for the Moon. **A third exception,
+  in the model altitude of the Moon (section 15.4):** `Hc` of a Moon sight is the
+  sphere's plus the Earth-shape term, the WGS84 geometry at the trial position minus the
+  sphere's, wherever a model altitude is evaluated (the solver, the intercept, predicted
+  readings, the noon and averaging methods, the planner and the misfit grid). `Ho`, the
+  correction chain, 1' = 1 NM and every other body stay on the sphere.
 
 ## 2. Coordinates and sign conventions
 
@@ -85,12 +89,21 @@ Order for `sextant_hs`:
    arc" (positive reading with the mirrors parallel) gives a **negative** IC.
    Example: index error 2.0' on the arc -> `IC = -2.0'`. This is the only sign convention
    for IC in the project; the UI labels the field "index correction (added)".
+   When `instrument.index_error_log` has entries, IC is the log's value at the sight's time
+   (section 10; sailings agent).
 2. **Horizon step**, by horizon mode:
    - `sea`: subtract **dip** `= 1.76' * sqrt(height_of_eye_m)` (Nautical Almanac /
      Bowditch; equals 0.97' sqrt(height_ft)). Requires `height_of_eye_m >= 0`.
    - `artificial_reflected`: **halve after IC**: `Ha = (Hs + IC) / 2`. **No dip.** The
      sight's `sigma_arcmin` describes the recorded double angle, so it is halved too.
    - `electronic_vertical`: `Ha = Hs + IC` where IC is the instrument zero offset. No dip.
+   - `shore` (`{"shore": {"distance_nm": d}}`; sailings agent, expansion programme): a
+     waterline `d` NM away, nearer than the sea horizon. Subtract the **dip short of the
+     horizon** `Ds = 60 tan^-1(h_ft / (6076.1 d) + d / 8268)` arcmin (Bowditch 2019 vol. 2
+     section 402 and Table 14; `h_ft` the height of eye in feet), never less than the sea
+     dip, while `d` is less than the sea horizon's distance `sqrt(8268 h_ft / 6076.1)` NM;
+     at or beyond it subtract the sea dip and warn `shore_beyond_sea_horizon` (the
+     waterline is hidden). `d > 0` is required. docs/NAVIGATION_METHODS.md section 12.
 3. **Refraction** (Bennett 1982, standard conditions 1010 hPa, 10 C), subtracted:
    `R' = cot(Ha_deg + 7.31 / (Ha_deg + 4.4))` arcmin, scaled by
    `(P_hPa / 1010) * (283 / (273 + T_C))`.
@@ -129,14 +142,17 @@ Order for `sextant_hs`:
      in the tabulated GHA and Dec); for Jupiter and Saturn it is under 0.04', which the
      Almanac omits and this chain applies.
    - **Stars**: 0.
-   - **Not modelled: the Earth's figure.** On the real (WGS84) Earth the observer's
-     geocentric radius is shorter than the equatorial radius and the plumb line does not
-     point at the Earth's centre, so the Moon's true parallax in altitude differs from
-     the sphere's by up to **0.22'** (median 0.09'; measured against 104 Skyfield sights,
-     and USNO's own values agree with the WGS84 figure to 0.004'). The term depends on
-     the observer's latitude and the Moon's azimuth, which a reduction does not know, so
-     the sphere of section 1 is kept and the residual is in the error budget
-     (`docs/ACCURACY.md`, section 8). Planets: under 0.005'.
+   - **The Earth's figure is not in this step; it is in the Moon's model altitude.**
+     On the real (WGS84) Earth the observer's geocentric radius is shorter than the
+     equatorial radius and the plumb line does not point at the Earth's centre, so the
+     Moon's true parallax in altitude differs from the sphere's by up to **0.24'**
+     (median 0.09' over 104 Skyfield sights). The difference depends on the observer's
+     latitude and the Moon's azimuth, which a reduction does not know, so this step keeps
+     the sphere of section 1 and `Ho` stays the sphere's geocentric altitude; the term is
+     added to `Hc` at every trial position instead (section 15.4), which leaves a perfect
+     Moon sight on the WGS84 Earth within 0.0064' of its model altitude, and the Moon's
+     parallax implied by the model within 0.0004' of USNO's. Planets: at most 0.0021'
+     (Venus at inferior conjunction), not applied.
 6. `Ho = Ha - R (+/- SD) + PA`.
 
 Limb with an artificial horizon: halving first, then the limb rule above, is correct.
@@ -154,9 +170,31 @@ low-altitude term above.
 - Internally: `jd_utc: f64` (Julian date). Derived:
   `jd_tt = jd_utc + (delta_at + 32.184) / 86400` with `delta_at` from the leap-second
   table in `skyfix_core::time` (37 s from 2017-01-01; no later leap second exists as of
-  the build date). `jd_ut1 = jd_utc + dut1 / 86400` with **DUT1 assumed 0** unless the
-  provider is given one. |DUT1| < 0.9 s, so GHA carries up to 0.23' of unmodelled
-  error from this assumption; it is listed in the error budget, not hidden.
+  the build date). `jd_ut1 = jd_utc + dut1 / 86400`, with DUT1 from the single lookup
+  `skyfix_core::time::dut1_s(jd_utc, user)`: the session's `clock.dut1_s` (or the CLI's
+  `--dut1`, or an observer document's `dut1_s` at the WASM boundary) when given,
+  otherwise the engine's value (0 until the timescales work adds the IERS history and
+  the model of section 15.2). A session's providers are built once, at its earliest
+  sight. |DUT1| < 0.9 s, so an unknown DUT1 leaves up to 0.23' in every GHA; it is
+  listed in the error budget, not hidden.
+- Timestamps are **RFC 3339 with a trailing `Z`** (`2026-10-01T01:30:00Z`), proleptic
+  Gregorian, with ISO 8601 expanded years (a sign and at least four digits) outside
+  0000-9999 (`-0584-05-22T12:00:00Z`, section 15.3). Fractional seconds allowed; `:60`
+  is a positive leap second and means the next second. Anything else is rejected.
+  `skyfix_core::time::{parse_utc, format_utc}` are the single implementation.
+- Internally: `jd_utc: f64` (Julian date) on the **app's clock**: UTC from 1972-01-01 to
+  2035-12-31, UT (UT1) outside (section 15.2). Derived, in `skyfix_core::time`:
+  `jd_tt = tt_from_clock(jd_utc)`, which is `jd_utc + (32.184 + delta_at) / 86400` on the
+  UTC scale (`delta_at` from the leap-second table: 37 s from 2017-01-01, none announced
+  through June 2027; later ones unknown and taken as none) and `jd_utc + Delta-T / 86400`
+  on the UT scale (`skyfix_core::deltat`); `jd_ut1 = jd_utc + dut1 / 86400` with DUT1
+  from `dut1_s(jd_utc, user)`: the user's value, else the **IERS history** (1973-01-02 to
+  2027-09-28, IERS Bulletin A's prediction after 2026-09-24), else 0 with a standard
+  uncertainty of 0.9 s on the UTC scale, and 0 by definition on the UT scale. A provider
+  holds one DUT1 (`with_dut1_s`); the explorer, the eclipse engine and the navigation
+  paths build theirs with `dut1_s` at the instant they compute. With the history the
+  DUT1 term of the error budget is 1 ms (0.015" of GHA); unknown, it is up to 0.9 s
+  (0.23'), listed, not hidden.
 - **Clock offset**: a shared offset `dt` makes every recorded time wrong by the same
   amount. It shifts every GHA by `omega * dt` (`omega = 15.041 07 deg/h` sidereal for
   stars, 15.000 deg/h for the Sun to first order, and the body's own rate for the Moon
@@ -248,7 +286,7 @@ low-altitude term above.
     "assumed_position_role": { "role": "initializer" }
   },
   "instrument": { "name": "simulated", "index_correction_arcmin": 0.0, "horizon": "sea" },
-  "clock": { "uncertainty_s": 0.0, "correction_s": 0.0 },
+  "clock": { "uncertainty_s": 0.0, "correction_s": 0.0, "dut1_s": -0.1 },
   "observations": [
     {
       "id": "obs-1",
@@ -270,6 +308,11 @@ low-altitude term above.
 - `kind` is `simulated` or `real`; the UI shows it on every view.
 - `assumed_position_role.role` is `initializer` (default), `prior` (with `sigma_nm`) or
   `disabled`.
+- `clock.dut1_s` (expansion programme): UT1 − UTC in seconds from the time signal or
+  IERS Bulletin A, optional. Absent or `null` means automatic (section 6); a session
+  without it is written without it, in JSON and in CSV (`# clock.dut1_s=...`, empty =
+  automatic). Validation: finite; beyond the IERS bound of 0.9 s a warning; beyond 60 s
+  refused as not seconds.
 - `horizon` on an observation overrides the instrument's mode for that sight only.
 - `geocentric` supplies the body direction directly ("first numerical slice"). When
   present it wins over any ephemeris provider and the report says so. When absent, an
@@ -285,6 +328,24 @@ low-altitude term above.
   `limb != center` for a star or a planet, and (`observed_ho` with any correction
   parameter that would have to be ignored). The last two are warnings, not errors
   (`LimbIgnoredForStar`, `AlreadyCorrected`).
+
+- **Shore horizon** (sailings agent): `horizon` (the instrument's or an observation's) may
+  be `{"shore": {"distance_nm": d}}` besides the three strings (section 5, step 2); CSV
+  writes it as `shore:<d>`.
+- **Error logs** (sailings agent, additive): `instrument.index_error_log` is a list of
+  `{"utc", "ic_arcmin", "note"}` (the index correction, added, as
+  `index_correction_arcmin`) and `clock.watch_log` a list of `{"utc", "correction_s",
+  "note"}` (added to the watch, as `correction_s`). When a log has entries, a sight's value
+  is read from it instead of the single field: linear between the entries either side, the
+  entry itself at its instant, a one-entry log as a constant; before the first or after the
+  last entry the nearest entry's value is **held, not extrapolated**, and the sight warns
+  `error_log_outside_span`. The watch log is read at the sight's recorded time, the index
+  log at the corrected time. Entries need RFC 3339 `Z` times, finite values and distinct
+  instants; a nonzero single value beside a log is noted as unused. The reduced sight
+  reports the value used (`index_correction_from_log`, `clock_correction_from_log`) and the
+  index-correction step's note names the entries. Both lists are omitted when empty, so
+  older files and their outputs are unchanged; in CSV each rides in the header block as one
+  JSON array. `crate::error_logs`.
 
 CSV import/export carries the same fields with one observation per row; the session-level
 fields ride in a `#`-prefixed header block. The CSV path must round-trip through JSON
@@ -343,7 +404,9 @@ Wire formats are in `docs/EXPLORER_API.md`; the program plan is `docs/EXPLORER_P
   display only; sight reduction still uses section 5.
 - `hc_deg` / `zn_deg` in the explorer are exactly section 3 from the apparent
   geocentric GHA/Dec: what a navigator's tables give. The UI labels the two families
-  differently and never subtracts one from the other as if they were comparable.
+  differently and never subtracts one from the other as if they were comparable. (For
+  the Moon this display `hc_deg` is the tables' sphere, without the Earth-shape term the
+  navigation paths add to its model altitude, section 15.4.)
 
 ### 13.3 Rise, set, transit and twilight
 
@@ -394,6 +457,37 @@ planner's navigation candidates or any accuracy claim. Enforced by crate boundar
 `skyfix-sim` or `skyfix-almanac`; only the adapters join it with the engine, to label a
 body's constellation: `skyfix-wasm` (the `sky_state` export) and `skyfix-cli` (the
 constellation column of `skyfix sky`).
+(Expansion P8: the WASM adapter also passes the star field's bright stars to the lunar
+occultation search as catalogue places, an event rather than a sight; see 13.10.)
+
+**Deep sky (deepsky agent, expansion programme, 2026-09-24).** The deep-sky object table,
+the meteor-shower table, the Milky Way outline, the IAU WGSN star names and every model
+built on them (extinction, limiting magnitude, moonlight, the instrument guide, meteor
+rates, the "tonight" ranking) are display-only too, and live in `skyfix-starfield`
+(`dso`, `showers`, `milkyway`, `names`, `search`, `extinction`, `tonight`, `observe`).
+For the Sun, Moon and planets they use the engine, so `skyfix-starfield` now depends on
+`skyfix-almanac` (events and body sampling) as well as `skyfix-ephemeris`; the dependency
+runs one way only, and `crates/skyfix-starfield/tests/crate_boundary.rs` still keeps
+`skyfix-starfield` out of every navigation crate. Definitions they share:
+
+- **Places**: a deep-sky object or a meteor radiant is carried from ICRS to the apparent
+  place of date by the star chain of section 7 (without proper motion or parallax), and
+  to altitude and azimuth as in 13.2.
+- **The night**: local mean noon to local mean noon at the observer's longitude; a time
+  belongs to the night starting at the local mean noon at or before it, or to the next
+  once the Sun has risen that morning. Its **observing window** is the Sun below −18°, or
+  where it never gets there the darkest stretch (below −12°, else below −6°); none when
+  the Sun stays above −6°. Events are those of 13.3.
+- **Solar longitude** λ☉ (meteor showers): the Sun's apparent geocentric ecliptic
+  longitude referred to the mean ecliptic and equinox of J2000.0 (its apparent direction
+  of date rotated back to ICRS, then onto the J2000 ecliptic, obliquity 84 381.406″),
+  the convention of the IAU Meteor Data Center and the IMO.
+- **Estimates are labelled**: meteor rates, limiting magnitudes, the instrument guide and
+  the rankings follow stated rules (EXPLORER_API.md, "Expansion programme — deep sky")
+  and say so on the wire; none is an accuracy claim.
+- **Times in sentences**: the `tonight` summary carries times as tokens `{jd:…}` (UTC
+  Julian dates) for the interface to format in the displayed zone (13.8); the engine
+  never formats a local time.
 
 ### 13.7 Accuracy targets and validation
 
@@ -456,7 +550,193 @@ facing daily pages give (wire format: EXPLORER_API.md "Wave 2 — almanac pages"
   HP and SD to 0.1′, magnitudes to 0.1, times to the nearest minute (Aries' meridian
   passage to 0.1 minute), the equation of time to the second.
 
-### 13.10 Planet detail (expansion programme P9, planetdetail agent)
+### 13.10 Sun tools (expansion programme, suntools agent, 2026-09-24)
+
+`skyfix_almanac::sun_tools`; wire formats in EXPLORER_API.md, "Expansion programme — sun
+tools"; validation in ACCURACY.md section 14. Display and planning only: nothing here
+feeds sight reduction. Every altitude and azimuth is 13.2's, the one `sky_state` gives at
+the same instant.
+
+- **Golden hour and blue hour** are photographers' conventions, not physical boundaries,
+  and the UI says so: golden hour while the Sun's centre is above −4° and not above +6°,
+  blue hour while it is above −6° and not above −4°, morning and evening. The thresholds
+  are on the **geometric** altitude of the centre (`alt_deg`), like twilight (13.3), so
+  blue hour ends exactly at civil dusk. (An "apparent −4°" is not used: below the horizon
+  the display refraction of 13.2 is a formula held constant under −1° with no physical
+  meaning; at +6° refraction would move the instant by under a minute.) Polar cases use
+  twilight's vocabulary: a threshold never crossed inside the window is `always_above` or
+  `always_below`; a golden or blue hour cut by the window's edge says so (`open_start`,
+  `open_end`) and invents no instant; `period` says when it falls: `morning`, `evening`,
+  `midday` (the Sun culminates inside the band), `midnight` (its lower culmination is
+  inside it) or `all_day`.
+- **Azimuth search** (`find_azimuth`): the instants the body's `az_deg` crosses a bearing,
+  found like 13.3's events (10-minute grid, subdivided while the azimuth turns by more than
+  20° between samples, refined to 1 ms). A crossing counts only inside an altitude band:
+  by default `above_horizon` (upper limb above the sea-level horizon); a given band bounds
+  the apparent altitude of the centre, as `find_altitude` does.
+- **Alignments** (`alignment_days`): `rise` and `set` are 13.3's (upper limb on the
+  sea-level horizon, or the dipped one); `at_altitude` is the centre at an apparent
+  altitude. The azimuth compared with the bearing is the centre's at that instant. A day
+  matches within the tolerance; the closest day of each run of consecutive matching days
+  is `best`.
+- **Clocks for year-long series**: local days and dates are laid out on a fixed offset
+  from UTC, all year, with no daylight saving: the offset given, or local mean time
+  (`lon_east / 15` hours). A local year that reaches outside the coverage is clipped and
+  says so (`truncated`).
+- **Analemma**: the Sun at one clock time on every day of a year, on local mean time or a
+  zone time (the caller says which), with its declination and the equation of time.
+- **Sun path**: the Sun's `sample_bodies` samples; the envelope is the same local day
+  shifted by whole days to the days holding the year's equinoxes and solstices (13.5).
+- **Equation of time**: 13.9's definition, `(GHA_Sun − 15° (UT − 12 h)) / (15°/h)`, UT = UTC
+  (DUT1 = 0), in seconds; positive when the sundial is ahead of mean time. Meeus's
+  mean-longitude route (eq. 28.1) defines the mean sun slightly differently and runs
+  0.21 s ahead.
+- **Clear-sky solar energy**, always labelled "clear-sky estimate" with its typical error
+  and "clouds are not modelled":
+  - global horizontal irradiance, Haurwitz as Reno, Hansen & Stein (2012) give it (eq. 18):
+    `GHI = 1098 cos z exp(−0.057 / cos z)` W/m², `z` the Sun's **apparent** zenith angle;
+  - direct normal, Meinel & Meinel (ibid., eqs. 22–23): `DNI = E0 · 0.7^(AM^0.678)`,
+    `AM = 1 / cos z`, `E0 = 1361 W/m² / r²` with `r` the Sun's distance in au; capped so
+    that `DNI cos z ≤ GHI`; diffuse `DHI = GHI − DNI cos z`;
+  - plane of array, isotropic sky: `DNI max(cos θ, 0) + DHI (1 + cos β)/2 +
+    GHI ρ (1 − cos β)/2`, `cos θ = cos z cos β + sin z sin β cos(A_sun − A_panel)`, tilt
+    `β`, albedo `ρ` (default 0.2), the panel facing the equator by default;
+  - energy: irradiance integrated over time (trapezoids between a day's samples, the
+    midpoint rule on each local day of a year), kWh/m²; the best tilt is the one that
+    collects the most in the year for the panel's azimuth (Brent's search on
+    [0°, 90°], both ends checked).
+  - Typical error: RMSE 6.6 % of measured clear-sky irradiance over 30 U.S. sites, small
+    mean bias, larger at high-elevation sites (no elevation term). Clouds, haze beyond
+    the model's average, snow, shading, soiling, temperature and inverter losses are not
+    modelled.
+- **Galactic centre**: Sgr A*, RA 17h 45m 40.04s, Dec −29° 00′ 28.1″ (J2000); the
+  galactic equator's north pole RA 12h 51m 26.28s, Dec +27° 07′ 42.0″ (J2000); both
+  carried to the date by the star chain of `skyfix_ephemeris::frames` (frame bias,
+  precession, nutation, light deflection, annual aberration; no proper motion) and seen
+  from the site as stars (13.2). A **dark-sky window** is a stretch during which the
+  galactic centre's apparent altitude is at least `min_altitude_deg` (default 10°) and the
+  Sun's geometric altitude at most `sun_max_altitude_deg` (default −18°, 13.4's night),
+  split where the Moon rises or sets (13.3), with whether it is up and its illuminated
+  fraction. The **best moment** is the galactic centre's highest in the window; there the
+  **arch** (the galactic equator) has its highest point at `90° − h` in the azimuth
+  opposite the galactic pole that is above the horizon (`h` that pole's altitude) and
+  meets the horizon 90° either side of that pole's azimuth. Geometric directions.
+### 13.11 Tides (tides agent, expansion programme)
+
+`skyfix_tides` (wire format: EXPLORER_API.md, "Expansion programme — tides"). Tide
+heights are **predictions of the astronomical tide at NOAA's stations**, never
+observations: weather, surge and river flow are not included, and every result says so.
+
+- **Stations.** NOAA's tide-prediction list, as the optional `tides-us` pack carries it
+  (section 15.5): *harmonic* stations (NOAA "R", a full curve from harmonic constants)
+  and *subordinate* ones (NOAA "S", high and low water only, from a reference station).
+- **Time.** Instants are `jd_utc`, as everywhere; NOAA's "GMT" is taken as UTC (the
+  difference from UT1 moves a tide by under a millimetre). Instants from 1900-01-01 to
+  2100-12-31 only (`outside_range`): the constants describe today's harbours.
+- **Harmonic sum.** `h(t) = Σ f·H·cos(V0 + u + ω·τ − G)` about the station's mean sea
+  level, with NOAA's amplitude `H` and Greenwich phase `G` (`phase_GMT`), the
+  constituent's speed `ω`, `τ` the hours since 0 h UTC on 1 January of the year of `t`,
+  `V0` the equilibrium argument at that instant and `f`, `u` Schureman's node factor
+  and nodal angle **for the middle of the same year** (Greenwich noon on 2 July, or the
+  preceding midnight in a leap year): NOAA's convention (Schureman 1958, p. 157), which
+  NOAA's own predictions follow. The sum therefore steps by a few millimetres at each new
+  year, as NOAA's does. Schureman's elements (his Table 1) are evaluated in UT.
+- **Constituents.** NOAA's 37 standard constituents and the 83 of its extended set, with
+  `V`, `u` and `f` from Schureman's Tables 2 and 2a; compounds `V = Σ n·V`, `u = Σ n·u`,
+  `f = Π f^|n|`. Where NOAA's usage differs from the textbook, NOAA's is followed, each
+  pinned by NOAA's predictions (`tools/tides/README.md`): MSf = S2 − M2; M1 takes
+  formula 201's `V0 + u` advanced at formula 194's speed; TK1, RP1, KP1 are π1, ψ1, φ1;
+  MP1 = M2 − P1; SO1 = S2 − O1.
+- **Datums.** `height(datum) = h − (datum − MSL)`, with NOAA's datums for the station's
+  tidal datum epoch (1983-2001 at most stations). MLLW is the default (the chart datum of
+  U.S. charts); MLW, MSL, MTL, MHW, MHHW, LAT, HAT and NAVD88 where NOAA publishes them.
+  Sea-level change since the epoch is not included.
+- **High and low water.** Zeros of the rate of rise, found on a 6-minute grid and refined
+  by Newton's method to under 0.1 s; heights at those instants. The **tide table** then
+  applies NOAA's rule: scanning from the earliest, a high and the next low (or low and
+  next high) less than 2 hours apart, with both instants rounded to the minute, and less
+  than 0.1 ft (0.03048 m) apart in height are both left out — a ripple or a stand, not a
+  tide. The table is searched 6 hours beyond each end of the window so that a ripple
+  across an edge is judged whole; the window's edges never create an extreme.
+- **Subordinate stations.** From the reference station's extremes on its MLLW: each
+  high (low) water moved by the high (low) water time difference, its height multiplied
+  by the ratio or increased by the additive difference (NOAA serves those in feet); the
+  tide-table rule is then applied to the subordinate list. MLLW only. Between high and
+  low water the height is NOAA's cosine interpolation (Tide Tables, Table 3),
+  `h = h1 + (h2 − h1)·(1 − cos(π·(t − t1)/(t2 − t1)))/2`, labelled `interpolated`: an
+  estimate, not a prediction.
+- **The tide now.** Height and rate (m/h) at the instant; `rising` when the rate is
+  positive (at a zero rate, when the next extreme is a high); `previous`, `next`,
+  `next_high` and `next_low` from the tide table.
+- **Tide type.** By the form number `F = (K1 + O1)/(M2 + S2)` of the amplitudes: under
+  0.25 semidiurnal, to 1.5 mixed mainly semidiurnal, to 3 mixed mainly diurnal, 3 and
+  over diurnal.
+- **Nearest stations.** Great-circle distance on the sphere of radius 6371.0088 km
+  (under 0.5 % from the ellipsoid's), and the initial bearing from the place.
+
+### 13.10 The Moon in detail (expansion programme P8, moondetail agent)
+
+`skyfix_almanac::{libration, lunar_features, apsides, occultations}`; wire format in
+`docs/EXPLORER_API.md`, "Expansion programme P8 — the Moon in detail". Display only: none
+of it feeds sight reduction.
+
+- **Selenographic coordinates**: latitude north-positive, longitude **east**-positive
+  (toward Mare Crisium, the IAU convention since 1961), `(-180, 180]`, in the **mean
+  Earth/polar axis** frame of IAU coordinates, of the LOLA control network and so of the
+  USGS/IAU gazetteer. The Moon's orientation is Meeus's chapter 53 (Eckhardt's physical
+  libration, `I = 1°32′32.7″`) built as one rotation from the true equator and equinox of
+  date, then tilted by the published 78.6944″ between the figure (principal-axis) pole
+  that Cassini's laws describe and the mean rotation pole (DE440's PA-to-ME rotation about
+  y; its 67.85″ about z is already in Meeus's prime meridian, `F + 180°`, and its 0.28″
+  about x is left out). Meeus's printed totals are in the figure frame.
+- **Libration**: the selenographic place of the point at the centre of the disc, where
+  the line from the Moon's centre toward the observer meets the surface, with the Moon
+  where the observer sees it (light-time and aberration, SPICE's `LT+S`) and its
+  orientation at the moment the light left it. Geocentric for the Earth's centre;
+  topocentric (the diurnal libration, up to about 1°) for an observer on the WGS84
+  ellipsoid (13.2). **Optical** and **physical** parts are Meeus's `l′ b′` and `l″ b″`
+  (geocentric, figure frame).
+- **Sub-solar point**: where the Sun's apparent direction seen from the Moon meets the
+  surface (the geocentric apparent Sun minus the Moon). **Colongitude** `= 90° − its
+  longitude`, `[0, 360)`: the east longitude of the morning terminator at the equator.
+  **Terminator**: the great circle 90° from the sub-solar point. **Axis position angle**:
+  of the Moon's north pole projected on the sky at the Moon's apparent direction, from
+  celestial north through east. **Bright limb**: the ephemeris's (13.5).
+- **Disc** (`DiscPoint`): orthographic, in disc radii, `east`/`north` along celestial east
+  and north at the Moon; `x`/`y` with the zenith up (rotated by the parallactic angle, the
+  position angle of the geodetic zenith at the Moon), or north up and east left without an
+  observer. A point is `visible` when it faces the observer.
+- **Named features**: the Sun's altitude over a feature is `90°` minus its angle from the
+  sub-solar point (mean sphere, no slope, the Sun a point). **Near the terminator** (best
+  relief): visible, and the Sun between `−r` and `band + r` over it, `r` the feature's
+  angular radius on a 1737.4 km sphere, `band` 10°.
+- **Perigee and apogee**: local minimum and maximum of the geometric distance between the
+  centres of the Earth and the Moon from the ephemeris. **Supermoon** (Nolle 1979): a new
+  or full Moon (13.5) at least 90 % of the way from apogee to perigee, `(d_A − d)/(d_A −
+  d_P) ≥ 0.9`, with P and A the perigee and apogee on either side of it in time;
+  **micromoon** `≤ 0.1`. **Largest / smallest full Moon of the year**: least / greatest
+  distance at the instant of full Moon among the full Moons of the UTC calendar year.
+  Sizes are against the mean distance, 384 400 km.
+- **Lunar occultations**: a contact is when the topocentric angular separation of the
+  body (a star, or a planet's centre) from the Moon's centre equals the Moon's topocentric
+  semidiameter on the **mean limb**, a sphere of radius `k a` (`k = 0.2725076`,
+  `a = 6378.14 km`, the ephemeris's own). The result always carries this label, because the
+  real limb moves times by seconds and by up to a minute where the body meets the limb
+  obliquely near the Moon's poles. **Position angle** on the limb from celestial north
+  through east; **vertex angle** from the zenith; **cusp angle** from the nearer cusp,
+  positive on the dark limb (the cusps at the bright limb's position angle ±90°);
+  **dark/bright limb** by whether the contact is within 90° of the bright limb's
+  midpoint. **Graze**: the body passes within 1′ of the mean limb, inside or outside; a
+  miss by under 1′ is reported as a near miss. Altitudes are 13.2's (geometric centre); an
+  event is `visible` when the Moon is above the horizon at a contact.
+- **Stars for occultations**: the 58 navigational stars (their places exactly as
+  everywhere else) and the Bright Star Catalogue's stars brighter than a magnitude limit
+  (3.5 by default), which are display data (13.6) passed in by the WASM adapter as
+  catalogue places: an occultation is an event, not a sight, and the catalogue's
+  arcsecond positions are worth a couple of seconds of time. `skyfix-almanac` still does
+  not depend on `skyfix-starfield`.
+
+### 13.12 Planet detail (expansion programme P9, planetdetail agent)
 
 `skyfix_almanac::{discs, rings, satellites, transits, conjunctions, earth_apsides,
 orbits}`; wire format EXPLORER_API.md "Expansion programme — planet detail"; accuracy
@@ -562,6 +842,94 @@ the rest of this file:
   great circle through the method's reference position; the running fix keeps
   `docs/MOTION.md`'s leg model.
 
+### 14.1 Magnetic variation (`skyfix_geomag`; expansion programme, geomag agent)
+
+- **Models.** WMM2025 (NOAA NCEI and BGS) from 2025.0 to 2030.0 and IGRF-14 (IAGA) from
+  1900.0 to 2030.0. The default (`auto`) is WMM2025 inside its span and IGRF-14 before it.
+  Outside 1900.0-2030.0 there is **no value, only a reason**: the field's past before 1900
+  and its future after 2030 are not known well enough, and a variation is never shown there.
+- **Evaluation** exactly as the WMM2025 technical report, section 1.2: geodetic to
+  geocentric on WGS84, Schmidt semi-normalised Legendre functions, reference radius
+  6 371 200 m, rotation into the ellipsoidal frame by `psi = phi' - phi`. IGRF-14 is linear
+  between its five-yearly models (its degree 11-13 terms grow from zero over 1995-2000) and
+  uses its predictive secular variation after 2025.0; the annual change is the slope of
+  that piecewise-linear model.
+- **Position**: WGS84 geodetic latitude, east longitude and height above the ellipsoid in
+  metres (an observer's `height_m`), from -1 km to 850 km. **Time**: the decimal year
+  `Y + (jd - JD(Y-01-01T00:00)) / (days in Y)` of the app's clock.
+- **Signs**: declination (**variation**) east positive, inclination (dip) down positive;
+  X north, Y east, Z down (geodetic); rates per year.
+- **Uncertainty**, one standard deviation, returned with every value with its basis:
+  WMM2025's published error model (X 137, Y 89, Z 141, H 133, F 138 nT, I 0.20°,
+  declination `sqrt(0.26² + (5417/H)²)`° with H in nT, capped at 180°); for IGRF-14, the
+  global standard deviations of Beggan (2022) for 1980-2020 (X 144, Y 136, Z 293, H 135,
+  F 178 nT, I 0.29°, declination in the same `5417/H` form, whose global mean 0.41° matches
+  the IGRF's 0.39°), multiplied by `sqrt(1 + (0.5 e / 136)²)` with `e` the model's own rms
+  vector error in that year from the IAGA health warning (100 nT before 1945, 300 falling to
+  100 nT over 1945-1960, 50 nT for 1965-1995, 5-10 nT after 2000, and a forecast error
+  growing 20 nT a year after 2025). The IGRF composition is this project's, stated as such.
+- **Zones** (WMM2025 technical report 1.8), for either model: **blackout** where the
+  horizontal intensity H < 2000 nT (a compass is unreliable; declination errors up to 180°),
+  **caution** where H < 6000 nT.
+- **Words**: "variation 11.8° W"; the annual change in arcminutes, "1.6′ E a year".
+
+### 14.2 Compass error (`skyfix_core::methods::compass`; expansion programme, geomag agent)
+
+`docs/NAVIGATION_METHODS.md` section 9 is normative for the method.
+
+- **Compass error** `CE = true bearing - compass bearing`, normalised to (-180°, 180°], east
+  positive ("compass least, error east; compass best, error west"). For a magnetic compass
+  `CE = variation + deviation`, so **deviation = CE - variation**, east positive. For a
+  gyrocompass the whole of CE is gyro error and there is no variation.
+- **True bearing by azimuth**: the topocentric azimuth of the body's centre at the instant of
+  the bearing, from its apparent geocentric GHA, declination and horizontal parallax, with the
+  observer on the WGS84 ellipsoid (the lunar clearing's geometry, section 1). This is an
+  exception to section 1 of the same kind as the explorer's display values (13.2): a bearing
+  is not a sight, and the value never enters sight reduction. Refraction is vertical and does
+  not move a bearing. Venus is its centre of light, as for sights (section 7).
+- **True bearing by amplitude**: on the **celestial horizon** the centre's geocentric altitude
+  is 0 and `sin A = sin dec / cos lat` (A north positive; bearing `90 - A` rising,
+  `270 + A` setting). On the **visible horizon** the chosen limb is on the sea horizon: its
+  apparent altitude is `-dip` (section 5 step 2), Bennett refraction is taken at that
+  slightly negative altitude (step 3; the formula is smooth there, and this is the only place
+  it is used below 0°), then the (topocentric) semidiameter and the rigorous parallax (steps
+  4-5) give the centre's geocentric altitude `h`, and the bearing is exact:
+  `cos Z = (sin dec - sin lat sin h) / (cos lat cos h)`. The difference from the
+  celestial-horizon bearing is Bowditch's Table 23 correction (with the opposite sign: the
+  table corrects the observed bearing). The instant is the crossing of `h` nearest the given
+  time (within 12 hours) on the direction source's own track, and `dec` is the declination
+  then.
+- **Variation**: a value the navigator gives (the chart's compass rose) wins; otherwise the
+  model's (14.1) at the observer and the instant. The deviation's sigma is the variation's,
+  combined in quadrature with the bearing's own when the navigator states it; an unstated
+  bearing sigma is never guessed.
+- Caveats are plain sentences in the result's `notes` (not section 12 warnings: the result is
+  not a sight reduction and carries no sight).
+
+Additions of the expansion programme (sailings agent; docs/NAVIGATION_METHODS.md sections
+9-13, wire shapes in EXPLORER_API.md "Expansion programme — sailings"):
+
+- **Sailings and dead reckoning** (`skyfix_core::sailings`) are on the sphere of section 1
+  (1′ = 1 NM), except that Mercator sailing may take `meridional_parts = wgs84`: the course
+  and difference of longitude of the WGS84 loxodrome (a Mercator chart, Bowditch's Table 6)
+  with Bowditch's `D = l sec C`, 1′ of latitude = 1 NM. Courses are true, `[0, 360)`;
+  distances NM, with km beside the main ones. The sphere is within 0.52 % of WGS84
+  distances (measured, section 9.8).
+- **Dead-reckoning legs**: `dr_advance` and routes default to the rhumb line of the course
+  (what steering a compass course does); `great_circle` is the running fix's leg model and
+  `mid_latitude` Bowditch's approximation. A route's legs have the running fix's
+  `RunningFixLeg` shape. Before a route's start its start position is reported, after its
+  end its last position, each with a status; nothing is extrapolated.
+- **Star identification** (`methods::starid`) reduces the observation as a star (section
+  5 steps 1-3) and compares it with each candidate's airless topocentric altitude (parallax
+  removed); matches lie within 2° of altitude and 5° of bearing by default, measured in
+  the observed direction's tangent plane; the brightness rule is a stated clear-sky
+  heuristic equal to the planner's in nautical twilight.
+- **Star finder** (`methods::starfinder`) coordinates are on the unit disc, `x` right, `y`
+  up, the base seen from outside the celestial sphere (polar azimuthal equidistant to the
+  opposite pole); a template is set by turning it anticlockwise through `+LHA ♈` on the
+  north side and `−LHA ♈` on the south.
+
 ## 15. Deep time: coverage tiers, time scales and calendars (expansion programme, 2026-09-24)
 
 Normative for every crate. Decisions from `EXPANSION_PLAN.md` §4; agents refine the
@@ -580,29 +948,74 @@ subsections they own and say so in their reports.
 ### 15.2 Time scales
 
 - The app's clock (`jd_utc` on the wire) is **UTC from 1972-01-01 to 2035-12-31** and
-  **UT (≈ UT1) outside** that span. TT − UTC = 32.184 s + ΔAT inside; TT − UT = ΔT(model)
-  outside. UT1 = UTC + DUT1 inside; UT1 = UT outside.
-- **ΔT model**: Stephenson, Morrison & Hohenkerk 2016 splines (−720 to 2016), IERS observed
-  values (1962 on, monthly), the long-term parabola −320 + 32.5 ((y − 1825)/100)² s beyond
-  both, joined smoothly. Its standard uncertainty is part of the model: the published
-  historical values where the splines apply, the Huber/NASA growth law for the future.
-- **DUT1**: the IERS history (weekly samples, 1973 to the build date) inside the UTC span;
-  a user value when given (explorer-wide `set_dut1`, or a session's `clock.dut1_s`);
-  otherwise 0 with σ = 0.9 s, shown as ±0.23′ of longitude. Never assumed silently after
-  2035.
+  **UT (≈ UT1) outside** that span (`time::scale_at`). TT − UTC = 32.184 s + ΔAT inside;
+  TT − UT = ΔT(model) outside. UT1 = UTC + DUT1 inside; UT1 = UT outside. At the two
+  boundaries TT − clock jumps by the model's DUT1 of that moment (−0.04 s at 1972-01-01,
+  +1.5 s at 2036-01-01): `clock_from_tt` maps a TT instant in a gap to the boundary and
+  one in an overlap to its UTC reading.
+- **ΔT model** (`skyfix_core::deltat`, the chain of Skyfield 1.55's `build_delta_t` on this
+  project's own IERS table): the IERS values 1973-01-02 to 2027-09-28 (32.184 s + ΔAT −
+  DUT1, the weekly table below, from IERS finals2000A.all of 2026-09-25); Stephenson, Morrison & Hohenkerk 2016 splines in their
+  2020 revision (Table S15.2020) from −720 to the table, the last segment's linear term
+  adjusted to meet its first value; the long-term parabola −320 + 32.5 ((y − 1825)/100)² s
+  beyond both. **Joins** (Skyfield's rule): a cubic Hermite segment from the parabola's
+  value and slope at −1520 to the splines' at −720, and one from the table's last value
+  and last-year slope (× 366/365) to the parabola's value and slope at 2800 (the first
+  whole century 800 years on); the parabola alone before −1520 and after 2800. The
+  1962-1972 IERS values are not in the table (finals2000A.all starts in 1973): the
+  splines stand there. Sources: `iers` (observed, to 2026-09-24), `prediction` (after it, to 2800),
+  `smh2016`, `parabola`. ΔT is a function of TT; UT → TT is solved as Skyfield's
+  `ut1_jd` (two evaluations).
+- **Its standard uncertainty**: 0.001 s where observed (the weekly table's interpolation,
+  at most 1.9 ms; the IERS formal errors are at most 1.5 ms before 1985 and 0.06 ms
+  since 1990); after the last observation the larger of IERS Bulletin A's
+  `0.00025 n^0.75` s (n days) and Huber's (2000) `365.25 N sqrt((N Q/3)(1 + N/M))/1000` s
+  (N years since 2026-09-24, Q = 0.058 ms²/yr, M = 2500 yr, as NASA's "Uncertainty in
+  ΔT" page states it): 10 s in 2060, 32 s in 2100, 15 min in 2650, 30 min in 3000; on the
+  splines, their published errors (Table DT-lod4500yrs.2020) but never less than 0.11 s,
+  the splines' measured rms against IERS over 1973-2019; before −720, Huber counted from
+  −500 (NASA's calibration for dates before 500 BC; 1 h at −2000), never less than 180 s.
+- **DUT1** (`time::dut1_info`): on the UTC scale the user's value when given
+  (explorer-wide `set_dut1`, a session's `clock.dut1_s`, the CLI's `--dut1`; standard
+  uncertainty 0.05 s, the time signal's 0.1 s code), else the IERS history (weekly
+  samples in units of 0.1 ms, linear in UT1 − TAI so leap seconds do not smear;
+  1973-01-02 to 2027-09-28, observed to 2026-09-24), else 0 with σ = 0.9 s (`assumed`),
+  shown as ±0.23′ of longitude. On the UT scale DUT1 is 0 by definition (`model`) and a
+  user value does not apply: the clock is UT1 there. Never assumed silently after 2035.
+- **The almanac page's argument is UT1**, as in the printed Nautical Almanac (a navigator
+  enters it with UTC + DUT1): its `Sky` keeps DUT1 = 0, which makes each row's clock
+  instant its UT1 (TT is then off by DUT1, at most 0.5″ of the Moon). This refines
+  section 13.9's "UT is UTC with DUT1 = 0". The explorer (`sky_state` and the rest) and
+  the eclipses use the history: their instants are UTC.
+- Eclipses report `delta_t_s` (TT − UT1 as used) with `delta_t_sigma_s`: DUT1's standard
+  uncertainty on the UTC scale, the ΔT model's on the UT scale.
+- Reference fixtures build TT and UT1 through this same model
+  (`tools/timescales/skyfield_timescale.py`); those made before it, which after 2035 took
+  TT = UTC + 69.184 s and DUT1 = 0, are evaluated at their own TT and UT1
+  (`time::legacy_fixture_instant`) until regenerated.
 - The words: "UTC" inside the span, "UT" outside, "TT" only in developer output.
 
 ### 15.3 Calendars and years
 
 - Internal scale: JD, as today. Astronomical year numbering everywhere in code and on the
-  wire (year 0 = 1 BC); ISO expanded years outside 0000–9999.
+  wire (year 0 = 1 BC); ISO expanded years outside 0000–9999. `skyfix_core::calendar`
+  converts both ways for any year in exact integer arithmetic.
 - Display and input: the **Julian calendar before 1582-10-15**, Gregorian from that day,
   each labelled; a proleptic-Gregorian (ISO) option in Settings for people who want it.
   Years before 1 AD are shown as "585 BC" with the astronomical number in the tooltip.
+  A typed date between 1582-10-05 and 1582-10-14 is in neither calendar as used and is
+  refused unless the calendar is named. The CLI follows the same rule; its global
+  `--calendar julian|gregorian` forces one calendar for typed and printed dates, and its
+  text labels Julian dates `(Julian)` and UT-scale instants `UT`. The wire and the JSON
+  are always proleptic Gregorian.
 - Local time before 1850: local mean time at the observer's longitude ("LMT"), because
   civil zones did not exist; nautical zones and IANA zones stay selectable.
 - The Saros series number is computed from the epoch's expected series, not from
-  `lunation mod 223` alone (which misnumbers series below 28 solar / 12 lunar).
+  `lunation mod 223` alone (which misnumbers series below 28 solar / 12 lunar): the
+  member of the residue class `s_ref + 38 (N − N_ref) mod 223` nearest to
+  `s_ref + (N − N_ref)/358` (one series more per inex), with the references 2024-04-08
+  (lunation 300, saros 139) and 2025-03-14 (311, 123). Identical to the old rule for every
+  eclipse of AD 1–3000.
 
 ### 15.4 The Moon's Earth-shape term (exception to §1 and §5)
 
@@ -614,6 +1027,40 @@ in the solver, the intercept, predicted readings, the noon and Polaris methods, 
 planner and the misfit grid. `Ho` and the six-step correction chain are unchanged. The
 term is under 0.002′ for Venus and Mars and is not applied to them.
 
+Implementation (moonshape, 2026-09-24; `skyfix_core::sights::wgs84::EarthShape`):
+
+- **Definition.** For a Moon sight whose direction carries its horizontal parallax,
+  `term = [h_t + asin(sin HP cos h_t)] − Hc_sphere`: `h_t` is the altitude, above the
+  geodetic horizon of a sea-level WGS84 site at the trial position, of the Moon placed at
+  `6378.14 km / sin HP` along its apparent geocentric direction, and `Hc_sphere` is
+  section 3 at the same geodetic latitude and longitude. Both altitudes are taken with
+  `atan2`, so the term is exact to the zenith. The model altitude is `Hc_sphere + term`;
+  `Ho − Hc` is then zero for a perfect sight on the real Earth. `OB` above is minus this
+  term to first order, with `h` and `Z` the altitude and azimuth the observer sees
+  (0.00018′ from the exact value below 84°; 0.004′ if `h` is taken as the geocentric
+  altitude). Worst case 0.2382′ (φ = 54.9°, the Moon toward the equator at 55°, HP
+  61.5′); Venus 0.0021′, Mars 0.0015′, the Sun 0.0006′.
+- **Where.** `Sight.moon_hp_arcmin` (set by `reduce::to_sights` for the Moon) brings the
+  term into the solver at every trial position; `ReducedSight.hc_deg` and the intercept
+  at the assumed position include it and `ReducedSight.earth_shape_arcmin` reports it;
+  `PredictedSight.hc_deg` includes it and `earth_shape_arcmin` reports it (so a
+  predicted reading is the real Earth's); the noon method's curve, meridian altitude
+  and latitude rule (`lat = dec ± (90° − (H0 − term))`), the averaging method's
+  predicted altitude, the planner's Moon altitude and the misfit grid use it. Polaris
+  sights have no Moon. A running fix takes the term at the estimated position at each
+  sight and removes it from that sight's `Ho` before advancing it. A Moon circle of
+  position carries the term evaluated at the fix (at the best candidate, or the
+  initializer, when there is no fix).
+- **Jacobian.** The solver's row stays `[cos Zn, sin Zn]`. The term's own slope is at
+  most 0.9e-4 of the main term's below 45° of altitude and 1.8e-4 below 70°, growing as
+  `tan h` toward the zenith (7e-4 at 85°): it changes the iteration's path, not where it
+  stops, and the covariance by under 0.04 % below 70°.
+- **Without HP.** An `observed_ho` Moon record whose supplied direction has no
+  horizontal parallax cannot have the term; it is modelled on the sphere and the
+  reduction says so (a warning).
+- **Not modelled with it:** the observer's height (30 m changes the parallax by
+  0.0003′), polar motion, and the deflection of the vertical.
+
 ### 15.5 Packs
 
 A pack changes what the engine can answer, never how it answers: the `deep-time` pack
@@ -621,3 +1068,19 @@ installs wider series tables and the long-term precession; the `tides-us` pack i
 station constants; the `lunar-limb` pack installs a limb profile. `explorer_coverage()`
 reflects loaded packs. A pack is loaded per page session from the app's own cache; the
 core module never depends on one.
+
+Refined by the packs agent (2026-09-24; the mechanism: EXPLORER_API "Packs — the mechanism
+as built"):
+
+- A pack file is named `<name>-<rev>.bin` (rev = the first 16 hex digits of its SHA-256),
+  carries the common header with a CRC-32/ISO-HDLC of its payload, and is listed in the
+  precached `data/packs/manifest.json`. A pack is never precached and never stored by the
+  service worker; the page keeps a chosen pack in `skyfix-lab-packs-<schema>@<site>` until
+  the person removes it.
+- A file is loaded into the engine before it is saved, so a file the engine refuses is
+  never kept. Saved packs are loaded before the first view mounts.
+- A pack is fetched only when the person asks (Settings → Data packs) or accepts the one
+  prompt a view's need raises, which states its size; declining is remembered for the page
+  session. Nothing about the person is sent to fetch a pack.
+- Every committed pack must install into the core built from the same commit
+  (`cargo test -p skyfix-wasm`, and the Pages workflow before it builds).

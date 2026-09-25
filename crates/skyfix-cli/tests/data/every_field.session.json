@@ -17,7 +17,7 @@
     "index_correction_arcmin": -2.0,
     "horizon": "sea"
   },
-  "clock": { "uncertainty_s": 0.5, "correction_s": -1.25 },
+  "clock": { "dut1_s": 0, "uncertainty_s": 0.5, "correction_s": -1.25 },
   "observations": [
     {
       "id": "obs-1",

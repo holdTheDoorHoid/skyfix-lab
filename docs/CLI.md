@@ -79,6 +79,26 @@ Be careful not to conflate two different things:
 - a body being **answerable** — whether a provider in this build will return a direction
   for it. That is what `skyfix catalog` reports.
 
+### UT1 − UTC: `--dut1 SECONDS`
+
+The Earth's rotation runs on UT1, a clock is UTC, and the difference (DUT1, within 0.9 s
+while leap seconds last) turns every Greenwich hour angle by 15.04″ per second — up to
+0.23′, a quarter of a mile of longitude. `--dut1` gives it, from a time signal or IERS
+Bulletin A, on every command that reduces, predicts or plans: `reduce`, `solve`,
+`predict`, `noon`, `polaris`, `average`, `running-fix`, `lunar`, `plan-sights` and
+`plan`. It overrides a session's `clock.dut1_s` (for `lunar`, the input document's
+`observer.dut1_s`); without either the engine's own value is used, 0 s until the IERS
+history is built in, and then the error above is unknown. A value beyond 0.9 s is used
+with a warning on standard error; beyond 60 s it is refused as not being in seconds.
+
+```console
+$ skyfix predict --lat 39.9526 --lon -75.1652 --utc 2026-10-01T03:00:00Z --body Vega \
+      --dut1 -0.3
+```
+
+The providers are built once per session, with the value at its earliest sight
+(CONVENTIONS section 6).
+
 ---
 
 ## Commands
@@ -109,6 +129,11 @@ letter.
 | `--ephemeris auto\|supplied` | see above; default `auto` |
 | `--json` | the `Vec<ReducedSight>` as serde emits it. A rejected sight appears as `{"id": ..., "error": ...}` in the same position, so the array stays aligned with the session |
 | `--csv` | one row per sight: `id,body,utc,direction_source,gha_deg,dec_deg,ho_deg,sigma_arcmin,hc_deg,zn_deg,intercept_nm` |
+| `--dut1 SECONDS` | UT1 − UTC, over the session's `clock.dut1_s` (above) |
+
+For a Moon sight `Hc` and the intercept include the Earth-shape term (CONVENTIONS
+15.4), and the text says how much: `Hc includes the Moon's Earth-shape term, +0.057'`.
+The JSON carries it as `earth_shape_arcmin`; the CSV's `hc_deg` includes it.
 
 A rejected sight never discards the others. The rest are reduced and printed, the
 rejections are named, and the exit code is 2.
@@ -124,6 +149,7 @@ own line: `UNIQUE FIX`, `AMBIGUOUS: N CANDIDATES`, `UNDERDETERMINED` or `FAILED`
 | flag | meaning |
 |---|---|
 | `--ephemeris auto\|supplied` | as for `reduce` |
+| `--dut1 SECONDS` | as for `reduce` |
 | `--json` | the `FixResult` exactly as serde emits it |
 | `--init LAT,LON` | start the iteration here. A starting point only; it never weights a converged fix |
 | `--no-init` | ignore the session's assumed position and rely on multistart |
@@ -633,8 +659,11 @@ Rules every one of them keeps:
 - **`--format text|json`**, and `--json` as the older commands spell it. Text prints
   angles in navigator style — whole degrees and decimal minutes to 0.1' (185 m), `183 12.4`
   for an hour angle or a bearing, `N 38 47.1` for a declination, and a sign on every
-  altitude so a body below the horizon cannot be read as one above it — and instants as
-  RFC 3339 UTC with `Z`, to the second. A value that rounds to zero never carries a sign.
+  altitude so a body below the horizon cannot be read as one above it — and instants to
+  the second: RFC 3339 UTC with `Z` from 1972 to 2035, `UT` outside those years (the
+  clock is Universal Time there), and a date before 1582-10-15 in the Julian calendar,
+  labelled `(Julian)` (CONVENTIONS 15.2-15.3; see *Dates, years and calendars* below).
+  A value that rounds to zero never carries a sign.
   JSON is the engine's own result exactly as serde emits it, milliseconds included: the
   wire shapes of `docs/EXPLORER_API.md`. A test calls each engine function directly and
   compares its result with the command's JSON, number by number. `skyfix almanac` takes
@@ -648,6 +677,17 @@ Rules every one of them keeps:
 - **A time window** takes a date or an instant at each end. As a start, `2026-10-01`
   means 00:00 UTC that day; as an end it means the END of that day, so `--from 2026-10-01
   --to 2026-10-31` is the whole of October.
+- **Dates, years and calendars.** Every date and instant takes any year: four digits for
+  0000-9999, else ISO 8601's expanded form with a sign, `-0584-05-28` or
+  `+12345-01-01T00:00:00Z`. Years are astronomical: year 0 is 1 BC, -584 is 585 BC. A
+  typed date is in the Julian calendar up to 1582-10-04 and the Gregorian from
+  1582-10-15, as the explorer shows dates; the ten days between existed in neither where
+  the reform was made, and are refused with a sentence saying so. `--calendar julian` or
+  `--calendar gregorian` (proleptic, as ISO 8601; accepted by every command) makes every
+  typed and printed date use that one calendar. JSON output is always the wire's
+  proleptic Gregorian (`docs/EXPLORER_API.md`, "Dates and years on the wire"), so a
+  `utc` string from JSON goes back in with `--calendar gregorian`. The engine itself
+  covers 1990-2060 today; `skyfix calendar` works for any year.
 - **The navigation methods read sessions exactly as `solve` does** — JSON or CSV,
   validated against the body list — and take `--ephemeris auto|supplied`. A sight the
   reducer rejects becomes a warning that names it, and the exit code is 2, as for
@@ -936,7 +976,7 @@ carries an eye-safety line, fitted to what the place sees.
 ```console
 $ skyfix eclipse 2024-04-08-solar --lat 32.78 --lon -96.80
 TOTAL SOLAR ECLIPSE  2024-04-08-solar
-Greatest   2024-04-08T18:17:20Z at 25 17.33' N, 104 08.78' W (25.288760, -104.146323),
+Greatest   2024-04-08T18:17:20Z at 25 17.33' N, 104 08.78' W (25.288760, -104.146253),
            the Sun at altitude +69 47.6, azimuth 149 23.3 there
 Magnitude  1.0566: the Moon's apparent diameter over the Sun's at greatest eclipse
 ...
@@ -953,7 +993,7 @@ Eclipse    2024-04-08T17:23:19Z to 2024-04-08T20:02:41Z, 2 h 39 min 22 s from fi
 
   UTC                   event                           Sun alt        Az     P     V
   2024-04-08T17:23:19Z  c1   partial eclipse begins    +60 34.2  145 18.9   226   255
-  2024-04-08T18:40:43Z  c2   totality begins           +64 39.9  186 54.1    19    13
+  2024-04-08T18:40:43Z  c2   totality begins           +64 40.0  186 54.1    19    13
   2024-04-08T18:42:39Z  max  greatest eclipse          +64 36.8  188 00.5     -     -
   2024-04-08T18:44:34Z  c3   totality ends             +64 33.3  189 06.5   256   248
   2024-04-08T20:02:41Z  c4   partial eclipse ends      +56 44.3  226 01.8    49    12
@@ -967,7 +1007,8 @@ eye; the glasses go back on as the first bright point reappears.
 
 Dallas is inside the path, with 3 min 51 s of totality. USNO's Solar Eclipse Computer
 gives 3 min 52.5 s for Dallas at 32.7767 N, 96.797 W and 150 m (with USNO's own Delta-T
-of 72.8 s against the 69.184 s here), and every contact of that case agrees with USNO's
+of 72.8 s against the 69.201 s here: TT - UTC 69.184 s less the IERS UT1 - UTC of
+-0.017 s that day), and every contact of that case agrees with USNO's
 within 2 s once the Delta-T is the same (docs/ACCURACY.md section 12). `alt` and `Az`
 are the Sun's centre, geometric, from the WGS84 site (CONVENTIONS 13.2); a contact with
 the Sun below its rise and set altitude, -50', is marked `Sun down`, and a sunrise or
@@ -1288,17 +1329,21 @@ Instrument  sea horizon, index correction -2.0' (added to the reading)
 Time        2026-10-01T03:00:00Z
 Direction   GHA 352 05.0, Dec N 26 18.3, SD 16.17', HP 59.34' (from skyfix-auto)
 
-Hs  +20 28.7   the sextant reading: set this on the arc
+Hs  +20 28.8   the sextant reading: set this on the arc
 Zn   73 06.1   the true bearing to look along
-Hc  +21 33.1   the computed altitude here; reducing Hs gives it back
+Hc  +21 33.2   the computed altitude here; reducing Hs gives it back
+         including the Moon's Earth-shape term, +0.057' (CONVENTIONS 15.4)
 Ha  +20 24.0   the apparent altitude after the index correction and the horizon step
 ...
 ```
 
 The Moon reads more than a degree below its computed altitude: 55.5' of parallax and
 16.3' of semidiameter, less 2.7' of refraction, 2.8' of dip and the 2.0' index correction.
-That is exactly why presetting `Hc` on the arc would not bring it into the telescope. A body below the lowest altitude the horizon lets a sextant
-show exits 1 and says so.
+That is exactly why presetting `Hc` on the arc would not bring it into the telescope. For
+the Moon `Hc` also carries the Earth-shape term (CONVENTIONS 15.4): the part of its
+parallax that the spherical Earth leaves out, here +0.057', so the reading is what a
+perfect sextant shows on the real Earth. A body below the lowest altitude the horizon
+lets a sextant show exits 1 and says so.
 
 ### `skyfix lunar <input.json>`
 
@@ -1350,10 +1395,10 @@ Window     2026-10-01T12:00:00Z to 2026-10-02T12:00:00Z
 EVENING NAUTICAL TWILIGHT  2026-10-01T23:09:48Z to 2026-10-01T23:41:08Z
   predicted for 2026-10-01T23:09:48Z, the Sun at -6 00.0; limiting magnitude 1.5
   #   body                mag  limb          Hs        Zn        Hc
-  1   Deneb              1.25  centre  +69 09.1   65 51.0  +69 06.0
-  2   Altair             0.76  centre  +56 16.3  152 32.5  +56 12.8
-  3   Antares            1.06  centre  +16 00.6  212 27.5  +15 54.4
-  4   Arcturus          -0.05  centre  +28 14.6  271 58.0  +28 10.0
+  1   Deneb              1.25  centre  +69 09.2   65 50.9  +69 06.0
+  2   Altair             0.76  centre  +56 16.3  152 32.6  +56 12.8
+  3   Antares            1.06  centre  +16 00.5  212 27.6  +15 54.4
+  4   Arcturus          -0.05  centre  +28 14.5  271 58.1  +28 09.9
 ...
 ```
 
@@ -1361,6 +1406,44 @@ The evening's four run from 66 to 272 degrees of azimuth and the morning's five 
 round the horizon: the spread that cancels an unknown shared altitude error (dip, index
 error, refraction) as well as fixing the position. The brightness limit is a stated rule
 of thumb, not a model of the twilight sky, and the plan says so in its notes.
+
+### `skyfix calendar <DATE> | --jd JD [--calendar julian|gregorian]`
+
+A date or an instant in both calendars, with its Julian date, weekday, and what the clock
+is then: UTC from 1972 to 2035 and UT (UT1) outside, TT minus the clock, Delta-T with its
+standard uncertainty and source, and UT1 - UTC (CONVENTIONS 15.2-15.3). The engine
+functions are `skyfix_core::calendar::calendar_convert` and `skyfix_core::time::time_info`;
+`--format json` prints the first's `CalendarConversion` with `weekday` and `time_info`
+beside it (`docs/EXPLORER_API.md`). A date means 00:00 that day.
+
+| flag | meaning |
+|---|---|
+| `DATE` | `2026-09-24`, `-0584-05-28`, or an instant `2026-09-24T12:00:00Z`; Julian up to 1582-10-04 and Gregorian from 1582-10-15 unless `--calendar` says otherwise |
+| `--jd JD` | a Julian date on the app's clock instead |
+
+```console
+$ skyfix calendar -0584-05-28T12:00:00Z
+CALENDAR
+Julian date  1507900.000000  (MJD -892100.500000); a Wednesday
+Julian       -0584-05-28  28 May 585 BC, astronomical year -0584  12:00:00.000
+Gregorian    -0584-05-22  22 May 585 BC, astronomical year -0584  12:00:00.000 (proleptic)
+Shown as     Julian: the Julian calendar before 1582-10-15, the Gregorian from it
+Wire         -0584-05-22T12:00:00.000Z (proleptic Gregorian)
+Clock        UT (Universal Time, UT1: outside the UTC years 1972-2035)
+TT - clock   18213.2 s (5 h 03 min 33 s)
+Delta-T      18213.2 s (5 h 03 min 33 s), standard uncertainty 3 min: Stephenson, Morrison & Hohenkerk 2016, 2020 revision
+UT1 - UTC    none: the clock is UT1
+...
+```
+
+The eclipse Thales is said to have foretold fell on this day. Delta-T, five hours then,
+comes from the historical record of eclipses and occultations, and its three minutes of
+standard uncertainty are 45' of longitude on the ground: why an ancient eclipse path is
+drawn as a band (docs/ACCURACY.md, "Delta-T"). Britain and its colonies kept the Julian
+calendar until 1752, so dates in their records before then need `--calendar julian`:
+there Wednesday 2 September 1752 (Julian) was followed by Thursday 14 September
+(Gregorian), and `skyfix calendar 1752-09-03 --calendar julian` shows that the two name
+the same day.
 
 ---
 

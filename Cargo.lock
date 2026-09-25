@@ -378,6 +378,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "skyfix-geomag"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "skyfix-motion"
 version = "0.1.0"
 dependencies = [
@@ -413,10 +421,21 @@ dependencies = [
 name = "skyfix-starfield"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "serde_json",
+ "skyfix-almanac",
  "skyfix-core",
  "skyfix-ephemeris",
  "thiserror",
+]
+
+[[package]]
+name = "skyfix-tides"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "skyfix-core",
 ]
 
 [[package]]
@@ -431,9 +450,11 @@ dependencies = [
  "skyfix-almanac",
  "skyfix-core",
  "skyfix-ephemeris",
+ "skyfix-geomag",
  "skyfix-motion",
  "skyfix-sim",
  "skyfix-starfield",
+ "skyfix-tides",
  "wasm-bindgen",
 ]
 

@@ -12,12 +12,15 @@
 //! Ho_i = Hc_i(phi, lambda) + b + e_i,   e_i ~ N(0, sigma_i^2), independent
 //! ```
 //!
-//! `Hc` and `Zn` come from [`crate::geometry::altitude_azimuth`]; the Jacobian row is
+//! `Hc` and `Zn` come from [`crate::geometry::altitude_azimuth`]; for a Moon sight that
+//! carries its horizontal parallax (`Sight::moon_hp_arcmin`) `Hc` also includes the
+//! Earth-shape term at the trial position (CONVENTIONS 15.4,
+//! [`crate::sights::wgs84::EarthShape`]). The Jacobian row is
 //! [`crate::geometry::tangent_row`] (`[cos Zn, sin Zn]`) in tangent-plane displacements
-//! `(dN, dE)`, plus a column of ones for `b`. Each iteration solves the damped normal
-//! equations in that tangent plane, steps with [`crate::geometry::apply_tangent_step`]
-//! (along the great circle, so a 3000 NM step is as valid as a 3 m one) and re-linearises
-//! with the exact spherical model.
+//! `(dN, dE)`, plus a column of ones for `b`, for the Moon too (see `Model::normal`).
+//! Each iteration solves the damped normal equations in that tangent plane, steps with
+//! [`crate::geometry::apply_tangent_step`] (along the great circle, so a 3000 NM step is
+//! as valid as a 3 m one) and re-linearises with the exact model.
 //!
 //! # Damping
 //!
@@ -43,6 +46,7 @@ use crate::geometry::{
     geographic_position, tangent_offset, two_circle_intersections,
 };
 use crate::linalg;
+use crate::sights::wgs84::EarthShape;
 use crate::types::{
     CircleOfPosition, Conditioning, Fix, FixCandidate, FixResult, LatLon, PosteriorScaled,
     PriorReport, Residual, RobustOptions, RobustReport, Sight, SolveOptions, Warning,
@@ -85,7 +89,13 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
             ),
         });
     }
-    let circles = circles_of_position(&usable);
+    // Until a solution exists, a Moon circle's Earth-shape term is taken at the
+    // initializer, when there is one (see `circles_of_position`).
+    let initializer = options
+        .initializer
+        .filter(|ll| ll.lat_deg.is_finite() && ll.lon_deg.is_finite())
+        .map(|ll| Point::from_deg(ll.lat_deg, ll.lon_deg));
+    let circles = circles_of_position(&usable, initializer);
     if let Some(ids) = duplicate_ids(&usable) {
         warnings.push(Warning::DuplicateObservation { ids });
     }
@@ -162,12 +172,7 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
         None => None,
     };
 
-    let model = Model {
-        sights: usable.clone(),
-        weights: vec![1.0; usable.len()],
-        n_params,
-        prior,
-    };
+    let model = Model::new(usable.clone(), vec![1.0; usable.len()], n_params, prior);
 
     let search = multistart(&model, options);
     if search.clusters.is_empty() {
@@ -188,6 +193,8 @@ pub fn solve(sights: &[Sight], options: &SolveOptions) -> FixResult {
     }
 
     let best = search.clusters[0].clone();
+    // A Moon circle's radius includes the Earth-shape term, now taken at the best point.
+    let circles = circles_of_position(&usable, Some(best.p));
 
     // Rank at the best minimum. Tangent or disjoint circles land on a ridge where every
     // azimuth row is parallel, which is exactly what a rank test detects.
@@ -292,11 +299,46 @@ struct Minimum {
 
 struct Model<'a> {
     sights: Vec<&'a Sight>,
+    /// The Moon's Earth-shape term for each sight that carries its horizontal parallax
+    /// (CONVENTIONS 15.4); `None` for every other sight.
+    shapes: Vec<Option<EarthShape>>,
     /// Robust multipliers on `1 / sigma_i^2`; all 1.0 unless Huber IRLS is running.
     weights: Vec<f64>,
     n_params: usize,
     /// Gaussian position prior: centre and 1-sigma radius in radians of arc.
     prior: Option<(Point, f64)>,
+}
+
+impl<'a> Model<'a> {
+    fn new(
+        sights: Vec<&'a Sight>,
+        weights: Vec<f64>,
+        n_params: usize,
+        prior: Option<(Point, f64)>,
+    ) -> Self {
+        let shapes = sights
+            .iter()
+            .map(|s| s.moon_hp_arcmin.and_then(EarthShape::new))
+            .collect();
+        Model {
+            sights,
+            shapes,
+            weights,
+            n_params,
+            prior,
+        }
+    }
+
+    /// The same sights and prior with other weights.
+    fn reweighted(&self, weights: Vec<f64>, prior: Option<(Point, f64)>) -> Self {
+        Model {
+            sights: self.sights.clone(),
+            shapes: self.shapes.clone(),
+            weights,
+            n_params: self.n_params,
+            prior,
+        }
+    }
 }
 
 impl Model<'_> {
@@ -308,7 +350,13 @@ impl Model<'_> {
         let mut chi2 = 0.0;
         let mut cost = 0.0;
         for (k, s) in self.sights.iter().enumerate() {
-            let (h, z) = altitude_azimuth(p, s.gha_rad, s.dec_rad);
+            let (h_sphere, z) = altitude_azimuth(p, s.gha_rad, s.dec_rad);
+            // The model altitude of a Moon sight includes the Earth-shape term at this
+            // trial position (CONVENTIONS 15.4); `Ho` stays the chain's.
+            let h = match &self.shapes[k] {
+                Some(shape) => h_sphere + shape.term_rad(p.lat, p.lon, s.gha_rad, s.dec_rad),
+                None => h_sphere,
+            };
             let ri = s.ho_rad - h - b;
             let u = ri / s.sigma_rad;
             chi2 += u * u;
@@ -331,6 +379,16 @@ impl Model<'_> {
     }
 
     /// Normal equations `A dx = g` with `A = J^T W J` and `g = J^T W r` (plus the prior).
+    ///
+    /// Every row is the sphere's analytic `[cos Zn, sin Zn]`, a Moon sight's included.
+    /// The Earth-shape term in the Moon's model altitude (CONVENTIONS 15.4) has a slope
+    /// of its own of about `2 HP f` (0.41' per radian of position): measured, at most
+    /// 0.9e-4 of the main term's 1' per arcminute below 45 deg of altitude, 1.8e-4 below
+    /// 70 deg, growing as `tan h` toward the zenith (7e-4 at 85 deg). Leaving it out of
+    /// the row changes only the path of the iteration, never where it stops (the
+    /// residuals are the full model's), and changes the covariance by under 0.04 % below
+    /// 70 deg; `tests/moon_earth_shape.rs` compares the row with a numerical derivative
+    /// of the full model.
     fn normal(&self, p: Point, e: &Eval) -> (Vec<Vec<f64>>, Vec<f64>) {
         let m = self.n_params;
         let mut a = vec![vec![0.0f64; m]; m];
@@ -647,12 +705,7 @@ fn build_fix(
     options: &SolveOptions,
     warnings: &mut Vec<Warning>,
 ) -> Option<Fix> {
-    let mut model = Model {
-        sights: base.sights.clone(),
-        weights: base.weights.clone(),
-        n_params: base.n_params,
-        prior: base.prior,
-    };
+    let mut model = base.reweighted(base.weights.clone(), base.prior);
     let mut current = best.clone();
     let mut robust = None;
 
@@ -882,12 +935,7 @@ fn prior_report(
 ) -> Option<PriorReport> {
     let supplied = options.prior?;
     let (centre, _) = model.prior?;
-    let plain = Model {
-        sights: model.sights.clone(),
-        weights: vec![1.0; model.sights.len()],
-        n_params: model.n_params,
-        prior: None,
-    };
+    let plain = model.reweighted(vec![1.0; model.sights.len()], None);
     let search = multistart(&plain, options);
     let (fix_without_prior, shift_m) = match search.clusters.first() {
         Some(m) => (
@@ -946,14 +994,30 @@ fn partition_usable(sights: &[Sight]) -> (Vec<&Sight>, Vec<String>) {
     (usable, dropped)
 }
 
-fn circles_of_position(sights: &[&Sight]) -> Vec<CircleOfPosition> {
+/// Each sight's circle of position: every point at zenith distance `90 deg - Ho` from the
+/// body's geographic position (CONVENTIONS section 3).
+///
+/// A Moon sight's line of position is not quite a circle: its model altitude includes
+/// the Earth-shape term (CONVENTIONS 15.4), which depends on where the observer is. Its
+/// circle is therefore drawn with the term evaluated at `at` (the fix, the best
+/// candidate, or the initializer), `90 deg - (Ho - term(at))`: exact there, and within
+/// about 0.01' for every degree of arc away from it below 70 deg of altitude (the term's
+/// slope is under 2e-4 of the main term's). With no point to evaluate it at, the circle
+/// is the sphere's.
+fn circles_of_position(sights: &[&Sight], at: Option<Point>) -> Vec<CircleOfPosition> {
     sights
         .iter()
-        .map(|s| CircleOfPosition {
-            id: s.id.clone(),
-            body: s.body.clone(),
-            gp: latlon(geographic_position(s.gha_rad, s.dec_rad)),
-            zenith_distance_deg: 90.0 - rad_to_deg(s.ho_rad),
+        .map(|s| {
+            let term = match (s.moon_hp_arcmin.and_then(EarthShape::new), at) {
+                (Some(shape), Some(p)) => shape.term_rad(p.lat, p.lon, s.gha_rad, s.dec_rad),
+                _ => 0.0,
+            };
+            CircleOfPosition {
+                id: s.id.clone(),
+                body: s.body.clone(),
+                gp: latlon(geographic_position(s.gha_rad, s.dec_rad)),
+                zenith_distance_deg: 90.0 - rad_to_deg(s.ho_rad - term),
+            }
         })
         .collect()
 }

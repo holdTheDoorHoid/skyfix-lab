@@ -1,11 +1,13 @@
 //! The predicted sextant reading (CONVENTIONS sections 3 and 5, run in reverse).
 //!
 //! A navigator presets the sextant before the stars come out; this module answers
-//! "what will it read?". The computed altitude `Hc` of section 3 at the observer is the
-//! `Ho` a perfect sight would reduce to, so the reading `Hs` is the root of
-//! `correct_sight(Hs) = Hc`: the very chain [`crate::reduce`] uses, inverted
-//! numerically. Nothing is re-derived, so a prediction and a reduction can never
-//! disagree: reducing the predicted `Hs` gives back `Hc` to 1e-9'.
+//! "what will it read?". The computed altitude `Hc` of section 3 at the observer (for
+//! the Moon plus its Earth-shape term, section 15.4) is the `Ho` a perfect sight would
+//! reduce to, so the reading `Hs` is the root of `correct_sight(Hs) = Hc`: the very
+//! chain [`crate::reduce`] uses, inverted numerically. Nothing is re-derived, so a
+//! prediction and a reduction can never disagree: reducing the predicted `Hs` gives back
+//! `Hc` to 1e-9'. For the Moon the prediction is therefore what a perfect sextant on the
+//! real (WGS84) Earth reads at a sea-level site, not the sphere's reading.
 //!
 //! The chain is monotonic in `Hs` (its slope is `1 - dR/dHa` over one or two), so the
 //! root is bracketed from the lowest reading the horizon allows (`Ha = 0`, where the
@@ -65,6 +67,13 @@ pub fn predict_sextant(
             field: "instrument.index_correction_arcmin".to_string(),
         });
     }
+    // An index-error log gives the correction at this instant, as the reducer takes it
+    // (CONVENTIONS section 10), so a prediction and a reduction never disagree.
+    let instrument = &Instrument {
+        index_correction_arcmin: crate::error_logs::effective_index_correction(instrument, jd_utc)?
+            .0,
+        ..instrument.clone()
+    };
 
     let class = corrections::sight_body(body);
     let position = Point::from_deg(observer.lat_deg, observer.lon_deg);
@@ -73,7 +82,20 @@ pub fn predict_sextant(
         direction.gha_deg.to_radians(),
         direction.dec_deg.to_radians(),
     );
-    let hc = hc_rad.to_degrees();
+    // The model altitude (CONVENTIONS 15.4): the Moon's includes the Earth-shape term,
+    // so the reading is the real Earth's and reducing it lands on this Hc.
+    let earth_shape_arcmin =
+        match crate::reduce::moon_hp_arcmin(body, direction.horizontal_parallax_arcmin) {
+            Some(hp) => crate::sights::wgs84::earth_shape_arcmin(
+                observer.lat_deg,
+                observer.lon_deg,
+                direction.gha_deg,
+                direction.dec_deg,
+                hp,
+            ),
+            None => 0.0,
+        };
+    let hc = hc_rad.to_degrees() + earth_shape_arcmin / 60.0;
     let inputs = CorrectionInputs {
         id: body,
         is_sun: class == SightBody::Sun,
@@ -111,6 +133,7 @@ pub fn predict_sextant(
         ha_deg: ha,
         corrections: breakdown,
         warnings,
+        earth_shape_arcmin,
     })
 }
 
@@ -119,8 +142,9 @@ pub fn predict_sextant(
 fn reading_range_deg(observer: &SightObserver, instrument: &Instrument) -> (f64, f64) {
     let ic = instrument.index_correction_arcmin / 60.0;
     match instrument.horizon {
-        HorizonMode::Sea => {
-            let dip = corrections::dip_arcmin(observer.height_of_eye_m) / 60.0;
+        HorizonMode::Sea | HorizonMode::Shore { .. } => {
+            let dip = corrections::horizon_dip_arcmin(instrument.horizon, observer.height_of_eye_m)
+                / 60.0;
             (dip - ic, 90.0 + dip - ic)
         }
         HorizonMode::ArtificialReflected => (-ic, 180.0 - ic),
@@ -336,6 +360,7 @@ mod tests {
                 name: String::new(),
                 index_correction_arcmin: -1.3,
                 horizon,
+                index_error_log: Vec::new(),
             };
             for (body, dir, limb) in [
                 ("Moon", moon, Limb::Lower),

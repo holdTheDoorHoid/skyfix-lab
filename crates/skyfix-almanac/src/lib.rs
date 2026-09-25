@@ -9,10 +9,19 @@ pub mod events;
 pub mod pages;
 pub mod planet_events;
 pub mod sky;
+// Expansion programme, suntools agent (P7): golden and blue hour, azimuth search,
+// alignments, analemma, sun path, equation of time, clear-sky energy, Milky Way windows.
+pub mod sun_tools;
+
+// Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod apsides;
+pub mod libration;
+pub mod lunar_features;
+pub mod occultations;
 
 // Planet detail (expansion programme P9, planetdetail agent): discs, rings, the
 // Galilean moons, transits of Mercury and Venus, conjunctions and stations, the Earth's
-// apsides and user-supplied orbits. CONVENTIONS 13.10.
+// apsides and user-supplied orbits. CONVENTIONS 13.12.
 pub mod conjunctions;
 pub mod discs;
 pub mod earth_apsides;

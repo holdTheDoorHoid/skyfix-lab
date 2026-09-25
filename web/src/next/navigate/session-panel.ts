@@ -6,14 +6,15 @@
  */
 
 import { h } from '../../dom.js';
-import type { AssumedPositionRole, HorizonMode, Session, SessionKind } from '../../types.js';
+import type { AssumedPositionRole, HorizonName, Session, SessionKind } from '../../types.js';
+import { horizonName } from '../../types.js';
 import { disposer, type Mounted } from '../component.js';
 import { badge } from '../theme/primitives.js';
 import { angleFormat, type NavCtx } from './context.js';
 import { fmtArcmin, fmtPosition, positionInputText } from './format.js';
 import { patchSession, type SessionPatch } from './model.js';
-import { parseNumber, parsePosition, type Parsed } from './parse.js';
-import { HORIZON_TEXT, ROLE_TEXT } from './text.js';
+import { parseNumber, parseOptionalNumber, parsePosition, type Parsed } from './parse.js';
+import { horizonFromSelect, horizonOptions, horizonSummary, horizonText, ROLE_TEXT } from './text.js';
 import { btn, field, onChange, para, parsedField, selectInput, textInput, type ParsedField } from './ui.js';
 
 export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
@@ -105,14 +106,26 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
   const instrumentName = textInput({ value: session().instrument.name, placeholder: 'Optional' });
   instrumentName.addEventListener('change', () => patch({ instrument: { name: instrumentName.value.trim() } }));
   const ic = num('Index correction to add (′)', 'IC', 'Index error 2.0′ on the arc means an index correction of −2.0′.', () => session().instrument.index_correction_arcmin, (v) => patch({ instrument: { index_correction_arcmin: v } }));
-  const horizon = selectInput<HorizonMode>(
-    (Object.keys(HORIZON_TEXT) as HorizonMode[]).map((k) => ({ value: k, label: HORIZON_TEXT[k].label })),
-    session().instrument.horizon,
-  );
-  const horizonField = field('Horizon', horizon, { help: HORIZON_TEXT[session().instrument.horizon].explain });
-  horizon.addEventListener('change', () => patch({ instrument: { horizon: horizon.value as HorizonMode } }));
+  const horizon = selectInput<HorizonName>(horizonOptions(session().instrument.horizon), horizonName(session().instrument.horizon));
+  const horizonField = field('Horizon', horizon, { help: horizonText(session().instrument.horizon).explain });
+  horizon.addEventListener('change', () => {
+    const chosen = horizonFromSelect(horizon.value, session().instrument.horizon);
+    if (chosen) patch({ instrument: { horizon: chosen } });
+  });
   const clockSigma = num('Clock uncertainty (s, 1 sigma)', undefined, 'Propagated into an east-west term of the position uncertainty, never estimated: for star sights a clock error and a longitude error are the same unknown.', () => session().clock.uncertainty_s, (v) => patch({ clock: { uncertainty_s: v } }), 0, 's');
   const clockCorrection = num('Known watch correction (s)', 'chronometer correction, added', 'Added to every recorded time before use.', () => session().clock.correction_s, (v) => patch({ clock: { correction_s: v } }));
+  // UT1 − UTC (expansion programme, moonshape): the session's `clock.dut1_s`. Blank means
+  // automatic (the engine's own value); the time signal's DUT1 is within ±0.9 s.
+  const dut1 = parsedField<number | null>('UT1 − UTC from the time signal (s)', {
+    term: 'DUT1',
+    inputmode: 'decimal',
+    size: 8,
+    placeholder: 'automatic',
+    parse: (t) => parseOptionalNumber(t, { what: 'UT1 − UTC', min: -0.9, max: 0.9, unit: 's' }),
+    format: (v) => (v === null ? '' : String(v)),
+    read: () => session().clock.dut1_s ?? null,
+    commit: (v) => patch({ clock: { dut1_s: v } }),
+  });
 
   const mode = selectInput<'auto' | 'supplied'>(
     [
@@ -140,11 +153,11 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     group('Assumed position', position.el, h('div', { class: 'sfn-inline' }, usePlace), h('div', { class: 'sfn-grid-2' }, roleField.el, priorSigma.el)),
     group('Observer', h('div', { class: 'sfn-grid-3' }, hoe.el, pressure.el, temperature.el)),
     group('Instrument', h('div', { class: 'sfn-grid-3' }, field('Name', instrumentName).el, ic.el, horizonField.el)),
-    group('Clock', h('div', { class: 'sfn-grid-2' }, clockSigma.el, clockCorrection.el)),
+    group('Clock', h('div', { class: 'sfn-grid-2' }, clockSigma.el, clockCorrection.el), dut1.el),
     group('Almanac', modeField.el),
   );
 
-  const fields: ParsedField[] = [position, priorSigma, hoe, pressure, temperature, ic, clockSigma, clockCorrection];
+  const fields: ParsedField[] = [position, priorSigma, hoe, pressure, temperature, ic, clockSigma, clockCorrection, dut1];
 
   function render(): void {
     const s = session();
@@ -159,8 +172,9 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
         s.observer.assumed_position
           ? `DR ${fmtPosition(s.observer.assumed_position, f)} (${r.role === 'prior' ? `prior, ${r.sigma_nm} NM` : r.role === 'disabled' ? 'not used' : 'starting point only'})`
           : 'No assumed position',
-        ` · eye ${s.observer.height_of_eye_m} m · IC ${fmtArcmin(s.instrument.index_correction_arcmin, 1)} · ${HORIZON_TEXT[s.instrument.horizon].label.toLowerCase()}` +
+        ` · eye ${s.observer.height_of_eye_m} m · IC ${fmtArcmin(s.instrument.index_correction_arcmin, 1)} · ${horizonSummary(s.instrument.horizon)}` +
           (s.clock.uncertainty_s ? ` · clock ±${s.clock.uncertainty_s} s` : '') +
+          (typeof s.clock.dut1_s === 'number' ? ` · UT1 − UTC ${s.clock.dut1_s} s` : '') +
           (store.get().mode === 'supplied' ? ' · typed directions only' : ''),
       ),
       h('span', { class: 'sfn-session__edit' }, 'Session settings'),
@@ -172,9 +186,19 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     role.value = r.role;
     roleField.setHelp(ROLE_TEXT[r.role].explain);
     priorSigma.el.hidden = r.role !== 'prior';
-    horizon.value = s.instrument.horizon;
-    horizonField.setHelp(HORIZON_TEXT[s.instrument.horizon].explain);
+    // A session loaded with a shore horizon needs that option in the list.
+    const options = horizonOptions(s.instrument.horizon);
+    if (options.length !== horizon.options.length) {
+      horizon.replaceChildren(...options.map((o) => h('option', { value: o.value }, o.label)));
+    }
+    horizon.value = horizonName(s.instrument.horizon);
+    horizonField.setHelp(horizonText(s.instrument.horizon).explain);
     schema.textContent = s.schema;
+    dut1.parts.setHelp(
+      typeof s.clock.dut1_s === 'number'
+        ? `Every Greenwich hour angle uses UT1 = UTC ${s.clock.dut1_s < 0 ? '−' : '+'} ${Math.abs(s.clock.dut1_s)} s. Leave blank for automatic.`
+        : 'Unknown: ±0.9 s, up to ±0.23′ of longitude. Blank means automatic; type the DUT1 your time signal gives to remove it.',
+    );
     mode.value = store.get().mode;
     for (const f2 of fields) f2.refresh();
   }

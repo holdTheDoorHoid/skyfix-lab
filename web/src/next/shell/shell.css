@@ -38,21 +38,19 @@
   }
 }
 
-/* --- Placeholder ("coming soon") ------------------------------------------------------ */
+/* --- A view that could not be loaded (stage.ts) ---------------------------------------- */
 
-.sf-placeholder {
+.sf-view-error {
   position: absolute;
   inset: 0;
   overflow-y: auto;
   display: grid;
   place-items: center;
   padding: 48px 32px;
-  background:
-    radial-gradient(1200px 600px at 20% 0%, color-mix(in srgb, var(--stage-accent-ink) 7%, transparent), transparent 60%),
-    var(--stage-bg);
+  background: var(--stage-bg);
 }
 
-.sf-placeholder__card {
+.sf-view-error__card {
   width: min(560px, 100%);
   padding: 32px 32px 28px;
   border-radius: var(--radius-xl);
@@ -62,7 +60,7 @@
     inset 0 0 0 1px var(--stage-line);
 }
 
-.sf-placeholder__icon {
+.sf-view-error__icon {
   display: grid;
   place-items: center;
   width: 52px;
@@ -74,15 +72,12 @@
   box-shadow: inset 0 0 0 1px var(--stage-line);
 }
 
-.sf-placeholder__icon .sf-icon {
+.sf-view-error__icon .sf-icon {
   width: 28px;
   height: 28px;
 }
 
-.sf-placeholder__title {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.sf-view-error__title {
   margin-bottom: 10px;
   color: var(--stage-ink);
   font-size: var(--text-2xl);
@@ -90,55 +85,12 @@
   letter-spacing: -0.01em;
 }
 
-.sf-placeholder__title .sf-badge {
-  color: var(--stage-ink-2);
-  border-color: var(--stage-line-strong);
-}
-
-.sf-placeholder__lead {
+.sf-view-error__lead,
+.sf-view-error__note {
   margin-bottom: 8px;
   color: var(--stage-ink-2);
   font-size: var(--text-base);
-}
-
-.sf-placeholder__list {
-  display: grid;
-  gap: 8px;
-  margin: 0 0 18px;
-  padding: 0;
-  list-style: none;
-}
-
-.sf-placeholder__list li {
-  position: relative;
-  padding-left: 20px;
-  color: var(--stage-ink);
-  font-size: var(--text-base);
   line-height: 1.5;
-}
-
-.sf-placeholder__list li::before {
-  content: '';
-  position: absolute;
-  left: 4px;
-  top: 0.62em;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--stage-accent-ink);
-}
-
-.sf-placeholder__meanwhile,
-.sf-placeholder__note {
-  margin-top: 10px;
-  color: var(--stage-ink-2);
-  font-size: var(--text-md);
-  line-height: 1.5;
-}
-
-.sf-placeholder a {
-  color: var(--stage-accent-ink);
-  font-weight: var(--weight-semibold);
 }
 
 /* --- Notices ----------------------------------------------------------------------------- */

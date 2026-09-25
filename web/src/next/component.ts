@@ -22,14 +22,22 @@
 import {
   isAlmanacEngine,
   isEclipseEngine,
+  isPackEngine,
   isPlanetEventsEngine,
+  isSailingsEngine,
+  isTidesEngine,
   type AlmanacEngine,
   type BodySelection,
   type EclipseEngine,
   type EventOptions,
   type ExplorerEngine,
   type Observer,
+  type PackEngine,
+  type PackService,
   type PlanetEventsEngine,
+  type SailingsEngine,
+  type TideDatum,
+  type TidesEngine,
 } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
@@ -44,6 +52,12 @@ export interface Ctx {
   readonly engine: ExplorerEngine;
   readonly notices: Notices;
   readonly scheduler: FrameScheduler;
+  /**
+   * Optional data packs (packs/, EXPLORER_API "Packs"): `ensure(name, reason)` before using
+   * what a pack adds; saved packs are already loaded when a view mounts. Developer pages
+   * without packs pass `NO_PACKS` (packs/service.ts).
+   */
+  readonly packs: PackService;
 }
 
 export interface Mounted {
@@ -182,6 +196,27 @@ export function createScheduler(options: SchedulerOptions = {}): FrameScheduler 
   };
 }
 
+/**
+ * Settings that change how text is written without changing any value a view selects:
+ * today the 12- or 24-hour clock (shell/format.ts). When one changes, every `watch` draws
+ * again once with its current value, so no time on screen keeps the old form.
+ */
+function displayForm(state: ExplorerState): string {
+  return state.settings.hourCycle;
+}
+
+/** Every live `watch`'s way to draw again (see `redrawEverything`). */
+const redrawers = new Set<() => void>();
+
+/**
+ * Every `watch` draws again once, with its current value. For a change no selector can see:
+ * a data pack was loaded, so the engine now answers what it refused (packs/; main.ts calls
+ * this after `memoEngine(...).invalidate()`).
+ */
+export function redrawEverything(): void {
+  for (const redraw of [...redrawers]) redraw();
+}
+
 export interface WatchOptions<T> {
   /** Default `Object.is`; use `shallowEqual` for selectors that return tuples. */
   equals?: Equality<T>;
@@ -209,9 +244,17 @@ export function watch<T>(
     },
     options.equals ? { equals: options.equals } : {},
   );
+  const redraw = (): void => {
+    latest = selector(ctx.store.get());
+    ctx.scheduler.schedule(task);
+  };
+  const stopForm = ctx.store.select(displayForm, redraw);
+  redrawers.add(redraw);
   if (options.immediate ?? true) ctx.scheduler.schedule(task);
   return () => {
     stop();
+    stopForm();
+    redrawers.delete(redraw);
     ctx.scheduler.cancel(task);
   };
 }
@@ -270,13 +313,22 @@ export interface MemoOptions {
   freeze?: boolean;
 }
 
+/** A memoised engine; `invalidate` forgets every remembered result. */
+export type MemoEngine = ExplorerEngine & {
+  /**
+   * Forget every remembered result: a data pack was loaded (packs/), so the engine can now
+   * answer more (a date it refused, a wider coverage) and must be asked again.
+   */
+  invalidate(): void;
+};
+
 /**
  * Wrap an engine so identical calls return the same (shared, read-only) result. Keyed
  * by value: two components asking for `skyState(observer, jd, 'all')` in one frame get
  * one computation. Constant tables (`bodies`, `coverage`, `starfieldCatalog`,
- * `constellationBoundaries`) are computed once. Errors are not cached.
+ * `constellationBoundaries`) are computed once, until `invalidate`. Errors are not cached.
  */
-export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): ExplorerEngine {
+export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): MemoEngine {
   const capacity = options.capacity ?? 8;
   const finish = options.freeze ? deepFreeze : <T>(v: T): T => v;
   const caches = new Map<string, Lru<unknown>>();
@@ -294,7 +346,20 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     return value;
   }
 
-  const memo: ExplorerEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> = {
+  const memo: MemoEngine &
+    Partial<AlmanacEngine> &
+    Partial<EclipseEngine> &
+    Partial<PlanetEventsEngine> &
+    Partial<PackEngine> &
+    Partial<TidesEngine> = {
+    invalidate: () => caches.clear(),
+    // Data packs pass through unmemoised (packs/ loads them; `packs()` changes when one does).
+    ...(isPackEngine(engine)
+      ? {
+          packs: () => engine.packs(),
+          loadPack: (name: string, bytes: Uint8Array) => engine.loadPack(name, bytes),
+        }
+      : {}),
     // Optional: present on the wrapper exactly when the engine makes almanac pages (the
     // Almanac view checks with `isAlmanacEngine`). A page is tens of milliseconds, so a
     // few dates are kept.
@@ -319,6 +384,42 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
             cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
         }
       : {}),
+    // Optional (sailings agent): passage planning and sight extras run on demand, so they
+    // pass through; the star finder's geometry is a table per latitude band and date.
+    ...(isSailingsEngine(engine)
+      ? {
+          sailing: (request) => engine.sailing(request),
+          drAdvance: (request) => engine.drAdvance(request),
+          routePositions: (request) => engine.routePositions(request),
+          starIdentify: (request) => engine.starIdentify(request),
+          starFinderGeometry: (latBand: number, jdUtc?: number) =>
+            cached('starFinderGeometry', `${latBand}|${jdUtc ?? ''}`, 4, () => engine.starFinderGeometry(latBand, jdUtc)),
+        } satisfies SailingsEngine
+      : {}),
+    // Tides (tides agent): present exactly when the engine predicts tides
+    // (`isTidesEngine`). Station lists and tables are kept a few at a time; the state
+    // now and the pack summary change from call to call and pass through. Errors, such
+    // as pack_not_loaded before the pack is installed, are never cached.
+    ...(isTidesEngine(engine)
+      ? {
+          tideStationsNear: (latDeg: number, lonDeg: number, n: number) =>
+            cached('tideStationsNear', `${latDeg}|${lonDeg}|${n}`, 4, () =>
+              engine.tideStationsNear(latDeg, lonDeg, n),
+            ),
+          tideStation: (id: string) => cached('tideStation', id, 8, () => engine.tideStation(id)),
+          tidePredict: (id: string, jdStart: number, jdEnd: number, stepMin: number, datum?: TideDatum | '') =>
+            cached('tidePredict', `${id}|${jdStart}|${jdEnd}|${stepMin}|${datum ?? ''}`, 4, () =>
+              engine.tidePredict(id, jdStart, jdEnd, stepMin, datum),
+            ),
+          tideExtremes: (id: string, jdStart: number, jdEnd: number, datum?: TideDatum | '') =>
+            cached('tideExtremes', `${id}|${jdStart}|${jdEnd}|${datum ?? ''}`, 8, () =>
+              engine.tideExtremes(id, jdStart, jdEnd, datum),
+            ),
+          tideNow: (id: string, jdUtc: number, datum?: TideDatum | '') => engine.tideNow(id, jdUtc, datum),
+          tidePackInfo: () => engine.tidePackInfo(),
+        }
+      : {}),
+    // --- end tides
     kind: engine.kind,
     description: engine.description,
     // Navigation tools pass through unmemoised: they run on demand, never per frame.
@@ -377,7 +478,57 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     // The residual heat map passes through unmemoised: it runs on demand, never per frame.
     ...(engine.misfit ? { misfit: engine.misfit } : {}),
   };
+  // Every other capability of the engine (the expansion programme's engines: sun tools,
+  // geomagnetism, tides, time scales, packs, …) passes through unmemoised, bound to the
+  // engine, so a view's type guard (`isSunToolsEngine(ctx.engine)` and the like) sees it
+  // on the wrapper without this file naming each one. Methods named above keep their memo.
+  const out = memo as unknown as Record<string, unknown>;
+  for (const name of methodNames(engine)) {
+    if (name in out) continue;
+    const fn = (engine as unknown as Record<string, unknown>)[name];
+    if (typeof fn !== 'function') continue;
+    const call = fn as (...args: unknown[]) => unknown;
+    if (/^(set|load|install|remove|clear|reset)/.test(name)) {
+      // A mutation (`setDut1`, `loadPack`, …): pass it through, then forget every cached
+      // result, since any of them may now be stale.
+      out[name] = (...args: unknown[]): unknown => {
+        try {
+          return call.apply(engine, args);
+        } finally {
+          caches.clear();
+        }
+      };
+    } else {
+      // A query: memoised like the named methods, keyed by its arguments' JSON.
+      out[name] = (...args: unknown[]): unknown => cached(name, argsKey(args), capacity, () => call.apply(engine, args));
+    }
+  }
   return memo;
+}
+
+/** A cache key for a pass-through call: the arguments as JSON (typed arrays by their bytes' length and a hash). */
+function argsKey(args: unknown[]): string {
+  return JSON.stringify(args, (_key, value: unknown) => {
+    if (value instanceof Uint8Array || value instanceof Float64Array || value instanceof Float32Array) {
+      let h = 0;
+      for (let i = 0; i < value.length; i += 1) h = (h * 31 + Number(value[i])) | 0;
+      return `${value.constructor.name}:${value.length}:${h}`;
+    }
+    return value;
+  });
+}
+
+/** Names of every function-valued property of `obj`, own or inherited (class methods live on the prototype). */
+function methodNames(obj: object): string[] {
+  const names = new Set<string>();
+  for (let p: object | null = obj; p && p !== Object.prototype; p = Object.getPrototypeOf(p) as object | null) {
+    for (const name of Object.getOwnPropertyNames(p)) {
+      if (name === 'constructor') continue;
+      const desc = Object.getOwnPropertyDescriptor(p, name);
+      if (desc && typeof desc.value === 'function') names.add(name);
+    }
+  }
+  return [...names];
 }
 
 /** A small value-keyed memo for a component's own derived computations. */

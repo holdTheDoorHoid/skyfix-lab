@@ -15,10 +15,44 @@
 import { isoUtc, jdFromIso, jdFromMs, utcMs } from '../time.js';
 import { createMockNav } from './mock-nav.js';
 import { mockAlmanacDay } from './mock/almanac.js';
+// Expansion programme, geomag agent: magnetic field and compass error (mock/geomag.ts).
+import { mockCompassError, mockMagneticField, mockMagneticGrid } from './mock/geomag.js';
+import type { CompassError, CompassRequest, MagneticField, MagneticGrid, MagneticModelChoice } from './types.js';
 import * as A from './mock/astro.js';
 import { crossings, grid, sample } from './mock/roots.js';
+import * as T from './mock/timescale.js';
 import { createMockMisfit } from './mock-misfit.js';
-import type { MisfitEngine } from './types.js';
+import { MockPacks } from './mock/packs.js';
+import type { MisfitEngine, PackEngine, PackInfo, PackStatus } from './types.js';
+import { createMockSailings } from './mock-sailings.js';
+import type {
+  DrReport,
+  DrRequest,
+  PassageReport,
+  PassageRequest,
+  RouteReport,
+  RouteRequest,
+  SailingsEngine,
+  StarFinderGeometry,
+  StarIdRequest,
+  StarIdResult,
+} from './types.js';
+// Deep sky (deepsky agent).
+import { createMockDeepSky } from './mock/deepsky.js';
+import type {
+  DeepSkyEngine,
+  DsoCatalog,
+  DsoListOptions,
+  DsoPositions,
+  DsoVisibility,
+  ExtinctionTable,
+  MilkyWayOutline,
+  SearchResult,
+  ShowerYear,
+  SkyConditionsInput,
+  Tonight,
+  TonightOptions,
+} from './types.js';
 import {
   buildStarfield,
   mockConstellationAt,
@@ -29,6 +63,8 @@ import type {
   AlmanacDay,
   AlmanacEngine,
   AltitudeCrossing,
+  CalendarConversion,
+  CalendarConvertRequest,
   BodyError,
   BodyEvents,
   BodyInfo,
@@ -49,8 +85,44 @@ import type {
   SkyPhase,
   SkyState,
   StarfieldCatalog,
+  TimeEngine,
+  TimeInfo,
 } from './types.js';
 import type { NavTools } from './wasm-nav.js';
+// Expansion programme — sun tools (suntools agent).
+import { createMockSunTools } from './mock-suntools.js';
+import type {
+  AlignmentResult,
+  Analemma,
+  AzimuthCrossing,
+  EquationOfTime,
+  GalacticCentreWindows,
+  RiseSetAzimuths,
+  SolarDay,
+  SolarYear,
+  SunHours,
+  SunPath,
+  SunToolsEngine,
+} from './types.js';
+import { mockMoonApsides, mockMoonFeatures, mockMoonOrientation, mockOccultations } from './mock/moondetail.js';
+import type {
+  MoonApsides,
+  MoonDetailEngine,
+  MoonFeatures,
+  MoonOrientation,
+  OccultationList,
+  OccultationOptions,
+} from './types.js';
+import { MockTides } from './mock/tides.js';
+import type {
+  TideCurve,
+  TideDatum,
+  TideExtremes,
+  TideNow,
+  TidesPackInfo,
+  TideStation,
+  TideStationNear,
+} from './types.js';
 // Planet detail (expansion programme P9, planetdetail agent): mock/planetdetail.ts.
 import * as PD from './mock/planetdetail.js';
 import type {
@@ -106,6 +178,8 @@ export interface MockEngineOptions {
    * of the interface. Default false: the mock is not validated against anything.
    */
   validated?: boolean;
+  /** Tides (tides agent): answer as if the tides-us pack were loaded (default true). */
+  tidesLoaded?: boolean;
 }
 
 interface BodyDef {
@@ -209,11 +283,22 @@ function skyPhase(altDeg: number): SkyPhase {
   return 'night';
 }
 
+/** Run `fn`; a thrown string becomes an `Error` named after the export, as in the WASM engine. */
+function rethrow<R>(name: string, fn: () => R): R {
+  try {
+    return fn();
+  } catch (error) {
+    throw new Error(`${name}: ${typeof error === 'string' ? error : String(error)}`);
+  }
+}
+
 function inCoverage(jd: number): boolean {
   return jd >= COVERAGE_START && jd <= COVERAGE_END;
 }
 
-export class MockEngine implements ExplorerEngine, AlmanacEngine {
+export class MockEngine
+  implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine, SailingsEngine, MoonDetailEngine, DeepSkyEngine
+{
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
   /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
@@ -227,9 +312,47 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
   private readonly validated: boolean;
   /** The residual heat map (mock-misfit.ts): illustrative, like everything here. */
   readonly misfit: MisfitEngine = createMockMisfit(this);
+  /** Data packs (mock/packs.ts): the planned registry; `loadPack` accepts anything. */
+  private readonly packRegistry = new MockPacks();
+
+  packs(): PackStatus[] {
+    return this.packRegistry.packs();
+  }
+
+  loadPack(name: string, bytes: Uint8Array): PackInfo {
+    const info = this.packRegistry.loadPack(name, bytes);
+    if (name === 'tides-us') this.tides.install(); // tides agent: the synthetic station answers once loaded
+    return info;
+  }
+
+  /** Sailings, DR, routes, star identification, star finder (mock-sailings.ts): illustrative. */
+  private readonly sailings: SailingsEngine = createMockSailings((o, jd) => this.skyState(o, jd, 'all'));
+
+  sailing(request: PassageRequest): PassageReport {
+    return this.sailings.sailing(request);
+  }
+
+  drAdvance(request: DrRequest): DrReport {
+    return this.sailings.drAdvance(request);
+  }
+
+  routePositions(request: RouteRequest): RouteReport {
+    return this.sailings.routePositions(request);
+  }
+
+  starIdentify(request: StarIdRequest): StarIdResult {
+    return this.sailings.starIdentify(request);
+  }
+
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry {
+    return this.sailings.starFinderGeometry(latBand, jdUtc);
+  }
+  /** Deep sky (mock/deepsky.ts): illustrative, like everything here. */
+  private readonly deep: DeepSkyEngine = createMockDeepSky(this);
 
   constructor(options: MockEngineOptions = {}) {
     this.validated = options.validated ?? false;
+    this.tides = new MockTides({ loaded: options.tidesLoaded ?? true });
     this.field = buildStarfield({ synthetic: options.syntheticStars ?? 2000 });
     this.defs = [
       { name: 'Sun', kind: 'sun', navigational: true },
@@ -526,8 +649,125 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
   // Almanac pages (illustrative; see mock/almanac.ts)
   // -------------------------------------------------------------------------
 
+  // -------------------------------------------------------------------------
+  // Deep sky (mock/deepsky.ts)
+  // -------------------------------------------------------------------------
+
+  dsoCatalog(): DsoCatalog {
+    return this.deep.dsoCatalog();
+  }
+
+  dsoList(observer: Observer | null, jdUtc: number, options?: DsoListOptions): DsoPositions {
+    return this.deep.dsoList(observer, jdUtc, options);
+  }
+
+  dsoVisibility(id: string, observer: Observer, jdUtc: number, conditions?: SkyConditionsInput): DsoVisibility {
+    return this.deep.dsoVisibility(id, observer, jdUtc, conditions);
+  }
+
+  meteorShowers(year: number, observer?: Observer | null, conditions?: SkyConditionsInput): ShowerYear {
+    return this.deep.meteorShowers(year, observer, conditions);
+  }
+
+  milkyWayOutline(): MilkyWayOutline {
+    return this.deep.milkyWayOutline();
+  }
+
+  skySearch(query: string, observer?: Observer | null, jdUtc?: number | null, limit?: number): SearchResult {
+    return this.deep.skySearch(query, observer, jdUtc, limit);
+  }
+
+  tonight(observer: Observer, jdUtc: number, options?: TonightOptions): Tonight {
+    return this.deep.tonight(observer, jdUtc, options);
+  }
+
+  extinction(conditions?: SkyConditionsInput): ExtinctionTable {
+    return this.deep.extinction(conditions);
+  }
+
   almanacDay(date: string): AlmanacDay {
     return mockAlmanacDay(this, date);
+  }
+
+  // --- Tides (tides agent): one synthetic station (mock/tides.ts), illustrative only.
+  private readonly tides: MockTides;
+
+  tideStationsNear(latDeg: number, lonDeg: number, n: number): TideStationNear[] {
+    return this.tides.tideStationsNear(latDeg, lonDeg, n);
+  }
+
+  tideStation(stationId: string): TideStation {
+    return this.tides.tideStation(stationId);
+  }
+
+  tidePredict(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum: TideDatum | '' = ''): TideCurve {
+    return this.tides.tidePredict(stationId, jdStart, jdEnd, stepMin, datum);
+  }
+
+  tideExtremes(stationId: string, jdStart: number, jdEnd: number, datum: TideDatum | '' = ''): TideExtremes {
+    return this.tides.tideExtremes(stationId, jdStart, jdEnd, datum);
+  }
+
+  tideNow(stationId: string, jdUtc: number, datum: TideDatum | '' = ''): TideNow {
+    return this.tides.tideNow(stationId, jdUtc, datum);
+  }
+
+  tidePackInfo(): TidesPackInfo | null {
+    return this.tides.tidePackInfo();
+  }
+  // --- end tides
+
+  // -------------------------------------------------------------------------
+  // Magnetic field and compass error (expansion programme, geomag agent;
+  // illustrative: a tilted dipole, see mock/geomag.ts)
+  // -------------------------------------------------------------------------
+
+  magneticField(
+    latDeg: number,
+    lonDeg: number,
+    heightM: number,
+    jdUtc: number,
+    model?: MagneticModelChoice,
+  ): MagneticField {
+    return mockMagneticField(latDeg, lonDeg, heightM, jdUtc, model);
+  }
+
+  magneticGrid(
+    jdUtc: number,
+    latMin: number,
+    latMax: number,
+    nLat: number,
+    lonMin: number,
+    lonMax: number,
+    nLon: number,
+    heightM = 0,
+  ): MagneticGrid | null {
+    return mockMagneticGrid(jdUtc, latMin, latMax, nLat, lonMin, lonMax, nLon, heightM);
+  }
+
+  compassError(request: CompassRequest): CompassError {
+    return mockCompassError(this, request);
+  }
+
+  // -------------------------------------------------------------------------
+  // Time scales, Delta-T and calendars (mock/timescale.ts: exact calendars, the Rust
+  // model's Delta-T without its IERS table, no DUT1 history)
+  // -------------------------------------------------------------------------
+
+  private userDut1: number | null = null;
+
+  timeInfo(jdUtc: number): TimeInfo {
+    // The deeptime agent's mock tiers replace this `validated`/`outside` split.
+    const tier = inCoverage(jdUtc) ? 'validated' : 'outside';
+    return rethrow('time_info', () => T.timeInfo(jdUtc, this.userDut1, tier));
+  }
+
+  setDut1(seconds: number | null): void {
+    this.userDut1 = rethrow('set_dut1', () => T.checkDut1(seconds));
+  }
+
+  calendarConvert(request: CalendarConvertRequest): CalendarConversion {
+    return rethrow('calendar_convert', () => T.calendarConvert(request));
   }
 
   // -------------------------------------------------------------------------
@@ -909,4 +1149,68 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
     }
     return out;
   }
+
+  // -------------------------------------------------------------------------
+  // Expansion programme — sun tools (suntools agent): illustrative, like everything
+  // here; see mock-suntools.ts. `SunToolsEngine` in types.ts.
+  // -------------------------------------------------------------------------
+
+  private sunToolsCache?: SunToolsEngine;
+  private get sunTools(): SunToolsEngine {
+    return (this.sunToolsCache ??= createMockSunTools(this));
+  }
+  sunHours(...args: Parameters<SunToolsEngine['sunHours']>): SunHours {
+    return this.sunTools.sunHours(...args);
+  }
+  findAzimuth(...args: Parameters<SunToolsEngine['findAzimuth']>): AzimuthCrossing[] {
+    return this.sunTools.findAzimuth(...args);
+  }
+  alignmentDays(...args: Parameters<SunToolsEngine['alignmentDays']>): AlignmentResult {
+    return this.sunTools.alignmentDays(...args);
+  }
+  analemma(...args: Parameters<SunToolsEngine['analemma']>): Analemma {
+    return this.sunTools.analemma(...args);
+  }
+  sunPath(...args: Parameters<SunToolsEngine['sunPath']>): SunPath {
+    return this.sunTools.sunPath(...args);
+  }
+  riseSetAzimuths(...args: Parameters<SunToolsEngine['riseSetAzimuths']>): RiseSetAzimuths {
+    return this.sunTools.riseSetAzimuths(...args);
+  }
+  equationOfTime(...args: Parameters<SunToolsEngine['equationOfTime']>): EquationOfTime {
+    return this.sunTools.equationOfTime(...args);
+  }
+  solarDay(...args: Parameters<SunToolsEngine['solarDay']>): SolarDay {
+    return this.sunTools.solarDay(...args);
+  }
+  solarYear(...args: Parameters<SunToolsEngine['solarYear']>): SolarYear {
+    return this.sunTools.solarYear(...args);
+  }
+  galacticCentreWindows(...args: Parameters<SunToolsEngine['galacticCentreWindows']>): GalacticCentreWindows {
+    return this.sunTools.galacticCentreWindows(...args);
+  }
+
+  // Expansion programme P8 (moondetail agent): the Moon in detail, low precision
+  // (mock/moondetail.ts), illustrative like everything here.
+
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation {
+    return mockMoonOrientation(observer, jdUtc);
+  }
+
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures {
+    return mockMoonFeatures(observer, jdUtc);
+  }
+
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides {
+    return mockMoonApsides(this, jdStart, jdEnd);
+  }
+
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList {
+    return mockOccultations(observer, jdStart, jdEnd, options);
+  }
 }
+
+// The mock is a Moon-detail engine (checked here rather than in its `implements` list,
+// so parallel additions to that line do not collide).
+const _mockIsMoonDetail: (e: MockEngine) => MoonDetailEngine = (e) => e;
+void _mockIsMoonDetail;

@@ -9,13 +9,14 @@ import { disposer, watch, type Ctx } from '../component.js';
 import { type Theme } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { badge, button, iconButton, logoMark, popover, segmented } from '../theme/primitives.js';
+import { installControl, manualLink, repositoryLink } from './links.js';
 import { settingsPanel } from './settings.js';
 import { sharePanel } from './share.js';
 import { openTour } from './tour.js';
 
 export const HONESTY = 'Simulation and analysis workbench. Not a navigation instrument.';
 
-function help(ctx: Ctx, onTour: () => void): HTMLElement {
+function help(ctx: Ctx, onTour: () => void, install: HTMLElement): HTMLElement {
   const key = (...keys: string[]): HTMLElement => h('span', { class: 'sf-help__keys' }, ...keys.map((k) => h('span', { class: 'sf-kbd' }, k)));
   const row = (keys: HTMLElement, text: string): HTMLElement => h('div', { class: 'sf-help__row' }, keys, h('span', {}, text));
   return h(
@@ -40,7 +41,16 @@ function help(ctx: Ctx, onTour: () => void): HTMLElement {
         : 'MOCK ENGINE: every number is illustrative.',
     ),
     h('p', { class: 'sf-help__text' }, h('strong', {}, HONESTY)),
-    h('p', { class: 'sf-help__text' }, h('a', { href: 'classic/' }, 'The original workbench'), ' is kept for reference for a while; Navigate and Learn now do everything it did.'),
+    h('div', { class: 'sf-popover__title' }, 'More'),
+    h(
+      'p',
+      { class: 'sf-help__text' },
+      manualLink(),
+      ': every view, the accuracy of each number and where the data comes from. ',
+      repositoryLink(),
+      ': the Rust core, this page and the command-line tool.',
+    ),
+    install,
   );
 }
 
@@ -76,13 +86,21 @@ export function appbar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const share = sharePanel(ctx);
   const sharePop = popover(shareButton, share.el, { label: 'Share this view', placement: 'bottom-end', onOpen: share.refresh });
   const settings = settingsPanel(ctx);
-  const settingsPop = popover(settingsButton, settings.el, { label: 'Settings', placement: 'bottom-end' });
+  const settingsPop = popover(settingsButton, settings.el, { label: 'Settings', placement: 'bottom-end', onOpen: settings.refresh });
+  // The data packs' list can grow while Settings is open (a download finishing): keep it placed.
+  d.add(ctx.packs.subscribe(() => settingsPop.isOpen() && settingsPop.place()));
+  const install = installControl();
+  d.add(install.destroy);
   const helpPop = popover(
     helpButton,
-    help(ctx, () => {
-      helpPop.close({ returnFocus: true });
-      openTour(ctx);
-    }),
+    help(
+      ctx,
+      () => {
+        helpPop.close({ returnFocus: true });
+        openTour(ctx);
+      },
+      install.el,
+    ),
     { label: 'Help and keys', placement: 'bottom-end' },
   );
   d.add(() => sharePop.destroy());

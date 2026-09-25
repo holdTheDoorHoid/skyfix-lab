@@ -27,11 +27,28 @@
 pub mod almanac;
 pub mod eclipses;
 pub mod explorer;
+// Expansion programme (geomag agent): magnetic field and compass error.
+pub mod geomag;
 pub mod misfit;
 pub mod nav;
 pub mod navsky;
+// Optional data packs: header, registry and dispatcher (packs agent; EXPLORER_API "Packs").
+pub mod packs;
 pub mod planet_events;
+// Expansion programme, sailings agent: sailings, DR, routes, star identification, star finder.
+pub mod sailings;
 pub mod starfield;
+// Expansion programme, wave 1 (docs/EXPANSION_PLAN.md section 5): one module per agent.
+pub mod timescale;
+// Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod moondetail;
+// --- deepsky agent (expansion programme, 2026-09-24): deep-sky objects, meteor
+// showers, the Milky Way, search, extinction, tonight. EXPLORER_API.md, "Deep sky".
+pub mod deepsky;
+// --- end deepsky ---
+// Expansion programme (tides agent): tide predictions from the optional tides-us pack.
+pub mod tides;
+
 // Planet detail (expansion programme P9, planetdetail agent): EXPLORER_API.md "Planet detail".
 pub mod planetdetail;
 
@@ -39,7 +56,7 @@ use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
 use skyfix_core::types::{FixResult, Session, SolveOptions, Warning};
-use skyfix_ephemeris::{AstroProvider, ProviderSource};
+use skyfix_ephemeris::AstroProvider;
 use skyfix_sim::scenario::Scenario;
 
 // ---------------------------------------------------------------------------
@@ -106,15 +123,13 @@ fn planner_bodies() -> Vec<String> {
 /// The direction source `reduce` and `solve` use for a given `ephemeris_mode`.
 ///
 /// Both modes honour a supplied `geocentric` first: that is decided inside
-/// `skyfix_core::reduce::reduce_observation`, not here.
-fn direction_source(mode: &str) -> Result<Box<dyn skyfix_core::reduce::DirectionSource>, JsValue> {
-    match mode {
-        "supplied" => Ok(Box::new(skyfix_core::reduce::SuppliedOnly)),
-        "auto" | "" => Ok(Box::new(ProviderSource(auto_provider()))),
-        other => Err(err(format!(
-            "unknown ephemeris_mode {other:?}: expected \"supplied\" or \"auto\""
-        ))),
-    }
+/// `skyfix_core::reduce::reduce_observation`, not here. The `auto` providers take the
+/// session's DUT1 (`clock.dut1_s`; moonshape, expansion programme: `nav::session_source`).
+fn direction_source(
+    mode: &str,
+    session: &Session,
+) -> Result<Box<dyn skyfix_core::reduce::DirectionSource>, JsValue> {
+    nav::session_source(mode, session).map_err(err)
 }
 
 // ---------------------------------------------------------------------------
@@ -229,7 +244,7 @@ pub fn parse_session(json: &str) -> Result<JsValue, JsValue> {
 pub fn reduce(session_json: &str, ephemeris_mode: &str) -> Result<JsValue, JsValue> {
     let (session, _warnings) =
         skyfix_core::session::parse_session(session_json).map_err(|e| err(e.to_string()))?;
-    let source = direction_source(ephemeris_mode)?;
+    let source = direction_source(ephemeris_mode, &session)?;
     let entries: Vec<ReduceEntry> = skyfix_core::reduce::reduce_session(&session, source.as_ref())
         .into_iter()
         .zip(session.observations.iter())
@@ -298,7 +313,7 @@ pub fn solve(
         options.clock_uncertainty_s = session.clock.uncertainty_s;
     }
 
-    let source = direction_source(ephemeris_mode)?;
+    let source = direction_source(ephemeris_mode, &session)?;
     let (reduced, rejected) =
         skyfix_core::reduce::reduce_session_partitioned(&session, source.as_ref());
     if reduced.is_empty() {
@@ -485,7 +500,12 @@ pub fn plan(position_json: &str, utc: &str, options_json: &str) -> Result<JsValu
     } else {
         serde_json::from_str(trimmed).map_err(|e| err(format!("plan options: {e}")))?
     };
-    let provider = auto_provider();
+    // DUT1 through the single lookup at the plan's instant (moonshape, expansion
+    // programme): the engine's own value, there being no session here.
+    let dut1_s = skyfix_core::time::parse_utc(utc)
+        .map(|jd| skyfix_core::time::dut1_s(jd, None))
+        .unwrap_or(0.0);
+    let provider = nav::auto_provider_with_dut1(dut1_s);
     let sun_altitude_deg = sun_altitude(&provider, position, utc);
     let plan = skyfix_ephemeris::visibility::plan_at(
         &provider,
@@ -699,3 +719,8 @@ mod tests {
         );
     }
 }
+
+// Expansion programme, suntools agent (P7): golden and blue hour, azimuth search,
+// alignments, analemma, sun path, equation of time, clear-sky energy, Milky Way windows.
+// Wire format: docs/EXPLORER_API.md, "Expansion programme — sun tools".
+pub mod suntools;

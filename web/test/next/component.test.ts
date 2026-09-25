@@ -192,6 +192,35 @@ describe('memoised engine', () => {
     expect(engine.description).toBe('fake');
   });
 
+  it('passes every other engine capability through, bound to the engine (class methods too)', () => {
+    let extraCalls = 0;
+    class Extra {
+      readonly tag = 'extra';
+      sunHours(observer: unknown, jd: number): string {
+        extraCalls += 1;
+        // `this` must be the engine the method was bound to, not the memo wrapper.
+        return `${this.tag}:${JSON.stringify(observer)}:${jd}`;
+      }
+    }
+    const raw = Object.assign(Object.create(new Extra()) as Extra, fakeEngine());
+    const engine = memoEngine(raw as unknown as ExplorerEngine) as unknown as {
+      sunHours?: (observer: unknown, jd: number) => string;
+      skyState: ExplorerEngine['skyState'];
+    };
+    expect(typeof engine.sunHours).toBe('function');
+    expect(engine.sunHours!(here, 1)).toBe('extra:{"lat_deg":39.95,"lon_deg":-75.17}:1');
+    // Memoised like the named methods: a second identical call is answered from the cache,
+    // a different argument runs again.
+    engine.sunHours!(here, 1);
+    expect(extraCalls).toBe(1);
+    engine.sunHours!(here, 2);
+    expect(extraCalls).toBe(2);
+    // Methods the wrapper names itself keep their memo.
+    engine.skyState(here, 1, 'all');
+    engine.skyState(here, 1, 'all');
+    expect(raw.calls.skyState).toBe(1);
+  });
+
   it('evicts the least recently used entry', () => {
     const raw = fakeEngine();
     const engine = memoEngine(raw, { capacity: 2 });

@@ -6,7 +6,7 @@
  * The app shell is found by following references, not by a list someone has to keep up
  * to date:
  *
- *   start from the app's pages (index.html, classic/index.html);
+ *   start from the app's pages (index.html);
  *   in every text file reached (HTML, JavaScript, CSS, JSON, SVG), look for the name of
  *   every hashed file in `assets/`; each name that appears is a file the page can load:
  *     HTML -> entry scripts, preloads, stylesheets

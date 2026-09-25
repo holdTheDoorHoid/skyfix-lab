@@ -13,7 +13,7 @@ use skyfix_core::sights::predict::predict_sextant;
 use skyfix_core::types::{HorizonMode, LatLon, Limb, PredictedSight};
 use skyfix_ephemeris::AstroProvider;
 
-use super::args::{FormatArgs, LimbArg, PositionArgs, SightOpticsArgs, parse_instant};
+use super::args::{Dut1Args, FormatArgs, LimbArg, PositionArgs, SightOpticsArgs, parse_instant};
 use super::text;
 use crate::commands::reduce::{step_header, step_row};
 use crate::exit;
@@ -37,6 +37,8 @@ pub struct Args {
     #[command(flatten)]
     pub optics: SightOpticsArgs,
     #[command(flatten)]
+    pub dut1: Dut1Args,
+    #[command(flatten)]
     pub format: FormatArgs,
 }
 
@@ -49,7 +51,7 @@ pub fn predict(a: &Args) -> Result<PredictedSight> {
             a.body
         )
     })?;
-    let astro = provider::auto_provider();
+    let astro = provider::auto_provider_with_dut1(a.dut1.at(a.utc));
     let direction = astro.geocentric(name, a.utc).map_err(|e| anyhow!("{e}"))?;
     predict_sextant(
         &a.optics.observer(a.position.lat, a.position.lon),
@@ -127,6 +129,12 @@ pub fn render(p: &PredictedSight, a: &Args) -> String {
         "Hc  {}   the computed altitude here; reducing Hs gives it back\n",
         text::alt(p.hc_deg)
     ));
+    if sight_body(&p.body) == SightBody::Moon {
+        out.push_str(&format!(
+            "         including the Moon's Earth-shape term, {}' (CONVENTIONS 15.4)\n",
+            text::signed_fixed(p.earth_shape_arcmin, 3)
+        ));
+    }
     out.push_str(&format!(
         "Ha  {}   the apparent altitude after the index correction and the horizon step\n",
         text::alt(p.ha_deg)
@@ -147,10 +155,12 @@ pub fn render(p: &PredictedSight, a: &Args) -> String {
         "Hs and Hc are on the spherical Earth of CONVENTIONS section 1, like every reduction.",
     );
     if sight_body(&p.body) == SightBody::Moon {
-        note.push_str(
-            " For the Moon a perfect sextant on the real (WGS84) Earth can read up to 0.22' \
-             differently (docs/NAVIGATION_SKY.md section 3): far below what matters for \
-             finding it with a preset sextant.",
+        note = String::from(
+            "Hc is the spherical Earth's computed altitude (CONVENTIONS section 3) plus the \
+             Moon's Earth-shape term, the part of its parallax the sphere leaves out (up to \
+             0.24'): Hs is what a perfect sextant reads on the real (WGS84) Earth at sea \
+             level, and reducing it with the usual chain lands on this Hc \
+             (docs/NAVIGATION_SKY.md section 3).",
         );
     }
     for line in report::wrap(&note, 88, "") {
