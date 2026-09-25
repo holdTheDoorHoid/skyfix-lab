@@ -3685,7 +3685,12 @@ export interface GalileanMoons {
   jupiter: JupiterFrame;
   moons: GalileanMoon[];
   theory: string;
-  /** Worst error of the moons' offsets measured against JPL (arcseconds). */
+  /**
+   * Worst error of the moons' offsets measured against JPL (arcseconds).
+   * verify2: for the instant's era (satellites.rs `accuracy_arcsec_at`): 0.5 in 1900-2040,
+   * 1.0 in 1800-2100, 1.5 in 1600-2200; 3.0 outside, where no JPL ephemeris of the moons
+   * reaches and the figure is an extrapolation (EXPLORER_API, Planet detail).
+   */
   accuracy_arcsec: number;
 }
 

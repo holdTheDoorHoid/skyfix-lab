@@ -130,3 +130,25 @@ export function librationWords(lonDeg: number, latDeg: number): string {
   if (Math.abs(latDeg) >= 0.1) parts.push(`${parts.length ? 'and' : 'more'} of its ${latDeg > 0 ? 'north' : 'south'} pole, by ${Math.abs(latDeg).toFixed(1)}°`);
   return `Tipped to show ${parts.join(', ')}.`;
 }
+
+// --- verify2: the Galilean moons' accuracy in words -----------------------------------------
+/**
+ * The years JPL's positions of Jupiter's moons (Horizons, the jup365 satellite ephemeris)
+ * cover, against which the engine's `accuracy_arcsec` is measured (satellites.rs
+ * `accuracy_arcsec_at`). Outside them the engine's figure is an extrapolation.
+ */
+export const GALILEAN_MEASURED_YEARS = [1600, 2200] as const;
+
+/**
+ * The Galilean moons' accuracy for the up-close note: "within 0.5″ of JPL" where it was
+ * measured, and said to be an estimate outside `GALILEAN_MEASURED_YEARS` (verify2: the note
+ * said "within 3.0″ of JPL" for dates no JPL ephemeris of the moons reaches).
+ */
+export function galileanAccuracyWords(accuracyArcsec: number, jdUtc: number): string {
+  const year = 2000 + (jdUtc - 2_451_545) / 365.25;
+  const [first, last] = GALILEAN_MEASURED_YEARS;
+  const x = `${accuracyArcsec.toFixed(1)}″`;
+  return year >= first && year <= last
+    ? `within ${x} of JPL`
+    : `to about ${x}, an estimate (JPL’s positions of the moons, the yardstick, cover only ${first} to ${last})`;
+}

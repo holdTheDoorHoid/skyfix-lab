@@ -33,7 +33,7 @@ import { button, iconButton, segmented, setPressed } from '../theme/primitives.j
 import { formatAngle, formatBearing } from './format.js';
 import type { BodyKey, SkyPalette } from './palette.js';
 import { drawJupiterInset, drawMoonInset, drawPlanetInset, drawSaturnInset, type InsetFrame } from './upclose-draw.js';
-import { librationWords, skyBasis, type UpCloseOrientation } from './upclose-geometry.js';
+import { galileanAccuracyWords, librationWords, skyBasis, type UpCloseOrientation } from './upclose-geometry.js';
 
 export const UP_CLOSE_BODIES = ['Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'] as const;
 
@@ -224,7 +224,7 @@ export function upClosePanel(ctx: Ctx, settings: UpCloseSettings, onClose: () =>
         const cms = disc?.central_meridians.map((c) => `System ${c.system} ${c.longitude_deg.toFixed(1)}°`).join(', ');
         setFacts([...moonRows, ...(cms ? [['Central meridian', cms] as [string, string]] : [])]);
         note.textContent = [
-          `Moon positions: ${g.theory.split('.')[0]}, within ${g.accuracy_arcsec.toFixed(1)}″ of JPL.`,
+          `Moon positions: ${g.theory.split('.')[0]}, ${galileanAccuracyWords(g.accuracy_arcsec, input.jd)}.`,
           ...(disc?.notes ?? []),
           'The belts are drawn where they usually are.',
         ].join(' ');
