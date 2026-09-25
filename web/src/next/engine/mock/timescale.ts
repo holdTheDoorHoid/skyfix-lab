@@ -5,7 +5,7 @@
  * the Rust core (`skyfix_core::{time, deltat, calendar}`, CONVENTIONS 15.2-15.3,
  * EXPLORER_API.md "time_info"). The calendars are exact. Delta-T is the Rust model
  * without its IERS table: the Stephenson-Morrison-Hohenkerk 2020 splines to 2019, a
- * straight line to the table's end (2027.72, 69.333 s), the same joins to the
+ * straight line to the table's end (2027.74, 69.330 s), the same joins to the
  * long-term parabola; it is within 0.3 s of the real model over 1973-2027 and equal
  * elsewhere. DUT1 is not modelled: 0 (`assumed`) on the UTC scale unless set, 0
  * (`model`) on the UT scale, as the real engine does where it has no IERS value.
@@ -264,9 +264,9 @@ const SMH_SIGMA: ReadonlyArray<readonly [number, number]> = [
 
 /** The real model's table: first and last sample (Julian epoch, TT), last observed day. */
 const TABLE_START_YEAR = 1973.0034;
-const TABLE_END_YEAR = 2027.7194;
-const TABLE_END_DELTA_T_S = 69.3334;
-const TABLE_END_SLOPE_S_PER_Y = 0.13901;
+const TABLE_END_YEAR = 2027.7385;
+const TABLE_END_DELTA_T_S = 69.33;
+const TABLE_END_SLOPE_S_PER_Y = 0.12706;
 /** JD (UTC, 0h) of the last observed day, 2026-09-24. */
 const LAST_OBSERVED_JD = 2_461_307.5;
 
