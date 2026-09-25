@@ -65,7 +65,7 @@ import { datumWords, markDeclined, stationWhere, tideCard, tideHeight, tidesLoad
 import { mayHaveTideStation } from './tide-cells.js';
 import { formatBytes } from '../packs/manifest.js';
 import { timelineModel, timelineView, type TimelineModel } from './timeline.js';
-import { timeInfoForSpan, uncertaintyChip, type ChipInfo } from '../time/chip.js';
+import { chipNeeded, timeInfoForSpan, uncertaintyChip, type ChipInfo } from '../time/chip.js';
 import { formatCivilDate } from '../time/format.js';
 import { scaleLabel } from '../time/scale.js';
 import { UTC_ZONE, zoneShortName } from '../time.js';
@@ -86,7 +86,7 @@ interface Remembered {
    * night; the view keeps showing the night it came from while the time stays where it put it
    * (as Events keeps its lists after a jump). Any other change of time lets the rule decide.
    */
-  pin: { jd: number; n: number } | null;
+  pin: { jd: number; n: number; lat: number; lon: number } | null;
 }
 
 const memory = new WeakMap<ExplorerStore, Remembered>();
@@ -147,7 +147,7 @@ function timeButton(jd: number, f: Fmt, text?: string): HTMLElement {
   const local = text ?? clockPlain(jd, f);
   const utc = `${clockPlain(jd, { zone: UTC_ZONE })} ${scaleLabel(jd)}`;
   const b = h('button', { type: 'button', class: 'sft-time', 'data-jd': String(jd), title: `${local} · ${utc}: show this moment`, 'aria-label': `${local}, ${utc}. Show this moment.` }, local);
-  return f.dt ? h('span', { class: 'sft-timewrap' }, b, uncertaintyChip(f.dt)) : b;
+  return chipNeeded(f.dt) ? h('span', { class: 'sft-timewrap' }, b, uncertaintyChip(f.dt)) : b;
 }
 
 /** `replaceChildren` that skips the parts a card leaves out. */
@@ -328,7 +328,7 @@ const view: Component = (host, ctx) => {
     const m = headerModel(core, detail, f, Date.now() / 86_400_000 + 2_440_587.5, realNight);
     kicker.textContent = m.kicker;
     // The night's Earth-rotation uncertainty beside its date (time-ui's chip: shown only when it matters).
-    dateEl.replaceChildren(m.date, f.dt ? uncertaintyChip(f.dt) : '');
+    dateEl.replaceChildren(m.date, chipNeeded(f.dt) ? uncertaintyChip(f.dt) : '');
     tonightBtn.hidden = m.kicker === 'Tonight';
     summaryEl.replaceChildren(...m.sentences.map((t) => para(t, 'sft-lead')));
   };
@@ -356,7 +356,7 @@ const view: Component = (host, ctx) => {
 
   const drawMoon = (s: ExplorerState, f: Fmt): void => {
     const body = moonCard.body;
-    if (!core?.covered) return void fill(body, );
+    if (!core?.covered) return void fill(body);
     if (!core.tonight && !detail?.moon) return void fill(body, isDeepSkyEngine(engine) ? para(core.errors[0] ?? 'Working out the Moon…', 'sft-p sft-muted') : missingText('deep sky: tonight'));
     const m = moonModel(core, detail, f);
     if (!m) return void fill(body, para('Working out the Moon…', 'sft-p sft-muted'));
@@ -383,7 +383,8 @@ const view: Component = (host, ctx) => {
         showInSky(ctx, { kind: 'body', name: 'Moon', inset: true }, jd);
       },
     });
-    fill(body, 
+    fill(
+      body,
       h('div', { class: 'sft-moon' }, h('div', { class: 'sft-moon__disc' }, disc), h('div', {}, h('p', { class: 'sft-big' }, m.name), para(m.lit, 'sft-p sft-muted'))),
       rows,
       para(m.moonless),
@@ -395,7 +396,7 @@ const view: Component = (host, ctx) => {
 
   const drawPlanets = (f: Fmt): void => {
     const body = planetsCard.body;
-    if (!core?.covered) return void fill(body, );
+    if (!core?.covered) return void fill(body);
     if (!isDeepSkyEngine(engine)) return void fill(body, missingText('deep sky: tonight'));
     const m = planetsModel(core, detail, f);
     if (!m) return void fill(body, para(core.errors[0] ?? 'Working out the planets…', 'sft-p sft-muted'));
@@ -426,7 +427,7 @@ const view: Component = (host, ctx) => {
 
   const drawDeep = (f: Fmt): void => {
     const body = deepCard.body;
-    if (!core?.covered) return void fill(body, );
+    if (!core?.covered) return void fill(body);
     if (!isDeepSkyEngine(engine)) return void fill(body, missingText('deep sky'));
     if (!core.tonight) return void fill(body, para(core.errors[0] ?? 'Working out the deep sky…', 'sft-p sft-muted'));
     // The objects' descriptions and the constellations' names arrive in the next task
@@ -451,7 +452,8 @@ const view: Component = (host, ctx) => {
         : null;
     const c = core.tonight.conditions;
     const dark = core.tonight.night.darkness;
-    fill(body, 
+    fill(
+      body,
       rows.length
         ? list
         : para(dark ? 'No object from the list climbs 20° while the sky is dark here tonight.' : 'The sky does not get dark enough tonight for faint objects.'),
@@ -509,19 +511,21 @@ const view: Component = (host, ctx) => {
 
   const drawShowers = (f: Fmt): void => {
     const body = showersCard.body;
-    if (!core?.covered) return void fill(body, );
+    if (!core?.covered) return void fill(body);
     if (!isDeepSkyEngine(engine)) return void fill(body, missingText('meteor showers'));
     if (!core.tonight) return void fill(body, para(core.errors[0] ?? 'Working out the showers…', 'sft-p sft-muted'));
     const rows = showerRows(core, f);
     const nextPeak = comingDone ? mergeComing(coming ?? new Map()).find((i) => i.kind === 'shower') : undefined;
     if (!rows.length) {
-      fill(body, 
+      fill(
+        body,
         para('No meteor shower is active tonight: only the few sporadic meteors of any night.'),
         nextPeak ? para(`Next: the ${nextPeak.title.replace(/ peak$/, '')} at their peak, ${dayTitle(nextPeak.jd, f.zone)}.`, 'sft-p sft-muted') : null,
       );
       return;
     }
-    fill(body, 
+    fill(
+      body,
       h(
         'ul',
         { class: 'sft-list' },
@@ -558,7 +562,7 @@ const view: Component = (host, ctx) => {
 
   const drawMilky = (f: Fmt): void => {
     const body = milkyCard.body;
-    if (!core?.covered) return void fill(body, );
+    if (!core?.covered) return void fill(body);
     const m = milkyWayModel(core, f);
     if (!m) return void fill(body, isDeepSkyEngine(engine) ? para(core.errors[0] ?? 'Working out the Milky Way…', 'sft-p sft-muted') : missingText('sun tools and deep sky'));
     const best = m.best;
@@ -596,7 +600,7 @@ const view: Component = (host, ctx) => {
 
   const drawComing = (f: Fmt): void => {
     const body = comingCard.body;
-    if (!core?.covered) return void fill(body, );
+    if (!core?.covered) return void fill(body);
     const items = mergeComing(coming ?? new Map());
     const groups = groupByDay(items, f, (jd) => dayTitle(jd, f.zone));
     const list = h(
@@ -627,7 +631,7 @@ const view: Component = (host, ctx) => {
       h('span', { class: 'sft-row__text' }, h('strong', {}, i.title), i.detail ? h('span', { class: 'sft-muted' }, ` ${i.detail}`) : null),
       icon('chevron-right', { class: 'sft-row__go' }),
     );
-    // time-ui: the ±ΔT chip beside this time once time-ui's helpers land.
+    // The time carries the night's ± uncertainty in its text when time-ui's rule asks for it (`clock`).
     open.addEventListener('click', () => {
       store.batch(() => {
         pinAt(i.jd);
@@ -644,7 +648,7 @@ const view: Component = (host, ctx) => {
     const t = tides;
     if (!t || t.kind === 'hidden') {
       tidesCard.el.hidden = true;
-      fill(body, );
+      fill(body);
       return;
     }
     tidesCard.el.hidden = false;
@@ -667,7 +671,8 @@ const view: Component = (host, ctx) => {
         tip: 'Downloaded once and saved on this device; nothing about you is sent',
         onClick: () => getTides(t.declined),
       });
-      fill(body, 
+      fill(
+        body,
         para(
           t.declined
             ? 'Tide predictions are not saved on this device.'
@@ -684,7 +689,8 @@ const view: Component = (host, ctx) => {
     const rows = t.extremes.map((e) =>
       h('li', { class: 'sft-tide' }, timeButton(e.jd_utc, zone), h('span', {}, e.kind === 'high' ? 'High water' : 'Low water'), h('span', { class: 'sft-num' }, tideHeight(e.height_m, units))),
     );
-    fill(body, 
+    fill(
+      body,
       rows.length ? h('ul', { class: 'sft-list sft-list--tides' }, ...rows) : para('No high or low water between sunset and sunrise.', 'sft-p'),
       para(
         `${st.name}${st.state ? `, ${st.state}` : ''}: ${stationWhere(st, units, compassPoint(st.bearing_deg))}. Predicted, not observed: weather and surge are not included. Heights above ${datumWords(t.datum)}.`,
@@ -710,7 +716,7 @@ const view: Component = (host, ctx) => {
 
   const drawPhoto = (f: Fmt): void => {
     const body = photoCard.body;
-    if (!core?.covered) return void fill(body, );
+    if (!core?.covered) return void fill(body);
     const rows = lightRows(core, f);
     if (!rows) return void fill(body, missingText('sun tools: golden and blue hours'));
     const evening = rows.filter((r) => r.period === 'evening');
@@ -729,7 +735,8 @@ const view: Component = (host, ctx) => {
             ),
           )
         : null;
-    fill(body, 
+    fill(
+      body,
       block('This evening', evening) ?? para('No golden or blue hour this evening.', 'sft-p sft-muted'),
       block('Tomorrow morning', morning) ?? para('No golden or blue hour tomorrow morning.', 'sft-p sft-muted'),
       block('Around the clock', other),
@@ -772,7 +779,8 @@ const view: Component = (host, ctx) => {
   // --- work -----------------------------------------------------------------------------------
   /** The night the explorer's time belongs to (night.ts), or the one this view pinned it in. */
   const nightOf = (s: ExplorerState): number | null => {
-    if (mem.pin && mem.pin.jd === s.time.jd_utc) return mem.pin.n;
+    const p = mem.pin;
+    if (p && p.jd === s.time.jd_utc && p.lat === s.observer.lat_deg && p.lon === s.observer.lon_deg) return p.n;
     mem.pin = null;
     return chooseNight(ctx, s);
   };
@@ -780,7 +788,8 @@ const view: Component = (host, ctx) => {
   /** Remember the shown night when the view moves the time to a moment of it (see `Remembered.pin`). */
   const pinAt = (jd: number | null): void => {
     const n = core?.covered ? core.q.n : null;
-    mem.pin = jd !== null && n !== null && jd >= n && jd < n + 1 ? { jd, n } : null;
+    const o = store.get().observer;
+    mem.pin = jd !== null && n !== null && jd >= n && jd < n + 1 ? { jd, n, lat: o.lat_deg, lon: o.lon_deg } : null;
   };
 
   /** Move the explorer's time to a moment of this night (the timeline, a time button). */
