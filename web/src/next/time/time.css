@@ -78,9 +78,7 @@
 }
 
 .sf-coverage__span {
-  color: var(--ui-ink-2);
-  font-family: var(--font-num);
-  font-size: var(--text-sm);
+  color: var(--ui-ink);
   white-space: nowrap;
 }
 

@@ -308,16 +308,31 @@ const hasPackage = existsSync(WASM_FILE) && existsSync(GLUE_FILE);
 
 describe.skipIf(!hasPackage)('against the built package’s time_info (src/wasm-pkg)', () => {
   let timeInfo: ((jd: number) => TimeInfo) | null = null;
+  let coverage: (() => ExplorerCoverage) | null = null;
   beforeAll(async () => {
     const glue = (await import(/* @vite-ignore */ pathToFileURL(GLUE_FILE).href)) as {
       initSync: (input: { module: BufferSource }) => unknown;
       init?: () => void;
       time_info?: (jd: number) => TimeInfo;
+      explorer_coverage?: () => ExplorerCoverage;
     };
     glue.initSync({ module: readFileSync(WASM_FILE) });
     glue.init?.();
     timeInfo = glue.time_info ?? null;
+    coverage = glue.explorer_coverage ?? null;
   });
+
+  it('works out the same tier as time_info from explorer_coverage', ({ skip }) => {
+    if (!timeInfo || !coverage) {
+      skip();
+      return;
+    }
+    const report = coverage();
+    const engine = { coverage: () => report } as unknown as ExplorerEngine;
+    for (let t = 990_557.5; t < 2_817_152; t += 3_917.3) expect(tierAt(engine, t), String(t)).toBe(timeInfo(t).tier);
+    const b = coverageBounds(engine)!;
+    for (const t of [b.start, b.start - 1e-6, b.end, b.end + 1e-6]) expect(tierAt(engine, t), String(t)).toBe(timeInfo(t).tier);
+  }, 30_000);
 
   it('labels the scale and the calendar exactly as time_info does', ({ skip }) => {
     if (!timeInfo) {
