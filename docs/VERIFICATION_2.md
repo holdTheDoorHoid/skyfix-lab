@@ -18,7 +18,7 @@ Every question the planner asked is answered in section 2. Twenty-eight findings
 21 fixed on this branch, each with a test that fails on the old code or a browser check, and
 7 left for the planner: the web tests in CI, which clock times the ± chip belongs to, two
 licence decisions and three documentation items. The interface pass ran on this branch merged
-with polish2: polish2's 1 146 browser checks (UICHECK-FINAL), the verifier's own 79
+with polish2: polish2's 1 146 browser checks (1 146 passing on the final build), the verifier's own 79
 (`web/scripts/verify2-check.mjs`), 105 web test files (1 611 tests), the Rust workspace
 (1 548 tests, 14 ignored), clippy, fmt, the wasm32 build and the typecheck, all passing.
 
@@ -441,7 +441,7 @@ Chrome driven over the DevTools protocol (never the shared browser pane).
   layers and close-ups, every Events list with its saved files, and every view and tab at
   585 BC and AD 2999. The run during the pass: 1 145 of 1 146; the one failure was the
   verifier's own rebuild of `web/dist` while the run read it (404s on one chart's console).
-  The final run on the final build: UICHECK-FINAL.
+  The final run on the final build (9f890c0): 1 146 of 1 146.
 - **verify2-check** (this branch, `web/scripts/verify2-check.mjs`, 79 checks, all passing on
   the final build): the ± chip beside the clock at six dates against `skyfix time-info`
   (section 2.3); fast playback's calls on eight views (2.4); Settings → Air in the Almanac's
