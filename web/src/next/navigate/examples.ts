@@ -43,7 +43,10 @@ function session(name: string, notes: string, parts: Partial<Omit<Session, 'meta
       assumed_position_role: { role: 'initializer' },
     },
     instrument: parts.instrument ?? { name: '', index_correction_arcmin: 0, horizon: 'sea' },
-    clock: parts.clock ?? { uncertainty_s: 0, correction_s: 0 },
+    // Every example's truth was computed with UT1 = UTC (the Skyfield fixtures, and
+    // Bowditch's worked examples know no DUT1), so the examples declare `dut1_s: 0`;
+    // a real session leaves it blank and gets the IERS history (CONVENTIONS 15.2).
+    clock: parts.clock ?? { uncertainty_s: 0, correction_s: 0, dut1_s: 0 },
     observations: parts.observations,
   };
 }
