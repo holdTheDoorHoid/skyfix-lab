@@ -327,7 +327,9 @@ fn stations_1990_to_2060_match_skyfield() {
 fn a_years_search_is_fast() {
     // The search is single-threaded, so on a busy machine its own CPU time is the fair
     // measure: Linux's per-thread scheduler statistics (nanoseconds on the CPU), else the
-    // wall clock. The best of three runs.
+    // wall clock. The best of five runs. Heavy load still inflates CPU time (shared cores
+    // and caches: 216 ms at a load average of 4 on 8 cores, 378 ms at 28), so a failure
+    // names the load.
     fn cpu_ns() -> Option<u64> {
         std::fs::read_to_string("/proc/thread-self/schedstat")
             .ok()?
@@ -338,7 +340,7 @@ fn a_years_search_is_fast() {
     }
     let (a, b) = (civil_to_jd(2026, 1, 1), civil_to_jd(2027, 1, 1));
     let best = |f: &dyn Fn() -> usize| {
-        (0..3)
+        (0..5)
             .map(|_| {
                 let (wall, cpu) = (std::time::Instant::now(), cpu_ns());
                 let n = f();
@@ -358,5 +360,13 @@ fn a_years_search_is_fast() {
     });
     let (ms_st, s) = best(&|| stations(a, b).unwrap().stations.len());
     eprintln!("a year of conjunctions: {n} in {ms:.1} ms; stations: {s} in {ms_st:.1} ms");
-    assert!(ms < 300.0, "{ms} ms");
+    let load = std::fs::read_to_string("/proc/loadavg").unwrap_or_default();
+    assert!(
+        ms < 300.0,
+        "{ms:.0} ms (load average {}; rerun on a quieter machine before reading this as a regression)",
+        load.split_whitespace()
+            .take(3)
+            .collect::<Vec<_>>()
+            .join(" ")
+    );
 }

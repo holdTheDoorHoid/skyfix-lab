@@ -4025,17 +4025,17 @@ export interface CustomBodyStates {
 /** Planet detail (expansion programme). Behind a type guard, like the eclipse engine. */
 export interface PlanetDetailEngine {
   galileanMoons(jdUtc: number): GalileanMoons;
-  /** Up to 400 days; a month takes ~60 ms natively. */
+  /** Up to 400 days; a month takes under 0.1 s natively. */
   galileanEvents(jdStart: number, jdEnd: number): GalileanEvents;
   saturnRings(jdUtc: number): SaturnRings;
   planetDisc(body: string, jdUtc: number): PlanetDisc;
   /** With an observer, each transit gains `local`. */
   transits(jdStart: number, jdEnd: number, observer?: Observer): PlanetTransitList;
-  /** Up to ten years; a year takes ~140 ms natively. */
+  /** Up to ten years; a year of the default bodies takes about 0.22 s natively. */
   conjunctions(jdStart: number, jdEnd: number, options?: ConjunctionOptions): ConjunctionList;
   stations(jdStart: number, jdEnd: number): PlanetStationList;
   earthApsides(year: number): EarthApsides;
-  /** MPCORB lines, MPC comet lines or JSON elements. Throws a string naming the bad line. */
+  /** MPCORB lines, MPC comet lines or JSON elements. Throws an Error naming the bad line or field. */
   parseOrbits(text: string): OrbitalElements[];
   customBodyStates(observer: Observer, jdUtc: number, bodies: CustomBodyInput[]): CustomBodyStates;
   /** The shape of `sampleBodies`; at most 5,000 samples per body. */
