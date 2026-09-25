@@ -304,9 +304,9 @@ pub fn jd_tt(jd_utc: f64) -> f64 {
 }
 
 /// The clock instant of a TT instant: the inverse of [`tt_from_clock`]. Where the clock
-/// changes scale (1972-01-01, 2036-01-01) TT − clock jumps by a fraction of a second to a
-/// second or so; a TT instant in such a gap maps to the boundary, one in an overlap to
-/// its UTC reading.
+/// changes scale TT - clock jumps (by -0.04 s at 1972-01-01 and +1.6 s at 2036-01-01,
+/// the model's DUT1 there): a TT instant in such a gap maps to the boundary, one in an
+/// overlap to its UTC reading.
 pub fn clock_from_tt(jd_tt_v: f64) -> f64 {
     // The UTC reading, iterated as the old eclipse code did.
     let mut utc = jd_tt_v - (TT_MINUS_TAI_S + 37.0) / 86_400.0;

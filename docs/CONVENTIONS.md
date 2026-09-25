@@ -149,14 +149,24 @@ low-altitude term above.
 
 ## 6. Time
 
-- Timestamps are **UTC, RFC 3339, with a trailing `Z`** (`2026-10-01T01:30:00Z`).
-  Fractional seconds allowed. Anything else is rejected.
-- Internally: `jd_utc: f64` (Julian date). Derived:
-  `jd_tt = jd_utc + (delta_at + 32.184) / 86400` with `delta_at` from the leap-second
-  table in `skyfix_core::time` (37 s from 2017-01-01; no later leap second exists as of
-  the build date). `jd_ut1 = jd_utc + dut1 / 86400` with **DUT1 assumed 0** unless the
-  provider is given one. |DUT1| < 0.9 s, so GHA carries up to 0.23' of unmodelled
-  error from this assumption; it is listed in the error budget, not hidden.
+- Timestamps are **RFC 3339 with a trailing `Z`** (`2026-10-01T01:30:00Z`), proleptic
+  Gregorian, with ISO 8601 expanded years (a sign and at least four digits) outside
+  0000-9999 (`-0584-05-22T12:00:00Z`, section 15.3). Fractional seconds allowed; `:60`
+  is a positive leap second and means the next second. Anything else is rejected.
+  `skyfix_core::time::{parse_utc, format_utc}` are the single implementation.
+- Internally: `jd_utc: f64` (Julian date) on the **app's clock**: UTC from 1972-01-01 to
+  2035-12-31, UT (UT1) outside (section 15.2). Derived, in `skyfix_core::time`:
+  `jd_tt = tt_from_clock(jd_utc)`, which is `jd_utc + (32.184 + delta_at) / 86400` on the
+  UTC scale (`delta_at` from the leap-second table: 37 s from 2017-01-01, none announced
+  through June 2027; later ones unknown and taken as none) and `jd_utc + Delta-T / 86400`
+  on the UT scale (`skyfix_core::deltat`); `jd_ut1 = jd_utc + dut1 / 86400` with DUT1
+  from `dut1_s(jd_utc, user)`: the user's value, else the **IERS history** (1973-01-02 to
+  2027-09-21, IERS Bulletin A's prediction after 2026-09-24), else 0 with a standard
+  uncertainty of 0.9 s on the UTC scale, and 0 by definition on the UT scale. A provider
+  holds one DUT1 (`with_dut1_s`); the explorer, the eclipse engine and the navigation
+  paths build theirs with `dut1_s` at the instant they compute. With the history the
+  DUT1 term of the error budget is 1 ms (0.015" of GHA); unknown, it is up to 0.9 s
+  (0.23'), listed, not hidden.
 - **Clock offset**: a shared offset `dt` makes every recorded time wrong by the same
   amount. It shifts every GHA by `omega * dt` (`omega = 15.041 07 deg/h` sidereal for
   stars, 15.000 deg/h for the Sun to first order, and the body's own rate for the Moon
@@ -496,29 +506,75 @@ subsections they own and say so in their reports.
 ### 15.2 Time scales
 
 - The app's clock (`jd_utc` on the wire) is **UTC from 1972-01-01 to 2035-12-31** and
-  **UT (≈ UT1) outside** that span. TT − UTC = 32.184 s + ΔAT inside; TT − UT = ΔT(model)
-  outside. UT1 = UTC + DUT1 inside; UT1 = UT outside.
-- **ΔT model**: Stephenson, Morrison & Hohenkerk 2016 splines (−720 to 2016), IERS observed
-  values (1962 on, monthly), the long-term parabola −320 + 32.5 ((y − 1825)/100)² s beyond
-  both, joined smoothly. Its standard uncertainty is part of the model: the published
-  historical values where the splines apply, the Huber/NASA growth law for the future.
-- **DUT1**: the IERS history (weekly samples, 1973 to the build date) inside the UTC span;
-  a user value when given (explorer-wide `set_dut1`, or a session's `clock.dut1_s`);
-  otherwise 0 with σ = 0.9 s, shown as ±0.23′ of longitude. Never assumed silently after
-  2035.
+  **UT (≈ UT1) outside** that span (`time::scale_at`). TT − UTC = 32.184 s + ΔAT inside;
+  TT − UT = ΔT(model) outside. UT1 = UTC + DUT1 inside; UT1 = UT outside. At the two
+  boundaries TT − clock jumps by the model's DUT1 of that moment (−0.04 s at 1972-01-01,
+  +1.6 s at 2036-01-01): `clock_from_tt` maps a TT instant in a gap to the boundary and
+  one in an overlap to its UTC reading.
+- **ΔT model** (`skyfix_core::deltat`, the chain of Skyfield 1.55's `build_delta_t` on this
+  project's own IERS table): the IERS values 1973-01-02 to 2027-09-21 (32.184 s + ΔAT −
+  DUT1, the weekly table below); Stephenson, Morrison & Hohenkerk 2016 splines in their
+  2020 revision (Table S15.2020) from −720 to the table, the last segment's linear term
+  adjusted to meet its first value; the long-term parabola −320 + 32.5 ((y − 1825)/100)² s
+  beyond both. **Joins** (Skyfield's rule): a cubic Hermite segment from the parabola's
+  value and slope at −1520 to the splines' at −720, and one from the table's last value
+  and last-year slope (× 366/365) to the parabola's value and slope at 2800 (the first
+  whole century 800 years on); the parabola alone before −1520 and after 2800. The
+  1962-1972 IERS values are not in the table (they were not on disk): the splines stand
+  there. Sources: `iers` (observed, to 2026-09-24), `prediction` (after it, to 2800),
+  `smh2016`, `parabola`. ΔT is a function of TT; UT → TT is solved as Skyfield's
+  `ut1_jd` (two evaluations).
+- **Its standard uncertainty**: 0.001 s where observed (the weekly table's interpolation,
+  at most 1.9 ms); over 2026-01-24..2026-09-17, where the table is Skyfield's January
+  2026 prediction corrected to the September observations, a Brownian bridge scaled to
+  the 0.105 s correction; after the last observation the larger of IERS Bulletin A's
+  `0.00025 n^0.75` s (n days) and Huber's (2000) `365.25 N sqrt((N Q/3)(1 + N/M))/1000` s
+  (N years since 2026-09-24, Q = 0.058 ms²/yr, M = 2500 yr, as NASA's "Uncertainty in
+  ΔT" page states it): 10 s in 2060, 32 s in 2100, 15 min in 2650, 30 min in 3000; on the
+  splines, their published errors (Table DT-lod4500yrs.2020) but never less than 0.11 s,
+  the splines' measured rms against IERS over 1973-2019; before −720, Huber counted from
+  −500 (NASA's calibration for dates before 500 BC; 1 h at −2000), never less than 180 s.
+- **DUT1** (`time::dut1_info`): on the UTC scale the user's value when given
+  (explorer-wide `set_dut1`, a session's `clock.dut1_s`, the CLI's `--dut1`; standard
+  uncertainty 0.05 s, the time signal's 0.1 s code), else the IERS history (weekly
+  samples in units of 0.1 ms, linear in UT1 − TAI so leap seconds do not smear;
+  1973-01-02 to 2027-09-21, observed to 2026-09-24), else 0 with σ = 0.9 s (`assumed`),
+  shown as ±0.23′ of longitude. On the UT scale DUT1 is 0 by definition (`model`) and a
+  user value does not apply: the clock is UT1 there. Never assumed silently after 2035.
+- **The almanac page's argument is UT1**, as in the printed Nautical Almanac (a navigator
+  enters it with UTC + DUT1): its `Sky` keeps DUT1 = 0, which makes each row's clock
+  instant its UT1 (TT is then off by DUT1, at most 0.5″ of the Moon). This refines
+  section 13.9's "UT is UTC with DUT1 = 0". The explorer (`sky_state` and the rest) and
+  the eclipses use the history: their instants are UTC.
+- Eclipses report `delta_t_s` (TT − UT1 as used) with `delta_t_sigma_s`: DUT1's standard
+  uncertainty on the UTC scale, the ΔT model's on the UT scale.
+- Reference fixtures build TT and UT1 through this same model
+  (`tools/timescales/skyfield_timescale.py`); those made before it, which after 2035 took
+  TT = UTC + 69.184 s and DUT1 = 0, are evaluated at their own TT and UT1
+  (`time::legacy_fixture_instant`) until regenerated.
 - The words: "UTC" inside the span, "UT" outside, "TT" only in developer output.
 
 ### 15.3 Calendars and years
 
 - Internal scale: JD, as today. Astronomical year numbering everywhere in code and on the
-  wire (year 0 = 1 BC); ISO expanded years outside 0000–9999.
+  wire (year 0 = 1 BC); ISO expanded years outside 0000–9999. `skyfix_core::calendar`
+  converts both ways for any year in exact integer arithmetic.
 - Display and input: the **Julian calendar before 1582-10-15**, Gregorian from that day,
   each labelled; a proleptic-Gregorian (ISO) option in Settings for people who want it.
   Years before 1 AD are shown as "585 BC" with the astronomical number in the tooltip.
+  A typed date between 1582-10-05 and 1582-10-14 is in neither calendar as used and is
+  refused unless the calendar is named. The CLI follows the same rule; its global
+  `--calendar julian|gregorian` forces one calendar for typed and printed dates, and its
+  text labels Julian dates `(Julian)` and UT-scale instants `UT`. The wire and the JSON
+  are always proleptic Gregorian.
 - Local time before 1850: local mean time at the observer's longitude ("LMT"), because
   civil zones did not exist; nautical zones and IANA zones stay selectable.
 - The Saros series number is computed from the epoch's expected series, not from
-  `lunation mod 223` alone (which misnumbers series below 28 solar / 12 lunar).
+  `lunation mod 223` alone (which misnumbers series below 28 solar / 12 lunar): the
+  member of the residue class `s_ref + 38 (N − N_ref) mod 223` nearest to
+  `s_ref + (N − N_ref)/358` (one series more per inex), with the references 2024-04-08
+  (lunation 300, saros 139) and 2025-03-14 (311, 123). Identical to the old rule for every
+  eclipse of AD 1–3000.
 
 ### 15.4 The Moon's Earth-shape term (exception to §1 and §5)
 

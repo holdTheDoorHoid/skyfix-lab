@@ -1142,3 +1142,75 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+### Time scales, Delta-T and calendars (timescales agent)
+
+Implemented 2026-09-24 in `crates/skyfix-wasm/src/timescale.rs` over
+`skyfix_core::{time, deltat, calendar}`; definitions in CONVENTIONS 15.2-15.3; TypeScript:
+`TimeEngine` (implemented by `WasmEngine` and the mock) and the additive
+`delta_t_sigma_s` fields at the end of `types.ts`.
+
+**`time_info(jd_utc) -> TimeInfo`**, the shape above, about 5 µs natively (debug build;
+the interface may call it every frame). Throws for a non-finite `jd_utc`.
+
+- `delta_t_s`/`delta_t_sigma_s`/`delta_t_source` are the ΔT **model** at the instant: its
+  best estimate of TT − UT1. On the UT scale it is exactly `tt_minus_clock_s`. On the UTC
+  scale the engine does not use it: TT − UTC is `tt_minus_clock_s` (exact) and UT1 − UTC
+  is `dut1_s`, so the TT − UT1 the engine uses is `tt_minus_clock_s − dut1_s`, which equals
+  `delta_t_s` (to 2 ms) while `dut1_source` is `iers`. Between the table's end and 2035
+  the two differ by the model's own prediction of DUT1 (−0.5 s in 2030, −1.6 s at the end
+  of 2035, by when a leap second would have intervened), which the engine does not use:
+  it assumes 0 ± 0.9 s there.
+- `delta_t_source`: `iers` 1973-01-02 to 2026-09-24 (observed), `prediction` from then to
+  2800 (IERS Bulletin A's year, then the join to the parabola), `smh2016` −720 to 1973,
+  `parabola` before −720 and after 2800. `delta_t_sigma_s`: 0.001 s observed, 0.3 s in
+  2030, 10 s in 2060, 32 s in 2100, 15 min in 2650, 30 min in 3000; 0.11 s to 15 s on the
+  splines back to 1000, 90 s at year 0, 180 s at −720, an hour at −2000.
+- `dut1_source`: `iers` (the table; past 2026-09-24 its values are Bulletin A's
+  prediction, with the growing `dut1_sigma_s`), `user` (`set_dut1`, σ 0.05 s), `assumed`
+  (UTC scale, no value: 0 ± 0.9 s; 1972, and 2027-09-22 to 2035), `model` (UT scale).
+- `tier`: until the deeptime agent's `coverage::tier_at` is merged (one line, marked
+  `MERGE` in `timescale.rs`), `validated` inside the providers' coverage and `outside`
+  elsewhere; the mock does the same over its 1990-2060.
+- `notes`: plain sentences for the interface — the clock is UT and why; leap seconds after
+  June 2027 not yet announced; DUT1 unknown or a prediction; a user DUT1 that does not
+  apply on the UT scale; ΔT uncertain by more than 30 s ("±m min"); the Julian calendar;
+  the BC year.
+
+**`set_dut1(seconds | null)`**: the explorer-wide UT1 − UTC, |value| ≤ 1 s (throws
+otherwise; a refused value changes nothing). It applies on the UTC scale only. It is read
+by `sky_state`, `sample_bodies`, `day_events`, `day_events_batch`, `find_altitude` and
+`sidereal` (a window takes the DUT1 of its middle; across a leap second one side is off
+by up to 1 s of UT1, 15″) and by `eclipses`, `eclipse_local`, `eclipse_path`. Without it
+they use the IERS history, and with neither 0. Not read by `almanac_day`, whose argument
+is UT1 as in the printed almanac (CONVENTIONS 15.2), nor by `moon_phases` and `seasons`,
+which do not depend on the Earth's rotation. A session's `clock.dut1_s` overrides it for
+that session (the navigation exports).
+
+**`calendar_convert(request_json) -> CalendarConversion`**: `{"jd_utc": 2461308.0}` or
+`{"civil": {"calendar": "julian"|"gregorian", "year", "month", "day", "hour"?, "minute"?,
+"second"?, "era_year"?, "era"?}}`, exactly one of the two. `year` is astronomical; when
+`era_year` and `era` are given they must name the same year. Throws for an impossible date
+(`1500-02-29` Gregorian), a time of day out of range, both or neither key, or an unknown
+key. The result carries `jd_utc` and the civil date in both calendars (the `CivilDate` of
+`time_info`), rounded to the millisecond.
+
+**Wire strings** from every export now use ISO expanded years outside 0000-9999
+(`-0584-05-22T12:00:00.000Z`, `+12345-…`) and are always proleptic Gregorian;
+`parse_utc` accepts both forms and any year, and the four-digit form exactly as before.
+
+**Eclipses**: `delta_t_s` is TT − UT1 as the engine used it: on the UTC scale 32.184 s +
+ΔAT − DUT1 with DUT1 from `set_dut1`, else the IERS history, else 0 (so 69.201 s for
+2024-04-08, not the 69.184 s of the section above); on the UT scale the ΔT model. Every
+`SolarEclipse`, `LunarEclipse`, `SolarLocal`, `LunarLocal`, `SolarPath` and `LunarPath`
+gains **`delta_t_sigma_s`**: DUT1's standard uncertainty on the UTC scale (0.001 s from the
+history), the ΔT model's on the UT scale. `conventions.delta_t` says so. Saros numbers
+follow each series for any epoch (CONVENTIONS 15.3).
+
+**For the interface agents** (from the data audit): the browser's `Intl` time zones work
+offline, but zones merged in tzdata (Oslo, Amsterdam, Reykjavik, …) can be off by up to an
+hour before 1970, and before standard time a zone's offset is its city's local mean time,
+not the observer's. `Date` and `Intl` are proleptic Gregorian only, and `Date.UTC` maps
+years 0-99 to 1900-1999 (`setUTCFullYear` does not). Show Julian dates and years BC from
+`time_info.civil` and `calendar_convert`, and compute an observer's local mean time from
+the longitude (CONVENTIONS 15.3), rather than through `Date`/`Intl`.
