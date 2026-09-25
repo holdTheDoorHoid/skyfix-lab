@@ -560,6 +560,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   let tonightTimer: ReturnType<typeof setTimeout> | null = null;
   let tonightError = '';
   const dsoVisibility = new Map<string, DsoVisibility | string>();
+  /** A canonical body's next rise (the card), per body, place and hour: a UTC Julian date, 'never', or null. */
+  const riseCache = new Map<string, number | 'never' | null>();
   const fovPoints = new Float64Array(3 * 200);
 
   const highlightKeys = new Set<string>();
@@ -1523,13 +1525,23 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     const kind = keyKind(key);
     const canonical = kind === 'b' ? key.slice(2) : null;
     if (canonical) {
-      try {
-        const ev = engine.dayEvents(engineObserver(state), displayJd, displayJd + 1.1, [canonical]);
-        jd = ev.bodies[0]?.events.find((e) => e.kind === 'rise' && e.jd_utc >= displayJd)?.jd_utc ?? null;
-        if (jd === null && ev.bodies[0]?.always_below) return { text: 'Does not rise here today.', jd: null };
-      } catch {
-        jd = null;
+      // `day_events` takes milliseconds: once an hour of the time shown, never while it runs.
+      const o = state.observer;
+      const bucket = `${canonical}|${o.lat_deg}|${o.lon_deg}|${Math.floor(displayJd * 24)}`;
+      let found = riseCache.get(bucket);
+      if (found === undefined && !state.time.playing) {
+        try {
+          const ev = engine.dayEvents(engineObserver(state), displayJd, displayJd + 1.1, [canonical]);
+          const next = ev.bodies[0]?.events.find((e) => e.kind === 'rise' && e.jd_utc >= displayJd)?.jd_utc ?? null;
+          found = next ?? (ev.bodies[0]?.always_below ? 'never' : null);
+        } catch {
+          found = null;
+        }
+        if (riseCache.size > 32) riseCache.clear();
+        riseCache.set(bucket, found);
       }
+      if (found === 'never') return { text: 'Does not rise here today.', jd: null };
+      jd = typeof found === 'number' && found >= displayJd ? found : null;
     } else if (Number.isFinite(d.ra) && Number.isFinite(d.dec)) {
       const r = nextRise(d.ra, d.dec, state.observer.lat_deg, scene.lst);
       if (r === 'never') return { text: 'Never rises at this latitude.', jd: null };

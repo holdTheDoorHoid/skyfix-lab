@@ -54,6 +54,25 @@ const CASES = {
   // Phones.
   'phone-dome-night': ['t=2026-09-25T01:00:00Z&theme=night', PHONE],
   'phone-panorama': ['t=2026-09-24T23:35:00Z&mode=panorama&az=250', PHONE],
+  // sky2 agent (expansion Q3): the astronomy layers.
+  // 22:00 EDT: the Milky Way across the dome, deep-sky objects labelled, the Southern Taurids' radiant.
+  'dso-milkyway-dome-dark': ['t=2026-09-25T02:00:00Z&theme=dark', DESKTOP],
+  // M31 found and zoomed four times, a 10×50 binocular field round it, its card open.
+  'zoom-m31-binoculars': ['t=2026-09-25T02:00:00Z&theme=dark&zoom=4&show=deep_sky:M31&fov=bino10x50', DESKTOP],
+  // The Moon up close, as seen from Philadelphia, features along the shadow line.
+  'moon-inset-light': ['t=2026-09-25T02:00:00Z&theme=light&upclose=Moon', DESKTOP],
+  // Jupiter's moons before dawn, north up.
+  'jupiter-inset-dark': ['t=2026-09-25T09:00:00Z&theme=dark&upclose=Jupiter&orient=north', DESKTOP],
+  // Saturn's rings to scale.
+  'saturn-inset-dark': ['t=2026-09-25T02:00:00Z&theme=dark&upclose=Saturn&orient=north', DESKTOP],
+  // Night vision: the Milky Way, deep sky and the Moon's close-up, all red.
+  'night-theme-moon': ['t=2026-09-25T02:00:00Z&theme=night&upclose=Moon', DESKTOP],
+  // A Bortle 7 sky: the Milky Way gone, only the brightest deep-sky objects.
+  'bortle7-dome': ['t=2026-09-25T02:00:00Z&theme=dark&bortle=7', DESKTOP],
+  // The Perseids' radiant at their peak, 04:00 EDT on 13 August 2026.
+  'perseids-panorama': ['t=2026-08-13T08:00:00Z&theme=dark&mode=panorama&az=40&fov=120', DESKTOP],
+  // A phone at night with a deep-sky card open.
+  'phone-card-dark': ['t=2026-09-25T02:00:00Z&theme=dark&show=deep_sky:M45', PHONE],
 };
 
 mkdirSync(OUT, { recursive: true });
@@ -71,7 +90,7 @@ for (const [name, [query, [w, h, scale]]] of Object.entries(CASES)) {
       '--hide-scrollbars',
       `--window-size=${w},${h}`,
       `--force-device-scale-factor=${scale}`,
-      '--virtual-time-budget=8000',
+      `--virtual-time-budget=${process.env.VT ?? 8000}`,
       `--screenshot=${file}`,
       url,
     ],
