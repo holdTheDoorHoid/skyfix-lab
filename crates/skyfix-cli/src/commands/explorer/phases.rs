@@ -26,11 +26,11 @@ use crate::report;
 pub struct PhasesArgs {
     /// Start: YYYY-MM-DD (local midnight that day in --zone, UTC by default) or an RFC
     /// 3339 UTC instant.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub from: When,
     /// End: YYYY-MM-DD (through the END of that day in --zone) or an RFC 3339 UTC
     /// instant.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub to: When,
     #[command(flatten)]
     pub zone: ZoneArgs,
@@ -40,8 +40,17 @@ pub struct PhasesArgs {
 
 #[derive(clap::Args, Debug)]
 pub struct SeasonsArgs {
-    /// The calendar year, inside the Sun's coverage (1990 to 2060).
-    #[arg(long, value_name = "YEAR")]
+    // The span comes from the engine (`explorer_coverage`), not a literal.
+    #[arg(
+        long,
+        value_name = "YEAR",
+        allow_negative_numbers = true,
+        help = format!(
+            "The calendar year (astronomical: 0 is 1 BC, -584 is 585 BC), inside the \
+             coverage: {}",
+            super::wire::coverage_dates()
+        )
+    )]
     pub year: i32,
     #[command(flatten)]
     pub zone: ZoneArgs,
@@ -140,7 +149,7 @@ fn table(rows: &[(f64, &str)], zone: &ResolvedZone, what: &str, empty: &str) -> 
         out.push_str(&format!(
             "  {}{}{what}\n",
             report::pad("local", 21),
-            report::pad("UTC", 22)
+            report::pad(text::scale_word(rows[0].0), 22)
         ));
     }
     if rows.is_empty() {

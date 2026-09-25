@@ -91,7 +91,10 @@ fn sky_json_is_the_library_sky_state_with_its_constellations() {
     ])
     .expect_code(0);
     let bodies = sky::body_group("all").expect("the all group");
-    let mut want = sky::sky_state(&Sky::new(), &phl_site(), jd(utc), &bodies).expect("sky");
+    // The site's Earth rotation: DUT1 from the IERS history at the instant
+    // (skyfix_wasm::explorer::native::sky_at), as the WASM export builds its Sky.
+    let site_sky = Sky::with_dut1_s(skyfix_core::time::dut1_s(jd(utc), None));
+    let mut want = sky::sky_state(&site_sky, &phl_site(), jd(utc), &bodies).expect("sky");
     for b in &mut want.bodies {
         b.constellation = skyfix_starfield::constellation_at(b.ra_deg, b.dec_deg, jd(utc))
             .ok()
@@ -99,6 +102,14 @@ fn sky_json_is_the_library_sky_state_with_its_constellations() {
     }
     let v = run.json();
     assert_same(&v, &want, "sky");
+    // And the WASM export's own answer, for the site's observer document.
+    let wasm = skyfix_wasm::explorer::native::sky_state(
+        r#"{"lat_deg": 39.9526, "lon_deg": -75.1652}"#,
+        jd(utc),
+        "\"all\"",
+    )
+    .expect("the export");
+    assert_same(&v, &wasm, "sky against the WASM export");
     assert_eq!(v["bodies"].as_array().expect("bodies").len(), 67);
     let con = |name: &str| {
         v["bodies"]
@@ -243,8 +254,10 @@ fn events_json_is_the_library_day_events_for_the_local_day() {
     }
     // Local midnight to local midnight: 04:00Z to 04:00Z the next day.
     let start = jd("2026-09-24T04:00:00Z");
+    // The site's Earth rotation: DUT1 from the IERS history at the day's middle.
+    let site_sky = Sky::with_dut1_s(skyfix_core::time::dut1_s(start + 0.5, None));
     let want = events::day_events(
-        &Sky::new(),
+        &site_sky,
         &phl_site(),
         start,
         start + 1.0,
@@ -253,6 +266,15 @@ fn events_json_is_the_library_day_events_for_the_local_day() {
     )
     .expect("day events");
     assert_same(&v, &want, "events");
+    let wasm = skyfix_wasm::explorer::native::day_events(
+        r#"{"lat_deg": 39.9526, "lon_deg": -75.1652}"#,
+        start,
+        start + 1.0,
+        r#"["Sun", "Moon"]"#,
+        "",
+    )
+    .expect("the export");
+    assert_same(&v, &wasm, "events against the WASM export");
     let day: DayEvents = serde_json::from_value(v).expect("the DayEvents wire shape");
     assert_eq!(day.bodies.len(), 2);
     assert!(day.bodies[0].day_length_h.expect("the Sun's day length") > 12.0);
@@ -371,7 +393,7 @@ fn events_dip_needs_a_height_of_eye_and_lowers_rise_and_set() {
         "a dipped horizon must bring sunrise earlier"
     );
     let want = events::day_events(
-        &Sky::new(),
+        &Sky::with_dut1_s(skyfix_core::time::dut1_s(jd("2026-09-24T12:00:00Z"), None)),
         &phl_site(),
         jd("2026-09-24T00:00:00Z"),
         jd("2026-09-25T00:00:00Z"),

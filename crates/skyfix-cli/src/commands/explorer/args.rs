@@ -21,7 +21,7 @@ use std::sync::atomic::{AtomicU8, Ordering};
 use skyfix_almanac::sky;
 use skyfix_core::calendar::{self, Calendar};
 use skyfix_core::time::{format_utc, parse_date_in, parse_instant_in};
-use skyfix_core::types::{DrPosition, HorizonMode, Limb, VesselMotion};
+use skyfix_core::types::{DrPosition, HorizonMode, IndexErrorLogEntry, Limb, VesselMotion};
 use skyfix_motion::request::RunningFixLeg;
 
 use crate::cli::OutputFormat;
@@ -60,13 +60,18 @@ pub enum CalendarArg {
     Julian,
     /// The Gregorian calendar, proleptic before 1582-10-15 (ISO 8601).
     Gregorian,
+    /// Julian up to 1582-10-04 and Gregorian from 1582-10-15, as the explorer shows dates
+    /// (the default).
+    Auto,
 }
 
-impl From<CalendarArg> for Calendar {
-    fn from(c: CalendarArg) -> Self {
-        match c {
-            CalendarArg::Julian => Calendar::Julian,
-            CalendarArg::Gregorian => Calendar::Gregorian,
+impl CalendarArg {
+    /// The one calendar it names, or `None` for the display rule (`auto`).
+    pub fn calendar(self) -> Option<Calendar> {
+        match self {
+            CalendarArg::Julian => Some(Calendar::Julian),
+            CalendarArg::Gregorian => Some(Calendar::Gregorian),
+            CalendarArg::Auto => None,
         }
     }
 }
@@ -108,8 +113,14 @@ pub fn scan_calendar<I: IntoIterator<Item = OsString>>(args: I) -> Option<Calend
         } else {
             a.strip_prefix("--calendar=").map(str::to_string)
         };
-        if let Some(c) = value.and_then(|v| v.parse::<Calendar>().ok()) {
-            choice = Some(c);
+        match value.as_deref().map(str::trim) {
+            Some(v) if v.eq_ignore_ascii_case("auto") => choice = None,
+            Some(v) => {
+                if let Ok(c) = v.parse::<Calendar>() {
+                    choice = Some(c);
+                }
+            }
+            None => {}
         }
     }
     choice
@@ -223,7 +234,7 @@ pub struct AirArgs {
 }
 
 /// The eye and the instrument, for a predicted sextant reading.
-#[derive(clap::Args, Debug, Clone, Copy)]
+#[derive(clap::Args, Debug, Clone)]
 pub struct SightOpticsArgs {
     /// Height of eye above the sea, metres: sets the dip of the sea horizon.
     #[arg(long = "height-of-eye", value_name = "M", default_value_t = 0.0)]
@@ -240,6 +251,15 @@ pub struct SightOpticsArgs {
     /// The horizon the sextant is used against.
     #[arg(long, value_enum, default_value_t = HorizonArg::Sea, value_name = "HORIZON")]
     pub horizon: HorizonArg,
+    /// The waterline of a shore NM nautical miles away, nearer than the sea horizon: the
+    /// dip short of the horizon (Bowditch Table 14) instead of the sea's.
+    #[arg(long, value_name = "NM", conflicts_with = "horizon")]
+    pub shore: Option<f64>,
+    /// One entry of the index-error log, UTC,ARCMIN (repeat the flag for each): the index
+    /// correction at the sight's time is then interpolated from the log, as a session's
+    /// instrument.index_error_log is (CONVENTIONS section 10), instead of --ic.
+    #[arg(long = "ic-log", value_name = "UTC,ARCMIN", value_parser = parse_ic_log, allow_hyphen_values = true, conflicts_with = "ic")]
+    pub ic_log: Vec<IndexErrorLogEntry>,
     #[command(flatten)]
     pub air: AirArgs,
 }
@@ -259,10 +279,25 @@ impl SightOpticsArgs {
         skyfix_core::types::Instrument {
             name: String::new(),
             index_correction_arcmin: self.ic,
-            horizon: self.horizon.into(),
-            index_error_log: Vec::new(),
+            horizon: match self.shore {
+                Some(distance_nm) => HorizonMode::Shore { distance_nm },
+                None => self.horizon.into(),
+            },
+            index_error_log: self.ic_log.clone(),
         }
     }
+}
+
+/// `UTC,ARCMIN`: one index-error log entry, its time passed on as the wire string.
+pub fn parse_ic_log(s: &str) -> Result<IndexErrorLogEntry, String> {
+    let (utc, ic) = s
+        .split_once(',')
+        .ok_or_else(|| format!("expected UTC,ARCMIN, e.g. 2026-10-01T00:00:00Z,-1.2, got {s:?}"))?;
+    Ok(IndexErrorLogEntry {
+        utc: wire_instant(utc.trim())?,
+        ic_arcmin: number(ic, "index correction")?,
+        note: String::new(),
+    })
 }
 
 /// `--horizon` values (CONVENTIONS section 5, step 2).
@@ -633,8 +668,9 @@ pub fn parse_bodies(s: &str) -> Result<BodyList, String> {
 #[derive(clap::Args, Debug, Clone, Copy, Default)]
 pub struct Dut1Args {
     /// UT1 - UTC in seconds, from the time signal or IERS Bulletin A (|DUT1| is at most
-    /// 0.9 s). Overrides a session's clock.dut1_s. Without either the engine's own
-    /// value is used (0 s for now): unknown by up to 0.9 s, 0.23' of longitude.
+    /// 0.9 s): the site's DUT1 field. It overrides a session's clock.dut1_s. Without either
+    /// the engine's own value is used: the IERS history where it reaches, else 0 s,
+    /// unknown by up to 0.9 s (0.23' of longitude).
     #[arg(long, value_name = "SECONDS", allow_negative_numbers = true, value_parser = parse_dut1)]
     pub dut1: Option<f64>,
 }
@@ -785,6 +821,12 @@ mod tests {
             None
         );
         assert_eq!(scan_calendar(os(&["skyfix", "sky"])), None);
+        assert_eq!(
+            scan_calendar(os(&["skyfix", "sky", "--calendar", "auto"])),
+            None
+        );
+        assert_eq!(CalendarArg::Auto.calendar(), None);
+        assert_eq!(CalendarArg::Julian.calendar(), Some(Calendar::Julian));
     }
 
     #[test]
@@ -836,6 +878,16 @@ mod tests {
         assert_eq!(l.start_utc.as_deref(), Some("2026-10-01T02:00:00.000Z"));
         assert!(parse_leg("yesterday,90,10").is_err());
         assert!(parse_leg("90").is_err());
+    }
+
+    #[test]
+    fn an_index_error_log_entry_is_a_time_and_a_correction() {
+        let e = parse_ic_log("2026-10-01T00:00:00Z, -1.2").unwrap();
+        assert_eq!(e.utc, "2026-10-01T00:00:00.000Z");
+        assert_eq!(e.ic_arcmin, -1.2);
+        assert!(parse_ic_log("-1.2").is_err());
+        assert!(parse_ic_log("yesterday,-1.2").is_err());
+        assert!(parse_ic_log("2026-10-01T00:00:00Z,north").is_err());
     }
 
     #[test]

@@ -32,12 +32,19 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
 
-    /// The calendar of the dates you type and of the dates printed: `julian`, or
-    /// `gregorian` (proleptic before 1582-10-15, as ISO 8601). Default: Julian up to
-    /// 1582-10-04 and Gregorian from 1582-10-15, as the explorer shows them. JSON output
-    /// is always proleptic Gregorian.
+    /// The calendar of the dates you type and of the dates printed: `julian`,
+    /// `gregorian` (proleptic before 1582-10-15, as ISO 8601), or `auto` (the default):
+    /// Julian up to 1582-10-04 and Gregorian from 1582-10-15, as the explorer shows them.
+    /// JSON output is always proleptic Gregorian.
     #[arg(long, global = true, value_enum, value_name = "CALENDAR")]
     pub calendar: Option<crate::commands::explorer::args::CalendarArg>,
+
+    /// Load an optional data pack for this run, as the site loads a saved one: a pack file
+    /// (web/public/data/packs/tides-us-<rev>.bin), or DIR/NAME for the one NAME-<rev>.bin
+    /// in DIR. Repeat for more. The tide commands need tides-us; `eclipse --limb` and
+    /// `limb-profile` use lunar-limb. `skyfix packs` lists what this build can install.
+    #[arg(long, global = true, value_name = "FILE")]
+    pub pack: Vec<PathBuf>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -163,7 +170,7 @@ pub enum Command {
         #[arg(long, value_name = "LAT,LON", value_parser = parse_latlon, allow_hyphen_values = true)]
         position: LatLon,
         /// Instant, RFC 3339 UTC with a trailing Z.
-        #[arg(long, value_name = "RFC3339")]
+        #[arg(long, value_name = "RFC3339", allow_hyphen_values = true)]
         utc: String,
         /// Ignore bodies below this altitude, degrees.
         #[arg(long = "min-alt", default_value_t = skyfix_core::planner::DEFAULT_MIN_ALTITUDE_DEG, value_name = "DEG")]
@@ -190,8 +197,18 @@ pub enum Command {
     /// Print the daily pages of a nautical almanac for one UT date: GHA and Dec every hour,
     /// the stars, twilight, sunrise, sunset, moonrise and moonset.
     Almanac {
-        /// The UT date, YYYY-MM-DD, from 1990-01-01 to 2060-12-31.
-        #[arg(long, value_name = "YYYY-MM-DD")]
+        // The span comes from the engine (`explorer_coverage`), not a literal.
+        #[arg(
+            long,
+            value_name = "YYYY-MM-DD",
+            allow_hyphen_values = true,
+            help = format!(
+                "The UT date, YYYY-MM-DD (years outside 0000-9999 with a sign: -0584-05-28), \
+                 Julian before 1582-10-15 unless --calendar says otherwise, inside the \
+                 ephemeris coverage: {}",
+                crate::commands::explorer::wire::coverage_dates()
+            )
+        )]
         date: String,
         /// `text`: the two pages laid out in columns; `json`: the AlmanacDay document with
         /// raw and printed values.

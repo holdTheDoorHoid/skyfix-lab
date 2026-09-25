@@ -11,7 +11,6 @@ use anyhow::{Result, anyhow, bail};
 use serde::Serialize;
 use skyfix_almanac::events::{self, DayEvents, EventKind, EventOptions, Horizon};
 use skyfix_core::types::LatLon;
-use skyfix_ephemeris::body::Sky;
 use skyfix_ephemeris::topocentric::Site;
 
 use super::args::{BodyList, Date, FormatArgs, PositionArgs, parse_bodies, parse_date};
@@ -46,7 +45,7 @@ pub struct Args {
     )]
     pub height: f64,
     /// The day, YYYY-MM-DD, from local midnight to local midnight in --zone.
-    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_date)]
+    #[arg(long, value_name = "YYYY-MM-DD", value_parser = parse_date, allow_hyphen_values = true)]
     pub date: Date,
     /// `utc` (default), a fixed offset such as -04:00, or `nautical` for the zone time of
     /// the longitude. Named zones (America/New_York) need a tz database this offline tool
@@ -62,6 +61,8 @@ pub struct Args {
     /// Height of eye above the sea, metres; needed by --horizon dip, refused otherwise.
     #[arg(long = "height-of-eye", value_name = "M")]
     pub height_of_eye: Option<f64>,
+    #[command(flatten)]
+    pub dut1: super::args::Dut1Args,
     #[command(flatten)]
     pub format: FormatArgs,
 }
@@ -113,7 +114,11 @@ pub fn run(a: &Args) -> Result<u8> {
         height_m: a.height,
         ..Site::default()
     };
-    let day = events::day_events(&Sky::new(), &site, jd_start, jd_end, &a.bodies.0, &options)
+    // The site's Earth rotation: `--dut1` (the site's DUT1 field), else the IERS history,
+    // taken at the middle of the day, as the WASM `day_events` does.
+    super::wire::set_explorer_dut1(a.dut1.dut1)?;
+    let sky = skyfix_wasm::explorer::native::sky_at(0.5 * (jd_start + jd_end));
+    let day = events::day_events(&sky, &site, jd_start, jd_end, &a.bodies.0, &options)
         .map_err(|e| anyhow!("{e}"))?;
 
     if a.format.is_json() {
@@ -165,12 +170,14 @@ fn when(jd: f64, zone: &ResolvedZone) -> String {
     }
 }
 
-/// The headings over [`when`] and the two spaces after it.
-fn when_header(zone: &ResolvedZone) -> String {
+/// The headings over [`when`] and the two spaces after it; the clock's word is the one
+/// the day's times are printed on (UTC, or UT outside 1972-2035).
+fn when_header(zone: &ResolvedZone, jd: f64) -> String {
+    let clock = text::scale_word(jd);
     if zone.is_utc() {
-        report::pad("UTC", 22)
+        report::pad(clock, 22)
     } else {
-        format!("{}{}", report::pad("local", 10), report::pad("UTC", 22))
+        format!("{}{}", report::pad("local", 10), report::pad(clock, 22))
     }
 }
 
@@ -220,7 +227,7 @@ pub fn render(
     }
 
     out.push_str("\nSky phases\n");
-    out.push_str(&format!("  {}phase\n", when_header(zone)));
+    out.push_str(&format!("  {}phase\n", when_header(zone, day.jd_start)));
     for ph in &day.phases {
         let until = if ph.jd_end >= day.jd_end {
             "the end of the day".to_string()
@@ -255,7 +262,7 @@ pub fn render(
         }
         out.push_str(&format!(
             "  {}{}{:>9}{:>10}\n",
-            when_header(zone),
+            when_header(zone, day.jd_start),
             report::pad("event", 19),
             "alt",
             "Az"

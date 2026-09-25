@@ -50,6 +50,9 @@ fn main() -> ExitCode {
         }
     };
 
+    // The value clap accepted, `auto` included, is the run's calendar; the scan above
+    // only had to give the date flags' parsers the same answer earlier.
+    commands::explorer::args::set_calendar(parsed.calendar.and_then(|c| c.calendar()));
     match dispatch(parsed) {
         Ok(code) => ExitCode::from(code),
         Err(e) => {
@@ -60,6 +63,9 @@ fn main() -> ExitCode {
 }
 
 fn dispatch(parsed: Cli) -> anyhow::Result<u8> {
+    // `--pack`: loaded into the engine before the command runs, as the site loads its
+    // saved packs before the first view (commands::explorer::packs).
+    commands::explorer::packs::load_all(&parsed.pack)?;
     match parsed.command {
         Command::Validate { file, json } => commands::validate::run(&file, json),
 

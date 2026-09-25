@@ -57,10 +57,10 @@ pub fn parse_planets(s: &str) -> Result<PlanetList, String> {
 #[derive(clap::Args, Debug)]
 pub struct Args {
     /// Start: YYYY-MM-DD (00:00 UTC that day) or an RFC 3339 UTC instant.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub from: When,
     /// End: YYYY-MM-DD (through the END of that day, UTC) or an RFC 3339 UTC instant.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub to: When,
     /// The planets, comma-separated (Mercury, Venus, Mars, Jupiter, Saturn, Uranus,
     /// Neptune), or `all` (the default).
@@ -162,7 +162,7 @@ pub fn render(list: &PlanetEventList, planets: &PlanetList) -> String {
     } else {
         out.push_str(&format!(
             "  {}{}{}{:>9}{:>7}{:>9}{:>9}\n",
-            report::pad("UTC", 22),
+            report::pad(text::scale_word(list.events[0].jd_utc), 22),
             report::pad("planet", 9),
             report::pad("event", 24),
             "elong.",

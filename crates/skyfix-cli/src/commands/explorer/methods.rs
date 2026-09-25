@@ -132,7 +132,12 @@ pub fn residual_table(residuals: &[RunResidual], out: &mut String) {
     out.push_str(&format!(
         "  {}{}{:>8}{:>12}{:>12}{:>9}{:>8}{}  used\n",
         report::pad("id", 10),
-        report::pad("UTC", 22),
+        report::pad(
+            residuals
+                .first()
+                .map_or("UTC", |r| super::text::scale_word(r.jd_utc)),
+            22
+        ),
         "min",
         "Ho deg",
         "model deg",
