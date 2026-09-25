@@ -241,6 +241,11 @@ describe('the working model', () => {
     expect(ready.input.moon_altitude).toEqual({ altitude_deg: 49.27, altitude_kind: 'sextant_hs', limb: 'lower', sigma_arcmin: 1 });
     expect(ready.input.body_altitude).toBeNull();
     expect(ready.input.dr_uncertainty_nm).toBe(0);
+    // The session's UT1 − UTC travels with the lunar (expansion programme); none = automatic.
+    expect(ready.input.observer.dut1_s).toBeNull();
+    const withDut1 = lunarInputFor({ ...w, session: { ...w.session, clock: { ...w.session.clock, dut1_s: 0.2 } }, lunar: { ...w.lunar, distanceDeg: 74.24, watchUtc: '2029-10-17T01:05:43Z' } }, place);
+    if (!('input' in withDut1)) throw new Error('expected an input');
+    expect(withDut1.input.observer.dut1_s).toBe(0.2);
   });
 });
 
