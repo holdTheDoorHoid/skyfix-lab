@@ -40,7 +40,8 @@ jobs:
       # web/public/data/packs/<name>-<rev>.bin with its <name>.json sidecar. A producer whose
       # pack is built from committed data adds its build step here, before the checks.
       - name: Check the data packs (every committed pack installs into this build's core)
-        run: cargo test -p skyfix-wasm --lib packs::
+        # Quoted: a plain scalar ending in "::" reads as a mapping key and breaks the workflow.
+        run: "cargo test -p skyfix-wasm --lib packs::"
       - name: Build the site (the packs plugin writes data/packs/manifest.json and checks each pack's hash, size and header)
         run: |
           npm ci --prefix web

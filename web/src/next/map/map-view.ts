@@ -41,6 +41,8 @@ import { measureFeatures, measure as measureBetween, measureText } from './measu
 import { OverlayDrawer } from './overlay-layers.js';
 import { PATH_STEP_MIN, dialEvents, passNote, passWindow } from './pass.js';
 import { serviceImpl } from './overlays.js';
+// photo agent (expansion Q8): another part of the page may take the next click (pick.ts).
+import { attachPickPrompt, mapPickerFor } from './pick.js';
 import { describePlace, sameZone } from './place.js';
 import { COMPACT_WIDTH, aboveHorizonRuns, compassRadius, norm360, screenBearing, solsticeBand, type AltAz, type SkyRegion } from './skyproj.js';
 import { DEFERRED_SOURCES, LAYER, LAYER_GROUPS, SRC, buildStyle, restyle, streetsLayer, streetsSource } from './style.js';
@@ -356,6 +358,8 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   // --- Picking on the map ------------------------------------------------------------------
   function pick(lngLat: LngLat): void {
     const ll = lngLat.wrap();
+    // photo agent (expansion Q8): a waiting pick (the alignment finder's bearing) takes the click.
+    if (mapPickerFor(ctx).offer({ lat_deg: ll.lat, lon_deg: ll.lng })) return;
     if (measuring.active) {
       const p = { lat_deg: ll.lat, lon_deg: ll.lng };
       if (!measuring.a || measuring.b) {
@@ -415,9 +419,12 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
   });
 
   map.on('click', (e: MapMouseEvent) => {
-    if (lastPointerType === 'touch') return; // on touch a long press sets the place
+    // On touch a long press sets the place (photo agent: a tap answers a waiting pick).
+    if (lastPointerType === 'touch' && !mapPickerFor(ctx).active()) return;
     pick(e.lngLat);
   });
+  // photo agent (expansion Q8): the prompt shown while a pick waits (pick.ts).
+  d.add(attachPickPrompt(root, ctx));
 
   const onKey = (e: KeyboardEvent): void => {
     if (e.key === 'Escape' && measuring.active) {
