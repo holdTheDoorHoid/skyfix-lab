@@ -1,623 +1,740 @@
 /**
- * The Almanac view: the two facing daily pages of a nautical almanac for the UT date of
- * the explorer's time, laid out like the printed Nautical Almanac. OWNER: almanac agent.
+ * The Almanac view: the printed Nautical Almanac's daily pages and its other tables.
+ * OWNER: almanac agents (the daily pages: almanac agent; the three-day openings, the
+ * tables, any year: almanac2 agent).
  *
- * - Left page: GHA of Aries and GHA/Dec of Venus, Mars, Jupiter and Saturn for every hour,
- *   their v, d, SHA, magnitude and meridian passage, and the 57 stars plus Polaris.
- * - Right page: GHA/Dec of the Sun and GHA, v, Dec, d, HP of the Moon for every hour, the
- *   twilight, sunrise, sunset, moonrise and moonset tables for 72 N to 60 S, and the
- *   Sun/Moon box (equation of time, meridian passages, the Moon's age and phase).
+ * Five tabs:
+ * - **Daily pages**: the opening (three dates on two facing pages, grouped from January 1
+ *   as the printed almanac groups them) or one date, for the UT date of the explorer's
+ *   time, in any year the engine covers (years BC, the Julian calendar before 1582-10-15,
+ *   a ±ΔT chip where the Earth's rotation is uncertain).
+ * - **Increments**: Increments and Corrections, two minutes a page as printed, with a
+ *   look-up for a time after the hour and a v or d.
+ * - **Altitude corrections**: the Sun, stars and planets (10°–90° and 0°–10°), dip,
+ *   non-standard temperature and pressure (with a calculator), Venus and Mars for the
+ *   year, and the Moon's two-part table.
+ * - **Polaris**: a0, a1, a2 and the azimuth for the year, with a look-up.
+ * - **Arc to time**.
  *
- * The date is the store's time (`store.time`): the date picker and the day buttons set it,
- * keeping the time of day, and the row of the current UT hour is highlighted on screen.
- * Every number comes from the engine's `almanacDay` exactly as printed (`printed`); the
- * view only lays it out. Themed on screen through the design tokens; printing produces
- * black-on-white pages, one per sheet, on A4 or US Letter (almanac.css).
+ * Every number comes from the engine exactly as printed (`printed`); the view lays it
+ * out. Themed on screen through the design tokens; printing produces black-on-white
+ * pages, one per sheet, on A4 or US Letter (almanac.css). Heavy pages (an opening is
+ * three daily pages) are computed when the explorer's time has been still for a moment,
+ * never on every frame of a drag of the time bar.
  */
 
 import './almanac.css';
 import { h } from '../../dom.js';
-import { disposer, watch, type Component } from '../component.js';
+import { disposer, watch, type Component, type Ctx, type Mounted } from '../component.js';
 import {
   isAlmanacEngine,
-  type AlmanacDay,
+  isAlmanacTablesEngine,
+  type AlmanacCalendarChoice,
   type AlmanacEngine,
-  type AlmanacHour,
-  type AlmanacLatitudeRow,
-  type AlmanacTime,
+  type AlmanacTablesEngine,
+  type AltitudeTables,
+  type IncrementsMinute,
+  type PlanetCorrections,
+  type PolarisTable,
+  type RefractionConditions,
 } from '../engine/types.js';
 import { goNow, setTime } from '../playback.js';
-import { button } from '../theme/primitives.js';
+import { button, segmented } from '../theme/primitives.js';
+import { BANNER } from './cells.js';
+import { oneDayPages, openingPages, type HourRows, type RenderedPages } from './daily.js';
 import {
-  blocks,
-  dayOfMonth,
-  decParts,
-  ghaParts,
-  moveToUtDate,
-  pageHeading,
-  phaseName,
-  phaseSymbol,
-  showDecDegrees,
-  timeCellClass,
-  timeCellTitle,
-  utDateOf,
-  utHourOf,
-} from './layout.js';
+  anachronismNote,
+  deltaTChip,
+  entryToJd,
+  shownDate,
+  tierNote,
+  timeInfoAt,
+  type CalendarChoice,
+  type ShownDate,
+} from './dates.js';
+import { dateEntry } from './entry.js';
+import { utHourOf } from './layout.js';
+import { altitudeSheets, arcSheet, incrementsSheet, polarisSheets } from './tables.js';
+import {
+  celsiusOf,
+  degMinText,
+  hpaOfInHg,
+  INCREMENT_PAGES,
+  lookupIncrement,
+  pageMinutes,
+  pageOfMinute,
+  parseMinuteSecond,
+  polarisLookup,
+  zoneOf,
+} from './tables-model.js';
 
-type Child = Node | string | null | undefined | false;
+type Tab = 'pages' | 'increments' | 'altitude' | 'polaris' | 'arc';
+type Mode = 'opening' | 'day';
 
-const BANNER = 'Simulation and analysis workbench. Not a navigation instrument.';
+const TABS: readonly { id: Tab; label: string; tip: string }[] = [
+  { id: 'pages', label: 'Daily pages', tip: 'The daily pages: three dates to an opening, as the printed almanac has them' },
+  { id: 'increments', label: 'Increments', tip: 'Increments and corrections for the minutes and seconds after the hour' },
+  { id: 'altitude', label: 'Altitude corrections', tip: 'Sun, stars, planets, dip, the Moon, and unusual temperature and pressure' },
+  { id: 'polaris', label: 'Polaris', tip: 'Latitude from Polaris, and its azimuth, for the year' },
+  { id: 'arc', label: 'Arc to time', tip: 'Degrees and minutes of arc as hours, minutes and seconds of time' },
+];
 
-// ---------------------------------------------------------------------------
-// Cells
-// ---------------------------------------------------------------------------
+/** How long the time must be still before a heavy page is computed, and the longest wait. */
+const SETTLE_MS = 300;
+const MAX_WAIT_MS = 4000;
 
-function srOnly(text: string): HTMLElement {
-  return h('span', { class: 'alm-sr' }, text);
-}
-
-/** `183 12.4` with the degrees right-aligned and the minutes aligned on the point. */
-function ghaCell(printed: string, extra = ''): HTMLTableCellElement {
-  const p = ghaParts(printed);
-  return h(
-    'td',
-    { class: `alm-a${extra}` },
-    h('span', { class: 'alm-deg' }, p.deg),
-    h('span', { class: 'alm-min' }, p.min),
-  );
-}
-
-/** `N 12 34.5`; with `showDeg` false only the minutes (the printed almanac's style). */
-function decCell(printed: string, showDeg: boolean): HTMLTableCellElement {
-  const p = decParts(printed);
-  return h(
-    'td',
-    { class: 'alm-a alm-dec' },
-    showDeg ? null : srOnly(`${p.hemisphere} ${p.deg}° `),
-    h('span', { class: 'alm-hemi', 'aria-hidden': showDeg ? undefined : 'true' }, showDeg ? p.hemisphere : ''),
-    h('span', { class: 'alm-deg', 'aria-hidden': showDeg ? undefined : 'true' }, showDeg ? p.deg : ''),
-    h('span', { class: 'alm-min' }, p.min),
-  );
-}
-
-function numCell(text: string, cls = 'alm-n'): HTMLTableCellElement {
-  return h('td', { class: cls }, text);
-}
-
-function timeCell(t: AlmanacTime): HTMLTableCellElement {
-  return h('td', { class: timeCellClass(t), title: timeCellTitle(t) }, t.printed);
-}
-
-function th(text: Child, attrs: Record<string, string | number> = {}): HTMLTableCellElement {
-  return h('th', attrs, text);
-}
-
-/** Per 6-hour block, which rows show a declination's degrees. */
-function decShown(hours: readonly AlmanacHour[], pick: (r: AlmanacHour) => string | null): boolean[] {
-  const out: boolean[] = [];
-  for (const block of blocks(hours, 6)) {
-    out.push(...showDecDegrees(block.map((r) => pick(r) ?? '')));
-  }
-  return out;
-}
-
-// ---------------------------------------------------------------------------
-// Page furniture
-// ---------------------------------------------------------------------------
-
-function pageHeader(day: AlmanacDay, side: string, mock: boolean): HTMLElement {
-  return h(
-    'header',
-    { class: 'alm-head' },
-    h('span', { class: 'alm-head-side' }, side),
-    h('h3', { class: 'alm-head-date' }, pageHeading(day)),
-    h('span', { class: 'alm-head-ut' }, 'UT'),
-    mock
-      ? h(
-          'p',
-          { class: 'alm-mock', role: 'note' },
-          'MOCK ENGINE: illustrative numbers for interface development, not from the SkyFix Lab numerical core.',
-        )
-      : null,
-  );
-}
-
-function pageFooter(text: string): HTMLElement {
-  return h('footer', { class: 'alm-foot' }, h('span', {}, 'SkyFix Lab'), h('span', {}, BANNER), h('span', {}, text));
-}
-
-function caption(text: string): HTMLTableCaptionElement {
-  return h('caption', { class: 'alm-sr' }, text);
-}
-
-// ---------------------------------------------------------------------------
-// Left page
-// ---------------------------------------------------------------------------
-
-function leftHourly(day: AlmanacDay, rows: HTMLTableRowElement[]): HTMLTableElement {
-  const head1 = h('tr', {}, th('UT', { rowspan: 2, scope: 'col', class: 'alm-ut' }), th('ARIES', { scope: 'col' }));
-  const head2 = h('tr', {}, th('GHA', { scope: 'col' }));
-  for (const p of day.planets) {
-    head1.append(
-      th(
-        h('span', {}, p.body.toUpperCase(), ' ', h('span', { class: 'alm-mag' }, p.printed.magnitude)),
-        { colspan: 2, scope: 'colgroup', class: 'alm-body' },
-      ),
-    );
-    head2.append(th('GHA', { scope: 'col' }), th('Dec', { scope: 'col' }));
-  }
-  const table = h(
-    'table',
-    { class: 'alm-table alm-hourly alm-hourly-left' },
-    caption(`GHA of Aries, and GHA and declination of the planets, every hour of ${day.date} UT`),
-    h('thead', {}, head1, head2),
-  );
-  const shown = day.planets.map((_, i) => decShown(day.hours, (r) => r.planets[i]?.printed.dec ?? null));
-  for (const block of blocks(day.hours, 6)) {
-    const body = h('tbody', {});
-    for (const r of block) {
-      const tr = h(
-        'tr',
-        { 'data-hour': r.hour },
-        th(String(r.hour).padStart(2, '0'), { scope: 'row', class: 'alm-ut' }),
-        ghaCell(r.aries.printed.gha),
-      );
-      r.planets.forEach((p, i) => {
-        tr.append(ghaCell(p.printed.gha, ' alm-gap'), decCell(p.printed.dec, shown[i]![r.hour]!));
-      });
-      rows[r.hour] = tr;
-      body.append(tr);
-    }
-    table.append(body);
-  }
-  const foot = h(
-    'tr',
-    {},
-    h('td', { colspan: 2, class: 'alm-footnote' }, 'Mer. Pass. ', h('b', {}, day.aries.mer_pass.printed)),
-  );
-  for (const p of day.planets) {
-    foot.append(
-      h(
-        'td',
-        { colspan: 2, class: 'alm-footnote' },
-        'v ',
-        h('b', {}, p.printed.v),
-        '  d ',
-        h('b', {}, p.printed.d),
-      ),
-    );
-  }
-  table.append(h('tfoot', {}, foot));
-  return table;
-}
-
-function planetBox(day: AlmanacDay): HTMLTableElement {
-  return h(
-    'table',
-    { class: 'alm-table alm-box alm-planet-box' },
-    caption(`The planets' SHA at 12h UT and meridian passage at Greenwich on ${day.date}`),
-    h('thead', {}, h('tr', {}, th('', { scope: 'col' }), th('SHA', { scope: 'col' }), th('Mer. Pass.', { scope: 'col' }))),
-    h(
-      'tbody',
-      {},
-      ...day.planets.map((p) =>
-        h('tr', {}, th(p.body, { scope: 'row' }), ghaCell(p.printed.sha), timeCell(p.mer_pass)),
-      ),
-    ),
-  );
-}
-
-function starTable(day: AlmanacDay): HTMLTableElement {
-  const table = h(
-    'table',
-    { class: 'alm-table alm-stars' },
-    caption(`SHA and declination of the navigational stars and Polaris at 12h UT on ${day.date}`),
-    h(
-      'thead',
-      {},
-      h('tr', {}, th('STARS', { colspan: 3, scope: 'colgroup', class: 'alm-body' })),
-      h('tr', {}, th('Name', { scope: 'col' }), th('SHA', { scope: 'col' }), th('Dec', { scope: 'col' })),
-    ),
-  );
-  for (const block of blocks(day.stars, 5)) {
-    table.append(
-      h(
-        'tbody',
-        {},
-        ...block.map((s) =>
-          h(
-            'tr',
-            { class: s.body === 'Polaris' ? 'alm-polaris' : undefined },
-            th(s.body, { scope: 'row', class: 'alm-star' }),
-            ghaCell(s.printed.sha),
-            decCell(s.printed.dec, true),
-          ),
-        ),
-      ),
-    );
-  }
-  return table;
-}
-
-function explainBox(): HTMLElement {
-  return h(
-    'div',
-    { class: 'alm-explain' },
-    h('p', {}, h('b', {}, 'Using the pages. '), 'GHA of a star = GHA Aries + SHA. Between the hours add the increment for the minutes and seconds (15° an hour for the Sun and planets, 15° 02.5′ for Aries, 14° 19.0′ for the Moon), then v × the fraction of the hour; change the declination by d × the fraction, in the direction the column is going.'),
-    h('p', {}, h('b', {}, 'Mer. Pass. '), 'is the UT at which the body crosses the Greenwich meridian; for another longitude add 4 minutes for every degree west (subtract for east).'),
-  );
-}
-
-function leftPage(day: AlmanacDay, rows: HTMLTableRowElement[], mock: boolean): HTMLElement {
-  return h(
-    'article',
-    { class: 'alm-page alm-page-left', 'aria-label': `Left page for ${day.date}: Aries, planets, stars` },
-    pageHeader(day, 'ARIES · PLANETS · STARS', mock),
-    h(
-      'div',
-      { class: 'alm-grid' },
-      h('div', { class: 'alm-main' }, leftHourly(day, rows), planetBox(day), explainBox()),
-      h('div', { class: 'alm-side' }, starTable(day)),
-    ),
-    pageFooter(`Stars and SHA at 12h UT · ${day.weekday} ${day.date}`),
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Right page
-// ---------------------------------------------------------------------------
-
-function rightHourly(day: AlmanacDay, rows: HTMLTableRowElement[]): HTMLTableElement {
-  const table = h(
-    'table',
-    { class: 'alm-table alm-hourly alm-hourly-right' },
-    caption(`GHA and declination of the Sun, and GHA, v, declination, d and HP of the Moon, every hour of ${day.date} UT`),
-    h(
-      'thead',
-      {},
-      h(
-        'tr',
-        {},
-        th('UT', { rowspan: 2, scope: 'col', class: 'alm-ut' }),
-        th('SUN', { colspan: 2, scope: 'colgroup', class: 'alm-body' }),
-        th('MOON', { colspan: 5, scope: 'colgroup', class: 'alm-body' }),
-      ),
-      h(
-        'tr',
-        {},
-        th('GHA', { scope: 'col' }),
-        th('Dec', { scope: 'col' }),
-        th('GHA', { scope: 'col' }),
-        th('v', { scope: 'col' }),
-        th('Dec', { scope: 'col' }),
-        th('d', { scope: 'col' }),
-        th('HP', { scope: 'col' }),
-      ),
-    ),
-  );
-  const sunShown = decShown(day.hours, (r) => r.sun.printed.dec);
-  const moonShown = decShown(day.hours, (r) => r.moon?.printed.dec ?? null);
-  for (const block of blocks(day.hours, 6)) {
-    const body = h('tbody', {});
-    for (const r of block) {
-      const tr = h(
-        'tr',
-        { 'data-hour': r.hour },
-        th(String(r.hour).padStart(2, '0'), { scope: 'row', class: 'alm-ut' }),
-        ghaCell(r.sun.printed.gha),
-        decCell(r.sun.printed.dec, sunShown[r.hour]!),
-      );
-      if (r.moon) {
-        tr.append(
-          ghaCell(r.moon.printed.gha, ' alm-gap'),
-          numCell(r.moon.printed.v),
-          decCell(r.moon.printed.dec, moonShown[r.hour]!),
-          numCell(r.moon.printed.d),
-          numCell(r.moon.printed.hp),
-        );
-      } else {
-        tr.append(h('td', { colspan: 5, class: 'alm-na' }, 'Moon not available'));
-      }
-      rows[r.hour] = tr;
-      body.append(tr);
-    }
-    table.append(body);
-  }
-  table.append(
-    h(
-      'tfoot',
-      {},
-      h(
-        'tr',
-        {},
-        h('td', {}, ''),
-        h(
-          'td',
-          { colspan: 2, class: 'alm-footnote' },
-          'SD ',
-          h('b', {}, day.sun.printed.sd),
-          '  d ',
-          h('b', {}, day.sun.printed.d),
-        ),
-        h(
-          'td',
-          { colspan: 5, class: 'alm-footnote' },
-          ...(day.moon ? ['SD ', h('b', {}, day.moon.printed.sd)] : []),
-        ),
-      ),
-    ),
-  );
-  return table;
-}
-
-function latitudeBlocks(
-  rows: readonly AlmanacLatitudeRow[],
-  cells: (r: AlmanacLatitudeRow) => AlmanacTime[],
-): HTMLTableSectionElement[] {
-  return blocks(rows, 5).map((block) =>
-    h(
-      'tbody',
-      {},
-      ...block.map((r) =>
-        h('tr', {}, th(r.label, { scope: 'row', class: 'alm-lat' }), ...cells(r).map(timeCell)),
-      ),
-    ),
-  );
-}
-
-function riseTable(day: AlmanacDay): HTMLTableElement {
-  const [d0 = '', d1 = ''] = day.rise_set.moon_dates;
-  return h(
-    'table',
-    { class: 'alm-table alm-rise' },
-    caption(`Morning twilight, sunrise and moonrise, LMT at the Greenwich meridian, for ${day.date}`),
-    h(
-      'thead',
-      {},
-      h(
-        'tr',
-        {},
-        th('Lat.', { rowspan: 2, scope: 'col' }),
-        th('Twilight', { colspan: 2, scope: 'colgroup' }),
-        th('Sunrise', { rowspan: 2, scope: 'col' }),
-        th('Moonrise', { colspan: 2, scope: 'colgroup' }),
-      ),
-      h(
-        'tr',
-        {},
-        th('Naut.', { scope: 'col' }),
-        th('Civil', { scope: 'col' }),
-        th(dayOfMonth(d0), { scope: 'col', title: d0 }),
-        th(dayOfMonth(d1), { scope: 'col', title: d1 }),
-      ),
-    ),
-    ...latitudeBlocks(day.rise_set.rows, (r) => [r.nautical_dawn, r.civil_dawn, r.sunrise, ...r.moonrise]),
-  );
-}
-
-function setTable(day: AlmanacDay): HTMLTableElement {
-  const [d0 = '', d1 = ''] = day.rise_set.moon_dates;
-  return h(
-    'table',
-    { class: 'alm-table alm-rise' },
-    caption(`Sunset, evening twilight and moonset, LMT at the Greenwich meridian, for ${day.date}`),
-    h(
-      'thead',
-      {},
-      h(
-        'tr',
-        {},
-        th('Lat.', { rowspan: 2, scope: 'col' }),
-        th('Sunset', { rowspan: 2, scope: 'col' }),
-        th('Twilight', { colspan: 2, scope: 'colgroup' }),
-        th('Moonset', { colspan: 2, scope: 'colgroup' }),
-      ),
-      h(
-        'tr',
-        {},
-        th('Civil', { scope: 'col' }),
-        th('Naut.', { scope: 'col' }),
-        th(dayOfMonth(d0), { scope: 'col', title: d0 }),
-        th(dayOfMonth(d1), { scope: 'col', title: d1 }),
-      ),
-    ),
-    ...latitudeBlocks(day.rise_set.rows, (r) => [r.sunset, r.civil_dusk, r.nautical_dusk, ...r.moonset]),
-  );
-}
-
-function eotCell(seconds: number, printed: string): HTMLTableCellElement {
-  const negative = seconds < 0;
-  return h(
-    'td',
-    {
-      class: `alm-t${negative ? ' alm-neg' : ''}`,
-      title: negative ? 'Negative: the Sun crosses the meridian after 12h' : undefined,
-    },
-    negative ? '−' : '',
-    printed,
-  );
-}
-
-function sunMoonBox(day: AlmanacDay): HTMLTableElement {
-  const m = day.moon;
-  const phase = m?.phase
-    ? h(
-        'span',
-        { class: 'alm-phase', title: `${phaseName(m.phase.kind)} at ${m.phase.utc.slice(11, 16)} UT` },
-        phaseSymbol(m.phase.kind),
-      )
-    : null;
-  return h(
-    'table',
-    { class: 'alm-table alm-box alm-sunmoon' },
-    caption(`Equation of time, meridian passages, and the Moon's age and phase for ${day.date}`),
-    h(
-      'thead',
-      {},
-      h(
-        'tr',
-        {},
-        th('Day', { rowspan: 3, scope: 'col' }),
-        th('SUN', { colspan: 3, scope: 'colgroup', class: 'alm-body' }),
-        th('MOON', { colspan: 4, scope: 'colgroup', class: 'alm-body' }),
-      ),
-      h(
-        'tr',
-        {},
-        th('Eqn. of Time', { colspan: 2, scope: 'colgroup' }),
-        th('Mer. Pass.', { scope: 'col' }),
-        th('Mer. Pass.', { colspan: 2, scope: 'colgroup' }),
-        th('Age', { scope: 'col' }),
-        th('Phase', { scope: 'col' }),
-      ),
-      h(
-        'tr',
-        { class: 'alm-units' },
-        th('00h', { scope: 'col' }),
-        th('12h', { scope: 'col' }),
-        th('h m', { scope: 'col' }),
-        th('Upper', { scope: 'col' }),
-        th('Lower', { scope: 'col' }),
-        th('d', { scope: 'col' }),
-        th('%', { scope: 'col' }),
-      ),
-    ),
-    h(
-      'tbody',
-      {},
-      h(
-        'tr',
-        {},
-        th(dayOfMonth(day.date), { scope: 'row' }),
-        eotCell(day.sun.eot_00h_s, day.sun.printed.eot_00h),
-        eotCell(day.sun.eot_12h_s, day.sun.printed.eot_12h),
-        timeCell(day.sun.mer_pass),
-        ...(m
-          ? [
-              timeCell(m.mer_pass_upper),
-              timeCell(m.mer_pass_lower),
-              numCell(m.printed.age),
-              h('td', { class: 'alm-n' }, m.printed.illuminated, phase ? ' ' : '', phase),
-            ]
-          : [h('td', { colspan: 4, class: 'alm-na' }, 'Moon not available')]),
-      ),
-    ),
-  );
-}
-
-function notesBox(day: AlmanacDay): HTMLElement {
-  return h(
-    'div',
-    { class: 'alm-notes' },
-    h('ul', {}, ...day.notes.map((n) => h('li', {}, n))),
-    day.errors.length
-      ? h(
-          'p',
-          { class: 'alm-errors' },
-          h('b', {}, 'Not computed: '),
-          day.errors.map((e) => `${e.body}: ${e.message}`).join(' · '),
-        )
-      : null,
-  );
-}
-
-function rightPage(day: AlmanacDay, rows: HTMLTableRowElement[], mock: boolean): HTMLElement {
-  return h(
-    'article',
-    { class: 'alm-page alm-page-right', 'aria-label': `Right page for ${day.date}: Sun, Moon, twilight, rise and set` },
-    pageHeader(day, 'SUN · MOON · TWILIGHT', mock),
-    h(
-      'div',
-      { class: 'alm-grid' },
-      h('div', { class: 'alm-main' }, rightHourly(day, rows), sunMoonBox(day), notesBox(day)),
-      h('div', { class: 'alm-side' }, riseTable(day), setTable(day)),
-    ),
-    pageFooter(`Twilight, rise and set: LMT at Greenwich · ${day.weekday} ${day.date}`),
-  );
-}
-
-// ---------------------------------------------------------------------------
-// The view
-// ---------------------------------------------------------------------------
+// Remembered for the page's lifetime, so leaving the view and coming back keeps them.
+let lastTab: Tab = 'pages';
+let lastMode: Mode = 'opening';
+let lastCalendar: CalendarChoice = 'auto';
+let lastIncrementsPage = 0;
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/** The coverage as UT dates, for the picker's range. */
-function dateRange(start: string, end: string): { min: string; max: string } {
-  return { min: start.slice(0, 10), max: end.slice(0, 10) };
+function calendarArg(choice: CalendarChoice): AlmanacCalendarChoice {
+  return choice === 'auto' ? '' : choice;
 }
 
-export const almanacView: Component = (host, ctx) => {
+interface Env {
+  ctx: Ctx;
+  mock: boolean;
+  pages: AlmanacEngine | null;
+  tables: AlmanacTablesEngine | null;
+  root: HTMLElement;
+}
+
+interface TabMounted extends Mounted {
+  /** What the view's Print button prints, when not simply the sheets on screen. */
+  print?: () => void;
+}
+
+function message(text: string, role: 'alert' | 'status' = 'alert'): HTMLElement {
+  return h('p', { class: 'alm-message', role }, text);
+}
+
+const NOT_AVAILABLE =
+  'This engine cannot make the almanac’s tables. Rebuild the numerical core with: npm run wasm --prefix web';
+
+/** Call `fn` once the explorer's time has settled; `now()` skips the wait. */
+function settler(fn: () => void): { request(): void; now(): void; cancel(): void } {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let since = 0;
+  return {
+    request() {
+      const t = Date.now();
+      if (timer === null) since = t;
+      else clearTimeout(timer);
+      timer = setTimeout(
+        () => {
+          timer = null;
+          fn();
+        },
+        t - since >= MAX_WAIT_MS ? 0 : SETTLE_MS,
+      );
+    },
+    now() {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+      fn();
+    },
+    cancel() {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+    },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Daily pages
+// ---------------------------------------------------------------------------
+
+function mountPages(panel: HTMLElement, env: Env): TabMounted {
+  const { ctx } = env;
   const d = disposer();
-  const engine: AlmanacEngine | null = isAlmanacEngine(ctx.engine) ? ctx.engine : null;
-  const mock = ctx.engine.kind === 'mock';
-
-  let range = { min: '1990-01-01', max: '2060-12-31' };
-  try {
-    const c = ctx.engine.coverage();
-    range = dateRange(c.start_utc, c.end_utc);
-  } catch {
-    // Keep the documented range; the engine will refuse a date it cannot do.
-  }
-
-  const dateInput = h('input', {
-    type: 'date',
-    class: 'sf-input alm-date',
-    id: 'alm-date',
-    min: range.min,
-    max: range.max,
-    required: true,
+  const entry = dateEntry({
+    initialCalendar: lastCalendar,
+    onSubmit: (value, choice) => {
+      lastCalendar = choice;
+      const jd = ctx.store.get().time.jd_utc;
+      const fraction = jd + 0.5 - Math.floor(jd + 0.5);
+      const r = entryToJd(ctx.engine, value, choice, fraction);
+      if ('error' in r) {
+        entry.error(r.error);
+        return;
+      }
+      entry.error(null);
+      urgent = true;
+      setTime(ctx.store, r.jd);
+    },
+    onCalendar: (choice) => {
+      lastCalendar = choice;
+      urgent = true;
+      render.now();
+    },
   });
-  const move = (days: number): void => {
+  d.add(() => entry.destroy());
+
+  const step = (sign: number): void => {
+    urgent = true;
     const jd = ctx.store.get().time.jd_utc;
+    const days = mode === 'opening' ? (sign > 0 ? 3 - shownIndex : -1 - shownIndex) : sign;
     setTime(ctx.store, jd + days);
   };
-  const prev = button({
-    icon: 'chevron-left',
-    ariaLabel: 'Previous day',
-    tip: 'The previous UT date, same time of day',
-    size: 'sm',
-    onClick: () => move(-1),
-  });
-  const next = button({
-    icon: 'chevron-right',
-    ariaLabel: 'Next day',
-    tip: 'The next UT date, same time of day',
-    size: 'sm',
-    onClick: () => move(1),
-  });
+  const prev = button({ icon: 'chevron-left', ariaLabel: 'Previous', tip: 'The previous opening (or date), same time of day', size: 'sm', onClick: () => step(-1) });
+  const next = button({ icon: 'chevron-right', ariaLabel: 'Next', tip: 'The next opening (or date), same time of day', size: 'sm', onClick: () => step(1) });
   const today = button({
     label: 'Today',
     tip: 'Follow the clock: today’s UT date',
     size: 'sm',
-    onClick: () => goNow(ctx.store),
+    onClick: () => {
+      urgent = true;
+      goNow(ctx.store);
+    },
   });
+  let mode: Mode = env.tables ? lastMode : 'day';
+  const modeSeg = segmented<Mode>({
+    label: 'Pages',
+    size: 'sm',
+    value: mode,
+    options: [
+      { value: 'opening', label: 'Three dates', tip: 'The printed almanac’s opening: three dates on two facing pages' },
+      { value: 'day', label: 'One date', tip: 'One date on two pages, larger on screen' },
+    ],
+    onChange: (value) => {
+      mode = value;
+      lastMode = value;
+      urgent = true;
+      render.now();
+    },
+  });
+  if (!env.tables) modeSeg.el.hidden = true;
+  const status = h('p', { class: 'alm-status', role: 'status', 'aria-live': 'polite' });
+  const spread = h('div', { class: 'alm-spread' });
+  panel.append(
+    h('div', { class: 'alm-subbar' }, entry.el, h('span', { class: 'alm-btn-group' }, prev, today, next), modeSeg.el, status),
+    spread,
+  );
+
+  let shownWire: string[] = [];
+  let shownMode: Mode | null = null;
+  let shownCalendar: CalendarChoice | null = null;
+  let shownIndex = 1;
+  let rows: HourRows = [];
+  let lit: HTMLTableRowElement[] = [];
+  let urgent = true;
+
+  const highlight = (): void => {
+    for (const tr of lit) tr.classList.remove('alm-now');
+    lit = [];
+    const jd = ctx.store.get().time.jd_utc;
+    const sd = shownDate(ctx.engine, jd, lastCalendar);
+    const di = shownWire.indexOf(sd.wire);
+    if (di < 0) return;
+    const hour = utHourOf(jd);
+    lit = rows[di]?.[hour] ?? [];
+    for (const tr of lit) tr.classList.add('alm-now');
+    status.textContent = lit.length ? `Marked: ${String(hour).padStart(2, '0')}h UT, the explorer’s time` : '';
+  };
+
+  const show = (rendered: RenderedPages): void => {
+    spread.replaceChildren(...rendered.pages);
+    rows = rendered.rows;
+    lit = [];
+    highlight();
+  };
+
+  const coverageHelp = async (sd: ShownDate, text: string): Promise<void> => {
+    if (!/coverage/i.test(text)) return;
+    const ok = await ctx.packs.ensure(
+      'deep-time',
+      `Almanac pages for ${sd.era === 'BC' ? `${sd.era_year} BC` : sd.era_year} need the deep-time data (positions from 2000 BC to AD 3000).`,
+    );
+    if (ok) {
+      shownWire = [];
+      render.now();
+    }
+  };
+
+  const draw = (): void => {
+    const jd = ctx.store.get().time.jd_utc;
+    const sd = shownDate(ctx.engine, jd, lastCalendar);
+    entry.set(sd, lastCalendar);
+    if (shownWire.includes(sd.wire) && shownMode === mode && shownCalendar === lastCalendar) {
+      if (mode === 'opening') shownIndex = shownWire.indexOf(sd.wire);
+      highlight();
+      return;
+    }
+    const info = timeInfoAt(ctx.engine, jd);
+    const chip = deltaTChip(info);
+    const extra = [anachronismNote(sd.year), tierNote(info)].filter((x): x is string => !!x);
+    try {
+      if (mode === 'opening' && env.tables) {
+        const o = env.tables.almanacOpening(sd.wire, calendarArg(lastCalendar));
+        // The engine's notes already say it for an opening before 1767.
+        show(openingPages(o, extra.filter((x) => !x.startsWith('The first Nautical')), chip, env.mock));
+        shownWire = o.dates.map((x) => x.date);
+        shownIndex = o.index;
+      } else if (env.pages) {
+        const day = env.pages.almanacDay(sd.wire);
+        show(oneDayPages(day, sd, extra, chip, env.mock));
+        shownWire = [day.date];
+        shownIndex = 0;
+      } else {
+        spread.replaceChildren(message('This engine cannot make almanac pages (it has no almanacDay). Rebuild the numerical core with: npm run wasm --prefix web'));
+        shownWire = [];
+        status.textContent = '';
+        return;
+      }
+      shownMode = mode;
+      shownCalendar = lastCalendar;
+      ctx.notices.dismissKey('almanac');
+    } catch (error) {
+      const text = `No almanac page for ${sd.wire}: ${errorText(error)}`;
+      ctx.notices.push('error', text, { key: 'almanac' });
+      spread.replaceChildren(message(text));
+      shownWire = [];
+      status.textContent = '';
+      void coverageHelp(sd, text);
+    }
+  };
+  const render = settler(draw);
+  d.add(() => render.cancel());
+
+  d.add(
+    watch(ctx, (s) => s.time.jd_utc, (jd) => {
+      const sd = shownDate(ctx.engine, jd, lastCalendar);
+      if (shownWire.includes(sd.wire) && shownMode === mode && shownCalendar === lastCalendar) {
+        entry.set(sd, lastCalendar);
+        if (mode === 'opening') shownIndex = shownWire.indexOf(sd.wire);
+        highlight();
+        return;
+      }
+      if (urgent || shownMode === null) {
+        urgent = false;
+        render.now();
+      } else {
+        entry.set(sd, lastCalendar);
+        status.textContent = 'Waiting for the time to settle…';
+        render.request();
+      }
+    }),
+  );
+  d.add(() => panel.replaceChildren());
+  return { destroy: () => d.dispose() };
+}
+
+// ---------------------------------------------------------------------------
+// Increments and Corrections
+// ---------------------------------------------------------------------------
+
+function mountIncrements(panel: HTMLElement, env: Env): TabMounted {
+  const d = disposer();
+  const tables = env.tables;
+  if (!tables) {
+    panel.append(message(NOT_AVAILABLE));
+    return { destroy: () => panel.replaceChildren() };
+  }
+  let page = lastIncrementsPage;
+  let mark: { minute: number; second: number } | null = null;
+  const minuteOf = (m: number): IncrementsMinute => tables.almanacIncrements(m);
+  const sheets = h('div', { class: 'alm-sheets' });
+  const printAll = h('div', { class: 'alm-print-all', 'aria-hidden': 'true' });
+  const pageLabel = h('span', { class: 'alm-page-label', 'aria-live': 'polite' });
+  const result = h('p', { class: 'alm-result', role: 'status', 'aria-live': 'polite' });
+
+  const draw = (): void => {
+    lastIncrementsPage = page;
+    const [a, b] = pageMinutes(page);
+    pageLabel.textContent = `Minutes ${a}–${b} · page ${page + 1} of ${INCREMENT_PAGES}`;
+    try {
+      sheets.replaceChildren(incrementsSheet([minuteOf(a), minuteOf(b)], mark, true, env.mock));
+    } catch (error) {
+      sheets.replaceChildren(message(errorText(error)));
+    }
+  };
+  const go = (p: number): void => {
+    page = Math.max(0, Math.min(INCREMENT_PAGES - 1, p));
+    draw();
+  };
+  const prev = button({ icon: 'chevron-left', ariaLabel: 'Previous page', tip: 'Minutes before these', size: 'sm', onClick: () => go(page - 1) });
+  const next = button({ icon: 'chevron-right', ariaLabel: 'Next page', tip: 'Minutes after these', size: 'sm', onClick: () => go(page + 1) });
+
+  const time = h('input', { class: 'sf-input alm-find-time', type: 'text', inputmode: 'numeric', placeholder: 'mm:ss', 'aria-label': 'Minutes and seconds after the hour', size: 6 });
+  const vIn = h('input', { class: 'sf-input alm-find-v', type: 'number', step: 0.1, min: -18, max: 18, 'aria-label': 'v, arcminutes', placeholder: 'v' });
+  const dIn = h('input', { class: 'sf-input alm-find-d', type: 'number', step: 0.1, min: -18, max: 18, 'aria-label': 'd, arcminutes', placeholder: 'd' });
+  const find = (): void => {
+    const t = parseMinuteSecond(time.value);
+    if (!t) {
+      result.textContent = 'Type the minutes and seconds after the hour, as 58:27.';
+      return;
+    }
+    const num = (el: HTMLInputElement): number | null => (el.value.trim() === '' ? null : Number(el.value));
+    try {
+      const r = lookupIncrement(minuteOf(t.minute), t.second, num(vIn), num(dIn));
+      mark = { minute: t.minute, second: t.second };
+      page = pageOfMinute(t.minute);
+      draw();
+      const parts = [
+        `${t.minute}m ${String(t.second).padStart(2, '0')}s: Sun and planets +${degMinText(arcminOf(r.sunPlanets))}`,
+        `Aries +${degMinText(arcminOf(r.aries))}`,
+        `Moon +${degMinText(arcminOf(r.moon))}`,
+      ];
+      if (r.v) parts.push(`v ${r.v.value}: ${r.v.correction}′`);
+      if (r.d) parts.push(`d ${r.d.value}: ${r.d.correction}′ (the sign as the declination goes)`);
+      result.textContent = `${parts.join(' · ')}.`;
+    } catch (error) {
+      result.textContent = errorText(error);
+    }
+  };
+  const findBtn = button({ label: 'Find', size: 'sm', tip: 'Show the row and the corrections', onClick: find });
+  const onKey = (e: KeyboardEvent): void => {
+    if (e.key === 'Enter') find();
+  };
+  for (const el of [time, vIn, dIn]) el.addEventListener('keydown', onKey);
+  d.add(() => {
+    for (const el of [time, vIn, dIn]) el.removeEventListener('keydown', onKey);
+  });
+
+  const printAllPages = (): void => {
+    const all: HTMLElement[] = [];
+    for (let p = 0; p < INCREMENT_PAGES; p += 1) {
+      const [a, b] = pageMinutes(p);
+      all.push(incrementsSheet([minuteOf(a), minuteOf(b)], null, p === 0, env.mock));
+    }
+    printAll.replaceChildren(...all);
+    env.root.dataset.printAll = '1';
+    const done = (): void => {
+      delete env.root.dataset.printAll;
+      printAll.replaceChildren();
+      window.removeEventListener('afterprint', done);
+    };
+    window.addEventListener('afterprint', done);
+    window.print();
+  };
+  const printAllBtn = button({ label: 'Print all 30 pages', size: 'sm', variant: 'outline', tip: 'Every minute, 0 to 59, two to a sheet', onClick: printAllPages });
+  d.add(() => {
+    delete env.root.dataset.printAll;
+  });
+
+  panel.append(
+    h(
+      'div',
+      { class: 'alm-subbar' },
+      h('span', { class: 'alm-btn-group' }, prev, pageLabel, next),
+      h(
+        'span',
+        { class: 'alm-find', role: 'group', 'aria-label': 'Look up a time' },
+        h('span', { class: 'alm-date-label' }, 'Look up'),
+        time,
+        vIn,
+        dIn,
+        findBtn,
+      ),
+      printAllBtn,
+      result,
+    ),
+    sheets,
+    printAll,
+  );
+  draw();
+  d.add(() => panel.replaceChildren());
+  return { destroy: () => d.dispose() };
+}
+
+function arcminOf(printed: string): number {
+  const [deg = '0', min = '0'] = printed.split(' ');
+  return Number(deg) * 60 + Number(min);
+}
+
+// ---------------------------------------------------------------------------
+// Altitude corrections
+// ---------------------------------------------------------------------------
+
+function displayYear(env: Env): { year: number; label: string } {
+  const sd = shownDate(env.ctx.engine, env.ctx.store.get().time.jd_utc, lastCalendar);
+  return { year: sd.year, label: sd.era === 'BC' ? `${sd.era_year} BC` : String(sd.year) };
+}
+
+function mountAltitude(panel: HTMLElement, env: Env): TabMounted {
+  const d = disposer();
+  const tables = env.tables;
+  if (!tables) {
+    panel.append(message(NOT_AVAILABLE));
+    return { destroy: () => panel.replaceChildren() };
+  }
+  const sheets = h('div', { class: 'alm-sheets' });
+  const result = h('p', { class: 'alm-result', role: 'status', 'aria-live': 'polite' });
+  const tIn = h('input', { class: 'sf-input alm-cond', type: 'number', step: 1, 'aria-label': 'Air temperature', placeholder: '10' });
+  const tUnit = h('select', { class: 'sf-input', 'aria-label': 'Temperature unit' }, h('option', { value: 'C' }, '°C'), h('option', { value: 'F' }, '°F'));
+  const pIn = h('input', { class: 'sf-input alm-cond', type: 'number', step: 0.01, 'aria-label': 'Air pressure', placeholder: '1010' });
+  const pUnit = h('select', { class: 'sf-input', 'aria-label': 'Pressure unit' }, h('option', { value: 'hPa' }, 'hPa'), h('option', { value: 'inHg' }, 'inHg'));
+
+  let conditions: RefractionConditions | null = null;
+  let planetsYear: number | null = null;
+  let planets: PlanetCorrections | null = null;
+  let tablesData: AltitudeTables | null = null;
+
+  const readConditions = (): RefractionConditions | null => {
+    if (tIn.value.trim() === '' || pIn.value.trim() === '') return null;
+    const t = Number(tIn.value);
+    const p = Number(pIn.value);
+    if (!Number.isFinite(t) || !Number.isFinite(p)) return null;
+    return {
+      temperature_c: tUnit.value === 'F' ? celsiusOf(t) : t,
+      pressure_hpa: pUnit.value === 'inHg' ? hpaOfInHg(p) : p,
+    };
+  };
+
+  const draw = (): void => {
+    const { year, label } = displayYear(env);
+    try {
+      tablesData = tables.almanacAltitudeTables(conditions);
+    } catch (error) {
+      sheets.replaceChildren(message(errorText(error)));
+      return;
+    }
+    if (planetsYear !== year) {
+      planetsYear = year;
+      try {
+        planets = tables.almanacPlanetCorrections(year, calendarArg(lastCalendar));
+      } catch {
+        planets = null;
+      }
+    }
+    sheets.replaceChildren(...altitudeSheets(tablesData, planets, env.mock));
+    const c = tablesData.additional.conditions;
+    if (c) {
+      const zone = c.zone ?? zoneOf(tablesData.additional.zones, c.temperature_c, c.pressure_hpa);
+      const rows = tablesData.additional.rows;
+      const pick = [0, 2, 4, 10, 15, 20, 25].filter((i) => i < rows.length);
+      result.textContent =
+        `${c.temperature_c.toFixed(1)} °C and ${c.pressure_hpa.toFixed(1)} hPa: air density ${c.factor.toFixed(3)}, ` +
+        `${zone ? `zone ${zone}` : 'beyond the zones'}. Exact additional corrections: ` +
+        pick.map((i) => `${rows[i]!.printed_alt.replace(' ', '° ')}′ ${c.corrections[i]!.printed}′`).join(', ') +
+        '.';
+    } else {
+      result.textContent = `Venus and Mars for ${label}. Type a temperature and pressure for their zone and exact corrections.`;
+    }
+  };
+  const onCond = (): void => {
+    conditions = readConditions();
+    draw();
+  };
+  for (const el of [tIn, tUnit, pIn, pUnit]) el.addEventListener('change', onCond);
+  d.add(() => {
+    for (const el of [tIn, tUnit, pIn, pUnit]) el.removeEventListener('change', onCond);
+  });
+  panel.append(
+    h(
+      'div',
+      { class: 'alm-subbar' },
+      h(
+        'span',
+        { class: 'alm-find', role: 'group', 'aria-label': 'Non-standard temperature and pressure' },
+        h('span', { class: 'alm-date-label' }, 'Conditions'),
+        tIn,
+        tUnit,
+        pIn,
+        pUnit,
+      ),
+      result,
+    ),
+    sheets,
+  );
+  const settle = settler(draw);
+  d.add(() => settle.cancel());
+  draw();
+  // Venus and Mars follow the year of the explorer's time.
+  d.add(
+    watch(
+      env.ctx,
+      (s) => shownDate(env.ctx.engine, s.time.jd_utc, lastCalendar).year,
+      (year) => {
+        if (year !== planetsYear) settle.request();
+      },
+      { immediate: false },
+    ),
+  );
+  d.add(() => panel.replaceChildren());
+  return { destroy: () => d.dispose() };
+}
+
+// ---------------------------------------------------------------------------
+// Polaris
+// ---------------------------------------------------------------------------
+
+function mountPolaris(panel: HTMLElement, env: Env): TabMounted {
+  const d = disposer();
+  const tables = env.tables;
+  if (!tables) {
+    panel.append(message(NOT_AVAILABLE));
+    return { destroy: () => panel.replaceChildren() };
+  }
+  const sheets = h('div', { class: 'alm-sheets' });
+  const result = h('p', { class: 'alm-result', role: 'status', 'aria-live': 'polite' });
+  const lhaDeg = h('input', { class: 'sf-input alm-cond', type: 'number', min: 0, max: 359, step: 1, 'aria-label': 'LHA Aries, degrees', placeholder: '°' });
+  const lhaMin = h('input', { class: 'sf-input alm-cond', type: 'number', min: 0, max: 59.9, step: 0.1, 'aria-label': 'LHA Aries, minutes', placeholder: '′' });
+  const lat = h('input', { class: 'sf-input alm-cond', type: 'number', min: 0, max: 68, step: 1, 'aria-label': 'Latitude, degrees north', placeholder: 'lat' });
+  const month = h('select', { class: 'sf-input', 'aria-label': 'Month' }, ...['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'].map((m, i) => h('option', { value: String(i + 1) }, m)));
+  let table: PolarisTable | null = null;
+  let shownYear: number | null = null;
+
+  const lookup = (): void => {
+    if (!table) return;
+    const lha = Number(lhaDeg.value) + Number(lhaMin.value || 0) / 60;
+    const r = polarisLookup(table, lha, Number(lat.value || 0), Number(month.value));
+    if (!r || lhaDeg.value.trim() === '') {
+      result.textContent = 'Type LHA Aries (degrees and minutes), your latitude and the month.';
+      return;
+    }
+    result.textContent = `a₀ ${r.a0} + a₁ ${r.a1}′ + a₂ ${r.a2}′ − 1° = ${r.correction}′: latitude = Ho ${r.correction}′.`;
+  };
+  const draw = (): void => {
+    const { year, label } = displayYear(env);
+    if (year === shownYear && table) return;
+    try {
+      table = tables.almanacPolaris(year, calendarArg(lastCalendar));
+      shownYear = year;
+      sheets.replaceChildren(...polarisSheets(table, env.mock));
+      lookup();
+    } catch (error) {
+      table = null;
+      shownYear = null;
+      sheets.replaceChildren(message(`No Polaris tables for ${label}: ${errorText(error)}`));
+    }
+  };
+  for (const el of [lhaDeg, lhaMin, lat, month]) el.addEventListener('change', lookup);
+  d.add(() => {
+    for (const el of [lhaDeg, lhaMin, lat, month]) el.removeEventListener('change', lookup);
+  });
+  month.value = String(shownDate(env.ctx.engine, env.ctx.store.get().time.jd_utc, lastCalendar).month);
+  panel.append(
+    h(
+      'div',
+      { class: 'alm-subbar' },
+      h(
+        'span',
+        { class: 'alm-find', role: 'group', 'aria-label': 'Latitude by Polaris' },
+        h('span', { class: 'alm-date-label' }, 'Look up'),
+        lhaDeg,
+        lhaMin,
+        lat,
+        month,
+      ),
+      result,
+    ),
+    sheets,
+  );
+  const settle = settler(draw);
+  d.add(() => settle.cancel());
+  draw();
+  d.add(
+    watch(
+      env.ctx,
+      (s) => shownDate(env.ctx.engine, s.time.jd_utc, lastCalendar).year,
+      () => settle.request(),
+      { immediate: false },
+    ),
+  );
+  d.add(() => panel.replaceChildren());
+  return { destroy: () => d.dispose() };
+}
+
+// ---------------------------------------------------------------------------
+// Arc to time
+// ---------------------------------------------------------------------------
+
+function mountArc(panel: HTMLElement, env: Env): TabMounted {
+  if (!env.tables) {
+    panel.append(message(NOT_AVAILABLE));
+    return { destroy: () => panel.replaceChildren() };
+  }
+  try {
+    panel.append(h('div', { class: 'alm-sheets' }, arcSheet(env.tables.almanacArcToTime(), env.mock)));
+  } catch (error) {
+    panel.append(message(errorText(error)));
+  }
+  return { destroy: () => panel.replaceChildren() };
+}
+
+const MOUNT: Record<Tab, (panel: HTMLElement, env: Env) => TabMounted> = {
+  pages: mountPages,
+  increments: mountIncrements,
+  altitude: mountAltitude,
+  polaris: mountPolaris,
+  arc: mountArc,
+};
+
+// ---------------------------------------------------------------------------
+// The view
+// ---------------------------------------------------------------------------
+
+let viewCounter = 0;
+
+export const almanacView: Component = (host, ctx) => {
+  const d = disposer();
+  viewCounter += 1;
+  const panelId = `alm-panel-${viewCounter}`;
+  const root = h('section', { class: 'almanac sf-on-stage', 'aria-label': 'Nautical almanac' });
+  const env: Env = {
+    ctx,
+    mock: ctx.engine.kind === 'mock',
+    pages: isAlmanacEngine(ctx.engine) ? ctx.engine : null,
+    tables: isAlmanacTablesEngine(ctx.engine) ? ctx.engine : null,
+    root,
+  };
+
+  const tablist = h('div', { class: 'sf-seg alm-tabs', role: 'tablist', 'aria-label': 'Almanac' });
+  const panel = h('div', { class: 'alm-panel', role: 'tabpanel', id: panelId, tabindex: '-1' });
+  let tab: Tab = lastTab;
+  let mounted: TabMounted | null = null;
+
+  const select = (next: Tab, focus: boolean): void => {
+    tab = next;
+    lastTab = next;
+    tabs.forEach((el, i) => {
+      const on = TABS[i]!.id === next;
+      el.setAttribute('aria-selected', String(on));
+      el.tabIndex = on ? 0 : -1;
+      if (on && focus) el.focus();
+    });
+    mounted?.destroy();
+    panel.replaceChildren();
+    panel.setAttribute('aria-labelledby', `${panelId}-${next}`);
+    root.dataset.tab = next;
+    mounted = MOUNT[next](panel, env);
+  };
+  const tabs = TABS.map((t, i) => {
+    const el = h('button', { type: 'button', class: 'sf-seg__opt', role: 'tab', id: `${panelId}-${t.id}`, 'aria-controls': panelId, 'data-tip': t.tip }, t.label);
+    el.addEventListener('click', () => select(t.id, false));
+    el.addEventListener('keydown', (event) => {
+      let j: number | null = null;
+      if (event.key === 'ArrowRight') j = (i + 1) % TABS.length;
+      else if (event.key === 'ArrowLeft') j = (i - 1 + TABS.length) % TABS.length;
+      else if (event.key === 'Home') j = 0;
+      else if (event.key === 'End') j = TABS.length - 1;
+      if (j === null) return;
+      event.preventDefault();
+      select(TABS[j]!.id, true);
+    });
+    tablist.append(el);
+    return el;
+  });
+
   const print = button({
     label: 'Print',
-    tip: 'Both pages, black on white, one per sheet (A4 or US Letter)',
+    tip: 'These pages, black on white, one per sheet (A4 or US Letter)',
     size: 'sm',
     variant: 'outline',
-    onClick: () => window.print(),
+    onClick: () => (mounted?.print ? mounted.print() : window.print()),
   });
-  const status = h('p', { class: 'alm-status', role: 'status', 'aria-live': 'polite' });
-  const toolbar = h(
-    'div',
-    { class: 'alm-toolbar' },
-    h('h2', { class: 'alm-title' }, 'Nautical almanac', h('span', { class: 'alm-title-sub' }, ' · daily pages')),
-    h('label', { class: 'alm-date-label', for: 'alm-date' }, 'UT date'),
-    dateInput,
-    h('span', { class: 'alm-btn-group' }, prev, today, next),
-    print,
-    status,
-  );
-  const spread = h('div', { class: 'alm-spread' });
-  const root = h(
-    'section',
-    { class: 'almanac sf-on-stage', 'aria-label': 'Nautical almanac daily pages' },
-    toolbar,
-    spread,
+
+  root.append(
+    h('div', { class: 'alm-toolbar' }, h('h2', { class: 'alm-title' }, 'Nautical almanac'), tablist, h('span', { class: 'alm-spacer' }), print),
+    panel,
+    h('p', { class: 'alm-banner-line' }, BANNER),
   );
   host.append(root);
 
@@ -625,71 +742,12 @@ export const almanacView: Component = (host, ctx) => {
   const html = document.documentElement;
   html.dataset.printView = 'almanac';
   d.add(() => {
+    mounted?.destroy();
+    mounted = null;
     if (html.dataset.printView === 'almanac') delete html.dataset.printView;
     root.remove();
   });
 
-  const onDate = (): void => {
-    const jd = moveToUtDate(ctx.store.get().time.jd_utc, dateInput.value);
-    if (jd !== null) setTime(ctx.store, jd);
-  };
-  dateInput.addEventListener('change', onDate);
-  d.add(() => dateInput.removeEventListener('change', onDate));
-
-  let shown: string | null = null;
-  let hourRows: HTMLTableRowElement[][] = [];
-  let lit = -1;
-
-  const render = (date: string): void => {
-    shown = date;
-    lit = -1;
-    hourRows = [];
-    if (!engine) {
-      spread.replaceChildren(
-        h(
-          'p',
-          { class: 'alm-message', role: 'alert' },
-          'This engine cannot make almanac pages (it has no almanacDay). Rebuild the numerical core with: npm run wasm --prefix web',
-        ),
-      );
-      status.textContent = '';
-      return;
-    }
-    let day: AlmanacDay;
-    try {
-      day = engine.almanacDay(date);
-      ctx.notices.dismissKey('almanac');
-    } catch (error) {
-      const text = `No almanac page for ${date}: ${errorText(error)}`;
-      ctx.notices.push('error', text, { key: 'almanac' });
-      spread.replaceChildren(h('p', { class: 'alm-message', role: 'alert' }, text));
-      status.textContent = '';
-      return;
-    }
-    const left: HTMLTableRowElement[] = [];
-    const right: HTMLTableRowElement[] = [];
-    spread.replaceChildren(leftPage(day, left, mock), rightPage(day, right, mock));
-    hourRows = day.hours.map((r) => [left[r.hour], right[r.hour]].filter((x): x is HTMLTableRowElement => !!x));
-  };
-
-  const highlight = (hour: number): void => {
-    if (hour === lit) return;
-    for (const tr of hourRows[lit] ?? []) tr.classList.remove('alm-now');
-    for (const tr of hourRows[hour] ?? []) tr.classList.add('alm-now');
-    lit = hour;
-    status.textContent = hourRows.length
-      ? `Highlighted: ${String(hour).padStart(2, '0')}h UT, the explorer’s time`
-      : '';
-  };
-
-  d.add(
-    watch(ctx, (s) => s.time.jd_utc, (jd) => {
-      const date = utDateOf(jd);
-      if (dateInput.value !== date) dateInput.value = date;
-      if (date !== shown) render(date);
-      highlight(utHourOf(jd));
-    }),
-  );
-
+  select(tab, false);
   return { destroy: () => d.dispose() };
 };
