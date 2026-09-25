@@ -9,8 +9,9 @@
 //! made spaces, apostrophes dropped. A key then scores 100 when it equals the query
 //! (spaces ignored, so "alpha1 cen" is "α¹ Cen" and "alnair" is "Al Na'ir"), 80 when it
 //! starts with it, 60 when every query word starts a word of the key (less one for each
-//! key word left over), 40 when it contains the query (three letters or more). Hits are ranked by score, then by kind
-//! (the Sun, Moon and planets, then names, then designations), then by brightness.
+//! key word left over), 40 when it contains the query (three letters or more). Hits are
+//! ranked by score, then by kind (the Sun, Moon and planets, then names, then
+//! designations), then by brightness.
 //! Catalogue numbers are exact: `HR 2491`, `HIP 32349`, `M 31`, `NGC 224`.
 //!
 //! **Keys.** Stars: proper names (the star field's own and the IAU WGSN's), Bayer

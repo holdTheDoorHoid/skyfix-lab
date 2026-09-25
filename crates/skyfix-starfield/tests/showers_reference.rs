@@ -77,7 +77,7 @@ fn dates_agree_with_the_imo_calendars_within_a_day() {
             }
         }
         println!(
-            "{y}: {exact} of {n} peak dates exactly the IMO's; every date checked within {worst} day"
+            "{y}: {exact} of {n} peak dates exactly the IMO's; every date checked within {worst} day(s)"
         );
         assert!(n >= 30);
     }

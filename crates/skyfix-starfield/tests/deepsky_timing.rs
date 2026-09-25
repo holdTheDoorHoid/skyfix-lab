@@ -10,6 +10,9 @@ use skyfix_ephemeris::topocentric::Site;
 use skyfix_starfield::extinction::SkyConditions;
 use skyfix_starfield::{dso, search, showers, tonight};
 
+/// The fastest of `n` calls, in milliseconds: on a shared machine other work can only
+/// slow a call down, so the minimum is the best estimate of the real cost (as in
+/// `tests/timing.rs`).
 fn fastest<T>(n: usize, mut f: impl FnMut(usize) -> T) -> f64 {
     (0..n)
         .map(|k| {
@@ -29,14 +32,15 @@ fn deep_sky_calls_are_fast() {
     // Warm up: first use parses the tables and builds the search index.
     tonight::tonight(&sky, &site, jd, &c, None).unwrap();
     search::search(&sky, "vega", Some(&site), Some(jd), None).unwrap();
-    let t_tonight = fastest(5, |k| {
-        tonight::tonight(&sky, &site, jd + k as f64, &c, None).unwrap()
+    // Five nights, six tries each.
+    let t_tonight = fastest(30, |k| {
+        tonight::tonight(&sky, &site, jd + (k % 5) as f64, &c, None).unwrap()
     });
     let t_list = fastest(20, |k| {
         dso::list(Some(&site), jd + k as f64 / 24.0, &Default::default()).unwrap()
     });
-    let t_vis = fastest(5, |k| {
-        dso::visibility(&sky, "M31", &site, jd + k as f64, &c).unwrap()
+    let t_vis = fastest(20, |k| {
+        dso::visibility(&sky, "M31", &site, jd + (k % 5) as f64, &c).unwrap()
     });
     let t_search = fastest(20, |_| {
         search::search(&sky, "alpha cen", Some(&site), Some(jd), None).unwrap()
