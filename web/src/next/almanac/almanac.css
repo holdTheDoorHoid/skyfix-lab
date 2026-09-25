@@ -1,14 +1,19 @@
 /*
- * The Almanac view. OWNER: almanac agent.
+ * The Almanac view. OWNER: almanac agents (the daily pages: almanac agent; the tabs, the
+ * three-date openings, the tables, the date entry: almanac2 agent).
  *
  * Screen: themed through the design tokens (theme/tokens.css, `--stage-*`, `--accent`,
- * `--font-*`, `--text-*`), with fallbacks so the view also works before they load. The
- * pages sit side by side when there is room for both, one above the other otherwise.
+ * `--font-*`, `--text-*`), with fallbacks so the view also works before they load; the
+ * night theme's red-on-black comes through the same tokens. The pages sit side by side
+ * when there is room for both, one above the other otherwise.
  *
- * Print: the themes are ignored. Only the two pages are printed, black on white, one per
- * sheet, sized to fit inside both A4 (190 x 277 mm printable) and US Letter (196 x 259 mm)
- * with 10 mm margins. `data-print-view="almanac"` on <html> (set while the view is
- * mounted) hides everything around the view, whatever shell it is mounted in.
+ * Print: the themes are ignored. Only the sheets are printed, black on white, one per
+ * sheet of paper, sized to fit inside both A4 (190 x 277 mm printable) and US Letter
+ * (196 x 259 mm) with 10 mm margins: the two pages of a date or an opening, or the
+ * table's sheets (increments 1 or all 30, altitude corrections 5, Polaris 3, arc to time
+ * 1). `data-print-view="almanac"` on <html> (set while the view is mounted) hides
+ * everything around the view, whatever shell it is mounted in. Width queries are for the
+ * screen only (`screen and`): in print the media width is the paper's.
  */
 
 .almanac {
@@ -66,11 +71,6 @@
   letter-spacing: 0.01em;
 }
 
-.alm-title-sub {
-  color: var(--alm-ink-2);
-  font-weight: var(--weight-regular, 430);
-}
-
 .alm-date-label {
   color: var(--alm-ink-2);
   font-size: var(--text-sm, 12px);
@@ -79,23 +79,164 @@
   text-transform: uppercase;
 }
 
-.alm-date {
+.alm-spacer {
+  flex: 1 1 auto;
+}
+
+/* The tabs look like the design system's segmented control (they are WAI-ARIA tabs). They
+   wrap onto a second row on a phone rather than shrink (a segment's own min-width would
+   let its label run into the next one). */
+.alm-tabs {
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.alm-tabs .sf-seg__opt {
+  flex: 0 0 auto;
+}
+
+.alm-tabs .sf-seg__opt[aria-selected='true'] {
+  background: var(--stage-surface, #fff);
+  color: var(--stage-ink, #17202a);
+  box-shadow: var(--shadow-1, 0 1px 2px rgba(12, 20, 30, 0.16));
+}
+
+.alm-tabs .sf-seg__opt[aria-selected='true']::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--alm-accent);
+}
+
+.alm-panel:focus {
+  outline: none;
+}
+
+/* A tab's own controls: the date, the page, a look-up. */
+.alm-subbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2, 8px) var(--space-3, 12px);
+  margin: 0 auto var(--space-4, 16px);
+  max-width: 1800px;
+}
+
+.almanac .sf-input {
   width: auto;
   height: var(--control-h-sm, 28px);
   padding: 0 var(--space-2, 8px);
-  border: 1px solid var(--alm-line-strong);
   border-radius: var(--radius-sm, 6px);
-  background: var(--alm-paper);
-  color: var(--alm-ink);
-  font: inherit;
   font-size: var(--text-md, 13px);
   font-variant-numeric: tabular-nums;
-  color-scheme: inherit;
 }
 
-.alm-date:focus-visible {
-  outline: var(--focus-width, 2px) solid var(--alm-focus);
-  outline-offset: 2px;
+/* Room for the list's arrow, which the browser draws inside the right padding. */
+.almanac select.sf-input {
+  padding-right: 24px;
+}
+
+.alm-entry {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1, 4px) var(--space-2, 8px);
+}
+
+.alm-entry-fields,
+.alm-find {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1, 4px);
+}
+
+.alm-find {
+  gap: var(--space-1, 4px) var(--space-2, 8px);
+}
+
+.almanac .alm-year {
+  width: 8.5ch;
+}
+
+.almanac .alm-day {
+  width: 6ch;
+}
+
+.almanac .alm-find-time {
+  width: 7.5ch;
+}
+
+.almanac .alm-find-v,
+.almanac .alm-find-d,
+.almanac .alm-cond {
+  width: 8ch;
+}
+
+/* The calendar the date is in: quiet for the Gregorian, marked for the Julian. */
+.alm-cal {
+  color: var(--alm-ink-3);
+  font-size: var(--text-xs, 11px);
+  white-space: nowrap;
+}
+
+.alm-cal--julian {
+  padding: 1px 6px;
+  border-radius: var(--radius-xs, 4px);
+  background: var(--alm-accent-soft);
+  color: var(--alm-accent-ink);
+  font-weight: var(--weight-medium, 530);
+}
+
+.alm-entry-error {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--alm-ink);
+  font-size: var(--text-sm, 12px);
+}
+
+.alm-entry-error::before {
+  content: '';
+  display: inline-block;
+  width: 0.55em;
+  height: 0.55em;
+  margin-right: 0.45em;
+  border-radius: 50%;
+  background: var(--danger, #c0392b);
+  vertical-align: 0.05em;
+}
+
+.alm-entry-error[hidden] {
+  display: none;
+}
+
+.alm-page-label {
+  align-self: center;
+  min-width: 17ch;
+  color: var(--alm-ink-2);
+  font-size: var(--text-sm, 12px);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.alm-result {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--alm-ink);
+  font-size: var(--text-sm, 12px);
+  font-variant-numeric: tabular-nums;
+}
+
+.alm-result:empty {
+  display: none;
+}
+
+.alm-banner-line {
+  margin: var(--space-4, 16px) auto 0;
+  color: var(--alm-ink-3);
+  font-size: var(--text-xs, 11px);
+  text-align: center;
 }
 
 .alm-btn-group {
@@ -124,27 +265,28 @@
 /* The spread and its pages                                                             */
 /* ---------------------------------------------------------------------------------- */
 
+/* The two pages side by side where both fit at their own width (what the view has, not
+   the window: the sidebar takes part of it), one above the other otherwise; on a phone a
+   page scrolls sideways inside itself. */
 .alm-spread {
-  display: grid;
-  grid-template-columns: minmax(0, max-content);
-  gap: var(--space-5, 20px);
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  align-items: stretch;
+  gap: var(--space-5, 20px);
   margin: 0 auto;
 }
 
-/* Two facing pages where both fit at a readable size (from 10.8 px at 1800 px wide).
-   Screen only, like the narrow layout below: in print the media width is the paper's. */
+.alm-spread > .alm-page {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+/* A slightly smaller face on wide screens, so both pages fit more often. Screen only, like
+   the narrow layout below: in print the media width is the paper's. */
 @media screen and (min-width: 1800px) {
   .almanac {
     --alm-table-size: clamp(10.8px, 0.6vw, 11.6px);
-  }
-
-  /* Equal columns in a fit-content grid: both pages as wide as the wider one. */
-  .alm-spread {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: fit-content;
-    max-width: 100%;
-    align-items: stretch;
   }
 }
 
@@ -478,6 +620,358 @@
   border: 0;
 }
 
+/* ---------------------------------------------------------------------------------- */
+/* Three dates to an opening                                                            */
+/* ---------------------------------------------------------------------------------- */
+
+/* The date down the side of its 24 rows, as the printed almanac sets it. */
+.alm-table th.alm-daylabel {
+  padding: 0 0.3em 0 0;
+  border-right: 1px solid var(--alm-line);
+  color: var(--alm-ink);
+  font-weight: var(--weight-medium, 530);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.alm-daylabel > span {
+  display: inline-block;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.alm-daylabel b {
+  font-size: 1.25em;
+  font-weight: var(--weight-bold, 720);
+}
+
+.alm-daylabel-head {
+  width: 1.6em;
+}
+
+/* 06h, 12h and 18h start a block. */
+.alm-table tr.alm-block > * {
+  padding-top: 0.4em;
+}
+
+/* A rule between the dates, stronger than between the blocks. */
+.alm-multi tbody.alm-day + tbody.alm-day tr:first-child > * {
+  border-top: 1px solid var(--alm-ink-2);
+}
+
+/* ---------------------------------------------------------------------------------- */
+/* The tables' sheets                                                                   */
+/* ---------------------------------------------------------------------------------- */
+
+.alm-sheets {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5, 20px);
+  margin: 0 auto;
+}
+
+.alm-sheets > .alm-page {
+  max-width: 100%;
+}
+
+/* A second copy of every page, only for "Print all 30 pages". */
+.alm-print-all {
+  display: none;
+}
+
+.alm-sheet .alm-head-date {
+  white-space: normal;
+  text-align: center;
+}
+
+.alm-sheet h4 {
+  margin: 0 0 var(--space-1, 4px);
+  color: var(--alm-ink);
+  font-size: var(--text-xs, 11px);
+  font-weight: var(--weight-bold, 720);
+  letter-spacing: var(--tracking-caps, 0.075em);
+}
+
+.alm-sheet h4.alm-sub {
+  margin-top: var(--space-3, 12px);
+  padding-top: var(--space-2, 8px);
+  border-top: 1px solid var(--alm-line);
+}
+
+.alm-howto {
+  max-width: 62rem;
+  margin-top: var(--space-3, 12px);
+  color: var(--alm-ink-2);
+  font-size: var(--text-xs, 11px);
+  line-height: 1.45;
+}
+
+.alm-howto p {
+  margin: 0 0 var(--space-1, 4px);
+}
+
+.alm-howto b {
+  color: var(--alm-ink);
+  font-weight: var(--weight-semibold, 620);
+}
+
+.alm-sheet .alm-notes {
+  width: auto;
+  min-width: 0;
+  max-width: 62rem;
+  margin-top: var(--space-2, 8px);
+}
+
+.alm-warning {
+  margin: 0 0 var(--space-3, 12px);
+  padding: var(--space-2, 8px) var(--space-3, 12px);
+  border-left: 3px solid var(--alm-caution);
+  background: var(--alm-paper-2);
+  font-size: var(--text-sm, 12px);
+}
+
+/* Critical tables: the arguments on the lines, each correction on the half-line between
+   the two arguments it holds for. */
+.alm-crit {
+  --alm-lh: 1.32;
+}
+
+.alm-crit tbody th.alm-crit-arg {
+  padding-right: 0.8em;
+  font-weight: var(--weight-regular, 430);
+  text-align: right;
+}
+
+.alm-crit td.alm-crit-v {
+  min-width: 3.4em;
+  text-align: right;
+}
+
+.alm-crit td.alm-crit-v > span {
+  position: relative;
+  top: calc(var(--alm-lh) * 0.5em);
+  font-weight: var(--weight-semibold, 620);
+}
+
+/* Room under the last line for the half-line above it. */
+.alm-crit tbody tr:last-child > * {
+  padding-bottom: calc(var(--alm-lh) * 0.5em + 0.28em);
+}
+
+/* Page A2: the three critical tables and dip across the top; Venus and Mars under the
+   tables, the other heights of eye under dip. */
+.alm-a2 {
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  grid-template-areas:
+    'sun1 sun2 stars dip'
+    'add add add dipmore';
+  justify-content: space-between;
+  align-items: start;
+  gap: var(--space-4, 16px) var(--space-5, 24px);
+}
+
+.alm-a2-sun1 {
+  grid-area: sun1;
+}
+
+.alm-a2-sun2 {
+  grid-area: sun2;
+}
+
+.alm-a2-stars {
+  grid-area: stars;
+}
+
+.alm-a2-dip {
+  grid-area: dip;
+}
+
+.alm-a2-add {
+  grid-area: add;
+  padding-top: var(--space-2, 8px);
+  border-top: 1px solid var(--alm-line);
+}
+
+.alm-a2-dipmore {
+  grid-area: dipmore;
+  padding-top: var(--space-2, 8px);
+  border-top: 1px solid var(--alm-line);
+}
+
+.alm-a2-planets {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2, 8px) var(--space-5, 24px);
+}
+
+.alm-crit-col {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1, 4px);
+}
+
+.alm-dip-pair {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3, 12px);
+}
+
+/* Venus and Mars: each run of dates read across, the corrections between the altitudes. */
+.alm-planet-corr th.alm-pc-range {
+  padding-right: 0.8em;
+  font-weight: var(--weight-regular, 430);
+  text-align: left;
+}
+
+.alm-planet-corr thead th.alm-pc-head {
+  text-align: left;
+}
+
+.alm-planet-corr td.alm-pc-arg {
+  color: var(--alm-ink-2);
+  text-align: right;
+}
+
+.alm-planet-corr td.alm-pc-v {
+  padding: 0 0.25em;
+  font-weight: var(--weight-semibold, 620);
+  text-align: center;
+}
+
+/* Increments: two minutes side by side, a rule every five seconds. */
+.alm-inc-grid,
+.alm-low-grid {
+  display: grid;
+  grid-template-columns: repeat(2, max-content);
+  justify-content: center;
+  gap: var(--space-5, 24px);
+}
+
+.alm-inc-min b {
+  font-size: 1.5em;
+  font-weight: var(--weight-bold, 720);
+}
+
+.alm-inc-min sup {
+  font-size: 0.6em;
+}
+
+.alm-inc tr.alm-now > *,
+.alm-low tr.alm-now > * {
+  background: var(--alm-accent-soft);
+}
+
+.alm-inc tr.alm-now th.alm-ut {
+  box-shadow: inset 3px 0 0 var(--alm-accent);
+  color: var(--alm-accent-ink);
+}
+
+.alm-vd {
+  color: var(--alm-ink-2);
+}
+
+/* The non-standard conditions chart, drawn in the page's own ink. */
+.alm-zone-chart {
+  display: block;
+  width: 100%;
+  max-width: 36rem;
+  height: auto;
+  margin: 0 auto var(--space-3, 12px);
+  font-family: var(--alm-font);
+}
+
+.alm-zone-frame {
+  fill: none;
+  stroke: var(--alm-line-strong);
+  stroke-width: 1;
+}
+
+.alm-zone-line {
+  stroke: var(--alm-ink-3);
+  stroke-width: 0.8;
+}
+
+.alm-zone-tick {
+  stroke: var(--alm-ink-2);
+  stroke-width: 1;
+}
+
+.alm-zone-letter {
+  fill: var(--alm-ink);
+  font-size: 12px;
+  font-weight: var(--weight-bold, 720);
+  paint-order: stroke;
+  stroke: var(--alm-paper);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.alm-zone-axis {
+  fill: var(--alm-ink-2);
+  font-size: 10px;
+}
+
+.alm-zones {
+  margin: 0 auto;
+}
+
+.alm-zones thead th {
+  min-width: 2.6em;
+}
+
+/* The Moon: the first part every 10′, the second by HP, L and U in each column. */
+.alm-moon {
+  margin: 0 auto;
+}
+
+.alm-moon + .alm-moon {
+  margin-top: var(--space-3, 12px);
+}
+
+.alm-moon tr.alm-moon-deg > th {
+  padding-top: 0.35em;
+  color: var(--alm-ink);
+  font-weight: var(--weight-bold, 720);
+  text-align: center;
+}
+
+.alm-moon td.alm-n {
+  min-width: 2.8em;
+}
+
+/* Polaris: four groups, a0 by LHA, a1 by latitude, a2 by month, the azimuth. */
+.alm-polaris-table {
+  margin: 0 auto;
+}
+
+.alm-polaris-table td.alm-n {
+  min-width: 3.4em;
+}
+
+.alm-pol-group > * {
+  padding-top: 0.45em !important;
+  border-bottom: 1px solid var(--alm-line);
+  color: var(--alm-ink-2);
+  font-style: italic;
+  font-weight: var(--weight-regular, 430) !important;
+  text-align: center !important;
+}
+
+/* Arc to time. */
+.alm-arc {
+  margin: 0 auto;
+}
+
+.alm-arc td.alm-n {
+  min-width: 3.2em;
+}
+
 /* Phones. Screen only: A4's printable width (190 mm, 718 px) is under 720 px, and this
    layout stacks each page's tables, so printing on A4 took four sheets instead of two. */
 @media screen and (max-width: 720px) {
@@ -507,6 +1001,27 @@
   .alm-status {
     flex-basis: 100%;
     text-align: left;
+  }
+
+  .alm-title {
+    flex-basis: 100%;
+  }
+
+  .alm-inc-grid,
+  .alm-low-grid {
+    grid-template-columns: max-content;
+    justify-content: start;
+  }
+
+  .alm-a2 {
+    grid-template-columns: repeat(2, max-content);
+    grid-template-areas:
+      'sun1 sun2'
+      'stars dip'
+      'add add'
+      'dipmore dipmore';
+    justify-content: start;
+    gap: var(--space-3, 12px);
   }
 }
 
@@ -575,13 +1090,25 @@
   }
 
   .alm-toolbar,
+  .alm-subbar,
+  .alm-banner-line,
   .alm-message {
     display: none !important;
   }
 
-  .alm-spread {
+  .alm-spread,
+  .alm-sheets {
     display: block !important;
     max-width: none;
+  }
+
+  /* "Print all 30 pages": only the copy made for it. */
+  .almanac[data-print-all='1'] .alm-panel > :not(.alm-print-all) {
+    display: none !important;
+  }
+
+  .almanac[data-print-all='1'] .alm-print-all {
+    display: block !important;
   }
 
   .alm-page {
@@ -684,6 +1211,147 @@
     margin-top: 2mm;
     padding-top: 1mm;
     font-size: 6pt;
+    color: #000;
+  }
+
+  /* An opening: 72 hourly rows on a page, so a smaller face and tighter lines. */
+  .alm-opening {
+    --alm-table-size: 6.6pt;
+  }
+
+  .alm-opening .alm-table {
+    line-height: 1.06;
+  }
+
+  .alm-opening .alm-table tr.alm-block > * {
+    padding-top: 0.25em;
+  }
+
+  .alm-opening .alm-explain,
+  .alm-opening .alm-notes {
+    font-size: 6pt;
+  }
+
+  .alm-multi tbody.alm-day + tbody.alm-day tr:first-child > * {
+    border-top-color: #000;
+  }
+
+  .alm-daylabel {
+    border-right-color: #8c8c8c !important;
+  }
+
+  /* The tables' sheets. */
+  .alm-sheet {
+    --alm-table-size: 7pt;
+  }
+
+  .alm-sheet .alm-table {
+    line-height: 1.15;
+  }
+
+  .alm-sheet .alm-crit {
+    --alm-lh: 1.15;
+  }
+
+  .alm-sheet h4 {
+    font-size: 6.8pt;
+  }
+
+  .alm-howto,
+  .alm-sheet .alm-notes {
+    max-width: none;
+    margin-top: 2mm;
+    font-size: 6.4pt;
+    line-height: 1.3;
+    color: #000;
+  }
+
+  .alm-warning {
+    border-left-color: #000;
+    background: #fff;
+    font-size: 7pt;
+  }
+
+  .alm-inc tr.alm-now > *,
+  .alm-low tr.alm-now > * {
+    background: none;
+  }
+
+  .alm-inc tr.alm-now th.alm-ut {
+    box-shadow: none;
+    color: #000;
+  }
+
+  .alm-inc-grid,
+  .alm-low-grid {
+    gap: 6mm;
+  }
+
+  .alm-a2 {
+    gap: 2.5mm 4mm;
+  }
+
+  /* A2 holds the longest tables (58 lines of dip): a smaller face so the page fits Letter. */
+  .alm-a2-sheet {
+    --alm-table-size: 6.3pt;
+  }
+
+  .alm-a2-sheet .alm-table {
+    line-height: 1.06;
+  }
+
+  .alm-a2-sheet .alm-crit {
+    --alm-lh: 1.06;
+  }
+
+  .alm-a2-add,
+  .alm-a2-dipmore {
+    padding-top: 1.5mm;
+    border-top-color: #8c8c8c;
+  }
+
+  /* Notes in two columns: an opening's right page and the sheets are full to the foot. */
+  .alm-opening .alm-notes ul,
+  .alm-sheet .alm-notes ul {
+    column-count: 2;
+    column-gap: 6mm;
+  }
+
+  .alm-opening .alm-notes li,
+  .alm-sheet .alm-notes li {
+    break-inside: avoid;
+  }
+
+  .alm-zone-chart {
+    max-width: 150mm;
+    margin-bottom: 2mm;
+  }
+
+  .alm-zone-line {
+    stroke: #555;
+  }
+
+  .alm-zone-frame,
+  .alm-zone-tick {
+    stroke: #000;
+  }
+
+  .alm-zone-letter,
+  .alm-zone-axis {
+    fill: #000;
+  }
+
+  .alm-zone-letter {
+    stroke: #fff;
+  }
+
+  .alm-pol-group > * {
+    border-bottom-color: #8c8c8c;
+    color: #000;
+  }
+
+  .alm-cal--julian {
+    background: none;
     color: #000;
   }
 }

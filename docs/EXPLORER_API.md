@@ -2961,3 +2961,182 @@ cos alpha cos delta)` of the mean Earth/polar axis frame (x toward the mean sub-
 point, z north): `alpha` is Watts's axis angle, from the north pole toward the side that
 appears in the east of the sky; `delta` is positive toward the Earth. Nothing may follow
 the body.
+## Expansion programme — almanac tables and three-day pages (`almanac_tables.rs`, almanac2 agent)
+
+The rest of the printed Nautical Almanac beside its daily pages: three dates on two
+facing pages, Increments and Corrections, the Altitude Correction Tables (Sun, stars and
+planets, dip, non-standard conditions, the Moon's two-part table), the additional
+corrections for Venus and Mars, the Polaris tables and Conversion of Arc to Time.
+Engines: `skyfix_almanac::{opening, tables}`; exports: `crates/skyfix-wasm/src/almanac_tables.rs`;
+definitions: CONVENTIONS 13.9.1; measured accuracy: `docs/ACCURACY.md`, "Almanac tables
+and three-day pages". TypeScript: `AlmanacTablesEngine` and `isAlmanacTablesEngine`
+("Expansion programme Q7" in `types.ts`); the WASM wrapper and the mock
+(`engine/mock/almanac-tables.ts`, illustrative numbers from the same formulas) implement
+it, and the memoised engine passes the calls through. Display and teaching only: sight
+reduction never reads these tables.
+
+**Common rules.** As on the daily pages, every tabulated quantity comes twice: the number
+(`arcmin`, `deg`, …) and, under `printed`, the text the table prints, rounded half up as
+the printed tables round (CONVENTIONS 13.9.1). Views show `printed`. Cells:
+
+```ts
+ArcminCell { arcmin: number, printed: string }   // "+15.3", "-0.8", "0.0", "14 39.2", "62.5"
+DegCell    { deg: number, printed: string }      // the Polaris azimuth, "1.2"
+CriticalTable {
+  argument: "apparent altitude" | "height of eye",
+  unit: "deg_min" | "deg" | "m" | "ft",
+  columns: string[],                              // ["Lower limb", "Upper limb"], ["Corr"], ["Dip"]
+  boundaries: { value: number, printed: string }[],   // "9 53" (deg_min), "42" (deg), "2.4" (m)
+  values: ArcminCell[][]                          // values[k] holds between boundaries[k] and [k + 1]
+}
+```
+
+A critical table is read as printed: an argument above `boundaries[k].value` and at most
+`boundaries[k + 1].value` takes `values[k]`; exactly on a boundary, the value above it.
+`boundaries.length == values.length + 1`. Errors are strings, prefixed by the WASM
+wrapper with the export's name. Calendars: `""` or `"auto"` is the display calendar
+(Julian before 1582-10-15, Gregorian from then), `"julian"` and `"gregorian"` name one.
+
+### `almanac_opening(date, calendar) -> AlmanacOpening`
+
+The two facing pages for the three UT dates containing `date` (a wire date as for
+`almanac_day`: proleptic Gregorian `YYYY-MM-DD`, with a sign outside 0000-9999: `-0584-05-22`),
+grouped from January 1 in `calendar`. Three `almanac_day` pages, unchanged, plus what the
+printed opening adds. About 0.2 s native (three daily pages); the view computes it only
+once the time has settled.
+
+```json
+{"date": "2016-03-08", "calendar": "gregorian", "index": 1,
+ "dates": [{"date": "2016-03-07", "calendar": "gregorian", "year": 2016, "month": 3, "day": 7,
+            "era_year": 2016, "era": "AD", "weekday": "Monday"}, …3],
+ "days": [AlmanacDay, AlmanacDay, AlmanacDay],
+ "moon_dates": ["2016-03-07", "2016-03-08", "2016-03-09", "2016-03-10"],
+ "moon_days": [OpeningDay × 4],
+ "moon_rows": [{"lat_deg": 72, "label": "N 72",
+                "moonrise": [TableTime × 4], "moonset": [TableTime × 4]}, …31],
+ "planet_sha_00h": [{"body": "Venus", "sha_deg": 32.869128, "printed": {"gha": "32 52.1"}}, …4],
+ "notes": ["UT is UTC with DUT1 = 0 …", …, "Three dates per opening, grouped from January 1 …"],
+ "errors": []}
+```
+
+`index` is the position of `date` among the three. `dates` and `moon_days` are in the
+opening's calendar (`year` astronomical, `era_year` and `era` as people write it:
+585 BC is `year` −584). Once-per-opening values are `days[1]`'s: the stars, the planets'
+magnitudes, v, d and meridian passages, Aries' passage, the Sun's SD and d and the
+twilight and sunrise table. `moon_rows` holds moonrise and moonset for the three dates
+and the next, at the daily pages' 31 latitudes. Before 1767 `notes` also says the first
+Nautical Almanac was for 1767. Throws for a malformed date or calendar, and for a date
+outside the coverage (`… is outside the ephemeris coverage (… to …)`).
+
+**Additive change to `almanac_day(date)`:** it now also accepts expanded years
+(`-0584-05-22`, `+12026-01-01`) wherever the providers answer; `AlmanacDay.date` is written
+the same way. Four-digit dates are unchanged.
+
+### `almanac_increments(minute) -> IncrementsMinute`
+
+One minute's table, `minute` 0 to 59 (else throws). Microseconds.
+
+```json
+{"minute": 58,
+ "rows": [{"second": 0, "sun_planets": {"arcmin": 870.0, "printed": "14 30.0"},
+           "aries": {"arcmin": 872.381981, "printed": "14 32.4"},
+           "moon": {"arcmin": 830.366667, "printed": "13 50.4"}}, …61],     // seconds 00..60
+ "corrections": [{"v_arcmin": 0.0, "v_printed": "0.0",
+                  "correction": {"arcmin": 0.0, "printed": "0.0"}}, …181],  // v or d 0.0..18.0
+ "how_to_use": "Take GHA for the whole hour before the time from the daily page. …",
+ "example": "Deneb at 08h 58m 27s UT, 9 March 2016 (Bowditch §1906): …",
+ "notes": ["Sun and planets: 15° an hour. Aries: 15° 02.464′ an hour. Moon: 14° 19.0′ an hour. …", …]}
+```
+
+### `almanac_arc_to_time() -> ArcToTime`
+
+```json
+{"degrees": [{"deg": 0, "minutes": 0, "printed": "0 00"}, …360],               // "h m"
+ "arcminutes": [{"arcmin": 0, "seconds": [0, 1, 2, 3], "printed": ["0 00", "0 01", "0 02", "0 03"]}, …60],
+ "how_to_use": "…", "example": "Longitude 44° 27′ W: …", "notes": ["Exact: 360° of arc = 24 hours of time.", …]}
+```
+
+`arcminutes[m].printed[q]` is `m + q/4` minutes of arc in minutes and seconds of time.
+
+### `almanac_altitude_tables(conditions_json) -> AltitudeTables`
+
+`conditions_json` is `""`, `"null"`, or `{"temperature_c": number, "pressure_hpa":
+number}`; with conditions the result adds the exact additional corrections for them
+(`additional.conditions`). A few milliseconds.
+
+```json
+{"refraction": {"model": "Bennett (1982), CONVENTIONS 5", "pressure_hpa": 1010, "temperature_c": 10},
+ "sun_sd_oct_mar_arcmin": 16.15, "sun_sd_apr_sep_arcmin": 15.9, "sun_hp_arcmin": 0.146567,
+ "sun_oct_mar": CriticalTable,        // columns ["Lower limb", "Upper limb"], from under 10° to 90° 00′
+ "sun_apr_sep": CriticalTable,
+ "stars_planets": CriticalTable,      // columns ["Corr"]
+ "low": [{"alt_deg": 0.0, "printed_alt": "0 00",
+          "sun_oct_mar": [{"arcmin": -18.181, "printed": "-18.2"}, {"arcmin": -50.481, "printed": "-50.5"}],
+          "sun_apr_sep": [ArcminCell, ArcminCell], "stars_planets": {"arcmin": -34.478, "printed": "-34.5"}}, …109],
+ "dip": {"metres": CriticalTable, "feet": CriticalTable,        // 2.2-21.4 m, 7.4-70.5 ft
+         "more_metres": [{"height": 1, "printed_height": "1", "dip": {"arcmin": -1.76, "printed": "-1.8"}}, …13],
+         "more_feet": [DipRow, …15]},
+ "additional": {
+   "zones": [{"letter": "A", "factor": 1.12, "factor_low": 1.11, "factor_high": 1.13}, …13],   // A..N, no I
+   "rows": [{"alt_deg": 0.0, "printed_alt": "0 00", "standard_refraction_arcmin": 34.478,
+             "corrections": [ArcminCell × 13]}, …26],                                        // 0° to 50°
+   "chart": {"temperature_c": [-20, 40], "pressure_hpa": [970, 1050]},
+   "conditions": {"temperature_c": 31.1, "pressure_hpa": 982.0, "factor": 0.904816, "zone": "M",
+                  "corrections": [ArcminCell × 26]} | null},
+ "moon": {"hp0_arcmin": 57.7, "hp_rows": [54.0, 54.3, …, 61.5],
+          "columns": [{"from_deg": 0, "upper": [ArcminCell × 30],         // every 10′ of the 5° column
+                       "lower_alt_deg": 2.5,
+                       "lower_limb": [ArcminCell × 26], "upper_limb": [ArcminCell × 26]}, …18],
+          "how_to_use": "…", "notes": […]},
+ "how_to_use": ["First correct the sextant altitude for index error and dip …", …],
+ "examples": [{"title": "A star", "text": "Deneb, apparent altitude 50° 26.6′ (Bowditch §1906): …"}, …],
+ "notes": ["Refraction: Bennett (1982) at 1010 hPa and 10 °C …", …]}
+```
+
+`zone` is null when the density falls outside A to N. Throws for conditions that are not
+that object.
+
+### `almanac_planet_corrections(year, calendar) -> PlanetCorrections`
+
+Venus and Mars through a calendar year (a whole number; `calendar` as above, the Julian
+calendar up to 1582 with `""`). About 0.1 s native (the planets' parallax every day).
+
+```json
+{"year": 2016, "calendar": "gregorian",
+ "venus": [{"from": {"year": 2016, "month": 1, "day": 1}, "to": {"year": 2016, "month": 12, "day": 3},
+            "from_jd_utc": 2457388.5, "to_jd_utc": 2457725.5, "hp_arcmin": 0.1,
+            "table": CriticalTable}, …],        // unit "deg": whole degrees of Ha, 0 to 90
+ "mars": [ParallaxPeriod, …],
+ "how_to_use": "…", "notes": […], "errors": []}
+```
+
+A day the provider cannot place ends that planet's runs there, with the reason in `errors`
+(a year wholly outside the coverage gives two empty lists and two errors).
+
+### `almanac_polaris(year, calendar) -> PolarisTable`
+
+The Polaris tables for a calendar year. A few milliseconds native.
+
+```json
+{"year": 2016, "calendar": "gregorian",
+ "mean_sha_deg": 316.814769, "mean_dec_deg": 89.331849,
+ "printed_mean": {"sha": "316 48.9", "dec": "N 89 19.9"},
+ "polar_distance_arcmin": 40.089, "formula_error_arcmin": 0.0068,
+ "a1_latitudes": [0, 10, 20, 30, 40, 45, 50, 55, 60, 62, 64, 66, 68],
+ "azimuth_latitudes": [0, 20, 40, 50, 55, 60, 65],
+ "months": [{"month": 1, "jd_utc": 2457404.0, "sha_deg": 316.770838, "dec_deg": 89.335583}, …12],
+ "columns": [{"from_deg": 0,                                      // LHA Aries 0°-9°
+              "a0": [{"arcmin": 29.6997, "printed": "0 29.7"}, …11],   // rows 0..10 degrees
+              "a1": [ArcminCell × 13], "a2": [ArcminCell × 12],
+              "azimuth": [{"deg": 0.4131, "printed": "0.4"}, …7]}, …36],
+ "how_to_use": "…",
+ "example": {"text": "On April 21 at 23h 18m 56s UT …", "lha_aries_deg": 162.954289,
+             "a0_arcmin": 78.8726, "a1_arcmin": 0.6, "a2_arcmin": 0.9,
+             "latitude_deg": 49.866210, "rigorous_latitude_deg": 49.866987} | null,
+ "notes": […], "warnings": []}
+```
+
+`Latitude = Ho − 1° + a0 + a1 + a2`. `example` is the Nautical Almanac 2016's illustration
+worked with this year's table (null when the year's table cannot place it); `warnings`
+says when the formula's own error passes 0.1′. Throws for a year that is not whole or
+whose Polaris place the providers cannot give (the message names the coverage).
