@@ -2519,6 +2519,299 @@ u32 S                       station count, then S records sorted by id:
 A reader maps constituent names to its own table and refuses an unknown one; nothing
 may follow the last station.
 
+## Expansion programme — planet detail (`planetdetail.rs`, planetdetail agent)
+
+Jupiter's moons, Saturn's rings, every planet's disc, transits of Mercury and Venus with
+local circumstances, conjunctions and stations, the Earth's perihelion and aphelion, and
+comets and asteroids from elements the person supplies. Engines:
+`skyfix_almanac::{satellites, rings, discs, transits, conjunctions, earth_apsides,
+orbits}`; exports: `crates/skyfix-wasm/src/planetdetail.rs`; definitions: CONVENTIONS
+13.12; measured accuracy: `docs/ACCURACY.md` section 17. TypeScript: `PlanetDetailEngine`
+and `isPlanetDetailEngine` ("Expansion programme — planet detail" in `types.ts`), where
+the generic names carry a prefix (`PlanetTransit…`, `PlanetStation…`, `GalileanInstant`,
+`SaturnRingEdge`, `EarthApsisEvent`, `OrbitMagnitudeModel`, `ManualOrbitalElements`) so
+they cannot merge with another package's declarations. The WASM wrapper and the mock
+(`engine/mock/planetdetail.ts`) implement all of it; the memoised engine passes the calls
+through.
+
+**Common rules.** Instants are `jd_utc` plus the `utc` string, as everywhere. Every
+position is apparent and geocentric unless an observer is given. A window that is not
+finite, ends before it starts or is longer than the call's limit throws; one reaching
+outside the coverage (the Sun and planet providers', `coverage_start_utc` ..
+`coverage_end_utc`) is clipped and says so (`truncated`). A single instant outside it
+throws. Errors are strings; the WASM wrapper prefixes the export's name
+(`planet_disc: "Pluto" is not a planet …`).
+
+### `galilean_moons(jd_utc) -> GalileanMoons`
+
+The four moons around Jupiter as the Earth sees them (Lieske's E5 theory; within 0.33″ of
+JPL's satellite ephemeris). Under a millisecond.
+
+```json
+{"jd_utc": 2461050.5, "utc": "2026-01-10T00:00:00.000Z",
+ "jupiter": {"distance_au": 4.231754, "light_time_s": 2111.67, "equatorial_radius_arcsec": 23.2936,
+             "polar_radius_arcsec": 21.7834, "pole_position_angle_deg": 9.9953, "sub_earth_lat_deg": 1.3894,
+             "ra_deg": 111.8471, "dec_deg": 22.1829, "elongation_deg": 179.51},
+ "moons": [{"name": "Io", "x_rj": 5.4915, "y_rj": -0.0558, "z_rj": -2.2034,
+            "offset_east_arcsec": -126.20, "offset_north_arcsec": 20.92, "ra_deg": 111.8093, "dec_deg": 22.1887,
+            "in_front": true, "in_transit": false, "occulted": false, "eclipsed": false,
+            "shadow_on_disc": false, "shadow_x_rj": null, "shadow_y_rj": null}, …],
+ "theory": "Lieske E5 (Meeus, Astronomical Algorithms, chapter 44, higher accuracy), …",
+ "accuracy_arcsec": 0.5}
+```
+
+| field | meaning |
+|---|---|
+| `x_rj`, `y_rj` | on the sky, along Jupiter's equator (positive **west**) and toward its projected north pole, in Jupiter's apparent equatorial radius: draw the diagram from these |
+| `z_rj` | along the line of sight, positive **away** from the Earth (`in_front` = negative) |
+| `offset_east_arcsec`, `offset_north_arcsec` | the same offset in celestial east and north (true equator of date) |
+| `in_transit` / `occulted` | in front of / behind the oblate disc |
+| `eclipsed` | in Jupiter's shadow (the Sun's centre hidden) |
+| `shadow_on_disc`, `shadow_x_rj`, `shadow_y_rj` | the moon's shadow falls on Jupiter, and where (same axes); `null` otherwise |
+| `jupiter.sub_earth_lat_deg` | planetocentric latitude of the Earth seen from Jupiter (the tilt of the moons' paths) |
+| `accuracy_arcsec` | the worst offset error measured against JPL (ACCURACY 17) |
+
+### `galilean_events(jd_start, jd_end) -> GalileanEvents`
+
+Every transit, shadow transit, occultation and eclipse of the four moons overlapping the
+window (at most 400 days), sorted by start. Under 0.1 s for a month natively.
+
+```json
+{"jd_start": 2461050.5, "jd_end": 2461051.5, "truncated": false,
+ "phenomena": [
+   {"moon": "Europa", "kind": "eclipse",
+    "start": {"jd_utc": 2461050.449425, "utc": "2026-01-09T22:47:10.304Z", "observable": true},
+    "end": {"jd_utc": 2461050.567944, "utc": "2026-01-10T01:37:50.383Z", "observable": false},
+    "jupiter_elongation_deg": 179.47},
+   {"moon": "Europa", "kind": "occultation",
+    "start": {"jd_utc": 2461050.450206, "utc": "2026-01-09T22:48:17.792Z", "observable": false},
+    "end": {"jd_utc": 2461050.568696, "utc": "2026-01-10T01:38:55.360Z", "observable": true}, …}, …],
+ "conventions": "Times when the Earth sees them (UTC). …"}
+```
+
+- `kind`: `transit` (the moon crosses the disc), `shadow_transit` (its shadow does),
+  `occultation` (hidden behind the planet), `eclipse` (in Jupiter's shadow).
+- `observable: false` marks a moment the Earth cannot see happen: above, Europa goes into
+  eclipse in view, then behind the planet a minute later, and leaves the shadow while
+  still hidden.
+- `jupiter_elongation_deg`: nothing is observable within about 15° of the Sun; the UI
+  should grey such events rather than hide them.
+- Accuracy: 23 s (Io) to 97 s (Ganymede) against JPL, E5's own drift (ACCURACY 17).
+
+### `saturn_rings(jd_utc) -> SaturnRings`
+
+```json
+{"jd_utc": 2461307.5, "utc": "2026-09-24T00:00:00.000Z",
+ "earth_latitude_deg": -7.8128, "sun_latitude_deg": -7.5468, "delta_u_deg": 1.1928, "position_angle_deg": 3.1594,
+ "major_axis_arcsec": 44.630, "minor_axis_arcsec": 6.067,
+ "edges": [{"name": "A outer", "radius_km": 136780.0, "major_axis_arcsec": 44.630, "minor_axis_arcsec": 6.067},
+           {"name": "A inner", …}, {"name": "B outer", …}, {"name": "B inner", …}, {"name": "C inner", …}],
+ "north_face_visible": false, "lit_face_visible": true,
+ "distance_au": 8.451384, "heliocentric_distance_au": 9.436799,
+ "magnitude_aa1984": 0.351, "magnitude": 0.379}
+```
+
+| field | meaning |
+|---|---|
+| `earth_latitude_deg` (B), `sun_latitude_deg` (B′) | saturnicentric latitudes of the Earth and the Sun above the ring plane; positive = north face |
+| `delta_u_deg` (ΔU) | difference of their saturnicentric longitudes in the ring plane |
+| `position_angle_deg` (P) | of the ring's northern semi-minor axis (Saturn's pole), celestial north through east |
+| `major_axis_arcsec`, `minor_axis_arcsec` | the outer edge of the A ring; `edges` gives every edge's ellipse |
+| `lit_face_visible` | false when the Earth sees the unlit face (between the Earth's and the Sun's crossings of the ring plane, as from March to May 2025) |
+| `magnitude` | the explorer's planet magnitude (Mallama & Hilton 2018, rings included); `magnitude_aa1984` the Astronomical Almanac's 1984 formula (Meeus 41) that printed almanacs used, for comparison: they differ by −0.13 to +0.07 over 1990-2060 |
+
+### `planet_disc(body, jd_utc) -> PlanetDisc`
+
+Any of the seven planets (case-insensitive). Under a millisecond.
+
+```json
+{"body": "Jupiter", "jd_utc": 2461050.5, "utc": "2026-01-10T00:00:00.000Z",
+ "distance_au": 4.231754, "light_time_s": 2111.67,
+ "equatorial_diameter_arcsec": 46.5872, "polar_diameter_arcsec": 43.5667,
+ "phase_angle_deg": 0.0911, "illuminated_fraction": 0.999999, "defect_of_illumination_arcsec": 0.00003,
+ "bright_limb_angle_deg": 66.62, "pole_position_angle_deg": 9.9953,
+ "sub_earth_lat_deg": 1.3894, "sub_earth_lat_graphic_deg": 1.5888, "sub_earth_lon_deg": 252.7525,
+ "sub_solar_lat_deg": 1.4406, "sub_solar_lat_graphic_deg": 1.6473, "sub_solar_lon_deg": 252.8305,
+ "longitude_positive": "west",
+ "central_meridians": [{"system": "I", "longitude_deg": 193.2305}, {"system": "II", "longitude_deg": 2.6458},
+                       {"system": "III", "longitude_deg": 252.7525}],
+ "magnitude": -2.68,
+ "rotation_model": "IAU WGCCRE 2015 (Archinal et al. 2018); Jupiter Systems I and II IAU 1976",
+ "notes": ["The Great Red Spot is not tracked: …"]}
+```
+
+- Latitudes are planetocentric; `_graphic` ones are on the IAU ellipsoid. Longitudes are
+  planetographic in the sense `longitude_positive` names (east for Venus and Uranus).
+- `central_meridians`: Jupiter's Systems I, II and III; `III` for Saturn and Uranus;
+  `IAU` for the others. The centre of the geometric disc (CONVENTIONS 13.12 for the
+  phase-corrected value some handbooks print).
+- `polar_diameter_arcsec` is the apparent one (it grows toward the equatorial as the
+  pole tilts toward us); `defect_of_illumination_arcsec` is the width of the dark part.
+- `notes`: plain sentences for the interface (why the Great Red Spot is not given,
+  Venus's clouds, the uncertain rotation of Uranus and Neptune).
+
+### `transits(jd_start, jd_end, observer_json) -> PlanetTransitList`
+
+Every transit of Mercury or Venus whose greatest transit falls in the window (at most
+1 200 years; clipped to the coverage). `observer_json` is an observer object, or `""` /
+`"null"` for the geocentric circumstances only; with one, each transit gains `local`.
+About 0.25 s for 1990-2060 natively.
+
+```json
+{"jd_start": 2456082.5, "jd_end": 2456085.5, "truncated": false,
+ "coverage_start_utc": "1990-01-01T00:00:00.000Z", "coverage_end_utc": "2060-12-31T23:59:59.000Z",
+ "transits": [{"id": "2012-06-06-venus", "planet": "Venus",
+   "contacts": [{"kind": "c1", "jd_utc": 2456084.423394, "utc": "2012-06-05T22:09:41.262Z", "jd_tt": 2456084.42416,
+                 "position_angle_deg": 40.70, "separation_arcsec": 974.59},
+                {"kind": "c2", …}, {"kind": "greatest", "utc": "2012-06-06T01:29:36.017Z", "separation_arcsec": 554.37, …},
+                {"kind": "c3", …}, {"kind": "c4", "utc": "2012-06-06T04:49:31.086Z", …}],
+   "min_separation_arcsec": 554.37, "sun_semidiameter_arcsec": 945.69, "planet_semidiameter_arcsec": 28.90,
+   "grazing": false, "duration_s": 23989.8,
+   "path": [{"jd_utc": 2456084.423394, "east_arcsec": 635.59, "north_arcsec": 738.83}, …],
+   "tt_minus_utc_s": 66.184,
+   "local": {"observer": {"lat_deg": 39.9526, "lon_deg": -75.1652, "height_m": 12.0},
+             "visibility": "partly_below_horizon",
+             "events": [{"kind": "c1", "utc": "2012-06-05T22:03:54.011Z", "sun_alt_deg": 24.63, "sun_az_deg": 279.72,
+                         "visible": true, "position_angle_deg": 41.19, "vertex_angle_deg": 346.22,
+                         "separation_arcsec": 974.61, …},
+                        {"kind": "c2", …}, {"kind": "sunset", "utc": "2012-06-06T00:26:17.012Z", "sun_alt_deg": -0.833, …},
+                        {"kind": "greatest", "visible": false, …}, {"kind": "c3", …}, {"kind": "c4", …}],
+             "path": […]}}],
+ "conventions": "Contacts I and IV: the discs externally tangent; …"}
+```
+
+| field | meaning |
+|---|---|
+| `id` | UTC date of greatest transit and the planet, as the eclipses' ids |
+| `contacts` | geocentric (the Earth's centre), in time order: `c1`, `c2`, `greatest`, `c3`, `c4`; a `grazing` transit has no `c2`/`c3` |
+| `position_angle_deg` | where the planet is on the Sun's disc, from the Sun's north point through east |
+| `path` | 25 points from `c1` to `c4`: the planet's centre relative to the Sun's, east and north (arcsec), to draw the chord |
+| `local.events` | the contacts for the observer, plus `sunrise`/`sunset` when the Sun crosses −50′ during the transit; `visible` = the Sun is above −50′; `vertex_angle_deg` from the point of the Sun's limb nearest the zenith |
+| `local.visibility` | `visible` (Sun up throughout), `partly_below_horizon`, `below_horizon`, or `none` (seen from here the planet misses the Sun: only near a geocentric graze) |
+
+### `conjunctions(jd_start, jd_end, options_json) -> ConjunctionList`
+
+Closest approaches in apparent separation (CONVENTIONS 13.12), sorted by time, window at
+most ten years. A year with the default bodies: about 0.22 s natively (0.25 s with an
+observer). `options_json` is `ConjunctionOptions`, `""`/`"null"`/`{}` for every default;
+an unknown field throws.
+
+| option | default | meaning |
+|---|---|---|
+| `planets` | all seven | names; `body` is always the inner of two, whatever the order given |
+| `moon` | `true` | include the Moon with the planets and the stars |
+| `stars` | Aldebaran, Regulus, Spica, Antares | any of the 58 navigational stars (the four are those the Moon and planets pass) |
+| `max_separation_deg` | 5 | 0.1 to 20 |
+| `min_sun_elongation_deg` | 15 | the Sun distance below which `visible` is false |
+| `observer` | none | an observer object: each event gains `local` |
+
+```json
+{"jd_start": 2459184.5, "jd_end": 2459215.5, "truncated": false,
+ "coverage_start_utc": "1990-01-01T00:00:00.000Z", "coverage_end_utc": "2060-12-31T23:59:59.000Z",
+ "conjunctions": [{"kind": "planet_planet", "body": "Jupiter", "other": "Saturn",
+   "jd_utc": 2459205.264782, "utc": "2020-12-21T18:21:17.135Z", "separation_deg": 0.101751,
+   "position_angle_deg": 167.55, "ra_deg": 302.7968, "dec_deg": -20.5137,
+   "body_elongation_deg": 30.14, "other_elongation_deg": 30.14, "body_magnitude": -1.98, "other_magnitude": 0.68,
+   "visible": true,
+   "local": {"body_alt_deg": 28.56, "other_alt_deg": 28.66, "sun_alt_deg": 23.77,
+             "best": {"jd_utc": 2459205.431448, "utc": "2020-12-21T22:21:17.135Z",
+                      "body_alt_deg": 14.72, "other_alt_deg": 14.77, "sun_alt_deg": -8.03}}}]}
+```
+
+- `kind`: `planet_planet`, `moon_planet`, `planet_star`, `moon_star`. `body` is the Moon,
+  else the inner planet, else the planet; `ra_deg`/`dec_deg` are `body`'s.
+- `position_angle_deg`: `body` seen from `other`, north through east ("Jupiter 0.1° south
+  of Saturn" is near 180°).
+- `local`: apparent (refracted) topocentric altitudes at closest approach, and `best`,
+  the moment within 12 hours when the lower of the two stands highest with both above
+  the horizon and the Sun below −6°, or `null` when there is none (in the example the
+  closest approach is in daylight in Philadelphia; the evening view four hours later is
+  what to show).
+
+### `stations(jd_start, jd_end) -> PlanetStationList`
+
+The stations of Mercury to Neptune in the window (at most 80 years), in both ecliptic
+longitude and right ascension of date, sorted by time. About 0.15 s a year natively.
+
+```json
+{"jd_start": 2460615.5, "jd_end": 2460735.5, "truncated": false, …,
+ "stations": [{"body": "Saturn", "kind": "retrograde_ends", "coordinate": "ecliptic_longitude",
+               "jd_utc": 2460630.097389, "utc": "2024-11-15T14:20:14.428Z", "angle_deg": 342.6927,
+               "ra_deg": 344.8578, "dec_deg": -8.7364, "ecliptic_longitude_deg": 342.6927,
+               "elongation_deg": 108.97, "magnitude": 0.87},
+              {"body": "Saturn", "kind": "retrograde_ends", "coordinate": "right_ascension",
+               "utc": "2024-11-16T05:56:53.757Z", "angle_deg": 344.8575, …}, …],
+ "ui_coordinate": "ecliptic_longitude"}
+```
+
+`kind`: `retrograde_begins` (the coordinate starts to decrease) or `retrograde_ends`.
+`angle_deg` is the coordinate's value at the station. The explorer shows the stations in
+`ui_coordinate` (ecliptic longitude, the definition of retrograde motion).
+
+### `earth_apsides(year) -> EarthApsides`
+
+The Earth's perihelion and aphelion in a calendar year (UTC), `year` a whole number inside
+the coverage. About 20 ms.
+
+```json
+{"year": 2026, "events": [
+  {"kind": "perihelion", "jd_utc": 2461044.2192, "utc": "2026-01-03T17:15:38.855Z",
+   "distance_au": 0.983302, "distance_km": 147099895.1},
+  {"kind": "aphelion", "jd_utc": 2461228.229381, "utc": "2026-07-06T17:30:18.550Z",
+   "distance_au": 1.016644, "distance_km": 152087774.1}]}
+```
+
+### `parse_orbits(text) -> OrbitalElements[]`
+
+Reads lines in the Minor Planet Center's formats (MPCORB, and the comet format of
+`CometEls.txt`, packed designations and dates included; header lines skipped) or JSON: one
+object or an array, each either an `OrbitalElements` or a `ManualOrbitalElements`. Throws
+on the first line that is neither (`line 3: …`) or on a bad JSON field
+(`elements JSON: …`). No dataset ships: the person pastes elements (from the MPC, JPL or a
+circular); the MPC asks that "Source: Minor Planet Center" accompany its data.
+
+```json
+[{"name": "(1) Ceres", "designation": "(1)", "class": "asteroid", "epoch_jd_tt": 2461200.5,
+  "perihelion_distance_au": 2.545159, "eccentricity": 0.079692, "inclination_deg": 10.58803,
+  "ascending_node_deg": 80.24863, "argument_of_perihelion_deg": 73.2942, "perihelion_jd_tt": 2459919.988326,
+  "magnitude": {"model": "hg", "h": 3.34, "g": 0.15}, "source": "mpcorb"}]
+```
+
+Elements typed in by hand (`ManualOrbitalElements`): `name`, `e`, `i_deg`, `node_deg`,
+`peri_deg` (J2000 ecliptic), `q_au` or `a_au`, the perihelion time (`tp_jd_tt` or `tp_tt`,
+RFC 3339 read on the TT scale) or a `mean_anomaly_deg` at the epoch (`epoch_jd_tt` or
+`epoch_tt`), optional `class`, `h`/`g` (asteroids) or `m1`/`k1` (comets). `magnitude` is
+`{"model": "hg", h, g}`, `{"model": "comet", m1, k1}` (the MPC's slope `k` read as
+`k1 = 2.5 k`) or `{"model": "none"}`.
+
+### `custom_body_states(observer_json, jd_utc, custom_bodies_json) -> CustomBodyStates`
+
+`sky_state` for custom bodies: `custom_bodies_json` is an array of elements as
+`parse_orbits` returns them (or typed-in ones). Each body comes back as a `BodyState`
+(the same fields and CONVENTIONS 13.2 display values) with `kind` `"comet"` or
+`"asteroid"`, `custom: true` and the orbit's own fields; a body the engine cannot place
+goes to `errors`, as in `sky_state`.
+
+```json
+{"jd_utc": 2461308.0, "utc": "2026-09-24T12:00:00.000Z",
+ "bodies": [{"body": "(1) Ceres", "kind": "asteroid", "custom": true,
+             "ra_deg": 105.5638, "dec_deg": 23.0870, "gha_deg": 77.7744, "alt_deg": 72.9904, "az_deg": 188.2304,
+             "alt_apparent_deg": 72.9955, "magnitude": 8.69, "phase_angle_deg": 21.42, "elongation_deg": 77.17,
+             "illuminated_fraction": null, "bright_limb_angle_deg": null, "semidiameter_arcmin": 0.0,
+             "constellation": "Gem", …,
+             "distance_au": 2.716137, "heliocentric_distance_au": 2.678522, "elements_age_days": 107.5,
+             "warnings": ["These elements are 108 days from their epoch. An unperturbed orbit drifts …"]}],
+ "errors": []}
+```
+
+`elements_age_days` is measured from the epoch (or the perihelion time when no epoch is
+given); past 30 days a warning says the unperturbed orbit is drifting from the real one.
+
+### `sample_custom_bodies(observer_json, custom_bodies_json, jd_start, jd_end, step_minutes) -> Sampled`
+
+`sample_bodies` for custom bodies: the same shape, real `Float64Array`s, at most 5 000
+samples per body.
+
 ## Expansion programme P12 — the lunar limb (`limb.rs`, eclipselimb agent)
 
 Solar-eclipse contacts corrected for the mountains and valleys at the Moon's edge, the
@@ -2548,7 +2841,7 @@ new export and, in TypeScript, an option:
   it are the results to show.
 
 About 15-25 ms natively for one eclipse and place (about 5 500 slices through the Moon's
-outline: every 1/8° at maximum, every 1/16° near each contact); ACCURACY section 17 has
+outline: every 1/8° at maximum, every 1/16° near each contact); ACCURACY section 18 has
 the browser's figures.
 
 ### `SolarEclipseLimb`

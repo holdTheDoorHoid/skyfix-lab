@@ -199,11 +199,12 @@ export function createScheduler(options: SchedulerOptions = {}): FrameScheduler 
 
 /**
  * Settings that change how text is written without changing any value a view selects:
- * today the 12- or 24-hour clock (shell/format.ts). When one changes, every `watch` draws
- * again once with its current value, so no time on screen keeps the old form.
+ * the 12- or 24-hour clock (shell/format.ts), the calendar and the way years are written
+ * (time/civil.ts, time/format.ts; time-ui agent). When one changes, every `watch` draws
+ * again once with its current value, so no time or date on screen keeps the old form.
  */
 function displayForm(state: ExplorerState): string {
-  return state.settings.hourCycle;
+  return `${state.settings.hourCycle}|${state.settings.calendar}|${state.settings.yearStyle}`;
 }
 
 /** Every live `watch`'s way to draw again (see `redrawEverything`). */

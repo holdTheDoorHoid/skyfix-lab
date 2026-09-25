@@ -8,8 +8,10 @@ import {
   goNow,
   handleTimeKey,
   keyBelongsToTarget,
+  MAX_SPEED,
   MONTH_S,
   PLAYBACK_SPEEDS,
+  YEAR_S,
   setPlaying,
   setSpeed,
   setTime,
@@ -54,11 +56,24 @@ function setup(initialLive = false) {
 const secondsSince = (jdA: number, jdB: number): number => (msFromJd(jdB) - msFromJd(jdA)) / 1000;
 
 describe('playback clock', () => {
-  it('offers speeds from real time to a month per second', () => {
+  it('offers speeds from real time to ten years per second', () => {
     expect(PLAYBACK_SPEEDS[0]!.speed).toBe(1);
-    expect(PLAYBACK_SPEEDS.at(-1)!.speed).toBe(MONTH_S);
+    expect(PLAYBACK_SPEEDS.at(-1)!.speed).toBe(10 * YEAR_S);
+    expect(PLAYBACK_SPEEDS.map((s) => s.speed)).toContain(MONTH_S);
+    expect(PLAYBACK_SPEEDS.map((s) => s.speed)).toContain(YEAR_S);
+    expect(YEAR_S).toBe(12 * MONTH_S);
     const speeds = PLAYBACK_SPEEDS.map((s) => s.speed);
     expect([...speeds].sort((a, b) => a - b)).toEqual(speeds);
+  });
+
+  it('crosses 2000 BC to AD 3000 in minutes at ten years per second', () => {
+    const { store, run } = setup();
+    setSpeed(store, 10 * YEAR_S);
+    const start = store.get().time.jd_utc;
+    setPlaying(store, true);
+    run(1000);
+    expect(secondsSince(start, store.get().time.jd_utc) / YEAR_S).toBeCloseTo(10, 0);
+    expect(5000 / 10 / 60).toBeLessThan(9); // minutes for the whole span
   });
 
   it('advances speed simulated seconds per real second', () => {
@@ -83,9 +98,10 @@ describe('playback clock', () => {
     run(1000);
     expect(secondsSince(start, store.get().time.jd_utc)).toBeCloseTo(-60, -1);
     setSpeed(store, 1e12);
-    expect(store.get().time.speed).toBe(MONTH_S);
+    expect(store.get().time.speed).toBe(MAX_SPEED);
+    expect(MAX_SPEED).toBe(10 * YEAR_S);
     setSpeed(store, 0);
-    expect(store.get().time.speed).toBe(MONTH_S);
+    expect(store.get().time.speed).toBe(MAX_SPEED);
   });
 
   it('never jumps more than one clamped frame after a stall', () => {
@@ -168,6 +184,12 @@ describe('keyboard shortcuts', () => {
     expect(timeKeyAction({ key: 'ArrowRight', ctrlKey: true })).toBeNull();
     expect(timeKeyAction({ key: 'n', metaKey: true })).toBeNull();
     expect(timeKeyAction({ key: 'x' })).toBeNull();
+    // A century and a millennium (time-ui agent).
+    expect(timeKeyAction({ key: 'PageUp', ctrlKey: true })).toEqual({ kind: 'step', step: { unit: 'year', count: -100 } });
+    expect(timeKeyAction({ key: 'PageDown', ctrlKey: true })).toEqual({ kind: 'step', step: { unit: 'year', count: 100 } });
+    expect(timeKeyAction({ key: 'PageDown', ctrlKey: true, shiftKey: true })).toEqual({ kind: 'step', step: { unit: 'year', count: 1000 } });
+    expect(timeKeyAction({ key: 'PageUp', metaKey: true })).toBeNull();
+    expect(timeKeyAction({ key: 'PageUp', ctrlKey: true, metaKey: true })).toBeNull();
   });
 
   it('leaves keys to form fields, widgets and components that own them', () => {
@@ -207,5 +229,44 @@ describe('keyboard shortcuts', () => {
     expect(key({ key: 'ArrowRight', defaultPrevented: true })).toBe(false);
     expect(key({ key: 'q' })).toBe(false);
     expect(prevented).toBe(4);
+  });
+});
+
+describe('long steps keep the clock time in the calendar and the zone they land in', () => {
+  const philadelphia = (iso: string) =>
+    createExplorerStore({
+      storage: null,
+      now: () => NOW,
+      initial: {
+        observer: { lat_deg: 39.9526, lon_deg: -75.1652, height_m: 0, label: 'Philadelphia', zone: { kind: 'iana', zone: 'America/New_York', guessed: true } },
+        time: { jd_utc: jdFromIso(iso)!, live: false },
+      },
+    });
+
+  it('steps a century back into local mean time (before 1850) at the same clock time', () => {
+    const store = philadelphia('1900-06-01T16:00:00Z'); // 11:00 EST
+    stepTime(store, { unit: 'year', count: -100 });
+    // 1800-06-01 11:00 local mean time at 75° 09.9′ W (UT−5:00:40) is 16:00:40 UT.
+    expect(isoUtc(store.get().time.jd_utc)).toBe('1800-06-01T16:00:40.000Z');
+    stepTime(store, { unit: 'year', count: 100 });
+    expect(isoUtc(store.get().time.jd_utc)).toBe('1900-06-01T16:00:00.000Z');
+  });
+
+  it('steps through the Julian calendar before 1582 and across year 0', () => {
+    const store = philadelphia('1600-02-29T17:00:40Z'); // noon LMT
+    stepTime(store, { unit: 'year', count: -100 });
+    // 1500-02-29 exists in the Julian calendar: noon LMT on it.
+    expect(isoUtc(store.get().time.jd_utc)).toBe('1500-03-10T17:00:40.000Z');
+    stepTime(store, { unit: 'year', count: -1000 });
+    stepTime(store, { unit: 'year', count: -1000 });
+    // 29 February 501 BC (Julian; astronomical -500) is 23 February on the wire's proleptic Gregorian calendar.
+    expect(isoUtc(store.get().time.jd_utc)).toBe('-0500-02-23T17:00:40.000Z');
+  });
+
+  it('applies the ten-year and century keys to the store', () => {
+    const store = philadelphia('2026-09-24T16:00:00Z');
+    handleTimeKey({ key: 'PageUp', ctrlKey: true }, store, () => NOW);
+    // 12:00 EDT then as now: New York kept daylight time until 26 September 1926 (tz database).
+    expect(isoUtc(store.get().time.jd_utc)).toBe('1926-09-24T16:00:00.000Z');
   });
 });

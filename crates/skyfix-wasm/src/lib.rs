@@ -51,6 +51,9 @@ pub mod tides;
 // Expansion programme P12 (eclipselimb agent): the lunar limb from the optional lunar-limb pack.
 pub mod limb;
 
+// Planet detail (expansion programme P9, planetdetail agent): EXPLORER_API.md "Planet detail".
+pub mod planetdetail;
+
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
