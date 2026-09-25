@@ -2100,6 +2100,29 @@ Government works or facts; their acknowledgements are made here.
 | The Minor Planet Center's `MPCORB.DAT` (six lines, by byte range) and `CometEls.txt` (<https://minorplanetcenter.net/iau/MPCORB/>, retrieved 2026-09-25): twelve lines kept verbatim as test input in `planetdetail_orbits.json` and two in `web/test/next/planetdetail-engine.test.ts` | orbits (`planetdetail_orbits.rs`, the web tests) | the MPC permits redistribution with the source stated: **"Source: Minor Planet Center"**, as the fixture and the test carry |
 | Skyfield 1.55 (`skyfield.data.mpc`, `almanac`, `searchlib`) with `de440s.bsp` and `hip_main.dat` (all listed under "Reference data" above) | conjunctions, stations, apsides, orbits, transit contacts | MIT (Skyfield); JPL and ESA terms as listed above |
 
+## Expansion programme — the Selected card's tools (photo agent, Q8, 2026-09-25)
+
+Owner: photo agent (`web/src/next/panel/{photo,moon-tools,alignment,when,sun-tools,selected}.ts`,
+`web/src/next/map/pick.ts`). **No third-party data is added to the site.** Every number the
+card shows comes from the engines, whose sources are listed above; the one computation of
+its own, the direction to a point picked on the map, is a published method.
+
+| Item | What is used | Basis |
+|---|---|---|
+| T. Vincenty, "Direct and inverse solutions of geodesics on the ellipsoid with application of nested equations", *Survey Review* 23 (176), 88-93 (1975) | the inverse formula (`panel/sun-tools.ts`, `geodesicInverse`), written from its published equations | a method; cited, no code copied |
+
+#### Development-time references
+
+- **The Geocentric Datum of Australia Technical Manual's worked example of Vincenty's
+  inverse formula** (Intergovernmental Committee on Surveying and Mapping, chapter 4):
+  Flinders Peak (−37° 57′ 03.72030″, 144° 25′ 29.52440″) to Buninyong (−37° 39′ 10.15610″,
+  143° 55′ 35.38390″), 54 972.271 m, azimuths 306° 52′ 05.37″ and 127° 10′ 25.07″. Read
+  from the sample data Geoscience Australia keeps at the end of its own implementation,
+  <https://github.com/GeoscienceAustralia/Wind_multipliers/blob/master/utilities/vincenty.py>
+  (which cites the manual's former address, `http://www.anzlic.org.au/icsm/gdatum/chapter4.html`),
+  retrieved 2026-09-25. Seven published numbers (facts), typed into
+  `web/test/next/photo-tools.test.ts`; nothing else is copied.
+
 ## Expansion programme — Navigate's tools (navigate2 agent, wave 2, 2026-09-25)
 
 No data is added: the Compass and Passage tabs, the sight form's extras, the printables and
@@ -2121,3 +2144,4 @@ geomag and sailings agents).
   for how the instrument is built and set; nothing from it is used).
 - **The device's height** (the Place editor's "From this device") is the browser's
   Geolocation API reading, used in the page only and never sent or stored.
+

@@ -820,6 +820,20 @@ ACCURACY.md "Planet detail". Display and planning only: nothing here enters `red
   staleness warning. Custom bodies are points: no semidiameter, illuminated fraction or
   bright limb.
 
+### 13.13 A bearing picked on the map (photo agent, expansion programme Q8)
+
+The Selected card's bearing tools ("When is it at…?" by bearing, the alignment finder)
+take a bearing typed in degrees from true north, `[0, 360)`, or the direction from the
+observer to a point picked on the map: the **initial azimuth of the geodesic on the WGS84
+ellipsoid** (section 2) from the observer to the point, by Vincenty's inverse formula
+iterated to 1e-12 rad (`panel/sun-tools.ts`, `geodesicInverse`), with the sphere's great
+circle only where the iteration does not converge (points almost antipodal), and the
+interface says which. Over a street or a skyline the normal section and the geodesic
+differ by under 1e-6°. The line drawn on the map is the sphere's great circle leaving on
+that bearing (display only). The magnetic bearing shown beside a true one is
+`true − variation` (14.1, east positive), the variation of the observer's place on the
+local day shown.
+
 ## 14. Navigation methods: noon sight, Polaris, averaging, running fix
 
 `docs/NAVIGATION_METHODS.md` is normative for these methods (`skyfix_core::methods`,

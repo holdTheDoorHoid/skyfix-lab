@@ -26,7 +26,13 @@
  *      time and UT on the clock, the ±ΔT chip, the calendar's century step and October 1582,
  *      UTC inside 1972-2035; playback at ten years a second on the Map view (frame times
  *      and script time per frame, reported) and the Sky view;
- *   9. Navigate's Compass and Passage tabs, the route on the map, the star finder and the
+ *   9. the Selected card's photographer and astronomer tools (photo agent, expansion Q8):
+ *      golden and blue hour, the alignment finder (Manhattanhenge) and picking its bearing
+ *      on the map, the Moon's details, the Milky Way planner, RA/Dec and the magnetic
+ *      bearing, the predicted sextant reading, the tides line once the pack is got in
+ *      Settings, the night theme and the phone layout with every drawer open, and what the
+ *      open drawers add to a time-bar drag (judged when the machine is quiet enough);
+ *  10. Navigate's Compass and Passage tabs, the route on the map, the star finder and the
  *      print preview of the worksheets and plotting sheet (navigate2, expansion programme):
  *      each works, lays out without overlap or cut-off text, keeps the console clean, and in
  *      the night theme shows no blue, green or white light (the preview's paper included).
@@ -36,7 +42,7 @@
  *
  *   npm run build --prefix web && node web/scripts/ui-check.mjs
  *   SITE=site node web/scripts/ui-check.mjs          # the assembled Pages site
- *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts,time,navigate2
+ *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts,time,photo,navigate2
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
  * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
@@ -62,7 +68,7 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,navigate2').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,photo,navigate2').split(','));
 /** charts2: the Charts view's tabs and sub-views, `tab` or `tab/sub`. */
 const CHART_VIEWS = (process.env.CHARTS ?? 'day,year,sun/path,sun/analemma,sun/bearings,sun/eot,sun/solar,moon/phases,moon/year,planets,tides').split(',');
 const SWITCHES = Number(process.env.SWITCHES ?? 50);
@@ -536,6 +542,8 @@ async function main() {
       }
       await viewport(1440, 900, false);
     }
+    // 8. The Selected card's photographer and astronomer tools (photo agent, expansion Q8).
+    if (ONLY.has('photo')) await photoChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary });
 
     // 6. Dragging the time bar.
     if (ONLY.has('scrub')) {
@@ -752,6 +760,209 @@ async function main() {
   const failed = results.filter((r) => !r.ok).length;
   console.log(`\n${results.length - failed} of ${results.length} checks passed; screenshots and ui-check.json in ${OUT}`);
   if (failed) process.exitCode = 1;
+}
+
+// ---------------------------------------------------------------------------------
+// 7. The Selected card's tools (photo agent, expansion programme Q8)
+// ---------------------------------------------------------------------------------
+
+/** Manhattan's 42nd Street at sunset on 24 May 2026 (Manhattanhenge), and a moonlit evening in Philadelphia. */
+const MANHATTAN = 'v=1&lat=40.7527&lon=-73.9772&place=Manhattan%2C%2042nd%20Street&tz=America%2FNew_York&t=2026-05-24T23:40:00Z&body=Sun&view=map';
+const MOONLIT = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&t=2026-09-24T02:00:00Z&body=Moon&view=map';
+
+async function photoChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary }) {
+  const js = (v) => JSON.stringify(v);
+  const text = (sel) => evaluate(`document.querySelector(${js(sel)})?.textContent?.trim() ?? null`);
+  const scrollPanelTo = (sel, offset = 8) =>
+    evaluate(`(() => { const s = document.querySelector('.sf-panel__scroll'); const el = document.querySelector(${js(sel)}); if (!s || !el) return false; s.scrollTop += el.getBoundingClientRect().top - s.getBoundingClientRect().top - ${offset}; return true; })()`);
+  const openDrawers = (sels) => evaluate(`${js(sels)}.map((sel) => { const d = document.querySelector(sel); if (d) d.open = true; return Boolean(d); }).every(Boolean)`);
+  const noise = () => messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+  const typeInto = (sel, value) =>
+    evaluate(`(() => { const i = document.querySelector(${js(sel)}); if (!i) return false; i.focus(); i.value = ${js(value)}; i.dispatchEvent(new Event('input', { bubbles: true })); i.blur(); return true; })()`);
+  const click = async (x, y) => {
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x, y, button: 'left', clickCount: 1 });
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 });
+  };
+  const out = {};
+
+  // --- Desktop, light: the Sun at Manhattan (a tall window, for the finder's days) ----------
+  await viewport(1440, 1200, false);
+  messages.length = 0;
+  await open(MANHATTAN, { theme: 'light' });
+  const light = JSON.parse(
+    await evaluate(`JSON.stringify([...document.querySelectorAll('.sf-photo-light tbody tr')].map((r) => [r.dataset.kind, ...[...r.querySelectorAll('td')].map((c) => c.textContent.trim())]))`),
+  );
+  check('photo: golden and blue hour beside the twilight table, morning and evening', light.length === 2 && light.every((r) => r.slice(1).every((c) => /^\d\d:\d\d–\d\d:\d\d$/.test(c))), js(light));
+  const mag = await evaluate(`(() => { const m = document.querySelector('.sf-photo-mag'); return m && !m.hidden ? [m.textContent, m.dataset.tip] : null; })()`);
+  check('photo: the magnetic bearing under the true one, the variation and the model in its tooltip', mag && /° \d\d′ magnetic$/.test(mag[0]) && /^Variation \d+\.\d° [EW], World Magnetic Model 2025, ±/.test(mag[1]), js(mag));
+  const pos = await text('.sf-photo-coord .sf-kv__v');
+  check('photo: right ascension and declination on the card', /^RA \d+h \d\dm \d\ds Dec [+−]\d+° \d\d′$/.test(pos ?? ''), pos);
+  await openDrawers(['.sf-photo-align']);
+  await typeInto('.sf-photo-align input[id$="-az"]', '299');
+  await evaluate(`document.querySelector('.sf-photo-align .sf-photo__find').click(); true`);
+  await waitFor(`document.querySelectorAll('.sf-photo-align .sf-photo__row').length > 0`, 20000);
+  const days = JSON.parse(
+    await evaluate(`JSON.stringify([...document.querySelectorAll('.sf-photo-align .sf-photo__row')].map((r) => [r.querySelector('.sf-photo__date').textContent, r.classList.contains('sf-photo__row--best')]))`),
+  );
+  const best = days.filter((d) => d[1]).map((d) => d[0]);
+  out.manhattan = { days: days.map((d) => d[0]), best };
+  check('photo: the alignment finder gives Manhattanhenge 2026, best 24 May and 18 July (ACCURACY 14)', best.join(',') === 'Sun 24 May,Sat 18 Jul', js(out.manhattan));
+  check('photo: the bearing is drawn on the map (the dial turns see-through)', await waitFor(`document.querySelector('.sfm')?.classList.contains('sfm--drawings')`, 5000));
+  await scrollPanelTo('.sf-photo-light', 120);
+  await sleep(400);
+  await shot('photo-desktop-light-sun');
+  const L1 = JSON.parse(await evaluate(LAYOUT));
+  check('photo: Sun card with the finder open: no sideways scroll, overlap or cut-off text', !L1.hscroll && !L1.overlaps.length && !L1.clipped.length, [...L1.overlaps, ...L1.clipped].join('; '));
+  // Pick the bearing on the map: the next click answers it, and the place stays.
+  const place0 = await text('.sf-place__name');
+  await evaluate(`document.querySelector('.sf-photo-align .sf-photo__pick').click(); true`);
+  const prompt = await waitFor(`document.querySelector('.sfm-pick') && !document.querySelector('.sfm-pick').hidden`, 5000);
+  await click(1100, 330);
+  await sleep(600);
+  const picked = await evaluate(`[document.querySelector('.sf-photo-align input[id$="-az"]').value, document.querySelector('.sfm-pick')?.hidden, document.querySelector('.sf-photo-align .sf-photo__sub').textContent]`);
+  check('photo: Pick on the map: a prompt, then the click sets the bearing, not the place', prompt && picked[0] !== '299' && /^\d+\.\d$/.test(picked[0]) && picked[1] === true && (await text('.sf-place__name')) === place0 && /^Picked on the map/.test(picked[2]), js({ prompt, picked, place0 }));
+  // "When is it at…?" by bearing: the times the Sun crosses 250° today.
+  await openDrawers(['.sf-when']);
+  await evaluate(`[...document.querySelectorAll('.sf-when .sf-seg__opt')].find((b) => b.dataset.value === 'bearing')?.click(); true`);
+  await typeInto('.sf-when input[id$="-az"]', '250');
+  const crossed = await waitFor(`document.querySelectorAll('.sf-when .sf-when__time').length > 0`, 10000);
+  const whenText = await evaluate(`[document.querySelector('.sf-when .sf-when__status')?.textContent, document.querySelector('.sf-when .sf-when__time')?.getAttribute('aria-label')]`);
+  check('photo: "When is it at…?" by bearing lists when the Sun crosses 250°', crossed && /^Sun on 250\.0° on /.test(whenText?.[0] ?? '') && /^Show \d\d:\d\d: Sun on 250\.0°, (climbing|sinking), /.test(whenText?.[1] ?? ''), js(whenText));
+  check('photo: Sun card: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  // --- Desktop, light: the Moon, then the night theme --------------------------------------------
+  await viewport(1440, 1000, false);
+  for (const theme of ['light', 'night']) {
+    messages.length = 0;
+    await open(MOONLIT, { theme });
+    await openDrawers(['.sf-photo-mw', '.sf-selected details.sf-details[data-term]']);
+    // The planner draws when it opens; the details' reading in the card's next frame.
+    await waitFor(`document.querySelectorAll('.sf-photo-moon__feat').length > 0 && !document.querySelector('.sf-photo-mw [data-stale]') && /\\d/.test(document.querySelector('.sf-photo-predict .sf-kv__v')?.textContent ?? '')`, 20000);
+    await sleep(300);
+    const moon = JSON.parse(
+      await evaluate(`JSON.stringify({
+        size: document.querySelector('.sf-photo-moon .sf-kv__v')?.textContent,
+        lib: document.querySelector('.sf-photo-moon__lib')?.textContent,
+        perigee: [...document.querySelectorAll('.sf-photo-moon .sf-kv')].find((r) => /perigee/.test(r.textContent))?.querySelector('.sf-kv__v')?.textContent,
+        feats: document.querySelectorAll('.sf-photo-moon__feat').length,
+        planner: document.querySelector('.sf-photo-mw .sf-photo__lines')?.textContent,
+        predict: document.querySelector('.sf-photo-predict .sf-kv__v')?.textContent,
+        predictNote: document.querySelector('.sf-photo-predict .sf-photo__sub')?.textContent,
+        detailsOpen: document.querySelector('.sf-selected details.sf-details[data-term]')?.open,
+      })`),
+    );
+    if (theme === 'light') {
+      out.moon = moon;
+      check('photo: Moon card: size, libration, perigee, features on the terminator', /^\d\d\.\d′$/.test(moon.size ?? '') && /^(Tipped to show|It faces us)/.test(moon.lib ?? '') && /^\w{3} \d+ \w{3} \d\d:\d\d$/.test(moon.perigee ?? '') && moon.feats > 0, js(moon));
+      check('photo: the Milky Way planner and the predicted sextant reading', /Milky Way’s core/.test(moon.planner ?? '') && /^\d+° \d\d\.\d′$/.test(moon.predict ?? ''), js({ planner: moon.planner?.slice(0, 80), predict: moon.predict, note: moon.predictNote, open: moon.detailsOpen }));
+    }
+    await scrollPanelTo('.sf-moon', 8);
+    await sleep(400);
+    const png = await shot(`photo-desktop-${theme}-moon`);
+    const L = JSON.parse(await evaluate(LAYOUT));
+    check(`photo: Moon card, ${theme}: no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+    if (theme === 'night') {
+      const n = lightNotRed(decodePng(png));
+      check('photo: Moon card and planner in the night theme: no blue, green or white light', n.count < 50, n.count ? `${n.count} px, worst ${js(n.worst)}` : '');
+    }
+    check(`photo: Moon card, ${theme}: console clean`, noise().length === 0, noise().slice(0, 3).join(' | '));
+  }
+
+  // --- The tides line: hidden until the pack is got in Settings → Data packs -------------------
+  messages.length = 0;
+  await open(MOONLIT, { theme: 'dark' });
+  const before = await evaluate(`document.querySelector('.sf-photo-tide')?.hidden`);
+  await evaluate(`document.querySelector('button[aria-label="Settings"]').click(); true`);
+  const got = await waitFor(`Boolean(document.querySelector('.sf-packs-row[data-pack="tides-us"] button'))`, 10000);
+  if (got) await evaluate(`[...document.querySelectorAll('.sf-packs-row[data-pack="tides-us"] button')].find((b) => /Get/.test(b.textContent))?.click(); true`);
+  const shown = await waitFor(`(() => { const t = document.querySelector('.sf-photo-tide'); return t && !t.hidden && /Next high water/.test(t.textContent); })()`, 20000);
+  const tide = await evaluate(`[document.querySelector('.sf-photo-tide')?.textContent, document.querySelector('.sf-photo-tide')?.dataset.tip]`);
+  out.tide = tide?.[0];
+  check('photo: the tides line appears in Place once the tides pack is got, labelled a prediction', before === true && shown && /predicted, not observed/.test(tide?.[0] ?? '') && /NOAA/.test(tide?.[1] ?? ''), js({ before, got, tide: tide?.[0] }));
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  // Its link opens the Charts view on the Tides tab (charts2's showCharts).
+  await evaluate(`[...document.querySelectorAll('.sf-photo-tide .sf-link')].find((b) => /Tides chart/.test(b.textContent))?.click(); true`);
+  const tidesTab = await waitFor(`location.hash === '#charts' && document.querySelector('.sfc-tabs [data-tab="tides"]')?.getAttribute('aria-selected') === 'true'`, 15000);
+  check('photo: "Tides chart" opens Charts on its Tides tab', tidesTab, await evaluate(`location.hash + ' ' + (document.querySelector('.sfc-tabs [aria-selected="true"]')?.textContent ?? '')`));
+  // A planet's size in the sky (planetdetail's planet_disc).
+  await open(MOONLIT.replace('body=Moon', 'body=Jupiter'), { theme: 'dark' });
+  const jupiter = await waitFor(`[...document.querySelectorAll('.sf-selected .sf-kv')].some((r) => /Size in the sky/.test(r.textContent) && /\\d+\\.\\d″$/.test(r.querySelector('.sf-kv__v')?.textContent ?? ''))`, 10000);
+  check('photo: a planet’s size in the sky', jupiter, await evaluate(`[...document.querySelectorAll('.sf-selected .sf-kv')].find((r) => /Size in the sky/.test(r.textContent))?.textContent ?? 'no row'`));
+  check('photo: getting the tides pack: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  // --- Phone, dark: the Sun card with the finder --------------------------------------------------
+  await viewport(390, 844, true);
+  messages.length = 0;
+  await open(MANHATTAN, { theme: 'dark' });
+  await openDrawers(['.sf-photo-align']);
+  await typeInto('.sf-photo-align input[id$="-az"]', '299');
+  await evaluate(`document.querySelector('.sf-photo-align .sf-photo__find').click(); true`);
+  await waitFor(`document.querySelectorAll('.sf-photo-align .sf-photo__row').length > 0`, 20000);
+  // The layout as the other phone checks judge it, with the sheet at half height, as it
+  // opens (at full height the map's own controls lie under it, which an overlap test
+  // cannot see) ...
+  await scrollPanelTo('.sf-photo-align', 8);
+  await sleep(500);
+  const LP = JSON.parse(await evaluate(LAYOUT));
+  check('photo: phone, Sun card with the finder open: no sideways scroll, overlap or cut-off text', !LP.hscroll && !LP.overlaps.length && !LP.clipped.length && LP.underSheet <= 0, [...LP.overlaps, ...LP.clipped, LP.underSheet > 0 ? `${LP.underSheet}px under the sheet` : ''].join('; '));
+  // ... and the picture at full height, the finder's days in view.
+  await evaluate(`document.querySelector('.sf-panel__grab').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true })); true`);
+  await scrollPanelTo('.sf-photo-light', 60);
+  await sleep(500);
+  await shot('photo-phone-dark-sun');
+  check('photo: phone: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  // --- What the open drawers add to a time-bar drag (on About: no map drawing) ----------------
+  await viewport(1440, 900, false);
+  const drag = async (hash, drawers) => {
+    await open(hash, { theme: 'dark' });
+    if (drawers) await openDrawers(['.sf-when', '.sf-photo-align', '.sf-photo-mw', '.sf-selected details.sf-details[data-term]']);
+    await sleep(1500);
+    const hb = JSON.parse(await evaluate(`JSON.stringify((() => { const r = document.querySelector('.sf-ribbon__handle').getBoundingClientRect(); const t = document.querySelector('.sf-ribbon').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, right: t.right }; })())`));
+    await evaluate(`window.__f = []; (function loop(t) { window.__f.push(t); if (window.__f.length < 100000) requestAnimationFrame(loop); })(performance.now()); true`);
+    const m0 = Object.fromEntries((await send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
+    const f0 = await evaluate('window.__f.length');
+    await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: hb.x, y: hb.y, button: 'left', clickCount: 1 });
+    for (let i = 1; i <= 60; i++) {
+      await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hb.x + (hb.right - 40 - hb.x) * (i / 60), y: hb.y, button: 'left', buttons: 1 });
+      await sleep(16);
+    }
+    const m1 = Object.fromEntries((await send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
+    const frames = (await evaluate('window.__f.length')) - f0;
+    await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: hb.right - 40, y: hb.y, button: 'left', clickCount: 1 });
+    await sleep(600);
+    return +(((m1.ScriptDuration - m0.ScriptDuration) * 1000) / Math.max(1, frames)).toFixed(2);
+  };
+  // A warm-up, then each case three times, interleaved; the least of each (the machine's
+  // other work only ever adds).
+  const STAR = MOONLIT.replace('body=Moon', 'body=Sirius').replace('view=map', 'view=about');
+  const MOON = MOONLIT.replace('view=map', 'view=about');
+  await drag(MOON, true);
+  const runs = { star: [], moonClosed: [], moonOpen: [] };
+  for (let i = 0; i < 3; i++) {
+    runs.star.push(await drag(STAR, false));
+    runs.moonClosed.push(await drag(MOON, false));
+    runs.moonOpen.push(await drag(MOON, true));
+  }
+  const least = (a) => Math.min(...a);
+  out.drag = {
+    starMsPerFrame: least(runs.star),
+    moonClosedMsPerFrame: least(runs.moonClosed),
+    moonOpenMsPerFrame: least(runs.moonOpen),
+    addedByDrawersMs: +(least(runs.moonOpen) - least(runs.moonClosed)).toFixed(2),
+    addedOverStarMs: +(least(runs.moonOpen) - least(runs.star)).toFixed(2),
+    runs,
+  };
+  console.log(`info  photo: dragging the time bar on About (script ms a frame): ${js(out.drag)}`);
+  // Judged only on a machine quiet enough to measure: when even a star's frame takes more
+  // than a frame's 16 ms, other work on the machine sets the numbers, not the page.
+  if (out.drag.starMsPerFrame <= 16) {
+    check('photo: the Moon card with every drawer open adds under 5 ms of script to a time-bar frame', out.drag.addedOverStarMs < 5, js(out.drag));
+  } else {
+    console.log(`info  photo: the drawers' cost is not judged: the machine was too busy (a star's frame took ${out.drag.starMsPerFrame} ms of script)`);
+  }
+  summary.photo = out;
 }
 
 main().catch((error) => {
