@@ -10,7 +10,7 @@
 //! the exports and returns serde types (tested natively), the exports serialise them with
 //! `Serializer::json_compatible` (`None` is `null`).
 //!
-//! The one join with display-only data (CONVENTIONS 13.6 and 13.10): `occultations` adds
+//! The one join with display-only data (CONVENTIONS 13.6 and 13.12): `occultations` adds
 //! the Bright Star Catalogue's stars brighter than `max_magnitude` (from
 //! `skyfix-starfield`) to the 58 navigational stars. An occultation is an event, not a
 //! sight, so display positions are enough; `skyfix-almanac` itself never sees the star

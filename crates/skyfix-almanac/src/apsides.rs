@@ -1,6 +1,6 @@
 //! The Moon's perigees and apogees, and supermoons and micromoons.
 //!
-//! OWNER: moondetail agent (expansion programme P8). Definitions in CONVENTIONS 13.10;
+//! OWNER: moondetail agent (expansion programme P8). Definitions in CONVENTIONS 13.12;
 //! wire format in `docs/EXPLORER_API.md`, `moon_apsides`; accuracy in
 //! `docs/ACCURACY.md`, "Moon in detail".
 //!

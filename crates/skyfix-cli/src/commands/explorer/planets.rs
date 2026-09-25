@@ -5,7 +5,7 @@
 //! Engines: `skyfix_almanac::{satellites, rings, discs, transits, conjunctions,
 //! earth_apsides, orbits}` through the WASM adapter's `skyfix_wasm::planetdetail::native`;
 //! wire format EXPLORER_API.md "Expansion programme — planet detail"; definitions
-//! CONVENTIONS 13.12. `sample_custom_bodies` hands the page typed arrays; `orbit --from
+//! CONVENTIONS 13.13. `sample_custom_bodies` hands the page typed arrays; `orbit --from
 //! --to` rebuilds its object key for key.
 
 use std::io::Read;
@@ -654,7 +654,7 @@ fn render_conjunctions(r: &ConjunctionList, a: &ConjunctionsArgs, zone: &Resolve
     push_note(
         &mut out,
         "Closest approaches in apparent separation from the Earth's centre (CONVENTIONS \
-         13.12). PA is the first body seen from the second, north through east; from Sun the \
+         13.13). PA is the first body seen from the second, north through east; from Sun the \
          first body's elongation, degrees. With an observer, best is the moment within 12 \
          hours when the lower of the two stands highest with the Sun below -6 deg, and the \
          two apparent altitudes then.",

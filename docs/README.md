@@ -1,10 +1,13 @@
 # SkyFix Lab documentation
 
-SkyFix Lab is an offline celestial-navigation workbench: where the Sun, the Moon, the
-planets and the navigational stars are from any place at any time, a digital-sextant
-sight reducer, a weighted least-squares position solver that reports its own uncertainty
-and its own ambiguities, and a seeded error simulator, sharing one Rust core between a
-command-line tool and a browser app.
+SkyFix Lab is an offline celestial-navigation and astronomy workbench, from 2000 BC to
+AD 3000: where the Sun, the Moon, the planets, the stars, the deep sky and the Milky Way
+are from any place at any time; a digital-sextant sight reducer; a weighted least-squares
+position solver that reports its own uncertainty and its own ambiguities; sailings, star
+identification, magnetic variation and compass error; US tide predictions; a **Tonight**
+page and an events calendar for eclipses, occultations, transits and meteor showers; and
+a seeded error simulator — sharing one Rust core between a command-line tool and a
+browser app.
 
 **It is a simulation and analysis tool, not a navigation instrument.** Numerical agreement
 with reference data is not field accuracy — see [Accuracy and limitations](ACCURACY.md).
@@ -71,4 +74,7 @@ book; the chapters below are the current, maintained record.
 - [Completion report](COMPLETION_REPORT.md) is the sprint's final honest-state summary.
 
 For developers: [the explorer's program plan](EXPLORER_PLAN.md) and
-[its wire contract between Rust and the browser](EXPLORER_API.md).
+[its wire contract between Rust and the browser](EXPLORER_API.md); the expansion
+programme that added deep time, the new astronomy and navigation engines and the
+interface built on them is [its own plan](EXPANSION_PLAN.md) and
+[its independent verification](VERIFICATION_2.md).

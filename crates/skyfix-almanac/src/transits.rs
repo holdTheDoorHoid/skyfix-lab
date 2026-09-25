@@ -3,7 +3,7 @@
 //! Sun's limb they happen, the Sun's altitude at each and whether the transit is in
 //! progress at sunrise or sunset.
 //!
-//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.12; wire format
+//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.13; wire format
 //! `docs/EXPLORER_API.md`, "Planet detail"; accuracy `docs/ACCURACY.md`, "Planet
 //! detail".
 //!

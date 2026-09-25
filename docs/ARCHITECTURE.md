@@ -119,10 +119,18 @@ visible in the API rather than papered over.
   lives in the exit codes: an ambiguous or underdetermined result exits 0, because that
   is the correct answer to an under-constrained question and not a failure, while
   `--require-unique` exists for a script that genuinely needs one point (CLI.md,
-  "Exit codes"). The CLI computes nothing itself; every number in its output comes from
-  `skyfix-core`, `skyfix-ephemeris`, `skyfix-sim`, `skyfix-almanac` or `skyfix-motion`,
-  through the same functions the WASM exports call, so the command line and the browser
-  cannot disagree.
+  "Exit codes"). The CLI computes nothing itself. Its original commands (`validate`,
+  `reduce`, `solve`, `catalog`, `coverage`, `convert`, `demos`, `simulate`, `experiment`,
+  `plan`, and the first explorer commands) call `skyfix-core`, `skyfix-ephemeris`,
+  `skyfix-sim`, `skyfix-almanac` or `skyfix-motion` directly. The expansion programme's
+  commands (docs3, 2026-09-25: sun tools, magnetic variation, sailings and star
+  identification, time scales, deep time, packs, the Moon and planets in detail, deep
+  sky, tides, the lunar limb, the almanac's other tables) instead call
+  `skyfix_wasm::<module>::native`, the WASM adapter's own layer with no `wasm-bindgen`
+  wrapper around it (`skyfix-cli` depends on `skyfix-wasm` for exactly this), so their
+  `--format json` output is the same document the browser's export returns. Either way
+  every number comes from the same engine functions the WASM exports call, so the
+  command line and the browser cannot disagree.
 - **`skyfix-wasm`** is a `wasm-bindgen` adapter, JSON in and JSON out, exposing
   `skyfix-core`, `skyfix-ephemeris` and `skyfix-sim` to the browser with no feature gates
   and no stubs. Its honesty rule: every export is backed by real code, so a call that

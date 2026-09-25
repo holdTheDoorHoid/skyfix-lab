@@ -736,8 +736,8 @@ describe.skipIf(!hasPackage)('the Sky view’s layers on the built WebAssembly p
   });
 });
 
-// --- verify2: ACCURACY §20's two Milky Way figures, measured on the engine's rings ----------
-describe.skipIf(!hasPackage)('the Milky Way rings against ACCURACY §20 (verify2)', () => {
+// --- verify2: ACCURACY §26's two Milky Way figures, measured on the engine's rings ----------
+describe.skipIf(!hasPackage)('the Milky Way rings against ACCURACY §26 (verify2)', () => {
   let load: WasmLoad;
   beforeAll(async () => {
     const glue = (await import(/* @vite-ignore */ pathToFileURL(GLUE_FILE).href)) as { initSync: (i: { module: BufferSource }) => unknown; init?: () => void };

@@ -2113,8 +2113,8 @@ A historical or far-future estimate (the labelled tier, CONVENTIONS 15.1): every
 
 ## The Moon in detail
 
-`skyfix_almanac::{libration, lunar_features, apsides, occultations}` (CONVENTIONS 13.10;
-`docs/ACCURACY.md` section 14). Selenographic longitudes are east positive, toward Mare
+`skyfix_almanac::{libration, lunar_features, apsides, occultations}` (CONVENTIONS 13.12;
+`docs/ACCURACY.md` section 18). Selenographic longitudes are east positive, toward Mare
 Crisium.
 
 ### `skyfix moon-orientation [--lat --lon [--height]] --utc`
@@ -2385,7 +2385,7 @@ Sky        naked-eye limit 6.8 at the zenith (Bortle 3), extinction k = 0.25 mag
 ## Planets in detail
 
 `skyfix_almanac::{satellites, rings, discs, transits, conjunctions, earth_apsides,
-orbits}` (CONVENTIONS 13.12; `docs/ACCURACY.md` section 17).
+orbits}` (CONVENTIONS 13.13; `docs/ACCURACY.md` section 21).
 
 ### `skyfix galilean-moons --utc` and `skyfix galilean-events --from --to [--zone]`
 
@@ -2553,7 +2553,7 @@ Time       2026-09-24T12:00:00Z
 
 ## Tides
 
-`skyfix_tides` on the `tides-us` pack (CONVENTIONS 13.11; `docs/ACCURACY.md` section 16):
+`skyfix_tides` on the `tides-us` pack (CONVENTIONS 13.11; `docs/ACCURACY.md` section 20):
 NOAA's 3499 US stations. Predictions, not observations: weather and surge are not
 included, and every report says so. Heights are metres and feet above `--datum` (the
 station's own, MLLW, by default).
@@ -2655,7 +2655,7 @@ Stations   3499 (1256 harmonic, 2243 subordinate)
 ## The lunar limb
 
 `skyfix_almanac::eclipses::limb` on the `lunar-limb` pack (CONVENTIONS 15.7;
-`docs/ACCURACY.md` section 19): the Moon's mountains and valleys at its edge, from LRO
+`docs/ACCURACY.md` section 25): the Moon's mountains and valleys at its edge, from LRO
 LOLA topography.
 
 ### `skyfix eclipse <ID> --lat --lon --limb`

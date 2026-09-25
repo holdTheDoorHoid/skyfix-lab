@@ -5,7 +5,7 @@
 //! the WASM adapter's `skyfix_wasm::moondetail::native` (which joins the Bright Star
 //! Catalogue's stars to the occultation targets, display data, CONVENTIONS 13.6); wire
 //! format EXPLORER_API.md "Expansion programme P8 — the Moon in detail"; definitions
-//! CONVENTIONS 13.10. The astronomy is the explorer's with DUT1 = 0, as the site's.
+//! CONVENTIONS 13.12. The astronomy is the explorer's with DUT1 = 0, as the site's.
 
 use anyhow::Result;
 use serde_json::{Value, json};

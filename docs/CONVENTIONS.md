@@ -4,6 +4,50 @@ This file is normative. If code and this file disagree, the code is wrong until
 this file is amended in the same change. Every numerical module must cite the
 section it implements.
 
+## Contents
+
+1. [Units and angles](#1-units-and-angles)
+2. [Coordinates and sign conventions](#2-coordinates-and-sign-conventions)
+3. [Sight reduction on the sphere](#3-sight-reduction-on-the-sphere-skyfix-core-geometry)
+4. [Altitude kinds — corrections can never run twice](#4-altitude-kinds--corrections-can-never-run-twice)
+5. [Correction chain, order and signs](#5-correction-chain-order-and-signs-skyfix-core-corrections)
+6. [Time](#6-time)
+7. [Frames](#7-frames)
+8. [Solver](#8-solver-skyfix-core-solver)
+9. [Uncertainty](#9-uncertainty-skyfix-core-uncertainty)
+10. [Session JSON, schema `skyfix.session/1`](#10-session-json-schema-skyfixsession1)
+11. [Reference fixtures, schema `skyfix.reference/1`](#11-reference-fixtures-schema-skyfixreference1)
+12. [Warnings vocabulary](#12-warnings-vocabulary)
+13. [Explorer: bodies, topocentric display values, events and display-only data](#13-explorer-bodies-topocentric-display-values-events-and-display-only-data)
+    - 13.1 [Bodies](#131-bodies)
+    - 13.2 [Topocentric display altitude and azimuth](#132-topocentric-display-altitude-and-azimuth)
+    - 13.3 [Rise, set, transit and twilight](#133-rise-set-transit-and-twilight)
+    - 13.4 [Sky phases](#134-sky-phases)
+    - 13.5 [Moon phases, illumination and seasons](#135-moon-phases-illumination-and-seasons)
+    - 13.6 [Display-only data](#136-display-only-data)
+    - 13.7 [Accuracy targets and validation](#137-accuracy-targets-and-validation)
+    - 13.8 [Displayed time](#138-displayed-time)
+    - 13.9 [Daily almanac pages](#139-daily-almanac-pages)
+      - 13.9.1 [The almanac's other tables and three-day openings](#1391-the-almanacs-other-tables-and-three-day-openings-almanac2-agent-expansion-programme-q7)
+    - 13.10 [Sun tools](#1310-sun-tools-expansion-programme-suntools-agent-2026-09-24)
+    - 13.11 [Tides](#1311-tides-tides-agent-expansion-programme)
+    - 13.12 [The Moon in detail](#1312-the-moon-in-detail-expansion-programme-p8-moondetail-agent)
+    - 13.13 [Planet detail](#1313-planet-detail-expansion-programme-p9-planetdetail-agent)
+    - 13.14 [A bearing picked on the map](#1314-a-bearing-picked-on-the-map-photo-agent-expansion-programme-q8)
+14. [Navigation methods: noon sight, Polaris, averaging, running fix](#14-navigation-methods-noon-sight-polaris-averaging-running-fix)
+    - 14.1 [Magnetic variation](#141-magnetic-variation-skyfix_geomag-expansion-programme-geomag-agent)
+    - 14.2 [Compass error](#142-compass-error-skyfix_coremethodscompass-expansion-programme-geomag-agent)
+15. [Deep time: coverage tiers, time scales and calendars](#15-deep-time-coverage-tiers-time-scales-and-calendars-expansion-programme-2026-09-24)
+    - 15.1 [Tiers](#151-tiers)
+    - 15.2 [Time scales](#152-time-scales)
+    - 15.3 [Calendars and years](#153-calendars-and-years)
+    - 15.4 [The Moon's Earth-shape term](#154-the-moons-earth-shape-term-exception-to-1-and-5)
+    - 15.5 [Packs](#155-packs)
+    - 15.6 [Deep time in the interface](#156-deep-time-in-the-interface-time-ui-agent-wave-2)
+    - 15.7 [The lunar limb](#157-the-lunar-limb-expansion-programme-p12-eclipselimb-agent)
+    - 15.8 [Calendar files, tables and the Events view's own rules](#158-calendar-files-tables-and-the-events-views-own-rules-events2-agent-wave-2)
+    - 15.9 [Shared settings and channels across views](#159-shared-settings-and-channels-across-views-polish2-expansion-programme)
+
 ## 1. Units and angles
 
 - **Internal Rust APIs use radians (`f64`).** Field and parameter names carry the
@@ -242,7 +286,7 @@ low-altitude term above.
   same frame.
 - **The Sun is the VSOP87A Earth** (the planets' own Earth, with the corrections fitted to
   DE440 and DE441), reversed, with light-time and relativistic vector aberration; the
-  planets are VSOP87A likewise; the Moon is ELP/MPP02 (§15.1, ACCURACY §21).
+  planets are VSOP87A likewise; the Moon is ELP/MPP02 (§15.1, ACCURACY §31).
 - **Stars move rigorously**: rectilinear space motion from the Hipparcos epoch J1991.25
   with each star's radial velocity (perspective acceleration included; SIMBAD values).
   **Rigil Kentaurus is alpha Centauri A**, the body the Nautical Almanac tabulates, and
@@ -250,7 +294,7 @@ low-altitude term above.
   2021): the barycentre moves on a straight line with A's catalogue proper motion less
   A's orbital velocity at J1991.25, so at that epoch the model is the catalogue. The
   Almanac and USNO's celnav extrapolate A's 1991 motion in a straight line instead; the
-  two differ by 5.8" in 2026 and 17" in 2060 (ACCURACY §21, "Rigil Kentaurus"). A sextant
+  two differ by 5.8" in 2026 and 17" in 2060 (ACCURACY §31, "Rigil Kentaurus"). A sextant
   sees the A+B light centre, about 2" from A in 2026; that is not modelled.
 
 ## 8. Solver (skyfix-core `solver`)
@@ -491,7 +535,7 @@ planner's navigation candidates or any accuracy claim. Enforced by crate boundar
 body's constellation: `skyfix-wasm` (the `sky_state` export) and `skyfix-cli` (the
 constellation column of `skyfix sky`).
 (Expansion P8: the WASM adapter also passes the star field's bright stars to the lunar
-occultation search as catalogue places, an event rather than a sight; see 13.10.)
+occultation search as catalogue places, an event rather than a sight; see 13.12.)
 
 **Deep sky (deepsky agent, expansion programme, 2026-09-24).** The deep-sky object table,
 the meteor-shower table, the Milky Way outline, the IAU WGSN star names and every model
@@ -569,7 +613,7 @@ catalogue's formal 1-sigma at the
 tier's edges; Rigil Kentaurus's barycentric motion apart). In the **labelled tier** the
 figures are measured and published but carry no target (display only, no sights): Sun
 0.02, Moon 0.05, Mercury 0.02, Venus 0.06, Mars 0.15, Jupiter 0.25, Saturn 0.7, Uranus 0.2,
-Neptune 0.06, stars 0.2. `docs/ACCURACY.md` section 21 has the table per half-century and
+Neptune 0.06, stars 0.2. `docs/ACCURACY.md` section 31 has the table per half-century and
 per century they come from, and `crates/skyfix-ephemeris/tests/deeptime_reference.rs`
 asserts every case against them.
 
@@ -585,7 +629,8 @@ gazetteer and overridable; the nautical zone time for positions at sea
 `skyfix_almanac::pages` gives, for one UT calendar date, what the Nautical Almanac's two
 facing daily pages give (wire format: EXPLORER_API.md "Wave 2 — almanac pages").
 
-- **Argument.** UT is UTC with DUT1 = 0 (section 6); the printed almanac's is UT1.
+- **Argument.** UT is UT1 (section 15.2): the engine's `Sky` keeps DUT1 = 0 so that each
+  row's clock instant is its own UT1, as in the printed almanac.
 - **Hourly values**, 00h to 23h: exact evaluations. GHA Aries is the Sun's `GHA + RA`.
 - **v** (arcmin) = mean hourly increase of GHA minus the adopted rate: 15° for the planets
   (mean over 00h to 24h), 14° 19.0' for the Moon (from each hour to the next). **d** =
@@ -826,7 +871,7 @@ observations: weather, surge and river flow are not included, and every result s
 - **Nearest stations.** Great-circle distance on the sphere of radius 6371.0088 km
   (under 0.5 % from the ellipsoid's), and the initial bearing from the place.
 
-### 13.10 The Moon in detail (expansion programme P8, moondetail agent)
+### 13.12 The Moon in detail (expansion programme P8, moondetail agent)
 
 `skyfix_almanac::{libration, lunar_features, apsides, occultations}`; wire format in
 `docs/EXPLORER_API.md`, "Expansion programme P8 — the Moon in detail". Display only: none
@@ -888,7 +933,7 @@ of it feeds sight reduction.
   arcsecond positions are worth a couple of seconds of time. `skyfix-almanac` still does
   not depend on `skyfix-starfield`.
 
-### 13.12 Planet detail (expansion programme P9, planetdetail agent)
+### 13.13 Planet detail (expansion programme P9, planetdetail agent)
 
 `skyfix_almanac::{discs, rings, satellites, transits, conjunctions, earth_apsides,
 orbits}`; wire format EXPLORER_API.md "Expansion programme — planet detail"; accuracy
@@ -972,7 +1017,7 @@ ACCURACY.md "Planet detail". Display and planning only: nothing here enters `red
   staleness warning. Custom bodies are points: no semidiameter, illuminated fraction or
   bright limb.
 
-### 13.13 A bearing picked on the map (photo agent, expansion programme Q8)
+### 13.14 A bearing picked on the map (photo agent, expansion programme Q8)
 
 The Selected card's bearing tools ("When is it at…?" by bearing, the alignment finder)
 take a bearing typed in degrees from true north, `[0, 360)`, or the direction from the
@@ -1245,7 +1290,10 @@ core module never depends on one.
 
 Refined by the deeptime agent (2026-09-25): the `deep-time` pack above was not built. Both
 tiers ship in the core module (15.1), no `deep-time` producer is registered, and no pack is
-needed or offered for a date between 2000 BC and AD 3000.
+needed or offered for a date between 2001 BC (astronomical year −2000, this section's
+lower bound) and AD 3000. Docs3, 2026-09-25: this document, `ACCURACY.md` and
+`EXPANSION_PLAN.md` said "2000 BC" for that bound; astronomical year 0 is 1 BC, so −2000
+is 2001 BC, not 2000 BC, and every later mention here uses 2001 BC.
 
 Refined by the packs agent (2026-09-24; the mechanism: EXPLORER_API "Packs — the mechanism
 as built"):
@@ -1330,7 +1378,7 @@ every eclipse quantity (section 13). Without the pack every result is the mean l
   side that appears in the east of the sky) and distance `delta` from the mean limb
   (the great circle `x = 0`; positive toward the Earth), `(sin delta, -sin alpha cos
   delta, cos alpha cos delta)`, 1/16° apart, `delta` within ±12°, heights to 5 m.
-- **Frame.** The Moon's orientation is 13.10's (Meeus/Eckhardt with DE440's figure-to-mean
+- **Frame.** The Moon's orientation is 13.12's (Meeus/Eckhardt with DE440's figure-to-mean
   tilt), already the mean Earth/polar axis frame; NAIF's `MOON_ME_DE440_ME421` is aligned
   with DE421's to about 1 m, so no rotation is applied between the ring and the model. The
   principal-axis frame is 0.029° (875 m) away and is not used.
@@ -1470,7 +1518,7 @@ kept its own:
   (`.sf-stage__fill`), so a notice never covers a view's controls. On a phone every notice
   starts folded to one line.
 - **A far date's limits in words:** an engine's refusal of an instant outside its years
-  ("… outside … <ISO> .. <ISO>") is shown through `rangeWords` (`time/tier.ts`) as "1550 to
+  (`"… outside … <ISO> .. <ISO>"`) is shown through `rangeWords` (`time/tier.ts`) as "1550 to
   2650". Each view says in one sentence what it cannot show and for which years; it never
   shows the engine's raw message. A test scans the interface's source to hold the wording:
   no fixed 1990/2060, no "(UTC)" beside a time that may be UT, no `Date.UTC`, and no Deep

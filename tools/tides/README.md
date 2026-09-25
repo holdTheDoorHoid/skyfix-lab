@@ -4,7 +4,7 @@ Development-time only: nothing here runs in the app, and nothing needs anything 
 the Python 3 standard library and `cargo`. The runtime is `crates/skyfix-tides` (the
 predictions) and `crates/skyfix-wasm/src/tides.rs` (the browser exports); the pack is
 data they load. Definitions: `docs/CONVENTIONS.md` 13.11; wire format and pack payload:
-`docs/EXPLORER_API.md`, "Tides"; measured accuracy: `docs/ACCURACY.md` section 16;
+`docs/EXPLORER_API.md`, "Tides"; measured accuracy: `docs/ACCURACY.md` section 20;
 sources and licence: `docs/THIRD_PARTY.md`, "Tides".
 
 ## The pipeline
