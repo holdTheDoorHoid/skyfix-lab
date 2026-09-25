@@ -266,12 +266,12 @@ pub fn compass_error(
     let obs = req.observer;
     let body = req.body.trim().to_string();
     let direction = |jd: f64| -> Result<GeocentricDirection, SkyfixError> {
-        source
-            .direction(&body, jd)
-            .map_err(|reason| SkyfixError::NoDirection {
-                id: body.clone(),
-                reason,
-            })
+        source.direction(&body, jd).map_err(|reason| {
+            SkyfixError::Other(format!(
+                "no direction for the {body} at {}: {reason}",
+                format_utc(jd)
+            ))
+        })
     };
     let mut notes: Vec<String> = Vec::new();
     let (jd, true_bearing, azimuth, amplitude) = match req.method {
