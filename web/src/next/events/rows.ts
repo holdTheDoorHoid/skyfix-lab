@@ -143,6 +143,19 @@ export interface Split {
 }
 
 /** A list with a card beside it (under the chosen row on a narrow stage), like the eclipses. */
+/**
+ * Beside a list on a wide stage, the card opens level with its row rather than at the top
+ * of its column (a year of occultations or showers runs far below the screen, and a card
+ * at the top would open out of sight): the column is padded down to the row. No row, or a
+ * narrow stage (the card goes under its row), and the padding goes.
+ */
+export function alignCard(aside: HTMLElement, list: HTMLElement, row: HTMLElement | null, narrow: boolean): void {
+  let offset = 0;
+  if (!narrow && row && row.isConnected) offset = Math.max(0, Math.round(row.getBoundingClientRect().top - list.getBoundingClientRect().top));
+  const now = Number.parseFloat(aside.style.paddingTop) || 0;
+  if (Math.abs(now - offset) > 1) aside.style.paddingTop = offset ? `${offset}px` : '';
+}
+
 export function splitView(root: HTMLElement): Split {
   const list = h('div', { class: 'sfe-listcol' });
   const aside = h('div', { class: 'sfe-cardcol' });
@@ -158,6 +171,7 @@ export function splitView(root: HTMLElement): Split {
     const target = narrow && row ? row : aside;
     if (card.parentElement !== target) target.append(card);
     if (aside.hidden !== narrow) aside.hidden = narrow;
+    alignCard(aside, list, row, narrow);
   };
   let ro: ResizeObserver | null = null;
   if (typeof ResizeObserver === 'function') {

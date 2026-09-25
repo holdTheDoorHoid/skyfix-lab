@@ -135,9 +135,19 @@ const view: Component = (host, ctx) => {
     ),
   );
   const pressed = new Set<number>();
+  // After a request from another view that names an event, its row is brought into view once
+  // the list has it (a calendar such as the meteor showers' does not start at the event);
+  // given up after a while, or as soon as the person touches the page, scrolls or types.
+  let reveal: { until: number; timer: ReturnType<typeof setTimeout> | null } | null = null;
+  const stopReveal = (): void => {
+    if (reveal?.timer) clearTimeout(reveal.timer);
+    reveal = null;
+  };
+  d.add(stopReveal);
   if (typeof document !== 'undefined') {
     const down = (e: PointerEvent): void => {
       pressed.add(e.pointerId);
+      stopReveal();
     };
     const up = (e: PointerEvent): void => {
       pressed.delete(e.pointerId);
@@ -146,11 +156,15 @@ const view: Component = (host, ctx) => {
     document.addEventListener('pointerdown', down, true);
     document.addEventListener('pointerup', up, true);
     document.addEventListener('pointercancel', up, true);
+    document.addEventListener('wheel', stopReveal, { capture: true, passive: true });
+    document.addEventListener('keydown', stopReveal, true);
     window.addEventListener('blur', clear);
     d.add(() => {
       document.removeEventListener('pointerdown', down, true);
       document.removeEventListener('pointerup', up, true);
       document.removeEventListener('pointercancel', up, true);
+      document.removeEventListener('wheel', stopReveal, { capture: true });
+      document.removeEventListener('keydown', stopReveal, true);
       window.removeEventListener('blur', clear);
     });
   }
@@ -259,9 +273,27 @@ const view: Component = (host, ctx) => {
   // --- Requests from other views (link.ts `showEvents`): one waiting when the view mounts is
   // answered before the first tab mounts; later ones at once.
   const requests = eventsRequests(ctx.store);
+  const tryReveal = (): void => {
+    if (!reveal) return;
+    // Once the list has stopped growing (rows above it would push it away).
+    const busy = panel.querySelector('[data-state="searching"], [data-local="pending"], [data-search="searching"]');
+    const row = busy ? null : panel.querySelector<HTMLElement>('.sfe-ev2--selected, .sfe-eclipses [aria-current="true"]');
+    if (row) {
+      // Already in sight (an event heading its list): leave the page as it is. Otherwise its
+      // row at the top, with the card level with it (rows.ts `alignCard`).
+      const r = row.getBoundingClientRect();
+      const box = root.getBoundingClientRect();
+      if (r.top < box.top || r.bottom > box.bottom) row.scrollIntoView({ block: 'start' });
+      stopReveal();
+    } else if (Date.now() > reveal.until) stopReveal();
+    else reveal.timer = setTimeout(tryReveal, 150);
+  };
   const answer = (): void => {
     const r = requests.take();
-    if (r) ui.patch(requestPatch(r));
+    if (!r) return;
+    ui.patch(requestPatch(r));
+    stopReveal();
+    if (r.ref.id) reveal = { until: Date.now() + 15_000, timer: setTimeout(tryReveal, 100) };
   };
   answer();
   d.add(requests.subscribe((r) => r && answer()));

@@ -53,6 +53,7 @@ import { errorText, watchAll, type EclipseYears, type TabComponent, type TabEnv 
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, utcDate } from './items.js';
 import { coverageKey, coverageSpan } from './listtab.js';
+import { alignCard } from './rows.js';
 import { progressText, type SearchState } from './search.js';
 import { eclipseItem } from './sky-model.js';
 import { clearEclipse, eclipseOnMap, lunarOverlays, showEclipse, solarOverlays } from './mapping.js';
@@ -768,6 +769,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
   const status = h('p', { class: 'sfe-status', role: 'status', 'aria-live': 'polite' });
   const list = h('div', { class: 'sfe-list' });
   const aside = h('div', { class: 'sfe-cardcol' });
+  const listCol = h('div', { class: 'sfe-listcol' }, status, list);
   // The file holds the eclipses listed, with what the place sees of each when it is known.
   const save = exportMenu(ctx, ui, {
     title: () => `Eclipses, ${ui.get().eclipseDirection === 'upcoming' ? 'next' : 'last'} ${ui.get().eclipseYears} years`,
@@ -782,7 +784,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
   d.add(() => save.destroy());
   root.append(
     h('div', { class: 'sfe-controls' }, direction.el, reach.el, kind.el, seen, save.el),
-    h('div', { class: 'sfe-split' }, h('div', { class: 'sfe-listcol' }, status, list), aside),
+    h('div', { class: 'sfe-split' }, listCol, aside),
   );
 
   // --- Data --------------------------------------------------------------------------------
@@ -1135,6 +1137,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
     const target = inline ? row.item : aside;
     if (cardEl.parentElement !== target) target.append(cardEl);
     if (aside.hidden !== narrow) aside.hidden = narrow;
+    alignCard(aside, listCol, cardEl.classList.contains('sfe-card--empty') ? null : (row?.item ?? null), narrow);
   };
 
   // Layout: the card moves under its row when the stage is narrow.
