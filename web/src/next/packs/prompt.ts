@@ -4,7 +4,7 @@
  * the keyboard away from what the person was doing. OWNER: packs agent.
  *
  *   Positions before 1550 need the Deep time pack.
- *   Deep time: positions from 2000 BC to AD 3000.
+ *   Deep time: Positions from 2000 BC to AD 3000.
  *   0.4 MB, downloaded once and saved on this device.           [Not now] [Get]
  *
  * then the download's progress with Stop, then "saved" for a moment. Offline, the second
@@ -75,7 +75,8 @@ export function domPrompter(doc: Document = document): Prompter {
       const size = formatBytes(request.bytes);
       const describe = (offline: boolean): void => {
         detail.replaceChildren(
-          request.description ? `${request.label}: ${sentence(request.description.charAt(0).toLowerCase() + request.description.slice(1))} ` : '',
+          // The description as its producer wrote it (never re-cased: "US tides", "NOAA").
+          request.description ? `${request.label}: ${sentence(request.description)} ` : '',
           offline
             ? `${size}. You are offline, and it is not saved on this device yet.`
             : `${size}, downloaded once and saved on this device.`,
