@@ -104,11 +104,14 @@ copy covers is in About), and the time bar says what changes as you go back or f
   known only that well, so every clock time carries that uncertainty (the positions of the
   bodies among the stars do not). It appears when the uncertainty passes 30 seconds —
   before about AD 700 and after about 2100 — and always on estimated years.
-- **Outside the checked years** a message says so: dates the core does not cover show
-  nothing, with the years it does cover; years only estimated (with the optional Deep time
-  data pack) say *Historical estimate* or *Far-future estimate*, and sights are offered only
-  in the checked years. Messages take their own strip above the view, never covering its
-  buttons; on a phone each is folded to its first line, and its arrow shows the rest.
+- **Outside the checked years** a message says so: dates outside 2000 BC to AD 3000 show
+  nothing, with the years the copy you are using covers; years only estimated — outside
+  1550 to 2650, no download needed — say *Historical estimate* or *Far-future estimate*,
+  and sights are offered only in the checked years, 1550 to 2650. Messages take their own
+  strip above the view, never covering its buttons; on a phone each is folded to its first
+  line, and its arrow shows the rest. Eclipses and the planets' oppositions, conjunctions,
+  elongations and transits (Events) still search 1990 to 2060 only, narrower than the rest
+  of the site: a search past those years says so and stops there, in both directions.
 
 **Keyboard shortcuts**, usable anywhere on the page (they are also listed under the
 **?** Help button in the top bar):
@@ -255,7 +258,9 @@ figures, the planets, the Moon with its correct phase, and the sky's own colour 
 the Sun. A **South up** switch flips the dome for the southern hemisphere. **Zoom the dome**
 with the mouse wheel, a pinch, the **+** and **−** buttons or keys, and drag to move around
 a zoomed chart; fainter stars get their names and fainter deep-sky objects appear as you
-zoom in, and **Whole sky** (or the 0 key) goes back. Everything on
+zoom in, and **Whole sky** (or the 0 key) goes back. The stars are drawn only for 1550 to
+2650; further from today the dome shows the Sun, the Moon and the planets against a bare
+sky and says why. Everything on
 this view is for looking and finding — see [Third-party sources](THIRD_PARTY.md), "Star
 field and constellations" and "Deep sky" — and none of it ever affects a fix.
 
@@ -373,6 +378,10 @@ the view shows, and the site's line. It stays on your device.
 One page for the night at your place, for anyone going out to look: when it gets dark,
 the Moon, the planets, the best deep-sky objects, meteor showers, the Milky Way, the next
 two weeks' events, the nearest tide station and the photographers' golden and blue hours.
+The darkness window and the Moon work for the full 2000 BC to AD 3000; the planets, the
+deep-sky ranking, meteor showers and the Milky Way's best moment are worked out only for
+1550 to 2650, and the page says so plainly rather than leaving those lines blank when you
+are further from today than that.
 
 **Which night.** A night runs from one local noon to the next (noon by the Sun at your
 longitude, as the deep-sky engine counts it). The page shows the night the explorer's time
@@ -647,10 +656,12 @@ disc of the navigational stars with the altitude-azimuth template for your latit
 it, turned to LHA ♈ as the time bar moves; it prints on two sheets (the template on
 transparency). Everything prints black on white; on screen the night theme stays red.
 
-Sights are offered only between 1990 and 2060 today, the span the almanac is validated for
-(1550–2650 once the deep-time work is merged); outside it the sight form says why and does
-not add the sight, and Tonight's sights, the planner and the Compass tab's bearings say the
-same. Type a sight's date in the calendar the page shows: before 15 October 1582 that is the
+Sights are offered only between 1550 and 2650, the span the almanac is validated for;
+outside it the sight form says why and does not add the sight, and Tonight's sights, the
+planner and the Compass tab's bearings say the same. Between 2000 BC and 1550, and
+between 2650 and AD 3000, positions are shown — labelled as historical or far-future
+estimates — but a sight cannot be worked from them. Type a sight's date in the calendar
+the page shows: before 15 October 1582 that is the
 Julian calendar (unless Settings → Calendar says ISO). Times read **UTC** from 1972 to 2035
 and **UT** outside, and a **± chip** beside a sight's time means the Earth's rotation then is
 known only that well: every fix's longitude moves with it, 15″ for each second.
@@ -859,6 +870,61 @@ Chrome or Edge; "Add to Home Screen" from the Share menu on an iPhone or iPad. I
 its own window at the explorer, and works offline in the same way. A copy installed before
 the switch-over (when the explorer was at `/next/`) is the same app and opens the home
 page.
+
+## For astronomers, in five minutes
+
+New to the site, and here for the sky rather than the sextant? Five stops:
+
+1. Open **Tonight** (see [Tonight](#tonight)) for your place. It reads like a page written
+   for you this evening: when it gets properly dark, the Moon, which planets are up and
+   when, the night's best deep-sky objects for the sky you actually have, any meteor
+   shower active, and whether the Milky Way's core clears your horizon in the dark.
+2. Press **Show in Sky** on anything there to see it on the chart (see [Sky](#sky)): the
+   real stars and constellation figures, the Milky Way as a soft glow, and the deep-sky
+   objects sized and marked the way a star atlas marks them. **Find** (the magnifier) takes
+   any name — a star, "M31", "Perseids" — and **Layers** turns on the RA/Dec grid, a
+   field-of-view circle for your own binoculars or telescope, and how dark a sky to assume.
+3. Click a planet or the Moon and press **See it up close** for Jupiter's moons and belts,
+   Saturn's rings at their true tilt, or the Moon's terminator and named features — the
+   same inset the Moon and planet cards in the side panel open.
+4. Open **Events** (see [Events](#events)) for what is coming: eclipses, occultations,
+   conjunctions, meteor-shower peaks, transits. Everything there can be saved to your own
+   calendar or as a table.
+5. **Charts → Sun** and **Charts → Moon** (see [Charts](#charts)) turn a year of positions
+   into one picture: the analemma, the Sun's path, how high the Moon stands through the
+   year.
+
+Nothing here is a sight or a fix — it is all for looking and finding, never for steering by
+— so none of it needs the navigator's vocabulary at all; **Navigator's terms**, in
+Settings, is off by default for exactly that reason.
+
+## For photographers, in five minutes
+
+Here for golden light and the right alignment, not the numbers behind them? Five stops:
+
+1. Set your place (see [Setting a place](#setting-a-place)), then look at the thin strip
+   along the time ribbon's top edge: it marks **golden hour** and **blue hour** for today
+   (see [Moving through time](#moving-through-time)). Select the Sun and the side panel's
+   card gives both, morning and evening, with the length of the day.
+2. **Sunrise or sunset along a line**, folded out under the Selected card (see [The
+   selected body](#the-selected-body)), finds the days of the year the Sun (or the Moon)
+   rises, sets, or stands at a height you choose, along a bearing you type or pick on the
+   map — down a street, over a skyline. The worked example is exactly this: [Manhattanhenge](#worked-example-manhattanhenge).
+3. **Milky Way planner**, on the Moon or a dark-sky night, gives the best moment the
+   galactic core clears your horizon in full darkness, which way its arch runs, and the
+   best Moon-free nights of the month; **Tonight**'s own Milky Way line does the same for
+   this evening with **Plan a photo**.
+4. **Charts → Sun** (see [Charts](#charts)) has the sun path, the analemma (the figure-8 a
+   fixed camera would record at one clock time all year), sunrise and sunset bearings
+   through the year, and the equation of time; **Charts → Moon**'s "Through the year" shows
+   where the full Moon sits at one evening hour across the seasons.
+5. **Save the sky as a picture** on the Sky view keeps the chart itself, with a caption
+   saying what it shows and when; every chart's own **Save** menu makes a captioned PNG the
+   same way (see [Saving, printing and sharing a chart](#saving-printing-and-sharing-a-chart)).
+
+Bearings here are the true ones a compass rose or a chart gives; a place picked on the map
+uses the real, slightly flattened Earth, not a sphere, so a line aimed at a landmark a few
+blocks or a few miles off points where that landmark actually is.
 
 ## Celestial navigation in five minutes
 
