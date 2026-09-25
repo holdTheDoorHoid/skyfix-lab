@@ -9,3 +9,7 @@ pub mod events;
 pub mod pages;
 pub mod planet_events;
 pub mod sky;
+
+// Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod libration;
+pub mod lunar_features;
