@@ -1679,3 +1679,389 @@ export interface PackService {
   status(): PackStatus[];
   remove(name: string): Promise<void>;
 }
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — deep sky (deepsky agent, 2026-09-24). Rust:
+// crates/skyfix-wasm/src/deepsky.rs over skyfix_starfield::{dso, showers, milkyway,
+// search, extinction, tonight}. Wire format: EXPLORER_API.md, "Expansion programme —
+// deep sky". Display-only data (CONVENTIONS 13.6): nothing here is a sight, and every
+// ranking, rate and limiting magnitude is a labelled estimate.
+// ---------------------------------------------------------------------------------
+
+export type DsoType =
+  | 'open_cluster'
+  | 'globular_cluster'
+  | 'planetary_nebula'
+  | 'emission_nebula'
+  | 'reflection_nebula'
+  | 'supernova_remnant'
+  | 'cluster_with_nebula'
+  | 'spiral_galaxy'
+  | 'elliptical_galaxy'
+  | 'lenticular_galaxy'
+  | 'irregular_galaxy'
+  | 'double_star'
+  | 'asterism'
+  | 'star_cloud';
+
+/** What the Sky view draws a symbol for. */
+export type DsoCategory = 'cluster' | 'nebula' | 'galaxy' | 'other';
+
+/** One deep-sky object (the 110 Messier objects and 103 others). */
+export interface Dso {
+  /** Stable id: "M31", "NGC869", "IC2602", "Mel25", "LMC". */
+  id: string;
+  /** As printed: "M31", "NGC 869". */
+  label: string;
+  name: string | null;
+  type: DsoType;
+  category: DsoCategory;
+  /** IAU abbreviation. */
+  constellation: string;
+  /** ICRS (J2000). */
+  ra_j2000_deg: number;
+  dec_j2000_deg: number;
+  /** Integrated V; null for nebulae without a meaningful one. */
+  magnitude: number | null;
+  /** Rounded apparent size, arcminutes (display only). */
+  major_arcmin: number;
+  minor_arcmin: number;
+  description: string;
+  /** Other catalogue numbers: ["NGC 224"]. */
+  cross_ids: string[];
+}
+
+export interface DsoCatalog {
+  objects: Dso[];
+  source: string;
+}
+
+export interface DsoListOptions {
+  /** Categories or types to keep; empty keeps everything. */
+  kinds?: (DsoCategory | DsoType)[];
+  /** Keep objects at least this bright (objects without a magnitude are kept). */
+  max_magnitude?: number | null;
+  /** With an observer: only objects above the horizon now. */
+  above_horizon?: boolean;
+}
+
+/** Places at one instant, aligned with `index` (positions in `dsoCatalog().objects`). */
+export interface DsoPositions {
+  jd_utc: number;
+  index: Int32Array;
+  /** Apparent geocentric of date, the frame of `sky_state`. */
+  ra_deg: Float64Array;
+  dec_deg: Float64Array;
+  /** With an observer; null without one. */
+  alt_deg: Float64Array | null;
+  az_deg: Float64Array | null;
+  alt_apparent_deg: Float64Array | null;
+}
+
+/** The observer's sky: `nelm` wins over `bortle`; with neither, Bortle 5. */
+export interface SkyConditionsInput {
+  /** 1 (darkest) to 9. */
+  bortle?: number | null;
+  /** Naked-eye limiting magnitude at the zenith, 1 to 8. */
+  nelm?: number | null;
+  /** Extinction coefficient in V, 0.2 to 0.4 mag per air mass (default 0.25). */
+  k?: number | null;
+}
+
+export interface SkyConditions {
+  bortle: number | null;
+  nelm: number;
+  k: number;
+  /** Dark-sky zenith brightness, V mag/arcsec² (Schaefer's relation, capped at 22.0). */
+  sky_brightness_mpsas: number;
+  source: 'nelm' | 'bortle' | 'default';
+}
+
+export interface DeepSkyInstant {
+  jd_utc: number;
+  utc: string;
+}
+
+export type CompassPoint =
+  | 'N' | 'NNE' | 'NE' | 'ENE' | 'E' | 'ESE' | 'SE' | 'SSE'
+  | 'S' | 'SSW' | 'SW' | 'WSW' | 'W' | 'WNW' | 'NW' | 'NNW';
+
+/** An instant with where the thing is then: apparent altitude, azimuth, compass point. */
+export interface DeepSkySighting {
+  jd_utc: number;
+  utc: string;
+  alt_deg: number;
+  az_deg: number;
+  direction: CompassPoint;
+}
+
+export type DarknessKind = 'night' | 'astronomical_twilight' | 'nautical_twilight' | 'none';
+
+export interface DarkWindow {
+  /** Full darkness (Sun below −18°), or the darkest the night gets. */
+  kind: DarknessKind;
+  start: DeepSkyInstant;
+  end: DeepSkyInstant;
+  hours: number;
+}
+
+export interface SunNight {
+  set: DeepSkyInstant | null;
+  civil_dusk: DeepSkyInstant | null;
+  nautical_dusk: DeepSkyInstant | null;
+  astronomical_dusk: DeepSkyInstant | null;
+  astronomical_dawn: DeepSkyInstant | null;
+  nautical_dawn: DeepSkyInstant | null;
+  civil_dawn: DeepSkyInstant | null;
+  rise: DeepSkyInstant | null;
+}
+
+export type MoonPhaseName =
+  | 'new'
+  | 'waxing crescent'
+  | 'first quarter'
+  | 'waxing gibbous'
+  | 'full'
+  | 'waning gibbous'
+  | 'last quarter'
+  | 'waning crescent';
+
+export interface MoonNight {
+  illuminated_fraction: number;
+  phase_angle_deg: number;
+  phase: MoonPhaseName;
+  waxing: boolean;
+  rise: DeepSkyInstant | null;
+  set: DeepSkyInstant | null;
+  /** Hours of the observing window with the Moon up / down. */
+  up_hours: number;
+  down_hours: number;
+}
+
+/** A night: local mean noon to the next. */
+export interface NightSummary {
+  start: DeepSkyInstant;
+  end: DeepSkyInstant;
+  /** null when the Sun never goes below −6°. */
+  darkness: DarkWindow | null;
+  sun: SunNight;
+  moon: MoonNight;
+}
+
+export interface MoonEffect {
+  moon_alt_deg: number;
+  separation_deg: number;
+  /** Sky brightening at the object, magnitudes (Krisciunas & Schaefer 1991). */
+  brightening_mag: number;
+}
+
+export type DsoInstrument = 'eye' | 'binoculars' | 'telescope' | 'camera';
+
+export interface DsoVisibilityDetail {
+  /** Highest point in the observing window. */
+  best: DeepSkySighting | null;
+  transit: DeepSkySighting | null;
+  hours_above_20: number;
+  moon: MoonEffect | null;
+  /** Limiting magnitude at the object at the best time: extinction and moonlight. */
+  limiting_mag: number | null;
+  instrument: DsoInstrument | null;
+}
+
+export interface DsoVisibility {
+  object: Dso;
+  night: NightSummary;
+  conditions: SkyConditions;
+  visibility: DsoVisibilityDetail;
+  /** Apparent altitude every 10 minutes from local noon to noon (145 values). */
+  track: { jd_utc: number[]; alt_deg: number[] };
+}
+
+export interface MeteorShower {
+  iau: number;
+  code: string;
+  name: string;
+  /** Solar longitude (J2000) of the start, peak and end of activity. */
+  lambda_start_deg: number;
+  lambda_peak_deg: number;
+  lambda_end_deg: number;
+  /** Radiant at the peak, J2000, and its drift per degree of solar longitude. */
+  ra_deg: number;
+  dec_deg: number;
+  dra_deg: number;
+  ddec_deg: number;
+  v_inf_kms: number;
+  r: number;
+  zhr: number;
+  variable: boolean;
+  parent: string | null;
+}
+
+/** One shower through one night at one place (an estimate). */
+export interface ShowerNight {
+  code: string;
+  name: string;
+  lambda_deg: number;
+  zhr: number;
+  days_from_peak: number;
+  radiant_ra_deg: number;
+  radiant_dec_deg: number;
+  best: DeepSkySighting | null;
+  /** ZHR × sin(radiant altitude) × r^(LM − 6.5). */
+  expected_rate_per_hour: number;
+  limiting_mag: number | null;
+  hours_radiant_above_20: number;
+  variable: boolean;
+  /** One sentence without clock times. */
+  reason: string;
+}
+
+export interface ShowerDates {
+  shower: MeteorShower;
+  peak: DeepSkyInstant;
+  start: DeepSkyInstant;
+  end: DeepSkyInstant;
+  /** Geocentric, at the peak. */
+  moon_illuminated_fraction: number;
+  /** With an observer: the night nearest the peak. */
+  at_site: ShowerNight | null;
+}
+
+export interface ShowerYear {
+  year: number;
+  /** In order of peak. */
+  showers: ShowerDates[];
+  errors: { code: string; message: string }[];
+  source: string;
+  rate_model: string;
+}
+
+/** A closed ring (first point repeated), ICRS degrees; the brighter side is where a × b points. */
+export interface MilkyWayRing {
+  /** 0 the faintest glow … levels.length − 1 the brightest. */
+  level: number;
+  ra_deg: Float64Array;
+  dec_deg: Float64Array;
+}
+
+export interface MilkyWayOutline {
+  levels: number[];
+  rings: MilkyWayRing[];
+  source: string;
+}
+
+export type SearchHitKind = 'star' | 'deep_sky' | 'constellation' | 'sun' | 'moon' | 'planet' | 'shower';
+
+export interface SearchHit {
+  kind: SearchHitKind;
+  /** "HR 2491", "M31", "CMa", "Mars", "PER". */
+  id: string;
+  label: string;
+  detail: string;
+  magnitude: number | null;
+  /** Stars: index into `starfieldCatalog()`. */
+  index: number | null;
+  /** Apparent of date at the time asked (a shower: its radiant); null without a time. */
+  ra_deg: number | null;
+  dec_deg: number | null;
+  alt_deg: number | null;
+  az_deg: number | null;
+  alt_apparent_deg: number | null;
+  above_horizon: boolean | null;
+  score: number;
+}
+
+export interface SearchResult {
+  query: string;
+  hits: SearchHit[];
+}
+
+export interface ExtinctionTable {
+  conditions: SkyConditions;
+  /** 0, 1, … 90 degrees of apparent altitude. */
+  alt_deg: Float64Array;
+  airmass: Float64Array;
+  extinction_mag: Float64Array;
+  limiting_mag: Float64Array;
+  model: string;
+}
+
+export interface PlanetTonight {
+  body: string;
+  magnitude: number | null;
+  best: DeepSkySighting | null;
+  up_from: DeepSkyInstant | null;
+  up_until: DeepSkyInstant | null;
+  hours_up: number;
+  reason: string;
+}
+
+export interface DsoTonight {
+  id: string;
+  label: string;
+  name: string | null;
+  type: DsoType;
+  category: DsoCategory;
+  constellation: string;
+  magnitude: number | null;
+  best: DeepSkySighting;
+  hours_above_20: number;
+  moon: MoonEffect | null;
+  instrument: DsoInstrument;
+  score: number;
+  reason: string;
+}
+
+export interface CoreTonight {
+  best: DeepSkySighting | null;
+  hours_above_20: number;
+  reason: string;
+}
+
+export interface Tonight {
+  night: NightSummary;
+  conditions: SkyConditions;
+  planets: PlanetTonight[];
+  deep_sky: DsoTonight[];
+  showers: ShowerNight[];
+  milky_way_core: CoreTonight;
+  /** Plain sentences; `{jd:2461308.517173}` tokens stand for times (see `formatSummaryTimes`). */
+  summary: string;
+  notes: string[];
+  errors: string[];
+}
+
+export interface TonightOptions extends SkyConditionsInput {
+  /** Deep-sky objects to list, 1 to 60 (default 12). */
+  limit?: number;
+}
+
+/** Deep sky (deepsky agent). Separate from `ExplorerEngine`, like the eclipse engine. */
+export interface DeepSkyEngine {
+  dsoCatalog(): DsoCatalog;
+  dsoList(observer: Observer | null, jdUtc: number, options?: DsoListOptions): DsoPositions;
+  dsoVisibility(id: string, observer: Observer, jdUtc: number, conditions?: SkyConditionsInput): DsoVisibility;
+  meteorShowers(year: number, observer?: Observer | null, conditions?: SkyConditionsInput): ShowerYear;
+  milkyWayOutline(): MilkyWayOutline;
+  /** An observer needs a time. */
+  skySearch(query: string, observer?: Observer | null, jdUtc?: number | null, limit?: number): SearchResult;
+  tonight(observer: Observer, jdUtc: number, options?: TonightOptions): Tonight;
+  extinction(conditions?: SkyConditionsInput): ExtinctionTable;
+}
+
+/** True when `engine` has the deep-sky calls (the memoised engine forwards them). */
+export function isDeepSkyEngine(engine: unknown): engine is DeepSkyEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<DeepSkyEngine>;
+  return (
+    typeof e.dsoCatalog === 'function' &&
+    typeof e.dsoList === 'function' &&
+    typeof e.tonight === 'function' &&
+    typeof e.skySearch === 'function'
+  );
+}
+
+/** Replace the `{jd:...}` time tokens of a `tonight` summary with `format(jd)`. */
+export function formatSummaryTimes(summary: string, format: (jdUtc: number) => string): string {
+  return summary.replace(/\{jd:(-?\d+(?:\.\d+)?)\}/g, (_, jd: string) => format(Number(jd)));
+}

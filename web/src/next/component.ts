@@ -21,10 +21,12 @@
 
 import {
   isAlmanacEngine,
+  isDeepSkyEngine,
   isEclipseEngine,
   isPlanetEventsEngine,
   type AlmanacEngine,
   type BodySelection,
+  type DeepSkyEngine,
   type EclipseEngine,
   type EventOptions,
   type ExplorerEngine,
@@ -294,7 +296,7 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     return value;
   }
 
-  const memo: ExplorerEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> = {
+  const memo: ExplorerEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> & Partial<DeepSkyEngine> = {
     // Optional: present on the wrapper exactly when the engine makes almanac pages (the
     // Almanac view checks with `isAlmanacEngine`). A page is tens of milliseconds, so a
     // few dates are kept.
@@ -319,6 +321,47 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
             cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
         }
       : {}),
+    // --- deep sky (deepsky agent): present exactly when the engine has it (views check
+    // with `isDeepSkyEngine`). The two tables are constant; the rest is keyed by value.
+    // Search runs as the person types and is cheap, so it passes through. ---
+    ...(isDeepSkyEngine(engine)
+      ? {
+          dsoCatalog: () => cached('dsoCatalog', '', 1, () => engine.dsoCatalog()),
+          dsoList: (observer, jd, options) =>
+            cached(
+              'dsoList',
+              `${observer ? observerKey(observer) : '-'}|${jd}|${JSON.stringify(options ?? {})}`,
+              2,
+              () => engine.dsoList(observer, jd, options),
+            ),
+          dsoVisibility: (id, observer, jd, conditions) =>
+            cached(
+              'dsoVisibility',
+              `${id}|${observerKey(observer)}|${jd}|${JSON.stringify(conditions ?? {})}`,
+              8,
+              () => engine.dsoVisibility(id, observer, jd, conditions),
+            ),
+          meteorShowers: (year, observer, conditions) =>
+            cached(
+              'meteorShowers',
+              `${year}|${observer ? observerKey(observer) : '-'}|${JSON.stringify(conditions ?? {})}`,
+              2,
+              () => engine.meteorShowers(year, observer, conditions),
+            ),
+          milkyWayOutline: () => cached('milkyWayOutline', '', 1, () => engine.milkyWayOutline()),
+          skySearch: (query, observer, jd, limit) => engine.skySearch(query, observer, jd, limit),
+          tonight: (observer, jd, options) =>
+            cached(
+              'tonight',
+              `${observerKey(observer)}|${jd}|${JSON.stringify(options ?? {})}`,
+              4,
+              () => engine.tonight(observer, jd, options),
+            ),
+          extinction: (conditions) =>
+            cached('extinction', JSON.stringify(conditions ?? {}), 4, () => engine.extinction(conditions)),
+        } satisfies DeepSkyEngine
+      : {}),
+    // --- end deep sky ---
     kind: engine.kind,
     description: engine.description,
     // Navigation tools pass through unmemoised: they run on demand, never per frame.

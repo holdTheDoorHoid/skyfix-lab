@@ -36,6 +36,21 @@ import type {
   StarfieldCatalog,
 } from './types.js';
 import type { MisfitEngine } from './types.js';
+// Deep sky (deepsky agent).
+import type {
+  DeepSkyEngine,
+  DsoCatalog,
+  DsoListOptions,
+  DsoPositions,
+  DsoVisibility,
+  ExtinctionTable,
+  MilkyWayOutline,
+  SearchResult,
+  ShowerYear,
+  SkyConditionsInput,
+  Tonight,
+  TonightOptions,
+} from './types.js';
 import { createWasmMisfit } from './wasm-misfit.js';
 
 /** Exports the explorer cannot run without. */
@@ -98,6 +113,16 @@ export interface ExplorerWasmExports {
   eclipse_path?(id: string): unknown;
   /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
   planet_events?(jdStart: number, jdEnd: number): unknown;
+  // Expansion programme — deep sky (EXPLORER_API "Expansion programme — deep sky");
+  // absent in older builds.
+  dso_catalog?(): unknown;
+  dso_list?(observerJson: string, jdUtc: number, optionsJson: string): unknown;
+  dso_visibility?(id: string, observerJson: string, jdUtc: number, conditionsJson: string): unknown;
+  meteor_showers?(year: number, observerJson: string, conditionsJson: string): unknown;
+  milky_way_outline?(): unknown;
+  sky_search?(query: string, observerJson: string, jdUtc?: number, limit?: number): unknown;
+  tonight?(observerJson: string, jdUtc: number, optionsJson: string): unknown;
+  extinction_table?(conditionsJson: string): unknown;
   version?(): string;
 }
 
@@ -148,7 +173,18 @@ function rebuildError(name: string, what: string): Error {
   );
 }
 
-export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine {
+/** Deep-sky sky conditions / options as the exports take them: JSON with only known fields. */
+export function conditionsJson(c: SkyConditionsInput | TonightOptions | undefined): string {
+  if (!c) return '';
+  const out: Record<string, number> = {};
+  for (const key of ['bortle', 'nelm', 'k', 'limit'] as const) {
+    const v = (c as Record<string, number | null | undefined>)[key];
+    if (typeof v === 'number') out[key] = v;
+  }
+  return JSON.stringify(out);
+}
+
+export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine, DeepSkyEngine {
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -159,6 +195,8 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
   private coverageCache: ExplorerCoverage | null = null;
   private catalogCache: StarfieldCatalog | null = null;
   private boundariesCache: ConstellationBoundary[] | null = null;
+  private dsoCatalogCache: DsoCatalog | null = null;
+  private milkyWayCache: MilkyWayOutline | null = null;
 
   /** The residual heat map (wasm-misfit.ts); absent when the package predates its exports. */
   readonly misfit?: MisfitEngine;
@@ -340,6 +378,72 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
     const fn = this.x.planet_events;
     if (typeof fn !== 'function') throw rebuildError('planet_events', 'planet events');
     return this.call('planet_events', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  // --- deep sky (deepsky agent) ---
+
+  private deep<K extends keyof ExplorerWasmExports>(name: K): NonNullable<ExplorerWasmExports[K]> {
+    const fn = this.x[name];
+    if (typeof fn !== 'function') throw rebuildError(name, 'deep-sky objects, meteor showers or search');
+    return fn as NonNullable<ExplorerWasmExports[K]>;
+  }
+
+  /** The deep-sky table, once (`dso_catalog`). */
+  dsoCatalog(): DsoCatalog {
+    const fn = this.deep('dso_catalog');
+    this.dsoCatalogCache ??= this.call<DsoCatalog>('dso_catalog', () => fn.call(this.x));
+    return this.dsoCatalogCache;
+  }
+
+  /** Places of the (filtered) objects at `jdUtc`, typed arrays aligned with `index` (`dso_list`). */
+  dsoList(observer: Observer | null, jdUtc: number, options?: DsoListOptions): DsoPositions {
+    const fn = this.deep('dso_list');
+    return this.call('dso_list', () =>
+      fn.call(this.x, observer ? observerJson(observer) : '', jdUtc, options ? JSON.stringify(options) : ''),
+    );
+  }
+
+  /** One object through the night `jdUtc` belongs to (`dso_visibility`). */
+  dsoVisibility(id: string, observer: Observer, jdUtc: number, conditions?: SkyConditionsInput): DsoVisibility {
+    const fn = this.deep('dso_visibility');
+    return this.call('dso_visibility', () =>
+      fn.call(this.x, id, observerJson(observer), jdUtc, conditionsJson(conditions)),
+    );
+  }
+
+  /** Every shower's dates in `year`; with an observer, the night nearest each peak (`meteor_showers`). */
+  meteorShowers(year: number, observer?: Observer | null, conditions?: SkyConditionsInput): ShowerYear {
+    const fn = this.deep('meteor_showers');
+    return this.call('meteor_showers', () =>
+      fn.call(this.x, year, observer ? observerJson(observer) : '', conditionsJson(conditions)),
+    );
+  }
+
+  /** The Milky Way outline, once (`milky_way_outline`). */
+  milkyWayOutline(): MilkyWayOutline {
+    const fn = this.deep('milky_way_outline');
+    this.milkyWayCache ??= this.call<MilkyWayOutline>('milky_way_outline', () => fn.call(this.x));
+    return this.milkyWayCache;
+  }
+
+  /** Search by name or designation (`sky_search`); an observer needs a time. */
+  skySearch(query: string, observer?: Observer | null, jdUtc?: number | null, limit?: number): SearchResult {
+    const fn = this.deep('sky_search');
+    return this.call('sky_search', () =>
+      fn.call(this.x, query, observer ? observerJson(observer) : '', jdUtc ?? undefined, limit),
+    );
+  }
+
+  /** What the night `jdUtc` belongs to offers at the observer (`tonight`). */
+  tonight(observer: Observer, jdUtc: number, options?: TonightOptions): Tonight {
+    const fn = this.deep('tonight');
+    return this.call('tonight', () => fn.call(this.x, observerJson(observer), jdUtc, conditionsJson(options)));
+  }
+
+  /** The extinction and limiting-magnitude table (`extinction_table`). */
+  extinction(conditions?: SkyConditionsInput): ExtinctionTable {
+    const fn = this.deep('extinction_table');
+    return this.call('extinction_table', () => fn.call(this.x, conditionsJson(conditions)));
   }
 }
 
