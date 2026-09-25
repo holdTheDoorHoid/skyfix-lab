@@ -120,6 +120,13 @@ The seven principles of `EXPLORER_PLAN.md` §3 stand. Three are extended:
   module does not reduce what a visitor downloads. The polish agent applies `opt-level =
   "z"` if the performance budgets hold and profiles the code with twiggy for cheap wins;
   the owner is told that the first visit is about 1.2 MB rather than 1 MB.
+- **Decision 2026-09-25 (deep time landed).** Both tiers ship in the core, so there is no
+  deep-time pack: the labelled tier (2000 BC–AD 3000, display only) is cut to 5″ per planet
+  (Earth 0.3″) so the module fits the budget (2.78 MB raw / 1.24 MB gzipped after the merge,
+  down from 3.12 MB / 1.28 MB, because the ephemeris tables became one 128 KB binary). The
+  looser cut only affects the labelled tier's published figures (Venus 0.06′, Mars 0.15′,
+  Neptune 0.06′) and is stated in ACCURACY. If the module grows past the budget again, the
+  order of remedies is `opt-level = "z"` (polish), then moving the labelled tier into a pack.
 - **Offline first → optional packs.** Data beyond the core ships as packs under
   `web/public/data/packs/`, content-hashed, listed in a precached manifest, stored by the
   app in its own cache (`skyfix-lab-packs-<schema>@<site>`), never in the precache and never
