@@ -498,7 +498,7 @@ pub fn solar_year(
     check_step(step_minutes)?;
     let offset = clock_offset_hours(request.utc_offset_hours, &site)?;
     let (y0, y1) = year_window(request.year, offset)?;
-    let w = clip_to_coverage(eph, y0, y1)?;
+    let w = clip_to_coverage(eph, SUN, y0, y1)?;
     let n_days = (y1 - y0).round() as usize;
     let first = (0..n_days).find(|&i| y0 + i as f64 >= w.start - 1e-9);
     let last = (0..n_days)

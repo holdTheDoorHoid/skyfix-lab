@@ -274,7 +274,7 @@ pub fn rise_set_azimuths(
     let options = request.options.unwrap_or_default().checked()?;
     let offset = clock_offset_hours(request.utc_offset_hours, &site)?;
     let (y0, y1) = year_window(request.year, offset)?;
-    let w = clip_to_coverage(eph, y0, y1)?;
+    let w = clip_to_coverage(eph, name, y0, y1)?;
     let de = day_events(eph, &site, w.start, w.end, &[name], &options)?;
     if let Some(e) = de.errors.into_iter().next() {
         return Err(e.into());

@@ -149,9 +149,10 @@ pub(crate) struct Clipped {
 
 /// Clip `[t0, t1]` to the provider's declared coverage (`AstroProvider::coverage`). An
 /// unparsable coverage leaves the window as it is; a window entirely outside is an
-/// error naming the coverage.
+/// error about `body` naming the coverage.
 pub(crate) fn clip_to_coverage(
     eph: &dyn BodyEphemeris,
+    body: &str,
     t0: f64,
     t1: f64,
 ) -> Result<Clipped, AlmanacError> {
@@ -162,7 +163,7 @@ pub(crate) fn clip_to_coverage(
     let end = hi.map_or(t1, |hi| t1.min(hi));
     if end <= start {
         return Err(AlmanacError::Unavailable {
-            body: "Sun".to_string(),
+            body: body.to_string(),
             message: format!(
                 "the request ({} .. {}) is outside the coverage {} .. {}",
                 format_utc(t0),

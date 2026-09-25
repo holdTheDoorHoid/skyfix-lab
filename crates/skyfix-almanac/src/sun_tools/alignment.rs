@@ -150,7 +150,7 @@ pub fn alignment_days(
     }
     let offset = clock_offset_hours(request.utc_offset_hours, &site)?;
     let (y0, y1) = year_window(request.year, offset)?;
-    let w = clip_to_coverage(eph, y0, y1)?;
+    let w = clip_to_coverage(eph, body, y0, y1)?;
 
     // (kind, jd, az, alt) for every event of the requested sort in the year.
     let mut events: Vec<(AlignedKind, f64, f64, f64)> = Vec::new();

@@ -428,6 +428,18 @@ fn a_bearing_the_body_never_reaches_says_by_how_much() {
         let req: AlignmentRequest = serde_json::from_str(bad).unwrap();
         assert!(alignment_days(&sky, &manhattan(), &req).is_err(), "{bad}");
     }
+    // A year outside the coverage is refused about the body asked for.
+    let late: AlignmentRequest = serde_json::from_str(
+        r#"{"body": "Moon", "year": 2126, "azimuth_deg": 90, "event": {"kind": "rise"}}"#,
+    )
+    .unwrap();
+    match alignment_days(&sky, &manhattan(), &late) {
+        Err(AlmanacError::Unavailable { body, message }) => {
+            assert_eq!(body, "Moon");
+            assert!(message.contains("outside the coverage"), "{message}");
+        }
+        other => panic!("{other:?}"),
+    }
 }
 
 // ---------------------------------------------------------------------------
