@@ -1612,9 +1612,11 @@ Release build, x86-64, on the shared 8-core machine: 9-12 µs for one full `fiel
 rates, uncertainty and notes); a 1-degree global grid of declination (65 341 points) in
 71 ms, 1.1 µs a point. The
 coefficients add about 11 KB to the binary (integer tables; the IGRF-14 epochs before 2000
-are whole nanotesla and fit in 16 bits). The core WASM module (`npm run wasm`) grows from
-2 060 798 to 2 130 258 bytes, 849 019 to 878 239 gzipped (-9): +69 KB and +29 KB, the rest
-being the code of the models, the compass method and their wire formats.
+are whole nanotesla and fit in 16 bits). Against the programme's base commit (3030e4f) the core
+WASM module (`npm run wasm`) grows from 2 060 798 to 2 130 258 bytes, 849 019 to 878 239
+gzipped (-9): +69 KB and +29 KB, the rest being the code of the models, the compass method
+and their wire formats. With the sun tools merged as well it is 2 249 383 bytes, 923 851
+gzipped, against the 2.5 MB / 1 MB budget.
 
 ### Reproduce
 
