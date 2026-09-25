@@ -18,7 +18,7 @@ import { msFromJd, roundToMinute } from '../time.js';
 import { gregorianDateOfMs, formatYear } from '../time/index.js';
 import { phaseDisc } from '../theme/glyphs.js';
 import { button, segmented } from '../theme/primitives.js';
-import { chipsIn, coveredSentence, rowTimeInfo, wireYear } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, rowTimeInfo, wireYear } from './deeptime.js';
 import { errorText, watchAll, type SkyDarkness, type TabComponent, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, screenWords, type EventItem, type Words } from './items.js';
@@ -207,7 +207,12 @@ export const showersTab: TabComponent = (host, env) => {
       listHost.replaceChildren(...groups);
       if (!rows.length) listHost.append(h('p', { class: 'sfe-message' }, cache.error ? `Meteor showers could not be computed for ${formatYear(year)}: ${cache.error}. ${coveredSentence(ctx.engine, 'Meteor showers')}.` : `No meteor showers in ${formatYear(year)}.`));
       strip.replaceChildren(yearStrip(showers, year, u.anchor));
-      notes.replaceChildren(h('p', { class: 'sfe-note' }, RATE_NOTE), h('p', { class: 'sfe-note' }, data?.source ? `Shower table: ${data.source}` : ''));
+      const cal = items.length ? calendarNote([items[0]!.start, items[items.length - 1]!.start], zone) : '';
+      notes.replaceChildren(
+        h('p', { class: 'sfe-note' }, RATE_NOTE),
+        ...(cal ? [h('p', { class: 'sfe-note' }, cal)] : []),
+        h('p', { class: 'sfe-note' }, data?.source ? `Shower table: ${data.source}` : ''),
+      );
       renderCard(w);
       save.refresh();
     }

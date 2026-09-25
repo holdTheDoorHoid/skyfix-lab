@@ -12,8 +12,8 @@
 import { h } from '../../dom.js';
 import type { Ctx } from '../component.js';
 import type { ExplorerEngine, TimeInfo } from '../engine/types.js';
-import { msFromJd } from '../time.js';
-import { chipNeeded, coverageBounds, formatYear, gregorianDateOfMs, packForDate, sigmaText, timeInfoAt } from '../time/index.js';
+import { msFromJd, wallClock, type Zone } from '../time.js';
+import { calendarTag, calendarTip, chipNeeded, coverageBounds, formatYear, gregorianDateOfMs, packForDate, sigmaText, timeInfoAt } from '../time/index.js';
 
 /** The Gregorian (wire) year of a UTC Julian date, astronomical numbering (the engine's years). */
 export function wireYear(jd: number): number {
@@ -67,6 +67,20 @@ export function listUncertaintySentence(engine: ExplorerEngine, jds: readonly nu
   }
   if (!worst) return '';
   return `${labelled ? 'Estimates outside the validated years: ' : ''}the Earth’s rotation at these dates is known only roughly, so each clock time carries the uncertainty shown beside it (up to ${sigmaText(worst.delta_t_sigma_s)}).`;
+}
+
+/**
+ * What calendar a list's dates are in, when it is not the everyday one: the Julian calendar
+ * before 15 October 1582 (or the proleptic Gregorian one there, when Settings asks for ISO
+ * dates), in time-ui's words; '' when every date is an ordinary Gregorian one.
+ */
+export function calendarNote(jds: readonly number[], zone: Zone): string {
+  for (const jd of jds) {
+    if (!Number.isFinite(jd)) continue;
+    const w = wallClock(jd, zone);
+    if (calendarTag(w)) return calendarTip(w);
+  }
+  return '';
 }
 
 /**

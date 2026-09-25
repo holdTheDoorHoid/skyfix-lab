@@ -43,7 +43,7 @@ import { jdFromIso, roundToMinute, UTC_ZONE, zoneShortName, type Zone } from '..
 import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { button, readout, segmented, switchRow } from '../theme/primitives.js';
-import { chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote } from './deeptime.js';
 import { errorText, watchAll, type TabComponent, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, utcDate } from './items.js';
@@ -787,6 +787,8 @@ export const eclipsesTab: TabComponent = (host, env) => {
         h('p', { class: 'sfe-message' }, `None of these eclipses can be seen from ${st.place}. Turn off “Seen from here” to list them all.`),
       );
     }
+    const cal = calendarNote(items.map((e) => e.greatest.jd_utc).slice(0, 1).concat(items.map((e) => e.greatest.jd_utc).slice(-1)), st.zone);
+    if (cal) notes.push(h('p', { class: 'sfe-note' }, cal));
     if (truncated && shown.length) {
       const a = ui.get().anchor;
       notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + ECLIPSE_HORIZON_DAYS : a - ECLIPSE_HORIZON_DAYS));

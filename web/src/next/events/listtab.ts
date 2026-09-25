@@ -16,7 +16,7 @@ import { disposer, observerKey, watch, type Mounted } from '../component.js';
 import { engineObserver, displayZone, type ExplorerState } from '../state.js';
 import { segmented } from '../theme/primitives.js';
 import { coverageBounds } from '../time/index.js';
-import { chipsIn, listUncertaintySentence, rowTimeInfo, truncatedNote } from './deeptime.js';
+import { calendarNote, chipsIn, listUncertaintySentence, rowTimeInfo, truncatedNote } from './deeptime.js';
 import { errorText, type EventsUi, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu, type ExportMenu } from './export-ui.js';
 import { fileWords, screenWords, utcDate, type EventItem, type Words } from './items.js';
@@ -309,6 +309,8 @@ export function listTab<T>(host: HTMLElement, env: TabEnv, cfg: ListTabConfig<T>
       const noteEls: HTMLElement[] = (cfg.notes?.(state.items, s) ?? []).map((t) => h('p', { class: 'sfe-note' }, t));
       const unc = chips ? listUncertaintySentence(ctx.engine, shown.map((i) => i.start)) : '';
       if (unc) noteEls.push(h('p', { class: 'sfe-note sfe-note--dt' }, unc));
+      const cal = calendarNote([shown[0]?.start ?? Number.NaN, shown[shown.length - 1]?.start ?? Number.NaN], zone);
+      if (cal) noteEls.push(h('p', { class: 'sfe-note' }, cal));
       if (state.truncated && state.done) {
         const edge = dirNow === 'upcoming' ? need.end : need.start;
         noteEls.push(truncatedNote(ctx, cfg.what, edge));

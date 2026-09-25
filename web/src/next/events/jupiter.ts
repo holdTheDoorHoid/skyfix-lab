@@ -17,7 +17,7 @@ import { displayZone, type ExplorerState } from '../state.js';
 import { jdFromWallClock, wallClock, type Zone } from '../time.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { switchRow } from '../theme/primitives.js';
-import { chipsIn, rowTimeInfo, truncatedNote } from './deeptime.js';
+import { calendarNote, chipsIn, rowTimeInfo, truncatedNote } from './deeptime.js';
 import { errorText, watchAll, type TabComponent, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, screenWords, utcDate, type EventItem, type Words } from './items.js';
@@ -235,6 +235,8 @@ export const jupiterTab: TabComponent = (host, env) => {
       });
       listHost.replaceChildren(...groups);
       const noteEls: HTMLElement[] = [h('p', { class: 'sfe-note' }, NOTE)];
+      const cal = calendarNote([starts[0]!], zone);
+      if (cal) noteEls.push(h('p', { class: 'sfe-note' }, cal));
       if (state.truncated && state.done) noteEls.push(truncatedNote(ctx, 'Jupiter’s moons', starts[starts.length - 1]!));
       if (state.error) noteEls.push(h('p', { class: 'sfe-message', role: 'alert' }, `Jupiter’s moons could not be computed: ${state.error}`));
       notes.replaceChildren(...noteEls);

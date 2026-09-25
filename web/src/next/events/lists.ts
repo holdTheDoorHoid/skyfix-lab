@@ -29,7 +29,7 @@ import { roundToMinute, UTC_ZONE, wallClock, type Zone } from '../time.js';
 import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph, phaseDisc } from '../theme/glyphs.js';
 import { segmented } from '../theme/primitives.js';
-import { chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
 import { errorText, watchAll, type TabComponent } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { utcDate, type EventItem } from './items.js';
@@ -213,6 +213,7 @@ export const moonTab: TabComponent = (host, env) => {
           return h('tr', {}, h('th', { scope: 'row', class: 'sfe-month' }, `${monthName(w.month).slice(0, 3)} ${yearText(w.year)}`), ...tds);
         });
         const unc = chips ? listUncertaintySentence(ctx.engine, all.map((p) => p.jd_utc)) : '';
+        const cal = calendarNote([all[0]?.jd_utc ?? Number.NaN, all[all.length - 1]?.jd_utc ?? Number.NaN], zone);
         table.replaceChildren(
           h(
             'div',
@@ -233,6 +234,7 @@ export const moonTab: TabComponent = (host, env) => {
               : 'Drawn as seen from the northern hemisphere: the waxing Moon is lit on the right.',
           ),
           ...(unc ? [h('p', { class: 'sfe-note sfe-note--dt' }, unc)] : []),
+          ...(cal ? [h('p', { class: 'sfe-note' }, cal)] : []),
         );
       }
     }
@@ -405,6 +407,7 @@ export const seasonsTab: TabComponent = (host, env) => {
         );
       });
       const unc = chips ? listUncertaintySentence(ctx.engine, all) : '';
+      const cal = all.length ? calendarNote([Math.min(...all), Math.max(...all)], zone) : '';
       const notes: HTMLElement[] = [
         h(
           'p',
@@ -413,6 +416,7 @@ export const seasonsTab: TabComponent = (host, env) => {
         ),
       ];
       if (unc) notes.push(h('p', { class: 'sfe-note sfe-note--dt' }, unc));
+      if (cal) notes.push(h('p', { class: 'sfe-note' }, cal));
       table.replaceChildren(
         h(
           'div',
@@ -618,6 +622,8 @@ export const planetsTab: TabComponent = (host, env) => {
       if (truncated && items.length) notes.push(truncatedNote(ctx, 'Planet events', dir === 'upcoming' ? need.end : need.start));
       const unc = chips ? listUncertaintySentence(ctx.engine, rowsData.map((r) => r.event.jd_utc)) : '';
       if (unc) notes.push(h('p', { class: 'sfe-note sfe-note--dt' }, unc));
+      const cal = calendarNote(rowsData.map((r) => r.event.jd_utc).slice(0, 1).concat(rowsData.map((r) => r.event.jd_utc).slice(-1)), zone);
+      if (cal) notes.push(h('p', { class: 'sfe-note' }, cal));
       list.replaceChildren(h('ol', { class: 'sfe-pe-list' }, ...items.map((i) => i.el)), ...notes);
       status.textContent = items.length
         ? `${items.length} events ${dir === 'upcoming' ? 'in the next 12 months' : 'in the last 12 months'}. Each is geocentric: the same for everyone.`

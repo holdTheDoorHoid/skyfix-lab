@@ -20,7 +20,7 @@ import type {
   ShowerNight,
   TimeInfo,
 } from '../../src/next/engine/types.js';
-import { chipsIn, coverageYears, coveredSentence, listUncertaintySentence, wireYear, yearText } from '../../src/next/events/deeptime.js';
+import { calendarNote, chipsIn, coverageYears, coveredSentence, listUncertaintySentence, wireYear, yearText } from '../../src/next/events/deeptime.js';
 import { eclipseIdDate } from '../../src/next/events/eclipses.js';
 import { csvComments, csvOfItems, screenWords, utcDate, type EventItem, type Words } from '../../src/next/events/items.js';
 import { nightStart, nightStarts } from '../../src/next/events/jupiter.js';
@@ -615,6 +615,12 @@ describe('deep time in the lists', () => {
     );
     const labelled = engineWith({}, () => 3600, () => 'labelled');
     expect(listUncertaintySentence(labelled, [1_507_900.5])).toMatch(/^Estimates outside the validated years: .*\(up to ±1 h\)\.$/);
+  });
+
+  it('say when a list’s dates are in the Julian calendar', () => {
+    expect(calendarNote([jdOf('2026-06-01T00:00:00Z')], UTC_ZONE)).toBe('');
+    expect(calendarNote([jdOf('1500-06-01T00:00:00Z'), jdOf('2026-06-01T00:00:00Z')], UTC_ZONE)).toMatch(/^Julian calendar: dates before 15 October 1582/);
+    expect(calendarNote([Number.NaN], UTC_ZONE)).toBe('');
   });
 
   it('read eclipse ids in any year', () => {
