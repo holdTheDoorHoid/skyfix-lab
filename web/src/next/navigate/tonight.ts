@@ -293,25 +293,22 @@ export function tonightSights(options: TonightOptions = {}): Component {
       const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), st.angleFormat, st.timeDisplay, st.hourCycle, ctx.store.get().observer.zone, st.calendar, st.yearStyle]);
       const moved = inputs.jdStart !== lastJd;
       lastJd = inputs.jdStart;
-      if (key === lastKey) {
-        // The same hour, but the time still moving: a plan waiting for it to settle keeps
-        // waiting, up to MAX_WAIT_MS (verify2: at an hour a second the hour changed every
-        // second, the timer fired between, and a plan of 100-150 ms was made every second).
-        if (timer !== null && moved && lastRun !== 0 && Date.now() - firstPending < MAX_WAIT_MS) {
-          clearTimeout(timer);
-          timer = setTimeout(compute, SETTLE_MS);
-        }
-        return;
-      }
-      lastKey = key;
-      // A plan takes tens of milliseconds of the page's time. While the time keeps moving
-      // (the time bar dragged, or playing) it waits for the time to settle, so it never makes
-      // the frames of a drag late: once the time has been still for SETTLE_MS, and at least
-      // every MAX_WAIT_MS while it keeps moving. The first plan is made at once.
+      const playing = ctx.store.get().time.playing;
+      if (key === lastKey && (timer === null || (!moved && playing))) return;
       const now = Date.now();
-      if (timer === null) firstPending = now;
-      else clearTimeout(timer);
-      const wait = lastRun === 0 || now - firstPending >= MAX_WAIT_MS ? 0 : SETTLE_MS;
+      if (key !== lastKey) {
+        lastKey = key;
+        if (timer === null) firstPending = now;
+      }
+      if (timer !== null) clearTimeout(timer);
+      // A plan takes tens of milliseconds of the page's time, so it never makes the frames of a
+      // drag or of playback late. The first plan is made at once; while the time is dragged, once
+      // it has been still for SETTLE_MS; while it plays, at most one every MAX_WAIT_MS, whatever
+      // the frames' pace; and SETTLE_MS after it stops. (verify2: the timer was armed only when
+      // the hour changed, so at an hour a second, or on slow frames, it fired between two
+      // changes and a plan of 100-150 ms was made every second.)
+      const waited = now - firstPending;
+      const wait = lastRun === 0 || waited >= MAX_WAIT_MS ? 0 : playing ? MAX_WAIT_MS - waited : SETTLE_MS;
       timer = setTimeout(compute, wait);
     };
     d.add(ctx.store.subscribe(request));

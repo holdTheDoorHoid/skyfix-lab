@@ -75,7 +75,7 @@ const COUNT_CALLS = `(() => {
   WebAssembly.instantiate = (...a) => plain.apply(WebAssembly, a).then((r) => (r instanceof WebAssembly.Module ? r : wrap(r)));
 })();`;
 /** Exports a view may call every frame during fast playback: the positions, the clock's chip and tier. */
-const PER_FRAME = new Set(['sky_state', 'time_info', 'tier_at', 'packs', 'tide_pack_info', 'explorer_coverage']);
+const PER_FRAME = new Set(['sky_state', 'sidereal', 'time_info', 'tier_at', 'packs', 'tide_pack_info', 'explorer_coverage']);
 const ONLY = new Set((process.env.ONLY ?? 'chip,playback,air,exports,packs,tiers').split(','));
 const CLI = resolve(REPO, 'target/release/skyfix');
 const PY = process.env.VERIFY2_PY ?? join(REPO, 'tools/reference/.venv/bin/python');
