@@ -1,0 +1,70 @@
+# Meteor showers. SkyFix Lab's own table, display only (CONVENTIONS 13.6).
+#
+# Compiled for this project from the published values of the IAU Meteor Data Center
+# (established showers, MDC 2022, updated 2026-09-21) and the International Meteor
+# Organization's 2026 and 2027 meteor shower calendars (Table 5). Values are facts;
+# neither source's table or prose is copied. tools/starfield/showers.py checks every
+# row against both sources and writes crates/skyfix-starfield/data/showers.txt.
+#
+# Selection: every shower the IAU MDC lists as established (status 1 or 2) whose
+# radiant can be seen at night and that the IMO lists for visual observers with a
+# typical peak ZHR of 2 or more or as variable. Left out on that rule: the daytime
+# Arietids and Sextantids, the Puppid-Velids, September Lyncids and alpha-Centaurids
+# (not established in the MDC), the Antihelion Source (not a shower) and the
+# Andromedids (listed only for a predicted return in 2027).
+#
+# Columns:
+#   iau, code, name        IAU number and code; our English name
+#   lambda start/peak/end  solar longitude, J2000, degrees: the peak is the IMO's; the
+#                          activity limits are the IMO's 2026 dates at 12:00 UT turned
+#                          into J2000 solar longitude, rounded outward to a degree
+#   ra, dec                radiant at the peak, J2000 degrees (the IMO's; for the
+#                          Draconids, whose calendar radiant moves with each year's
+#                          predicted trails, the MDC median, between the two years)
+#   dra, ddec              radiant drift, degrees of RA and Dec per degree of solar
+#                          longitude (about per day): the median of the MDC's parameter sets
+#   v_inf                  speed at entry, km/s (the IMO's; the MDC's geocentric speed
+#                          agrees within 3 km/s)
+#   r                      population index (the IMO's)
+#   zhr                    typical peak zenithal hourly rate (the IMO's 2026 value;
+#                          2 for the showers the IMO marks variable)
+#   variable               1 when the rate varies from year to year or has had outbursts
+#   parent                 parent body as the MDC gives it, blank when none is agreed
+#
+# The kappa-Cygnid radiant is the IMO's Table 6 position on the peak date (288, +54),
+# not Table 5's (286, +59): Table 6 and the MDC agree on a radiant drifting north by
+# 0.67 degrees a day. See the manifest for every check.
+
+# iau | code | name | l_start | l_peak | l_end | ra | dec | dra | ddec | v_inf | r | zhr | var | parent
+10  | QUA | Quadrantids | 276 | 283.15 | 292 | 230 | +49 | 0.72 | -0.25 | 41 | 2.1 | 80 | 0 | 2003 EH1
+404 | GUM | Gamma Ursae Minorids | 289 | 298.0 | 303 | 228 | +67 | 0.99 | -0.70 | 31 | 3.0 | 3 | 0 |
+6   | LYR | Lyrids | 24 | 32.32 | 40 | 271 | +34 | 0.80 | -0.25 | 49 | 2.1 | 18 | 0 | C/1861 G1 (Thatcher)
+137 | PPU | Pi Puppids | 25 | 33.5 | 38 | 110 | -45 | 1.59 | -0.43 | 18 | 2.0 | 2 | 1 | 26P/Grigg-Skjellerup
+31  | ETA | Eta Aquariids | 29 | 45.5 | 67 | 338 | -1 | 0.71 | 0.34 | 66 | 2.4 | 50 | 0 | 1P/Halley
+145 | ELY | Eta Lyrids | 42 | 50.0 | 54 | 291 | +43 | 0.20 | 0.03 | 43 | 3.0 | 3 | 0 | C/1983 H1 (IRAS-Araki-Alcock)
+170 | JBO | June Bootids | 90 | 90.3 | 101 | 221 | +48 | 0.02 | -0.12 | 18 | 2.2 | 2 | 1 | 7P/Pons-Winnecke
+175 | JPE | July Pegasids | 99 | 108.0 | 118 | 347 | +11 | 0.85 | 0.29 | 63 | 3.0 | 3 | 0 | C/1979 Y1 (Bradfield)
+184 | GDR | July Gamma Draconids | 122 | 125.13 | 128 | 280 | +51 | -0.09 | 0.07 | 27 | 3.0 | 5 | 0 | C/1919 Q2 (Metcalf)
+5   | SDA | Southern Delta Aquariids | 109 | 128.0 | 151 | 340 | -16 | 0.78 | 0.26 | 41 | 2.5 | 25 | 0 |
+1   | CAP | Alpha Capricornids | 101 | 128.0 | 143 | 307 | -10 | 0.61 | 0.25 | 23 | 2.5 | 5 | 0 | 169P/NEAT
+191 | ERI | Eta Eridanids | 127 | 135.0 | 147 | 41 | -11 | 0.85 | 0.29 | 64 | 3.0 | 3 | 0 | C/1852 K1 (Chacornac)
+7   | PER | Perseids | 114 | 140.0 | 151 | 48 | +58 | 1.40 | 0.21 | 59 | 2.2 | 100 | 0 | 109P/Swift-Tuttle
+12  | KCG | Kappa Cygnids | 130 | 144.0 | 155 | 288 | +54 | 0.45 | 0.67 | 23 | 3.0 | 3 | 0 |
+206 | AUR | Aurigids | 154 | 158.6 | 163 | 91 | +39 | 1.15 | -0.01 | 66 | 2.5 | 6 | 0 | C/1911 N1 (Kiess)
+208 | SPE | September Epsilon Perseids | 162 | 166.7 | 179 | 48 | +40 | 1.15 | 0.06 | 64 | 2.5 | 8 | 0 |
+281 | OCT | October Camelopardalids | 191 | 192.58 | 193 | 164 | +79 | -0.21 | -0.30 | 47 | 2.5 | 5 | 0 |
+9   | DRA | Draconids | 192 | 195.4 | 197 | 263 | +55 | 0.26 | 0.02 | 20 | 2.6 | 5 | 1 | 21P/Giacobini-Zinner
+23  | EGE | Epsilon Geminids | 200 | 205.0 | 214 | 102 | +27 | 0.84 | -0.12 | 70 | 3.0 | 3 | 0 |
+8   | ORI | Orionids | 188 | 208.0 | 225 | 95 | +16 | 0.78 | 0.02 | 66 | 2.5 | 20 | 0 | 1P/Halley
+22  | LMI | Leonis Minorids | 205 | 211.0 | 214 | 162 | +37 | 1.02 | -0.31 | 62 | 3.0 | 2 | 0 | C/1739 K1 (Zanotti)
+2   | STA | Southern Taurids | 177 | 223.0 | 238 | 52 | +15 | 0.74 | 0.16 | 27 | 2.3 | 7 | 0 | 2P/Encke
+17  | NTA | Northern Taurids | 206 | 230.0 | 259 | 58 | +22 | 0.85 | 0.17 | 29 | 2.3 | 5 | 0 | 2P/Encke
+13  | LEO | Leonids | 223 | 235.27 | 248 | 152 | +22 | 0.63 | -0.39 | 71 | 2.5 | 15 | 1 | 55P/Tempel-Tuttle
+246 | AMO | Alpha Monocerotids | 232 | 239.32 | 243 | 117 | +1 | 0.97 | -0.10 | 65 | 2.4 | 2 | 1 |
+250 | NOO | November Orionids | 230 | 246.0 | 254 | 91 | +16 | 0.74 | -0.04 | 44 | 3.0 | 3 | 0 |
+254 | PHO | Phoenicids | 248 | 249.5 | 253 | 8 | -27 | 0.08 | -1.07 | 15 | 2.8 | 2 | 1 | 289P/Blanpain
+19  | MON | December Monocerotids | 248 | 257.0 | 268 | 100 | +8 | 0.67 | -0.11 | 41 | 3.0 | 3 | 0 | C/1917 F1 (Mellish)
+16  | HYD | Sigma Hydrids | 250 | 257.0 | 269 | 125 | +2 | 0.85 | -0.27 | 58 | 3.0 | 7 | 0 | C/2023 P1 (Nishimura)
+4   | GEM | Geminids | 251 | 262.2 | 269 | 112 | +33 | 1.10 | -0.17 | 35 | 2.6 | 150 | 0 | (3200) Phaethon
+15  | URS | Ursids | 265 | 270.7 | 275 | 217 | +76 | 1.02 | -0.18 | 33 | 2.8 | 10 | 1 | 8P/Tuttle
+20  | COM | Comae Berenicids | 251 | 271.0 | 310 | 164 | +29 | 0.86 | -0.39 | 65 | 3.0 | 3 | 0 |

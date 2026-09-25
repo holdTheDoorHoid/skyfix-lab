@@ -144,5 +144,38 @@
         "wikidata": 72
       }
     }
+  },
+  "showers": {
+    "bytes": 2835,
+    "exceptions": {
+      "KCG imo_radiant": "Table 5 of the IMO calendars gives (286, +59); their own Table 6 and the MDC give a radiant drifting north 0.67 deg/day that stands at (288, +54) on the peak date, which we use",
+      "PHO mdc_lambda": "the MDC's two Phoenicid parameter sets average 251.65 deg; we keep the IMO's peak, 249.5",
+      "PHO mdc_radiant": "the MDC's two parameter sets for the Phoenicids lie 9 deg apart; we keep the IMO's radiant"
+    },
+    "generator": "tools/starfield/showers.py",
+    "inputs": {
+      "iau_mdc_established_2026.txt": {
+        "retrieved_utc": "2026-09-25T03:22:36Z",
+        "sha256": "61c2be3ff17e0d3e5db54512b8d164e0343e484261f7861a8c29ae1a356e7344",
+        "size_bytes": 426134,
+        "url": "https://www.ta3.sk/IAUC22DB/MDC2022/Etc/streamestablisheddata2026.txt"
+      },
+      "imo_calendar_2026.pdf": {
+        "retrieved_utc": "2026-09-25T03:22:37Z",
+        "sha256": "fde5388889ebda9fe13436d793da5e9935ae46b99edf20e0b19f7fe32ce1ed9f",
+        "size_bytes": 988146,
+        "url": "http://web.archive.org/web/20260308033848id_/https://imo.net/files/meteor-shower/cal2026.pdf"
+      },
+      "imo_calendar_2027.pdf": {
+        "retrieved_utc": "2026-09-25T03:22:36Z",
+        "sha256": "9e6b9a1609fb89ebb8571756b15670b2ccf22e64ed22ae999ff604705d773eec",
+        "size_bytes": 837985,
+        "url": "https://www.imo.net/ShCal27s.pdf"
+      }
+    },
+    "max_radiant_sep_vs_imo_2026_deg": 5.12,
+    "max_radiant_sep_vs_mdc_deg": 7.59,
+    "showers": 32,
+    "table_sha256": "e73bb04ca2b3c94a1b2b0d1e552382b1e9c63bc08de98574b2ea782a3b415442"
   }
 }
