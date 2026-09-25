@@ -19,6 +19,7 @@ import type {
   SkyPhase,
 } from '../engine/types.js';
 import type { EventItem, Words } from './items.js';
+import { scaleLabel } from '../time/index.js';
 import { wireYear, yearText } from './deeptime.js';
 import { utcDate } from './items.js';
 import { formatDuration } from './model.js';
@@ -347,7 +348,7 @@ export function elsewhereItem(e: ElsewhereOccultation, w: Words, utcTime: (jd: n
     end: null,
     jump: c.jd_utc,
     body,
-    sentence: `Not seen from here. Seen from the Earth’s centre the Moon passes ${w.angle(c.separation_deg)} ${Math.cos(c.position_angle_deg * D2R) >= 0 ? 'north' : 'south'} of ${body} around ${utcTime(c.jd_utc)} UTC, so ${body} is hidden for observers ${part} (roughly: the exact track needs their places).`,
+    sentence: `Not seen from here. Seen from the Earth’s centre the Moon passes ${w.angle(c.separation_deg)} ${Math.cos(c.position_angle_deg * D2R) >= 0 ? 'north' : 'south'} of ${body} around ${utcTime(c.jd_utc)} ${scaleLabel(c.jd_utc)}, so ${body} is hidden for observers ${part} (roughly: the exact track needs their places).`,
     local: false,
     columns: [
       ['Occulted body', body],

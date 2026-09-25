@@ -10,7 +10,7 @@ import { h } from '../../dom.js';
 import type { TimeInfo } from '../engine/types.js';
 import { dateMedium, dateShort, eventTime } from '../shell/format.js';
 import { roundToMinute, UTC_ZONE, type Zone } from '../time.js';
-import { uncertaintyChip } from '../time/index.js';
+import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import type { EventItem } from './items.js';
 import { progressText, type SearchState } from './search.js';
 
@@ -24,7 +24,7 @@ export interface Badge {
   tip?: string;
 }
 
-/** A date-and-time button: the local date and time (to the minute), UTC on hover. */
+/** A date-and-time button: the local date and time (to the minute), UTC (or UT, CONVENTIONS 15.2) on hover. */
 export function timeButton(
   jd: number,
   zone: Zone,
@@ -41,7 +41,7 @@ export function timeButton(
       type: 'button',
       class: `sfe-when ${options.className ?? ''}`.trim(),
       'aria-label': `${label}, ${dateMedium(r, zone)} ${span}. Set the explorer’s time to it.`,
-      'data-tip': `${dateMedium(r, UTC_ZONE)} ${eventTime(r, UTC_ZONE)} UTC`,
+      'data-tip': `${dateMedium(r, UTC_ZONE)} ${eventTime(r, UTC_ZONE)} ${scaleLabel(r)}`,
     },
     h('span', { class: 'sfe-when__date' }, dateShort(r, zone)),
     h('span', { class: 'sfe-when__time' }, span),

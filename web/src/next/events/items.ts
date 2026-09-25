@@ -242,7 +242,9 @@ export function csvComments(
 
 /** `2026-10-26`: the UTC date of an instant, for ids. */
 export function utcDate(jd: number): string {
-  return isoUtc(jd).slice(0, 10);
+  // Years outside 0000-9999 are ISO expanded years (`-0584-05-28`): cut at the `T`.
+  const iso = isoUtc(jd);
+  return iso.slice(0, iso.indexOf('T'));
 }
 
 /** The display zone's short name at an instant (`EDT`), `UTC` or `UT` for the clock itself. */

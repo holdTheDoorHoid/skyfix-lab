@@ -77,9 +77,12 @@ const SLICE_MS = 12;
 /** Below this width the card opens inside the list, under its row. */
 const INLINE_CARD_PX = 820;
 
-/** An eclipse by id: `2024-04-08-solar` names the UTC date of greatest eclipse. */
+/**
+ * An eclipse by id: `2024-04-08-solar` names the UTC date of greatest eclipse; outside the
+ * years 0000-9999 the date has an ISO expanded year (`-0584-05-28-lunar`, the wire's form).
+ */
 export function eclipseIdDate(id: string): number | null {
-  const m = /^(\d{4}-\d{2}-\d{2})-(solar|lunar)$/.exec(id);
+  const m = /^([+-]\d{4,6}-\d{2}-\d{2}|\d{4}-\d{2}-\d{2})-(solar|lunar)$/.exec(id);
   return m ? jdFromIso(`${m[1]}T00:00:00Z`) : null;
 }
 
