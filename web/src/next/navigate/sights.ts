@@ -220,7 +220,9 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     }
     const jd = jdFromIso(parsed.value)!;
     const z = zone(nc);
-    timeField.setHelp(`= ${fmtZoneClock(jd, z)} on ${formatDate(jd, z)} (${z.kind === 'iana' ? z.zone : z.name})`);
+    // A time typed without seconds is taken, not refused, and the help says what that
+    // assumed (parse.ts, SECONDS_OMITTED_WARNING).
+    timeField.setHelp(`= ${fmtZoneClock(jd, z)} on ${formatDate(jd, z)} (${z.kind === 'iana' ? z.zone : z.name})${parsed.warning ? `. ${parsed.warning}` : ''}`);
   }
 
   function hsRule(): { min: number; max: number } {

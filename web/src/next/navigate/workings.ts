@@ -102,7 +102,12 @@ export function sightWorkings(sight: ReducedSight, format: AngleFormat): HTMLEle
       sight.hc_deg !== null && sight.zn_deg !== null && sight.intercept_nm !== null
         ? [
             'At the assumed position',
-            `computed Hc ${fmtAngle(sight.hc_deg, format)}, bearing Zn ${fmtBearing(sight.zn_deg)}, intercept ${fmtNm(Math.abs(sight.intercept_nm), 1)} ${sight.intercept_nm >= 0 ? 'toward' : 'away from'} the body`,
+            `computed Hc ${fmtAngle(sight.hc_deg, format)}, bearing Zn ${fmtBearing(sight.zn_deg)}, intercept ${fmtNm(Math.abs(sight.intercept_nm), 1)} ${sight.intercept_nm >= 0 ? 'toward' : 'away from'} the body` +
+              // CONVENTIONS 15.4: the Moon's Hc carries the part of its parallax the
+              // spherical Earth leaves out (the real Earth's flattening).
+              (typeof sight.earth_shape_arcmin === 'number'
+                ? `; Hc includes ${fmtArcmin(sight.earth_shape_arcmin, 2)} for the Earth's shape (the flattening's effect on the Moon's parallax)`
+                : ''),
           ]
         : ['At the assumed position', 'no assumed position, so no intercept'],
     ]),

@@ -70,6 +70,12 @@ export interface Clock {
   uncertainty_s: number;
   /** Known chronometer correction, seconds, ADDED to every recorded time. */
   correction_s: number;
+  /**
+   * UT1 − UTC in seconds, from the time signal or IERS Bulletin A (CONVENTIONS 6 and
+   * 15.2). Absent or null: automatic (the engine's history or model). Expansion
+   * programme (moonshape); the core omits it from a session it writes when absent.
+   */
+  dut1_s?: number | null;
 }
 
 export type AltitudeKind = 'sextant_hs' | 'apparent_ha' | 'observed_ho';
@@ -170,11 +176,21 @@ export interface ReducedSight {
   ho_deg: number;
   sigma_arcmin: number;
   corrections: CorrectionBreakdown;
+  /** At the assumed position; for the Moon it includes `earth_shape_arcmin`. */
   hc_deg: number | null;
   zn_deg: number | null;
   /** Ho - Hc in nautical miles, positive toward the body. */
   intercept_nm: number | null;
   warnings: Warning[];
+  /** The direction's horizontal parallax, arcminutes (0 for a star). Expansion programme. */
+  horizontal_parallax_arcmin: number;
+  /**
+   * The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4):
+   * the WGS84 geometry at the assumed position minus the sphere's. Null for every other
+   * body, without an assumed position, and for a Moon direction without HP. The
+   * correction chain never includes it. Expansion programme.
+   */
+  earth_shape_arcmin: number | null;
 }
 
 // ---------------------------------------------------------------------------

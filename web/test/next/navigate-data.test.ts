@@ -283,6 +283,15 @@ describe('autosave', () => {
     expect(sanitizeSession(null)).toBeNull();
   });
 
+  it('keeps the session’s UT1 − UTC and drops anything that is not a number', () => {
+    // Expansion programme (moonshape): `clock.dut1_s`, absent = automatic.
+    const base = { schema: 'skyfix.session/1', observations: [] };
+    expect(sanitizeSession({ ...base, clock: { dut1_s: -0.25 } })?.clock.dut1_s).toBe(-0.25);
+    expect(sanitizeSession({ ...base, clock: { dut1_s: null } })?.clock.dut1_s).toBeUndefined();
+    expect(sanitizeSession({ ...base, clock: { dut1_s: 'soon' } })?.clock.dut1_s).toBeUndefined();
+    expect(sanitizeSession({ ...base, clock: {} })?.clock).toEqual({ uncertainty_s: 0, correction_s: 0 });
+  });
+
   it('never throws on blocked storage, and remembers only the choice when told to forget', () => {
     expect(loadWorking(new ThrowingStorage())).toEqual({ working: null, autosave: true, savedUtc: null });
     expect(saveWorking(new ThrowingStorage(), defaultWorking(), 'x')).toBe(false);

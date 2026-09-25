@@ -634,6 +634,13 @@ export interface SightObserver {
   height_of_eye_m?: number;
   pressure_hpa?: number;
   temperature_c?: number;
+  /**
+   * UT1 − UTC in seconds for the directions (expansion programme, moonshape): read by
+   * the WASM boundary of `predict_sextant`, `plan_sights` and `lunar_distance` to build
+   * the providers, as a session's `clock.dut1_s` is for the methods. Absent or null:
+   * automatic. Not part of the Rust `SightObserver`.
+   */
+  dut1_s?: number | null;
 }
 
 export type SightHorizon = 'sea' | 'artificial_reflected' | 'electronic_vertical';
@@ -699,7 +706,7 @@ export interface PredictedSight {
   dec_deg: number;
   semidiameter_arcmin: number;
   horizontal_parallax_arcmin: number;
-  /** Computed altitude and azimuth at the observer (CONVENTIONS §3). */
+  /** Computed altitude and azimuth at the observer (CONVENTIONS §3; the Moon's altitude includes `earth_shape_arcmin`, §15.4). */
   hc_deg: number;
   zn_deg: number;
   /** The sextant reading (the double angle with a reflected artificial horizon). */
@@ -709,6 +716,12 @@ export interface PredictedSight {
   /** The forward chain from `hs_deg`, landing on `hc_deg`. */
   corrections: SightCorrectionBreakdown;
   warnings: SightWarning[];
+  /**
+   * The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4); 0
+   * for every other body. The reading is then the real (WGS84) Earth's. Expansion
+   * programme.
+   */
+  earth_shape_arcmin: number;
 }
 
 export type LunarLimb = 'near' | 'far' | 'center';
@@ -872,7 +885,8 @@ export interface TwilightPlan {
 }
 
 export interface SightPlan {
-  observer: Required<SightObserver>;
+  /** The observer as the plan used it (`dut1_s` is read at the boundary and not echoed). */
+  observer: Required<Omit<SightObserver, 'dut1_s'>>;
   jd_start: number;
   utc_start: string;
   jd_end: number;

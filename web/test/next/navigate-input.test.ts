@@ -17,7 +17,7 @@ import {
   positionInputText,
   utcInputText,
 } from '../../src/next/navigate/format.js';
-import { parseAngle, parseNumber, parseOptionalNumber, parsePosition, parseUtcInput } from '../../src/next/navigate/parse.js';
+import { parseAngle, parseNumber, parseOptionalNumber, parsePosition, parseUtcInput, SECONDS_OMITTED_WARNING } from '../../src/next/navigate/parse.js';
 
 const HS = { min: -90, max: 90, what: 'The sextant reading' };
 const ok = <T>(r: { ok: true; value: T } | { ok: false; error: string }): T => {
@@ -106,6 +106,19 @@ describe('parseUtcInput', () => {
       expect(ok(parseUtcInput(utcInputText(utc)))).toBe(utc);
     }
     expect(utcInputText('2026-09-23T16:52:57.000Z')).toBe('2026-09-23 16:52:57');
+  });
+
+  it('takes a time without seconds as :00, and says so without refusing it', () => {
+    // Expansion programme (moonshape): a whole minute is 15′ of hour angle.
+    const hm = parseUtcInput('2026-10-01 01:30');
+    expect(hm).toEqual({ ok: true, value: '2026-10-01T01:30:00Z', warning: SECONDS_OMITTED_WARNING });
+    expect(SECONDS_OMITTED_WARNING).toMatch(/Seconds omitted: :00 assumed; each second is 0\.25′ of longitude/);
+    const hmz = parseUtcInput('2026-10-01T01:30Z');
+    expect(hmz.ok && hmz.warning).toBe(SECONDS_OMITTED_WARNING);
+    for (const full of ['2026-10-01 01:30:00', '2026-10-01 01:30:05.5', '2026-10-01T01:30:05Z']) {
+      const r = parseUtcInput(full);
+      expect(r.ok && r.warning).toBeFalsy();
+    }
   });
 });
 

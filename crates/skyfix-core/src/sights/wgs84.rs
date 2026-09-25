@@ -506,6 +506,21 @@ mod tests {
     }
 
     #[test]
+    fn an_independent_computation_gives_the_same_term() {
+        // The same geometry written out again in Python (double precision, explicit
+        // vectors, no code shared with this module), 2026-09-24.
+        for (lat, lon, gha, dec, hp, want) in [
+            (54.7, 0.0, 0.0, 0.0, 61.5, 0.22332381215033395),
+            (39.9526, -75.1652, 352.0833, 26.305, 59.341, 0.05668299809180458),
+            (-33.9, 151.2, 200.0, -20.0, 55.0, 0.15560159358638626),
+            (12.0, -40.0, 80.0, 5.0, 57.3, 0.01216113580316577),
+        ] {
+            let got = earth_shape_arcmin(lat, lon, gha, dec, hp);
+            assert!((got - want).abs() < 1e-11, "{lat} {lon}: {got} vs {want}");
+        }
+    }
+
+    #[test]
     fn no_parallax_no_term() {
         assert!(EarthShape::new(0.0).is_none());
         assert!(EarthShape::new(-1.0).is_none());

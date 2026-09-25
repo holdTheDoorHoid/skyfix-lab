@@ -276,6 +276,8 @@ export const SAMPLE_REDUCED_SIGHT: ReducedSight = {
   zn_deg: 281.4,
   intercept_nm: -1.58,
   warnings: [{ code: 'supplied_direction_used', id: 'obs-1' }],
+  horizontal_parallax_arcmin: 0,
+  earth_shape_arcmin: null,
 };
 
 export const SAMPLE_REDUCE_ENTRIES: ReduceEntry[] = [
