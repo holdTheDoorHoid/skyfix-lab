@@ -6,9 +6,14 @@
  * also settable from the address fragment, so screenshots are reproducible:
  *
  *   #place=tromso&date=2026-06-21T13:00&theme=dark&tab=year&mode=table&body=Vega&zone=utc
+ *   #place=sanfrancisco&tab=tides&packs=tides-us     (charts2: the Tides tab with its pack)
+ *   #tab=sun&sub=analemma&units=imperial              (charts2: a Sun chart; the units setting)
  *
  * `date` is a wall-clock time in the place's own zone. Nothing here is persisted: the store
- * gets no storage, so this page never touches the explorer's saved preferences.
+ * gets no storage, so this page never touches the explorer's saved preferences. Data packs
+ * (charts2): the page has the explorer's real pack service, so a pack a view asks for is
+ * offered as on the site (and saved in this browser); `packs=tides-us` gets it without a
+ * prompt, for screenshots.
  */
 
 import { h } from '../../../dom.js';
@@ -19,7 +24,16 @@ import { bindTimeKeys, goNow, setTime, startPlayback } from '../../playback.js';
 import { createExplorerStore, type AngleFormat, type ExplorerState } from '../../state.js';
 import { formatWithUtc, jdFromWallClock, resolveZone, type ZoneChoice } from '../../time.js';
 import { applyTheme as applyThemeToDocument, installTooltips, type ThemeName } from '../../theme/index.js';
-import { chartsView } from '../index.js';
+import { chartsView, MOON_VIEWS, SUN_VIEWS, type MoonView, type SunView } from '../index.js';
+import { redrawEverything } from '../../component.js';
+import { startPacks } from '../../packs/index.js';
+import { presetSunPath } from '../sun-path.js';
+import { isMoonDetailEngine, isSunToolsEngine, isTidesEngine } from '../../engine/types.js';
+import { bearingsFromYear, computeAnalemma, computeEot, computeSolarYear, computeSunPath, standardOffsetHours } from '../sun-data.js';
+import { computeMoonYear } from '../moon-year-data.js';
+import { computeTides } from '../tides-data.js';
+import { presetTides } from '../tides.js';
+import type { Units } from '../../state.js';
 import { computeDay } from '../day-data.js';
 import { dayBodies } from '../day-chart.js';
 import type { ChartMode, ChartTab } from '../frame.js';
@@ -27,7 +41,6 @@ import { computeMoonMonth } from '../moon-data.js';
 import { ALL_PLANETS, planetYearJob } from '../planet-data.js';
 import { localDay, zoneKey } from '../windows.js';
 import { computeYear, computeYearSky } from '../year-data.js';
-import { NO_PACKS } from '../../packs/service.js';
 
 interface Place {
   id: string;
@@ -46,9 +59,12 @@ const PLACES: Place[] = [
   { id: 'santiago', label: 'Santiago (clocks change at midnight)', lat: -33.4489, lon: -70.6693, zone: { kind: 'iana', zone: 'America/Santiago' } },
   { id: 'longyearbyen', label: 'Longyearbyen, Svalbard', lat: 78.2232, lon: 15.6267, zone: { kind: 'iana', zone: 'Arctic/Longyearbyen' } },
   { id: 'atsea', label: 'Mid-Atlantic (nautical zone time)', lat: 30.0, lon: -40.0, zone: { kind: 'nautical' } },
+  { id: 'sanfrancisco', label: 'San Francisco, Fort Point', lat: 37.8107, lon: -122.4771, zone: { kind: 'iana', zone: 'America/Los_Angeles' } },
+  { id: 'annapolis', label: 'Annapolis, Maryland', lat: 38.9784, lon: -76.4922, zone: { kind: 'iana', zone: 'America/New_York' } },
+  { id: 'quito-noon', label: 'Quito (the Sun overhead at noon)', lat: -0.1807, lon: -78.4678, zone: { kind: 'iana', zone: 'America/Guayaquil' } },
 ];
 
-const TABS: ChartTab[] = ['day', 'year', 'moon', 'planets'];
+const TABS: ChartTab[] = ['day', 'year', 'sun', 'moon', 'planets', 'tides'];
 const THEMES: ThemeName[] = ['light', 'dark', 'night'];
 
 function params(): URLSearchParams {
@@ -79,6 +95,12 @@ async function boot(root: HTMLElement): Promise<void> {
   const theme = (THEMES as string[]).includes(p.get('theme') ?? '') ? (p.get('theme') as ThemeName) : 'light';
   const tab = (TABS as string[]).includes(p.get('tab') ?? '') ? (p.get('tab') as ChartTab) : 'day';
   const mode: ChartMode = p.get('mode') === 'table' ? 'table' : 'chart';
+  const sub = p.get('sub') ?? '';
+  const sunView = SUN_VIEWS.find((v) => v.id === sub)?.id as SunView | undefined;
+  const moonView = MOON_VIEWS.find((v) => v.id === sub)?.id as MoonView | undefined;
+  const units = (['metric', 'nautical', 'imperial'] as Units[]).includes(p.get('units') as Units) ? (p.get('units') as Units) : 'metric';
+  if (p.get('variant') === 'across' || p.get('variant') === 'polar') presetSunPath(p.get('variant') as 'across' | 'polar');
+  if (p.get('span') === 'week' || p.get('span') === 'day') presetTides({ span: p.get('span') as 'week' | 'day' });
   const zoneParam = p.get('zone');
   const zone: ZoneChoice = zoneParam === 'utc' ? { kind: 'utc' } : zoneParam === 'nautical' ? { kind: 'nautical' } : place.zone;
   applyTheme(theme);
@@ -95,6 +117,7 @@ async function boot(root: HTMLElement): Promise<void> {
       selection: { body: p.get('body') ?? 'Sun' },
       settings: {
         theme,
+        units,
         angleFormat: (['dm', 'dms', 'decimal'] as AngleFormat[]).includes(p.get('angles') as AngleFormat)
           ? (p.get('angles') as AngleFormat)
           : 'dm',
@@ -104,7 +127,13 @@ async function boot(root: HTMLElement): Promise<void> {
   });
   const scheduler = createScheduler();
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
-  const ctx: Ctx = { store, engine, notices, scheduler, packs: NO_PACKS };
+  const packs = startPacks(selection.engine, () => {
+    engine.invalidate();
+    redrawEverything();
+  });
+  await packs.ready;
+  for (const name of (p.get('packs') ?? '').split(',').filter(Boolean)) await packs.service.get(name);
+  const ctx: Ctx = { store, engine, notices, scheduler, packs: packs.service };
   startPlayback(store, scheduler);
   bindTimeKeys(window, store);
 
@@ -195,7 +224,7 @@ async function boot(root: HTMLElement): Promise<void> {
     await bench(stage, ctx, selection.engine);
     return;
   }
-  const view = chartsView({ tab, mode })(stage, ctx);
+  const view = chartsView({ tab, mode, ...(sunView ? { sun: sunView } : {}), ...(moonView ? { moon: moonView } : {}) })(stage, ctx);
   void view;
 
   // "Ready" for screenshots (scripts in charts/dev): fonts loaded and the chart drawn in
@@ -282,6 +311,37 @@ async function bench(stage: HTMLElement, ctx: Ctx, engine: Ctx['engine']): Promi
       `planet chart ${2026 + i}${i ? ' (warm)' : ' (cold)'}: first piece ${first.toFixed(0)} ms, Venus-Saturn done ${primary.toFixed(0)} ms, all ${total.toFixed(0)} ms wall (engine ${job.data.timing.engineMs.toFixed(0)} ms)`,
     );
     print();
+  }
+  // charts2: the Sun, Moon and Tides charts' engine work, cold (first) and warm (median of
+  // the following years or days), as the charts ask for it.
+  if (isSunToolsEngine(engine)) {
+    const e = engine;
+    const offsetH = standardOffsetHours(zone, 2026);
+    const newCharts: [string, (i: number) => unknown][] = [
+      ['sun path (sun_path + day_events + sky_state)', (i) => computeSunPath(e, { observer, zone, day: localDay(zone, { year: 2026, month: 3, day: 1 + i }), options })],
+      ['analemma (a year)', (i) => computeAnalemma(e, { observer, year: 2020 + i, timeH: 12, clock: 'lmt', zoneOffsetH: offsetH })],
+      ['sunrise bearings (the Year chart’s day_events_batch, a year)', (i) => bearingsFromYear(2010 + i, computeYear(e, { observer, zone, year: 2010 + i, options }).days)],
+      ['equation of time (a year)', (i) => computeEot(e, 2020 + i)],
+      ['solar panel (solar_year with the best tilt)', (i) => computeSolarYear(e, { observer, year: 2020 + i, offsetH, panel: { tilt: 40, azimuth: 180 } })],
+      ['Moon through the year (sample_bodies, 365 days)', (i) => computeMoonYear(e, { observer, zone, year: 2020 + i, hour: 21 })],
+    ];
+    if (isMoonDetailEngine(e)) newCharts.push(['perigee and apogee (moon_apsides, a month)', (i) => e.moonApsides(2461284.5 + 31 * i, 2461314.5 + 31 * i)]);
+    if (isTidesEngine(e) && e.tidePackInfo()) {
+      newCharts.push(['tides, a day (stations, extremes, curve, day_events)', (i) => computeTides(e, { observer, zone, day: localDay(zone, { year: 2026, month: 9, day: 1 + i }), span: 'day', datum: '', stationId: null, options })]);
+      newCharts.push(['tides, a week', (i) => computeTides(e, { observer, zone, day: localDay(zone, { year: 2026, month: 9, day: 1 + 7 * i }), span: 'week', datum: '', stationId: null, options })]);
+    }
+    lines.push('');
+    for (const [label, run] of newCharts) {
+      const times: number[] = [];
+      for (let i = 0; i < REPS; i += 1) {
+        const t0 = performance.now();
+        run(i);
+        times.push(performance.now() - t0);
+        await pause();
+      }
+      lines.push(`${label}: first ${times[0]!.toFixed(0)} ms; then ${stats(times.slice(1))}`);
+      print();
+    }
   }
   document.documentElement.dataset.ready = '1';
 }

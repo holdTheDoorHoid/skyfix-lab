@@ -45,6 +45,9 @@ export interface WallEvent {
   readonly jd: number;
   /** Wall-clock hours since local midnight. */
   readonly hour: number;
+  /** The engine's azimuth and geometric altitude of the Sun at the event (charts2: the bearings chart). */
+  readonly az: number;
+  readonly alt: number;
 }
 
 export interface YearDay {
@@ -157,7 +160,7 @@ export function computeYear(engine: ExplorerEngine, input: YearInput): YearData 
     }));
     const events: WallEvent[] = (sun?.events ?? [])
       .filter((e) => e.kind !== 'lower_transit')
-      .map((e) => ({ kind: e.kind as SunEventKind, jd: e.jd_utc, hour: wallHours(day, e.jd_utc, zone) }));
+      .map((e) => ({ kind: e.kind as SunEventKind, jd: e.jd_utc, hour: wallHours(day, e.jd_utc, zone), az: e.az_deg, alt: e.alt_deg }));
     return {
       day,
       index,

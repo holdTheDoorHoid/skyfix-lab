@@ -16,6 +16,8 @@
  */
 
 import { jdFromUnixMs } from '../engine/types.js';
+import { addDaysToDate, gregorianMs, isValidDate, jdnFromLocalMs, dateFromJdn, localMsOfDate } from '../time/civil.js';
+import { isoDateKey } from '../time/format.js';
 import type { Country, Gazetteer, ZoneAnchor } from './gazetteer.js';
 import { greatCircleDistanceNm } from './greatcircle.js';
 import type { RegionIndex } from './regions.js';
@@ -174,6 +176,8 @@ function wallFormatter(id: string): Intl.DateTimeFormat {
     f = new Intl.DateTimeFormat('en-US', {
       timeZone: id,
       hourCycle: 'h23',
+      // The era, so a year before AD 1 is read as one (Intl writes 585 BC as "585" and "BC").
+      era: 'short',
       year: 'numeric',
       month: 'numeric',
       day: 'numeric',
@@ -186,8 +190,10 @@ function wallFormatter(id: string): Intl.DateTimeFormat {
   return f;
 }
 
+/** Intl's wall clock: proleptic Gregorian, the year astronomical (1 BC is year 0). */
 function intlWall(id: string, ms: number): Wall {
   const w: Wall = { year: 0, month: 0, day: 0, hour: 0, minute: 0, second: 0 };
+  let bc = false;
   for (const p of wallFormatter(id).formatToParts(ms)) {
     if (p.type === 'year') w.year = Number(p.value);
     else if (p.type === 'month') w.month = Number(p.value);
@@ -195,7 +201,9 @@ function intlWall(id: string, ms: number): Wall {
     else if (p.type === 'hour') w.hour = Number(p.value) % 24;
     else if (p.type === 'minute') w.minute = Number(p.value);
     else if (p.type === 'second') w.second = Number(p.value);
+    else if (p.type === 'era') bc = /^b/i.test(p.value);
   }
+  if (bc) w.year = 1 - w.year;
   return w;
 }
 
@@ -210,23 +218,27 @@ export function zoneOffsetMinutes(zone: DisplayZone, ms: number): number {
   if (zone.kind === 'utc') return 0;
   if (zone.kind === 'nautical') return zone.zd === 0 ? 0 : -60 * zone.zd;
   const w = intlWall(requireIntlId(zone), ms);
-  const wallMs = Date.UTC(w.year, w.month - 1, w.day, w.hour, w.minute, w.second);
+  const wallMs = gregorianMs(w.year, w.month, w.day, w.hour, w.minute, w.second);
   return (wallMs - Math.floor(ms / 1000) * 1000) / 60000;
 }
 
+/**
+ * The wall clock of an instant in a zone, the date in the display calendar (time/civil.ts:
+ * Julian before 15 October 1582 unless Settings chose ISO; time-ui agent).
+ */
 function wallAt(zone: DisplayZone, ms: number): Wall {
-  if (zone.kind !== 'iana') {
-    const d = new Date(ms + zoneOffsetMinutes(zone, ms) * 60000);
-    return {
-      year: d.getUTCFullYear(),
-      month: d.getUTCMonth() + 1,
-      day: d.getUTCDate(),
-      hour: d.getUTCHours(),
-      minute: d.getUTCMinutes(),
-      second: d.getUTCSeconds(),
-    };
-  }
-  return intlWall(requireIntlId(zone), ms);
+  const local = ms + zoneOffsetMinutes(zone, ms) * 60000;
+  const jdn = jdnFromLocalMs(local);
+  const d = dateFromJdn(jdn);
+  const t = local - (jdn - 2_440_588) * 86_400_000;
+  return {
+    year: d.year,
+    month: d.month,
+    day: d.day,
+    hour: Math.floor(t / 3_600_000),
+    minute: Math.floor((t % 3_600_000) / 60_000),
+    second: Math.floor((t % 60_000) / 1000),
+  };
 }
 
 /** "-04:00" (ASCII, ISO 8601). */
@@ -302,7 +314,7 @@ export function zonedTime(ms: number, zone: DisplayZone): ZonedTime {
   const p2 = (n: number) => String(n).padStart(2, '0');
   return {
     ...w,
-    date: `${String(w.year).padStart(4, '0')}-${p2(w.month)}-${p2(w.day)}`,
+    date: isoDateKey(w),
     time: `${p2(w.hour)}:${p2(w.minute)}:${p2(w.second)}`,
     offsetMinutes: offset,
     offsetIso: formatOffsetIso(offset),
@@ -350,18 +362,21 @@ export function localDate(ms: number, zone: DisplayZone): LocalDate {
   return { year: w.year, month: w.month, day: w.day };
 }
 
-/** Calendar arithmetic on dates (no time zone involved). */
+/**
+ * Calendar arithmetic on dates (no time zone involved), in the display calendar: one day
+ * after 4 October 1582 is 15 October (time-ui agent).
+ */
 export function addDays(date: LocalDate, days: number): LocalDate {
-  const d = new Date(Date.UTC(date.year, date.month - 1, date.day + days));
-  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() };
+  const d = addDaysToDate(date, days);
+  return { year: d.year, month: d.month, day: d.day };
 }
 
+/** `2026-09-24`, `-0584-05-28`, `+12345-01-01`: a real date of the display calendar, or null. */
 export function parseLocalDate(text: string): LocalDate | null {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
+  const m = /^([+-]?\d{4,6})-(\d{2})-(\d{2})$/.exec(text.trim());
   if (!m) return null;
   const date = { year: Number(m[1]), month: Number(m[2]), day: Number(m[3]) };
-  const back = addDays(date, 0);
-  return back.year === date.year && back.month === date.month && back.day === date.day ? date : null;
+  return isValidDate(date) ? { ...date, year: date.year === 0 ? 0 : date.year } : null;
 }
 
 /**
@@ -372,7 +387,7 @@ export function parseLocalDate(text: string): LocalDate | null {
  * `date` 00:00 counts.
  */
 export function startOfLocalDay(zone: DisplayZone, date: LocalDate): number {
-  const target = Date.UTC(date.year, date.month - 1, date.day);
+  const target = localMsOfDate(date);
   if (zone.kind !== 'iana') return target - zoneOffsetMinutes(zone, target) * 60000;
   const off = (ms: number) => zoneOffsetMinutes(zone, ms);
   const before = off(target - 86_400_000);

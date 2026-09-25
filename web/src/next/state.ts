@@ -21,6 +21,8 @@
  */
 
 import type { EventOptions, Observer } from './engine/types.js';
+import type { CalendarMode } from './time/civil.js';
+import type { YearStyle } from './time/format.js';
 import {
   dayWindow,
   isoUtc,
@@ -368,6 +370,11 @@ export interface Settings {
    * arc" gives a negative value (CONVENTIONS section 5).
    */
   index_correction_arcmin: number;
+  // --- time-ui agent (CONVENTIONS 15.3): Settings → Times / Calendar ---
+  /** `historical`: Julian dates before 1582-10-15 (the default); `iso`: proleptic Gregorian throughout. */
+  calendar: CalendarMode;
+  /** How years are written: `era` 585 BC (the default), `astronomical` −584, `iso` -0584. */
+  yearStyle: YearStyle;
   // --- sky2 agent (expansion Q3): how dark the observer's sky is ---
   /**
    * The Sky view's faintest magnitude: `auto` follows the Sun alone (a dark site, as
@@ -447,6 +454,8 @@ export const DEFAULT_SETTINGS: Settings = {
   horizon: 'standard',
   height_of_eye_m: 2,
   index_correction_arcmin: 0,
+  calendar: 'historical',
+  yearStyle: 'era',
   // --- sky2 agent ---
   skyQuality: 'auto',
   skyBortle: 5,
@@ -474,14 +483,22 @@ export function engineObserver(state: ExplorerState): Observer {
   return { lat_deg: o.lat_deg, lon_deg: o.lon_deg, height_m: o.height_m };
 }
 
-/** The place's own zone, whatever the display preference. */
+/**
+ * The place's own zone at the instant shown, whatever the display preference. Before 1850
+ * a zone that follows the place is its local mean time (time.ts `resolveZone`).
+ */
 export function placeZone(state: ExplorerState): Zone {
-  return resolveZone(state.observer.zone, state.observer.lon_deg);
+  return resolveZone(state.observer.zone, state.observer.lon_deg, state.time.jd_utc);
 }
 
 /** The zone times are shown in first (UTC is always shown beside it). */
 export function displayZone(state: ExplorerState): Zone {
   return state.settings.timeDisplay === 'utc' ? UTC_ZONE : placeZone(state);
+}
+
+/** The display zone at another instant (a step across 1850 changes it: local mean time before). */
+export function displayZoneAt(state: ExplorerState, jd: number): Zone {
+  return state.settings.timeDisplay === 'utc' ? UTC_ZONE : resolveZone(state.observer.zone, state.observer.lon_deg, jd);
 }
 
 /** Options for `day_events`, from the settings. */
@@ -521,6 +538,8 @@ const HOUR_CYCLES: readonly HourCycle[] = ['h23', 'h12'];
 const ANGLE_FORMATS: readonly AngleFormat[] = ['dm', 'dms', 'decimal'];
 const UNITS: readonly Units[] = ['metric', 'nautical', 'imperial'];
 const HORIZONS: readonly HorizonOption[] = ['standard', 'dip'];
+const CALENDARS: readonly CalendarMode[] = ['historical', 'iso'];
+const YEAR_STYLES: readonly YearStyle[] = ['era', 'astronomical', 'iso'];
 const SKY_QUALITIES: readonly SkyQuality[] = ['auto', 'bortle', 'nelm']; // sky2 agent
 
 function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
@@ -547,6 +566,8 @@ export function sanitizeSettings(raw: unknown): Settings {
     horizon: pick(r.horizon, HORIZONS, d.horizon),
     height_of_eye_m: finiteIn(r.height_of_eye_m, 0, 500, d.height_of_eye_m),
     index_correction_arcmin: finiteIn(r.index_correction_arcmin, -60, 60, d.index_correction_arcmin),
+    calendar: pick(r.calendar, CALENDARS, d.calendar),
+    yearStyle: pick(r.yearStyle, YEAR_STYLES, d.yearStyle),
     // --- sky2 agent ---
     skyQuality: pick(r.skyQuality, SKY_QUALITIES, d.skyQuality),
     skyBortle: Number.isInteger(r.skyBortle) ? finiteIn(r.skyBortle, 1, 9, d.skyBortle) : d.skyBortle,

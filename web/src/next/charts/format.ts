@@ -1,13 +1,20 @@
 /**
  * Text for the charts: times in the display zone with UTC beside them, dates, durations,
- * altitudes and bearings. OWNER: charts agent. Deterministic English, so a chart reads the
- * same in every browser.
+ * altitudes and bearings. OWNER: charts agent; dates, years and the UTC/UT word: time-ui
+ * agent. Deterministic English, so a chart reads the same in every browser.
+ *
+ * Dates are in the display calendar (Julian before 15 October 1582 unless Settings chose
+ * ISO) with years as Settings writes them (585 BC); the clock beside local time is UTC from
+ * 1972 to 2035 and UT outside (CONVENTIONS 15.2-15.3).
  */
 
 import { splitDegMin } from '../../format.js';
 import type { AngleFormat } from '../state.js';
 import { eventTime } from '../shell/format.js';
 import { formatHours, formatTime, msFromJd, UTC_ZONE, zoneOffsetMs, zoneShortName, type Zone } from '../time.js';
+import { weekdayOf } from '../time/civil.js';
+import { formatYear } from '../time/format.js';
+import { scaleLabel } from '../time/scale.js';
 import type { LocalDate, LocalDay, LocalNight } from './windows.js';
 
 export const MONTHS_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'] as const;
@@ -30,9 +37,9 @@ export const WEEKDAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thurs
 
 const MINUS = '−';
 
-/** 0 = Sunday. */
+/** 0 = Sunday (in the display calendar: Thursday 4 October 1582 is followed by Friday the 15th). */
 export function weekday(date: LocalDate): number {
-  return new Date(Date.UTC(date.year, date.month - 1, date.day)).getUTCDay();
+  return weekdayOf(date);
 }
 
 /** `24 Sep` */
@@ -40,14 +47,14 @@ export function dayMonth(date: LocalDate): string {
   return `${date.day} ${MONTHS_SHORT[date.month - 1]}`;
 }
 
-/** `Thu 24 Sep 2026` */
+/** `Thu 24 Sep 2026`, `Wed 28 May 585 BC` */
 export function dateShort(date: LocalDate): string {
-  return `${WEEKDAYS_SHORT[weekday(date)]} ${date.day} ${MONTHS_SHORT[date.month - 1]} ${date.year}`;
+  return `${WEEKDAYS_SHORT[weekday(date)]} ${date.day} ${MONTHS_SHORT[date.month - 1]} ${formatYear(date.year)}`;
 }
 
-/** `Thursday 24 September 2026` */
+/** `Thursday 24 September 2026`, `Wednesday 28 May 585 BC` */
 export function dateLong(date: LocalDate): string {
-  return `${WEEKDAYS_LONG[weekday(date)]} ${date.day} ${MONTHS_LONG[date.month - 1]} ${date.year}`;
+  return `${WEEKDAYS_LONG[weekday(date)]} ${date.day} ${MONTHS_LONG[date.month - 1]} ${formatYear(date.year)}`;
 }
 
 /** `06:52` (or `6:52 AM` on the 12-hour clock) on the wall clock of `zone`. */
@@ -55,9 +62,9 @@ export function clock(jd: number, zone: Zone): string {
   return eventTime(jd, zone);
 }
 
-/** `10:52 UTC` */
+/** `10:52 UTC` (`UT` outside 1972-2035) */
 export function clockUtc(jd: number): string {
-  return `${formatTime(jd, UTC_ZONE)} UTC`;
+  return `${formatTime(jd, UTC_ZONE)} ${scaleLabel(jd)}`;
 }
 
 /** `06:52 EDT` */
@@ -153,9 +160,9 @@ export function clockAt(jd: number, offsetMs: number): string {
   return `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
 }
 
-/** `10:52 UTC`, without Intl. */
+/** `10:52 UTC` (`UT` outside 1972-2035), without Intl. */
 export function clockUtcFast(jd: number): string {
-  return `${clockAt(jd, 0)} UTC`;
+  return `${clockAt(jd, 0)} ${scaleLabel(jd)}`;
 }
 
 const shortNames = new Map<string, string>();

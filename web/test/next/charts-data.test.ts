@@ -144,7 +144,8 @@ describe('day chart data', () => {
     expect(() => computeDay(engine, { observer: PHILLY, zone: NEW_YORK, day: far, bodies: ['Sun', 'Moon'], options: OPTIONS })).toThrow(
       OutsideCoverageError,
     );
-    expect(outsideCoverage(engine)).toBe('This date is outside the time the engine can compute: 1990-01-01 to 2060-12-31 (UTC).');
+    // The bounds as dates, not sliced wire strings (time-ui agent: "-2000-01-01T…" sliced to ten characters broke).
+    expect(outsideCoverage(engine)).toBe('This date is outside the time the engine can compute: 1 January 1990 to 31 December 2060.');
   });
 });
 

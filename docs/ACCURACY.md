@@ -2447,3 +2447,70 @@ on the base commit 28131c5 the package measured 214 KB / 87 KB before that.
   --test planetdetail_apsides --test planetdetail_orbits -- --include-ignored --nocapture`
   prints every number above (the 1990-2060 conjunction and station runs and the timing
   are `--ignored` in the default run, which covers 2024-2026 and 2019-2030).
+
+## Charts: what the Sun, Tides and Moon charts compute themselves (charts2 agent, expansion programme Q5)
+
+Every number on the Sun, Tides and Moon charts is an engine's (sections 9, 14, 16 and "Moon in
+detail"): `sun_path`, `analemma`, `rise_set_azimuths`, `equation_of_time`, `solar_day`,
+`solar_year`, `day_events`, `sky_state`, `sample_bodies`, `moon_apsides`, `tide_predict`,
+`tide_extremes` and `tide_stations_near`. The charts compute only these on top of them,
+checked against the engine in `web/test/next/charts-real-engine.test.ts` (runs when the
+WebAssembly package and the `tides-us` pack are built; `--reporter=verbose` prints the
+figures) and with the mock engine in `charts-sun.test.ts` and `charts-tides-moon.test.ts`:
+
+| what the chart does | against | worst |
+|---|---|---|
+| the tide height under the moving cursor, read off the 6-minute predicted curve (the cubic through the four nearest samples) instead of calling `tide_now` every frame | `tide_now` at 97 instants of a day and 157 of a week, at Anchorage (9455920, range about 9 m), Boston and San Francisco, 2026-09-24 | **0.02 mm** (Anchorage), under 0.01 mm elsewhere |
+| the rate of rise under the cursor, the same cubic's slope | `tide_now`'s rate | **0.09 cm/h** (Anchorage) |
+| the Moon at one hour through the year: `sample_bodies`, one exact sample a day, in two or three runs a year (a clock change starts a run) | `sky_state` at the same instants (Philadelphia, 21:00, 2026) | **0.72″**: a run takes the Earth's rotation (DUT1) at its middle (EXPLORER_API `set_dut1`); displayed to 0.1′ |
+| the sun path's whole hours on the local clock | the engine's own samples (identical values) | exact |
+| sunrise and sunset bearings through the year, drawn from the Year chart's shared `day_events_batch` (one computation for both charts) | `rise_set_azimuths` for the same year, event by event (Philadelphia, 2026) | **0.014 s, 0.005″**: the year-long call takes one DUT1 for the year, the batch each day's |
+
+Drawn but never shown as a number: the sun path's crossing of the horizon between two
+10-minute samples (linear; the rise and set shown are the event finder's), and the
+analemma's sky projection (stereographic, a picture only). The solar panel's energy is the
+engine's clear-sky estimate and is labelled as one everywhere, with the model's typical
+error (section 14); the tides are labelled "predicted, not observed" everywhere.
+
+Speed: the developer page's bench (`web/src/next/charts/dev/screenshots.mjs bench`,
+headless Chrome, WebAssembly, the median of six warm runs after a cold first one). The
+shared machine was under a load average of about 40 on 8 cores, so the numbers are
+comparable with each other and with the existing Year chart in the same run, not in
+absolute terms:
+
+| chart (engine work) | warm median (first) |
+|---|---|
+| Year chart, for comparison (`day_events_batch`, 365 days) | 420 ms (657) |
+| Sun path (`sun_path`, `day_events`, `sky_state`) | 67 ms (77) |
+| Analemma (`analemma`, a year) | 188 ms (242) |
+| Sunrise bearings | shared with the Year chart: nothing more once it is drawn |
+| Equation of time (a year) | 141 ms (65) |
+| Solar panel (`solar_year` with the best-tilt search) | 273 ms (377) |
+| Moon through the year (`sample_bodies`, 365 exact samples) | 157 ms (126) |
+| Perigee and apogee of a month (`moon_apsides`) | 213 ms (305) |
+| Tides, a day / a week | 20 ms / 35 ms |
+
+Every year chart is at or under the Year chart's own cost (the solar panel at about 0.65 of
+it), computes once per place, year and setting, runs after the time settles while the time
+bar is dragged, and is kept for the page's lifetime; nothing heavier than a cursor moves per
+frame.
+
+## Interface: calendars, the clock's scale and the ΔT chip (time-ui agent, wave 2)
+
+The explorer's own calendar arithmetic (`web/src/next/time/civil.ts`, used by every date on
+screen) is exact integer arithmetic, held to the engine rather than to JavaScript's `Date`:
+
+- `web/test/next/time-civil.test.ts`: the Julian and Gregorian day numbers of the built
+  package's `calendar_convert` agree on 1 821 days over −2000..3000 (every 1 009th day, the
+  seven days around the 1582 reform, 29 February of 1 BC and of 1600, 28 May 585 BC; both
+  ways, both calendars); every
+  day of 2000 BC to AD 3000 round-trips in both calendars; JavaScript's proleptic Gregorian
+  `Date` agrees on every 97th day of the years 0-9999; the mock engine's calendars agree on
+  every 211th day. The years −584, 0, 99, 1066 and 12345 go wall clock → wire string → back
+  unchanged (the `Date.UTC` traps of the accuracy audit).
+- `web/test/next/time-tiers.test.ts`: the clock's scale (UTC 1972-2035, UT outside) and the
+  display calendar agree with the built package's `time_info` at 231 instants over
+  −2000..3000 and at the four instants either side of the scale's boundaries.
+
+What the chip shows is the engine's `time_info.delta_t_sigma_s` (section 14 above), rounded
+for reading (±s below 90 s, ±min below an hour, ±h above); it is not a new estimate.
