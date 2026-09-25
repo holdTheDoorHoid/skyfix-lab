@@ -23,9 +23,12 @@ use skyfix_ephemeris::frames::{
     unit_vector_from_radec,
 };
 
-/// (UTC year, month, day, hour, minute, second), RA and Dec of A (degrees, ICRS),
-/// from Akeson et al. (2021) Table 2.
-const ALMA: [((i32, u32, u32, f64, f64, f64), f64, f64); 9] = [
+/// UTC year, month, day, hour, minute, second.
+type UtcParts = (i32, u32, u32, f64, f64, f64);
+
+/// The start of each ALMA observation, and the RA and Dec of A (degrees, ICRS), from
+/// Akeson et al. (2021) Table 2.
+const ALMA: [(UtcParts, f64, f64); 9] = [
     (
         (2018, 10, 14, 13.0, 38.0, 19.0),
         219.860_763_250,
