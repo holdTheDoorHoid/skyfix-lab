@@ -24,10 +24,33 @@ import type {
   WatchLogEntry,
 } from '../../types.js';
 import { asHorizon, SESSION_SCHEMA } from '../../types.js';
-import type { BodyBearing, EphemerisMode, NoonCurvature, SightLimb, SingleAltitudeMode } from '../engine/types.js';
+import type {
+  AmplitudeHorizon,
+  BodyBearing,
+  CompassKind,
+  CompassMethod,
+  DrMethod,
+  EphemerisMode,
+  MeridionalParts,
+  NoonCurvature,
+  SightLimb,
+  SingleAltitudeMode,
+} from '../engine/types.js';
 import type { MethodId } from './text.js';
 import { METHODS } from './text.js';
-import { defaultWorking, type PlannedSight, type VesselForm, type Working } from './model.js';
+import {
+  defaultCompassForm,
+  defaultPassageForm,
+  defaultWorking,
+  type CompassForm,
+  type DeviationEntry,
+  type LegKind,
+  type PassageForm,
+  type PlannedSight,
+  type RouteWaypoint,
+  type VesselForm,
+  type Working,
+} from './model.js';
 
 /** The one key the Navigate view writes. */
 export const AUTOSAVE_KEY = 'skyfix.navigate.working.v1';
@@ -286,6 +309,97 @@ export function sanitizeWorking(raw: unknown): Working | null {
       minAlt: num(planner.minAlt, d.planner.minAlt),
       maxAlt: num(planner.maxAlt, d.planner.maxAlt),
       baseSigma: Math.max(0.01, num(planner.baseSigma, d.planner.baseSigma)),
+    },
+    // navigate2 (expansion programme): the compass, the deviation table and the passage.
+    compass: compassForm(raw.compass),
+    deviations: Array.isArray(raw.deviations) ? raw.deviations.map(deviation).filter((x): x is DeviationEntry => x !== null) : [],
+    passage: passageForm(raw.passage),
+  };
+}
+
+const angle360 = (x: unknown): number | null => {
+  const v = numOrNull(x);
+  return v !== null && v >= 0 && v <= 360 ? (v === 360 ? 0 : v) : null;
+};
+
+function compassForm(x: unknown): CompassForm {
+  const r = isRec(x) ? x : {};
+  const d = defaultCompassForm();
+  const sigma = numOrNull(r.bearingSigmaDeg);
+  const variation = numOrNull(r.variationDeg);
+  return {
+    method: pick<CompassMethod>(r.method, ['azimuth', 'amplitude'], d.method),
+    body: str(r.body, d.body) || d.body,
+    utc: strOrNull(r.utc),
+    bearingDeg: angle360(r.bearingDeg),
+    compass: pick<CompassKind>(r.compass, ['magnetic', 'gyro'], d.compass),
+    variationDeg: variation !== null && Math.abs(variation) <= 180 ? variation : null,
+    bearingSigmaDeg: sigma !== null && sigma > 0 ? sigma : null,
+    horizon: pick<AmplitudeHorizon>(r.horizon, ['visible', 'celestial'], d.horizon),
+    limb: pick<SightLimb>(r.limb, LIMBS, d.limb),
+    event: r.event === 'rising' || r.event === 'setting' ? r.event : null,
+    headingDeg: angle360(r.headingDeg),
+  };
+}
+
+function deviation(x: unknown): DeviationEntry | null {
+  if (!isRec(x)) return null;
+  const heading = angle360(x.headingDeg);
+  const dev = numOrNull(x.deviationDeg);
+  if (heading === null || dev === null || Math.abs(dev) > 180) return null;
+  return {
+    id: str(x.id, '') || `dev-${heading.toFixed(1)}`,
+    headingDeg: heading,
+    deviationDeg: dev,
+    utc: strOrNull(x.utc),
+    source: str(x.source, 'typed'),
+    note: str(x.note, ''),
+  };
+}
+
+function waypoint(x: unknown, i: number): RouteWaypoint | null {
+  const p = position(x);
+  if (!p || !isRec(x)) return null;
+  return {
+    id: str(x.id, '') || `wp-${i + 1}`,
+    name: str(x.name, ''),
+    lat_deg: p.lat_deg,
+    lon_deg: p.lon_deg,
+    leg: pick<LegKind>(x.leg, ['great_circle', 'rhumb'], 'great_circle'),
+  };
+}
+
+function passageForm(x: unknown): PassageForm {
+  const r = isRec(x) ? x : {};
+  const d = defaultPassageForm();
+  const dr = isRec(r.dr) ? r.dr : {};
+  const speed = numOrNull(r.speedKn);
+  const drSpeed = numOrNull(dr.speedKn);
+  const seen = new Set<string>();
+  const waypoints: RouteWaypoint[] = [];
+  if (Array.isArray(r.waypoints)) {
+    r.waypoints.forEach((w, i) => {
+      const clean = waypoint(w, i);
+      if (!clean) return;
+      if (seen.has(clean.id)) clean.id = `${clean.id}-${i + 1}`;
+      seen.add(clean.id);
+      waypoints.push(clean);
+    });
+  }
+  return {
+    waypoints,
+    speedKn: speed !== null && speed > 0 && speed <= 1000 ? speed : null,
+    departureUtc: strOrNull(r.departureUtc),
+    parts: pick<MeridionalParts>(r.parts, ['sphere', 'wgs84'], d.parts),
+    showOnMap: bool(r.showOnMap, d.showOnMap),
+    tickHours: Math.min(48, Math.max(0, num(r.tickHours, d.tickHours))),
+    dr: {
+      from: position(dr.from),
+      courseDeg: angle360(dr.courseDeg),
+      speedKn: drSpeed !== null && drSpeed >= 0 && drSpeed <= 1000 ? drSpeed : null,
+      hours: numOrNull(dr.hours),
+      startUtc: strOrNull(dr.startUtc),
+      method: pick<DrMethod>(dr.method, ['rhumb', 'mid_latitude', 'great_circle'], d.dr.method),
     },
   };
 }

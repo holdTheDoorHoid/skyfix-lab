@@ -14,7 +14,8 @@
  *
  * The position is an approximate one, used to predict and never as a prior; the plan says
  * so. It is recomputed when the place, the instrument or the hour of the time bar changes,
- * never per frame.
+ * never per frame. Outside the validated tier there is no plan, and the list says why
+ * (navigate2: tier.ts, on the time-ui agent's `tierAt` and `sightsOnlyText`).
  */
 
 import { h, s } from '../../dom.js';
@@ -28,6 +29,7 @@ import { zoneShortName, type Zone } from '../time.js';
 import { fmtAngle, fmtBearing, fmtMetres, fmtPosition, fmtSeconds } from './format.js';
 import type { PlannedSight } from './model.js';
 import { btn, errorText, kids, para } from './ui.js';
+import { sightTierAt } from './tier.js';
 import { workingFor } from './working.js';
 import { workingsTable } from './workings.js';
 
@@ -64,7 +66,12 @@ function inputsFor(ctx: Ctx, from: 'place' | 'dr'): Inputs {
           pressure_hpa: w.session.observer.pressure_hpa,
           temperature_c: w.session.observer.temperature_c,
         },
-        instrument: { index_correction_arcmin: w.session.instrument.index_correction_arcmin, horizon: w.session.instrument.horizon },
+        instrument: {
+          index_correction_arcmin: w.session.instrument.index_correction_arcmin,
+          horizon: w.session.instrument.horizon,
+          // navigate2: the logged index correction, as the session's sights use it.
+          ...(w.session.instrument.index_error_log?.length ? { index_error_log: w.session.instrument.index_error_log } : {}),
+        },
         jdStart: s.time.jd_utc,
         label: 'the session’s assumed position',
       };
@@ -234,6 +241,14 @@ export function tonightSights(options: TonightOptions = {}): Component {
       timer = null;
       lastRun = Date.now();
       const inputs = inputsFor(ctx, from);
+      // navigate2: no plan outside the validated tier (CONVENTIONS 15.1): the sentence says why,
+      // on the time-ui agent's `tierAt` and `sightsOnlyText` (tier.ts). The window searched runs a
+      // day and a half from the time bar, so both ends must be validated.
+      const gate = [inputs.jdStart, inputs.jdStart + PLAN_SPAN_DAYS].map((jd) => sightTierAt(ctx, jd)).find((t) => !t.offered);
+      if (gate) {
+        body.replaceChildren(para(gate.sentence ?? 'No sights for this date.', 'sfn-note'));
+        return;
+      }
       try {
         const plan = nav.planSights(inputs.observer, inputs.jdStart, inputs.jdStart + PLAN_SPAN_DAYS, inputs.instrument);
         renderPlan(body, plan, ctx, {
@@ -254,7 +269,8 @@ export function tonightSights(options: TonightOptions = {}): Component {
     };
     const request = (): void => {
       const inputs = inputsFor(ctx, from);
-      const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), ctx.store.get().settings.angleFormat, ctx.store.get().settings.timeDisplay, ctx.store.get().settings.hourCycle, ctx.store.get().observer.zone]);
+      const st = ctx.store.get().settings;
+      const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), st.angleFormat, st.timeDisplay, st.hourCycle, ctx.store.get().observer.zone, st.calendar, st.yearStyle]);
       if (key === lastKey) return;
       lastKey = key;
       // A plan takes tens of milliseconds of the page's time. While the time keeps moving

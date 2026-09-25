@@ -1736,3 +1736,13 @@
   border-radius: var(--radius-sm);
   background: var(--phase-night);
 }
+
+/* navigate2 (expansion programme): actions other views offer on the map's measurement
+   (map/measure.ts registry; "Add as a leg of the passage"). Here because the side panel's
+   slot loads this sheet on every page. */
+.sfm-readout .sfm-readout__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}

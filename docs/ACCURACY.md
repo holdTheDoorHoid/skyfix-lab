@@ -2806,3 +2806,41 @@ bar. Increments, arc to time and the altitude tables are cheap and cached per ar
 `SOURCE_DATE_EPOCH=1790380800 tools/reference/.venv/bin/python -m
 tools.reference.gen_almanac_tables` (about a minute), then `cargo test -p skyfix-almanac
 --release --test almanac_tables_reference -- --nocapture`, which prints every figure above.
+## Navigate's expansion tools (navigate2, 2026-09-25)
+
+Owner: navigate2 agent (expansion programme, wave 2). The Compass and Passage tabs, the
+sight form's extras, the printables and the star finder show the engines' numbers (sections
+9–13 of `docs/NAVIGATION_METHODS.md`, which carry their own validation); these are the
+places where the interface does arithmetic of its own, each with its test in
+`web/test/next/` (the checks against the core run when the WASM package is built,
+`npm run wasm --prefix web`). Interface notes: `docs/NAVIGATION_METHODS.md` section 14.
+
+| claim | measured | test |
+|---|---|---|
+| The passage's legs handed to the running fix follow the passage under the running fix's own dead reckoning (`route_positions` `great_circle` = `Track::advance`), three-hour runs, Bowditch §1208's great circle and a rhumb line at 12 kn | 0.00–0.01 m (great circle), 0.44 m (rhumb line; the 10 NM chords' sagitta); < 5 m asserted. One leg on the course at the start of the hours instead: 14.48 NM | `navigate-passage.test.ts`, "hands the running fix legs…" (`SKYFIX_PRINT=1` prints the figures) |
+| The DR marks and DR now land on every waypoint at its time | < 0.01 NM | `navigate-passage.test.ts`, "reproduces Bowditch section 1208…" |
+| The passage's great circle is the engine's Bowditch §1208 | 3264.54 NM, 055.807°, vertex 48.6297° N | same |
+| The watch log read at a sight's time as the core reads it (the star identification's time) | equal to the core's `clock_correction_from_log` to 1e-6 s | `navigate-sightextras.test.ts`, "against the built core" |
+| A predicted reading with a one-entry index-error log equals one with that single correction | 1e-12° | same |
+| The star finder's drawn template is the engine's | 1e-5 of the radius at five points of the 10° circle, 39.95° N and 33.9° S | `navigate-print.test.ts`, "draws the template where the engine puts it…" |
+| With the template set to LHA ♈, every star above the horizon lies under its own altitude and azimuth (CONVENTIONS 3 at the template latitude) | 1e-5 of the radius, both hemispheres | same |
+| The worksheet's GHA ♈ brought to the session's UT1: GHA ♈ + SHA = the core's GHA, with DUT1 automatic, +0.6 s or −0.8 s | SHA the same to 0.05″ | `navigate-print.test.ts`, "GHA ♈ on the session’s UT1…" |
+| The plotting sheet's lines of position from sights taken at one position cross there | 1e-9 NM (plane geometry) | `navigate-print.test.ts`, "draws every line through the position…" |
+| The worksheet's printed figures close their own sums (Ho − Hc = a) | to its 0.01′ | `navigate-print.test.ts`, "the worksheet’s sums close" |
+| The deviation curve (A–E by least squares) recovers a curve exactly, and on a swing gives the textbook's A, D, E (and B, C when the swing follows the curve) | 1e-9° | `navigate-compass.test.ts` |
+| The Compass tab's request reproduces the documented Philadelphia bearing | compass error −14.448°, variation −11.805°, deviation −2.642°, the engine's sentence | `navigate-compass.test.ts`, "against the built core" |
+| The shoreline horizon's sentence: Bowditch Table 14 at 100 ft and 0.2 NM | 282.3′ (as printed) | `navigate-compass.test.ts`, "the shore horizon’s sentence" |
+| A sight's time typed in the display calendar lands on the wire's proleptic Gregorian date (time-ui's civil helpers): Julian 1550-03-01 is 1550-03-11, Julian 1582-10-04 is 1582-10-14, 585 BC May 28 is `-0584-05-22`, AD 79 Aug 24 is `0079-08-22`; the ten skipped dates are refused; typed text and the stored time round-trip | exact (whole days, the clock time as typed) | `navigate-sightextras.test.ts`, "dates typed in the display calendar" |
+
+**Labelled, not validated:** the plotting sheet is a plane (as on paper; over its span the
+sphere departs by far less than a pencil line), and its lines are at their own times; the
+deviation curve is an approximation of the ship, shown with its RMS misfit; the site
+elevation's sentence gives effects measured with the engine at one place and date (the Moon
+0.45″ lower at 1000 m, the 2024-04-08 eclipse contacts over Texas up to 0.67 s later, the
+field 25 nT weaker).
+
+Reproduce: `cd web && npx vitest run test/next/navigate-compass.test.ts
+test/next/navigate-passage.test.ts test/next/navigate-print.test.ts
+test/next/navigate-sightextras.test.ts`, and in a browser `npm run build --prefix web &&
+ONLY=navigate2 node web/scripts/ui-check.mjs`.
+

@@ -218,3 +218,21 @@ This file is the single list; the completion report links here.
 | A faster opening | unstarted | an opening is three full daily pages (0.2 s native, several times that in WebAssembly on a loaded machine), computed once the time settles. Its outer two dates' twilight tables are never shown and their second moonrise column repeats the next date's; skipping them in `pages.rs` would save about a third |
 | The printed almanac's own refraction and Moon radius | decided against | the tables follow this project's chain (CONVENTIONS 5), so a navigator using them gets what a reduction gets; the printed book's differ by 0.1′ in 10 of 46 published values (ACCURACY) |
 | The zone letters of the non-standard conditions chart | by decision | this project's zones (13 of equal air density, CONVENTIONS 13.9.1); the printed chart's own lines are not published as numbers, so a letter can differ from the book's while the exact correction for a temperature and pressure does not |
+## Expansion programme — navigate2 (wave 2, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| DUT1 field: blank = automatic, with the source said; site elevation in the Place editor; the stored index correction in Settings → Sights; the index-error and watch logs edited as tables, the value used shown in each sight's workings | completed | `navigate/session-panel.ts`, `dut1.ts`, `logs*.ts`, `panel/place.ts`, `shell/settings.ts` |
+| Compass tab: variation, compass error by azimuth and amplitude, the deviation table and its A–E curve | completed | `navigate/methods/compass.ts`, `navigate/compass/` |
+| Passage tab: great-circle and rhumb-line legs, times, steering points, DR now, GPX route, "Use in the running fix", forward DR; the route on the map; the measuring tool's "Add as a leg" | completed | `navigate/methods/passage.ts`, `navigate/passage/`, `map/measure.ts` (registry), `map/map-view.ts` (readout buttons) |
+| Sight form: the shoreline horizon's distance; "What did I shoot?"; sights only in the validated tier | completed | `navigate/sights.ts`, `shore.ts`, `starid.ts`, `tier.ts` |
+| Printable worksheets and the plotting sheet; the star finder on screen and printed | completed | `navigate/print/`, `navigate/starfinder/` |
+| Predictions with the index-error log | completed | `instrumentJson` sends it (engine/wasm-nav.ts); the mock's `predictSextant` still uses the single value |
+| The time-ui helpers (tier chip, `tierAt`, the calendar formatter) in place of `navigate/tier.ts`'s lookups and `dateWords` | completed | `tierAt` and `sightsOnlyText` gate the sight form, Tonight's sights, the planner and the Compass tab; the ±ΔT chip beside the sight's time, each listed sight, the DUT1 sentence and the Compass tab's time; typed dates in the display calendar (Julian before 1582-10-15, any year's width); UTC or UT after each time (`scaleLabel`); the Place panel's offset and reason under local mean time |
+| The ±ΔT chip beside every time in the other Navigate tabs (running fix, noon, lunar, Polaris, average) | unstarted | their times are in the validated tier, where the chip shows only after about 2100; the view's caution line covers them meanwhile |
+| Composite sailing (a limiting latitude) in the Passage tab | unstarted | the engine has it (`limiting_latitude_deg`); the tab offers great circles and rhumb lines only |
+| The deviation table applied automatically (the Compass tab's and "What did I shoot?"'s compass bearings at the ship's heading) | unstarted | today the deviation is typed; the table's interpolated value could fill it |
+| A plotting sheet for the running fix (lines of position advanced to one time) | unstarted | the Fix tab's sheet draws each line at its own time and says so |
+| A printed passage plan (legs, courses, times, steering points) | unstarted | the table is on screen and in the GPX |
+| Importing a GPX route into the Passage tab | unstarted | export only |
+

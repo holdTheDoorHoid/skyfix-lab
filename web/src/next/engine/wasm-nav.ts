@@ -96,6 +96,9 @@ export function instrumentJson(i: SightInstrument | undefined): string {
   if (i?.name !== undefined) out.name = i.name;
   if (i?.index_correction_arcmin !== undefined) out.index_correction_arcmin = i.index_correction_arcmin;
   if (i?.horizon !== undefined) out.horizon = i.horizon;
+  // navigate2 (expansion programme): the session's index-error log, which the core reads at
+  // each prediction's instant (CONVENTIONS 10); absent when empty, as the core writes it.
+  if (i?.index_error_log?.length) out.index_error_log = i.index_error_log;
   return JSON.stringify(out);
 }
 

@@ -4558,3 +4558,14 @@ export function isAlmanacTablesEngine(engine: unknown): engine is AlmanacTablesE
   return typeof e.almanacOpening === 'function' && typeof e.almanacIncrements === 'function';
 }
 // --- end almanac2
+// navigate2 agent (expansion wave 2): additive, by declaration merging. The Rust
+// `Instrument` that `predict_sextant`, `plan_sights` and `lunar_distance` parse already
+// takes the session's index-error log (sailings agent, CONVENTIONS 10); `instrumentJson`
+// (wasm-nav.ts) now sends it, so a predicted reading uses the logged index correction as
+// the sight's reduction does.
+// ---------------------------------------------------------------------------------
+
+export interface SightInstrument {
+  /** The session's index-error log; absent or empty: `index_correction_arcmin` is used. */
+  index_error_log?: import('../../types.js').IndexErrorLogEntry[];
+}

@@ -81,3 +81,40 @@ export function measureFeatures(a: LatLonDeg | null, b: LatLonDeg | null): Featu
   if (b) features.push(point(b, 'B'));
   return { type: 'FeatureCollection', features };
 }
+
+// ---------------------------------------------------------------------------------------
+// Actions on a measurement. Appended by the navigate2 agent (expansion programme): another
+// view registers an action for the page (Navigate: "Add as a leg of the passage"), and the
+// measuring readout shows one button per action once both points are set (map-view.ts,
+// `syncMeasure`). Keyed by the page's store, like the map service.
+
+export interface MeasureAction {
+  /** Unique per page; registering the same id again replaces the action. */
+  id: string;
+  /** The button's words ("Add as a leg of the passage"). */
+  label: string;
+  /** A sentence for the tooltip. */
+  tip?: string;
+  /** Called with the measurement's two points, A then B. */
+  run(a: LatLonDeg, b: LatLonDeg): void;
+}
+
+const measureActionRegistry = new WeakMap<object, Map<string, MeasureAction>>();
+
+/** Offer an action on the page's measurements; returns the function that withdraws it. */
+export function registerMeasureAction(owner: object, action: MeasureAction): () => void {
+  let actions = measureActionRegistry.get(owner);
+  if (!actions) {
+    actions = new Map();
+    measureActionRegistry.set(owner, actions);
+  }
+  actions.set(action.id, action);
+  return () => {
+    if (measureActionRegistry.get(owner)?.get(action.id) === action) measureActionRegistry.get(owner)!.delete(action.id);
+  };
+}
+
+/** The actions offered on the page's measurements, in the order they were registered. */
+export function measureActions(owner: object): MeasureAction[] {
+  return [...(measureActionRegistry.get(owner)?.values() ?? [])];
+}
