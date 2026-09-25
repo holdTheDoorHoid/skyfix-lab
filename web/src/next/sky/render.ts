@@ -1197,7 +1197,9 @@ export class SkyRenderer {
       ctx.font = `500 11px ${f.palette.fontUi}`;
       // Fewer names on a small chart (a phone), more when the panorama is zoomed in.
       const p0 = f.projector;
-      const sizeLimit = p0 instanceof DomeProjector ? Math.min(1.6, Math.max(0.6, p0.radius / 190 - 0.3)) : 1.6 + 1.2 * (f.zoom - 1);
+      // A zoomed dome (sky2) names fainter stars as the chart grows: to 1.6 on a laptop's whole sky, 3.8 at twice that.
+      const sizeLimit =
+        p0 instanceof DomeProjector ? Math.min(p0.radius > 600 ? 4 : 1.6, Math.max(0.6, p0.radius / 190 - 0.3)) : 1.6 + 1.2 * (f.zoom - 1);
       const nameLimit = Math.min(f.limitMag + 0.5, sizeLimit);
       const roomyNames = !(p0 instanceof DomeProjector) || p0.radius >= 230;
       for (let k = 0; k < data.named.length; k += 1) {

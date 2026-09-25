@@ -135,7 +135,16 @@ export interface SkyViewSettings {
   fov: FovSettings;
   /** How the "Up close" inset is turned (sky2 agent). */
   upClose: UpCloseSettings;
+  /**
+   * The dome's zoom (sky2 agent): 1 shows the whole sky; `cx`, `cy` are the point of the
+   * projection plane at the middle of the view, in horizon radii (0, 0 = the zenith), in
+   * screen axes (x right, y down).
+   */
+  dome: { zoom: number; cx: number; cy: number };
 }
+
+/** The dome's zoom range: the whole sky, to about a binocular field across a laptop's chart. */
+export const DOME_ZOOM = { min: 1, max: 12 } as const;
 
 const viewSettings = new WeakMap<object, SkyViewSettings>();
 
@@ -154,6 +163,7 @@ function settingsFor(ctx: Pick<Ctx, 'store'>): SkyViewSettings {
       aimed: false,
       fov: { ...DEFAULT_FOV },
       upClose: { orientation: 'seen', mirror: false },
+      dome: { zoom: 1, cx: 0, cy: 0 },
     };
     viewSettings.set(ctx.store, s);
   }
@@ -208,6 +218,8 @@ export interface SkyMounted extends Mounted {
   search(query: string): SearchHit[];
   /** Set the field of view (a preset id, or null to remove it), anchored as given. */
   setFov(preset: FovPresetId | null, anchor?: FovSettings['anchor']): void;
+  /** Zoom the dome (1 = the whole sky), keeping the sky under `at` (CSS px) in place. */
+  setDomeZoom(zoom: number, at?: { x: number; y: number }): void;
   /** The picture "Save as image" makes, without saving it. */
   snapshot(): HTMLCanvasElement | null;
   info(): SkyInfo;
@@ -300,7 +312,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     { class: 'sky-sr', id: `sky-hint-${Math.random().toString(36).slice(2, 8)}` },
     'Up and down arrow keys move between the Sun, Moon, planets and navigational stars above the horizon; ' +
       'Enter selects, and Enter again on the Moon or a planet opens its close-up; Escape clears. ' +
-      'In the panorama, plus and minus zoom. The Search button finds any star, deep-sky object, constellation or meteor shower by name.',
+      'Plus and minus zoom, in the dome and the panorama; zero shows the whole dome again. ' +
+      'The Search button finds any star, deep-sky object, constellation or meteor shower by name.',
   );
   canvas.setAttribute('aria-describedby', hint.id);
 
@@ -378,6 +391,11 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     el('div', { class: 'sf-btn-group sky-look', role: 'group', 'aria-label': 'Look toward' }, ...lookButtons),
     face,
   );
+  // sky2: the dome's zoom.
+  const domeIn = iconButton('plus', 'Zoom in on the dome', { variant: 'secondary', tip: 'Zoom in (or scroll, or pinch)', onClick: () => zoomDome(1.5) });
+  const domeOut = iconButton('minus', 'Zoom out on the dome', { variant: 'secondary', tip: 'Zoom out', onClick: () => zoomDome(1 / 1.5) });
+  const wholeSky = button({ label: 'Whole sky', size: 'sm', class: 'sf-float', tip: 'Back to the whole sky', onClick: () => resetDome() });
+  const domeControls = el('div', { class: 'sky-ov sky-ov--r sf-on-stage' }, el('div', { class: 'sf-btn-group' }, domeIn, domeOut), wholeSky);
   const statusText = el('span', { class: 'sky-status__text' });
   const status = el('div', { class: 'sky-ov sky-ov--tl sf-on-stage' }, el('div', { class: 'sky-status sf-float' }, statusText));
   const topRight = el('div', { class: 'sky-ov sky-ov--tr sf-on-stage' }, southUp, modeControl.el, layersButton);
@@ -454,7 +472,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   const upClose: UpClosePanel = upClosePanel(ctx, view.upClose, () => closeUpClose());
   cleanups.push(() => upClose.destroy());
 
-  root.append(canvas, tooltip, topRight, panoControls, status, tools, card.el, upClose.el, live, hint);
+  root.append(canvas, tooltip, topRight, panoControls, domeControls, status, tools, card.el, upClose.el, live, hint);
   host.replaceChildren(root);
   cleanups.push(() => root.remove());
 
@@ -664,8 +682,11 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   function configureProjector(): DomeProjector | PanoramaProjector {
     if (view.mode === 'dome') {
       const margin = 30;
-      const radius = Math.max(20, Math.min(cssW, cssH) / 2 - margin);
-      dome.configure(cssW / 2, cssH / 2, radius, view.southUp);
+      const base = Math.max(20, Math.min(cssW, cssH) / 2 - margin);
+      const z = view.dome.zoom;
+      const radius = base * z;
+      // The plane point (cx, cy) sits at the middle of the view.
+      dome.configure(cssW / 2 - radius * view.dome.cx, cssH / 2 - radius * view.dome.cy, radius, view.southUp);
       return dome;
     }
     const applied = pano.configure(cssW, cssH, view.panorama);
@@ -1134,6 +1155,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       highlights: String(highlightKeys.size),
       fov: fovLabel(view.fov),
       pinned: pinnedKey ?? '',
+      zoom: view.mode === 'dome' ? view.dome.zoom.toFixed(2) : '',
     };
     const key = JSON.stringify(values);
     if (key === dataKey) return;
@@ -1153,7 +1175,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   let statusKey = '';
   function syncChrome(state: ExplorerState): void {
     const p = view.panorama;
-    const key = `${view.mode}|${view.southUp}|${Math.round(p.fov)}|${Math.round(p.azimuth)}|${state.observer.label}|${state.observer.lat_deg}|${state.observer.lon_deg}|${Object.values(state.layers).join('')}|${view.fov.preset}`;
+    const key = `${view.mode}|${view.southUp}|${Math.round(p.fov)}|${Math.round(p.azimuth)}|${state.observer.label}|${state.observer.lat_deg}|${state.observer.lon_deg}|${Object.values(state.layers).join('')}|${view.fov.preset}|${view.dome.zoom.toFixed(2)}`;
     if (key !== chromeKey) {
       chromeKey = key;
       root.dataset.mode = view.mode;
@@ -1161,6 +1183,10 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       setPressed(southUp, view.southUp);
       southUp.hidden = view.mode !== 'dome';
       panoControls.hidden = view.mode !== 'panorama';
+      domeControls.hidden = view.mode !== 'dome';
+      wholeSky.hidden = view.dome.zoom <= 1.001;
+      domeIn.disabled = view.dome.zoom >= DOME_ZOOM.max - 1e-6;
+      domeOut.disabled = view.dome.zoom <= DOME_ZOOM.min + 1e-6;
       zoomIn.disabled = p.fov <= PANORAMA_LIMITS.minFov + 0.5;
       zoomOut.disabled = p.fov >= PANORAMA_LIMITS.maxFov - 0.5;
       setPressed(fovButton, view.fov.preset !== null);
@@ -1180,7 +1206,10 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     const sunText = Number.isFinite(sun)
       ? `Sun ${formatAngle(Math.abs(sun), 'dm').replace(/\.\d′$/, '′')} ${sun >= 0 ? 'up' : 'below the horizon'}`
       : '';
-    const lookText = view.mode === 'panorama' ? `Looking ${compassPoint(p.azimuth)} · ${Math.round(p.fov)}° wide` : '';
+    let lookText = view.mode === 'panorama' ? `Looking ${compassPoint(p.azimuth)} · ${Math.round(p.fov)}° wide` : '';
+    if (view.mode === 'dome' && view.dome.zoom > 1.001 && dome.unproject(cssW / 2, cssH / 2)) {
+      lookText = `Zoomed ${view.dome.zoom < 9.95 ? view.dome.zoom.toFixed(1) : Math.round(view.dome.zoom)}× · ${Math.round(dome.alt * RAD)}° up in the ${compassPoint(dome.az * RAD)}`;
+    }
     const q = state.settings;
     const darkText = q.skyQuality === 'bortle' ? `Bortle ${q.skyBortle}` : q.skyQuality === 'nelm' ? `Sky to ${q.skyNelm.toFixed(1)}` : '';
     const nextStatus = `${phase}|${sunText}|${lookText}|${darkText}`;
@@ -1964,6 +1993,10 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     scheduler.cancel(drawTask);
     draw();
     if ((options.face ?? true) && view.mode === 'panorama') faceKey(key);
+    if ((options.face ?? true) && view.mode === 'dome') {
+      const d = directionOf(key);
+      if (d && d.alt >= 0) centreDome(d.alt, d.az);
+    }
     // A shower not active now has no radiant to show: the card says when it is.
     if (keyKind(key) === 'r' && !radiantMarks.some((m) => m.key === key)) {
       const code = key.slice(2);
@@ -2010,8 +2043,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
 
   // --- pointer -------------------------------------------------------------------------
   const pointers = new Map<number, { x: number; y: number }>();
-  let drag: { x: number; y: number; az: number; bottom: number; moved: boolean } | null = null;
-  let pinch: { dist: number; fov: number } | null = null;
+  let drag: { x: number; y: number; az: number; bottom: number; moved: boolean; cx: number; cy: number } | null = null;
+  let pinch: { dist: number; fov: number; zoom: number } | null = null;
 
   function local(e: PointerEvent | WheelEvent | MouseEvent): { x: number; y: number } {
     const r = canvas.getBoundingClientRect();
@@ -2022,13 +2055,13 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     const p = local(e);
     pointers.set(e.pointerId, p);
     canvas.setPointerCapture?.(e.pointerId);
-    if (pointers.size === 2 && view.mode === 'panorama') {
+    if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
-      pinch = { dist: Math.hypot(a!.x - b!.x, a!.y - b!.y), fov: view.panorama.fov };
+      pinch = { dist: Math.hypot(a!.x - b!.x, a!.y - b!.y), fov: view.panorama.fov, zoom: view.dome.zoom };
       drag = null;
       return;
     }
-    drag = { x: p.x, y: p.y, az: view.panorama.azimuth, bottom: view.panorama.bottomAlt, moved: false };
+    drag = { x: p.x, y: p.y, az: view.panorama.azimuth, bottom: view.panorama.bottomAlt, moved: false, cx: view.dome.cx, cy: view.dome.cy };
   }
 
   function onPointerMove(e: PointerEvent): void {
@@ -2038,8 +2071,13 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       const [a, b] = [...pointers.values()];
       const dist = Math.hypot(a!.x - b!.x, a!.y - b!.y);
       if (dist > 10) {
-        view.panorama.fov = Math.min(PANORAMA_LIMITS.maxFov, Math.max(PANORAMA_LIMITS.minFov, (pinch.fov * pinch.dist) / dist));
-        view.aimed = true;
+        if (view.mode === 'panorama') {
+          view.panorama.fov = Math.min(PANORAMA_LIMITS.maxFov, Math.max(PANORAMA_LIMITS.minFov, (pinch.fov * pinch.dist) / dist));
+          view.aimed = true;
+        } else {
+          // Zoom the dome about the middle of the two fingers.
+          setDomeZoom((pinch.zoom * dist) / pinch.dist, { x: (a!.x + b!.x) / 2, y: (a!.y + b!.y) / 2 });
+        }
         requestDraw();
       }
       return;
@@ -2055,12 +2093,19 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
         view.aimed = true;
         hoverKey = null;
         requestDraw();
+      } else if (drag.moved && view.mode === 'dome' && view.dome.zoom > 1.001) {
+        // A zoomed dome pans with the pointer.
+        view.dome.cx = drag.cx - dx / dome.radius;
+        view.dome.cy = drag.cy - dy / dome.radius;
+        clampDome();
+        hoverKey = null;
+        requestDraw();
       }
       if (drag.moved) return;
     }
     const key = hitTest(p.x, p.y);
     hoverAt = p;
-    canvas.style.cursor = key ? 'pointer' : view.mode === 'panorama' ? 'grab' : 'default';
+    canvas.style.cursor = key ? 'pointer' : view.mode === 'panorama' || view.dome.zoom > 1.001 ? 'grab' : 'default';
     if (key !== hoverKey || key) {
       hoverKey = key;
       requestDraw();
@@ -2106,10 +2151,68 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   }
 
   function onWheel(e: WheelEvent): void {
-    if (view.mode !== 'panorama') return;
     e.preventDefault();
     const step = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;
-    zoomBy(Math.exp(step * 0.0015), local(e));
+    if (view.mode === 'panorama') zoomBy(Math.exp(step * 0.0015), local(e));
+    else setDomeZoom(view.dome.zoom * Math.exp(-step * 0.0015), local(e));
+  }
+
+  // --- sky2: the dome's zoom ---------------------------------------------------------------
+  /** Keep the middle of a zoomed view inside the horizon circle; the whole sky is centred. */
+  function clampDome(): void {
+    const d = view.dome;
+    if (d.zoom <= 1.001) {
+      d.zoom = 1;
+      d.cx = 0;
+      d.cy = 0;
+      return;
+    }
+    const r = Math.hypot(d.cx, d.cy);
+    if (r > 1) {
+      d.cx /= r;
+      d.cy /= r;
+    }
+  }
+
+  /** Zoom the dome to `zoom`, keeping the sky under `at` (CSS px; default the middle) where it is. */
+  function setDomeZoom(zoom: number, at?: { x: number; y: number }): void {
+    const d = view.dome;
+    const next = Math.min(DOME_ZOOM.max, Math.max(DOME_ZOOM.min, zoom));
+    if (Math.abs(next - d.zoom) < 1e-9) return;
+    const base = Math.max(20, Math.min(cssW, cssH) / 2 - 30);
+    const px = at ?? { x: cssW / 2, y: cssH / 2 };
+    // The plane point under the pointer before, which stays under it after.
+    const u = d.cx + (px.x - cssW / 2) / (base * d.zoom);
+    const v = d.cy + (px.y - cssH / 2) / (base * d.zoom);
+    d.zoom = next;
+    d.cx = u - (px.x - cssW / 2) / (base * next);
+    d.cy = v - (px.y - cssH / 2) / (base * next);
+    clampDome();
+    requestDraw();
+  }
+
+  function zoomDome(factor: number): void {
+    setDomeZoom(view.dome.zoom * factor);
+  }
+
+  function resetDome(): void {
+    view.dome.zoom = 1;
+    clampDome();
+    requestDraw();
+    canvas.focus({ preventScroll: true });
+  }
+
+  /** Centre a zoomed dome on a direction (apparent altitude and azimuth, radians). */
+  function centreDome(alt: number, az: number): void {
+    if (view.mode !== 'dome' || view.dome.zoom <= 1.001) return;
+    // The direction's place on the plane (a scratch projector: the live one stays as drawn).
+    const plane = new DomeProjector();
+    plane.configure(0, 0, 1, view.southUp);
+    if (!plane.project(alt, az)) return;
+    view.dome.cx = plane.x;
+    view.dome.cy = plane.y;
+    clampDome();
+    requestDraw();
   }
 
   // --- keyboard ------------------------------------------------------------------------
@@ -2140,10 +2243,15 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       liveText = '';
       requestDraw();
     } else if (e.key === '+' || e.key === '=') {
-      zoomBy(1 / 1.25);
+      if (view.mode === 'panorama') zoomBy(1 / 1.25);
+      else zoomDome(1.5);
       e.preventDefault();
     } else if (e.key === '-' || e.key === '_') {
-      zoomBy(1.25);
+      if (view.mode === 'panorama') zoomBy(1.25);
+      else zoomDome(1 / 1.5);
+      e.preventDefault();
+    } else if (e.key === '0' && view.mode === 'dome') {
+      resetDome();
       e.preventDefault();
     }
   }
@@ -2335,6 +2443,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     search(query) {
       if (!searchPopover.isOpen()) searchPopover.open();
       return searchBox.search(query);
+    },
+    setDomeZoom(zoom, at) {
+      setDomeZoom(zoom, at);
     },
     setFov(preset, anchorTo) {
       view.fov.preset = preset;

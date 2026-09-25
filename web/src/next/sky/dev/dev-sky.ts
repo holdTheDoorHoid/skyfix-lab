@@ -26,6 +26,7 @@
  *   search=vega                 open the search with this query
  *   ranking=1                   open tonight's best deep-sky objects
  *   custom=ceres                add (1) Ceres from the example elements
+ *   zoom=3                      zoom the dome (applied after `show`, which then centres it)
  */
 
 // The design system (fonts, tokens, components), as the shell loads it.
@@ -220,6 +221,7 @@ async function boot(root: HTMLElement): Promise<void> {
     customBodies(ctx).add(engine.parseOrbits(CUSTOM_EXAMPLE), MPC_CREDIT);
   }
   if (params.has('fov')) handle.setFov((params.get('fov') as FovPresetId) || null, params.get('fovat') === 'centre' ? 'centre' : 'target');
+  if (params.has('zoom')) handle.setDomeZoom(Number(params.get('zoom')) || 1);
   const orient = params.get('orient');
   if (orient === 'seen' || orient === 'north' || orient === 'south' || params.get('mirror') === '1') {
     const v = skyViewSettings(ctx);

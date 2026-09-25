@@ -38,7 +38,7 @@
  *      (M31 → its card with the best time tonight) and the panel's "Sky objects" group
  *      (Jupiter → its card → its close-up with the four moons); tonight's ranking; a field
  *      of view; "How dark is your sky" (a city sky hides the Milky Way and most deep-sky
- *      objects); the picture saved as a real PNG with its caption; photo's hooks (the
+ *      objects); the dome's zoom; the picture saved as a real PNG with its caption; photo's hooks (the
  *      Moon card's "See it up close", the Milky Way planner's "Show in Sky"); the night
  *      theme red-only with the card and the close-up open; the phone layout. (Frame times
  *      are the developer page's bench: headless Chrome here runs few animation frames.)
@@ -945,6 +945,14 @@ async function skyChecks({ send, evaluate, waitFor, messages, open, shot, viewpo
   check('sky2: a field of view is drawn round the pinned object, labelled', (await data()).fov === 'Binoculars 7×50 · 7.1°', (await data()).fov);
   await shot('sky2-desktop-dark-m31-fov');
   await clickText('.sky-fov__presets .sf-menu__item', '^None');
+  // The dome's zoom: + on the chart zooms in about its middle, Whole sky returns.
+  await evaluate(`document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); document.querySelector('.sky-canvas').focus(); document.querySelector('.sky-canvas').dispatchEvent(new KeyboardEvent('keydown', { key: '+', bubbles: true })); true`);
+  await waitFor(`document.querySelector('.sky')?.dataset.zoom === '1.50'`, 5000);
+  const zoomed = await data();
+  const zoomWords = await evaluate(`document.querySelector('.sky-status__text')?.textContent ?? ''`);
+  await clickText('.sky button', '^Whole sky$');
+  await waitFor(`document.querySelector('.sky')?.dataset.zoom === '1.00'`, 5000);
+  check('sky2: + zooms the dome (the status says how far and where), Whole sky returns', zoomed.zoom === '1.50' && /Zoomed 1\.5×/.test(zoomWords) && (await data()).zoom === '1.00', js({ zoom: zoomed.zoom, zoomWords }));
 
   // The picture: a real PNG, taller than the chart by its caption, named by the time.
   await evaluate(`window.__saved = null; window.__click = HTMLAnchorElement.prototype.click; HTMLAnchorElement.prototype.click = function () { if (this.download) { window.__saved = { name: this.download, href: this.href }; return; } return window.__click.call(this); }; true`);
