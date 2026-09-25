@@ -1005,15 +1005,18 @@ async function main() {
           // the Place panel says local mean time in 1800, with UT in its offset.
           if (theme === 'light' && size === SIZES[0]) {
             await evaluate(tab('Fix'));
-            await evaluate(setField('.sfn-entry', 'Time of the sight', '1550-03-01 12:00:00'));
+            // 1500: before the reform and, since the deeptime merge, before the validated tier
+            // (1550 to 2650), so the sight is refused (polish2: the date was 1550).
+            await evaluate(setField('.sfn-entry', 'Time of the sight', '1500-03-01 12:00:00'));
             await sleep(150);
             const D = JSON.parse(await evaluate(`JSON.stringify((() => { const l = [...document.querySelectorAll('.sfn-entry label')].find((x) => x.textContent.startsWith('Time of the sight')); const f = l?.closest('.sfn-field'); return { label: l?.textContent ?? '', help: f?.querySelector('.sfn-help')?.textContent ?? '', tier: document.querySelector('.sfn-entry__tier')?.textContent ?? '', blocked: !!document.querySelector('.sfn-entry__actions button')?.disabled }; })())`));
-            check(`${tag}: a sight's date before 1582 is read as Julian, on UT, and refused with the reason`, D.label === 'Time of the sight (UT)' && /Sat 1 Mar 1550, Julian calendar/.test(D.help) && /^No sights for 1 March 1550 \(Julian\)/.test(D.tier) && D.blocked, JSON.stringify(D));
+            check(`${tag}: a sight's date before 1582 is read as Julian, on UT, and refused with the reason`, D.label === 'Time of the sight (UT)' && /Sun 1 Mar 1500, Julian calendar/.test(D.help) && /^No sights for 1 March 1500 \(Julian\)/.test(D.tier) && D.blocked, JSON.stringify(D));
             await evaluate(setField('.sfn-entry', 'Time of the sight', ''));
-            await open(`${MOMENT.replace(/&t=[^&]+/, '&t=1800-06-01T12:00:00Z')}&view=navigate`, { theme });
+            // 1500: local mean time (before 1850) and outside the validated tier (polish2: was 1800).
+            await open(`${MOMENT.replace(/&t=[^&]+/, '&t=1500-06-01T12:00:00Z')}&view=navigate`, { theme });
             await waitFor(`!!document.querySelector('.sfn-tabs') && /LMT/.test(document.querySelector('.sf-place .sf-kv--zone')?.textContent ?? '')`, 15000);
             const P = JSON.parse(await evaluate(`JSON.stringify({ zone: document.querySelector('.sf-place .sf-kv--zone')?.textContent ?? '', reason: document.querySelector('.sf-place__reason')?.textContent ?? '', tierline: document.querySelector('.sfn-tierline')?.textContent ?? '' })`));
-            check(`${tag}: the Place panel in 1800: local mean time, UT in the offset, and why`, /LMT\s*UT−5:00:40/.test(P.zone) && /^Local mean time at 75° 09\.9′ W \(UT−5:00:40\)/.test(P.reason), JSON.stringify(P));
+            check(`${tag}: the Place panel in 1500: local mean time, UT in the offset, and why`, /LMT\s*UT−5:00:40/.test(P.zone) && /^Local mean time at 75° 09\.9′ W \(UT−5:00:40\)/.test(P.reason), JSON.stringify(P));
             check(`${tag}: Navigate says the time bar is outside the validated span`, /^The time bar is outside the validated span\. Navigate offers no sights/.test(P.tierline), P.tierline);
           }
           const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
@@ -1523,6 +1526,14 @@ async function photoChecks({ send, evaluate, waitFor, messages, open, shot, view
   }
 
   // --- The tides line: hidden until the pack is got in Settings → Data packs -------------------
+  // Charts → Tides (block 7) got the pack earlier in a full run: remove it first, then open
+  // the page again so the engine starts without it (polish2).
+  await open(MOONLIT, { theme: 'dark' });
+  await evaluate(`document.querySelector('button[aria-label="Settings"]').click(); true`);
+  if (await waitFor(`document.querySelector('.sf-packs-row[data-pack="tides-us"]')?.dataset.state === 'saved'`, 5000)) {
+    await evaluate(`[...document.querySelectorAll('.sf-packs-row[data-pack="tides-us"] button')].find((b) => /Remove/.test(b.textContent))?.click(); true`);
+    await waitFor(`document.querySelector('.sf-packs-row[data-pack="tides-us"]')?.dataset.state === 'absent'`, 10000);
+  }
   messages.length = 0;
   await open(MOONLIT, { theme: 'dark' });
   const before = await evaluate(`document.querySelector('.sf-photo-tide')?.hidden`);
