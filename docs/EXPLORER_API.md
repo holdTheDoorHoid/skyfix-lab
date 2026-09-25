@@ -3015,7 +3015,7 @@ once the time has settled.
  "moon_rows": [{"lat_deg": 72, "label": "N 72",
                 "moonrise": [TableTime × 4], "moonset": [TableTime × 4]}, …31],
  "planet_sha_00h": [{"body": "Venus", "sha_deg": 32.869128, "printed": {"gha": "32 52.1"}}, …4],
- "notes": ["UT is UTC with DUT1 = 0 …", …, "Three dates per opening, grouped from January 1 …"],
+ "notes": ["UT is UT1, as in the printed almanac: enter the tables with UTC + DUT1 …", …, "Three dates per opening, grouped from January 1 …"],
  "errors": []}
 ```
 
