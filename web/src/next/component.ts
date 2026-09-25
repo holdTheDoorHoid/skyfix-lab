@@ -23,6 +23,7 @@ import {
   isAlmanacEngine,
   isEclipseEngine,
   isPlanetEventsEngine,
+  isTidesEngine,
   type AlmanacEngine,
   type BodySelection,
   type EclipseEngine,
@@ -30,6 +31,8 @@ import {
   type ExplorerEngine,
   type Observer,
   type PlanetEventsEngine,
+  type TideDatum,
+  type TidesEngine,
 } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
@@ -294,7 +297,11 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     return value;
   }
 
-  const memo: ExplorerEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> = {
+  const memo: ExplorerEngine &
+    Partial<AlmanacEngine> &
+    Partial<EclipseEngine> &
+    Partial<PlanetEventsEngine> &
+    Partial<TidesEngine> = {
     // Optional: present on the wrapper exactly when the engine makes almanac pages (the
     // Almanac view checks with `isAlmanacEngine`). A page is tens of milliseconds, so a
     // few dates are kept.
@@ -319,6 +326,33 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
             cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
         }
       : {}),
+    // Tides (tides agent): present exactly when the engine predicts tides
+    // (`isTidesEngine`). Station lists and tables are kept a few at a time; the state
+    // now and the pack summary change from call to call and pass through. Errors, such
+    // as pack_not_loaded before the pack is installed, are never cached.
+    ...(isTidesEngine(engine)
+      ? {
+          tideStationsNear: (latDeg: number, lonDeg: number, n: number) =>
+            cached('tideStationsNear', `${latDeg}|${lonDeg}|${n}`, 4, () =>
+              engine.tideStationsNear(latDeg, lonDeg, n),
+            ),
+          tideStation: (id: string) => cached('tideStation', id, 8, () => engine.tideStation(id)),
+          tidePredict: (id: string, jdStart: number, jdEnd: number, stepMin: number, datum?: TideDatum | '') =>
+            cached('tidePredict', `${id}|${jdStart}|${jdEnd}|${stepMin}|${datum ?? ''}`, 4, () =>
+              engine.tidePredict(id, jdStart, jdEnd, stepMin, datum),
+            ),
+          tideExtremes: (id: string, jdStart: number, jdEnd: number, datum?: TideDatum | '') =>
+            cached('tideExtremes', `${id}|${jdStart}|${jdEnd}|${datum ?? ''}`, 8, () =>
+              engine.tideExtremes(id, jdStart, jdEnd, datum),
+            ),
+          tideNow: (id: string, jdUtc: number, datum?: TideDatum | '') => engine.tideNow(id, jdUtc, datum),
+          tidePackInfo: () => engine.tidePackInfo(),
+          ...(engine.loadTidesPack
+            ? { loadTidesPack: (bytes: Uint8Array) => engine.loadTidesPack!(bytes) }
+            : {}),
+        }
+      : {}),
+    // --- end tides
     kind: engine.kind,
     description: engine.description,
     // Navigation tools pass through unmemoised: they run on demand, never per frame.

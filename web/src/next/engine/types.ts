@@ -1679,3 +1679,162 @@ export interface PackService {
   status(): PackStatus[];
   remove(name: string): Promise<void>;
 }
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — tides (tides agent, work package P5). Rust:
+// crates/skyfix-wasm/src/tides.rs over skyfix_tides. Wire format: EXPLORER_API.md,
+// "Tides (tides agent)"; definitions: CONVENTIONS 13.10. Every call needs the optional
+// `tides-us` pack and throws `pack_not_loaded: …` without it.
+// ---------------------------------------------------------------------------------
+
+/** Datums heights can be given on; `''` means the station's default (MLLW where published). */
+export type TideDatum = 'MLLW' | 'MLW' | 'MSL' | 'MTL' | 'MHW' | 'MHHW' | 'LAT' | 'HAT' | 'NAVD88';
+
+/** The character of the tide by the form number F = (K1 + O1)/(M2 + S2). */
+export type TideType = 'semidiurnal' | 'mixed_semidiurnal' | 'mixed_diurnal' | 'diurnal';
+
+export type TideStationFlag =
+  | 'noaa_differs'
+  | 'no_datums'
+  | 'no_constants'
+  | 'reference_unusable'
+  | 'non_navigational';
+
+/** One NOAA tide station. */
+export interface TideStation {
+  /** NOAA's id: `9414290`, `TEC4623`. */
+  id: string;
+  name: string;
+  /** Two-letter U.S. state or territory code; null when NOAA gives none (many foreign ports, some U.S. ones). */
+  state: string | null;
+  lat_deg: number;
+  lon_deg: number;
+  /** `harmonic`: a true curve from harmonic constants; `subordinate`: high and low water from a reference station. */
+  kind: 'harmonic' | 'subordinate';
+  reference_id: string | null;
+  reference_name: string | null;
+  /** From the form number (the reference station's for a subordinate one). */
+  tide_type: TideType | null;
+  form_number: number | null;
+  /** Datums heights can be given on here, highest first. */
+  datums: TideDatum[];
+  default_datum: TideDatum;
+  /** `harmonic` (true curve), `interpolated` (subordinate: cosine curve between high and low water, an estimate) or `none`. */
+  curve: 'harmonic' | 'interpolated' | 'none';
+  flags: TideStationFlag[];
+  /** Plain sentences to show with the station. */
+  notes: string[];
+}
+
+/** A station with its distance and bearing from a place. */
+export interface TideStationNear extends TideStation {
+  distance_km: number;
+  distance_nm: number;
+  /** Initial great-circle bearing from the place to the station, degrees true. */
+  bearing_deg: number;
+}
+
+/** One high or low water. */
+export interface TideEvent {
+  kind: 'high' | 'low';
+  jd_utc: number;
+  utc: string;
+  /** Above the result's datum, metres. */
+  height_m: number;
+}
+
+/** The label every tide result carries. */
+export const TIDE_LABEL =
+  'US stations (NOAA); predictions, not observations; weather and surge not included';
+
+export interface TideExtremes {
+  station: TideStation;
+  datum: TideDatum;
+  method: 'harmonic' | 'subordinate_offsets';
+  jd_start: number;
+  jd_end: number;
+  /** Sorted by time, all inside the window. */
+  extremes: TideEvent[];
+  label: string;
+  notes: string[];
+}
+
+export interface TideCurve {
+  station: TideStation;
+  datum: TideDatum;
+  method: 'harmonic' | 'interpolated';
+  jd_start: number;
+  jd_end: number;
+  step_min: number;
+  jd_utc: Float64Array;
+  height_m: Float64Array;
+  label: string;
+  notes: string[];
+}
+
+export interface TideNow {
+  station: TideStation;
+  datum: TideDatum;
+  method: 'harmonic' | 'interpolated';
+  jd_utc: number;
+  utc: string;
+  height_m: number;
+  /** Rate of rise, metres per hour (negative when falling). */
+  rate_m_per_h: number;
+  state: 'rising' | 'falling';
+  previous: TideEvent | null;
+  next: TideEvent | null;
+  next_high: TideEvent | null;
+  next_low: TideEvent | null;
+  label: string;
+  notes: string[];
+}
+
+/** What installing the pack reports (the contract's PackInfo fields and station counts). */
+export interface TidesPackInfo {
+  name: 'tides-us';
+  version: string;
+  bytes: number;
+  provides: string[];
+  stations: number;
+  harmonic: number;
+  subordinate: number;
+}
+
+/**
+ * Tide predictions (tides agent). Separate from `ExplorerEngine`; the WASM engine and
+ * the mock implement it. Errors throw with a leading code: `pack_not_loaded`,
+ * `unknown_station`, `datum_unavailable`, `no_prediction`, `outside_range` (1900-2100),
+ * `bad_request`.
+ */
+export interface TidesEngine {
+  /** The `n` (1-100) stations nearest to a place, nearest first. */
+  tideStationsNear(latDeg: number, lonDeg: number, n: number): TideStationNear[];
+  tideStation(stationId: string): TideStation;
+  /** Heights every `stepMin` (0.5-1440) minutes from `jdStart`, at most 20 000 samples. */
+  tidePredict(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum?: TideDatum | ''): TideCurve;
+  /** High and low water in the window (at most 400 days). A month takes a few milliseconds. */
+  tideExtremes(stationId: string, jdStart: number, jdEnd: number, datum?: TideDatum | ''): TideExtremes;
+  /** Height, rate, rising or falling, and the high and low waters around an instant. */
+  tideNow(stationId: string, jdUtc: number, datum?: TideDatum | ''): TideNow;
+  /** The installed pack's summary, or null when the pack is not loaded. */
+  tidePackInfo(): TidesPackInfo | null;
+  /**
+   * TEMPORARY until the packs mechanism's `loadPack` is on main: install a whole
+   * `tides-us` pack file. Throws a string for a damaged or foreign file.
+   */
+  loadTidesPack?(bytes: Uint8Array): TidesPackInfo;
+}
+
+/** True when `engine` can predict tides (the memoised engine forwards the methods). */
+export function isTidesEngine(engine: unknown): engine is TidesEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<TidesEngine>;
+  return typeof e.tideExtremes === 'function' && typeof e.tideStationsNear === 'function';
+}
+
+/** True when a tides call failed only because the `tides-us` pack is not loaded. */
+export function isTidePackNotLoaded(error: unknown): boolean {
+  const text = error instanceof Error ? error.message : String(error);
+  return text.includes('pack_not_loaded');
+}
