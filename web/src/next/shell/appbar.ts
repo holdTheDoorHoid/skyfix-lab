@@ -116,7 +116,8 @@ export function appbar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       },
       install.el,
       () => {
-        helpPop.close({ returnFocus: false });
+        // The keyboard goes back to the Help button, as Escape leaves it; About fills the stage.
+        helpPop.close({ returnFocus: true });
         store.patch({ view: 'about' });
       },
     ),
