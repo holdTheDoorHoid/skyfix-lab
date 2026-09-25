@@ -29,14 +29,16 @@
 //! ```
 //!
 //! (`Ri` rotations of the frame; `Δψ` and `ε` the IAU 2000B nutation in longitude and
-//! the true obliquity), so the same matrix answers every question: the selenographic
+//! the true obliquity), followed by `R2(−78.6944″)` from the figure pole to the mean
+//! rotation pole of IAU coordinates ([`FIGURE_TO_MEAN_POLE_ARCSEC`]), so the same matrix
+//! answers every question: the selenographic
 //! longitude and latitude of the direction from the Moon to the Earth's centre (the
 //! geocentric libration), to the observer (the topocentric libration: the diurnal
 //! part reaches about 1°), and to the Sun (the sub-solar point, which fixes the
 //! terminator and the colongitude), and the lunar pole's direction on the sky (the
 //! position angle of the axis). Meeus's own closed formulas are kept beside it
 //! ([`meeus_libration`]) for the optical and physical parts separately, and the tests
-//! hold the two together to a few ten-thousandths of a degree.
+//! hold the two together to 0.0006° (the terms his linearisation drops).
 //!
 //! Positions: the Moon's apparent geocentric place of date from
 //! [`skyfix_ephemeris::moon`] (light-time included), the Sun's from
@@ -906,6 +908,33 @@ mod tests {
             let back = f.selenographic(f.equatorial(&s));
             assert!((back.lat_deg - lat).abs() < 1e-9 && (back.lon_deg - lon).abs() < 1e-9);
         }
+    }
+
+    #[test]
+    fn the_rotation_is_meeus_closed_formulas_without_their_linearisation() {
+        // In the figure frame the sub-Earth point is Meeus's l' + l'', b' + b'' (53.1) up
+        // to the terms his linearisation drops, second order in the node libration, which
+        // the small inclination amplifies (sigma^2 / sin I): 0.0006 degree measured over
+        // 1990-2060, below the model's own 0.0024 degree rms from DE440.
+        let moon = MoonProvider::new();
+        let mut worst = 0.0f64;
+        for k in 0..200 {
+            let jd = 2_447_900.0 + k as f64 * 128.7;
+            let m = moon.position(jd).unwrap();
+            let f = MoonFrame::at(m.jd_tt);
+            let fig = f.figure_selenographic(scale(m.apparent_km, -1.0));
+            let l = meeus_libration(
+                m.ecliptic_longitude_deg,
+                m.ecliptic_latitude_deg,
+                f.dpsi_deg,
+                &f.arguments,
+                &f.physical,
+            );
+            let dl = norm_180(fig.lon_deg - (l.optical_lon_deg + l.physical_lon_deg));
+            let db = fig.lat_deg - (l.optical_lat_deg + l.physical_lat_deg);
+            worst = worst.max(dl.abs()).max(db.abs());
+        }
+        assert!(worst < 1e-3, "matrix vs closed formulas: {worst} deg");
     }
 
     #[test]
