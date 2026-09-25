@@ -101,9 +101,18 @@ copy covers is in About), and the time bar says what changes as you go back or f
 - **Before 1850** the local clock is **local mean time** (LMT) at your place's longitude —
   the Sun's time there, which clocks kept before time zones — unless you pinned a zone.
 - **A ± chip** such as `±12 min` beside the clock means the Earth's rotation at that date is
-  known only that well, so every clock time carries that uncertainty (the positions of the
-  bodies among the stars do not). It appears when the uncertainty passes 30 seconds —
-  before about AD 700 and after about 2100 — and always on estimated years.
+  known only that well (the Earth's clock against an even one, what astronomers call ΔT):
+  clocks follow the Earth's turning, which was measured only from the 1600s and cannot be
+  predicted exactly. It appears when the uncertainty passes 30 seconds — before about AD 700
+  and after about 2100 — and always on estimated years. How much of it a time or a place
+  carries depends on what sets it, and the chip beside each says so. An event set by the
+  bodies' own motion (a new or full Moon, a solstice, an eclipse) carries all of it. A
+  rising, setting or twilight moves only as far as the body itself drifts across the sky
+  meanwhile: for the Sun under a second between about 850 BC and AD 2400, so it has no chip
+  (11 s in 2000 BC); for the Moon a few seconds (2 minutes in 2000 BC). And where the Moon
+  and the planets are at the time shown carries a chip in arcminutes, since they move among
+  the stars while the uncertain seconds pass (the Moon's place 1.5′ in 585 BC, 34′ in
+  2000 BC). The stars' places carry none.
 - **Outside the checked years** a message says so: dates outside 2000 BC to AD 3000 show
   nothing, with the years the copy you are using covers; years only estimated — outside
   1550 to 2650, no download needed — say *Historical estimate* or *Far-future estimate*,

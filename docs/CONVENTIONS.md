@@ -1151,9 +1151,10 @@ subsections they own and say so in their reports.
 - **validated**: 1550-01-01 to 2650-01-22 (the span of JPL DE440). The accuracy figures in
   `ACCURACY.md` hold; bodies are offered for sights as today.
 - **labelled**: −2000-01-01 to 3000-12-31, only with the `deep-time` pack loaded. Accuracy
-  is measured per century against DE441 and tabulated; every displayed time carries the ΔT
-  uncertainty when it exceeds the display precision; no sights, no predicted readings, no
-  planner (`outside_validated_tier`).
+  is measured per century against DE441 and tabulated; every time and every place shown
+  carries the part of the ΔT uncertainty that moves it, where that part reaches what the
+  number shows (the ± chip, 15.2); no sights, no predicted readings, no planner
+  (`outside_validated_tier`).
 - Refined by the deeptime agent (2026-09-25): **both tiers are in the core module**; the
   `deep-time` pack was not needed (the two-tier series is smaller than the one-tier data
   it replaced, EXPLORER_API "coverage tiers as built"). A provider built with `new()`
@@ -1194,6 +1195,44 @@ subsections they own and say so in their reports.
   splines, their published errors (Table DT-lod4500yrs.2020) but never less than 0.11 s,
   the splines' measured rms against IERS over 1973-2019; before −720, Huber counted from
   −500 (NASA's calibration for dates before 500 BC; 1 h at −2000), never less than 180 s.
+  <!-- chip2 -->
+- **What it moves: the ± chip** (the planner's decision on VERIFICATION_2 V18, 2026-09-25;
+  chip2). At a far date the clock is UT, the Earth's own rotation, and ΔT = TT − UT is what
+  is uncertain. A number shown carries the part of σ that moves it, worked out in one place
+  (`web/src/next/time/chip.ts` `dtChip`; no view computes a chip from σ):
+  - **The clock itself** (the time bar, a saved picture's caption, Tonight's date) and **an
+    instant set by the bodies' own motion** (a Moon phase, a season, a conjunction, a
+    station, a shower's peak, an apsis, an occultation, an eclipse, and anything placed on
+    the Earth from one: an eclipse's path and local contacts, an occultation's times at a
+    place): the whole σ, shown when σ exceeds 30 s (half the precision of a time to the
+    minute) and always in the labelled tier. Such a date is **far**.
+  - **A time set by the Earth's turning** (a rising, setting, transit or meridian passage,
+    twilight, golden or blue hour, a height or bearing reached, a best-seen moment, the
+    equation of time): the clock follows that turning, so only the body's own motion moves
+    it, by σ × k, k = |α̇| / (θ̇ − α̇), the body's rate in right ascension over the Earth's
+    rotation relative to it (exact for a transit; the plain ratio α̇ / θ̇ is 0.3 % smaller for
+    the Sun and 4 % for the Moon). A time bounded by several bodies (a planet's height and
+    darkness, the Moon and darkness) takes the fastest; stars and deep-sky objects add
+    nothing. Shown when it reaches 1 s, in any tier. The Sun's k is 0.25-0.30 %, so its times
+    carry no chip between about 850 BC and AD 2400 (0.44 s at 585 BC, 10.6 s at 2000 BC); the
+    Moon's is 3.2-5 % (5.7-7.1 s at 585 BC, 2.1-2.3 min at 2000 BC; a second from about
+    AD 2090, and before about AD 700).
+  - **A place at the time shown** (altitude and azimuth, right ascension and declination,
+    GHA, where printed to the arcminute or finer: the Selected card, the Sky view's card and
+    tooltip, the charts' readouts, the Almanac's hourly columns): the body's angular speed
+    among the stars × σ, in arcminutes, at a far date when it exceeds 0.1′. The Moon 1.5′
+    at 585 BC (1.4′ at the verifier's σ of 150 s) and 34′ at 2000 BC; the Sun 0.1′ (none)
+    and 2.5′; the planets up to about 3′ at 2000 BC; stars never.
+  - The rates are the engine's own: apparent geocentric RA, declination and GHA from
+    `sky_state` an hour apart (`bodyRates`), asked only where a chip could show (σ of 10 s
+    or more for a time, a far date for a place). Where the engine cannot place a body then,
+    a time set by its turning carries the whole σ.
+  - A page whose columns differ (the Almanac) carries each chip on its column's head, none
+    on the page's heading. A navigator's sight time is read as UT, so the uncertainty does
+    not move a fix by itself: the fix inherits the bodies' places at that time (the Moon's
+    most), and Navigate's caution says so; the chip beside a sight's time is the clock's.
+  - This rule supersedes the "Uncertainty" item of 15.6 where the two differ.
+  <!-- /chip2 -->
 - **DUT1** (`time::dut1_info`): on the UTC scale the user's value when given
   (explorer-wide `set_dut1`, a session's `clock.dut1_s`, the CLI's `--dut1`; standard
   uncertainty 0.05 s, the time signal's 0.1 s code), else the IERS history (weekly
