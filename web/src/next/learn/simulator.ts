@@ -29,6 +29,8 @@ import { EPHEMERIS_MODE, experimentFor, simulateAndSolve, truthGuardRadiusNm } f
 import { handOffToNavigate } from '../navigate/handoff.js';
 import { STORIES, type SimulatorPreset } from './stories.js';
 import { distanceM } from './geo.js';
+import { jdFromIso, jdNow } from '../time.js';
+import { scaleLabel } from '../time/scale.js';
 
 // ---------------------------------------------------------------------------------------
 // Actions (also used by the stories' "try next" buttons through the view's env)
@@ -136,7 +138,8 @@ function editor(env: LearnEnv, scenario: Scenario): HTMLElement {
     numberField({ id: 'sfl-f-lat', label: 'True latitude (north +)', value: s.truth.lat_deg, min: -90, max: 90, step: 0.0001, unit: '°' }, (v) => patch((x) => void (x.truth.lat_deg = v))),
     numberField({ id: 'sfl-f-lon', label: 'True longitude (east +)', value: s.truth.lon_deg, min: -180, max: 180, step: 0.0001, unit: '°' }, (v) => patch((x) => void (x.truth.lon_deg = v))),
     textField(
-      { id: 'sfl-f-start', label: 'First sight (UTC)', value: s.start_utc, pattern: RFC3339_Z, invalid: 'Use the form 2026-10-01T01:30:00Z.', help: 'RFC 3339 with a trailing Z.' },
+      // The clock's word for the scenario's own start (UT outside 1972-2035; polish2).
+      { id: 'sfl-f-start', label: `First sight (${scaleLabel(jdFromIso(s.start_utc) ?? jdNow())})`, value: s.start_utc, pattern: RFC3339_Z, invalid: 'Use the form 2026-10-01T01:30:00Z.', help: 'RFC 3339 with a trailing Z.' },
       (v) => patch((x) => void (x.start_utc = v)),
     ),
     numberField(

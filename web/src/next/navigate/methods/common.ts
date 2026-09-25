@@ -10,6 +10,8 @@ import { h } from '../../../dom.js';
 import { disposer, type Mounted } from '../../component.js';
 import type { ExplorerState } from '../../state.js';
 import { jdFromIso } from '../../time.js';
+import { setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../../time/chip.js';
+import { scaleLabel } from '../../time/scale.js';
 import { angleFormat, zone, type NavCtx } from '../context.js';
 import { chartPanel, type ChartPanel } from '../chart-panel.js';
 import { fmtInstant, fmtPosition, utcInputText } from '../format.js';
@@ -195,23 +197,51 @@ export function runBodySelect(nc: NavCtx, track: Track, read: () => string | nul
   return { el: f.el, refresh };
 }
 
-/** An optional UTC instant ("empty: the default"). */
+/**
+ * An optional instant on the app's clock ("empty: the default"). The label's "(UTC)" and the
+ * help follow the clock's scale (UT outside 1972-2035, time-ui's `scaleLabel`) of the typed
+ * time, or of the time bar's while the field is empty, and the ±ΔT chip stands beside it
+ * when that time carries an uncertainty (polish2, list item 33: the running fix, noon,
+ * lunar, Polaris, average, plan, compass and passage fields said "(UTC)" in any year).
+ */
 export function optionalUtcField(nc: NavCtx, label: string, emptyMeans: string, read: () => string | null, commit: (v: string | null) => void): ParsedField {
+  const m = /^(.*) \(UTC(, [^)]*)?\)$/.exec(label);
+  const chip = uncertaintyChip(null);
   const f = parsedField<string | null>(label, {
     help: `UTC. Empty: ${emptyMeans}.`,
     placeholder: 'yyyy-mm-dd hh:mm:ss',
     size: 20,
+    aside: chip,
     parse: (t): Parsed<string | null> => (t.trim() ? parseUtcInput(t) : { ok: true, value: null }),
     format: (v) => (v ? utcInputText(v) : ''),
     read,
     commit,
   });
+  let shown = '';
   const update = (): void => {
     const v = read();
-    const jd = v ? jdFromIso(v) : null;
-    f.parts.setHelp(jd !== null ? `= ${fmtInstant(jd, zone(nc, jd))}` : `UTC. Empty: ${emptyMeans}.`);
+    const typed = v ? jdFromIso(v) : null;
+    const jd = typed ?? nc.ctx.store.get().time.jd_utc;
+    const word = scaleLabel(jd);
+    const text = m ? `${m[1]} (${word}${m[2] ?? ''})` : label;
+    if (text !== shown) {
+      shown = text;
+      f.parts.setLabel(text);
+    }
+    f.parts.setHelp(typed !== null ? `= ${fmtInstant(typed, zone(nc, typed))}` : `${word}. Empty: ${emptyMeans}.`);
+    setUncertaintyChip(chip, timeInfoAt(nc.ctx, jd));
   };
   f.input.addEventListener('change', update);
+  // While the field is empty it means the time bar's time: follow that instant's scale and
+  // uncertainty (a day at a time). The subscription ends with the field (the next change
+  // after the view is gone finds it disconnected).
+  const stop = nc.ctx.store.select(
+    (s) => (read() ? '' : `${scaleLabel(s.time.jd_utc)}|${Math.round(s.time.jd_utc)}`),
+    () => {
+      if (!f.el.isConnected) stop();
+      else update();
+    },
+  );
   update();
   return f;
 }

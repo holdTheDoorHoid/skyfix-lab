@@ -9,7 +9,7 @@
 import { h, s } from '../../../dom.js';
 import { disposer } from '../../component.js';
 import type { NavCtx } from '../context.js';
-import { utcInputText } from '../format.js';
+import { utcText } from '../format.js';
 import type { DeviationEntry } from '../model.js';
 import { parseNumber } from '../parse.js';
 import { btn, card, field, para, textInput } from '../ui.js';
@@ -164,7 +164,7 @@ export function deviationTableCard(nc: NavCtx): { el: HTMLElement; destroy(): vo
     const table = h('table', { class: 'sf-table sfn-table' });
     table.append(
       h('caption', { class: 'sf-sr' }, 'Deviation by heading'),
-      h('thead', {}, h('tr', {}, ...['Heading', 'Deviation', 'From', 'When (UTC)', ''].map((t, i) => h('th', { scope: 'col', class: i < 2 ? 'sfn-num' : '' }, t || h('span', { class: 'sf-sr' }, 'Remove'))))),
+      h('thead', {}, h('tr', {}, ...['Heading', 'Deviation', 'From', 'When', ''].map((t, i) => h('th', { scope: 'col', class: i < 2 ? 'sfn-num' : '' }, t || h('span', { class: 'sf-sr' }, 'Remove'))))),
       h(
         'tbody',
         {},
@@ -175,7 +175,7 @@ export function deviationTableCard(nc: NavCtx): { el: HTMLElement; destroy(): vo
             h('td', { class: 'sfn-num' }, heading3(e.headingDeg)),
             h('td', { class: 'sfn-num' }, eastWest(e.deviationDeg)),
             h('td', {}, e.source),
-            h('td', { class: 'sfn-num' }, e.utc ? utcInputText(e.utc.replace(/\.\d+Z$/, 'Z')) : '—'),
+            h('td', { class: 'sfn-num' }, e.utc ? utcText(e.utc.replace(/\.\d+Z$/, 'Z')) : '—'),
             h(
               'td',
               {},

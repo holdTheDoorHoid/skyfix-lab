@@ -563,7 +563,7 @@ export function runningRequestFor(w: Working): RunningFixRequest {
 export function lunarInputFor(w: Working, place: LatLon): { input: LunarDistanceInput } | { missing: string } {
   const f = w.lunar;
   if (f.distanceDeg === null) return { missing: 'Enter the measured distance between the Moon and the other body.' };
-  if (!f.watchUtc) return { missing: 'Enter the time your watch showed when you measured the distance (UTC).' };
+  if (!f.watchUtc) return { missing: 'Enter the time your watch showed when you measured the distance.' };
   const ap = w.session.observer.assumed_position ?? place;
   const altitude = (a: LunarAltitudeForm) =>
     a.deg === null ? null : { altitude_deg: a.deg, altitude_kind: a.kind, limb: a.limb, sigma_arcmin: 1 };
