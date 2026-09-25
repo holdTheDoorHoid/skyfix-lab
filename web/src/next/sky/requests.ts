@@ -105,15 +105,20 @@ export function skyRequests(ctx: Pick<Ctx, 'store'>): SkyRequests {
   return channel;
 }
 
-/** Open the Sky view centred on `target` (panorama: faced; dome: ringed, with its card). */
+/**
+ * Open the Sky view on `target`, with its card: the dome centred on it (zoomed in three
+ * times if it showed the whole sky, view.ts `SHOW_ZOOM`), the panorama turned to face it.
+ * `face: false` only rings it.
+ */
 export function showInSky(ctx: Pick<Ctx, 'store'>, target: SkyTarget, options: { face?: boolean } = {}): void {
   skyRequests(ctx).post({ target, upClose: null, face: options.face ?? true });
   if (ctx.store.get().view !== 'sky') ctx.store.patch({ view: 'sky' });
 }
 
 /**
- * Open the Sky view with the "Up close" inset of the Moon or a planet (and select it);
- * for the Moon, `features` (names from `moon_features`) are marked on the disc.
+ * Open the Sky view with the "Up close" inset of the Moon or a planet (and select it and
+ * centre the dome on it); for the Moon, `features` (names from `moon_features`) are marked
+ * on the disc.
  */
 export function openUpClose(ctx: Pick<Ctx, 'store'>, body: string, options: { features?: readonly string[] } = {}): void {
   skyRequests(ctx).post({ target: { kind: 'body', id: body }, upClose: body, face: true, features: [...(options.features ?? [])] });

@@ -54,8 +54,9 @@
  *      (Jupiter → its card → its close-up with the four moons); tonight's ranking; a field
  *      of view; "How dark is your sky" (a city sky hides the Milky Way and most deep-sky
  *      objects); the dome's zoom; the picture saved as a real PNG with its caption; photo's hooks (the
- *      Moon card's "See it up close", the Milky Way planner's "Show in Sky"); the night
- *      theme red-only with the card and the close-up open; the phone layout. (Frame times
+ *      Moon card's "See it up close", the Milky Way planner's "Show in Sky"); Tonight's
+ *      "Show in Sky" and "See it up close" centring the zoomed dome; the night theme
+ *      red-only with the card and the close-up open; the phone layout. (Frame times
  *      are the developer page's bench: headless Chrome here runs few animation frames.)
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
@@ -70,7 +71,7 @@
  *   ONLY=almanac ALMANAC_SCREEN=0 node web/scripts/ui-check.mjs   # its printed sheets only
  *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts,time,photo,navigate2
  *   ONLY=tonight node web/scripts/ui-check.mjs        # the Tonight view's own checks (9)
- *   ONLY=sky2 node web/scripts/ui-check.mjs           # the Sky view's astronomy layers (20)
+ *   ONLY=sky2 node web/scripts/ui-check.mjs           # the Sky view's astronomy layers (24)
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
  * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
@@ -1422,6 +1423,36 @@ async function skyChecks({ send, evaluate, waitFor, messages, open, shot, viewpo
   out.core = core;
   check('sky2: the Milky Way planner’s “Show in Sky” marks the galactic centre in Sagittarius', core.title === 'Galactic centre' && core.lines.some((l) => /^Right ascension · declination17h 4\dm/.test(l)), js(core));
   check('sky2: photo’s hooks: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
+
+  // --- Tonight's "Show in Sky" and "See it up close" (the sky-link channel) --------------------
+  messages.length = 0;
+  await open(`${SKY_NIGHT}&view=tonight`, { theme: 'dark' });
+  await waitFor(`Boolean(document.querySelector('.sft-dso .sft-actions button'))`, 60000);
+  const dsoTitle = await evaluate(`(() => { const r = document.querySelector('.sft-dso'); r?.querySelector('.sft-actions button')?.click(); return r?.querySelector('.sft-dso__head strong')?.textContent ?? ''; })()`);
+  await waitFor(`/^d:\\d+$/.test(document.querySelector('.sky')?.dataset.pinned ?? '') && Number(document.querySelector('.sky')?.dataset.zoom) >= 3 && Boolean(document.querySelector('.sky')?.dataset.shown)`, 30000);
+  await sleep(500);
+  const fromTonight = await data();
+  const dsoCard = await cardOf();
+  const off = (fromTonight.shown ?? '').split(' ').map(Number);
+  out.tonight = { dsoTitle, card: dsoCard.title, zoom: fromTonight.zoom, shown: fromTonight.shown };
+  check(
+    'sky2: Tonight’s “Show in Sky” on a deep-sky object centres the dome on it, zoomed in, its card open',
+    Number(fromTonight.zoom) >= 3 && Math.hypot(off[0], off[1]) < 30 && dsoCard.shown && dsoTitle.includes(dsoCard.title.replace(/ \(.*$/, '')),
+    js(out.tonight),
+  );
+  await shot('sky2-desktop-dark-from-tonight');
+  await open(`${SKY_NIGHT}&view=tonight`, { theme: 'dark' });
+  await waitFor(`[...document.querySelectorAll('.sft button')].some((b) => /See it up close/.test(b.textContent))`, 60000);
+  await clickText('.sft button', 'See it up close');
+  await waitFor(`document.querySelector('.sky')?.dataset.upclose === 'Moon' && Number(document.querySelector('.sky')?.dataset.zoom) >= 3`, 30000);
+  await sleep(500);
+  const moonFromTonight = await data();
+  const moonOff = (moonFromTonight.shown ?? '').split(' ').map(Number);
+  out.tonightMoon = { zoom: moonFromTonight.zoom, shown: moonFromTonight.shown, upclose: moonFromTonight.upclose };
+  check('sky2: Tonight’s “See it up close” opens the Moon’s close-up with the dome centred on the Moon', moonFromTonight.upclose === 'Moon' && Math.hypot(moonOff[0], moonOff[1]) < 30, js(out.tonightMoon));
+  const LT = JSON.parse(await evaluate(LAYOUT));
+  check('sky2: desktop, the close-up open over a zoomed dome: no overlap or cut-off text', !LT.hscroll && !LT.overlaps.length && !LT.clipped.length, [...LT.overlaps, ...LT.clipped].join('; '));
+  check('sky2: from Tonight: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
 
   // --- The night theme at night, with the card and the close-up open ---------------------------
   messages.length = 0;

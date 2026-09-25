@@ -327,7 +327,8 @@
   z-index: calc(var(--z-stage-overlay) + 1);
   width: 324px;
   max-width: calc(100% - 2 * var(--space-3));
-  max-height: calc(100% - 2 * var(--space-3));
+  /* Below the column of controls on the right (--sky-r-clear, set by the view). */
+  max-height: calc(100% - var(--space-3) - var(--sky-r-clear, var(--space-3)));
   overflow-y: auto;
   padding: 10px 12px 12px;
   border-radius: var(--radius-lg);
@@ -743,6 +744,10 @@
     max-height: calc(100% - 2 * var(--space-2));
   }
   .sky[data-upclose] .sky-card {
+    display: none;
+  }
+  /* On a phone the close-up takes the stage, the zoom and look controls with it. */
+  .sky[data-upclose] .sky-ov--r {
     display: none;
   }
   /* A phone's stage is short: while the card is open it takes the tools' place. */

@@ -112,6 +112,8 @@ import {
   type RadiantMark,
 } from './render.js';
 import { skyRequests, type SkyTarget } from './requests.js';
+import { skyTargets } from './sky-link.js';
+import { j2000OfApparent, planOfTarget } from './targets.js';
 import { SkyScene } from './scene.js';
 import { KIND_WORDS, skySearchBox, type SearchBox } from './search.js';
 import { composeSnapshot, canvasBlob, type SnapshotCaption } from './snapshot.js';
@@ -146,6 +148,14 @@ export interface SkyViewSettings {
 
 /** The dome's zoom range: the whole sky, to about a binocular field across a laptop's chart. */
 export const DOME_ZOOM = { min: 1, max: 12 } as const;
+
+/**
+ * How far "Show in Sky" from another view (Tonight, the Selected card, the panel's search)
+ * zooms a whole-sky dome to centre its target: three times, about 60° of sky across a
+ * laptop's chart, the target with its constellation round it. A dome already zoomed in
+ * further keeps its zoom.
+ */
+export const SHOW_ZOOM = 3;
 
 const viewSettings = new WeakMap<object, SkyViewSettings>();
 
@@ -303,6 +313,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   const view = settingsFor(ctx);
   const highlights = skyHighlights(ctx);
   const requests = skyRequests(ctx);
+  const tonightTargets = skyTargets(ctx);
   const added = customBodies(ctx);
   const cleanups: (() => void)[] = [];
   let destroyed = false;
@@ -1159,6 +1170,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
    */
   let dataKey = '';
   function syncData(): void {
+    // Where the selected or pinned target is drawn, from the middle of the view (CSS px).
+    const sel = lastFrame ? selectedKey(store.get()) : null;
+    const at = sel && lastFrame ? renderer.locate(lastFrame, sel) : null;
     const values: Record<string, string> = {
       limit: zenith.toFixed(1),
       dso: String(dsoShown),
@@ -1168,6 +1182,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       fov: fovLabel(view.fov),
       pinned: pinnedKey ?? '',
       zoom: view.mode === 'dome' ? view.dome.zoom.toFixed(2) : '',
+      shown: at && Number.isFinite(at.x) && Number.isFinite(at.y) ? `${Math.round(at.x - cssW / 2)} ${Math.round(at.y - cssH / 2)}` : '',
     };
     const key = JSON.stringify(values);
     if (key === dataKey) return;
@@ -1187,7 +1202,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   let statusKey = '';
   function syncChrome(state: ExplorerState): void {
     const p = view.panorama;
-    const key = `${view.mode}|${view.southUp}|${Math.round(p.fov)}|${Math.round(p.azimuth)}|${state.observer.label}|${state.observer.lat_deg}|${state.observer.lon_deg}|${Object.values(state.layers).join('')}|${view.fov.preset}|${view.dome.zoom.toFixed(2)}`;
+    const key = `${view.mode}|${view.southUp}|${Math.round(p.fov)}|${Math.round(p.azimuth)}|${state.observer.label}|${state.observer.lat_deg}|${state.observer.lon_deg}|${Object.values(state.layers).join('')}|${view.fov.preset}|${view.dome.zoom.toFixed(2)}|${cssW}x${cssH}`;
     if (key !== chromeKey) {
       chromeKey = key;
       root.dataset.mode = view.mode;
@@ -1197,6 +1212,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       panoControls.hidden = view.mode !== 'panorama';
       domeControls.hidden = view.mode !== 'dome';
       wholeSky.hidden = view.dome.zoom <= 1.001;
+      // The close-up keeps below the column of controls on the right (sky.css).
+      const column = view.mode === 'dome' ? domeControls : panoControls;
+      root.style.setProperty('--sky-r-clear', `${Math.round(column.offsetTop + column.offsetHeight + 8)}px`);
       domeIn.disabled = view.dome.zoom >= DOME_ZOOM.max - 1e-6;
       domeOut.disabled = view.dome.zoom <= DOME_ZOOM.min + 1e-6;
       zoomIn.disabled = p.fov <= PANORAMA_LIMITS.minFov + 0.5;
@@ -1666,7 +1684,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     } else if (kind === 'k') {
       symbol = () => kindSymbol('constellation');
       notes.push('Its figure is drawn brighter while this card is open.');
-    } else if (kind === 'p' && pointTarget && /galactic/i.test(pointTarget.label)) {
+    } else if (kind === 'p' && pointTarget && /galactic|milky way/i.test(pointTarget.label)) {
       notes.push('The centre of our galaxy lies behind the dust of Sagittarius: what the eye and a camera see is the bright star clouds around it, the Milky Way’s core.');
     }
     return { key, title: d.title, sub: d.sub, lines, notes, actions, ...(source ? { source } : {}), ...(symbol ? { symbol } : {}) };
@@ -1928,8 +1946,11 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     requestDraw();
   }
 
-  /** Carry out a search hit or a request: select or pin it, face it, open its card. */
-  function show(target: SkyTarget, options: { face?: boolean } = {}): boolean {
+  /**
+   * Carry out a search hit or a request: select or pin it, face it, open its card. With
+   * `zoom`, a dome showing more of the sky than that zooms in to it, centred on the target.
+   */
+  function show(target: SkyTarget, options: { face?: boolean; zoom?: number; tries?: number } = {}): boolean {
     const state = store.get();
     let key: string | null = null;
     const id = target.id.trim();
@@ -1980,6 +2001,17 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
         break;
       }
       case 'shower': {
+        // A view just opened has not worked out the year's showers yet (away from the
+        // frame, a few tens of milliseconds): try again when it has, rather than say the
+        // shower is not active.
+        const years = yearsFor(displayJd);
+        if (isDeepSkyEngine(engine) && years.some((y) => !showerYears.has(y)) && (options.tries ?? 0) < 40) {
+          for (const y of years) showerYear(y, false);
+          setTimeout(() => {
+            if (!destroyed) show(target, { ...options, tries: (options.tries ?? 0) + 1 });
+          }, 50);
+          return true;
+        }
         pin(radiantKey(id.toUpperCase()));
         key = radiantKey(id.toUpperCase());
         break;
@@ -2013,7 +2045,10 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     if ((options.face ?? true) && view.mode === 'panorama') faceKey(key);
     if ((options.face ?? true) && view.mode === 'dome') {
       const d = directionOf(key);
-      if (d && d.alt >= 0) centreDome(d.alt, d.az);
+      if (d && d.alt >= 0) {
+        if (options.zoom && view.dome.zoom < options.zoom) setDomeZoom(options.zoom);
+        centreDome(d.alt, d.az);
+      }
     }
     // A shower not active now has no radiant to show: the card says when it is.
     if (keyKind(key) === 'r' && !radiantMarks.some((m) => m.key === key)) {
@@ -2322,18 +2357,58 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     if (key) faceKey(key);
   }
 
-  // --- requests from other views (showInSky, openUpClose) ---------------------------------
+  // --- requests from other views (showInSky, openUpClose; Tonight's sky-link) ---------------
+  /**
+   * Run `fn` in a frame once the time has stopped gliding: the first frame gives the scene
+   * its places, and a time step still gliding (the Selected card moves the time before it
+   * asks) would leave a centred target off centre when it lands. Stops waiting after about
+   * two seconds of frames.
+   */
+  function whenSettled(fn: () => void): void {
+    let frames = 0;
+    const settle = (): void => {
+      if (destroyed) return;
+      if (ease && frames++ < 120) {
+        requestDraw();
+        scheduler.schedule(settle);
+        return;
+      }
+      fn();
+    };
+    scheduler.schedule(settle);
+  }
+
   function takeRequest(): void {
     const r = requests.take();
     if (!r) return;
-    // The first frame gives the scene its places; carry the request out after it.
-    scheduler.schedule(() => {
-      if (destroyed) return;
-      if (r.target) show(r.target, { face: r.face });
+    whenSettled(() => {
+      if (r.target) show(r.target, { face: r.face, ...(r.face ? { zoom: SHOW_ZOOM } : {}) });
       if (r.upClose) openUpClose(r.upClose, r.features ?? []);
     });
   }
   cleanups.push(requests.subscribe(takeRequest));
+
+  /** A target from the Tonight view (sky-link.ts): centred at its moment, its inset opened. */
+  function takeTarget(): void {
+    const t = tonightTargets.take();
+    if (!t) return;
+    const plan = planOfTarget(t, upCloseSupported);
+    whenSettled(() => {
+      let target = plan.show;
+      if (target?.kind === 'deep_sky' && plan.fallback && !(scene.dso.load(engine) && scene.dso.indexOf(target.id) >= 0)) target = plan.fallback;
+      if (plan.direction) {
+        // The scene must be at the moment: draw it now, then read the direction back to J2000.
+        scheduler.cancel(drawTask);
+        draw();
+        const { alt_deg, az_deg, label } = plan.direction;
+        const p = j2000OfApparent(alt_deg, az_deg, scene.hm, scene.frame, scene.refraction);
+        target = { kind: 'point', id: label, ra_j2000_deg: p.ra_deg, dec_j2000_deg: p.dec_deg };
+      }
+      if (target && !show(target, { face: true, zoom: SHOW_ZOOM }) && plan.fallback && target !== plan.fallback) show(plan.fallback, { face: true, zoom: SHOW_ZOOM });
+      if (plan.upClose) openUpClose(plan.upClose);
+    });
+  }
+  cleanups.push(tonightTargets.subscribe((t) => (t ? takeTarget() : undefined)));
 
   // --- store, theme, size --------------------------------------------------------------
   cleanups.push(
@@ -2404,6 +2479,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
 
   requestDraw();
   takeRequest();
+  takeTarget();
 
   return {
     canvas,

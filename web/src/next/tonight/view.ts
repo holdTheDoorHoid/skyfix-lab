@@ -7,7 +7,7 @@
  * Which night: night.ts (the current one while it is dark, the coming one from astronomical
  * dawn on); ◀ ▶ step a night by moving the explorer's time, so every view agrees. Every time
  * on the page is a button that sets the explorer's time; planets, objects and radiants open
- * the Sky view on them (sky-link.ts); "Coming up" opens Events.
+ * the Sky view on them (sky/sky-link.ts); "Coming up" opens Events.
  *
  * Work is staged so the page answers at once (data.ts has the measured costs): the night's
  * core (the deep-sky engine's `tonight`, the rising and setting, golden hours, the Milky Way)
@@ -60,7 +60,7 @@ import {
   type DsoRow,
 } from './model.js';
 import { openMilkyWayPlanner } from '../panel/photo.js';
-import { showInSky } from './sky-link.js';
+import { showInSky } from '../sky/sky-link.js';
 import { datumWords, markDeclined, stationWhere, tideCard, tideHeight, tidesLoaded, TIDES_PACK, TIDES_REASON, type TideCard } from './tides.js';
 import { mayHaveTideStation } from './tide-cells.js';
 import { formatBytes } from '../packs/manifest.js';

@@ -302,6 +302,14 @@ is shown on the chart — ringed on the dome, turned to in the panorama — with
 search box at the top of the side panel finds the same things under **Sky objects**, below
 the places, and opens this view on the one you choose.
 
+**Show in Sky** elsewhere — on the **Tonight** page (a planet, a deep-sky object, a meteor
+shower's radiant, the Milky Way's core), on the side panel's Selected card (the Milky Way
+planner), and from the side panel's search — opens this view on it: the dome zooms in
+three times if it showed the whole sky and centres on it, the panorama turns to face it,
+and its card opens; from Tonight, at the moment it is best seen. Tonight's and the Moon
+card's **See it up close** open the Moon's close-up the same way. **Whole sky** (or 0)
+goes back to the whole dome.
+
 **See it up close.** The card of the Moon or a planet has **See it up close** (so does a
 second click on the selected Moon or planet, and the Moon card in the side panel):
 
