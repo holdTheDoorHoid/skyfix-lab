@@ -24,6 +24,10 @@ import type {
   EclipseEngine,
   EclipseList,
   EclipseLocal,
+  EclipseLocalOptions,
+  LimbEngine,
+  LimbPackInfo,
+  LimbProfile,
   EclipsePath,
   EventOptions,
   ExplorerCoverage,
@@ -208,6 +212,12 @@ export interface ExplorerWasmExports {
   tide_now?(stationId: string, jdUtc: number, datum: string): unknown;
   tide_pack_info?(): unknown;
   // --- end tides
+  // --- Lunar limb (eclipselimb agent, EXPLORER_API "Expansion programme P12"); absent in
+  // builds before it.
+  eclipse_local_limb?(id: string, observerJson: string): unknown;
+  lunar_limb_profile?(observerJson: string, jdUtc: number): unknown;
+  lunar_limb_info?(): unknown;
+  // --- end lunar limb
   version?(): string;
   // Expansion programme — sun tools (suntools agent; EXPLORER_API "Expansion programme —
   // sun tools"); absent in older builds.
@@ -298,7 +308,8 @@ export class WasmEngine
     TimeEngine,
     SailingsEngine,
     MoonDetailEngine,
-    DeepSkyEngine
+    DeepSkyEngine,
+    LimbEngine
 {
   readonly kind = 'wasm' as const;
   readonly description: string;
@@ -474,11 +485,33 @@ export class WasmEngine
     return this.call('eclipses', () => fn.call(this.x, jdStart, jdEnd));
   }
 
-  /** What one observer sees of an eclipse, by id (`eclipse_local`). */
-  eclipseLocal(id: string, observer: Observer): EclipseLocal {
+  /**
+   * What one observer sees of an eclipse, by id (`eclipse_local`); with `options.limb`,
+   * with the limb-corrected block (`eclipse_local_limb`, P12).
+   */
+  eclipseLocal(id: string, observer: Observer, options?: EclipseLocalOptions): EclipseLocal {
+    if (options?.limb) {
+      const limbFn = this.x.eclipse_local_limb;
+      if (typeof limbFn !== 'function') throw rebuildError('eclipse_local_limb', 'lunar limb');
+      return this.call('eclipse_local_limb', () => limbFn.call(this.x, id, observerJson(observer)));
+    }
     const fn = this.x.eclipse_local;
     if (typeof fn !== 'function') throw rebuildError('eclipse_local', 'eclipses');
     return this.call('eclipse_local', () => fn.call(this.x, id, observerJson(observer)));
+  }
+
+  /** The Moon's limb profile at any instant (`lunar_limb_profile`; needs the lunar-limb pack). */
+  lunarLimbProfile(observer: Observer, jdUtc: number): LimbProfile {
+    const fn = this.x.lunar_limb_profile;
+    if (typeof fn !== 'function') throw rebuildError('lunar_limb_profile', 'lunar limb');
+    return this.call('lunar_limb_profile', () => fn.call(this.x, observerJson(observer), jdUtc));
+  }
+
+  /** The installed lunar-limb pack (`lunar_limb_info`), or null (also in older builds). */
+  lunarLimbInfo(): LimbPackInfo | null {
+    const fn = this.x.lunar_limb_info;
+    if (typeof fn !== 'function') return null;
+    return this.call('lunar_limb_info', () => fn.call(this.x));
   }
 
   /** The lines to draw an eclipse on the map, by id (`eclipse_path`). */
