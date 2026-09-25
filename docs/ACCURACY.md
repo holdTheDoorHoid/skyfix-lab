@@ -2621,9 +2621,9 @@ WebAssembly on a quiet machine (section 12), took 1.8 ms and 6-7 ms. Thread CPU 
   the windows around the four contacts every 1/16°); `profile_at` (5 760 slices) 20-24 ms.
 - **WebAssembly** in Node 24 (V8, Chrome's engine; `web/test/next/limb-engine.test.ts`
   and the scripts beside it): the first `load_pack("lunar-limb", …)` 84-96 ms, run in the
-  engine's baseline code (45 ms once compiled, 8 ms of it the dispatcher's CRC-32 over the
-  2.2 MB file); the first corrected eclipse 90 ms, later ones 63-66 ms;
-  `lunar_limb_profile` 53-56 ms.
+  engine's baseline code (42-47 ms once compiled; loading the same file again, which only
+  checks its header and CRC-32, 8-9 ms); the first corrected eclipse 90 ms, later ones
+  63-66 ms; `lunar_limb_profile` 53-56 ms.
 
 Scaled by the plain `eclipse_local`'s slowdown on that machine (1.4-2 times), a quiet
 machine takes about 50 ms for the first load and about 50 ms for the first corrected

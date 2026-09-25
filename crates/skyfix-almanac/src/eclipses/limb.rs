@@ -1228,6 +1228,19 @@ fn round3(x: f64) -> f64 {
     (x * 1000.0).round() / 1000.0
 }
 
+/// A stable insertion sort for the few items ordered here (four contacts, a few beads, a
+/// few dozen bead candidates): far less code in the core module than the standard
+/// library's sorts, one of which each element type would instantiate.
+fn sort_small<T>(v: &mut [T], mut before: impl FnMut(&T, &T) -> bool) {
+    for i in 1..v.len() {
+        let mut j = i;
+        while j > 0 && before(&v[j], &v[j - 1]) {
+            v.swap(j, j - 1);
+            j -= 1;
+        }
+    }
+}
+
 /// Everything the correction needs for one eclipse and one observer.
 struct Ctx<'a> {
     ring: &'a LimbRing,
@@ -1499,7 +1512,9 @@ fn beads_near(
         .collect();
     // Deepest valleys first; a candidate joins when the margin between it and every
     // valley already taken dips by the prominence below it.
-    cands.sort_by(|&a, &b| m0[b].unwrap_or(0.0).total_cmp(&m0[a].unwrap_or(0.0)));
+    sort_small(&mut cands, |&a, &b| {
+        m0[a].unwrap_or(0.0) > m0[b].unwrap_or(0.0)
+    });
     let prom = BEAD_PROMINENCE_ARCSEC * ARCSEC;
     let mut taken: Vec<usize> = Vec::new();
     for &i in &cands {
@@ -1544,7 +1559,7 @@ fn beads_near(
             limb_height_arcsec: round3((rho - reference(&sky)) / ARCSEC),
         });
     }
-    out.sort_by(|a, b| a.jd_utc.total_cmp(&b.jd_utc));
+    sort_small(&mut out, |a, b| a.jd_utc < b.jd_utc);
     if before {
         // The last to go out matter most.
         let skip = out.len().saturating_sub(MAX_BEADS);
@@ -1736,7 +1751,7 @@ pub(crate) fn solar_limb(
             }
         }
     }
-    contacts.sort_by(|a, b| a.jd_utc.total_cmp(&b.jd_utc));
+    sort_small(&mut contacts, |a, b| a.jd_utc < b.jd_utc);
     let first = contacts.iter().find(|c| c.kind == LocalEventKind::C1);
     let last = contacts.iter().find(|c| c.kind == LocalEventKind::C4);
     if let (Some(a), Some(b)) = (first, last) {
