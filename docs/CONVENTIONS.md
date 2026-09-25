@@ -242,7 +242,7 @@ low-altitude term above.
   same frame.
 - **The Sun is the VSOP87A Earth** (the planets' own Earth, with the corrections fitted to
   DE440 and DE441), reversed, with light-time and relativistic vector aberration; the
-  planets are VSOP87A likewise; the Moon is ELP/MPP02 (§15.1, ACCURACY §18).
+  planets are VSOP87A likewise; the Moon is ELP/MPP02 (§15.1, ACCURACY §20).
 - **Stars move rigorously**: rectilinear space motion from the Hipparcos epoch J1991.25
   with each star's radial velocity (perspective acceleration included; SIMBAD values).
   **Rigil Kentaurus is alpha Centauri A**, the body the Nautical Almanac tabulates, and
@@ -250,7 +250,7 @@ low-altitude term above.
   2021): the barycentre moves on a straight line with A's catalogue proper motion less
   A's orbital velocity at J1991.25, so at that epoch the model is the catalogue. The
   Almanac and USNO's celnav extrapolate A's 1991 motion in a straight line instead; the
-  two differ by 5.8" in 2026 and 17" in 2060 (ACCURACY §18, "Rigil Kentaurus"). A sextant
+  two differ by 5.8" in 2026 and 17" in 2060 (ACCURACY §20, "Rigil Kentaurus"). A sextant
   sees the A+B light centre, about 2" from A in 2026; that is not modelled.
 
 ## 8. Solver (skyfix-core `solver`)
@@ -543,7 +543,7 @@ planet 0.02 (Uranus 0.03), stars 0.03 (model plus the catalogue's formal 1-sigma
 tier's edges; Rigil Kentaurus's barycentric motion apart). In the **labelled tier** the
 figures are measured and published but carry no target (display only, no sights): Sun
 0.02, Moon 0.05, Mercury 0.02, Venus 0.05, Mars 0.1, Jupiter 0.25, Saturn 0.7, Uranus 0.2,
-Neptune 0.05, stars 0.2. `docs/ACCURACY.md` section 18 has the table per half-century and
+Neptune 0.05, stars 0.2. `docs/ACCURACY.md` section 20 has the table per half-century and
 per century they come from, and `crates/skyfix-ephemeris/tests/deeptime_reference.rs`
 asserts every case against them.
 
@@ -858,6 +858,20 @@ ACCURACY.md "Planet detail". Display and planning only: nothing here enters `red
   days from the elements' epoch (or perihelion time, when no epoch is given) carry a
   staleness warning. Custom bodies are points: no semidiameter, illuminated fraction or
   bright limb.
+
+### 13.13 A bearing picked on the map (photo agent, expansion programme Q8)
+
+The Selected card's bearing tools ("When is it at…?" by bearing, the alignment finder)
+take a bearing typed in degrees from true north, `[0, 360)`, or the direction from the
+observer to a point picked on the map: the **initial azimuth of the geodesic on the WGS84
+ellipsoid** (section 2) from the observer to the point, by Vincenty's inverse formula
+iterated to 1e-12 rad (`panel/sun-tools.ts`, `geodesicInverse`), with the sphere's great
+circle only where the iteration does not converge (points almost antipodal), and the
+interface says which. Over a street or a skyline the normal section and the geodesic
+differ by under 1e-6°. The line drawn on the map is the sphere's great circle leaving on
+that bearing (display only). The magnetic bearing shown beside a true one is
+`true − variation` (14.1, east positive), the variation of the observer's place on the
+local day shown.
 
 ## 14. Navigation methods: noon sight, Polaris, averaging, running fix
 
@@ -1174,3 +1188,62 @@ Normative for every view under `web/src/next/`; the helpers are in `web/src/next
   (`FAST_PLAYBACK_S`) the per-day events are not computed while time runs (`sunToday` and
   `aroundToday` return null) and are drawn as soon as it stops or slows; a view with its own
   per-day work does the same (`fastPlayback(state)`).
+
+### 15.7 The lunar limb (expansion programme P12, eclipselimb agent)
+
+`skyfix_almanac::eclipses::limb`, from the optional `lunar-limb` pack (15.5); wire format
+in `docs/EXPLORER_API.md`, "Expansion programme P12 — the lunar limb". Display only, like
+every eclipse quantity (section 13). Without the pack every result is the mean limb's
+(NASA's `k1`, `k2`, section 13), and `eclipse_local` never changes.
+
+- **Topography.** LRO LOLA LDEM_16 (1/16°, 1.9 km), heights above the 1737.4 km sphere,
+  radii from the Moon's centre of mass (as the ephemeris's positions are), in the mean
+  Earth/polar axis frame of DE421. The pack holds it resampled (bilinear) onto the
+  **ring**: nodes at axis angle `alpha` (Watts's, from the Moon's north pole toward the
+  side that appears in the east of the sky) and distance `delta` from the mean limb
+  (the great circle `x = 0`; positive toward the Earth), `(sin delta, -sin alpha cos
+  delta, cos alpha cos delta)`, 1/16° apart, `delta` within ±12°, heights to 5 m.
+- **Frame.** The Moon's orientation is 13.10's (Meeus/Eckhardt with DE440's figure-to-mean
+  tilt), already the mean Earth/polar axis frame; NAIF's `MOON_ME_DE440_ME421` is aligned
+  with DE421's to about 1 m, so no rotation is applied between the ring and the model. The
+  principal-axis frame is 0.029° (875 m) away and is not used.
+- **Outline.** For an observer (WGS84, 13.2) and instant: the Moon's orientation when the
+  light left it and the direction to the observer (optical, physical and diurnal
+  libration together). At each position angle `psi` on the sky (north through east, from
+  the Moon's centre, 1/16° apart) the outline `rho(psi)` is the largest angular distance
+  from the Moon's centre of any point of the ring in the half-plane through the line of
+  sight toward `psi`: a point at `eps` from the plane of the sky (positive away from the
+  observer) and radius `r` appears at `atan(r cos eps / (D + r sin eps))`, `D` the
+  observer's distance. Points are sampled every 1/16° of `eps`, out to 8° or until the
+  remaining ground cannot stand out. The profile's **height** is `rho` minus the 1737.4
+  km sphere's `asin(1737.4 km / D)`, in arcseconds.
+- **The Sun** is a disc of 959.63″ at 1 au (as for the mean limb: EXPLORER_API "Wave 2 —
+  eclipses"), its centre from the same Besselian elements as the mean-limb contacts, on
+  the sky about the Moon's centre (azimuthal equidistant; east, north).
+- **Contacts** (UTC, like every eclipse instant): first and fourth when the Sun's disc
+  touches the outline from outside (`min |rho e - c| = s`); second and third of a
+  **total** eclipse when the Sun's disc enters or leaves the outline (`max (t+ - rho) =
+  0`, `t+` the Sun's far edge along the ray: the last and first light in the deepest
+  valley); of an **annular** eclipse when the outline enters or leaves the Sun's disc
+  (`max |rho e - c| = s`: the highest peak). Total or annular by the sign of the umbral
+  cone's radius at the observer (`L2`), as for the mean limb. The central phase is
+  searched around the maximum, so a site can gain it or lose it at the edge of the path,
+  and it is **interrupted** when sunlight returns between second and third contact.
+  Each contact carries its difference from the mean-limb contact (`correction_s`, null
+  when the mean limb has none) and **`seconds_per_arcsec`**, the inverse of the contact
+  function's rate: how far 1″ of limb height would move it. Above 8 s/″ a contact is a
+  **near graze** (the edge of the path) and its time is correspondingly less certain.
+- **Position angles**: `position_angle_deg` and `vertex_angle_deg` are where the limbs
+  meet, measured on the Sun's disc from its centre (as the mean-limb events of
+  `eclipse_local`); `limb_position_angle_deg` is the same point from the Moon's centre, an
+  index into the profile.
+- **Baily's beads (approximate).** Near a central contact, the light margin (the Sun's
+  far edge beyond the outline, or the outline's depth inside the Sun) has maxima in the
+  valleys. A bead is a maximum standing at least 0.1″ above the margin between it and
+  every deeper one; its instant is when its margin crosses zero, linearly in time from the
+  contact; at most 8 per contact, within 15 s. At 1.9 km the model's valleys are coarser
+  than the real ones (hundreds of metres), so beads are labelled approximate: the main
+  valleys and their order, not bead-level fidelity.
+- **Not modelled**: refraction (as everywhere in the eclipse engine), the Earth's terrain
+  beyond the observer's own height, the Sun's limb darkening (a contact is geometric), and
+  ground beyond the ring's ±12° (a slice that runs off it sets `ring_truncated`).

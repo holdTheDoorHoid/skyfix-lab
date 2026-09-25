@@ -1,0 +1,33 @@
+{
+  "name": "lunar-limb",
+  "version": "2026-09-25",
+  "bytes": 2212290,
+  "label": "Lunar limb",
+  "description": "The mountains and valleys at the Moon's edge, for eclipse contact times and Baily's beads",
+  "provides": [
+    "eclipses:lunar-limb"
+  ],
+  "rev": "65a2c4477cfffb4e",
+  "file": "lunar-limb-65a2c4477cfffb4e.bin",
+  "sha256": "65a2c4477cfffb4e7b9c3f8898135cdd9d1c09d2cc47bfe04a9085733dec5123",
+  "gzip_bytes": 1659278,
+  "source": "LRO LOLA LDEM_16 V3.1 (LRO-L-LOLA-4-GDR-V1.0), NASA PDS Geosciences Node; U.S. Government work, no reuse restriction; cited in docs/THIRD_PARTY.md",
+  "ring": {
+    "reference_radius_km": 1737.4,
+    "step_deg": 0.0625,
+    "n_alpha": 5760,
+    "n_delta": 384,
+    "delta_range_deg": [
+      -12.0,
+      12.0
+    ],
+    "height_quantum_m": 5.0,
+    "escapes": 145,
+    "height_range_m": [
+      -7305.0,
+      6905.0
+    ],
+    "max_rounding_m": 2.5
+  },
+  "built_by": "tools/limb/build.py"
+}

@@ -117,6 +117,7 @@ import type {
   OccultationOptions,
 } from './types.js';
 import { MockTides } from './mock/tides.js';
+import { MockLimb } from './mock/limb.js';
 import type {
   TideCurve,
   TideDatum,
@@ -142,6 +143,7 @@ import type {
   PlanetTransitList,
   SaturnRings,
 } from './types.js';
+import type { LimbEngine, LimbPackInfo, LimbProfile } from './types.js';
 
 export const MOCK_DESCRIPTION =
   'MOCK ENGINE for developing the interface. Every number on this page is illustrative: positions come from ' +
@@ -183,6 +185,8 @@ export interface MockEngineOptions {
   validated?: boolean;
   /** Tides (tides agent): answer as if the tides-us pack were loaded (default true). */
   tidesLoaded?: boolean;
+  /** Lunar limb (eclipselimb agent): answer as if the lunar-limb pack were loaded (default true). */
+  limbLoaded?: boolean;
 }
 
 interface BodyDef {
@@ -341,6 +345,7 @@ export class MockEngine
   loadPack(name: string, bytes: Uint8Array): PackInfo {
     const info = this.packRegistry.loadPack(name, bytes);
     if (name === 'tides-us') this.tides.install(); // tides agent: the synthetic station answers once loaded
+    if (name === 'lunar-limb') this.limb.install(); // eclipselimb agent: the synthetic limb answers once loaded
     return info;
   }
 
@@ -372,6 +377,7 @@ export class MockEngine
   constructor(options: MockEngineOptions = {}) {
     this.validated = options.validated ?? false;
     this.tides = new MockTides({ loaded: options.tidesLoaded ?? true });
+    this.limb = new MockLimb({ loaded: options.limbLoaded ?? true });
     this.field = buildStarfield({ synthetic: options.syntheticStars ?? 2000 });
     this.defs = [
       { name: 'Sun', kind: 'sun', navigational: true },
@@ -742,6 +748,18 @@ export class MockEngine
     return this.tides.tidePackInfo();
   }
   // --- end tides
+
+  // --- Lunar limb (eclipselimb agent, P12): a synthetic profile (mock/limb.ts), illustrative only.
+  private readonly limb: MockLimb;
+
+  lunarLimbProfile(observer: Observer, jdUtc: number): LimbProfile {
+    return this.limb.lunarLimbProfile(observer, jdUtc);
+  }
+
+  lunarLimbInfo(): LimbPackInfo | null {
+    return this.limb.lunarLimbInfo();
+  }
+  // --- end lunar limb
 
   // -------------------------------------------------------------------------
   // Magnetic field and compass error (expansion programme, geomag agent;
@@ -1243,3 +1261,6 @@ export class MockEngine
 // so parallel additions to that line do not collide).
 const _mockIsMoonDetail: (e: MockEngine) => MoonDetailEngine = (e) => e;
 void _mockIsMoonDetail;
+// And a lunar-limb engine (eclipselimb agent), the same way.
+const _mockIsLimb: (e: MockEngine) => LimbEngine = (e) => e;
+void _mockIsLimb;

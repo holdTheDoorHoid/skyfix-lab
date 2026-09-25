@@ -2812,13 +2812,163 @@ given); past 30 days a warning says the unperturbed orbit is drifting from the r
 `sample_bodies` for custom bodies: the same shape, real `Float64Array`s, at most 5 000
 samples per body.
 
+## Expansion programme P12 — the lunar limb (`limb.rs`, eclipselimb agent)
+
+Solar-eclipse contacts corrected for the mountains and valleys at the Moon's edge, the
+limb profile for drawing, and approximate Baily's beads, from the optional
+**`lunar-limb`** pack (LRO LOLA topography). Definitions: CONVENTIONS 15.7; measured
+agreement: `docs/ACCURACY.md`, "Lunar limb"; the engine is
+`skyfix_almanac::eclipses::limb`, the exports `crates/skyfix-wasm/src/limb.rs`; the
+TypeScript mirror is `EclipseLocalOptions`, `SolarEclipseLimb`, `LimbContact`,
+`LimbBead`, `LimbProfile`, `LimbPackInfo`, `LimbEngine` and `isLimbEngine` in
+`web/src/next/engine/types.ts` ("Expansion programme P12"). Display only, like every
+eclipse number.
+
+**Additive.** `eclipse_local(id, observer_json)` is unchanged (its results carry no
+`limb` field, so every existing fixture and view is untouched). The limb comes through a
+new export and, in TypeScript, an option:
+
+- `eclipse_local_limb(id, observer_json) -> EclipseLocal`: exactly `eclipse_local`'s
+  result, plus, for a solar eclipse, `limb: SolarEclipseLimb` (a lunar eclipse has none:
+  the limb does not change its contacts). In TypeScript: `engine.eclipseLocal(id,
+  observer, { limb: true })` (the WASM wrapper routes to this export; the memoised engine
+  keys on the option; an older core throws "eclipse_local_limb: this build of the
+  numerical core has no lunar limb. Rebuild it with: npm run wasm --prefix web").
+- Without the pack, `limb` is `{loaded: false, note: "Mean limb: the Moon is taken as a
+  smooth sphere, so second and third contact can be a few seconds off. Get the Lunar limb
+  data pack (Settings → Data packs) to correct them for the Moon's mountains and
+  valleys.", contacts: [], profile: null, beads: [], …}` and the mean-limb fields beside
+  it are the results to show.
+
+About 25 ms of CPU natively for one eclipse and place, 60-75 ms in WebAssembly, both
+measured on a busy machine (about 5 500 slices through the Moon's outline: every 1/8° at
+maximum, every 1/16° near each contact); ACCURACY section 19 has the figures.
+
+### `SolarEclipseLimb`
+
+```ts
+{ loaded: boolean, pack_version: "2026-09-25" | null,
+  note: string,                    // show beside the times (mean limb, or corrected and how well)
+  resolution_km: 1.896 | null,     // the terrain's grid, LDEM_16
+  local_type: "total" | "annular" | "partial" | "none" | null,   // limb-corrected
+  contacts: LimbContact[],         // c1, c2, c3, c4 as they occur, in time order
+  duration_s: number | null,       // c1 to c4
+  central_duration_s: number | null,             // c2 to c3
+  central_duration_correction_s: number | null,  // minus the mean limb's
+  interrupted: boolean,            // sunlight returns through a valley between c2 and c3 (a graze)
+  profile: LimbProfile | null,     // at the instant of maximum eclipse, every 1/8°
+  beads: LimbBead[] }              // approximate, before c2 and after c3, in time order
+
+LimbContact = { kind: "c1" | "c2" | "c3" | "c4", jd_utc, utc,
+  mean_jd_utc: number | null,      // the mean-limb contact it corrects (null: gained at the edge)
+  correction_s: number | null,     // limb minus mean
+  position_angle_deg, vertex_angle_deg,   // where the limbs meet, on the Sun's disc, as the mean-limb events
+  limb_position_angle_deg,         // the same point from the Moon's centre: an index into the profile
+  limb_height_arcsec,              // the profile's height there
+  alt_deg, az_deg, visible,        // the Sun (CONVENTIONS 13.2, 13.3)
+  sun_offset_east_arcsec, sun_offset_north_arcsec, sun_radius_arcsec,   // the Sun's disc against the profile
+  seconds_per_arcsec }             // how far 1" of limb height moves it: 2-3 s inside the path, > 8 s for a near graze
+
+LimbBead = { contact: "c2" | "c3", jd_utc, utc,
+  seconds_from_contact,            // <= 0 before second contact, >= 0 after third
+  position_angle_deg, vertex_angle_deg, limb_position_angle_deg, limb_height_arcsec }
+```
+
+`local_type` can differ from the mean limb's near the edge of the path: at San Antonio in
+2024 the smooth Moon misses totality and the real one gives 15 s of it
+(`mean_jd_utc: null` on c2 and c3); where the mean limb says total but light gets
+through a valley throughout, the corrected type is `partial`. With the pack loaded but no
+eclipse at the place (`visibility: "none"`), `limb.local_type` is `"none"` and the lists
+are empty. The beads are approximate (CONVENTIONS 15.7): at most 8 per contact, the
+valleys at least 0.1" deep, within 15 s of the contact.
+
+### `lunar_limb_profile(observer_json, jd_utc) -> LimbProfile`
+
+The Moon's outline as the observer sees it at any instant (for drawing the Moon, a graze
+or an occultation), with the Sun's place from the ephemeris. Throws `pack_not_loaded: the
+lunar limb profile needs the lunar-limb pack (LRO LOLA topography), which is not loaded`
+without the pack. About 20 ms natively, 55-65 ms in WebAssembly (a busy machine). In
+TypeScript: `LimbEngine.lunarLimbProfile`.
+
+```ts
+LimbProfile = { jd_utc, utc,
+  start_deg: 0,
+  step_deg: 0.0625 | 0.125,        // bin k at position angle start + k step, from the Moon's centre, north through east:
+                                   // 1/16° from lunar_limb_profile, 1/8° in an eclipse's limb block
+  height_arcsec: (number | null)[],// 5 760 (or 2 880) heights above the 1737.4 km sphere, 0.001"; null where the ring does not reach
+  reference_radius_km: 1737.4, reference_radius_arcsec,     // the sphere as seen from here
+  mean_limb_k1_arcsec, mean_limb_k2_arcsec,                  // NASA's k1, k2 Moon against it (about +0.3", -0.45")
+  sun_radius_arcsec, sun_offset_east_arcsec, sun_offset_north_arcsec,
+  axis_position_angle_deg,         // the Moon's north pole on the sky
+  parallactic_angle_deg,           // the zenith at the Moon, (-180, 180]
+  libration_lon_deg, libration_lat_deg,   // the topocentric libration (the disc's centre)
+  moon_distance_km,
+  ring_truncated: boolean }        // ground beyond the ring's ±12° might have stood out (never seen)
+```
+
+To draw it: radius `reference_radius_arcsec + height_arcsec[k]` at position angle `k ×
+step_deg` (exaggerate the heights 50-100 times to see them), north up and east to the
+left, or rotate by the parallactic angle for the zenith up.
+
+### `lunar_limb_info() -> LimbPackInfo | null`
+
+`{name: "lunar-limb", version, source, step_deg: 0.0625, resolution_km: 1.896,
+reference_radius_km: 1737.4, delta_min_deg: -12, delta_max_deg: 12, min_height_m: -7305,
+max_height_m: 6905}` for the installed ring, `null` before. In TypeScript:
+`LimbEngine.lunarLimbInfo()`; the WASM wrapper returns `null` from an older core too.
+
+### Loading the pack
+
+`load_pack("lunar-limb", bytes)` (EXPLORER_API "Packs") checks the common header and the
+CRC-32 and calls the producer `skyfix_wasm::limb::install_lunar_limb(payload)` (the
+`lunar-limb` entry of `packs::PRODUCERS`: label "Lunar limb", description "The mountains
+and valleys at the Moon's edge, for eclipse contact times and Baily's beads", provides
+`["eclipses:lunar-limb"]`), which decodes the payload (10-25 ms natively, 45-110 ms in
+WebAssembly the first time) and keeps it for the page session; a malformed payload
+changes nothing, a second install replaces the first. The mock engine's synthetic limb answers from the start
+(`MockEngineOptions.limbLoaded: false` makes it wait for `loadPack("lunar-limb", …)`); the
+mock has no eclipses, so `eclipseLocal` with the option exists only in the WASM engine.
+
+### The `lunar-limb` pack: file and payload
+
+File `web/public/data/packs/lunar-limb-<rev>.bin` with the sidecar `lunar-limb.json`
+(`name`, `version`, `bytes`, `label`, `description`, `provides`, `rev`, `file`,
+`sha256`, `gzip_bytes`, `source`, `ring`, `built_by`): 2 212 290 bytes (2.21 MB), 1.66
+MB gzipped (GitHub Pages serves it gzipped). Built by `tools/limb/build.py` from LDEM_16
+(`tools/limb/fetch.py`); decoded by `skyfix_almanac::eclipses::limb::LimbRing::parse`.
+The payload, little-endian (`str8` is a u8 length then UTF-8 bytes):
+
+```text
+"LIMB"          4 bytes
+u16             payload format (1)
+str8            data version (the build date of the ring)
+str8            source ("LRO LOLA LDEM_16 V3.1 (LRO-L-LOLA-4-GDR-V1.0), NASA PDS Geosciences Node")
+f64             reference radius, km (1737.4: heights are above it)
+f64             height quantum, m (5)
+f64             grid step, degrees (1/16)
+f64             delta_min, degrees (-12)
+u16 n_alpha     5760 columns: axis angle alpha_j = (j + 1/2) step
+u16 n_delta     384 rows: distance from the mean limb delta_i = delta_min + (i + 1/2) step
+u32             body length, bytes
+body            the heights in quanta, column after column (all rows of alpha_0, then alpha_1,
+                ...), each as the residual from the planar prediction
+                p = q[j][i-1] + q[j-1][i] - q[j-1][i-1] (missing neighbours 0): one signed
+                byte for -127..127, else the byte 0x80 and the residual as an i16
+```
+
+The ring's node `(alpha, delta)` is the unit vector `(sin delta, -sin alpha cos delta,
+cos alpha cos delta)` of the mean Earth/polar axis frame (x toward the mean sub-Earth
+point, z north): `alpha` is Watts's axis angle, from the north pole toward the side that
+appears in the east of the sky; `delta` is positive toward the Earth. Nothing may follow
+the body.
+
 ## Expansion programme — coverage tiers as built (`coverage.rs`, deeptime agent, 2026-09-25)
 
 **Both tiers ship in the core module; there is no `deep-time` pack.** The planner's rule
 was to keep both tiers in the core if the module stayed inside its budget: the two-tier
 series file is 151 625 bytes (115 932 gzipped), smaller than the three one-tier JSON
 files it replaced (477 494 bytes), and the module ends smaller than before (ACCURACY.md
-section 18). The packs mechanism is unchanged and serves `tides-us` (and later
+section 20). The packs mechanism is unchanged and serves `tides-us` (and later
 `lunar-limb`); no `deep-time` producer is registered, so `packs_loaded` never lists it.
 
 ### `explorer_coverage()` — as built
@@ -2842,7 +2992,7 @@ The shape of "`explorer_coverage()` — tiers" above, with these values:
 - `start_utc`/`end_utc` are the labelled tier's ends (every group answers them);
   `accuracy_arcmin` and `validated` keep describing the validated tier, as before.
 - Published figures per group and tier (arcminutes, worst of GHA and Dec, from the
-  historical table, ACCURACY.md section 18):
+  historical table, ACCURACY.md section 20):
 
   | group | validated 1550–2650 | labelled 2000 BC–AD 3000 |
   |---|---|---|

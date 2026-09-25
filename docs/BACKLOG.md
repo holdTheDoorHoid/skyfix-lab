@@ -178,11 +178,38 @@ This file is the single list; the completion report links here.
 | Phone Map outside the coverage: notices over the map's controls | unstarted (shell, map) | On a phone, a date outside the coverage shows two notices (the coverage one, and the Map's own "positions could not be computed" error), which cover the map's floating Layers button (ui-check's layout check, any date outside the years, e.g. 2080: it predates the deep-time work). The Map should not raise an error where `covered()`/`tierAt` already say nothing is computed, and the notice bar could leave the floating controls clear |
 | Views with their own per-day work during fast playback | open (owners) | above 8 days a second `sunToday`/`aroundToday` pause; the Map (`seasons` per year, `sampleBodies` per day), Sky (`sampleBodies` per day) and panel Place (`guessZone` each hour) views still work per frame; `fastPlayback(state)` is the switch |
 
+## Expansion programme — photo (Q8): the Selected card's tools (photo agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Golden and blue hour, the alignment finder with the map picker, "When is it at…?" by bearing, the Milky Way planner, the Moon in detail, RA/Dec and the magnetic bearing on every body, the predicted sextant reading, the tides line in Place | completed | `web/src/next/panel/{photo,moon-tools,alignment,when,selected}.ts`, `web/src/next/map/pick.ts`; `docs/ACCURACY.md` section 18 |
+| The planets' apparent size | completed | planetdetail's `planet_disc` (the equatorial diameter, and the polar one in the tooltip), a quarter-hour at a time |
+| The ±ΔT chip and the tier helper | completed | time-ui's `uncertaintyText` after every time (`deltaTNote`), the chip beside each tool's heading, `sightsOffered` / `sightsOnlyText` for the predicted reading, `scaleLabel` on the cards' second clock |
+| Opening Charts on its Tides tab | completed | "Tides chart" and "The Sun's bearings through the year" call charts2's `showCharts` through a dynamic import (the Charts module stays lazily loaded) |
+| time-ui's rows on a literal "UTC" and on "1990–2060" | completed for the photo agent's files | `panel/selected.ts` writes the second clock with `scaleLabel`; `panel/when.ts`, the finder, the planner and golden hour name the real bounds (`outsideWords`, from `coverageBounds`). `panel/place.ts` (its `formatOffset` without the instant) is navigate2's |
+| Aiming the Sky view | waiting | "Show in Sky" (Milky Way) and "See it up close" (the Moon) open the Sky view at the moment; pointing it at the galactic centre and the Moon's close-up inset are the sky2 agent's (`// sky2:`) |
+| Alignments for the planets and a horizon profile | unstarted | the engine takes any body; the finder offers the Sun and the Moon. A skyline's height per bearing (the real horizon) would replace the single "At a height" |
+| Alignment dates across a daylight-saving change | known limit | `alignment_days` lays a year on one fixed UTC offset (the one at the time shown); the list writes each day in the real zone, so only the grouping into runs of an event within an hour of local midnight could differ |
+| Offering the tides pack from the Place section | decided against | the line appears only when the pack is on the device; offering it everywhere would put a US-only download in front of every visitor, and knowing that a place is near a US station needs the pack itself |
+
+## Expansion programme P12 — the lunar limb (eclipselimb agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| The `lunar-limb` pack and limb-corrected solar-eclipse contacts, the drawn limb, approximate Baily's beads | completed (engine) | `skyfix_almanac::eclipses::limb`, WASM `eclipse_local_limb`, `lunar_limb_profile`, `lunar_limb_info`, the `lunar-limb` producer; TypeScript `eclipseLocal(id, observer, { limb: true })` and `LimbEngine`; `docs/ACCURACY.md` section 19. Showing the corrected times, the limb drawing with the Sun's disc and the beads, and the pack prompt in the eclipse card is wave 2 (Q4 events2) |
+| Third contact against NASA SVS | open question | Second contact agrees within 1.2 s, third is 1.4 s early on average in both eclipses and in the independent implementation: SVS's central phases are 1.0-1.6 s longer than the geometric ones for the total and the annular eclipse alike, which no change in the Moon's or the Sun's size can produce. SVS's definition of "100 % coverage" and its Delta-T are not published; an SVS or NASA source that states them would settle it |
+| Bead-level detail | unstarted | 1.9 km terrain resolves the main valleys only. Per-eclipse profiles from LDEM_64 (474 m) or LDEM_128, precomputed for the band of libration one eclipse spans (a few tens of kB each, data audit section 9), would give real beads |
+| Limb-corrected path limits on the map | unstarted | The limits of totality move by 1-3 km with the limb; the same outline solved for the grazing site along the path's normals would draw them (`eclipse_path` is the mean limb's) |
+| Occultation grazes with the real limb | unstarted | `lunar_limb_profile` gives the outline at any instant; star occultation contacts (P8, mean limb) and graze predictions could use it |
+| The core module's size budget | decision | The lunar limb adds 45.3 KB raw / 20.7 KB gzipped to the core module; main alone (ab8f55c) is 2 997 407 bytes, 2.6 KB under the 3 MB budget, so the module is 42.7 KB over it (and 2.3 KB over 1.25 MB gzipped). Options: raise the budget, `opt-level = "z"` (about 5 %), or load the limb engine as a second module with its pack |
+| A smaller pack | unstarted | 1.66 MB gzipped; 10 m quanta would save about 0.4 MB gzipped (at most 5 m, 0.003", of rounding), a ±10° ring about a sixth |
+| Command line | unstarted | No `skyfix eclipse --limb` yet (cli3) |
+
 ## Expansion programme — deep time (deeptime agent)
 
 | item | status | notes |
 |---|---|---|
-| Coverage tiers in the core: validated 1550–2650, labelled 2000 BC–AD 3000 | completed | `skyfix_ephemeris::tiers`, `explorer_coverage` tiers, `tier_at` (`crates/skyfix-wasm/src/coverage.rs`); both tiers in the core module, so the planned `deep-time` pack was not built (EXPLORER_API "coverage tiers as built"); the historical table in `docs/ACCURACY.md` section 18 |
+| Coverage tiers in the core: validated 1550–2650, labelled 2000 BC–AD 3000 | completed | `skyfix_ephemeris::tiers`, `explorer_coverage` tiers, `tier_at` (`crates/skyfix-wasm/src/coverage.rs`); both tiers in the core module, so the planned `deep-time` pack was not built (EXPLORER_API "coverage tiers as built"); the historical table in `docs/ACCURACY.md` section 20 |
 | Series: VSOP87A with fitted corrections, ELP/MPP02 with refitted secular terms, long-term precession, full nutation arguments | completed | one compact file, `series.bin` (151 625 bytes); validated tier Sun 0.03″, Moon 0.36″, planets ≤ 0.91″ against DE440 |
 | Stars: radial velocities; Rigil Kentaurus on alpha Cen A's orbit | completed | the Almanac's Rigil Kentaurus is A; USNO extrapolates A in a straight line (5.8″ from the orbit in 2026) |
 | Other engines on the labelled tier | unstarted | The almanac pages, eclipses (1990–2060 against NASA's canon), planet events, the Moon in detail, deep sky and sailings keep the validated tier or their own range; each opens with one line (`.with_policy(TierPolicy::WithLabelled)`) once its owner has checked its own numbers there (the eclipse canon covers 2000 BC to AD 3000) |
