@@ -49,6 +49,7 @@ reproduce each row are in the numbered section named.
 | Moon in detail: perigee, apogee, supermoons (vs Skyfield + DE440s) | instants within 11.2 s, distances 0.22 km; every supermoon/micromoon flag agrees | 2 min, 10 km | 14 |
 | Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s; a year at one place in 76 ms of CPU | 30 s; 200 ms | 14 |
 | Tides, `tides-us` pack (vs NOAA's own predictions: 20 harmonic stations × 30 days, 6 subordinate, and a 3-day sweep of all 3 492 predictable stations) | high and low water within 1.10 min and 1.08 cm (20 stations, 2 087 extremes; Anchorage the 1.08 cm, the others ≤ 0.12 cm); curve within 1.38 cm (others ≤ 0.29 cm); sweep 39 120 extremes within 1.36 min and 0.99 cm | 2 min, 5 cm | 16 |
+| Lunar limb, `lunar-limb` pack: limb-corrected eclipse contacts (vs NASA SVS, 48 cities of 2024 and 2023 away from grazes; vs an independent Skyfield + NAIF + raw-LOLA implementation) | second contact within 1.2 s of SVS, third 1.4 s early on average (the same in the independent code: SVS's definition), both within 2 s at 45 of 48; scatter about SVS 0.3–0.6 s against the mean limb's 1.2–3.2 s; the profile within 0.027″ rms, the corrections within 0.34 s of the independent ones | 2 s; 1 s | 17 |
 
 ## 1. What accuracy means here
 
@@ -2264,3 +2265,134 @@ base commit 28131c5 (2.06 MB / 849 KB before, 2.15 MB / 885 KB with tides).
   perf -- --ignored --nocapture` for the timings.
 - The data and fixtures: `tools/tides/README.md` (NOAA's API, about 4 800 requests,
   cached).
+
+## 17. Lunar limb: limb-corrected eclipse contacts (expansion programme P12)
+
+Owner: eclipselimb agent. The engine is `skyfix_almanac::eclipses::limb` (definitions in
+CONVENTIONS 15.6), fed by the optional `lunar-limb` pack (LRO LOLA LDEM_16, 1/16°, about
+1.9 km; `docs/THIRD_PARTY.md`, "Lunar limb profile"); wire format in EXPLORER_API
+"Expansion programme P12 — the lunar limb". Without the pack every eclipse result is the
+mean limb's (section 12), unchanged. The tests are `crates/skyfix-almanac/tests/eclipse_limb.rs`
+(numbers below with `-- --nocapture`), `crates/skyfix-wasm/src/limb.rs` and
+`web/test/next/limb-engine.test.ts`.
+
+**What the correction does.** The mean limb (NASA's `k2 = 0.272281`, a radius chosen to
+stand for the limb's valleys) gets second and third contact of a total eclipse within a
+few seconds; the real limb decides them through the particular valley where the last
+sunlight goes out. For an annular eclipse the error of a smooth Moon is larger, because
+the highest peaks end and begin annularity: the mean limb's annularity was 7 to 18 s too
+long at the 19 cities of 2023-10-14, the corrected one within 1.5 s of NASA's.
+
+### The profile against one built from the raw grid with NAIF's orientation
+
+`tools/limb/reference.py` rebuilds the outline independently: Skyfield 1.55 with DE440s
+and its IERS time scale, the Moon's orientation from NAIF's DE440 lunar kernel
+(`MOON_ME_DE440_ME421`) at the light's departure, heights bilinear from the raw LDEM_16
+grid (not the pack's ring). At the maxima of three eclipses (Dallas and Burlington 2024,
+Albuquerque 2023), over all 5 760 position angles: **rms 0.022-0.027″ (42-45 m), mean
+−0.015 to −0.018″ (−29 m: the ring's second interpolation rounds the sharpest crests
+off), worst 0.11-0.17″**. This checks the geometry, the frame (the model's orientation
+against DE440's, 0.005° per section 14), the ring and its decoder at once.
+
+### Contacts against the independent implementation
+
+The same 51 sites (below), every contact the independent code finds (204):
+
+| | 2024-04-08 (total, 32 sites) | 2023-10-14 (annular, 19 sites) |
+|---|---|---|
+| contacts, away from grazes | within 0.29 / 0.72 / 0.66 / 0.40 s (c1 / c2 / c3 / c4) | within 0.35 / 0.61 / 0.41 / 0.55 s |
+| limb minus mean-limb correction, same | within 0.21 / 0.34 / 0.12 / 0.11 s | within 0.16 / 0.20 / 0.22 / 0.11 s |
+| near grazes (over 8 s per ″ of limb) | 4 contacts (San Antonio, Toledo, Lancaster) within 0.13″ of limb | none |
+
+The absolute differences are the engine's Moon (ELP 2000-82B) against DE440s, 0.2-0.7 s
+at a contact (section 12); the correction cancels most of it. San Antonio in 2024 is at
+the southern edge of the path: the mean limb misses totality there, both implementations
+find it with the limb (14.6 s here, 11.8 s independently, 18 s by NASA).
+
+### Second and third contact against NASA's Scientific Visualization Studio
+
+NASA SVS published limb-corrected times of the start and end of the central phase, to the
+second, for U.S. cities (item 5073; LOLA and SELENE topography at 60 m, SRTM terrain,
+DE421). 32 cities in the path of totality of 2024-04-08 (Eagle Pass to Presque Isle) and
+19 in the path of annularity of 2023-10-14 (Eugene to Kingsville), with the engine as
+shipped (DUT1 from the IERS history). Corrected minus SVS, sites away from grazes:
+
+| | 2024 (29 cities) | 2023 (19 cities) |
+|---|---|---|
+| second contact | mean −0.10 s, worst 1.08 s | mean −0.44 s, worst 1.16 s |
+| third contact | mean −1.35 s, worst 3.22 s (Fort Worth; Dallas 2.45 s) | mean −1.47 s, worst 2.06 s |
+| both within 2 s | 27 of 29 | 18 of 19 |
+| central phase | −1.25 s on average, worst 4.3 s | −1.03 s, worst 1.54 s |
+| scatter about SVS, c2 / c3: corrected | 0.44 / 0.57 s | 0.33 / 0.35 s |
+| the same for the mean limb | 1.54 / 1.22 s | 1.16 / 3.16 s |
+
+Near grazes (the edge of the path, where a contact moves by more than 8 s per ″ of limb
+height): San Antonio 2024, second contact −1.2 s and third −4.6 s (a 15 s totality
+against SVS's 18 s); Toledo, third −3.3 s; Lancaster NH, third −7.2 s (39 s against
+SVS's 46 s). Each contact reports this sensitivity (`seconds_per_arcsec`) so the
+interface can say so.
+
+**Third contact is systematically early against SVS, and it is not our limb.** The
+independent implementation shows the same: second contact +0.26 s and +0.04 s from SVS,
+third −1.38 s and −1.16 s (2024, 2023). SVS's central phases are 1.0-1.6 s longer than
+the geometric ones for the total eclipse *and* the annular one; a larger Moon or a smaller
+Sun would lengthen one and shorten the other, and a higher-resolution limb (SVS's 60 m)
+has deeper valleys and higher peaks, which would shorten both. What remains is SVS's own
+definition, not published: its times are "100 % points of coverage", to the whole second
+(its umbra shapes are computed at one-second steps), with a Delta-T it does not state. If
+its central phase is rounded outward to whole seconds and its times run 0.6-1.0 s later
+than ours throughout (half a second of Delta-T would do that), both eclipses fit to about
+0.3 s; we cannot confirm it. So the brief's criteria — second and third contact within
+2 s, the corrections within 1 s — hold for second contact everywhere and for third
+contact at 45 of 48 sites away from grazes, with a 1.4 s mean offset in third contact
+that we attribute to SVS's definition; the scatter about SVS after the correction is
+0.3-0.6 s, between a half and a ninth of the mean limb's.
+
+### Baily's beads
+
+Approximate by construction (CONVENTIONS 15.6): the valleys of a 1.9 km model, at most 8
+per contact within 15 s, the last before second contact and the first after third being
+the contact's own valley (tested). At Indianapolis in 2024 the model gives eight beads in
+the last 1.5 s before totality, between position angles 27° and 40° on the Sun, and
+eight in the first 0.6 s after it, between 247° and 254°. Real beads come through
+valleys a few hundred metres wide that LDEM_16 does not resolve, and they last longer
+than the model's (which go out within a second or two, the smoothed valleys being
+shallow): the times and places are those of the main valleys, not bead-level
+predictions, and the output says so.
+
+### Speed and size
+
+Measured on the development machine while other agents' builds kept it busy (load
+average 15-40 on 8 cores): the plain `eclipse_local`, 1.2-1.7 ms natively and 3-5 ms in
+WebAssembly on a quiet machine (section 12), took 1.8 ms and 6-7 ms. Thread CPU time:
+
+- **Natively** (release build): decoding the pack 10.5 ms; one eclipse with the limb
+  25-29 ms (about 5 500 slices of about 42 samples: the outline at maximum every 1/8°,
+  the windows around the four contacts every 1/16°); `profile_at` (5 760 slices) 20-24 ms.
+- **WebAssembly** in Node 24 (V8, Chrome's engine; `web/test/next/limb-engine.test.ts`
+  and the scripts beside it): the first `load_pack("lunar-limb", …)` 84-96 ms, run in the
+  engine's baseline code (45 ms once compiled, 8 ms of it the dispatcher's CRC-32 over the
+  2.2 MB file); the first corrected eclipse 90 ms, later ones 63-66 ms;
+  `lunar_limb_profile` 53-56 ms.
+
+Scaled by the plain `eclipse_local`'s slowdown on that machine (1.4-2 times), a quiet
+machine takes about 50 ms for the first load and about 50 ms for the first corrected
+eclipse, 35-45 ms for each one after: each within the 100 ms of the brief, the two
+together at about it. The pack is loaded once per page session (CONVENTIONS 15.5) and a
+view asks for the corrected eclipse once per place (the memoised engine keeps it).
+
+**Size.** The pack: 2 212 290 bytes (2.21 MB), 1 659 278 gzipped (1.66 MB; the target
+was 3 MB gzipped, and the brief's estimate of 4.4 MB raw for int16 heights came down with
+the byte code); decoded, 4.4 MB of heights and 1.1 MB of block maxima in memory. The
+core module: +59.9 KB raw, +24.2 KB gzipped against main at the tides merge (2.87 MB /
+1.18 MB, inside the 3 MB / 1.25 MB budget).
+
+### Reproduce
+
+- `cargo test --release -p skyfix-almanac --test eclipse_limb -- --nocapture` prints
+  every number above; `-- --ignored timing` the native timings.
+- `cd web && npm run wasm && npx vitest run test/next/limb-engine.test.ts` loads the
+  shipped pack into the built core and times it.
+- The pack: `python3 -m tools.limb.fetch && tools/reference/.venv/bin/python -m
+  tools.limb.build` (bit-identical). The references: `tools/reference/.venv/bin/python -m
+  tools.limb.reference svs skyfield` (about 20 minutes).

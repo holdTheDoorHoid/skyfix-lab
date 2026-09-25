@@ -137,3 +137,15 @@ This file is the single list; the completion report links here.
 | Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
 | Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
 | Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |
+
+## Expansion programme P12 — the lunar limb (eclipselimb agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| The `lunar-limb` pack and limb-corrected solar-eclipse contacts, the drawn limb, approximate Baily's beads | completed (engine) | `skyfix_almanac::eclipses::limb`, WASM `eclipse_local_limb`, `lunar_limb_profile`, `lunar_limb_info`, the `lunar-limb` producer; TypeScript `eclipseLocal(id, observer, { limb: true })` and `LimbEngine`; `docs/ACCURACY.md` section 17. Showing the corrected times, the limb drawing with the Sun's disc and the beads, and the pack prompt in the eclipse card is wave 2 (Q4 events2) |
+| Third contact against NASA SVS | open question | Second contact agrees within 1.2 s, third is 1.4 s early on average in both eclipses and in the independent implementation: SVS's central phases are 1.0-1.6 s longer than the geometric ones for the total and the annular eclipse alike, which no change in the Moon's or the Sun's size can produce. SVS's definition of "100 % coverage" and its Delta-T are not published; an SVS or NASA source that states them would settle it |
+| Bead-level detail | unstarted | 1.9 km terrain resolves the main valleys only. Per-eclipse profiles from LDEM_64 (474 m) or LDEM_128, precomputed for the band of libration one eclipse spans (a few tens of kB each, data audit section 9), would give real beads |
+| Limb-corrected path limits on the map | unstarted | The limits of totality move by 1-3 km with the limb; the same outline solved for the grazing site along the path's normals would draw them (`eclipse_path` is the mean limb's) |
+| Occultation grazes with the real limb | unstarted | `lunar_limb_profile` gives the outline at any instant; star occultation contacts (P8, mean limb) and graze predictions could use it |
+| A smaller pack | unstarted | 1.66 MB gzipped; 10 m quanta would save about 0.4 MB gzipped (at most 5 m, 0.003", of rounding), a ±10° ring about a sixth |
+| Command line | unstarted | No `skyfix eclipse --limb` yet (cli3) |
