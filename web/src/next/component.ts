@@ -31,6 +31,8 @@ import {
   type Observer,
   type PlanetEventsEngine,
 } from './engine/types.js';
+// Expansion programme, geomag agent: the memoised engine forwards the magnetic tools.
+import { isGeomagEngine } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
 
@@ -317,6 +319,15 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
       ? {
           planetEvents: (jdStart: number, jdEnd: number) =>
             cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
+        }
+      : {}),
+    // Magnetic field and compass error (expansion programme, geomag agent): present exactly
+    // when the engine has them (`isGeomagEngine`); unmemoised, they are cheap and on demand.
+    ...(isGeomagEngine(engine)
+      ? {
+          magneticField: engine.magneticField.bind(engine),
+          magneticGrid: engine.magneticGrid.bind(engine),
+          compassError: engine.compassError.bind(engine),
         }
       : {}),
     kind: engine.kind,

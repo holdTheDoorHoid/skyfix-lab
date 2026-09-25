@@ -15,6 +15,9 @@
 import { isoUtc, jdFromIso, jdFromMs, utcMs } from '../time.js';
 import { createMockNav } from './mock-nav.js';
 import { mockAlmanacDay } from './mock/almanac.js';
+// Expansion programme, geomag agent: magnetic field and compass error (mock/geomag.ts).
+import { mockCompassError, mockMagneticField, mockMagneticGrid } from './mock/geomag.js';
+import type { CompassError, CompassRequest, MagneticField, MagneticGrid, MagneticModelChoice } from './types.js';
 import * as A from './mock/astro.js';
 import { crossings, grid, sample } from './mock/roots.js';
 import { createMockMisfit } from './mock-misfit.js';
@@ -512,6 +515,38 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
 
   almanacDay(date: string): AlmanacDay {
     return mockAlmanacDay(this, date);
+  }
+
+  // -------------------------------------------------------------------------
+  // Magnetic field and compass error (expansion programme, geomag agent;
+  // illustrative: a tilted dipole, see mock/geomag.ts)
+  // -------------------------------------------------------------------------
+
+  magneticField(
+    latDeg: number,
+    lonDeg: number,
+    heightM: number,
+    jdUtc: number,
+    model?: MagneticModelChoice,
+  ): MagneticField {
+    return mockMagneticField(latDeg, lonDeg, heightM, jdUtc, model);
+  }
+
+  magneticGrid(
+    jdUtc: number,
+    latMin: number,
+    latMax: number,
+    nLat: number,
+    lonMin: number,
+    lonMax: number,
+    nLon: number,
+    heightM = 0,
+  ): MagneticGrid | null {
+    return mockMagneticGrid(jdUtc, latMin, latMax, nLat, lonMin, lonMax, nLon, heightM);
+  }
+
+  compassError(request: CompassRequest): CompassError {
+    return mockCompassError(this, request);
   }
 
   // -------------------------------------------------------------------------
