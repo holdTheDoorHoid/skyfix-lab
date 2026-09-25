@@ -745,4 +745,8 @@
   .sky[data-upclose] .sky-card {
     display: none;
   }
+  /* A phone's stage is short: while the card is open it takes the tools' place. */
+  .sky[data-card='1'] .sky-ov--tools {
+    display: none;
+  }
 }

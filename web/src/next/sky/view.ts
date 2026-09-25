@@ -1115,7 +1115,30 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       });
     }
     if (menuOpen) syncMenu();
+    syncData();
     if (ease) requestDraw();
+  }
+
+  /**
+   * What the chart shows, on the root as data attributes (ui-check reads them; nothing
+   * else does): the zenith limit, deep-sky objects drawn, the Milky Way's lit texels,
+   * radiants, rings from other views, the field of view. Written only when they change.
+   */
+  let dataKey = '';
+  function syncData(): void {
+    const values: Record<string, string> = {
+      limit: zenith.toFixed(1),
+      dso: String(dsoShown),
+      milkyWay: String(mwTexels),
+      radiants: radiantMarks.filter((m) => m.drawn).map((m) => m.code).join(' '),
+      highlights: String(highlightKeys.size),
+      fov: fovLabel(view.fov),
+      pinned: pinnedKey ?? '',
+    };
+    const key = JSON.stringify(values);
+    if (key === dataKey) return;
+    dataKey = key;
+    for (const [k, v] of Object.entries(values)) root.dataset[k] = v;
   }
 
   // --- controls and accessible text ----------------------------------------------------
@@ -1603,13 +1626,10 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   }
 
   function updateCard(state: ExplorerState): void {
-    if (!cardKey) {
-      card.show(null);
-      return;
-    }
-    const c = cardFor(cardKey, state);
+    const c = cardKey ? cardFor(cardKey, state) : null;
     card.show(c);
-    root.dataset.card = c ? '1' : '';
+    const flag = c ? '1' : '';
+    if (root.dataset.card !== flag) root.dataset.card = flag;
   }
 
   function onCardAction(id: string): void {
