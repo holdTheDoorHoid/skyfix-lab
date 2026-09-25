@@ -49,7 +49,7 @@ reproduce each row are in the numbered section named.
 | Moon in detail: perigee, apogee, supermoons (vs Skyfield + DE440s) | instants within 11.2 s, distances 0.22 km; every supermoon/micromoon flag agrees | 2 min, 10 km | 14 |
 | Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s; a year at one place in 76 ms of CPU | 30 s; 200 ms | 14 |
 | Tides, `tides-us` pack (vs NOAA's own predictions: 20 harmonic stations × 30 days, 6 subordinate, and a 3-day sweep of all 3 492 predictable stations) | high and low water within 1.10 min and 1.08 cm (20 stations, 2 087 extremes; Anchorage the 1.08 cm, the others ≤ 0.12 cm); curve within 1.38 cm (others ≤ 0.29 cm); sweep 39 120 extremes within 1.36 min and 0.99 cm | 2 min, 5 cm | 16 |
-| Selected card: a bearing picked on the map (Vincenty on WGS84 vs Geoscience Australia's worked example); the card's own cost per time step | 54 972.271 m within 1 mm, azimuths within 0.5″ both ways; the card renders in 1.5 ms (median; 95 % within 3 ms) with every drawer open | 1 mm, 1″; 5 ms | 18 |
+| Selected card: a bearing picked on the map (Vincenty on WGS84 vs Geoscience Australia's worked example); the card's own cost per time step | 54 972.271 m within 1 mm, azimuths within 0.5″ both ways; the card renders in 1.7 ms (median; 95 % within 2.6 ms) with the Moon and every drawer open | 1 mm, 1″; 5 ms | 18 |
 
 ## 1. What accuracy means here
 
@@ -2551,20 +2551,25 @@ the closest days are 28 May and 14 July, the first the American Museum of Natura
 
 ### Speed
 
-Measured in Chrome on the development build, the Moon selected and every drawer open
-(the most the card does), 200 steps of the time shown by 2 minutes: the card's render took
-1.5 ms at the median and at most 3 ms for 95 % of steps (the Sun, Jupiter and Sirius about
-1 ms; measured before the planets' `planet_disc` joined, which is asked a quarter-hour at a
-time and costs under a millisecond), inside the 5 ms budget of a time-bar frame. What costs more is asked once per span
-and, while the time is dragged or playing, only once it settles (`Motion`, `Settler` in
-`panel/photo.ts`): `sun_hours` about 3 ms a day, `moon_features` 4 ms an hour,
-`moon_orientation` 1 ms a quarter-hour, `moon_apsides` 22 ms plus 1 ms a day (a
+Measured in headless Chrome on the development build of this branch after the merge of
+time-ui, charts2 and planetdetail (a temporary timer around the card's render, since
+removed), every drawer open, 200 steps of the time shown by 2 minutes, each run three times
+over the same steps and the fastest of the three kept for each step (the machine is shared
+by several agents; this removes the moments the page was not scheduled at all, which
+single runs showed as 95th percentiles of 15-40 ms even for a star with nothing heavy to
+do). The card's render: the Moon 1.7 ms at the median, 2.6 ms at the 95th percentile,
+3.8 ms at worst (1.4 / 2.0 / 4.6 ms with 30-minute steps); the Sun 0.8 / 0.9 / 1.1 ms;
+Jupiter, with its disc, 0.8 / 1.1 / 2.4 ms; Sirius 0.5 / 0.8 / 6.0 ms. Inside the 5 ms budget
+of a time-bar frame. What costs more is asked once per span and, while the time is dragged
+or playing, only once it settles (`Motion`, `Settler` in `panel/photo.ts`): `sun_hours`
+about 3 ms a day, `moon_features` 4 ms an hour, `moon_orientation` 1 ms a quarter-hour,
+`planet_disc` under a millisecond a quarter-hour, `moon_apsides` 22 ms plus 1 ms a day (a
 fortnight's list), a month of `galactic_centre_windows` about 0.1 s, `alignment_days`
-0.2 s (the Sun) and 0.9 s (the Moon) only when Find is pressed (WebAssembly in Node,
-V8). In the built site the open drawers added 0.3 to 1 ms of script to a time-bar frame
-(the least of three drags each, a quiet machine); `ui-check.mjs` judges this only when a
-star's frame alone stays under 16 ms, since other work on a shared machine otherwise sets
-the numbers.
+0.2 s (the Sun) and 0.9 s (the Moon) only when Find is pressed (WebAssembly in Node, V8).
+In the built site, before the merge and on a quiet machine, the open drawers added 0.3 to
+1 ms of script to a time-bar frame (the least of three drags each); `ui-check.mjs` judges
+this only when a star's frame alone stays under 16 ms, since other work on a shared machine
+otherwise sets the numbers.
 
 ### Labels
 
