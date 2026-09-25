@@ -201,22 +201,65 @@ const EE_COMPLEMENTARY: [([i8; 5], f64, f64); 10] = [
     ([0, 1, 0, 0, -1], -1.26e-6, -0.01e-6),
 ];
 
-/// Delaunay arguments `(l, l', F, D, Omega)` in radians, in the truncated form the
-/// IAU 2000B model is defined with (Simon et al. 1994, linear terms only).
+/// Delaunay arguments `(l, l', F, D, Omega)` in radians: the full Simon et al. (1994)
+/// polynomials of the IERS Conventions 2003 (ERFA `eraFal03`, `eraFalp03`, `eraFaf03`,
+/// `eraFad03`, `eraFaom03`), four coefficients beyond the constant each.
+///
+/// IAU 2000B is *published* with the linear parts only (McCarthy & Luzum 2003). Those
+/// are fine for a century either side of J2000 but the dropped `t^2..t^4` terms grow
+/// quadratically: against IAU 2000A the linear arguments put the 2000B series 29 mas
+/// off over 1550-2650 and 950 mas at 2000 BC; with the full polynomials the same 77
+/// terms stay within 3 mas of 2000A over the whole -2000..+3000 span (the accuracy
+/// audit, `nutation_prec.py`). Inside 1990-2060 the change is under 0.1 mas. The
+/// equation of the equinoxes' complementary terms (`eraEect00`) are defined with
+/// these same full polynomials, so they now use exactly ERFA's arguments too.
 fn delaunay_arguments(tc: f64) -> [f64; 5] {
+    let arg = |c: [f64; 5]| (poly(tc, &c) % TURNAS) * ARCSEC;
     [
-        ((485_868.249_036 + 1_717_915_923.217_8 * tc) % TURNAS) * ARCSEC,
-        ((1_287_104.793_05 + 129_596_581.048_1 * tc) % TURNAS) * ARCSEC,
-        ((335_779.526_232 + 1_739_527_262.847_8 * tc) % TURNAS) * ARCSEC,
-        ((1_072_260.703_69 + 1_602_961_601.209_0 * tc) % TURNAS) * ARCSEC,
-        ((450_160.398_036 - 6_962_890.543_1 * tc) % TURNAS) * ARCSEC,
+        arg([
+            485_868.249_036,
+            1_717_915_923.217_8,
+            31.879_2,
+            0.051_635,
+            -0.000_244_70,
+        ]),
+        arg([
+            1_287_104.793_048,
+            129_596_581.048_1,
+            -0.553_2,
+            0.000_136,
+            -0.000_011_49,
+        ]),
+        arg([
+            335_779.526_232,
+            1_739_527_262.847_8,
+            -12.751_2,
+            -0.001_037,
+            0.000_004_17,
+        ]),
+        arg([
+            1_072_260.703_692,
+            1_602_961_601.209_0,
+            -6.370_6,
+            0.006_593,
+            -0.000_031_69,
+        ]),
+        arg([
+            450_160.398_036,
+            -6_962_890.543_1,
+            7.472_2,
+            0.007_702,
+            -0.000_059_39,
+        ]),
     ]
 }
 
 /// Nutation in longitude and obliquity, IAU 2000B (McCarthy & Luzum 2003).
 ///
 /// 77 luni-solar terms plus the fixed offsets that stand in for the omitted planetary
-/// terms. Agrees with the full IAU 2000A model to within 1 mas over 1995-2050.
+/// terms, evaluated with the full polynomial fundamental arguments
+/// ([`delaunay_arguments`]). Agrees with the full IAU 2000A model to within 1 mas over
+/// 1995-2050 and 3 mas over 2000 BC to AD 3000.
 pub fn nutation_2000b(jd_tt: f64) -> Nutation {
     let tc = centuries_since_j2000(jd_tt);
     let [el, elp, f, d, om] = delaunay_arguments(tc);

@@ -81,19 +81,27 @@ fn gast_matches_erfa_gst06a_to_the_2000a_2000b_difference() {
 
 /// `eraNut00b(2400000.5, 53736.0)` = dpsi -0.9632552291148362783e-5 rad,
 /// deps 0.4063197106621159367e-4 rad.
+///
+/// `eraNut00b` evaluates the 77 terms with the *linear* fundamental arguments that
+/// IAU 2000B is published with; `frames::nutation_2000b` uses the full Simon et al.
+/// polynomials (so that the series stays within 3 mas of IAU 2000A over 2000 BC to
+/// AD 3000, CONVENTIONS section 7). Six years from J2000 the two argument sets differ
+/// by 1.1" in l and move `dpsi` by 1.0e-11 rad (2 microarcseconds); the tolerance is
+/// that deliberate difference with margin, 5e-11 rad (10 microarcseconds), and
+/// anything else would still show.
 #[test]
 fn nutation_2000b_matches_erfa() {
     let n = nutation_2000b(JD_53736);
     assert_close(
         n.dpsi_rad,
         -0.963_255_229_114_836_3e-5,
-        1e-13,
+        5e-11,
         "nut00b dpsi",
     );
     assert_close(
         n.deps_rad,
         0.406_319_710_662_115_94e-4,
-        1e-13,
+        5e-11,
         "nut00b deps",
     );
 }
