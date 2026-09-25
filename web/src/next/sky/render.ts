@@ -1285,12 +1285,22 @@ export class SkyRenderer {
       const w = this.width(text, font);
       const x0 = field.x[i]!;
       const y0 = field.y[i]!;
-      let x = x0 + Math.min(r, 14) * 0.75 + 4;
-      const y = y0 - Math.min(r, 14) * 0.5 - 2;
-      if (!this.place(x - 1, y - 10, w + 2, 13)) {
-        x = x0 - Math.min(r, 14) * 0.75 - 4 - w;
-        if (!this.place(x - 1, y - 10, w + 2, 13) && !isForced) return;
+      // Beside a small symbol; outside a big one (the Hyades zoomed in), at its shoulder, so
+      // the label does not land on the stars inside it. The selected, hovered and
+      // highlighted ones may also go below.
+      const big = r > 14;
+      const dx = big ? r * 0.71 + 3 : Math.min(r, 14) * 0.75 + 4;
+      const up = big ? r * 0.71 + 1 : Math.min(r, 14) * 0.5 + 2;
+      const down = big ? r * 0.71 + 11 : Math.min(r, 14) * 0.5 + 12;
+      const spots: readonly (readonly [number, number])[] = isForced
+        ? [[x0 + dx, y0 - up], [x0 - dx - w, y0 - up], [x0 + dx, y0 + down], [x0 - dx - w, y0 + down]]
+        : [[x0 + dx, y0 - up], [x0 - dx - w, y0 - up]];
+      let at = spots.find(([sx, sy]) => this.place(sx - 1, sy - 10, w + 2, 13));
+      if (!at) {
+        if (!isForced) return;
+        at = spots[0]!;
       }
+      const [x, y] = at;
       const shape = field.shape[i]!;
       const fill =
         f.colours.light ? css(f.colours.ink, 0.9) : shape === 0 ? colours.galaxy : shape === 3 || shape === 4 ? colours.nebula : shape === 6 ? colours.other : colours.cluster;

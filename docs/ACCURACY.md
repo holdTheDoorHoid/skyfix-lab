@@ -2750,24 +2750,29 @@ the per-frame grouping by them (a counting sort over the stars on screen), the 2
 deep-sky objects' rotation and projection, and the Milky Way's raster, remade only when
 the sky has turned half a degree to a degree (under one of its texels; every second to
 fourth frame while time plays at an hour a second; at most ten times a second faster than
-a week a second) and drawn scaled up in one `drawImage`. The Milky Way's grid is filled once per page, away from the frame (about 10 ms).
+a week a second) and drawn scaled up in one `drawImage`. The Milky Way's grid is filled
+once per page, away from the frame (about 10 ms).
 
-Measured on 2026-09-25 on a machine running seven other agents' builds (load average 28
-on 8 cores), so the figures are upper bounds: with the WebAssembly core in Node (V8, the
-browser's JavaScript engine), a frame's JavaScript — the engine's calls, every star's
-place, extinction and grouping, the deep-sky pass, the raster and building every path
-the canvas fills, against a context that paints nothing — takes 5.55 ms for the view
-without the new layers and 7.08 ms with all of them, the raster remade every frame (the
-fastest frame of 80, in eight interleaved runs of ten; 9 095 stars, a 1 440 × 840 dome);
-the raster alone 0.83 ms. In the browser pane (a real GPU, the same loaded machine) the
-whole frame, painting included, was 9.7 ms at the median without the new layers and
-11.2 ms with them. So the layers add about 1.5 ms to a frame; the view before them was
-built to draw 9 000 stars in 8 ms (EXPLORER_PLAN §3.7), which with the layers is 9.5 ms,
-inside the 10 ms budget, but that absolute figure could not be measured on this loaded
-machine and is in the backlog to confirm on a quiet one. `sky_search`, the fastest of 20:
-5.3 ms in Node and 6.4 ms in the browser under that load; the engine's own native timing
-is 2.5 ms (the "Deep sky" section, "Speed and size"), and the search box asks after
-typing pauses (80 ms), never during a frame.
+Measured on 2026-09-25 on the shared 8-core machine, the fastest frame of 80 in eight
+interleaved runs of ten (9 095 stars, a 1 440 × 840 dome, the Milky Way's raster remade
+every frame): with the WebAssembly core in Node (V8, the browser's JavaScript engine), a
+frame's JavaScript — the engine's calls, every star's place, extinction and grouping, the
+deep-sky pass, the raster and building every path the canvas fills, against a context
+that paints nothing — takes **2.25 ms** without the new layers and **2.75 ms** with all of
+them at a load average of 4, and 5.55 and 7.08 ms at a load average of 28; the raster
+alone 0.33 ms (0.83 ms loaded). In Chrome, the view's own timer over 200 draws at an hour
+a second (`dev-sky.html?syncbench=200`, headless, software rendering, load average
+11–14): median **8.1–8.2 ms** a draw without the new layers and **8.7–9.6 ms** with them,
+the 95th percentile 15–16 ms and 17.5–23 ms, the tail being the draws where the Milky Way's
+picture is remade (in that frame-free run such a draw also carries out the canvas work of
+the draws before it). In the browser pane (a real GPU, load average about 28) the median
+frame was 9.7 ms without the layers and 11.2 ms with them. So the layers add 0.5–1.5 ms to
+a frame; with every layer the median draw was inside 10 ms in headless Chrome at a load of
+11–14 and 11.2 ms in the pane at a load of 28. The tail, and a quiet machine with a GPU,
+are in the backlog. `sky_search`, the fastest of 20: 5.3 ms in
+Node and 6.4 ms in the browser under a load of 25–38; the engine's own native timing is
+2.5 ms (the "Deep sky" section, "Speed and size"), and the search box asks after typing
+pauses (80 ms), never during a frame.
 
 ## Almanac tables and three-day pages (almanac2 agent, expansion programme Q7)
 

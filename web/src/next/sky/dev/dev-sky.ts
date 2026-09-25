@@ -27,6 +27,12 @@
  *   ranking=1                   open tonight's best deep-sky objects
  *   custom=ceres                add (1) Ceres from the example elements
  *   zoom=3                      zoom the dome (applied after `show`, which then centres it)
+ *   syncbench=200               N draws in a row without animation frames (headless Chrome
+ *                               runs few), the time moving a minute each as at an hour a
+ *                               second; reports the view's own draw times (#bench). Read the
+ *                               median and p95: with no frame shown, the canvas keeps every
+ *                               draw's commands, and the Milky Way's next picture makes it
+ *                               carry out all of them at once (the maximum, seconds)
  */
 
 // The design system (fonts, tokens, components), as the shell loads it.
@@ -37,7 +43,7 @@ import { installTooltips } from '../../theme/primitives.js';
 import { createScheduler, memoEngine, type Ctx } from '../../component.js';
 import { selectEngine } from '../../engine/index.js';
 import { createNotices } from '../../notices.js';
-import { bindTimeKeys, goNow, setPlaying, setSpeed, startPlayback, stepTime } from '../../playback.js';
+import { bindTimeKeys, goNow, setPlaying, setSpeed, setTime, startPlayback, stepTime } from '../../playback.js';
 import { createExplorerStore, displayZone, type Layers, type Theme } from '../../state.js';
 import { formatWithUtc, isValidIanaZone, jdFromIso, jdFromWallClock, resolveZone } from '../../time.js';
 import { highlightBodies, mountSky, type SkyMounted } from '../index.js';
@@ -316,6 +322,45 @@ async function boot(root: HTMLElement): Promise<void> {
     benchOut.textContent = JSON.stringify(result);
     document.title = `BENCH ${JSON.stringify(result)}`;
     console.info('sky bench', result);
+  }
+
+  // sky2: the same without animation frames: N draws in a row, a minute of sky apart.
+  const syncBench = Number(params.get('syncbench') ?? 0);
+  if (syncBench > 0) {
+    const pause = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+    await pause(1500); // the Milky Way's grid and the year's showers are made off the frame
+    setSpeed(store, 3600);
+    setPlaying(store, true);
+    const step = (): void => {
+      setTime(store, store.get().time.jd_utc + 1 / 1440);
+      handle.drawNow();
+    };
+    for (let k = 0; k < 30; k += 1) step();
+    handle.resetStats();
+    const wall: number[] = [];
+    for (let k = 0; k < syncBench; k += 1) {
+      const t0 = performance.now();
+      step();
+      wall.push(performance.now() - t0);
+    }
+    setPlaying(store, false);
+    const st = handle.stats();
+    wall.sort((a, b) => a - b);
+    const result = {
+      draws: st.frames,
+      drawMeanMs: +st.mean.toFixed(2),
+      drawP50Ms: +st.p50.toFixed(2),
+      drawP95Ms: +st.p95.toFixed(2),
+      drawMaxMs: +st.max.toFixed(2),
+      computeMeanMs: +st.computeMean.toFixed(2),
+      paintMeanMs: +st.paintMean.toFixed(2),
+      stepP50Ms: +wall[Math.floor(wall.length / 2)]!.toFixed(2),
+      canvas: `${handle.canvas.width}x${handle.canvas.height}`,
+      engine: engine.kind,
+    };
+    benchOut.textContent = JSON.stringify(result);
+    document.title = `BENCH ${JSON.stringify(result)}`;
+    console.info('sky sync bench', result);
   }
 }
 
