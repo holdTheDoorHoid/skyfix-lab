@@ -13,7 +13,6 @@ serde = { workspace = true }
 # depend on the CLI to do it. Pure Rust, builds for wasm32-unknown-unknown.
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-chrono = { workspace = true }
 
 [dev-dependencies]
 approx = { workspace = true }
