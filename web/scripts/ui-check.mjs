@@ -475,6 +475,14 @@ async function main() {
           await sleep(300);
           await layout('Passage');
           await nightCheck(await shot(`navigate2-passage-${size}-${theme}`), 'Passage');
+          // The route on the map ("Show on the map"), then back to Navigate.
+          await evaluate(`[...document.querySelectorAll('.sfn-method--passage button')].find((b) => b.textContent.trim() === 'Show on the map')?.click(); true`);
+          const onMap = await waitFor(`location.hash.includes('map') && document.querySelector('.sfm')?.dataset.detail === '1'`, 30000);
+          await sleep(2500);
+          check(`${tag}: Passage: "Show on the map" opens the map with the route`, onMap);
+          await nightCheck(await shot(`navigate2-passage-map-${size}-${theme}`), 'the route on the map');
+          await evaluate(`location.hash = '#navigate'; true`);
+          await waitFor(`!!document.querySelector('.sfn-tabs')`, 15000);
           // The star finder, in the Plan tab.
           await evaluate(tab('Plan sights'));
           const finder = await waitFor(`document.querySelectorAll('.sfn-sfcard .sfn-sf__star').length === 58`, 15000);
