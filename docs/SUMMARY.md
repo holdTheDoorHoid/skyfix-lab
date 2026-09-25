@@ -25,3 +25,4 @@
 - [Explorer redesign — program plan](EXPLORER_PLAN.md)
 - [Explorer engine — wire contract](EXPLORER_API.md)
 - [Expansion programme — plan](EXPANSION_PLAN.md)
+- [Expansion programme — verification](VERIFICATION_2.md)
