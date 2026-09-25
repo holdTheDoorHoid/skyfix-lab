@@ -925,7 +925,7 @@ Observer  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84
   id                type       greatest eclipse          mag  pen.mag    gamma  saros
   2024-03-25-lunar  penumbral  2024-03-25T07:12:53Z  -0.1325   0.9556  +1.0609    113
       here: all of it seen, with the Moon up throughout; greatest eclipse
-      2024-03-25T07:12:53Z, Moon alt +54 20.0, Az 196 38.4
+      2024-03-25T07:12:53Z, Moon alt +54 20.0, Az 196 38.5
   2024-04-08-solar  total      2024-04-08T18:17:20Z   1.0566        -  +0.3431    139
       here: total for 3 min 51 s, with the Sun up throughout; maximum
       2024-04-08T18:42:39Z, magnitude 1.015 (100% of the Sun's area covered), Sun alt
@@ -976,7 +976,7 @@ carries an eye-safety line, fitted to what the place sees.
 ```console
 $ skyfix eclipse 2024-04-08-solar --lat 32.78 --lon -96.80
 TOTAL SOLAR ECLIPSE  2024-04-08-solar
-Greatest   2024-04-08T18:17:20Z at 25 17.31' N, 104 08.85' W (25.288575, -104.147448),
+Greatest   2024-04-08T18:17:20Z at 25 17.32' N, 104 08.85' W (25.288639, -104.147515),
            the Sun at altitude +69 47.6, azimuth 149 23.3 there
 Magnitude  1.0566: the Moon's apparent diameter over the Sun's at greatest eclipse
 ...
@@ -1085,9 +1085,9 @@ Planets        Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune
   2026-01-09T11:41:16Z  Mars     conjunction                0 56.5   1.08   2.4034        -
   2026-01-10T08:42:12Z  Jupiter  opposition               179 44.3  -2.68   4.2319        -
 ...
-  2026-08-15T06:32:02Z  Venus    greatest elongation east  45 53.5  -4.43   0.6860        -
+  2026-08-15T06:31:35Z  Venus    greatest elongation east  45 53.5  -4.43   0.6860        -
 ...
-  2026-10-24T03:44:10Z  Venus    inferior conjunction       6 30.8  -4.19   0.2729       no
+  2026-10-24T03:44:08Z  Venus    inferior conjunction       6 30.8  -4.19   0.2729       no
 ...
 32 events in the window.
 ...
@@ -1135,14 +1135,14 @@ DR         39 46.76' N, 075 17.72' W (39.779322, -75.295321), sigma 10 NM, from 
 Sun, 21 sight(s): curve fit, curvature predicted; the Sun crossed the meridian SOUTH of
 the zenith
 
-Latitude   39 57.16' N (39.952597) sigma 0.11'
+Latitude   39 57.16' N (39.952600) sigma 0.11'
            The Sun crossed your meridian SOUTH of the zenith, so latitude = declination +
            zenith distance, counting north as positive: −0°16.3′ + 40°13.5′ = +39°57.2′
            (39°57.2′ N). Zenith distance = 90° − meridian altitude 49°46.5′.
 Meridian   altitude +49 46.5 (Ho of the centre at passage), declination S 0 16.3, zenith
            distance 40 13.5
 Passage    2026-09-23T16:52:58Z sigma 7.0 s
-Longitude  075 09.91' W (-75.165199) sigma 1.75' of longitude, 1.34 NM east-west (of
+Longitude  075 09.91' W (-75.165200) sigma 1.75' of longitude, 1.34 NM east-west (of
            which the clock 0.00')
            Near noon the Sun's height hardly changes: for about 5 minutes either side of
            the peak it is within 1′ of its highest. The time of the peak — and the
@@ -1362,8 +1362,8 @@ Reading    74 14.4 (74.240349 deg), the Moon's near limb to Venus's centre, inde
            correction -1.5'
 Watch      2029-10-17T01:05:43Z
 
-UTC        2029-10-17T01:15:26Z sigma 41.7 s
-Watch      +9 min 43 s: add this to the watch's time
+UTC        2029-10-17T01:15:25Z sigma 41.7 s
+Watch      +9 min 42 s: add this to the watch's time
 Longitude  sigma 10.45' of longitude, 9.61 NM at the DR latitude, from the time's sigma
 Distance   apparent between the centres 74 28.3, cleared (geocentric) 74 22.9, changing
            +0.476'/min

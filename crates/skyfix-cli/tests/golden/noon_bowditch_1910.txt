@@ -8,7 +8,7 @@ Vessel     course 045 at 10 kn over the ground
 Sun, 1 sight(s): one altitude, taken as the peak; the Sun crossed the meridian SOUTH of
 the zenith
 
-Latitude   39 48.78' N (39.813071) sigma 0.20'
+Latitude   39 48.78' N (39.813069) sigma 0.20'
            The Sun crossed your meridian SOUTH of the zenith, so latitude = declination +
            zenith distance, counting north as positive: −4°09.9′ + 43°58.6′ = +39°48.8′
            (39°48.8′ N). Zenith distance = 90° − meridian altitude 46°01.4′.

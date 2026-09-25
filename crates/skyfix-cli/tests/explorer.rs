@@ -623,7 +623,8 @@ fn noon_text_leads_with_the_latitude_and_calls_the_longitude_weak() {
     ])
     .expect_code(0)
     .expect_stdout("NOON SIGHT")
-    .expect_stdout("Latitude   39 57.16' N (39.952597)")
+    // The sixth decimal moves with the ephemeris (39.952597 on the one-tier series).
+    .expect_stdout("Latitude   39 57.16' N (39.9526")
     .expect_stdout("Passage    2026-09-23T16:52:58Z")
     .expect_stdout("from --dr")
     .expect_stdout_flat("the longitude, which is nothing but that time")
@@ -1034,7 +1035,9 @@ fn lunar_json_is_the_library_result_and_finds_the_time() {
         .expect_code(0)
         .expect_stdout("LUNAR DISTANCE: the Moon to Venus")
         .expect_stdout("UTC        2029-10-17T01:15:2")
-        .expect_stdout("+9 min 43 s: add this to the watch's time")
+        // 9 min 42.5 s: the rounding goes either way as the ephemeris is refined.
+        .expect_stdout("+9 min 4")
+        .expect_stdout(" s: add this to the watch's time")
         .expect_stdout("Error budget");
 }
 

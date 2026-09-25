@@ -4,7 +4,7 @@ Observer  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84
   id                type       greatest eclipse          mag  pen.mag    gamma  saros
   2024-03-25-lunar  penumbral  2024-03-25T07:12:53Z  -0.1325   0.9556  +1.0609    113
       here: all of it seen, with the Moon up throughout; greatest eclipse
-      2024-03-25T07:12:53Z, Moon alt +54 20.0, Az 196 38.4
+      2024-03-25T07:12:53Z, Moon alt +54 20.0, Az 196 38.5
   2024-04-08-solar  total      2024-04-08T18:17:20Z   1.0566        -  +0.3431    139
       here: total for 3 min 51 s, with the Sun up throughout; maximum
       2024-04-08T18:42:39Z, magnitude 1.015 (100% of the Sun's area covered), Sun alt
@@ -28,7 +28,7 @@ Observer  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84
       here: no eclipse: the Moon's shadow misses this place
   2026-02-17-solar  annular    2026-02-17T12:11:57Z   0.9630        -  -0.9743    121
       here: no eclipse: the Moon's shadow misses this place
-  2026-03-03-lunar  total      2026-03-03T11:33:42Z   1.1507   2.1838  -0.3765    133
+  2026-03-03-lunar  total      2026-03-03T11:33:42Z   1.1507   2.1839  -0.3765    133
       here: partly seen: the Moon sets at 2026-03-03T12:55:55Z during it; greatest
       eclipse 2026-03-03T11:33:42Z, Moon alt +16 07.6, Az 266 38.2
   2026-08-12-solar  total      2026-08-12T17:45:57Z   1.0386        -  +0.8977    126

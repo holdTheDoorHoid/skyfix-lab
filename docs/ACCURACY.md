@@ -2759,6 +2759,16 @@ measured levers; `opt-level = "z"` alone saves about 5 %).
   tools.limb.build` (bit-identical). The references: `tools/reference/.venv/bin/python -m
   tools.limb.reference svs skyfield` (about 20 minutes).
 
+### On the two-tier series (deeptime agent, 2026-09-25; section 20)
+
+With the Moon on ELP/MPP02 and the Sun on the VSOP87A Earth (0.13″ and 0.009″ from DE440
+in 1990-2060, where ELP 2000-82B was 0.89″), against the same 48 SVS cities: 2024,
+second contact mean +0.36 s (worst 1.37 s), third contact mean −0.93 s (worst 2.60 s),
+both within 2 s at 28 of 29; 2023, second contact mean −0.05 s (worst 0.83 s), third
+contact mean −1.10 s (worst 1.72 s), all 19 within 2 s. The third-contact offset from SVS
+is a little smaller than the −1.35 s and −1.47 s above; the test's window for its mean
+(`eclipse_limb.rs`) is now −2.0 to −0.5 s.
+
 ## Almanac tables and three-day pages (almanac2 agent, expansion programme Q7)
 
 Owner: almanac2 agent (`crates/skyfix-almanac/src/tables/`, `opening.rs`; definitions

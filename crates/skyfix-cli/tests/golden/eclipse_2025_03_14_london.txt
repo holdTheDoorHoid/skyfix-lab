@@ -1,6 +1,6 @@
 TOTAL LUNAR ECLIPSE  2025-03-14-lunar
-Greatest   2025-03-14T06:58:47Z, with the Moon overhead at 02 40.91' N, 102 15.12' W
-           (2.681865, -102.252055)
+Greatest   2025-03-14T06:58:47Z, with the Moon overhead at 02 40.91' N, 102 15.13' W
+           (2.681863, -102.252155)
 Magnitude  1.1784 umbral (the fraction of the Moon's diameter inside the Earth's dark
            shadow), penumbral 2.2595
 Gamma      +0.3484: the Moon's centre passes 0.3484 Earth radii north of the shadow's

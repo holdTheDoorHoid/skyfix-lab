@@ -1,5 +1,5 @@
 TOTAL SOLAR ECLIPSE  2024-04-08-solar
-Greatest   2024-04-08T18:17:20Z at 25 17.31' N, 104 08.85' W (25.288575, -104.147448),
+Greatest   2024-04-08T18:17:20Z at 25 17.32' N, 104 08.85' W (25.288639, -104.147515),
            the Sun at altitude +69 47.6, azimuth 149 23.3 there
 Magnitude  1.0566: the Moon's apparent diameter over the Sun's at greatest eclipse
 Gamma      +0.3431: the shadow's axis passes 0.3431 Earth radii north of the Earth's
