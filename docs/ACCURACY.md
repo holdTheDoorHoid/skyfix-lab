@@ -36,6 +36,7 @@ reproduce each row are in the numbered section named.
 | Planet events: oppositions, conjunctions, greatest elongations, closest approaches (vs Skyfield + DE440s, all 2266 of 1990-2060; list vs NASA SKYCAL) | every event matched one for one; conjunctions and oppositions within 55 s (Neptune's slow motion), elongations and closest approaches within 68 s; the 12 transits are NASA's | 1 min / 10 min | 13 |
 | Navigation methods: noon sight, Polaris, averaging, running fix (noise-free vs Skyfield truth; Bowditch's worked examples) | within 0.0001–0.0013′ of truth; running fix within 0.4–36 m; Bowditch reproduced to 0.02–0.19′ | — (numerical regression) | 3, "Navigation methods" |
 | Navigation methods: seeded-coverage of the stated sigma | 93.8–96.0 % (Polaris very near the pole with a poor DR: 89.8 %, a documented limit, `polaris_near_pole`) | ≈95 % | 3, "Navigation methods" |
+| Sun tools: equation of time, bearing crossings, galactic centre, analemma (vs Skyfield + DE440s; EoT vs Meeus 28.a) | EoT within 0.012 s (Meeus 0.18 s); bearing crossings 0.21″ on the sky; galactic centre 0.31″; golden/blue hour at their thresholds to 1e-6°; solar energy a labelled clear-sky estimate (model RMSE 6.6 %) | 1 s / 0.01° | 14 |
 
 ## 1. What accuracy means here
 
@@ -1399,3 +1400,124 @@ each.
   about five minutes).
 - `cargo test --release -p skyfix-almanac --test planet_events -- --include-ignored
   --nocapture` prints the numbers for 2019-2026 and 1990-2060.
+
+## 14. Sun tools
+
+Owner: suntools agent (expansion programme P7). The engine is `skyfix_almanac::sun_tools`
+(definitions CONVENTIONS 13.10; wire format `docs/EXPLORER_API.md`, "Expansion programme —
+sun tools"). It is built on the event finder and `sky_state` (sections 2 and 9), so its
+positions are theirs; what is new is checked here: the searches, the clocks, the formulas.
+Reference fixture: `fixtures/reference/sun_tools_skyfield.json` (Skyfield 1.55 + JPL
+DE440s, UT1 = UTC by construction), tests `crates/skyfix-almanac/tests/sun_tools_*.rs`.
+
+### Against Skyfield + JPL DE440s
+
+`tests/sun_tools_reference.rs` (`--nocapture` prints every figure).
+
+| quantity | cases | target | worst |
+|---|---|---|---|
+| equation of time | 480 instants, 1990-2060 | 1 s | **0.012 s** |
+| the Sun's declination beside it | same | 0.01° | 0.108″ |
+| galactic centre, apparent RA/Dec of date | 72 (6 sites, 1995-2055) | 0.01° | 0.020″ |
+| galactic centre, topocentric altitude / azimuth | same | 0.01° | 0.262″ / 0.310″ |
+| the arch's highest point, against a brute-force search along Skyfield's galactic equator | same | 0.01° | 28.6″ altitude, 31.0″ azimuth |
+| bearing crossings of the Sun and the Moon, error on the sky | 11 crossings, 6 sites | 0.01° | **0.21″** |
+| bearing crossings, instant, where the bearing is swept faster than 1°/h | 10 | 1 s | 0.015 s |
+| Manhattan's sunsets (h0 = −50′), instant / azimuth | 26 evenings, May and July 2026 | 1 s / 0.01° | 0.005 s / 0.21″ |
+| analemma at 12:00 local mean time (Philadelphia) | 24 dates of 2026 | 0.01° | 0.218″ |
+
+The arch's 29″ is not an error of either side: the formula (CONVENTIONS 13.10) takes the
+great circle 90° from the *aberrated* pole, while the fixture aberrates each point of the
+band; annual aberration (20.5″) moves the two differently, by at most √2 × 20.5″ = 29″.
+Both are far inside what a Milky Way band 10-20° wide can show. One bearing crossing is
+ill-conditioned: at Quito at the equinox the Sun climbs almost straight up at azimuth 90°
+(the bearing is swept at 0.06°/h), so its instant differs from Skyfield's by 1.0 s while
+the direction differs by 0.063″; the test judges every crossing by its error on the sky
+and the instant only where the sweep exceeds 1°/h.
+
+### Against published values
+
+- **Meeus, *Astronomical Algorithms* example 28.a** (1992 October 13.0 TD): the book gives
+  the equation of time as +13m 42.6s (3.427351° = 822.564 s); this engine gives 822.385 s
+  (**−0.18 s**). The difference is the definition of the mean sun: the engine uses the
+  almanac page's `GHA − 15° (UT − 12 h)` (CONVENTIONS 13.9), Meeus the Sun's mean
+  longitude, which runs 0.21 s ahead (`skyfix_ephemeris::sun::equation_of_time_min`
+  follows Meeus and reproduces the book within 0.1 s). The yearly series equals the
+  almanac pages' `eot_12h` exactly.
+- **Manhattanhenge** (the American Museum of Natural History's published dates for 2026:
+  half sun 28 May, full sun 29 May, full sun 11 July, half sun 12 July), with Manhattan's
+  grid at azimuth 299.0° and the engine's clock EDT (`tests/sun_tools_logic.rs`,
+  `manhattanhenge_as_the_engine_sees_it`):
+
+  | definition | May | July |
+  |---|---|---|
+  | the engine's sunset: upper limb on a sea-level horizon, standard refraction | 24 May | 18 July |
+  | "half sun", the centre at 0° apparent | 25 May | 16 July |
+  | "half sun", the centre at 0° **geometric** (no refraction) | **28 May** | 14 July |
+  | "full sun", the lower limb at 0° geometric | **29 May** | 13 July |
+
+  AMNH's May dates are reproduced exactly when refraction is left out; its July dates
+  are two days earlier than the engine's. The engine's May and July dates have the same
+  solar declination (checked: within 0.15°), as they must for the same azimuth at the same
+  altitude and latitude, so the difference is in the published July computation or its
+  horizon, not in the Sun's position. Real streets end at a raised horizon (buildings, New
+  Jersey), which the sea-level model does not know; `at_altitude` lets a user give it.
+- **The clear-sky model** is a labelled estimate, not a validated number: the formulas are
+  checked against their printed form (Reno, Hansen & Stein 2012, SAND2012-2389, eqs. 18
+  and 22-23, and the isotropic plane of array; 67 cases to 1e-5 W/m²), and its typical
+  error is the report's: **RMSE 6.6 %** of measured clear-sky global irradiance averaged
+  over 30 U.S. sites (about 300 site-years) with a small mean bias, underestimating at
+  high-elevation sites and varying with season and time of day. Clouds are not modelled.
+  Sanity: a clear day at Philadelphia (40° N) gives 8.8 kWh/m² on the ground at
+  midsummer and 2.4 kWh/m² at midwinter; Philadelphia's
+  clear-sky year is 2099 kWh/m² flat, 2448 kWh/m² at 30° facing south, best tilt 34.7°
+  (2455 kWh/m²).
+
+### Consistency with the rest of the engine
+
+`tests/sun_tools_logic.rs`, by dense brute-force sampling of `sky_state`:
+
+- golden and blue hours at ten place-days (Philadelphia at the solstices and an equinox,
+  Tromsø at midwinter, midsummer, January and November, Quito, Sydney, 89.9° N): every
+  crossing at its threshold to **9e-7°**; the band of the Sun sampled every 2 minutes
+  agrees with the windows everywhere; the −6° crossings are `day_events`' civil dawn and
+  dusk within 5 ms; morning windows climb and evening windows sink;
+- a bearing of 180° is the meridian passage of the Sun, the Moon and Jupiter within 5 ms;
+  every crossing of five bodies at eight bearings is on its bearing in `sky_state` to
+  1e-4°;
+- the analemma, the sun path and rise and set azimuths are `sky_state`, `sample_bodies`
+  and `day_events` at the same instants (to 1e-5° and 10 ms);
+- the Milky Way windows hold their conditions at every 5-minute sample, are maximal
+  (10 s outside each edge a condition fails or the Moon rises or sets), and their best
+  moment is the highest sample.
+
+### Speed
+
+Release build, x86-64, on the shared 8-core machine under heavy load from the other
+agents (load average about 20), `cargo test --release -p skyfix-almanac --test
+sun_tools_perf -- --ignored --nocapture`:
+
+| call | native |
+|---|---|
+| `sun_hours`, one day | 0.7 ms |
+| `find_azimuth`, the Sun, a year | 47 ms |
+| `alignment_days`, sunsets of a year / the Sun at 5° | 60 ms / 56 ms |
+| `analemma`, `equation_of_time`, a year | 10 ms / 12 ms |
+| `sun_path` with its envelope | 4 ms |
+| `rise_set_azimuths`, the Sun, a year | 58 ms |
+| `solar_year`, with the best-tilt search | 52-90 ms |
+| `galactic_centre_windows`, a night / 30 nights | 1.3 ms / 41 ms |
+| the Moon's year series (`rise_set_azimuths`, moonrise alignments) | 0.27-0.33 s |
+
+Every year-long series of the Sun is under the 200 ms budget. The Moon's are dominated by
+the provider: a year of the event finder's 3-hour track nodes is about 2900 exact
+evaluations of ELP 2000-82B at about 0.1 ms each. WebAssembly (Node, the same shared
+machine) ran the Sun's year series in 0.15-0.6 s, about four times native, the same ratio
+as the existing `day_events`.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python -m tools.reference.gen_sun_tools` regenerates the
+  fixture (offline, about 10 s).
+- `cargo test --release -p skyfix-almanac --test sun_tools_reference --test
+  sun_tools_logic -- --nocapture` prints every figure above.

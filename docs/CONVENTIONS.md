@@ -456,6 +456,78 @@ facing daily pages give (wire format: EXPLORER_API.md "Wave 2 — almanac pages"
   HP and SD to 0.1′, magnitudes to 0.1, times to the nearest minute (Aries' meridian
   passage to 0.1 minute), the equation of time to the second.
 
+### 13.10 Sun tools (expansion programme, suntools agent, 2026-09-24)
+
+`skyfix_almanac::sun_tools`; wire formats in EXPLORER_API.md, "Expansion programme — sun
+tools"; validation in ACCURACY.md section 14. Display and planning only: nothing here
+feeds sight reduction. Every altitude and azimuth is 13.2's, the one `sky_state` gives at
+the same instant.
+
+- **Golden hour and blue hour** are photographers' conventions, not physical boundaries,
+  and the UI says so: golden hour while the Sun's centre is above −4° and not above +6°,
+  blue hour while it is above −6° and not above −4°, morning and evening. The thresholds
+  are on the **geometric** altitude of the centre (`alt_deg`), like twilight (13.3), so
+  blue hour ends exactly at civil dusk. (An "apparent −4°" is not used: below the horizon
+  the display refraction of 13.2 is a formula held constant under −1° with no physical
+  meaning; at +6° refraction would move the instant by under a minute.) Polar cases use
+  twilight's vocabulary: a threshold never crossed inside the window is `always_above` or
+  `always_below`; a golden or blue hour cut by the window's edge says so (`open_start`,
+  `open_end`) and invents no instant; `period` says when it falls: `morning`, `evening`,
+  `midday` (the Sun culminates inside the band), `midnight` (its lower culmination is
+  inside it) or `all_day`.
+- **Azimuth search** (`find_azimuth`): the instants the body's `az_deg` crosses a bearing,
+  found like 13.3's events (10-minute grid, subdivided while the azimuth turns by more than
+  20° between samples, refined to 1 ms). A crossing counts only inside an altitude band:
+  by default `above_horizon` (upper limb above the sea-level horizon); a given band bounds
+  the apparent altitude of the centre, as `find_altitude` does.
+- **Alignments** (`alignment_days`): `rise` and `set` are 13.3's (upper limb on the
+  sea-level horizon, or the dipped one); `at_altitude` is the centre at an apparent
+  altitude. The azimuth compared with the bearing is the centre's at that instant. A day
+  matches within the tolerance; the closest day of each run of consecutive matching days
+  is `best`.
+- **Clocks for year-long series**: local days and dates are laid out on a fixed offset
+  from UTC, all year, with no daylight saving: the offset given, or local mean time
+  (`lon_east / 15` hours). A local year that reaches outside the coverage is clipped and
+  says so (`truncated`).
+- **Analemma**: the Sun at one clock time on every day of a year, on local mean time or a
+  zone time (the caller says which), with its declination and the equation of time.
+- **Sun path**: the Sun's `sample_bodies` samples; the envelope is the same local day
+  shifted by whole days to the days holding the year's equinoxes and solstices (13.5).
+- **Equation of time**: 13.9's definition, `(GHA_Sun − 15° (UT − 12 h)) / (15°/h)`, UT = UTC
+  (DUT1 = 0), in seconds; positive when the sundial is ahead of mean time. Meeus's
+  mean-longitude route (eq. 28.1) defines the mean sun slightly differently and runs
+  0.21 s ahead.
+- **Clear-sky solar energy**, always labelled "clear-sky estimate" with its typical error
+  and "clouds are not modelled":
+  - global horizontal irradiance, Haurwitz as Reno, Hansen & Stein (2012) give it (eq. 18):
+    `GHI = 1098 cos z exp(−0.057 / cos z)` W/m², `z` the Sun's **apparent** zenith angle;
+  - direct normal, Meinel & Meinel (ibid., eqs. 22–23): `DNI = E0 · 0.7^(AM^0.678)`,
+    `AM = 1 / cos z`, `E0 = 1361 W/m² / r²` with `r` the Sun's distance in au; capped so
+    that `DNI cos z ≤ GHI`; diffuse `DHI = GHI − DNI cos z`;
+  - plane of array, isotropic sky: `DNI max(cos θ, 0) + DHI (1 + cos β)/2 +
+    GHI ρ (1 − cos β)/2`, `cos θ = cos z cos β + sin z sin β cos(A_sun − A_panel)`, tilt
+    `β`, albedo `ρ` (default 0.2), the panel facing the equator by default;
+  - energy: irradiance integrated over time (trapezoids between a day's samples, the
+    midpoint rule on each local day of a year), kWh/m²; the best tilt is the one that
+    collects the most in the year for the panel's azimuth (Brent's search on
+    [0°, 90°], both ends checked).
+  - Typical error: RMSE 6.6 % of measured clear-sky irradiance over 30 U.S. sites, small
+    mean bias, larger at high-elevation sites (no elevation term). Clouds, haze beyond
+    the model's average, snow, shading, soiling, temperature and inverter losses are not
+    modelled.
+- **Galactic centre**: Sgr A*, RA 17h 45m 40.04s, Dec −29° 00′ 28.1″ (J2000); the
+  galactic equator's north pole RA 12h 51m 26.28s, Dec +27° 07′ 42.0″ (J2000); both
+  carried to the date by the star chain of `skyfix_ephemeris::frames` (frame bias,
+  precession, nutation, light deflection, annual aberration; no proper motion) and seen
+  from the site as stars (13.2). A **dark-sky window** is a stretch during which the
+  galactic centre's apparent altitude is at least `min_altitude_deg` (default 10°) and the
+  Sun's geometric altitude at most `sun_max_altitude_deg` (default −18°, 13.4's night),
+  split where the Moon rises or sets (13.3), with whether it is up and its illuminated
+  fraction. The **best moment** is the galactic centre's highest in the window; there the
+  **arch** (the galactic equator) has its highest point at `90° − h` in the azimuth
+  opposite the galactic pole that is above the horizon (`h` that pole's altitude) and
+  meets the horizon 90° either side of that pole's azimuth. Geometric directions.
+
 ## 14. Navigation methods: noon sight, Polaris, averaging, running fix
 
 `docs/NAVIGATION_METHODS.md` is normative for these methods (`skyfix_core::methods`,
