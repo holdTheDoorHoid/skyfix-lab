@@ -59,6 +59,7 @@ import {
   showerRows,
   type DsoRow,
 } from './model.js';
+import { openMilkyWayPlanner } from '../panel/photo.js';
 import { showInSky } from './sky-link.js';
 import { datumWords, markDeclined, stationWhere, tideCard, tideHeight, tidesLoaded, TIDES_PACK, TIDES_REASON, type TideCard } from './tides.js';
 import { mayHaveTideStation } from './tide-cells.js';
@@ -963,14 +964,13 @@ const view: Component = (host, ctx) => {
     request(true);
   };
 
+  /** The best moment, then the photo agent's Milky Way planner on the Selected card (the panel shown first). */
   const planPhoto = (jd: number): void => {
     pinAt(jd);
     setTime(store, jd);
-    // photo: call openMilkyWayPlanner(ctx) from ../panel/photo.js once the photo agent's
-    // Selected-card planner is on main; until then the Selected card is brought into view.
     const app = document.querySelector<HTMLElement>('.sf-app');
     if (app?.dataset.panel === 'closed') document.querySelector<HTMLElement>('.sf-panel-toggle')?.click();
-    document.querySelector<HTMLElement>('.sf-selected')?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+    openMilkyWayPlanner(ctx);
   };
 
   // --- following the explorer ------------------------------------------------------------------

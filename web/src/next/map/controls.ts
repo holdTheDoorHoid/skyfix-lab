@@ -35,6 +35,8 @@ export const OVERLAY_OWNERS: readonly { prefix: string; label: string; note: str
   { prefix: 'navigate-', label: 'Navigate’s result', note: 'Circles of position and the fix' },
   { prefix: 'events-', label: 'The eclipse from Events', note: 'Its path or where it is seen' },
   { prefix: 'learn-', label: 'Learn’s last run', note: 'The fix and the answer key' },
+  // photo agent (expansion Q8): the Selected card's bearing (panel/photo.ts).
+  { prefix: 'photo-', label: 'The bearing from the Selected card', note: 'A direction from your place, for sunsets and moonrises' },
 ];
 
 export interface DrawnGroup {

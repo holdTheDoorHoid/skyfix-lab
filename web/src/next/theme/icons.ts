@@ -218,6 +218,11 @@ const ICONS = {
     ['dot', 12, 12, 1.3],
   ],
   list: [['path', 'M8.5 6.5h11M8.5 12h11M8.5 17.5h11M4.5 6.5h.01M4.5 12h.01M4.5 17.5h.01']],
+  // photo agent (expansion Q8): high and low water (the Place section's tides line).
+  tide: [
+    ['path', 'M3 18.5c1.5-1 3-1 4.5 0s3 1 4.5 0 3-1 4.5 0 3 1 4.5 0'],
+    ['path', 'M12 3.5v9M9.5 6 12 3.5 14.5 6M9.5 10 12 12.5 14.5 10'],
+  ],
   // tonight agent (expansion programme Q2): the Tonight tab, a crescent under a star.
   tonight: [
     ['path', 'M16.4 17.9A6.9 6.9 0 0 1 7.5 9a6.9 6.9 0 1 0 8.9 8.9Z'],

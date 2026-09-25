@@ -49,6 +49,8 @@ reproduce each row are in the numbered section named.
 | Moon in detail: perigee, apogee, supermoons (vs Skyfield + DE440s) | instants within 11.2 s, distances 0.22 km; every supermoon/micromoon flag agrees | 2 min, 10 km | 14 |
 | Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s; a year at one place in 76 ms of CPU | 30 s; 200 ms | 14 |
 | Tides, `tides-us` pack (vs NOAA's own predictions: 20 harmonic stations × 30 days, 6 subordinate, and a 3-day sweep of all 3 492 predictable stations) | high and low water within 1.10 min and 1.08 cm (20 stations, 2 087 extremes; Anchorage the 1.08 cm, the others ≤ 0.12 cm); curve within 1.38 cm (others ≤ 0.29 cm); sweep 39 120 extremes within 1.36 min and 0.99 cm | 2 min, 5 cm | 16 |
+| Selected card: a bearing picked on the map (Vincenty on WGS84 vs Geoscience Australia's worked example); the card's own cost per time step | 54 972.271 m within 1 mm, azimuths within 0.5″ both ways; the card renders in 1.7 ms (median; 95 % within 2.6 ms) with the Moon and every drawer open | 1 mm, 1″; 5 ms | 18 |
+| Lunar limb, `lunar-limb` pack: limb-corrected eclipse contacts (vs NASA SVS, 48 cities of 2024 and 2023 away from grazes; vs an independent Skyfield + NAIF + raw-LOLA implementation) | second contact within 1.2 s of SVS, third 1.4 s early on average (the same in the independent code: SVS's definition), both within 2 s at 45 of 48; scatter about SVS 0.3–0.6 s against the mean limb's 1.2–3.2 s; the profile within 0.027″ rms, the corrections within 0.34 s of the independent ones | 2 s; 1 s | 19 |
 
 ## 1. What accuracy means here
 
@@ -2514,6 +2516,205 @@ screen) is exact integer arithmetic, held to the engine rather than to JavaScrip
 
 What the chip shows is the engine's `time_info.delta_t_sigma_s` (section 14 above), rounded
 for reading (±s below 90 s, ±min below an hour, ±h above); it is not a new estimate.
+
+## 18. The Selected card's tools for photographers and astronomers (photo agent, expansion programme Q8)
+
+The card shows the engines' numbers and formats them; each is validated in its engine's
+own section: golden and blue hour, bearing crossings, alignments and the galactic centre
+(section 14, "Sun tools"), the Moon's libration, size, apsides and named features (section
+14, "Moon in detail"), the magnetic variation (section 15), tides (section 16), the
+predicted sextant reading (section 10), right ascension and declination (`sky_state`,
+section 2). What is new here is checked below. Tests: `web/test/next/photo-tools.test.ts`
+(logic, with the mock engine) and the `photo` set of `web/scripts/ui-check.mjs` (the built
+site in Chrome, with the real core).
+
+### A bearing picked on the map
+
+The direction from the place to a clicked point is the initial azimuth of the geodesic on
+WGS84 (CONVENTIONS 13.13), by Vincenty's inverse formula. Against Geoscience Australia's
+worked example of that formula (GDA technical manual: Flinders Peak to Buninyong, GRS80,
+whose flattening differs from WGS84's by 5 × 10⁻¹²): distance 54 972.271 m reproduced
+within 1 mm, forward azimuth 306° 52′ 05.37″ and reverse azimuth 127° 10′ 25.07″ each
+within 0.5″ ("reproduces Geoscience Australia's worked example"). Points almost antipodal,
+where the iteration does not converge, fall back to the sphere's great circle (up to about
+0.2° off), and the code says which it used. The ray drawn on the map is the sphere's great
+circle leaving on the bearing: display only.
+
+### End to end: Manhattanhenge
+
+The alignment finder in the built site, with the real core, gives the days the engine's
+own tests give (section 14): at 42nd Street and Fifth Avenue, bearing 299°, sunset
+(upper limb on a sea-level horizon), 0.5° either side, 2026: 23-26 May and 16-19 July,
+closest 24 May and 18 July (`ui-check.mjs`, "the alignment finder gives Manhattanhenge
+2026"). With the centre at an apparent 0.5° (the centre at 0° without refraction, to 1′)
+the closest days are 28 May and 14 July, the first the American Museum of Natural History's
+"half Sun" date.
+
+### Speed
+
+Measured in headless Chrome on the development build of this branch after the merge of
+time-ui, charts2 and planetdetail (a temporary timer around the card's render, since
+removed), every drawer open, 200 steps of the time shown by 2 minutes, each run three times
+over the same steps and the fastest of the three kept for each step (the machine is shared
+by several agents; this removes the moments the page was not scheduled at all, which
+single runs showed as 95th percentiles of 15-40 ms even for a star with nothing heavy to
+do). The card's render: the Moon 1.7 ms at the median, 2.6 ms at the 95th percentile,
+3.8 ms at worst (1.4 / 2.0 / 4.6 ms with 30-minute steps); the Sun 0.8 / 0.9 / 1.1 ms;
+Jupiter, with its disc, 0.8 / 1.1 / 2.4 ms; Sirius 0.5 / 0.8 / 6.0 ms. Inside the 5 ms budget
+of a time-bar frame. What costs more is asked once per span and, while the time is dragged
+or playing, only once it settles (`Motion`, `Settler` in `panel/photo.ts`): `sun_hours`
+about 3 ms a day, `moon_features` 4 ms an hour, `moon_orientation` 1 ms a quarter-hour,
+`planet_disc` under a millisecond a quarter-hour, `moon_apsides` 22 ms plus 1 ms a day (a
+fortnight's list), a month of `galactic_centre_windows` about 0.1 s, `alignment_days`
+0.2 s (the Sun) and 0.9 s (the Moon) only when Find is pressed (WebAssembly in Node, V8).
+In the built site, before the merge and on a quiet machine, the open drawers added 0.3 to
+1 ms of script to a time-bar frame (the least of three drags each); `ui-check.mjs` judges
+this only when a star's frame alone stays under 16 ms, since other work on a shared machine
+otherwise sets the numbers.
+
+### Labels
+
+Golden and blue hour are photographers' conventions and say so; tide heights say
+"predicted, not observed" and carry NOAA's label; the magnetic bearing's tooltip gives the
+model and its own one-sigma uncertainty, and there is none before 1900 or after 2030; the
+predicted sextant reading is offered only for the bodies and years sights are offered for,
+and assumes the standard 10 °C and 1010 hPa for refraction.
+
+## 19. Lunar limb: limb-corrected eclipse contacts (expansion programme P12)
+
+Owner: eclipselimb agent. The engine is `skyfix_almanac::eclipses::limb` (definitions in
+CONVENTIONS 15.7), fed by the optional `lunar-limb` pack (LRO LOLA LDEM_16, 1/16°, about
+1.9 km; `docs/THIRD_PARTY.md`, "Lunar limb profile"); wire format in EXPLORER_API
+"Expansion programme P12 — the lunar limb". Without the pack every eclipse result is the
+mean limb's (section 12), unchanged. The tests are `crates/skyfix-almanac/tests/eclipse_limb.rs`
+(numbers below with `-- --nocapture`), `crates/skyfix-wasm/src/limb.rs` and
+`web/test/next/limb-engine.test.ts`.
+
+**What the correction does.** The mean limb (NASA's `k2 = 0.272281`, a radius chosen to
+stand for the limb's valleys) gets second and third contact of a total eclipse within a
+few seconds; the real limb decides them through the particular valley where the last
+sunlight goes out. For an annular eclipse the error of a smooth Moon is larger, because
+the highest peaks end and begin annularity: the mean limb's annularity was 7 to 18 s too
+long at the 19 cities of 2023-10-14, the corrected one within 1.5 s of NASA's.
+
+### The profile against one built from the raw grid with NAIF's orientation
+
+`tools/limb/reference.py` rebuilds the outline independently: Skyfield 1.55 with DE440s
+and its IERS time scale, the Moon's orientation from NAIF's DE440 lunar kernel
+(`MOON_ME_DE440_ME421`) at the light's departure, heights bilinear from the raw LDEM_16
+grid (not the pack's ring). At the maxima of three eclipses (Dallas and Burlington 2024,
+Albuquerque 2023), over all 5 760 position angles: **rms 0.022-0.027″ (42-45 m), mean
+−0.015 to −0.018″ (−29 m: the ring's second interpolation rounds the sharpest crests
+off), worst 0.11-0.17″**. This checks the geometry, the frame (the model's orientation
+against DE440's, 0.005° per section 14), the ring and its decoder at once.
+
+### Contacts against the independent implementation
+
+The same 51 sites (below), every contact the independent code finds (204):
+
+| | 2024-04-08 (total, 32 sites) | 2023-10-14 (annular, 19 sites) |
+|---|---|---|
+| contacts, away from grazes | within 0.29 / 0.72 / 0.66 / 0.40 s (c1 / c2 / c3 / c4) | within 0.35 / 0.61 / 0.41 / 0.55 s |
+| limb minus mean-limb correction, same | within 0.21 / 0.34 / 0.12 / 0.11 s | within 0.16 / 0.20 / 0.22 / 0.11 s |
+| near grazes (over 8 s per ″ of limb) | 4 contacts (San Antonio, Toledo, Lancaster) within 0.13″ of limb | none |
+
+The absolute differences are the engine's Moon (ELP 2000-82B) against DE440s, 0.2-0.7 s
+at a contact (section 12); the correction cancels most of it. San Antonio in 2024 is at
+the southern edge of the path: the mean limb misses totality there, both implementations
+find it with the limb (14.6 s here, 11.8 s independently, 18 s by NASA).
+
+### Second and third contact against NASA's Scientific Visualization Studio
+
+NASA SVS published limb-corrected times of the start and end of the central phase, to the
+second, for U.S. cities (item 5073; LOLA and SELENE topography at 60 m, SRTM terrain,
+DE421). 32 cities in the path of totality of 2024-04-08 (Eagle Pass to Presque Isle) and
+19 in the path of annularity of 2023-10-14 (Eugene to Kingsville), with the engine as
+shipped (DUT1 from the IERS history). Corrected minus SVS, sites away from grazes:
+
+| | 2024 (29 cities) | 2023 (19 cities) |
+|---|---|---|
+| second contact | mean −0.10 s, worst 1.08 s | mean −0.44 s, worst 1.16 s |
+| third contact | mean −1.35 s, worst 3.22 s (Fort Worth; Dallas 2.45 s) | mean −1.47 s, worst 2.06 s |
+| both within 2 s | 27 of 29 | 18 of 19 |
+| central phase | −1.25 s on average, worst 4.3 s | −1.03 s, worst 1.54 s |
+| scatter about SVS, c2 / c3: corrected | 0.44 / 0.57 s | 0.33 / 0.35 s |
+| the same for the mean limb | 1.54 / 1.22 s | 1.16 / 3.16 s |
+
+Near grazes (the edge of the path, where a contact moves by more than 8 s per ″ of limb
+height): San Antonio 2024, second contact −1.2 s and third −4.6 s (a 15 s totality
+against SVS's 18 s); Toledo, third −3.3 s; Lancaster NH, third −7.2 s (39 s against
+SVS's 46 s). Each contact reports this sensitivity (`seconds_per_arcsec`) so the
+interface can say so.
+
+**Third contact is systematically early against SVS, and it is not our limb.** The
+independent implementation shows the same: second contact +0.26 s and +0.04 s from SVS,
+third −1.38 s and −1.16 s (2024, 2023). SVS's central phases are 1.0-1.6 s longer than
+the geometric ones for the total eclipse *and* the annular one; a larger Moon or a smaller
+Sun would lengthen one and shorten the other, and a higher-resolution limb (SVS's 60 m)
+has deeper valleys and higher peaks, which would shorten both. What remains is SVS's own
+definition, not published: its times are "100 % points of coverage", to the whole second
+(its umbra shapes are computed at one-second steps), with a Delta-T it does not state. If
+its central phase is rounded outward to whole seconds and its times run 0.6-1.0 s later
+than ours throughout (half a second of Delta-T would do that), both eclipses fit to about
+0.3 s; we cannot confirm it. So the brief's criteria — second and third contact within
+2 s, the corrections within 1 s — hold for second contact everywhere and for third
+contact at 45 of 48 sites away from grazes, with a 1.4 s mean offset in third contact
+that we attribute to SVS's definition; the scatter about SVS after the correction is
+0.3-0.6 s, between a half and a ninth of the mean limb's.
+
+### Baily's beads
+
+Approximate by construction (CONVENTIONS 15.7): the valleys of a 1.9 km model, at most 8
+per contact within 15 s, the last before second contact and the first after third being
+the contact's own valley (tested). At Indianapolis in 2024 the model gives eight beads in
+the last 1.5 s before totality, between position angles 27° and 40° on the Sun, and
+eight in the first 0.6 s after it, between 247° and 254°. Real beads come through
+valleys a few hundred metres wide that LDEM_16 does not resolve, and they last longer
+than the model's (which go out within a second or two, the smoothed valleys being
+shallow): the times and places are those of the main valleys, not bead-level
+predictions, and the output says so.
+
+### Speed and size
+
+Measured on the development machine while other agents' builds kept it busy (load
+average 15-40 on 8 cores throughout): the plain `eclipse_local`, 1.2-1.7 ms natively and
+3-5 ms in WebAssembly on a quiet machine (section 12), took 1.8-4.3 ms and 6-8 ms. Thread
+CPU time:
+
+- **Natively** (release build): decoding the pack 10-25 ms; one eclipse with the limb
+  25-58 ms (about 5 500 slices of about 42 samples: the outline at maximum every 1/8°,
+  the windows around the four contacts every 1/16°); `profile_at` (5 760 slices) 20-52 ms.
+- **WebAssembly** in Node 24 (V8, Chrome's engine; `web/test/next/limb-engine.test.ts`
+  and the scripts beside it), three builds: the first `load_pack("lunar-limb", …)` 84-111
+  ms, run in the engine's baseline code (42-56 ms once compiled; loading the same file
+  again, which only checks its header and CRC-32, 8-9 ms); the first corrected eclipse
+  90-98 ms, later ones 63-75 ms; `lunar_limb_profile` 53-63 ms.
+
+Scaled by the plain `eclipse_local`'s slowdown on that machine (1.4-2 times), a quiet
+machine takes 45-80 ms for the first load and 45-70 ms for the first corrected eclipse,
+35-55 ms for each one after: each within the brief's 100 ms, the two together about 100-
+150 ms the first time a page corrects an eclipse. The pack is loaded once per page
+session (CONVENTIONS 15.5) and a view asks for a corrected eclipse once per place (the
+memoised engine keeps it). Not yet measured on a quiet machine or in a browser.
+
+**Size.** The pack: 2 212 290 bytes (2.21 MB), 1 659 278 gzipped (1.66 MB; the target
+was 3 MB gzipped, and the brief's estimate of 4.4 MB raw for int16 heights came down with
+the byte code); decoded, 4.4 MB of heights and 1.1 MB of block maxima in memory. The
+core module (`npm run wasm`): +45.3 KB raw, +20.7 KB gzipped against main at ab8f55c
+(2 997 407 → 3 042 660 bytes, 1 231 646 → 1 252 306 gzipped). Main alone is 2.6 KB under
+the 3 MB raw budget, so with the lunar limb the module is **42.7 KB over it, and 2.3 KB
+over the 1.25 MB gzipped one**: a decision for the planner (EXPANSION_PLAN §3 lists the
+measured levers; `opt-level = "z"` alone saves about 5 %).
+
+### Reproduce
+
+- `cargo test --release -p skyfix-almanac --test eclipse_limb -- --nocapture` prints
+  every number above; `-- --ignored timing` the native timings.
+- `cd web && npm run wasm && npx vitest run test/next/limb-engine.test.ts` loads the
+  shipped pack into the built core and times it.
+- The pack: `python3 -m tools.limb.fetch && tools/reference/.venv/bin/python -m
+  tools.limb.build` (bit-identical). The references: `tools/reference/.venv/bin/python -m
+  tools.limb.reference svs skyfield` (about 20 minutes).
 
 ## Interface: what the Tonight view works out itself (tonight agent, wave 2)
 

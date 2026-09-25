@@ -126,14 +126,96 @@ copy covers is in About), and the time bar says what changes as you go back or f
 ## The selected body
 
 The panel's **Selected** card gives the chosen body's height above the horizon and its
-direction in large type, and its rise, highest point and set for the pass it is on. For
-the Sun it adds the twilight times, the length of the day, and the length of the shadow of
-an object of any height you type. **When is it at…?**, for any body, lists the times on the
-day shown when it passes a height you type — 30°, say, or −6° for the Sun at the end of
-civil twilight — and pressing one moves the clock there. **Navigator's details** add the
-GHA, the declination, and Hc and Zn as sight-reduction tables give them: seen from the
-Earth's centre, with no refraction or parallax, so for the Moon they differ from its height
-above your horizon by up to a degree.
+direction in large type, and its rise, highest point and set for the pass it is on. Under
+the direction is the same bearing on a magnetic compass ("257° magnetic"); its tooltip
+gives the magnetic variation at your place, the model it comes from (the World Magnetic
+Model 2025, or the International Geomagnetic Reference Field before 2025) and how far it
+can be trusted. There is none before 1900 or after 2030, which the models do not reach.
+**Sky position** gives the body's right ascension and declination, its place among the
+stars in astronomers' coordinates: the apparent place of the date seen from the Earth's
+centre, as an almanac gives it (star atlases and telescope catalogues use the axes of the
+year 2000, which precession has since moved by a fraction of a degree). With Navigator's
+terms on, the navigator's sidereal hour angle (SHA) is beside it.
+
+For the **Sun** the card adds the twilight times, **golden hour** and **blue hour** for the
+morning and the evening (photographers' conventions, not physical boundaries: the Sun
+between 6° above and 4° below the horizon, then between 4° and 6° below it; press a time to
+go there), the length of the day, and the length of the shadow of an object of any height
+you type.
+
+For a **planet** it adds how much of it is lit, its angle from the Sun, its distance and
+its size in the sky (its apparent diameter across the equator, in seconds of arc).
+
+For the **Moon** it adds the phase; the distance and how big the Moon looks, each against
+its average ("30.9′, 0.7 % smaller than average"); which of its edges is tipped toward you
+by libration ("more of its western edge, the Grimaldi side, by 4.8°"); how its axis leans;
+when it is next nearest (perigee) and farthest (apogee), with a note when the coming full
+Moon is a supermoon; and the named craters, mountains and valleys along its shadow line
+now, where low sunlight shows their relief best. **See it up close** opens the Sky view on
+the Moon.
+
+Four tools fold out below the card:
+
+- **When is it at…?** lists the times on the day shown when the body passes a **Height**
+  you type — 30°, say, or −6° for the Sun at the end of civil twilight — or crosses a
+  **Bearing**: degrees from true north, a compass point such as WNW, or a direction picked
+  on the map. Pressing a time moves the clock there.
+- **Sunrise or sunset along a line** (on the Sun and Moon cards) finds the days of a year
+  when the Sun or the Moon sets, rises, or stands at a height you choose, along a bearing:
+  down a street, through a window, over a landmark. Type the bearing, or press **Pick on the
+  map** and click the point the line should run to, such as a street corner a few blocks
+  away or a peak on the skyline: the bearing becomes the direction from your place to that
+  point, measured on the Earth's true, slightly flattened shape, and the line is drawn on
+  the map (**Layers** lists it, with **Remove**). Choose **Sets**, **Rises** or **At a
+  height**, how far off the line still counts, and the year, and press **Find the days**.
+  The closest day of each run is marked **best**; pressing a day moves the clock there. A
+  search takes a moment (about a second for the Moon). For the Sun, **The Sun's bearings
+  through the year** opens the chart of its rising and setting directions on every day
+  ([Charts](#charts), Sun).
+- **Milky Way planner** says when the bright core of the Milky Way (the direction of the
+  galaxy's centre, in Sagittarius) is at least 10° up in a fully dark sky tonight, where it
+  stands at its best and how the band arches across the sky, whether the Moon is up, and
+  the best Moon-free nights of the coming month. **Show in Sky** opens the Sky view at the
+  best moment.
+- **Navigator's details** add the GHA, the declination, and Hc and Zn as sight-reduction
+  tables give them: seen from the Earth's centre, with no refraction or parallax, so for the
+  Moon they differ from its height above your horizon by up to a degree. They also give what
+  **your sextant would read** now (Hs), for the height of eye and index correction in
+  Settings on a sea horizon, for the bodies offered for sights; its tooltip lists the
+  corrections that turn it into Hc.
+
+When the US tide predictions are on your device (**Settings → Data packs**, "US tides"),
+the **Place** section also gives the next high and low water at the nearest NOAA tide
+station within 50 nautical miles, with **Tides chart**, which opens the Tides tab of
+Charts. They are predictions, not observations: wind, storm surge and river flow are not in
+them.
+
+Far from today, where the Earth's rotation is known only roughly, every time on the card
+carries its uncertainty ("20:15 ±12 min"), and the tools show the ± chip with its
+explanation beside their headings (see [Moving through time](#moving-through-time)).
+
+### Worked example: Manhattanhenge
+
+Twice a year the setting Sun lines up with Manhattan's cross streets, which run about 29°
+north of west (a bearing of 299°).
+
+1. Put your place on a cross street with a view west: type `40.7527, -73.9772` (42nd
+   Street at Fifth Avenue) in the search box.
+2. With the Sun selected, open **Sunrise or sunset along a line** and type **299**, or press
+   **Pick on the map**, zoom in, and click far down 42nd Street toward the Hudson.
+3. Keep **Sets** and **0.5**°, and press **Find the days**.
+
+For 2026 the list gives 23–26 May and 16–19 July, with **24 May** and **18 July** marked
+best: the top of the Sun touches the horizon down the street at about 20:15 EDT in May and
+20:23 in July. Press a day to see it on the map and the time bar.
+
+Published dates differ by a few days because they mean other moments. The American Museum
+of Natural History's "half Sun" is the Sun's centre on the horizon without the bending of
+its light by the air: choose **At a height** and type **0.5** (that bending lifts the Sun
+about half a degree near the horizon) and the best days become 28 May, the museum's date,
+and 14 July. The real horizon at the end of a street is New Jersey's skyline, not a sea
+level one; type its height instead. [Accuracy and limitations](ACCURACY.md), section 14,
+compares the definitions.
 
 ## The views
 
@@ -227,7 +309,8 @@ and "The night of" otherwise.
   the shower's ZHR, cut by the radiant's height and by the faint meteors your sky and the
   Moon hide), the best time, where the radiant is, and whether the Moon is up then.
 - **Milky Way**: when the core is up in full darkness, its best moment and where the arch
-  of the Milky Way runs across the sky then. **Plan a photo** goes to that moment.
+  of the Milky Way runs across the sky then. **Plan a photo** goes to that moment and
+  opens the Milky Way planner on the panel's Selected card (the best nights of the month).
 - **Coming up**: the next fourteen days — Moon phases (and supermoons), the Moon at its
   closest and farthest, eclipses and what your place sees of them, the Moon and planets
   passing close to each other or to bright stars (the moment they are best seen from your
