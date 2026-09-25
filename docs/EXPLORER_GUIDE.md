@@ -132,15 +132,19 @@ gives the magnetic variation at your place, the model it comes from (the World M
 Model 2025, or the International Geomagnetic Reference Field before 2025) and how far it
 can be trusted. There is none before 1900 or after 2030, which the models do not reach.
 **Sky position** gives the body's right ascension and declination, its place among the
-stars as a star atlas or a telescope lists it (the apparent place of the date, seen from the
-Earth's centre); with Navigator's terms on, the navigator's sidereal hour angle (SHA) is
-beside it.
+stars in astronomers' coordinates: the apparent place of the date seen from the Earth's
+centre, as an almanac gives it (star atlases and telescope catalogues use the axes of the
+year 2000, which precession has since moved by a fraction of a degree). With Navigator's
+terms on, the navigator's sidereal hour angle (SHA) is beside it.
 
 For the **Sun** the card adds the twilight times, **golden hour** and **blue hour** for the
 morning and the evening (photographers' conventions, not physical boundaries: the Sun
 between 6° above and 4° below the horizon, then between 4° and 6° below it; press a time to
 go there), the length of the day, and the length of the shadow of an object of any height
 you type.
+
+For a **planet** it adds how much of it is lit, its angle from the Sun, its distance and
+its size in the sky (its apparent diameter across the equator, in seconds of arc).
 
 For the **Moon** it adds the phase; the distance and how big the Moon looks, each against
 its average ("30.9′, 0.7 % smaller than average"); which of its edges is tipped toward you
@@ -165,7 +169,9 @@ Four tools fold out below the card:
   the map (**Layers** lists it, with **Remove**). Choose **Sets**, **Rises** or **At a
   height**, how far off the line still counts, and the year, and press **Find the days**.
   The closest day of each run is marked **best**; pressing a day moves the clock there. A
-  search takes a moment (about a second for the Moon).
+  search takes a moment (about a second for the Moon). For the Sun, **The Sun's bearings
+  through the year** opens the chart of its rising and setting directions on every day
+  ([Charts](#charts), Sun).
 - **Milky Way planner** says when the bright core of the Milky Way (the direction of the
   galaxy's centre, in Sagittarius) is at least 10° up in a fully dark sky tonight, where it
   stands at its best and how the band arches across the sky, whether the Moon is up, and
@@ -180,8 +186,13 @@ Four tools fold out below the card:
 
 When the US tide predictions are on your device (**Settings → Data packs**, "US tides"),
 the **Place** section also gives the next high and low water at the nearest NOAA tide
-station within 50 nautical miles, with a link to the tide chart. They are predictions, not
-observations: wind, storm surge and river flow are not in them.
+station within 50 nautical miles, with **Tides chart**, which opens the Tides tab of
+Charts. They are predictions, not observations: wind, storm surge and river flow are not in
+them.
+
+Far from today, where the Earth's rotation is known only roughly, every time on the card
+carries its uncertainty ("20:15 ±12 min"), and the tools show the ± chip with its
+explanation beside their headings (see [Moving through time](#moving-through-time)).
 
 ### Worked example: Manhattanhenge
 

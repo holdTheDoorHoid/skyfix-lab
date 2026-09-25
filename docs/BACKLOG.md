@@ -183,9 +183,9 @@ This file is the single list; the completion report links here.
 | item | status | notes |
 |---|---|---|
 | Golden and blue hour, the alignment finder with the map picker, "When is it at…?" by bearing, the Milky Way planner, the Moon in detail, RA/Dec and the magnetic bearing on every body, the predicted sextant reading, the tides line in Place | completed | `web/src/next/panel/{photo,moon-tools,alignment,when,selected}.ts`, `web/src/next/map/pick.ts`; `docs/ACCURACY.md` section 18 |
-| The planets' apparent size | waiting | needs planetdetail's `planet_disc`, not merged when this was built; the place is marked `// planetdetail:` in `panel/selected.ts` (the Moon's size is on the card) |
-| The ±ΔT chip and the tier helper | waiting | `deltaTNote` and `inValidatedTier` in `panel/photo.ts` stand in for the time-ui agent's shared helpers (`// time-ui:`); every time the card shows goes through them |
-| Opening Charts on its Tides tab | waiting | the tides line's "Tides chart" opens Charts; the Tides tab and a way to ask for it are the charts2 agent's (`// charts2:` in `panel/photo.ts`) |
+| The planets' apparent size | completed | planetdetail's `planet_disc` (the equatorial diameter, and the polar one in the tooltip), a quarter-hour at a time |
+| The ±ΔT chip and the tier helper | completed | time-ui's `uncertaintyText` after every time (`deltaTNote`), the chip beside each tool's heading, `sightsOffered` / `sightsOnlyText` for the predicted reading, `scaleLabel` on the cards' second clock |
+| Opening Charts on its Tides tab | completed | "Tides chart" and "The Sun's bearings through the year" call charts2's `showCharts` through a dynamic import (the Charts module stays lazily loaded) |
 | Aiming the Sky view | waiting | "Show in Sky" (Milky Way) and "See it up close" (the Moon) open the Sky view at the moment; pointing it at the galactic centre and the Moon's close-up inset are the sky2 agent's (`// sky2:`) |
 | Alignments for the planets and a horizon profile | unstarted | the engine takes any body; the finder offers the Sun and the Moon. A skyline's height per bearing (the real horizon) would replace the single "At a height" |
 | Alignment dates across a daylight-saving change | known limit | `alignment_days` lays a year on one fixed UTC offset (the one at the time shown); the list writes each day in the real zone, so only the grouping into runs of an event within an hour of local midnight could differ |

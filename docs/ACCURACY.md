@@ -2554,7 +2554,8 @@ the closest days are 28 May and 14 July, the first the American Museum of Natura
 Measured in Chrome on the development build, the Moon selected and every drawer open
 (the most the card does), 200 steps of the time shown by 2 minutes: the card's render took
 1.5 ms at the median and at most 3 ms for 95 % of steps (the Sun, Jupiter and Sirius about
-1 ms), inside the 5 ms budget of a time-bar frame. What costs more is asked once per span
+1 ms; measured before the planets' `planet_disc` joined, which is asked a quarter-hour at a
+time and costs under a millisecond), inside the 5 ms budget of a time-bar frame. What costs more is asked once per span
 and, while the time is dragged or playing, only once it settles (`Motion`, `Settler` in
 `panel/photo.ts`): `sun_hours` about 3 ms a day, `moon_features` 4 ms an hour,
 `moon_orientation` 1 ms a quarter-hour, `moon_apsides` 22 ms plus 1 ms a day (a
