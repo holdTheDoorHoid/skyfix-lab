@@ -67,9 +67,30 @@ const GM_SYSTEM: f64 = 126_712_764.1;
 const R_EQ_KM: f64 = 71_492.0;
 const R_POL_KM: f64 = 66_854.0;
 const AU_KM: f64 = skyfix_ephemeris::body::AU_KM;
-/// Accuracy of the moons' offsets from Jupiter, arcseconds, measured against jup365
-/// (docs/ACCURACY.md, "Planet detail"): the worst case, rounded up.
+/// Accuracy of the moons' offsets from Jupiter near the present (1900-2040), arcseconds:
+/// the first step of [`accuracy_arcsec_at`].
 pub const ACCURACY_ARCSEC: f64 = 0.5;
+
+/// Accuracy of the moons' offsets from Jupiter at `jd_tt`, arcseconds: E5's worst error
+/// against JPL's satellite ephemeris (Horizons, 400 instants of 1600-2200,
+/// `fixtures/reference/galilean_horizons.json`; docs/ACCURACY.md, "Planet detail"),
+/// rounded up. E5 was fitted to observations up to the 1970s and its error grows away
+/// from them (verify2, 2026-09-25: 0.29" in 1900-1990, 0.67" by 2057, 0.95" in the
+/// 2100s, 1.27" in the 1600s). Before 1600 and after 2200 there is no JPL satellite
+/// ephemeris to measure against: 3" is an extrapolation of that growth, not a
+/// measurement. The single 0.5" published before held only until about 2040.
+pub fn accuracy_arcsec_at(jd_tt: f64) -> f64 {
+    let year = 2000.0 + (jd_tt - 2_451_545.0) / 365.25;
+    if (1900.0..=2040.0).contains(&year) {
+        ACCURACY_ARCSEC
+    } else if (1800.0..=2100.0).contains(&year) {
+        1.0
+    } else if (1600.0..=2200.0).contains(&year) {
+        1.5
+    } else {
+        3.0
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Wire types
@@ -554,7 +575,7 @@ pub fn galilean_moons(jd_utc: f64) -> Result<GalileanMoons, AlmanacError> {
         theory: "Lieske E5 (Meeus, Astronomical Algorithms, chapter 44, higher accuracy), \
                  Jupiter and the Earth from VSOP87A"
             .to_string(),
-        accuracy_arcsec: ACCURACY_ARCSEC,
+        accuracy_arcsec: accuracy_arcsec_at(st.jd_tt),
     })
 }
 
@@ -709,7 +730,9 @@ pub fn galilean_events(jd_start: f64, jd_end: f64) -> Result<GalileanEvents, Alm
                       shadow transits: the shadow of Jupiter or of the moon cast by the Sun's \
                       centre (the middle of the penumbra; the fading lasts from about a \
                       minute for Io to several for Callisto). Moons by Lieske's E5 theory \
-                      (Meeus chapter 44)."
+                      (Meeus chapter 44): within about 0.5\" of JPL's from 1900 to 2040 \
+                      (the times to a minute or two), 1\" from 1800 to 2100, 1.5\" from \
+                      1600 to 2200 (several minutes); unchecked outside 1600-2200."
             .to_string(),
     })
 }

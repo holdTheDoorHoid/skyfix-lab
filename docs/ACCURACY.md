@@ -2511,6 +2511,41 @@ that print contact I equal to II are compared at greatest transit only) and the 
 instants of 1650, 1850 and 2150, where E5 is 0.89″ from JPL (Ganymede, 1650): the
 engine's 0.5″ holds near the present, not across the whole coverage.
 
+<!-- verify2 -->
+**Verification (verify2, 2026-09-25).**
+
+- **Galilean moons: the published 0.5″ failed after about 2040; it now depends on the
+  date.** Against JPL Horizons at 400 instants of 1600-2200 (240 spread over the span of
+  JPL's satellite ephemeris, 160 over 1990-2060; `fixtures/reference/galilean_horizons.json`,
+  `tools/reference/gen_galilean_horizons.py`), E5's worst offset from Jupiter is 0.40″ in
+  1900-2040, 0.88″ in 2040-2100 (0.67″ by 2057, 0.55″ at 2047-11-20 04:47 UT for Callisto,
+  where Skyfield with jup365 and Horizons agree to 0.000″), 0.72″ in 1800-1900, 1.27″ in
+  1600-1800 and 1.20″ in 2100-2200. The table above samples 15 instants (and the far check
+  one instant per excerpt), which misses most of this: 12 instants in each of the same
+  excerpts give Ganymede 1.43″ at 1650 rather than 0.89″. `accuracy_arcsec` is now
+  `satellites::accuracy_arcsec_at`: 0.5″ (1900-2040), 1″ (1800-1900, 2040-2100), 1.5″
+  (1600-1800, 2100-2200), and 3″ outside 1600-2200, where no JPL satellite ephemeris
+  reaches and the figure is an extrapolation of E5's growth, not a measurement.
+  `tests/galilean_horizons.rs` holds every moon at every instant to the figure published
+  for its date. The phenomena's `conventions` sentence says the same in minutes.
+- **The two misprinted catalogue rows are confirmed.** NASA's Mercury catalogue (Espenak,
+  `MercuryCatalog.html`, fetched again) prints 1891 May 10 as `23:57 23:57 02:22 04:47
+  04:47` and 2282 Nov 15 as `23:41 23:41 … 05:02 05:02`. Neither transit grazes (least
+  separations 754″ and 198″), and Skyfield with DE440 at the engine's Delta T gives
+  1891: I 23:54:11, II 23:59:10, III 04:44:06, IV 04:49:05 (the engine: within 1 s of
+  each), 2282: I 23:44:02, II 23:45:46, III 05:05:24, IV 05:07:07 (within 1 s). Each
+  printed pair is the midpoint of the true pair, printed twice (for 2282 after NASA's
+  Delta T, 250 s larger than this project's, is allowed for). The test compares those two
+  rows at greatest transit only, as it should.
+- **Conjunctions: every pair is now held to the bodies' accuracy along the track.** The
+  test put every time difference over 5 minutes into a separate bucket and then asserted
+  that the rest were under 5 minutes, which could not fail; the along-track test (time
+  difference times the pair's relative speed, within the two bodies' position budget) was
+  applied only to that bucket. It now applies to all 3 223 closest approaches of
+  1990-2060: worst 0.68 of the budget (Mercury-Saturn, 20.6 s). With the two-tier series
+  only 2 pairs are more than 5 minutes out, not 24.
+<!-- /verify2 -->
+
 ## Charts: what the Sun, Tides and Moon charts compute themselves (charts2 agent, expansion programme Q5)
 
 Every number on the Sun, Tides and Moon charts is an engine's (sections 9, 14, 16 and "Moon in

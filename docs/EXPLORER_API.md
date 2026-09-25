@@ -2569,7 +2569,7 @@ JPL's satellite ephemeris). Under a millisecond.
 | `eclipsed` | in Jupiter's shadow (the Sun's centre hidden) |
 | `shadow_on_disc`, `shadow_x_rj`, `shadow_y_rj` | the moon's shadow falls on Jupiter, and where (same axes); `null` otherwise |
 | `jupiter.sub_earth_lat_deg` | planetocentric latitude of the Earth seen from Jupiter (the tilt of the moons' paths) |
-| `accuracy_arcsec` | the worst offset error measured against JPL (ACCURACY 17) |
+| `accuracy_arcsec` | the worst offset error measured against JPL (ACCURACY 17) for the instant's era: 0.5 (1900-2040), 1.0 (1800-1900, 2040-2100), 1.5 (1600-1800, 2100-2200), 3.0 outside 1600-2200, where no JPL satellite ephemeris reaches and the figure is an extrapolation (verify2: it was a constant 0.5, exceeded after about 2040) |
 
 ### `galilean_events(jd_start, jd_end) -> GalileanEvents`
 
