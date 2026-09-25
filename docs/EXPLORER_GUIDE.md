@@ -383,7 +383,14 @@ What happens in the sky and when, as lists you can click. Five tabs:
   much of the Sun is covered, and how high it stands. **Show on the map** draws the path
   of totality (or annularity), its central line and the limits of the partial eclipse;
   **Go there** moves your place and time to the point of greatest eclipse. Solar eclipse
-  cards carry an eye-safety note.
+  cards carry an eye-safety note. The times are for a smooth Moon unless the **Lunar limb**
+  data pack is on your device (2.2 MB; offered once, the first time you open a solar eclipse
+  seen from your place, and in Settings → Data packs): then the card's times are
+  corrected for the mountains and valleys at the Moon's edge and marked **limb-corrected**,
+  with how far each moved — a second or a few, more at the edge of the path — and when and
+  where on the Sun's edge **Baily's beads**, the last and first sunlight through the
+  Moon's valleys, should show. The beads are approximate, and the list keeps the smooth
+  Moon's times.
 - **Moon** — three lists.
   - **Phases** for the coming months, with links to any eclipse they bring.
   - **Perigee and supermoons**: the Moon at its closest and farthest on each orbit, every

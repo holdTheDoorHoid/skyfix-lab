@@ -1241,3 +1241,13 @@ the Events view builds its entries in `web/src/next/events/items.ts`).
   one piece per 250 ms while the time plays; the lists hold still during fast playback (15.6)
   and catch up once it stops. Results are kept per window and per place for the page's
   lifetime.
+- **The lunar limb on the eclipse card** (15.7): only a solar eclipse seen from the place
+  asks for it. Without the pack the card says **Mean limb** with the engine's note and a
+  "Not saved on this device" line with Get; the pack is offered once a page session
+  (`ctx.packs.ensure`, which remembers Not now). With it the card's contacts, durations,
+  summary and timeline are the corrected ones, marked **Limb-corrected** (the time column
+  "limb-corrected", each contact's shift, "near a graze: less certain" above 8 s per
+  arcsecond), and the beads are headed "approximate", their places as a clock face on the
+  Sun's edge with 12 toward the zenith (the occultation card's). The list, its Save menu and
+  its calendar files keep the mean limb; the card's own calendar entry says when its times
+  are corrected.

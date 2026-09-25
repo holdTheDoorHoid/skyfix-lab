@@ -2776,3 +2776,14 @@ the year's meteor showers without the place 63 ms and with it 355 ms (one call, 
 page is still). `ui-check.mjs` (group `events`) drags the time bar over a running search of
 close approaches and checks that it makes no progress until the pointer lets go, then
 finishes.
+
+**The lunar limb on the eclipse card** shows the engine's limb-corrected contacts and beads
+(section 19) as they come; the card's own words are tested in `events-models.test.ts`
+(the contacts replaced and re-sorted, a central phase gained or lost at the edge of the
+path, each contact's shift from the smooth Moon's, the beads' span and clock positions).
+On the built site at Dallas for 8 April 2024: second contact 0.9 s and third 3.7 s earlier
+than the smooth Moon's, totality 2.8 s shorter (3 min 48 s), eight beads going out at
+11 to 12 o'clock and eight coming on at 4 o'clock; the pack is offered once a page session
+and a second solar eclipse neither asks again nor loses its Get button (a private headless
+Chrome, `docs/design/local/events-eclipse-*limb*.png`). The list and its Save menu stay on
+the mean limb (the limb costs 60-75 ms an eclipse in WebAssembly).
