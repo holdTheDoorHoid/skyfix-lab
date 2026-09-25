@@ -176,11 +176,14 @@
   padding-left: 6px;
 }
 
-/* A select in a settings row ("Your sky", polish2): as wide as the row allows. */
+/* A select in a settings row ("Your sky", polish2): as wide as the row allows, a size
+   smaller so "Automatic · a dark site (to 6.5)" fits the popover's 360 px. */
 .sf-settings__select {
   justify-self: stretch;
   min-width: 0;
   height: var(--control-h-sm);
+  padding-left: 8px;
+  font-size: var(--text-sm);
 }
 
 .sf-settings__note {
