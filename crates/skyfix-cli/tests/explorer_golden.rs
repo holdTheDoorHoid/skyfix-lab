@@ -515,10 +515,11 @@ fn the_documented_explorer_examples_are_real_output() {
         }
         if let Some(cmd) = line.strip_prefix("$ ") {
             let mut cmd = cmd.to_string();
+            // A command may run over several lines, each ending in `\`.
             while cmd.ends_with('\\') {
                 cmd.pop();
-                cmd.push_str(lines.next().expect("a continued command").trim());
                 cmd.push(' ');
+                cmd.push_str(lines.next().expect("a continued command").trim());
             }
             cases.push((cmd, Vec::new()));
         } else if let Some((_, expected)) = cases.last_mut() {
