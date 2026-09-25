@@ -1064,24 +1064,36 @@ the owner's branch and reported prominently.
 Additive fields; the existing `accuracy_arcmin` and `validated` keep describing the
 validated tier, so today's UI keeps working.
 
+**Stale as planned, corrected as built (docs3, 2026-09-25; see "Packs — the mechanism as
+built" and "Coverage tiers as built" below).** This section is the deeptime agent's
+original plan, written before both tiers turned out to fit in the core module. As built,
+`packs_loaded` never lists `"deep-time"` (no such pack exists or is needed) and there is
+no `outside_validated_tier` warning tag: a sight, a predicted reading or the planner
+refuses a labelled-tier or out-of-coverage instant with a plain thrown message ("not
+offered for sights", "outside_validated_tier" is not a `Warning` variant — CONVENTIONS
+§12's vocabulary is unchanged by deep time), which the UI turns into its own sentence
+(`sightsOnlyText`, `rangeWords`) rather than reading a machine tag. The JSON below is
+retained as the shape `explorer_coverage()` still has, minus the pack:
+
 ```json
 {"start_utc": "-2000-01-01T00:00:00Z", "end_utc": "3000-12-31T23:59:59Z",
  "validated_start_utc": "1550-01-01T00:00:00Z", "validated_end_utc": "2650-01-22T00:00:00Z",
- "packs_loaded": ["deep-time"],
+ "packs_loaded": [],
  "groups": [{"name": "Moon", "provider": "…", "accuracy_arcmin": 0.05, "validated": true,
              "notes": "…", "bodies": ["Moon"],
              "tiers": [{"tier": "validated", "start_utc": "1550-01-01T00:00:00Z",
                         "end_utc": "2650-01-22T00:00:00Z", "accuracy_arcmin": 0.05},
                        {"tier": "labelled", "start_utc": "-2000-01-01T00:00:00Z",
                         "end_utc": "3000-12-31T23:59:59Z", "accuracy_arcmin": 0.5,
-                        "notes": "with the deep-time pack; ΔT uncertainty applies"}]}]}
+                        "notes": "labelled tier; ΔT uncertainty applies"}]}]}
 ```
 
-- `start_utc`/`end_utc` are the outermost instants any provider answers **with the packs
-  currently loaded** (without `deep-time` they equal the validated band).
+- `start_utc`/`end_utc` are the outermost instants any provider answers. As built this is
+  always the labelled band (2000 BC to AD 3000): both tiers ship in the core, so no pack
+  narrows or widens it.
 - `tier_at(jd_utc) -> "validated" | "labelled" | "outside"` is a cheap query for the UI.
-- Sights, the planner and predicted readings refuse the labelled tier with the warning
-  `outside_validated_tier` (CONVENTIONS §12 vocabulary).
+- Sights, the planner and predicted readings refuse outside the validated tier with a
+  plain message naming the validated years, not a tagged warning.
 
 ### `time_info(jd_utc) -> TimeInfo` (timescales agent)
 
@@ -1523,7 +1535,14 @@ in 70 ms).
 ```
 
 `null` when no model covers the date. Throws a string for non-finite numbers, a latitude
-beyond ±90, `lat_max < lat_min`, `lon_max < lon_min` or too many points.
+beyond ±90, `lat_max < lat_min`, `lon_max < lon_min` or too many points. **`height_m` has
+no enforced limit here** (docs3, 2026-09-25): unlike `magnetic_field`, which refuses
+outside CONVENTIONS 14.1's −1 km to 850 km (`skyfix_geomag::field_at_jd`), `magnetic_grid`
+only checks it is finite before extrapolating the model there (`skyfix_geomag::grid` skips
+the height check `field_at_jd` makes); a caller should keep `height_m` inside that band
+itself. Left as a documented gap rather than fixed here, since adding the bound is a
+one-line change to `crates/skyfix-geomag/src/lib.rs::grid` that its own owner (geomag)
+should make with a test, not a docs-only patch.
 
 ### `compass_error(request_json) -> CompassError`
 
@@ -1711,9 +1730,10 @@ the interface may call it every frame). Throws for a non-finite `jd_utc`.
 - `dut1_source`: `iers` (the table; past 2026-09-24 its values are Bulletin A's
   prediction, with the growing `dut1_sigma_s`), `user` (`set_dut1`, σ 0.05 s), `assumed`
   (UTC scale, no value: 0 ± 0.9 s; 1972, and 2027-09-29 to 2035), `model` (UT scale).
-- `tier`: until the deeptime agent's `coverage::tier_at` is merged (one line, marked
-  `MERGE` in `timescale.rs`), `validated` inside the providers' coverage and `outside`
-  elsewhere; the mock does the same over its 1990-2060.
+- `tier`: `crate::coverage::native::tier_at(jd_utc)` (docs3, 2026-09-25: merged; the
+  one-line `MERGE` placeholder this section once described is gone): `validated`,
+  `labelled` or `outside` over the deep-time bands (CONVENTIONS 15.1); the mock does the
+  same over its own three tiers.
 - `notes`: plain sentences for the interface — the clock is UT and why; leap seconds after
   June 2027 not yet announced; DUT1 unknown or a prediction; a user DUT1 that does not
   apply on the UT scale; ΔT uncertain by more than 30 s ("±m min"); the Julian calendar;
@@ -1994,7 +2014,7 @@ every degree.
 ## Expansion programme P8 — the Moon in detail (`moondetail.rs`, moondetail agent)
 
 Specified by the moondetail agent (2026-09-25). Engines: `skyfix_almanac::{libration,
-lunar_features, apsides, occultations}`; definitions in CONVENTIONS 13.10; validation in
+lunar_features, apsides, occultations}`; definitions in CONVENTIONS 13.12; validation in
 `docs/ACCURACY.md`, "Moon in detail". TypeScript: `MoonDetailEngine` and
 `isMoonDetailEngine` at the end of `types.ts`, implemented by the WASM engine, the mock and
 the memoised wrapper. Every export throws a string for malformed input or an instant the
@@ -2041,7 +2061,7 @@ How the Moon is turned and lit (about 0.5 ms natively):
 ```
 
 `optical + physical + diurnal` differs from the total by the fixed 78.7″ between the pole
-of Meeus's figure frame and the mean rotation pole (at most 0.022°; CONVENTIONS 13.10).
+of Meeus's figure frame and the mean rotation pole (at most 0.022°; CONVENTIONS 13.12).
 
 ### `moon_features(observer_json | null, jd_utc) -> MoonFeatures`
 
@@ -2282,7 +2302,9 @@ With an observer, `at_site` is the night starting at the local mean noon before 
 (its local midnight is nearest the peak), `null` when the shower is not active in its
 observing window. `ShowerNight`: `{code, name, lambda_deg, zhr, days_from_peak,
 radiant_ra_deg, radiant_dec_deg, best: Sighting | null, expected_rate_per_hour,
-limiting_mag, hours_radiant_above_20, variable, reason}`, where `lambda_deg` and `zhr` are
+limiting_mag: number | null, hours_radiant_above_20, variable, reason}` (docs3,
+2026-09-25: `limiting_mag` is nullable here exactly as `dso_visibility`'s is, not
+asserted above), where `lambda_deg` and `zhr` are
 at the middle of the window, `best` is the moment of the highest expected rate, and
 `reason` is one sentence without clock times. **Rate model (an estimate):** the ZHR falls
 off exponentially from the peak to `min(2, ZHR/2)` at the activity limits; the expected
@@ -2391,7 +2413,7 @@ sorted by `index`; no name is used twice.
 ## Expansion programme — tides (`tides.rs`, tides agent)
 
 Tide predictions for NOAA's 3 499 tide stations, from the optional **`tides-us`** pack
-(CONVENTIONS 13.11 for the definitions, `docs/ACCURACY.md` section 16 for the measured
+(CONVENTIONS 13.11 for the definitions, `docs/ACCURACY.md` section 20 for the measured
 agreement with NOAA's own predictions). The engine is `skyfix_tides`; the exports are in
 `crates/skyfix-wasm/src/tides.rs`; the TypeScript mirror is `TidesEngine` and
 `isTidesEngine` in `web/src/next/engine/types.ts` ("Expansion programme — tides"); the
@@ -2547,7 +2569,7 @@ local circumstances, conjunctions and stations, the Earth's perihelion and aphel
 comets and asteroids from elements the person supplies. Engines:
 `skyfix_almanac::{satellites, rings, discs, transits, conjunctions, earth_apsides,
 orbits}`; exports: `crates/skyfix-wasm/src/planetdetail.rs`; definitions: CONVENTIONS
-13.12; measured accuracy: `docs/ACCURACY.md` section 17. TypeScript: `PlanetDetailEngine`
+13.13; measured accuracy: `docs/ACCURACY.md` section 21. TypeScript: `PlanetDetailEngine`
 and `isPlanetDetailEngine` ("Expansion programme — planet detail" in `types.ts`), where
 the generic names carry a prefix (`PlanetTransit…`, `PlanetStation…`, `GalileanInstant`,
 `SaturnRingEdge`, `EarthApsisEvent`, `OrbitMagnitudeModel`, `ManualOrbitalElements`) so
@@ -2590,7 +2612,7 @@ JPL's satellite ephemeris). Under a millisecond.
 | `eclipsed` | in Jupiter's shadow (the Sun's centre hidden) |
 | `shadow_on_disc`, `shadow_x_rj`, `shadow_y_rj` | the moon's shadow falls on Jupiter, and where (same axes); `null` otherwise |
 | `jupiter.sub_earth_lat_deg` | planetocentric latitude of the Earth seen from Jupiter (the tilt of the moons' paths) |
-| `accuracy_arcsec` | the worst offset error measured against JPL (ACCURACY 17) for the instant's era: 0.5 (1900-2040), 1.0 (1800-1900, 2040-2100), 1.5 (1600-1800, 2100-2200), 3.0 outside 1600-2200, where no JPL satellite ephemeris reaches and the figure is an extrapolation (verify2: it was a constant 0.5, exceeded after about 2040) |
+| `accuracy_arcsec` | the worst offset error measured against JPL (ACCURACY 21) for the instant's era: 0.5 (1900-2040), 1.0 (1800-1900, 2040-2100), 1.5 (1600-1800, 2100-2200), 3.0 outside 1600-2200, where no JPL satellite ephemeris reaches and the figure is an extrapolation (verify2: it was a constant 0.5, exceeded after about 2040) |
 
 ### `galilean_events(jd_start, jd_end) -> GalileanEvents`
 
@@ -2617,7 +2639,7 @@ window (at most 400 days), sorted by start. Under 0.1 s for a month natively.
   still hidden.
 - `jupiter_elongation_deg`: nothing is observable within about 15° of the Sun; the UI
   should grey such events rather than hide them.
-- Accuracy: 23 s (Io) to 97 s (Ganymede) against JPL, E5's own drift (ACCURACY 17).
+- Accuracy: 23 s (Io) to 97 s (Ganymede) against JPL, E5's own drift (ACCURACY 21).
 
 ### `saturn_rings(jd_utc) -> SaturnRings`
 
@@ -2664,7 +2686,7 @@ Any of the seven planets (case-insensitive). Under a millisecond.
 - Latitudes are planetocentric; `_graphic` ones are on the IAU ellipsoid. Longitudes are
   planetographic in the sense `longitude_positive` names (east for Venus and Uranus).
 - `central_meridians`: Jupiter's Systems I, II and III; `III` for Saturn and Uranus;
-  `IAU` for the others. The centre of the geometric disc (CONVENTIONS 13.12 for the
+  `IAU` for the others. The centre of the geometric disc (CONVENTIONS 13.13 for the
   phase-corrected value some handbooks print).
 - `polar_diameter_arcsec` is the apparent one (it grows toward the equatorial as the
   pole tilts toward us); `defect_of_illumination_arcsec` is the width of the dark part.
@@ -2712,7 +2734,7 @@ About 0.25 s for 1990-2060 natively.
 
 ### `conjunctions(jd_start, jd_end, options_json) -> ConjunctionList`
 
-Closest approaches in apparent separation (CONVENTIONS 13.12), sorted by time, window at
+Closest approaches in apparent separation (CONVENTIONS 13.13), sorted by time, window at
 most ten years. A year with the default bodies: about 0.22 s natively (0.25 s with an
 observer). `options_json` is `ConjunctionOptions`, `""`/`"null"`/`{}` for every default;
 an unknown field throws.
@@ -2863,7 +2885,7 @@ new export and, in TypeScript, an option:
 
 About 25 ms of CPU natively for one eclipse and place, 60-75 ms in WebAssembly, both
 measured on a busy machine (about 5 500 slices through the Moon's outline: every 1/8° at
-maximum, every 1/16° near each contact); ACCURACY section 19 has the figures.
+maximum, every 1/16° near each contact); ACCURACY section 25 has the figures.
 
 ### `SolarEclipseLimb`
 
@@ -3192,7 +3214,7 @@ was to keep both tiers in the core if the module stayed inside its budget: the t
 series file is 127 958 bytes (99 276 gzipped), smaller than the three one-tier JSON
 files it replaced (477 494 bytes), and the module ends smaller than before: 2 781 402
 bytes raw and 1 238 604 gzipped, against main's 3 124 878 and 1 284 157 at f2a1a07
-(ACCURACY.md section 21). The packs mechanism is unchanged and serves `tides-us` (and later
+(ACCURACY.md section 31). The packs mechanism is unchanged and serves `tides-us` (and later
 `lunar-limb`); no `deep-time` producer is registered, so `packs_loaded` never lists it.
 
 ### `explorer_coverage()` — as built
@@ -3216,7 +3238,7 @@ The shape of "`explorer_coverage()` — tiers" above, with these values:
 - `start_utc`/`end_utc` are the labelled tier's ends (every group answers them);
   `accuracy_arcmin` and `validated` keep describing the validated tier, as before.
 - Published figures per group and tier (arcminutes, worst of GHA and Dec, from the
-  historical table, ACCURACY.md section 21):
+  historical table, ACCURACY.md section 31):
 
   | group | validated 1550–2650 | labelled 2000 BC–AD 3000 |
   |---|---|---|

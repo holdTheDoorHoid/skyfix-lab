@@ -1,5 +1,19 @@
 # Expansion programme — deep time, accuracy, astronomy and navigation features
 
+## Outcome
+
+All twelve wave-1 engines, all nine wave-2 interface packages and the wave-3 release
+trio (`verify2`, `docs3`, `polish2`) are done (§5 below has each one's status; two
+deviated from the plan by a recorded decision — no `deep-time` pack, and P10's own
+object list rather than the official Caldwell catalogue). `verify2`'s adversarial pass
+found 28 issues and fixed 21 on its own branch; the seven left for the planner are
+recorded in §3 ("Verifier decisions 2026-09-25"). The planner's own completion report —
+the full account of what shipped, against the owner's original request in §1 — is still
+to be written, most naturally as a further part of `docs/COMPLETION_REPORT.md` (which
+already holds the redesign programme's, as Part 1, and the original sprint's, as Part
+2). Until that lands, this plan plus §5's status column and `docs/BACKLOG.md`'s
+consolidated table are the record of what this programme actually delivered.
+
 Status: **plan, 2026-09-24**. Written by the planner (the main session, Claude Fable 5.1)
 from the owner's interview of 2026-09-24 and three audits (accuracy and coverage, feature
 inventory, data sources; the audits live in the planner's scratchpad and their findings are
@@ -20,7 +34,7 @@ Sonnet 5. The explorer redesign that this programme builds on is described in
 
 | Question | Decision |
 |---|---|
-| How far in time | **2000 BC to AD 3000.** Full accuracy over 1550–2650, validated against JPL DE440 (which covers exactly that span). Outside it, a labelled *historical / far-future* band whose uncertainty (mainly the Earth's rotation, ΔT) is shown on screen and validated against NASA's Five Millennium Canons. Julian calendar before 1582-10-15. |
+| How far in time | **2001 BC to AD 3000.** Full accuracy over 1550–2650, validated against JPL DE440 (which covers exactly that span). Outside it, a labelled *historical / far-future* band whose uncertainty (mainly the Earth's rotation, ΔT) is shown on screen and validated against NASA's Five Millennium Canons. Julian calendar before 1582-10-15. |
 | Astronomy features | **All four bundles:** Tonight dashboard and deep sky; Moon and planets in detail; photography and Sun tools; calendar, export and sharing. |
 | Navigation features | **All four bundles:** tides (US stations, NOAA); compass and magnetic variation; sailings and passage planning; sight extras. |
 | Extra data | **Optional packs, small core.** The first visit stays about 1 MB. Each extra dataset downloads once when it is turned on (or needed) and is kept offline, like the street map today. |
@@ -109,7 +123,7 @@ The seven principles of `EXPLORER_PLAN.md` §3 stand. Three are extended:
 
 - **Validated or labelled → tiers of coverage.** Every provider reports a *tier* for a date:
   `validated` (1550–2650: the accuracy figures in `ACCURACY.md` hold), `labelled`
-  (2000 BC–1549 and 2651–3000: the figures in the historical table hold and the on-screen
+  (2001 BC–1549 and 2651–3000: the figures in the historical table hold and the on-screen
   band says so), or `outside`. The UI never shows a number from the labelled band without
   the band's uncertainty beside it. Sights are offered only in the validated tier.
 - **Module size (budget revised 2026-09-25).** The core module's budget is ≤ 1.25 MB
@@ -121,7 +135,7 @@ The seven principles of `EXPLORER_PLAN.md` §3 stand. Three are extended:
   "z"` if the performance budgets hold and profiles the code with twiggy for cheap wins;
   the owner is told that the first visit is about 1.2 MB rather than 1 MB.
 - **Decision 2026-09-25 (deep time landed).** Both tiers ship in the core, so there is no
-  deep-time pack: the labelled tier (2000 BC–AD 3000, display only) is cut to 5″ per planet
+  deep-time pack: the labelled tier (2001 BC–AD 3000, display only) is cut to 5″ per planet
   (Earth 0.3″) so the module fits the budget (2.78 MB raw / 1.24 MB gzipped after the merge,
   down from 3.12 MB / 1.28 MB, because the ephemeris tables became one 128 KB binary). The
   looser cut only affects the labelled tier's published figures (Venus 0.06′, Mars 0.15′,
@@ -177,10 +191,10 @@ tables already hold 0.23″ and 0.57″ over 1550–2650. Three things are:
 
 1. **The Moon theory's secular drift.** ELP 2000-82B was fitted to DE200; against DE440 it
    drifts as 0.12 + 0.39 t + 0.96 t² arcseconds (t in centuries from 2000): 18″ in 1550,
-   43″ in 2650, 25′ at 2000 BC. Its mean-longitude polynomial (W1) is refitted to DE440 and
+   43″ in 2650, 25′ at 2001 BC. Its mean-longitude polynomial (W1) is refitted to DE440 and
    DE441, or replaced by ELP/MPP02 if the data audit finds it reachable.
 2. **No ΔT model.** TT − UT is frozen at 42.184 s before 1972 and at 69.184 s after 2026,
-   so 1550 is 153 s wrong (the Moon by 1.4′) and 2000 BC by 13 hours.
+   so 1550 is 153 s wrong (the Moon by 1.4′) and 2001 BC by 13 hours.
 3. **Calendars and time labels.** Julian dates before 1582-10-15, years before 1 AD and
    after 9999, "UT" instead of "UTC" outside 1972–2035, and year entry in the UI.
 
@@ -189,7 +203,7 @@ tables already hold 0.23″ and 0.57″ over 1550–2650. Three things are:
 | Band | Tier | Where the tables live | Accuracy target |
 |---|---|---|---|
 | 1550-01-01 to 2650-01-22 (DE440's span) | `validated` | the core module | as today: Sun ≤ 0.3″, planets ≤ 2″, Moon ≤ 5″ (a few ″ after the W1 refit), stars ≤ 1″; sights offered |
-| 2000 BC to 1549 and 2650 to AD 3000 | `labelled` | the `deep-time` pack | measured per century against DE441 and tabulated in `ACCURACY.md`; every time shown carries the ΔT uncertainty; no sights |
+| 2001 BC to 1549 and 2650 to AD 3000 | `labelled` | the `deep-time` pack | measured per century against DE441 and tabulated in `ACCURACY.md`; every time shown carries the ΔT uncertainty; no sights |
 | outside | `outside` | — | refused, as today |
 
 Core series after re-truncation over 1550–2650 (the audit's measured counts): Sun VSOP87D
@@ -202,7 +216,7 @@ first time the time bar leaves the validated band.
 
 Two in-window corrections come with the series work: IAU 2000B nutation gets the full
 polynomial fundamental arguments (its linear arguments err by 29 mas over 1550–2650 and
-950 mas at 2000 BC; 3 mas after the change), and the navigational stars get radial
+950 mas at 2001 BC; 3 mas after the change), and the navigational stars get radial
 velocities (the perspective term reaches 26″ for Rigil Kentaurus by 2650).
 
 ### 4.3 Time scales
@@ -211,7 +225,7 @@ velocities (the perspective term reaches 26″ for Rigil Kentaurus by 2650).
   observed values (1962 onward, monthly) and, beyond both, to the long-term parabola
   −320 + 32.5 ((y − 1825)/100)² s, with a standard uncertainty: the published historical
   one where the splines apply, and the Huber/NASA growth law for the future (about 10 s in
-  2060, 33 s in 2100, ±15 min in 2650, ±30 min in 3000; ±1 h at 2000 BC). The tables cost
+  2060, 33 s in 2100, ±15 min in 2650, ±30 min in 3000; ±1 h at 2001 BC). The tables cost
   under 6 KB and live in the core.
 - **The clock the app shows** is UTC between 1972 and 2035 (the last year leap seconds can
   occur), and **UT** (Universal Time, ≈ UT1) outside that span, labelled as such; TT follows
@@ -279,40 +293,47 @@ dispatch, which the planner union-merges.
 
 ### Wave 1 — engines, data and the pack mechanism
 
-| # | Agent | Owns | Delivers | Acceptance |
-|---|---|---|---|---|
-| P1 | `moonshape` | `skyfix-core` (types, reduce, solver, `sights/wgs84`, predict, methods), CLI `--dut1`, `skyfix-wasm::nav` | The Moon Earth-shape term in the model Hc everywhere (4.4); DUT1 through session, CLI, WASM and the TS session type; the seconds-omitted warning; error-budget rows | WGS84 Moon sessions within 15 m (from 60–80 m); Moon parallax vs USNO 0.004′; every existing test passes; goldens regenerated with review |
-| P2 | `timescales` | `skyfix-core::{time, deltat, calendar}`, `skyfix-almanac::eclipses` ΔT hook, `skyfix-wasm::timescale`, CLI date parsing | ΔT model with σ; leap seconds and the DUT1 history; UT/UTC semantics; `time_info`; Julian/Gregorian/ISO calendars and BC years in core, CLI and the wire format; saros fix | ΔT within 1 s of Skyfield over 1973–2027 and within the published σ elsewhere; parse/format round-trips over −2000..3000; eclipse `delta_t_s` carries σ |
-| P3 | `deeptime` | `skyfix-ephemeris` (series tables, frames, moon, planets, sun, stars), `tools/reference` generators, `skyfix-wasm::coverage` | Core re-truncation over 1550–2650; W1 refit (or ELP/MPP02); nutation arguments; star radial velocities and the α Cen orbit; long-term precession; the `deep-time` pack (binary format, loader, tables); coverage tiers in `explorer_coverage`; generators parameterised; fixtures per half-century; the historical accuracy table | per 4.2; core WASM no larger than today; the pack ≤ 600 KB raw |
-| P4 | `geomag` | new crate `skyfix-geomag`, `skyfix-wasm::geomag` | WMM2025 and IGRF-14: declination (variation), inclination, intensity and annual change anywhere, 1900–2030; compass error by the Sun's (any body's) azimuth and by amplitude | within 0.01° of NOAA's and BGS's published test values; IGRF within 0.1° of NOAA's calculator |
-| P5 | `tides` | new crate `skyfix-tides`, `tools/tides`, the `tides-us` pack, `skyfix-wasm::tides` | NOAA harmonic constants for every US tide-prediction station; harmonic prediction with nodal corrections; high and low water search; station index by distance | within 2 min and 5 cm of NOAA's own predictions for 20 stations over 30 days each; the pack ≤ 2 MB gzipped |
-| P6 | `sailings` | `skyfix-core::{sailings, methods::starid}`, `corrections` horizon mode, `skyfix-wasm::sailings` | Great-circle, rhumb-line and composite sailings with waypoints; forward dead reckoning and ETA; dip short; star identification from altitude and bearing; star-finder chart data; index- and watch-error log in the session schema | Bowditch worked examples reproduce; identification recovers each of the 58 stars from its own Hs and Zn |
-| P7 | `suntools` | `skyfix-almanac::{sun_tools, azimuth}`, `skyfix-wasm::suntools` | Golden and blue hour; `find_azimuth`; alignment finder; analemma, sun-path and azimuth-through-the-year series; equation of time; clear-sky irradiance and panel energy (labelled estimate); galactic-centre visibility windows | matches `sky_state` to 0.01°; the solar model within its stated bounds of a published clear-sky reference |
-| P8 | `moondetail` | `skyfix-almanac::{libration, apsides, occultations}`, `skyfix-wasm::moondetail` | Libration and position angles; terminator geometry and named features on it (USGS gazetteer subset); perigee, apogee and supermoons; lunar occultations of planets and bright stars with local times | libration within 0.05° of Skyfield; occultation contacts within 30 s of Skyfield's topocentric geometry (mean limb, labelled); apsides within 2 min |
-| P9 | `planetdetail` | `skyfix-almanac::{satellites, rings, transits, conjunctions}`, `skyfix-wasm::planetdetail` | Galilean moons; Saturn's rings; apparent diameters and central meridians; transits of Mercury and Venus with local circumstances; planet–planet and Moon–planet conjunctions; stations; Earth's perihelion and aphelion | moons within 1″ of Skyfield/Horizons; transits within 1 min of NASA's catalogue; conjunctions within 5 min of Skyfield |
-| P10 | `deepsky` | `skyfix-starfield::{dso, showers, milkyway, search, tonight}`, `skyfix-wasm::deepsky` | Messier and Caldwell (compiled facts, no credit); meteor showers; a Milky Way outline (per the data audit); the "tonight" ranking (darkness window, Moon interference, best-placed objects); a search index over stars and objects; extinction | coordinates cross-checked against two sources; visibility agrees with `sky_state` |
-| P11 | `packs` | `web/src/next/packs`, `web/src/sw`, `web/plugins`, `skyfix-wasm::packs`, `shell` fixes | The pack mechanism (manifest, app cache, worker route, Settings → Data packs, on-demand prompt); `load_pack` plumbing and mock; CI build of packs; links to the manual and the repository; install button; Web Share; 12-hour clock option; "coming soon" cleanup; `/classic/` retired behind a redirect | offline check passes; packs survive a worker update; the old share links still open |
-| P12 | `eclipselimb` | `skyfix-almanac::eclipses::limb`, the `lunar-limb` pack | Lunar limb profile from a public-domain DEM ring; Baily's beads; contact-time corrections | only if the data audit finds a credit-free, compact source; otherwise recorded in the backlog with the reason |
+Status column added by the documentation pass (docs3, 2026-09-25) from `docs/BACKLOG.md`'s
+consolidated table and `docs/VERIFICATION_2.md`; every `done` package still carries open
+enhancement rows of its own in the backlog, which this column does not repeat.
+
+| # | Agent | Owns | Delivers | Acceptance | Status |
+|---|---|---|---|---|---|
+| P1 | `moonshape` | `skyfix-core` (types, reduce, solver, `sights/wgs84`, predict, methods), CLI `--dut1`, `skyfix-wasm::nav` | The Moon Earth-shape term in the model Hc everywhere (4.4); DUT1 through session, CLI, WASM and the TS session type; the seconds-omitted warning; error-budget rows | WGS84 Moon sessions within 15 m (from 60–80 m); Moon parallax vs USNO 0.004′; every existing test passes; goldens regenerated with review | done |
+| P2 | `timescales` | `skyfix-core::{time, deltat, calendar}`, `skyfix-almanac::eclipses` ΔT hook, `skyfix-wasm::timescale`, CLI date parsing | ΔT model with σ; leap seconds and the DUT1 history; UT/UTC semantics; `time_info`; Julian/Gregorian/ISO calendars and BC years in core, CLI and the wire format; saros fix | ΔT within 1 s of Skyfield over 1973–2027 and within the published σ elsewhere; parse/format round-trips over −2000..3000; eclipse `delta_t_s` carries σ | done |
+| P3 | `deeptime` | `skyfix-ephemeris` (series tables, frames, moon, planets, sun, stars), `tools/reference` generators, `skyfix-wasm::coverage` | Core re-truncation over 1550–2650; W1 refit (or ELP/MPP02); nutation arguments; star radial velocities and the α Cen orbit; long-term precession; the `deep-time` pack (binary format, loader, tables); coverage tiers in `explorer_coverage`; generators parameterised; fixtures per half-century; the historical accuracy table | per 4.2; core WASM no larger than today; the pack ≤ 600 KB raw | done, revised (§3): no `deep-time` pack — both tiers ship in the core module instead, a smaller total than the one-tier data it replaced |
+| P4 | `geomag` | new crate `skyfix-geomag`, `skyfix-wasm::geomag` | WMM2025 and IGRF-14: declination (variation), inclination, intensity and annual change anywhere, 1900–2030; compass error by the Sun's (any body's) azimuth and by amplitude | within 0.01° of NOAA's and BGS's published test values; IGRF within 0.1° of NOAA's calculator | done |
+| P5 | `tides` | new crate `skyfix-tides`, `tools/tides`, the `tides-us` pack, `skyfix-wasm::tides` | NOAA harmonic constants for every US tide-prediction station; harmonic prediction with nodal corrections; high and low water search; station index by distance | within 2 min and 5 cm of NOAA's own predictions for 20 stations over 30 days each; the pack ≤ 2 MB gzipped | done |
+| P6 | `sailings` | `skyfix-core::{sailings, methods::starid}`, `corrections` horizon mode, `skyfix-wasm::sailings` | Great-circle, rhumb-line and composite sailings with waypoints; forward dead reckoning and ETA; dip short; star identification from altitude and bearing; star-finder chart data; index- and watch-error log in the session schema | Bowditch worked examples reproduce; identification recovers each of the 58 stars from its own Hs and Zn | done |
+| P7 | `suntools` | `skyfix-almanac::{sun_tools, azimuth}`, `skyfix-wasm::suntools` | Golden and blue hour; `find_azimuth`; alignment finder; analemma, sun-path and azimuth-through-the-year series; equation of time; clear-sky irradiance and panel energy (labelled estimate); galactic-centre visibility windows | matches `sky_state` to 0.01°; the solar model within its stated bounds of a published clear-sky reference | done |
+| P8 | `moondetail` | `skyfix-almanac::{libration, apsides, occultations}`, `skyfix-wasm::moondetail` | Libration and position angles; terminator geometry and named features on it (USGS gazetteer subset); perigee, apogee and supermoons; lunar occultations of planets and bright stars with local times | libration within 0.05° of Skyfield; occultation contacts within 30 s of Skyfield's topocentric geometry (mean limb, labelled); apsides within 2 min | done |
+| P9 | `planetdetail` | `skyfix-almanac::{satellites, rings, transits, conjunctions}`, `skyfix-wasm::planetdetail` | Galilean moons; Saturn's rings; apparent diameters and central meridians; transits of Mercury and Venus with local circumstances; planet–planet and Moon–planet conjunctions; stations; Earth's perihelion and aphelion | moons within 1″ of Skyfield/Horizons; transits within 1 min of NASA's catalogue; conjunctions within 5 min of Skyfield | done; verify2 found the published 1″ held only near the present and made it a figure by era (0.5″ to 2040, 3″ outside 1600–2200) |
+| P10 | `deepsky` | `skyfix-starfield::{dso, showers, milkyway, search, tonight}`, `skyfix-wasm::deepsky` | Messier and Caldwell (compiled facts, no credit); meteor showers; a Milky Way outline (per the data audit); the "tonight" ranking (darkness window, Moon interference, best-placed objects); a search index over stars and objects; extinction | coordinates cross-checked against two sources; visibility agrees with `sky_state` | done, revised: 110 Messier plus 103 others by the agent's own stated rule, not the official 109-object Caldwell catalogue |
+| P11 | `packs` | `web/src/next/packs`, `web/src/sw`, `web/plugins`, `skyfix-wasm::packs`, `shell` fixes | The pack mechanism (manifest, app cache, worker route, Settings → Data packs, on-demand prompt); `load_pack` plumbing and mock; CI build of packs; links to the manual and the repository; install button; Web Share; 12-hour clock option; "coming soon" cleanup; `/classic/` retired behind a redirect | offline check passes; packs survive a worker update; the old share links still open | done |
+| P12 | `eclipselimb` | `skyfix-almanac::eclipses::limb`, the `lunar-limb` pack | Lunar limb profile from a public-domain DEM ring; Baily's beads; contact-time corrections | only if the data audit finds a credit-free, compact source; otherwise recorded in the backlog with the reason | done: LRO LOLA LDEM_16 (NASA, public domain) found and shipped as the pack |
 
 ### Wave 2 — the interface
 
-| # | Agent | Delivers |
-|---|---|---|
-| Q1 | `time-ui` | Year entry and jumps, century and millennium steps, BC and Julian dates, UT/UTC labels, LMT before 1850, tier chips and ΔT uncertainty bands wherever a time is shown, the deep-time pack prompt, the About coverage table with tiers |
-| Q2 | `tonight` | The **Tonight** view (a tab; About moves into Help): darkness window, Moon, planets, meteor showers, best-placed objects, the Milky Way, events soon, next tide where a station is near |
-| Q3 | `sky2` | Search and centre; Messier and Caldwell symbols with click-to-identify; the Milky Way; RA/Dec grid; field-of-view circles; magnitude-limit and light-pollution control; extinction; meteor radiants; Moon and planet "eyepiece" insets (libration, terminator and features; Jupiter's moons; Saturn's rings); tonight's stars ringed; save as image |
-| Q4 | `events2` | Apsides and supermoons, stations, conjunctions, occultations with local times, transits with local circumstances, meteor showers, ΔT uncertainty on far dates, ICS export |
-| Q5 | `charts2` | A Sun tab (sun path, analemma, azimuth through the year, equation of time, solar panel); a Tides tab; Moon altitude and azimuth through the year; PNG, CSV and print for every chart |
-| Q6 | `navigate2` | DUT1, site elevation and the index-correction control; a Compass tab (variation, compass error by azimuth and amplitude); a Passage tab (sailings, waypoints on the map, DR track feeding the running fix, ETA); dip short; star identification; printable worksheets and plotting sheets; the star finder; the error log |
-| Q7 | `almanac2` | Increments and corrections, altitude corrections, Polaris and arc-to-time tables; multi-day pages; any year |
-| Q8 | `photo` | Golden and blue hour on the time bar and the Sun card; the alignment finder; the Milky Way planner; "when is it at" a bearing; RA/Dec, variation and the next tide on the Selected card |
-| Q9 | `cli3` | Command-line parity for every wave-1 engine |
+| # | Agent | Delivers | Status |
+|---|---|---|---|
+| Q1 | `time-ui` | Year entry and jumps, century and millennium steps, BC and Julian dates, UT/UTC labels, LMT before 1850, tier chips and ΔT uncertainty bands wherever a time is shown, the deep-time pack prompt, the About coverage table with tiers | done, revised: no deep-time pack to prompt for (P3); the tier notice and pack prompts work from the pack registry instead |
+| Q2 | `tonight` | The **Tonight** view (a tab; About moves into Help): darkness window, Moon, planets, meteor showers, best-placed objects, the Milky Way, events soon, next tide where a station is near | done |
+| Q3 | `sky2` | Search and centre; Messier and Caldwell symbols with click-to-identify; the Milky Way; RA/Dec grid; field-of-view circles; magnitude-limit and light-pollution control; extinction; meteor radiants; Moon and planet "eyepiece" insets (libration, terminator and features; Jupiter's moons; Saturn's rings); tonight's stars ringed; save as image | done |
+| Q4 | `events2` | Apsides and supermoons, stations, conjunctions, occultations with local times, transits with local circumstances, meteor showers, ΔT uncertainty on far dates, ICS export | done |
+| Q5 | `charts2` | A Sun tab (sun path, analemma, azimuth through the year, equation of time, solar panel); a Tides tab; Moon altitude and azimuth through the year; PNG, CSV and print for every chart | done |
+| Q6 | `navigate2` | DUT1, site elevation and the index-correction control; a Compass tab (variation, compass error by azimuth and amplitude); a Passage tab (sailings, waypoints on the map, DR track feeding the running fix, ETA); dip short; star identification; printable worksheets and plotting sheets; the star finder; the error log | done |
+| Q7 | `almanac2` | Increments and corrections, altitude corrections, Polaris and arc-to-time tables; multi-day pages; any year | done |
+| Q8 | `photo` | Golden and blue hour on the time bar and the Sun card; the alignment finder; the Milky Way planner; "when is it at" a bearing; RA/Dec, variation and the next tide on the Selected card | done |
+| Q9 | `cli3` | Command-line parity for every wave-1 engine | done |
 
 ### Wave 3 — release
 
-`verify2` (adversarial verification of every new numeric path), `docs3` (Sonnet: guide,
-accuracy, sources, backlog), `polish2` (integration polish from the planner's list), and the
-planner's completion report.
+`verify2` (adversarial verification of every new numeric path) — **done**: 28 findings (6
+high, 8 medium, 14 low), 21 fixed on its branch, 7 left for the planner (§3 above records
+the licence and CI decisions; V26–V28 went to `docs3`). `docs3` (Sonnet: guide, accuracy,
+sources, backlog) — **done**: this pass. `polish2` (integration polish from the planner's
+list) — **done**: 1 146 of 1 146 browser checks on the final build. The planner's
+completion report is the one item here still to write, after this pass is merged.
 
 ## 6. Process rules
 
