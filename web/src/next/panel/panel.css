@@ -228,6 +228,16 @@
   color: var(--chrome-ink-3);
 }
 
+/* The ±ΔT chip under a card's time, far from today (polish2; time/chip.ts). */
+.sf-evcard__dt {
+  margin: 1px 0 2px;
+  line-height: 1;
+}
+
+.sf-evcard__dt[hidden] {
+  display: none;
+}
+
 /* "Fri" beside a time that falls on the next day. */
 .sf-evcard__day {
   margin-left: 4px;
