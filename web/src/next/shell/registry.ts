@@ -50,6 +50,7 @@ export const VIEW_FOLDERS: Record<ViewId, string> = {
   events: 'events',
   learn: 'learn',
   about: 'about',
+  tonight: 'tonight',
 };
 
 export const SLOT_NAMES = ['star-sights'] as const;

@@ -69,7 +69,7 @@ export function averageMethod(host: HTMLElement, nc: NavCtx): Mounted {
       if (!isCurrent()) return;
       f.setStatus('idle');
       const format = angleFormat(nc);
-      const z = zone(nc);
+      const z = zone(nc, r.jd_utc);
       const add = btn('Add this averaged sight to my sights', () => {
         const now = store.get();
         const obs = { ...r.observation };

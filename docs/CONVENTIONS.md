@@ -562,6 +562,93 @@ facing daily pages give (wire format: EXPLORER_API.md "Wave 2 — almanac pages"
   HP and SD to 0.1′, magnitudes to 0.1, times to the nearest minute (Aries' meridian
   passage to 0.1 minute), the equation of time to the second.
 
+#### 13.9.1 The almanac's other tables and three-day openings (almanac2 agent, expansion programme Q7)
+
+`skyfix_almanac::tables` (Conversion of Arc to Time, Increments and Corrections, the
+Altitude Correction Tables, the additional corrections for Venus and Mars, the Polaris
+tables) and `skyfix_almanac::opening` (three dates on two facing pages); wire formats in
+EXPLORER_API.md, "Expansion programme — almanac tables and three-day pages"; accuracy in
+ACCURACY.md, "Almanac tables and three-day pages". Display and teaching only: sight reduction never reads these
+tables, it runs section 5 directly, and the tables are built so that a navigator using
+them gets the Ho the chain gets, to the tables' rounding.
+
+- **Rounding.** Every printed value is rounded to the printed precision, exact halves
+  **up** (toward +∞), as the printed tables round. Increments and arc to time are done in
+  integers, so their halves are exact (the Sun's increment for 1 s is 0.25′, printed
+  `0 00.3`).
+- **Critical tables** (the Sun and the stars and planets from 10° to 90°, dip, Venus and
+  Mars) print only the arguments at which the rounded correction changes. Each boundary is
+  the last argument at the printed precision (1′ of apparent altitude, 0.1 m, 0.1 ft, 1°
+  for Venus and Mars) that still takes the correction printed above it, so an argument
+  given to that precision always gets the correctly rounded correction; an argument equal
+  to a boundary takes the correction above it ("in critical cases ascend", Bowditch 2024
+  vol. 2 §614).
+- **Increments and corrections**, one table per minute 0 to 59, seconds 00 to 60: the Sun
+  and planets at 15° an hour, Aries at 360.985 647 366 29° a UT day (15° 02.464′ an hour,
+  the rate of Greenwich sidereal time), the Moon at 14° 19.0′ an hour (its slowest, so its
+  `v` is never negative). The v or d corrections, for 0.0′ to 18.0′, are `v (m + ½) / 60`:
+  for the middle of the minute, as the printed tables compute them.
+- **Arc to time**: 1° = 4 min, 1′ = 4 s, quarters of a minute of arc; exact.
+- **Altitude corrections are this project's chain** (section 5) at 1010 hPa and 10 °C,
+  laid out, rounded and split as the printed Nautical Almanac lays out its own:
+  stars and planets `−R(Ha)`; the Sun `−R(Ha) + HP cos Ha ± SD`, HP 8.794″ and the printed
+  table's two semidiameters, 16.15′ for October to March and 15.9′ for April to
+  September (`2 SD` is a whole number of tenths, so both limbs change at the same
+  altitudes and share one critical table); dip `1.76′ √h` for `h` in metres (the feet
+  column converts to metres first); 0° to 10° a direct table every 3′ to 1° 30′, every 5′
+  to 6°, every 10′ to 10°, for interpolation. Because the printed almanac's refraction is
+  a different formula, an entry can differ from the printed one by 0.1′.
+- **The Moon's two-part table.** `C(Ha, HP, limb)` is the chain's `Ho − Ha` for the Moon:
+  Bennett's refraction, the limb to the centre with the augmented semidiameter
+  (`SD = asin(0.2725076 sin HP)`), the rigorous parallax at the centre's airless altitude.
+  Upper part, `Ha` every 10′ from 0° to 89° 50′: `C(Ha, 57.7′, lower) − 5′`. Lower part,
+  `HP` 54.0′ to 61.5′ every 0.3′, in the upper part's 5° column, at the column's middle
+  altitude (2.5°, 7.5°, …): `L = C(Ha_c, HP, lower) − C(Ha_c, 57.7′, lower) + 5′`,
+  `U = C(Ha_c, HP, upper) − C(Ha_c, 57.7′, lower) + 35′`. In use: upper part + L (lower
+  limb), or upper part + U − 30′ (upper limb). The column's middle and the 10′ rows are
+  the table's own approximations; the accuracy notes measure them.
+- **Non-standard conditions.** Refraction scales with the air's density
+  `f = (P / 1010) (283 / (273 + T))`, so the additional correction is `R(Ha) (1 − f)`.
+  The zones are this project's: 13 letters A to N (no I) of equal `f`, each 0.02 wide,
+  zone G centred on `f = 1` (A is `f = 1.12`, cold and high pressure; N is 0.88); the
+  chart is the family of lines `P = 1010 f (273 + T) / 283` for −20 °C to 40 °C and 970 to
+  1050 hPa. The printed almanac draws its own zones on its graph, so a letter can differ
+  from the printed one; the exact correction for a given T and P (`conditions`) does not
+  depend on the zones.
+- **Venus and Mars** for a calendar year: a run of dates is a run of days whose `HP` at
+  0h UT rounds to the same 0.1′; its table is the parallax in altitude for that rounded
+  `HP`, `asin(sin HP cos Ha)`, in whole degrees of `Ha` (an exact tie rounds as the
+  rigorous value falls: for 0.1′ at 60° it is a hair under 0.05′, so 60° takes 0.0′).
+  Jupiter and Saturn, under 0.04′, have none (the chain applies theirs).
+- **Polaris** for a calendar year: `Latitude = Ho − 1° + a0 + a1 + a2` with
+  `a0 = 58.8′ − p0 cos h0 + ½ p0 sin p0 sin² h0 tan 50°`,
+  `a1 = 0.6′ + ½ p0 sin p0 sin² h0 (tan φ − tan 50°)` and
+  `a2 = 0.6′ − p cos h + p0 cos h0`, `p` the polar distance and `h = LHA Aries + SHA` the
+  hour angle, `p0`, `h0` from the adopted mean position: the mean of Polaris' apparent
+  SHA and Dec at 0h UT every 5 days from January 1 (73 places). 36 columns of 10° of LHA
+  Aries; a0 for every whole degree (row 10 repeats the next column's first); a1 for 0° to
+  68° N and the azimuth (from the mean position) for 0° to 65° N, both at the column's
+  middle (+5°); a2 for the middle of each month. The formula is second order in `p`; its
+  own error for the year (`formula_error_arcmin`, the worst over 0° to 68° N) is reported,
+  and above 0.1′ (Polaris more than about 1.6° from the pole: before about 1800 and after
+  about 2450) the table carries a warning.
+- **Three dates to an opening**, grouped from January 1 by the day of the year in the
+  calendar the dates are shown in: 1–3, 4–6, …; a common year's last opening is December
+  30, 31 and January 1 of the next year, a leap year's December 29 to 31. With the display
+  calendar (`auto`) the Julian calendar is used before 1582-10-15 and the Gregorian from
+  then; 1582 is counted from Julian January 1 across the reform (October 4 is followed by
+  October 15). The ISO setting of section 15.3 groups proleptic Gregorian dates. The
+  opening is the three one-date pages of 13.9 unchanged, with once-per-opening values
+  from the middle date (the stars, the planets' magnitudes, v, d and meridian passages,
+  Aries' meridian passage, the Sun's SD and d, the twilight and sunrise table), the
+  planets' SHA at 0h UT of the middle date, and moonrise and moonset for the three dates
+  and the next.
+- **Any year.** Dates on the wire are proleptic Gregorian `YYYY-MM-DD`, with a sign and at
+  least four digits outside 0000-9999 (section 15.3); the pages and tables answer wherever
+  the providers do. Openings before 1767, the year of the first Nautical Almanac, carry a
+  note that they show what its tables would have said, in its format, from today's
+  ephemeris. The view shows every labelled-tier date with the ±ΔT chip (15.6).
+
 ### 13.10 Sun tools (expansion programme, suntools agent, 2026-09-24)
 
 `skyfix_almanac::sun_tools`; wire formats in EXPLORER_API.md, "Expansion programme — sun

@@ -209,7 +209,7 @@ export function optionalUtcField(nc: NavCtx, label: string, emptyMeans: string, 
   const update = (): void => {
     const v = read();
     const jd = v ? jdFromIso(v) : null;
-    f.parts.setHelp(jd !== null ? `= ${fmtInstant(jd, zone(nc))}` : `UTC. Empty: ${emptyMeans}.`);
+    f.parts.setHelp(jd !== null ? `= ${fmtInstant(jd, zone(nc, jd))}` : `UTC. Empty: ${emptyMeans}.`);
   };
   f.input.addEventListener('change', update);
   update();

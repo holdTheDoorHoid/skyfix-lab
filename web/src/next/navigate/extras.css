@@ -1,0 +1,351 @@
+/*
+ * Navigate view: the expansion programme's additions (navigate2 agent). Design tokens
+ * only (theme/tokens.css), never a literal colour, so the three themes, the red night
+ * theme included, follow with no script. The printables' own sheet is print.css.
+ */
+
+/* ------------------------------------------------------------------------------------ */
+/* Session settings: DUT1, shore horizon, error logs                                     */
+
+.sfn-dut1-auto {
+  margin-top: calc(-1 * var(--space-1));
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--stage-line-strong);
+}
+
+.sfn-dut1-auto--caution {
+  border-left-color: var(--caution);
+  color: var(--ui-ink);
+}
+
+.sfn-shore__sentence {
+  margin-top: 2px;
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--stage-line-strong);
+  color: var(--ui-ink-2);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.sfn-shore__sentence--caution {
+  border-left-color: var(--caution);
+  color: var(--ui-ink);
+}
+
+.sfn-log__count {
+  color: var(--stage-ink-3);
+  font-family: var(--font-num);
+}
+
+.sfn-log__table td,
+.sfn-log__table th {
+  vertical-align: middle;
+}
+
+.sfn-log__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sfn-log__add > .sfn-field {
+  flex: 1 1 8rem;
+}
+
+.sfn-log__time {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2);
+  flex: 2 1 16rem;
+}
+
+.sfn-log__time > .sfn-field {
+  flex: 1 1 11rem;
+}
+
+.sfn-log__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding-bottom: 2px;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Compass                                                                               */
+
+.sfn-variation {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sfn-variation__value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+}
+
+.sfn-variation__big {
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  line-height: 1.1;
+}
+
+.sfn-variation--none .sfn-variation__value {
+  color: var(--stage-ink-2);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+}
+
+.sfn-compass__sentence {
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset 0 0 0 1px var(--stage-line);
+  background: var(--stage-surface-2);
+  color: var(--stage-ink);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: 1.35;
+}
+
+.sfn-devtable .sfn-table td,
+.sfn-devtable .sfn-table th {
+  vertical-align: middle;
+}
+
+.sfn-devchart-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.sfn-devchart {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.sfn-devchart__grid line {
+  stroke: var(--stage-line);
+  stroke-width: 1;
+}
+
+.sfn-devchart__grid line.sfn-devchart__zero {
+  stroke: var(--stage-line-strong);
+  stroke-width: 1.5;
+}
+
+.sfn-devchart__tick {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: 10.5px;
+}
+
+.sfn-devchart__curve {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.sfn-devchart__point {
+  fill: var(--stage-surface);
+  stroke: var(--stage-ink);
+  stroke-width: 2;
+}
+
+.sfn-devcoef li {
+  line-height: 1.4;
+}
+
+.sfn-devcard td,
+.sfn-devcard th {
+  padding: 2px 10px;
+}
+
+.sfn-devlookup {
+  flex: 0 1 14rem !important;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Sight form: the shore distance, the tier gate, "What did I shoot?"                     */
+
+.sfn-entry__instrument > .sfn-entry__shore {
+  grid-column: 1 / -1;
+}
+
+.sfn-entry__tier:empty {
+  display: none;
+}
+
+.sfn-starid__message {
+  font-size: var(--text-md);
+}
+
+.sfn-starid__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  list-style: none;
+}
+
+.sfn-starid__cand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--stage-line);
+}
+
+.sfn-starid__cand--out .sfn-starid__text {
+  opacity: 0.72;
+}
+
+.sfn-starid__text {
+  flex: 1 1 16rem;
+  min-width: 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.sfn-tierline:empty {
+  display: none;
+}
+
+/* ------------------------------------------------------------------------------------ */
+/* Passage                                                                               */
+
+.sfn-route__list {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+  border-top: 1px solid var(--stage-line);
+}
+
+.sfn-route__row {
+  display: grid;
+  grid-template-columns: 1.6rem minmax(0, 1fr) auto auto;
+  grid-template-areas: 'n fields leg actions';
+  align-items: start;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--stage-line);
+}
+
+@container (max-width: 520px) {
+  .sfn-route__row {
+    grid-template-columns: 1.6rem minmax(0, 1fr) auto;
+    grid-template-areas: 'n fields fields' '. leg actions';
+  }
+}
+
+.sfn-route__n {
+  grid-area: n;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-bold);
+}
+
+.sfn-route__fields {
+  grid-area: fields;
+  display: grid;
+  grid-template-columns: minmax(6rem, 1fr) minmax(0, 2fr);
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.sfn-route__fields > .sfn-field > label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.sfn-route__leg {
+  grid-area: leg;
+  padding-top: 2px;
+}
+
+.sfn-route__leg .sfn-select {
+  width: auto;
+  height: var(--control-h-sm);
+  font-size: var(--text-sm);
+}
+
+.sfn-route__start {
+  display: inline-block;
+  padding-top: 7px;
+  font-size: var(--text-sm);
+}
+
+.sfn-route__actions {
+  grid-area: actions;
+  display: inline-flex;
+  gap: 2px;
+}
+
+.sfn-route__add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sfn-route__add > .sfn-field:first-child {
+  flex: 3 1 16rem;
+}
+
+.sfn-route__add > .sfn-field:nth-child(2) {
+  flex: 1 1 8rem;
+}
+
+.sfn-route__add-actions {
+  display: flex;
+  gap: var(--space-1);
+  margin-top: 21px;
+}
+
+.sfn-legs-table td,
+.sfn-legs-table th {
+  vertical-align: top;
+}
+
+.sfn-legs-table td.sfn-num {
+  white-space: nowrap;
+}
+
+/* A field's label with something beside it (the ±ΔT chip beside a time, time-ui): the chip
+   sits outside the label, so it is not read as part of the control's name. */
+.sfn-field__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sfn-field__head > label {
+  color: var(--ui-ink-2);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+}
+
+.sfn-sight__time .sf-dt-chip,
+.sfn-dut1-auto .sf-dt-chip,
+.sfn-note .sf-dt-chip {
+  vertical-align: 1px;
+}

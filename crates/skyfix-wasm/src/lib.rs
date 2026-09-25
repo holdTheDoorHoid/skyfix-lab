@@ -726,3 +726,9 @@ mod tests {
 // alignments, analemma, sun path, equation of time, clear-sky energy, Milky Way windows.
 // Wire format: docs/EXPLORER_API.md, "Expansion programme — sun tools".
 pub mod suntools;
+
+// Expansion programme Q7 (almanac2 agent): the almanac's tables (increments and
+// corrections, altitude corrections, Polaris, arc to time) and three-day openings.
+// Wire format: docs/EXPLORER_API.md, "Expansion programme — almanac tables and three-day
+// pages".
+pub mod almanac_tables;

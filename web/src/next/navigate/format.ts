@@ -10,7 +10,9 @@
 
 import { formatLatitude, formatLatLon, formatLongitude, type CoordStyle } from '../geo/coords.js';
 import type { AngleFormat } from '../state.js';
-import { formatWithUtc, roundToSecond, wallClock, zoneShortName, UTC_ZONE, type Zone } from '../time.js';
+import { formatWithUtc, isoYear, jdFromIso, roundToSecond, wallClock, zoneShortName, UTC_ZONE, type Zone } from '../time.js';
+import { dateFromJdn, jdnFromCivil } from '../time/civil.js';
+import { scaleLabel } from '../time/scale.js';
 
 export const DEG = '°';
 export const PRIME = '′';
@@ -169,11 +171,15 @@ export function fmtInstant(jd: number, zone: Zone): string {
   return formatWithUtc(jd, zone, { seconds: true });
 }
 
-/** `01:30:05 UTC`, to the nearest second (time.ts `roundToSecond`). */
+/**
+ * `01:30:05 UTC`, to the nearest second (time.ts `roundToSecond`), with the clock's own word:
+ * `UT` outside 1972-2035 (time-ui `scaleLabel`, CONVENTIONS 15.2).
+ */
 export function fmtUtcClock(jd: number): string {
-  const w = wallClock(roundToSecond(jd), UTC_ZONE);
+  const t = roundToSecond(jd);
+  const w = wallClock(t, UTC_ZONE);
   const p = (n: number) => String(n).padStart(2, '0');
-  return `${p(w.hour)}:${p(w.minute)}:${p(w.second)} UTC`;
+  return `${p(w.hour)}:${p(w.minute)}:${p(w.second)} ${scaleLabel(t)}`;
 }
 
 /** `21:30:05 EDT` (the clock in a zone, to the nearest second, with the zone's short name). */
@@ -185,12 +191,35 @@ export function fmtZoneClock(jd: number, zone: Zone): string {
   return `${p(w.hour)}:${p(w.minute)}:${p(w.second)}\u00a0${zoneShortName(t, zone).replace(/ /g, '\u00a0')}`;
 }
 
-/** RFC 3339 as typed back into a time field: `2026-10-01 01:30:05` (UTC). */
+/**
+ * RFC 3339 as typed back into a time field: `2026-10-01 01:30:05` (the clock). The wire's
+ * proleptic Gregorian date is written in the display calendar (time/civil.ts), so a date
+ * before 1582-10-15 reads as the Julian date `parseUtcInput` takes back: `1550-03-11T…Z` is
+ * `1550-03-01 …` in the historical calendar. Years outside 0000-9999 are ISO 8601's (`-0584`).
+ */
 export function utcInputText(utc: string): string {
-  const m = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})(\.\d+)?Z$/.exec(utc);
+  const m = /^([+-]?\d{4,6})-(\d{2})-(\d{2})T(\d{2}:\d{2}:\d{2})(\.\d+)?Z$/.exec(utc);
   if (!m) return utc;
-  const frac = m[3] && Number(m[3]) !== 0 ? m[3].replace(/0+$/, '') : '';
-  return `${m[1]} ${m[2]}${frac}`;
+  const frac = m[5] && Number(m[5]) !== 0 ? m[5].replace(/0+$/, '') : '';
+  const d = dateFromJdn(jdnFromCivil('gregorian', Number(m[1]), Number(m[2]), Number(m[3])));
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${isoYear(d.year)}-${p(d.month)}-${p(d.day)} ${m[4]}${frac}`;
+}
+
+/**
+ * A clock instant as the fields show it, with the clock's own word (time-ui `scaleLabel`):
+ * `2026-10-01 01:30:05 UTC`, `2040-01-01 00:00:00 UT` (UT outside 1972-2035).
+ */
+export function utcText(utc: string): string {
+  const jd = jdFromIso(utc);
+  return `${utcInputText(utc)} ${jd === null ? 'UTC' : scaleLabel(jd)}`;
+}
+
+/** The clock part of `utcText`: `01:30:05 UTC` (a date of any year's width left off). */
+export function utcTimeText(utc: string): string {
+  const text = utcText(utc);
+  const parts = text.split(' ');
+  return parts.length >= 3 ? parts.slice(-2).join(' ') : text;
 }
 
 /** A number with fixed digits, or a dash. */

@@ -7,8 +7,9 @@
 import { h } from '../../../dom.js';
 import type { Mounted } from '../../component.js';
 import type { RunningFixOutput } from '../../engine/types.js';
+import { jdFromIso } from '../../time.js';
 import { angleFormat, zone, type NavCtx } from '../context.js';
-import { fmtBearing, fmtInstant, fmtNm, fmtNum, fmtSigma, utcInputText } from '../format.js';
+import { fmtBearing, fmtInstant, fmtNm, fmtNum, fmtSigma, utcInputText, utcTimeText } from '../format.js';
 import { fixWaypoints } from '../gpx.js';
 import { fixSession, runningRequestFor, type LegForm, type RunningForm, type Working } from '../model.js';
 import { parseNumber, parseUtcInput } from '../parse.js';
@@ -117,9 +118,11 @@ export function runningMethod(host: HTMLElement, nc: NavCtx): Mounted {
         return;
       }
       if (!isCurrent()) return;
-      const z = zone(nc);
+      const z = zone(nc, jdFromIso(out.reference_utc));
       const pictures = await fixPictures(nc, out.result, session, 'Running fix');
-      pictures.overlay.fixLabel = `Running fix, ${out.reference_utc.slice(11, 16)} UTC`;
+      // The clock to the minute with its word (UT outside 1972-2035: time-ui `scaleLabel`).
+      const ref = utcTimeText(out.reference_utc).split(' ');
+      pictures.overlay.fixLabel = `Running fix, ${ref[0]!.slice(0, 5)} ${ref[1] ?? 'UTC'}`;
       if (!isCurrent()) return;
       f.setStatus('idle');
       const result = out.result;

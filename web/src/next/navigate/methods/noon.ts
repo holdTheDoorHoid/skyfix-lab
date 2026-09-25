@@ -132,10 +132,10 @@ export function noonMethod(host: HTMLElement, nc: NavCtx): Mounted {
       if (!isCurrent()) return;
       f.setStatus('idle');
       const format = angleFormat(nc);
-      const z = zone(nc);
+      const passage = r.meridian_passage;
+      const z = zone(nc, passage?.jd_utc ?? r.maximum?.jd_utc ?? r.dr_check?.predicted_passage_jd_utc);
       const lat = r.latitude;
       const lon = r.longitude;
-      const passage = r.meridian_passage;
       f.results.replaceChildren(
         h(
           'div',
