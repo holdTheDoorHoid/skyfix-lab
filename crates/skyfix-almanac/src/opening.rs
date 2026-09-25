@@ -84,6 +84,8 @@ pub struct AlmanacOpening {
     pub days: Vec<AlmanacDay>,
     /// The four dates of the moonrise and moonset columns (wire).
     pub moon_dates: Vec<String>,
+    /// The same four dates in `calendar`, for the column headings.
+    pub moon_days: Vec<OpeningDay>,
     /// 31 latitudes, 72 N to 60 S.
     pub moon_rows: Vec<OpeningMoonRow>,
     /// Venus, Mars, Jupiter and Saturn (those computed), at 0h UT of the middle date.
@@ -237,6 +239,7 @@ pub fn almanac_opening(
         dates,
         days,
         moon_dates,
+        moon_days: (0..4).map(|k| opening_day(jdns[0] + k, cal)).collect(),
         moon_rows,
         planet_sha_00h,
         notes,

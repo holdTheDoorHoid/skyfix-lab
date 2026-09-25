@@ -89,6 +89,13 @@ function wireDate(jdn: number): string {
   return `${formatYear(y)}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 }
 
+function openingDay(j: number, cal: CalendarKind | null) {
+  const c: CalendarKind = cal ?? (j < 2_299_161 ? 'julian' : 'gregorian');
+  const [year, month, day] = civilFromJdn(c, j);
+  const { era_year, era } = eraOf(year);
+  return { date: wireDate(j), calendar: c, year, month, day, era_year, era, weekday: WEEKDAYS[(((j + 1) % 7) + 7) % 7]! };
+}
+
 export function mockAlmanacOpening(
   almanacDay: (date: string) => AlmanacDay,
   date: string,
@@ -105,12 +112,8 @@ export function mockAlmanacOpening(
     date: wireDate(jdn),
     calendar: shown,
     index,
-    dates: jdns.map((j) => {
-      const c: CalendarKind = cal ?? (j < 2_299_161 ? 'julian' : 'gregorian');
-      const [year, month, day] = civilFromJdn(c, j);
-      const { era_year, era } = eraOf(year);
-      return { date: wireDate(j), calendar: c, year, month, day, era_year, era, weekday: WEEKDAYS[(((j + 1) % 7) + 7) % 7]! };
-    }),
+    dates: jdns.map((j) => openingDay(j, cal)),
+    moon_days: [0, 1, 2, 3].map((k) => openingDay(jdns[0]! + k, cal)),
     days,
     moon_dates: [days[0]!.date, days[1]!.date, days[2]!.date, days[2]!.rise_set.moon_dates[1] ?? ''],
     moon_rows: days[1]!.rise_set.rows.map((row, i) => ({

@@ -3716,6 +3716,8 @@ export interface AlmanacOpening {
   days: AlmanacDay[];
   /** The three dates and the next (wire). */
   moon_dates: string[];
+  /** The same four dates in `calendar`, for the column headings. */
+  moon_days: AlmanacOpeningDay[];
   moon_rows: AlmanacOpeningMoonRow[];
   /** At 0h UT of the middle date. */
   planet_sha_00h: AlmanacPlanetSha[];
