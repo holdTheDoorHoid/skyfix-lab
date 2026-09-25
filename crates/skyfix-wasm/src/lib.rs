@@ -38,6 +38,8 @@ pub mod planet_events;
 pub mod starfield;
 // Expansion programme, wave 1 (docs/EXPANSION_PLAN.md section 5): one module per agent.
 pub mod timescale;
+// Expansion programme (deeptime agent): coverage tiers, `explorer_coverage` and `tier_at`.
+pub mod coverage;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;

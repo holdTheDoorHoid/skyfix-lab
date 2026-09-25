@@ -18,6 +18,8 @@ import type {
   BodyInfo,
   CalendarConversion,
   CalendarConvertRequest,
+  CoverageTier,
+  CoverageTierEngine,
   BodySelection,
   ConstellationBoundary,
   DayEvents,
@@ -139,6 +141,8 @@ export interface ExplorerWasmExports {
   time_info?(jdUtc: number): unknown;
   set_dut1?(seconds: number | null | undefined): unknown;
   calendar_convert?(requestJson: string): unknown;
+  /** Expansion programme, coverage tiers (deeptime agent); absent in older builds. */
+  tier_at?(jdUtc: number): string;
   version?(): string;
   // Expansion programme — sun tools (suntools agent; EXPLORER_API "Expansion programme —
   // sun tools"); absent in older builds.
@@ -209,7 +213,14 @@ function rebuildError(name: string, what: string): Error {
 }
 
 export class WasmEngine
-  implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine, PackEngine, TimeEngine
+  implements
+    ExplorerEngine,
+    AlmanacEngine,
+    EclipseEngine,
+    PlanetEventsEngine,
+    PackEngine,
+    TimeEngine,
+    CoverageTierEngine
 {
   readonly kind = 'wasm' as const;
   readonly description: string;
@@ -565,6 +576,13 @@ export class WasmEngine
     const fn = this.x.calendar_convert;
     if (typeof fn !== 'function') throw rebuildError('calendar_convert', 'time scales');
     return this.call('calendar_convert', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** The coverage tier of an instant (`tier_at`, deeptime agent): validated, labelled or outside. */
+  tierAt(jdUtc: number): CoverageTier {
+    const fn = this.x.tier_at;
+    if (typeof fn !== 'function') throw rebuildError('tier_at', 'coverage tiers');
+    return this.call('tier_at', () => fn.call(this.x, jdUtc) as CoverageTier);
   }
 }
 

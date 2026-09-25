@@ -30,29 +30,28 @@ use crate::{err, to_js};
 
 /// The native layer: JSON in, serde types out, `String` errors.
 pub mod native {
-    use serde::{Deserialize, Serialize};
+    use serde::Deserialize;
     use skyfix_almanac::events::{
         self, AltitudeCrossing, DayEvents, EventOptions, PhaseEvent, SeasonEvent, Sidereal,
     };
     use skyfix_almanac::sky::{self, BodyInfo, Sampled, SkyState};
-    use skyfix_core::time::parse_utc;
     use skyfix_ephemeris::body::Sky;
-    use skyfix_ephemeris::moon::MoonProvider;
-    use skyfix_ephemeris::planets::PlanetProvider;
-    use skyfix_ephemeris::stars::StarProvider;
-    use skyfix_ephemeris::sun::SunProvider;
-    use skyfix_ephemeris::{AstroProvider, Coverage};
+    use skyfix_ephemeris::tiers::TierPolicy;
 
     /// The explorer's astronomy with DUT1 = 0: for results that do not depend on the
-    /// Earth's rotation (Moon phases, seasons).
+    /// Earth's rotation (Moon phases, seasons). It answers both coverage tiers
+    /// (deeptime agent, CONVENTIONS 15.1): the explorer displays 2000 BC to AD 3000,
+    /// the labelled tier marked by `tier_at`; sights and plans use their own providers,
+    /// which refuse it.
     pub fn sky() -> Sky {
-        Sky::new()
+        Sky::new().with_policy(TierPolicy::WithLabelled)
     }
 
     /// The explorer's astronomy at `jd_utc`: DUT1 from `skyfix_core::time::dut1_s` with
     /// the explorer-wide user value (`timescale::set_dut1`), the IERS history, or 0.
+    /// Both tiers, as [`sky`].
     pub fn sky_at(jd_utc: f64) -> Sky {
-        Sky::with_dut1_s(dut1_at(jd_utc))
+        Sky::with_dut1_s(dut1_at(jd_utc)).with_policy(TierPolicy::WithLabelled)
     }
 
     /// DUT1 at `jd_utc` as the explorer uses it.
@@ -148,81 +147,12 @@ pub mod native {
     }
 
     // -----------------------------------------------------------------------
-    // Coverage
+    // Coverage (deeptime agent: `crate::coverage`, with the tiers)
     // -----------------------------------------------------------------------
 
-    /// One provider group of `explorer_coverage`.
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    pub struct CoverageGroup {
-        pub name: String,
-        pub provider: String,
-        /// The provider's documented accuracy; `null` when it declares none.
-        pub accuracy_arcmin: Option<f64>,
-        /// `accuracy_arcmin` is finite and at most 0.1' (CONVENTIONS 13.7): only then is
-        /// the group offered for sights.
-        pub validated: bool,
-        pub notes: String,
-        /// Canonical names of the bodies this group covers.
-        pub bodies: Vec<String>,
-    }
-
-    /// `explorer_coverage` result.
-    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-    pub struct ExplorerCoverage {
-        /// The range every group covers (the intersection of the groups' ranges).
-        pub start_utc: String,
-        pub end_utc: String,
-        pub groups: Vec<CoverageGroup>,
-    }
-
-    /// The largest `accuracy_arcmin` a group may declare and still be offered for
-    /// sights: the 0.1' target of CONVENTIONS 13.7.
-    pub const VALIDATED_ACCURACY_ARCMIN: f64 = 0.1;
-
-    fn group(name: &str, provider: &str, c: Coverage) -> CoverageGroup {
-        let a = c.accuracy_arcmin;
-        CoverageGroup {
-            name: name.to_string(),
-            provider: provider.to_string(),
-            accuracy_arcmin: a.is_finite().then_some(a),
-            validated: a.is_finite() && a <= VALIDATED_ACCURACY_ARCMIN,
-            notes: c.notes,
-            bodies: c.bodies,
-        }
-    }
-
-    pub fn explorer_coverage() -> ExplorerCoverage {
-        let sun = SunProvider::new();
-        let moon = MoonProvider::new();
-        let planets = PlanetProvider::new();
-        let stars = StarProvider::new();
-        let parts = [
-            ("Sun", sun.name().to_string(), sun.coverage()),
-            ("Moon", moon.name().to_string(), moon.coverage()),
-            ("Planets", planets.name().to_string(), planets.coverage()),
-            ("Stars", stars.name().to_string(), stars.coverage()),
-        ];
-        // Intersection of the ranges; a range that does not parse is ignored.
-        let mut start: Option<(f64, String)> = None;
-        let mut end: Option<(f64, String)> = None;
-        for (_, _, c) in &parts {
-            if let Ok(s) = parse_utc(&c.start_utc) {
-                if start.as_ref().is_none_or(|(v, _)| s > *v) {
-                    start = Some((s, c.start_utc.clone()));
-                }
-            }
-            if let Ok(e) = parse_utc(&c.end_utc) {
-                if end.as_ref().is_none_or(|(v, _)| e < *v) {
-                    end = Some((e, c.end_utc.clone()));
-                }
-            }
-        }
-        ExplorerCoverage {
-            start_utc: start.map(|s| s.1).unwrap_or_default(),
-            end_utc: end.map(|e| e.1).unwrap_or_default(),
-            groups: parts.into_iter().map(|(n, p, c)| group(n, &p, c)).collect(),
-        }
-    }
+    pub use crate::coverage::native::{
+        CoverageGroup, ExplorerCoverage, VALIDATED_ACCURACY_ARCMIN, explorer_coverage,
+    };
 
     // -----------------------------------------------------------------------
     // Calls
@@ -348,11 +278,12 @@ pub fn explorer_bodies() -> Result<JsValue, JsValue> {
     to_js(&native::explorer_bodies())
 }
 
-/// Coverage and validation per provider group:
-/// `{start_utc, end_utc, groups: [{name, provider, accuracy_arcmin, validated, notes}]}`.
+/// Coverage and validation per provider group, with the tiers (deeptime agent):
+/// `{start_utc, end_utc, validated_start_utc, validated_end_utc, packs_loaded,
+/// groups: [{name, provider, accuracy_arcmin, validated, notes, bodies, tiers}]}`.
 #[wasm_bindgen]
 pub fn explorer_coverage() -> Result<JsValue, JsValue> {
-    to_js(&native::explorer_coverage())
+    crate::coverage::explorer_coverage_js()
 }
 
 /// The whole sky from one place at one instant (`SkyState`).
@@ -522,8 +453,11 @@ mod tests {
     fn coverage_validates_only_groups_within_a_tenth_of_an_arcminute() {
         let c = explorer_coverage();
         let v = json(&c);
-        assert_eq!(v["start_utc"], "1990-01-01T00:00:00Z");
-        assert_eq!(v["end_utc"], "2060-12-31T23:59:59Z");
+        // deeptime agent: both tiers are in the core; the validated one is named apart.
+        assert_eq!(v["start_utc"], "-2000-01-01T00:00:00Z");
+        assert_eq!(v["end_utc"], "3000-12-31T23:59:59Z");
+        assert_eq!(v["validated_start_utc"], "1550-01-01T00:00:00Z");
+        assert_eq!(v["validated_end_utc"], "2650-01-22T00:00:00Z");
         let names: Vec<&str> = c.groups.iter().map(|g| g.name.as_str()).collect();
         assert_eq!(names, vec!["Sun", "Moon", "Planets", "Stars"]);
         for g in &c.groups {
@@ -534,10 +468,11 @@ mod tests {
         let sun = &c.groups[0];
         assert!(sun.validated && sun.accuracy_arcmin == Some(0.01));
         assert!(c.groups[3].validated);
-        // Every group is a real provider now: the Moon (0.02') and the planets (0.05')
-        // are validated too, so the UI offers the Moon and the four planets for sights.
+        // Every group is a real provider now: the Moon (0.02') and the planets (0.03',
+        // deeptime agent's fitted series) are validated too, so the UI offers the Moon
+        // and the four planets for sights.
         assert!(c.groups[1].validated && c.groups[1].accuracy_arcmin == Some(0.02));
-        assert!(c.groups[2].validated && c.groups[2].accuracy_arcmin == Some(0.05));
+        assert!(c.groups[2].validated && c.groups[2].accuracy_arcmin == Some(0.03));
         // Each group names its bodies; together they are exactly explorer_bodies().
         assert_eq!(sun.bodies, vec!["Sun"]);
         assert_eq!(c.groups[1].bodies, vec!["Moon"]);
@@ -643,9 +578,13 @@ mod tests {
         assert_eq!(s.bodies.len(), 67);
         assert!(sky_state(PHILLY, jd, "[\"Vulcan\"]").is_err());
         assert!(sky_state(PHILLY, f64::NAN, "\"all\"").is_err());
-        // Outside the Sun's coverage there is no sky phase: the call fails.
-        let e = sky_state(PHILLY, civil_to_jd(1985, 1, 1), "[\"Vega\"]").unwrap_err();
+        // Outside the Sun's coverage there is no sky phase: the call fails (deeptime
+        // agent: the explorer answers 2000 BC to AD 3000, so the test goes past 3000).
+        let e = sky_state(PHILLY, civil_to_jd(3001, 6, 1), "[\"Vega\"]").unwrap_err();
         assert!(e.contains("Sun"), "{e}");
+        // Inside the labelled tier the explorer shows the sky.
+        let old = sky_state(PHILLY, civil_to_jd(-584, 5, 28), "[\"Sun\", \"Moon\"]").unwrap();
+        assert!(old.errors.is_empty(), "{:?}", old.errors);
     }
 
     #[test]
@@ -719,8 +658,8 @@ mod tests {
         let v = find_altitude(PHILLY, "sun", t0, t0 + 1.0, 30.0).unwrap();
         assert_eq!(v.len(), 2);
         assert!(v[0].rising && !v[1].rising);
-        // A body outside its coverage cannot be searched: that throws.
-        let e = find_altitude(PHILLY, "Vega", 2_446_000.5, 2_446_001.5, 30.0).unwrap_err();
+        // A body outside its coverage cannot be searched: that throws (past AD 3000).
+        let e = find_altitude(PHILLY, "Vega", 2_900_000.5, 2_900_001.5, 30.0).unwrap_err();
         assert!(e.contains("Vega"), "{e}");
 
         let s = json(&seasons(2026.0).unwrap());
@@ -733,13 +672,15 @@ mod tests {
                 .starts_with("2026-09-23T00:05")
         );
         assert!(seasons(2026.5).is_err());
-        assert!(seasons(1980.0).is_err());
+        assert!(seasons(3001.0).is_err());
+        // The labelled tier: the equinoxes of 1000 AD are found, for display.
+        assert_eq!(seasons(1000.0).unwrap().len(), 4);
 
         // Thirty days hold three or four principal phases.
         let p = moon_phases(t0, t0 + 30.0).unwrap();
         assert!((3..=5).contains(&p.len()), "{p:?}");
         // Outside the Moon's coverage the call says why.
-        let e = moon_phases(2_446_000.5, 2_446_030.5).unwrap_err();
+        let e = moon_phases(2_900_000.5, 2_900_030.5).unwrap_err();
         assert!(e.contains("Moon"), "{e}");
         let g = sidereal(t0).unwrap();
         assert!((0.0..360.0).contains(&g.gha_aries_deg));

@@ -23,6 +23,7 @@ import { crossings, grid, sample } from './mock/roots.js';
 import * as T from './mock/timescale.js';
 import { createMockMisfit } from './mock-misfit.js';
 import { MockPacks } from './mock/packs.js';
+import { mockTierAt, mockTiers, type MockWindow } from './mock/coverage.js';
 import type { MisfitEngine, PackEngine, PackInfo, PackStatus } from './types.js';
 import {
   buildStarfield,
@@ -43,6 +44,8 @@ import type {
   BodySelection,
   BodyState,
   ConstellationBoundary,
+  CoverageTier,
+  CoverageTierEngine,
   DayEvents,
   EventOptions,
   ExplorerCoverage,
@@ -230,7 +233,15 @@ function inCoverage(jd: number): boolean {
   return jd >= COVERAGE_START && jd <= COVERAGE_END;
 }
 
-export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine {
+/** The mock's window, for its coverage tiers (mock/coverage.ts, deeptime agent). */
+const MOCK_WINDOW: MockWindow = {
+  startUtc: MOCK_COVERAGE_START_UTC,
+  endUtc: MOCK_COVERAGE_END_UTC,
+  startJd: COVERAGE_START,
+  endJd: COVERAGE_END,
+};
+
+export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine, CoverageTierEngine {
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
   /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
@@ -304,10 +315,17 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, Ti
       validated: this.validated,
       notes: note,
       bodies,
+      tiers: mockTiers(MOCK_WINDOW, accuracy),
     });
     return {
       start_utc: MOCK_COVERAGE_START_UTC,
       end_utc: MOCK_COVERAGE_END_UTC,
+      validated_start_utc: MOCK_COVERAGE_START_UTC,
+      validated_end_utc: MOCK_COVERAGE_END_UTC,
+      packs_loaded: this.packRegistry
+        .packs()
+        .filter((p) => p.loaded)
+        .map((p) => p.name),
       groups: [
         group('Sun', 'Astronomical Almanac low-precision Sun', 1, ['Sun']),
         group('Moon', 'Astronomical Almanac low-precision Moon', 30, ['Moon']),
@@ -597,9 +615,12 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, Ti
   private userDut1: number | null = null;
 
   timeInfo(jdUtc: number): TimeInfo {
-    // The deeptime agent's mock tiers replace this `validated`/`outside` split.
-    const tier = inCoverage(jdUtc) ? 'validated' : 'outside';
-    return rethrow('time_info', () => T.timeInfo(jdUtc, this.userDut1, tier));
+    return rethrow('time_info', () => T.timeInfo(jdUtc, this.userDut1, this.tierAt(jdUtc)));
+  }
+
+  /** The coverage tier of an instant (mock/coverage.ts): the mock's window is its validated tier. */
+  tierAt(jdUtc: number): CoverageTier {
+    return mockTierAt(jdUtc, MOCK_WINDOW);
   }
 
   setDut1(seconds: number | null): void {
