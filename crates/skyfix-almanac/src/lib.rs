@@ -9,3 +9,12 @@ pub mod events;
 pub mod pages;
 pub mod planet_events;
 pub mod sky;
+
+// Planet detail (expansion programme P9, planetdetail agent): discs, rings, the
+// Galilean moons, transits of Mercury and Venus, conjunctions and stations, the Earth's
+// apsides and user-supplied orbits. CONVENTIONS 13.10.
+pub mod discs;
+pub(crate) mod planet_geometry;
+pub mod rings;
+pub mod satellites;
+pub mod transits;
