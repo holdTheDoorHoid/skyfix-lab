@@ -4,86 +4,95 @@
  * site under /skyfix-lab/ (as GitHub Pages does), drives a local headless Chrome over the
  * DevTools protocol, and checks, on every view:
  *
- *   1. in the light, dark and night themes, at 1440 x 900 and at 390 x 844 (a phone):
- *      the honesty banner is on screen, the engine badge says WASM, nothing scrolls
+ *   1. (views) in the light, dark and night themes, at 1440 x 900 and at 390 x 844 (a
+ *      phone): the honesty banner is on screen, the engine badge says WASM, nothing scrolls
  *      sideways, no two controls overlap, no text is cut off, the view ends where the
  *      phone's bottom sheet begins, and the console stays free of errors and warnings;
- *   2. in the night theme, no pixel carries blue, green or white light (a screenshot is
- *      sampled; the theme's red-orange accent is allowed);
- *   3. switching views many times leaves no listeners, DOM nodes or canvases behind;
- *   4. the time keys move the time, and typing in a field never does;
- *   5. the address bar never carries the place, and storage holds no position until a
- *      sight is entered in Navigate;
- *   6. dragging the time bar on each view: frame times, reported (not judged: a headless
- *      browser draws WebGL and canvas in software, so the map and sky are far slower here
- *      than on a real screen);
- *   7. (charts2) every Charts tab and sub-view (Day, Year, the five Sun charts, the two Moon
- *      charts, Planets, Tides) in each theme and size: drawn, no overlap or cut-off text, no
- *      sideways scroll, a clean console, no blue or white light in the night theme; the
- *      tides pack's one prompt and Get; the Save menu writing a real PNG and CSV; each
- *      chart's compute time and the frame times of a drag on the Sun path, reported;
- *   8. deep time (time-ui agent): a BC date in the Julian calendar with its era, local mean
- *      time and UT on the clock, the ±ΔT chip, the calendar's century step and October 1582,
- *      UTC inside 1972-2035; playback at ten years a second on the Map view (frame times
- *      and script time per frame, reported) and the Sky view;
- *   9. the Selected card's photographer and astronomer tools (photo agent, expansion Q8):
- *      golden and blue hour, the alignment finder (Manhattanhenge) and picking its bearing
- *      on the map, the Moon's details, the Milky Way planner, RA/Dec and the magnetic
- *      bearing, the predicted sextant reading, the tides line once the pack is got in
- *      Settings, the night theme and the phone layout with every drawer open, and what the
- *      open drawers add to a time-bar drag (judged when the machine is quiet enough).
- *   9. the Almanac (almanac2 agent): every tab (daily pages as a three-date opening and as
- *      one date, increments, altitude corrections, Polaris, arc to time) in each theme and
- *      size: drawn, no overlap or cut-off text, no sideways scroll, a clean console, no blue
- *      or white light in the night theme; every tab printed to PDF on A4 and on US Letter
- *      as exactly the sheets it promises (one per page: 2, 2, 1, 5, 3, 1, and 30 for "Print
- *      all"), black on white whatever the theme; the time to compute an opening, reported.
- *      open drawers add to a time-bar drag (judged when the machine is quiet enough);
- *  10. Navigate's Compass and Passage tabs, the route on the map, the star finder and the
- *      print preview of the worksheets and plotting sheet (navigate2, expansion programme):
- *      each works, lays out without overlap or cut-off text, keeps the console clean, and in
- *      the night theme shows no blue, green or white light (the preview's paper included).
- *   9. the Tonight view (tonight agent): eight tabs with Tonight and without About, About
- *      from the Help menu and at #about; the night of the moment with every card filled in,
- *      drawn within 300 ms of the engines' answer (the engines' own time reported); a moment
- *      of the night and ◀ ▶ moving the explorer's time; a planet opening the Sky view; the
- *      printed sheet on one page of Letter and of A4.
- *  11. (events2) every Events tab and sub-list (Eclipses; Moon: phases, perigee, occultations;
- *      Planets: highlights, close approaches, retrograde, transits, Jupiter's moons; Meteors;
- *      Seasons) in each theme and size: filled in, no overlap or cut-off text, no sideways
- *      scroll, the view ending where the sheet begins, a clean console, no blue or white light
- *      in the night theme; the occultation, transit and shower cards with their drawings; the
- *      Save menu writing a real calendar file (RFC 5545 basics) and table; a background search
- *      that waits while the time bar is dragged and finishes once it is let go; a solar eclipse
- *      card offering the Lunar limb pack once and, with it, limb-corrected.
- *  11. the Sky view's astronomy layers (sky2 agent, expansion Q3): at night the Milky Way
- *      and deep-sky objects, the panel's Tonight's sights ringed; the Sky view's search
- *      (M31 → its card with the best time tonight) and the panel's "Sky objects" group
- *      (Jupiter → its card → its close-up with the four moons); tonight's ranking; a field
- *      of view; "How dark is your sky" (a city sky hides the Milky Way and most deep-sky
- *      objects); the dome's zoom; the picture saved as a real PNG with its caption; photo's hooks (the
+ *   2. (night) in the night theme, no pixel carries blue, green or white light (a
+ *      screenshot is sampled; the theme's red-orange accent is allowed);
+ *   3. (leaks) switching views many times leaves no listeners, DOM nodes or canvases behind;
+ *   4. (keys) the time keys move the time, and typing in a field never does;
+ *   5. (privacy) the address bar never carries the place, and storage holds no position
+ *      until a sight is entered in Navigate;
+ *   6. (scrub) dragging the time bar on each view: frame times, reported (not judged: a
+ *      headless browser draws WebGL and canvas in software, so the map and sky are far
+ *      slower here than on a real screen);
+ *   7. (charts, charts2 agent) every Charts tab and sub-view (Day, Year, the five Sun charts,
+ *      the two Moon charts, Planets, Tides): drawn, no overlap or cut-off text, no sideways
+ *      scroll, a clean console, no blue or white light in the night theme; the tides pack's
+ *      one prompt and Get; the Save menu writing a real PNG and CSV; each chart's compute
+ *      time and the frame times of a drag on the Sun path, reported. By default in the light
+ *      and night themes on a laptop and the night theme on a phone (CHART_MATRIX; FULL=1 for
+ *      every theme and size, about 20 minutes more);
+ *   8. (time, time-ui agent) deep time: a BC date in the Julian calendar with its era, local
+ *      mean time and UT on the clock, the ±ΔT chip, the calendar's century step and October
+ *      1582, UTC inside 1972-2035; playback at ten years a second on the Map view (frame
+ *      times and script time per frame, reported) and the Sky view;
+ *   9. (almanac, almanac2 agent) every Almanac tab (daily pages as a three-date opening and
+ *      as one date, increments, altitude corrections, Polaris, arc to time) in each theme
+ *      and size: drawn, no overlap or cut-off text, no sideways scroll, a clean console, no
+ *      blue or white light in the night theme; every tab printed to PDF on A4 and on US
+ *      Letter as exactly the sheets it promises (one per page: 2, 2, 1, 5, 3, 1, and 30 for
+ *      "Print all"), black on white whatever the theme; the time to compute an opening,
+ *      reported;
+ *  10. (navigate2) Navigate's Compass and Passage tabs, the route on the map, the star
+ *      finder and the print preview of the worksheets and plotting sheet: each works, lays
+ *      out without overlap or cut-off text, keeps the console clean, and in the night theme
+ *      shows no blue, green or white light (the preview's paper included);
+ *  11. (photo, photo agent) the Selected card's photographer and astronomer tools: golden
+ *      and blue hour, the alignment finder (Manhattanhenge) and picking its bearing on the
+ *      map, the Moon's details, the Milky Way planner, RA/Dec and the magnetic bearing, the
+ *      predicted sextant reading, the tides line once the pack is got in Settings (and the
+ *      pack removed again there), the night theme and the phone layout with every drawer
+ *      open, and what the open drawers add to a time-bar drag (judged when the machine is
+ *      quiet enough);
+ *  12. (tonight, tonight agent) the Tonight view: eight tabs with Tonight and without About,
+ *      About from the Help menu and at #about; the night of the moment with every card
+ *      filled in, drawn within 300 ms of the engines' answer (the engines' own time
+ *      reported); a moment of the night and ◀ ▶ moving the explorer's time; a planet
+ *      opening the Sky view; the printed sheet on one page of Letter and of A4;
+ *  13. (sky2, sky2 agent) the Sky view's astronomy layers: at night the Milky Way and
+ *      deep-sky objects, the panel's Tonight's sights ringed; the Sky view's search (M31 →
+ *      its card with the best time tonight) and the panel's "Sky objects" group (Jupiter →
+ *      its card → its close-up with the four moons); tonight's ranking; a field of view;
+ *      "How dark is your sky" (a city sky hides the Milky Way and most deep-sky objects);
+ *      the dome's zoom; the picture saved as a real PNG with its caption; photo's hooks (the
  *      Moon card's "See it up close", the Milky Way planner's "Show in Sky"); Tonight's
  *      "Show in Sky" and "See it up close" centring the zoomed dome; the night theme
- *      red-only with the card and the close-up open; the phone layout. (Frame times
- *      are the developer page's bench: headless Chrome here runs few animation frames.)
+ *      red-only with the card and the close-up open; the phone layout (frame times are the
+ *      developer page's bench: headless Chrome here runs few animation frames);
+ *  14. (events, events2 agent) every Events tab and sub-list (Eclipses; Moon: phases,
+ *      perigee, occultations; Planets: highlights, close approaches, retrograde, transits,
+ *      Jupiter's moons; Meteors; Seasons) in each theme and size: filled in, no overlap or
+ *      cut-off text, no sideways scroll, the view ending where the sheet begins, a clean
+ *      console, no blue or white light in the night theme; the occultation, transit and
+ *      shower cards with their drawings; the Save menu writing a real calendar file (RFC
+ *      5545 basics) and table; a background search that waits while the time bar is
+ *      dragged and finishes once it is let go; a solar eclipse card offering the Lunar limb
+ *      pack once and, with it, limb-corrected;
+ *  15. (far, polish2 agent) every view and its tabs at 28 May 585 BC and 1 January 2999, on
+ *      a laptop (dark) and a phone (night): no overlap, cut-off text or sideways scroll (the
+ *      notices take their own band), no literal "UTC" on a UT date, no "1990"/"2060" and no
+ *      raw engine message on screen, no control without a name, every labelled-tier time on
+ *      the Selected card with its ± chip, and no blue or white light at night.
  *
- * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
- * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
+ * The blocks run in that order. Screenshots and a JSON summary go to docs/design/local/
+ * (git-ignored). Development tool only: Node built-ins and a local Chrome, no npm
+ * dependency. OWNER: polish pass.
  *
  *   npm run build --prefix web && node web/scripts/ui-check.mjs
  *   SITE=site node web/scripts/ui-check.mjs          # the assembled Pages site
- *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts
- *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,time
- *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,photo
- *   ONLY=almanac node web/scripts/ui-check.mjs        # the Almanac's tabs, screenshots and printed sheets
- *   ONLY=almanac ALMANAC_SCREEN=0 node web/scripts/ui-check.mjs   # its printed sheets only
- *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts,time,photo,navigate2
- *   ONLY=tonight node web/scripts/ui-check.mjs        # the Tonight view's own checks (9)
- *   ONLY=events EVENTS=moon/occultations,meteors node web/scripts/ui-check.mjs   # events2: some Events lists (11)
- *   ONLY=sky2 node web/scripts/ui-check.mjs           # the Sky view's astronomy layers (24)
+ *   ONLY=views,night node web/scripts/ui-check.mjs    # some blocks, by the names in brackets above:
+ *        views,night,leaks,keys,privacy,scrub,charts,time,almanac,navigate2,photo,tonight,sky2,events,far
+ *   ONLY=charts CHARTS=sun/path,tides node web/scripts/ui-check.mjs      # some charts (tab or tab/sub)
+ *   ONLY=charts FULL=1 node web/scripts/ui-check.mjs  # every chart in every theme and size
+ *   ONLY=almanac ALMANAC_SCREEN=0 node web/scripts/ui-check.mjs          # the Almanac's printed sheets only
+ *   ONLY=events EVENTS=moon/occultations,meteors node web/scripts/ui-check.mjs   # some Events lists
+ *   ONLY=far FAR_VIEWS=sky,events node web/scripts/ui-check.mjs          # far dates on some views
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
- * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
+ * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50), CHARTS, EVENTS,
+ * CHART_MATRIX (default desktop:light,desktop:night,phone:night), FULL, FAR_VIEWS.
  * Exit status 1 if any check fails.
  */
 
@@ -106,9 +115,16 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,tonight,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,photo,almanac,navigate2,tonight,events,sky2').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,almanac,navigate2,photo,tonight,sky2,events,far').split(','));
 /** events2: the Events view's tabs and sub-lists, `tab` or `tab/sub`. */
 const EVENT_VIEWS = (process.env.EVENTS ?? 'eclipses,moon/phases,moon/apsides,moon/occultations,planets/events,planets/conjunctions,planets/retrograde,planets/transits,planets/jupiter,meteors,seasons').split(',');
+/**
+ * polish2: the size and theme pairs the Charts block walks (a full walk is 66 page loads,
+ * about 20 minutes on the shared machine); FULL=1 for every pair of SIZES and THEMES.
+ */
+const CHART_MATRIX = new Set(process.env.FULL === '1' ? SIZES.flatMap((z) => THEMES.map((t) => `${z}:${t}`)) : (process.env.CHART_MATRIX ?? 'desktop:light,desktop:night,phone:night').split(','));
+/** polish2: the views the far-dates block walks (with their tabs). */
+const FAR_VIEWS = (process.env.FAR_VIEWS ?? 'map,sky,tonight,charts,navigate,almanac,events,learn,about').split(',');
 /** charts2: the Charts view's tabs and sub-views, `tab` or `tab/sub`. */
 const CHART_VIEWS = (process.env.CHARTS ?? 'day,year,sun/path,sun/analemma,sun/bearings,sun/eot,sun/solar,moon/phases,moon/year,planets,tides').split(',');
 const SWITCHES = Number(process.env.SWITCHES ?? 50);
@@ -487,110 +503,6 @@ async function main() {
       check('storage holds settings and the tour flag, never a position', !s.keys.includes('skyfix.navigate.working.v1') && !/lat_deg|lon_deg/.test(s.values), s.keys.join(', '));
     }
 
-    // 7. Navigate's expansion (navigate2): Compass, Passage, the star finder, the printables.
-    if (ONLY.has('navigate2')) {
-      const tab = (name) => `(() => { const t = [...document.querySelectorAll('.sfn-tabs [role=tab]')].find((x) => x.textContent === ${JSON.stringify(name)}); t?.click(); return !!t; })()`;
-      const setField = (root, label, value) =>
-        `(() => { const r = document.querySelector(${JSON.stringify(root)}); const l = r && [...r.querySelectorAll('label')].find((x) => x.textContent.startsWith(${JSON.stringify(label)})); const i = l && document.getElementById(l.getAttribute('for')); if (!i) return false; i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); return true; })()`;
-      for (const size of SIZES) {
-        const [w, h, mobile] = DIMS[size];
-        await viewport(w, h, mobile);
-        for (const theme of ['light', 'night']) {
-          const tag = `navigate2, ${theme}, ${size}`;
-          const nightCheck = async (png, what) => {
-            if (theme !== 'night') return;
-            const n = lightNotRed(decodePng(png));
-            check(`${tag}: ${what}: no blue, green or white light`, n.count < 50, n.count ? `${n.count} px, worst ${JSON.stringify(n.worst)}` : '');
-          };
-          const layout = async (what) => {
-            const L = JSON.parse(await evaluate(LAYOUT));
-            check(`${tag}: ${what}: no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
-          };
-          messages.length = 0;
-          await open(`${MOMENT}&view=navigate`, { theme });
-          await waitFor(`!!document.querySelector('.sfn-tabs')`);
-          // Compass: the variation here, then a bearing of the Sun.
-          await evaluate(tab('Compass'));
-          const variation = await waitFor(`/Variation .* \\(WMM2025\\)/.test(document.querySelector('.sfn-variation')?.textContent ?? '')`, 15000);
-          check(`${tag}: Compass: the variation at the place, with its model`, variation);
-          await evaluate(setField('.sfn-method--compass', 'The compass read', '100'));
-          const sentence = await waitFor(`/^Compass error .*; variation .*; deviation .*\\.$/.test(document.querySelector('.sfn-compass__sentence')?.textContent ?? '')`, 15000);
-          check(`${tag}: Compass: a bearing gives compass error, variation and deviation`, sentence, await evaluate(`document.querySelector('.sfn-compass__sentence')?.textContent ?? ''`));
-          await sleep(300);
-          await layout('Compass');
-          await nightCheck(await shot(`navigate2-compass-${size}-${theme}`), 'Compass');
-          // Passage: two waypoints, a speed, a departure.
-          await evaluate(tab('Passage'));
-          await waitFor(`!!document.querySelector('.sfn-method--passage')`);
-          for (const [pos, name] of [['36 55.6 N, 076 00.2 W', 'Cape Henry'], ['32 22.8 N, 064 40.8 W', 'Bermuda']]) {
-            await evaluate(setField('.sfn-method--passage', 'Add a waypoint', pos));
-            await evaluate(setField('.sfn-method--passage', 'Its name', name));
-            await evaluate(`[...document.querySelectorAll('.sfn-method--passage button')].find((b) => b.textContent.trim() === 'Add')?.click(); true`);
-            await sleep(250);
-          }
-          await evaluate(setField('.sfn-method--passage', 'Speed (knots)', '6'));
-          await evaluate(setField('.sfn-method--passage', 'Departure (UTC)', '2026-09-24 12:00:00'));
-          const planned = await waitFor(`/NM in 1 leg, .* at 6 kn: arriving/.test(document.querySelector('.sfn-method--passage .sfn-compass__sentence')?.textContent ?? '')`, 15000);
-          check(`${tag}: Passage: a great-circle leg with its distance, time and arrival`, planned, await evaluate(`document.querySelector('.sfn-method--passage .sfn-compass__sentence')?.textContent ?? ''`));
-          await sleep(300);
-          await layout('Passage');
-          await nightCheck(await shot(`navigate2-passage-${size}-${theme}`), 'Passage');
-          // The route on the map ("Show on the map"), then back to Navigate.
-          await evaluate(`[...document.querySelectorAll('.sfn-method--passage button')].find((b) => b.textContent.trim() === 'Show on the map')?.click(); true`);
-          const onMap = await waitFor(`location.hash.includes('map') && document.querySelector('.sfm')?.dataset.detail === '1'`, 30000);
-          await sleep(2500);
-          check(`${tag}: Passage: "Show on the map" opens the map with the route`, onMap);
-          await nightCheck(await shot(`navigate2-passage-map-${size}-${theme}`), 'the route on the map');
-          await evaluate(`location.hash = '#navigate'; true`);
-          await waitFor(`!!document.querySelector('.sfn-tabs')`, 15000);
-          // The star finder, in the Plan tab.
-          await evaluate(tab('Plan sights'));
-          const finder = await waitFor(`document.querySelectorAll('.sfn-sfcard .sfn-sf__star').length === 58`, 15000);
-          check(`${tag}: the star finder draws the 58 stars and its template`, finder && (await evaluate(`!!document.querySelector('.sfn-sf__turn[transform^="rotate("]')`)));
-          await evaluate(`document.querySelector('.sfn-sfcard')?.scrollIntoView({ block: 'start' }); true`);
-          await sleep(300);
-          await layout('Plan sights with the star finder');
-          await nightCheck(await shot(`navigate2-starfinder-${size}-${theme}`), 'star finder');
-          // The printables: an example's fix, then its worksheets and plotting sheet.
-          await evaluate(`(() => { const s = document.querySelector('.sfn-head select'); s.value = 'x:dusk-stars'; s.dispatchEvent(new Event('change')); [...document.querySelectorAll('.sfn-head button')].find((b) => b.textContent.trim() === 'Load')?.click(); return true; })()`);
-          await evaluate(tab('Fix'));
-          await waitFor(`!!document.querySelector('.sfn-method--fix .sfn-method__results .sf-btn') && [...document.querySelectorAll('button')].some((b) => b.textContent.includes('Print worksheets and plotting sheet') && !b.disabled)`, 20000);
-          await evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Print worksheets and plotting sheet'))?.click(); true`);
-          const sheets = await waitFor(`document.querySelectorAll('.sfn-print-root .sfn-sheet').length === 6 && document.documentElement.dataset.printView === 'navigate-sheet'`, 10000);
-          check(`${tag}: Print: the plotting sheet and five worksheets in the preview`, sheets);
-          await sleep(300);
-          await nightCheck(await shot(`navigate2-print-${size}-${theme}`), 'print preview');
-          await evaluate(`document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true`);
-          await sleep(200);
-          check(`${tag}: Print: Esc closes the preview and clears the print view`, await evaluate(`!document.querySelector('.sfn-print-root') && !document.documentElement.dataset.printView`));
-          // Dates (the time-ui helpers, once): a date before 1582 typed as a sight's time is read
-          // as Julian and named so, the clock's word is UT, the sight is refused with the reason;
-          // the Place panel says local mean time in 1800, with UT in its offset.
-          if (theme === 'light' && size === SIZES[0]) {
-            await evaluate(tab('Fix'));
-            await evaluate(setField('.sfn-entry', 'Time of the sight', '1550-03-01 12:00:00'));
-            await sleep(150);
-            const D = JSON.parse(await evaluate(`JSON.stringify((() => { const l = [...document.querySelectorAll('.sfn-entry label')].find((x) => x.textContent.startsWith('Time of the sight')); const f = l?.closest('.sfn-field'); return { label: l?.textContent ?? '', help: f?.querySelector('.sfn-help')?.textContent ?? '', tier: document.querySelector('.sfn-entry__tier')?.textContent ?? '', blocked: !!document.querySelector('.sfn-entry__actions button')?.disabled }; })())`));
-            check(`${tag}: a sight's date before 1582 is read as Julian, on UT, and refused with the reason`, D.label === 'Time of the sight (UT)' && /Sat 1 Mar 1550, Julian calendar/.test(D.help) && /^No sights for 1 March 1550 \(Julian\)/.test(D.tier) && D.blocked, JSON.stringify(D));
-            await evaluate(setField('.sfn-entry', 'Time of the sight', ''));
-            await open(`${MOMENT.replace(/&t=[^&]+/, '&t=1800-06-01T12:00:00Z')}&view=navigate`, { theme });
-            await waitFor(`!!document.querySelector('.sfn-tabs') && /LMT/.test(document.querySelector('.sf-place .sf-kv--zone')?.textContent ?? '')`, 15000);
-            const P = JSON.parse(await evaluate(`JSON.stringify({ zone: document.querySelector('.sf-place .sf-kv--zone')?.textContent ?? '', reason: document.querySelector('.sf-place__reason')?.textContent ?? '', tierline: document.querySelector('.sfn-tierline')?.textContent ?? '' })`));
-            check(`${tag}: the Place panel in 1800: local mean time, UT in the offset, and why`, /LMT\s*UT−5:00:40/.test(P.zone) && /^Local mean time at 75° 09\.9′ W \(UT−5:00:40\)/.test(P.reason), JSON.stringify(P));
-            check(`${tag}: Navigate says the time bar is outside the validated span`, /^The time bar is outside the validated span\. Navigate offers no sights/.test(P.tierline), P.tierline);
-          }
-          const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
-          check(`${tag}: console clean`, noise.length === 0, noise.slice(0, 3).join(' | '));
-        }
-      }
-      await viewport(1440, 900, false);
-    }
-    // 8. The Selected card's photographer and astronomer tools (photo agent, expansion Q8).
-    if (ONLY.has('photo')) await photoChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary });
-
-    // 11. The Sky view's astronomy layers (sky2 agent, expansion Q3).
-    if (ONLY.has('sky2')) await skyChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary });
-
     // 6. Dragging the time bar.
     if (ONLY.has('scrub')) {
       for (const view of VIEWS) {
@@ -615,6 +527,7 @@ async function main() {
         console.log(`info  dragging the time bar on ${view}: ${JSON.stringify(r)}`);
       }
     }
+
     // 7. The Charts view (charts2): every tab and sub-view, the tides pack, the Save menu.
     if (ONLY.has('charts')) {
       summary.charts = { views: [], timings: {}, exports: [], scrub: null };
@@ -632,6 +545,8 @@ async function main() {
         const [w, h, mobile] = DIMS[size];
         await viewport(w, h, mobile);
         for (const theme of THEMES) {
+          // The default matrix is smaller (polish2, list item 22): FULL=1 for all of it.
+          if (!CHART_MATRIX.has(`${size}:${theme}`)) continue;
           for (const spec of CHART_VIEWS) {
             messages.length = 0;
             await open(`${MOMENT}&view=charts`, { theme });
@@ -719,7 +634,7 @@ async function main() {
       console.log(`info  chart compute times: ${JSON.stringify(summary.charts.timings)}`);
     }
 
-    // 7. Deep time (time-ui agent).
+    // 8. Deep time (time-ui agent).
     if (ONLY.has('time')) {
       const PLACE = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&body=Sun';
       const bar = `JSON.stringify((() => {
@@ -797,6 +712,7 @@ async function main() {
         );
       }
     }
+
     // 9. The Almanac (almanac2 agent): the tabs on screen, and printed on A4 and US Letter.
     if (ONLY.has('almanac')) {
       summary.almanac = { views: [], prints: [], timings: {} };
@@ -1001,7 +917,110 @@ async function main() {
       console.log(`info  an opening (three daily pages) in the browser, click to pages: ${times.join(', ')} ms`);
     }
 
-    // 10. The Tonight view (tonight agent).
+    // 10. Navigate's expansion (navigate2): Compass, Passage, the star finder, the printables.
+    if (ONLY.has('navigate2')) {
+      const tab = (name) => `(() => { const t = [...document.querySelectorAll('.sfn-tabs [role=tab]')].find((x) => x.textContent === ${JSON.stringify(name)}); t?.click(); return !!t; })()`;
+      const setField = (root, label, value) =>
+        `(() => { const r = document.querySelector(${JSON.stringify(root)}); const l = r && [...r.querySelectorAll('label')].find((x) => x.textContent.startsWith(${JSON.stringify(label)})); const i = l && document.getElementById(l.getAttribute('for')); if (!i) return false; i.value = ${JSON.stringify(value)}; i.dispatchEvent(new Event('input')); i.dispatchEvent(new Event('change')); return true; })()`;
+      for (const size of SIZES) {
+        const [w, h, mobile] = DIMS[size];
+        await viewport(w, h, mobile);
+        for (const theme of ['light', 'night']) {
+          const tag = `navigate2, ${theme}, ${size}`;
+          const nightCheck = async (png, what) => {
+            if (theme !== 'night') return;
+            const n = lightNotRed(decodePng(png));
+            check(`${tag}: ${what}: no blue, green or white light`, n.count < 50, n.count ? `${n.count} px, worst ${JSON.stringify(n.worst)}` : '');
+          };
+          const layout = async (what) => {
+            const L = JSON.parse(await evaluate(LAYOUT));
+            check(`${tag}: ${what}: no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+          };
+          messages.length = 0;
+          await open(`${MOMENT}&view=navigate`, { theme });
+          await waitFor(`!!document.querySelector('.sfn-tabs')`);
+          // Compass: the variation here, then a bearing of the Sun.
+          await evaluate(tab('Compass'));
+          const variation = await waitFor(`/Variation .* \\(WMM2025\\)/.test(document.querySelector('.sfn-variation')?.textContent ?? '')`, 15000);
+          check(`${tag}: Compass: the variation at the place, with its model`, variation);
+          await evaluate(setField('.sfn-method--compass', 'The compass read', '100'));
+          const sentence = await waitFor(`/^Compass error .*; variation .*; deviation .*\\.$/.test(document.querySelector('.sfn-compass__sentence')?.textContent ?? '')`, 15000);
+          check(`${tag}: Compass: a bearing gives compass error, variation and deviation`, sentence, await evaluate(`document.querySelector('.sfn-compass__sentence')?.textContent ?? ''`));
+          await sleep(300);
+          await layout('Compass');
+          await nightCheck(await shot(`navigate2-compass-${size}-${theme}`), 'Compass');
+          // Passage: two waypoints, a speed, a departure.
+          await evaluate(tab('Passage'));
+          await waitFor(`!!document.querySelector('.sfn-method--passage')`);
+          for (const [pos, name] of [['36 55.6 N, 076 00.2 W', 'Cape Henry'], ['32 22.8 N, 064 40.8 W', 'Bermuda']]) {
+            await evaluate(setField('.sfn-method--passage', 'Add a waypoint', pos));
+            await evaluate(setField('.sfn-method--passage', 'Its name', name));
+            await evaluate(`[...document.querySelectorAll('.sfn-method--passage button')].find((b) => b.textContent.trim() === 'Add')?.click(); true`);
+            await sleep(250);
+          }
+          await evaluate(setField('.sfn-method--passage', 'Speed (knots)', '6'));
+          await evaluate(setField('.sfn-method--passage', 'Departure (UTC)', '2026-09-24 12:00:00'));
+          const planned = await waitFor(`/NM in 1 leg, .* at 6 kn: arriving/.test(document.querySelector('.sfn-method--passage .sfn-compass__sentence')?.textContent ?? '')`, 15000);
+          check(`${tag}: Passage: a great-circle leg with its distance, time and arrival`, planned, await evaluate(`document.querySelector('.sfn-method--passage .sfn-compass__sentence')?.textContent ?? ''`));
+          await sleep(300);
+          await layout('Passage');
+          await nightCheck(await shot(`navigate2-passage-${size}-${theme}`), 'Passage');
+          // The route on the map ("Show on the map"), then back to Navigate.
+          await evaluate(`[...document.querySelectorAll('.sfn-method--passage button')].find((b) => b.textContent.trim() === 'Show on the map')?.click(); true`);
+          const onMap = await waitFor(`location.hash.includes('map') && document.querySelector('.sfm')?.dataset.detail === '1'`, 30000);
+          await sleep(2500);
+          check(`${tag}: Passage: "Show on the map" opens the map with the route`, onMap);
+          await nightCheck(await shot(`navigate2-passage-map-${size}-${theme}`), 'the route on the map');
+          await evaluate(`location.hash = '#navigate'; true`);
+          await waitFor(`!!document.querySelector('.sfn-tabs')`, 15000);
+          // The star finder, in the Plan tab.
+          await evaluate(tab('Plan sights'));
+          const finder = await waitFor(`document.querySelectorAll('.sfn-sfcard .sfn-sf__star').length === 58`, 15000);
+          check(`${tag}: the star finder draws the 58 stars and its template`, finder && (await evaluate(`!!document.querySelector('.sfn-sf__turn[transform^="rotate("]')`)));
+          await evaluate(`document.querySelector('.sfn-sfcard')?.scrollIntoView({ block: 'start' }); true`);
+          await sleep(300);
+          await layout('Plan sights with the star finder');
+          await nightCheck(await shot(`navigate2-starfinder-${size}-${theme}`), 'star finder');
+          // The printables: an example's fix, then its worksheets and plotting sheet.
+          await evaluate(`(() => { const s = document.querySelector('.sfn-head select'); s.value = 'x:dusk-stars'; s.dispatchEvent(new Event('change')); [...document.querySelectorAll('.sfn-head button')].find((b) => b.textContent.trim() === 'Load')?.click(); return true; })()`);
+          await evaluate(tab('Fix'));
+          await waitFor(`!!document.querySelector('.sfn-method--fix .sfn-method__results .sf-btn') && [...document.querySelectorAll('button')].some((b) => b.textContent.includes('Print worksheets and plotting sheet') && !b.disabled)`, 20000);
+          await evaluate(`[...document.querySelectorAll('button')].find((b) => b.textContent.includes('Print worksheets and plotting sheet'))?.click(); true`);
+          const sheets = await waitFor(`document.querySelectorAll('.sfn-print-root .sfn-sheet').length === 6 && document.documentElement.dataset.printView === 'navigate-sheet'`, 10000);
+          check(`${tag}: Print: the plotting sheet and five worksheets in the preview`, sheets);
+          await sleep(300);
+          await nightCheck(await shot(`navigate2-print-${size}-${theme}`), 'print preview');
+          await evaluate(`document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); true`);
+          await sleep(200);
+          check(`${tag}: Print: Esc closes the preview and clears the print view`, await evaluate(`!document.querySelector('.sfn-print-root') && !document.documentElement.dataset.printView`));
+          // Dates (the time-ui helpers, once): a date before 1582 typed as a sight's time is read
+          // as Julian and named so, the clock's word is UT, the sight is refused with the reason;
+          // the Place panel says local mean time in 1800, with UT in its offset.
+          if (theme === 'light' && size === SIZES[0]) {
+            await evaluate(tab('Fix'));
+            await evaluate(setField('.sfn-entry', 'Time of the sight', '1550-03-01 12:00:00'));
+            await sleep(150);
+            const D = JSON.parse(await evaluate(`JSON.stringify((() => { const l = [...document.querySelectorAll('.sfn-entry label')].find((x) => x.textContent.startsWith('Time of the sight')); const f = l?.closest('.sfn-field'); return { label: l?.textContent ?? '', help: f?.querySelector('.sfn-help')?.textContent ?? '', tier: document.querySelector('.sfn-entry__tier')?.textContent ?? '', blocked: !!document.querySelector('.sfn-entry__actions button')?.disabled }; })())`));
+            check(`${tag}: a sight's date before 1582 is read as Julian, on UT, and refused with the reason`, D.label === 'Time of the sight (UT)' && /Sat 1 Mar 1550, Julian calendar/.test(D.help) && /^No sights for 1 March 1550 \(Julian\)/.test(D.tier) && D.blocked, JSON.stringify(D));
+            await evaluate(setField('.sfn-entry', 'Time of the sight', ''));
+            await open(`${MOMENT.replace(/&t=[^&]+/, '&t=1800-06-01T12:00:00Z')}&view=navigate`, { theme });
+            await waitFor(`!!document.querySelector('.sfn-tabs') && /LMT/.test(document.querySelector('.sf-place .sf-kv--zone')?.textContent ?? '')`, 15000);
+            const P = JSON.parse(await evaluate(`JSON.stringify({ zone: document.querySelector('.sf-place .sf-kv--zone')?.textContent ?? '', reason: document.querySelector('.sf-place__reason')?.textContent ?? '', tierline: document.querySelector('.sfn-tierline')?.textContent ?? '' })`));
+            check(`${tag}: the Place panel in 1800: local mean time, UT in the offset, and why`, /LMT\s*UT−5:00:40/.test(P.zone) && /^Local mean time at 75° 09\.9′ W \(UT−5:00:40\)/.test(P.reason), JSON.stringify(P));
+            check(`${tag}: Navigate says the time bar is outside the validated span`, /^The time bar is outside the validated span\. Navigate offers no sights/.test(P.tierline), P.tierline);
+          }
+          const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+          check(`${tag}: console clean`, noise.length === 0, noise.slice(0, 3).join(' | '));
+        }
+      }
+      await viewport(1440, 900, false);
+    }
+
+    // 11. The Selected card's photographer and astronomer tools (photo agent, expansion Q8).
+    if (ONLY.has('photo')) await photoChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary });
+    await viewport(1440, 900, false);
+
+    // 12. The Tonight view (tonight agent).
     if (ONLY.has('tonight')) {
       await viewport(1440, 900, false);
       summary.tonight = {};
@@ -1085,7 +1104,12 @@ async function main() {
       summary.tonight.sheet = pages;
       check('Tonight: the printed sheet is one page of Letter and one of A4', pages.letter === 1 && pages.a4 === 1, JSON.stringify(pages));
     }
-    // 11. The Events view (events2): every tab and sub-list, the cards, the Save menu, and a
+
+    // 13. The Sky view's astronomy layers (sky2 agent, expansion Q3).
+    if (ONLY.has('sky2')) await skyChecks({ send, evaluate, waitFor, messages, open, shot, viewport, summary });
+    await viewport(1440, 900, false);
+
+    // 14. The Events view (events2): every tab and sub-list, the cards, the Save menu, and a
     // background search that waits for the time bar.
     if (ONLY.has('events')) {
       summary.events = { views: [], files: [], drag: null };
@@ -1282,6 +1306,7 @@ async function main() {
         console.log(`info  the search was not running during the drag (${JSON.stringify(during)}): not judged`);
       }
     }
+
   } finally {
     page.close();
     server.close();
@@ -1294,7 +1319,7 @@ async function main() {
 }
 
 // ---------------------------------------------------------------------------------
-// 7. The Selected card's tools (photo agent, expansion programme Q8)
+// 11. The Selected card's tools (photo agent, expansion programme Q8)
 // ---------------------------------------------------------------------------------
 
 /** Manhattan's 42nd Street at sunset on 24 May 2026 (Manhattanhenge), and a moonlit evening in Philadelphia. */
@@ -1416,6 +1441,15 @@ async function photoChecks({ send, evaluate, waitFor, messages, open, shot, view
   await evaluate(`[...document.querySelectorAll('.sf-photo-tide .sf-link')].find((b) => /Tides chart/.test(b.textContent))?.click(); true`);
   const tidesTab = await waitFor(`location.hash === '#charts' && document.querySelector('.sfc-tabs [data-tab="tides"]')?.getAttribute('aria-selected') === 'true'`, 15000);
   check('photo: "Tides chart" opens Charts on its Tides tab', tidesTab, await evaluate(`location.hash + ' ' + (document.querySelector('.sfc-tabs [aria-selected="true"]')?.textContent ?? '')`));
+  // polish2 (list 32): leave the device as it was, so the Charts block's "the pack is
+  // offered once" holds in any order; this is also Settings → Data packs' Remove at work.
+  await evaluate(`document.querySelector('button[aria-label="Settings"]').click(); true`);
+  await waitFor(`Boolean(document.querySelector('.sf-packs-row[data-pack="tides-us"] button'))`, 10000);
+  await evaluate(`[...document.querySelectorAll('.sf-packs-row[data-pack="tides-us"] button')].find((b) => /Remove/.test(b.textContent))?.click(); true`);
+  const removed = await waitFor(`document.querySelector('.sf-packs-row[data-pack="tides-us"]')?.dataset.state === 'absent'`, 10000);
+  check('photo: Settings → Data packs removes the tides pack again', removed, await evaluate(`document.querySelector('.sf-packs-row[data-pack="tides-us"] .sf-packs-row__state')?.textContent ?? ''`));
+  await send('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
+  await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27 });
   // A planet's size in the sky (planetdetail's planet_disc).
   await open(MOONLIT.replace('body=Moon', 'body=Jupiter'), { theme: 'dark' });
   const jupiter = await waitFor(`[...document.querySelectorAll('.sf-selected .sf-kv')].some((r) => /Size in the sky/.test(r.textContent) && /\\d+\\.\\d″$/.test(r.querySelector('.sf-kv__v')?.textContent ?? ''))`, 10000);
@@ -1497,7 +1531,7 @@ async function photoChecks({ send, evaluate, waitFor, messages, open, shot, view
 }
 
 // ---------------------------------------------------------------------------------
-// 11. The Sky view's astronomy layers (sky2 agent, expansion programme Q3)
+// 13. The Sky view's astronomy layers (sky2 agent, expansion programme Q3)
 // ---------------------------------------------------------------------------------
 
 /** 22:00 EDT on 24 September 2026 in Philadelphia: dark, the Milky Way up, a Moon nearly full. */
