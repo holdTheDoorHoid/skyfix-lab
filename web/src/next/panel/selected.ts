@@ -43,6 +43,7 @@ import { distanceWords, moonTools } from './moon-tools.js';
 import { coordRow, lightTableView, magneticLine, milkyWayTool, Motion, outsideWords, Settler } from './photo.js';
 import { shadowOf } from './sun-tools.js';
 import { whenTool } from './when.js';
+import { fastPlayback } from '../playback.js';
 
 const WORDS: Record<string, [string, string]> = { Sun: ['Sunrise', 'Sunset'], Moon: ['Moonrise', 'Moonset'] };
 
@@ -107,10 +108,20 @@ function otherDayOf(jd: number, zone: Zone, other: Zone): string {
   return a.day === b.day && a.month === b.month ? '' : (['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][a.weekday] ?? '');
 }
 
-function moonStory(phases: readonly PhaseEvent[], jd: number): { waxing: boolean; age: number | null; next: PhaseEvent | null } {
+export function moonStory(
+  phases: readonly PhaseEvent[],
+  jd: number,
+  brightLimbDeg: number | null = null,
+): { waxing: boolean; age: number | null; next: PhaseEvent | null } {
   const next = phases.find((p) => p.jd_utc > jd) ?? null;
   const lastNew = [...phases].reverse().find((p) => p.kind === 'new_moon' && p.jd_utc <= jd) ?? null;
-  const waxing = next ? next.kind === 'first_quarter' || next.kind === 'full_moon' : true;
+  // Without the phases (fast playback asks for none: verify2) the bright limb says it: it
+  // faces the Sun, which lies west of a waxing Moon (position angle 180-360 degrees).
+  const waxing = next
+    ? next.kind === 'first_quarter' || next.kind === 'full_moon'
+    : brightLimbDeg !== null
+      ? Math.sin((brightLimbDeg * Math.PI) / 180) < 0
+      : true;
   return { waxing, age: lastNew ? jd - lastNew.jd_utc : null, next };
 }
 
@@ -210,6 +221,8 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
   const motion = new Motion();
   /** The last render's `moving`, for the extras' own settlers. */
   let currentMoving = false;
+  /** Whether the last render was during fast playback (verify2). */
+  let wasFast = false;
   for (const tool of [when, align, milky, light, moon]) d.add(() => tool.destroy());
   sec.body.append(status, readouts, cardRow, extras, magRow, coords.el, sights, when.el, align.el, milky.el, details);
 
@@ -292,7 +305,9 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
   const buildMoonExtras = (s: ExplorerState): void => {
     const zone = displayZone(s);
     const [a] = dayOf(s);
-    const phases = (() => {
+    // Faster than eight days a second no phases are asked (verify2): the name comes from the
+    // bright limb, and the age and the next phase return once time slows.
+    const phases = fastPlayback(s) ? [] : (() => {
       try {
         return engine.moonPhases(a - 32, a + 32);
       } catch {
@@ -313,7 +328,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     );
     updateExtras = (b, st) => {
       const k = b.illuminated_fraction ?? 0;
-      const story = moonStory(phases, st.time.jd_utc);
+      const story = moonStory(phases, st.time.jd_utc, b.bright_limb_angle_deg);
       const limb = b.bright_limb_angle_deg === null ? 270 : b.bright_limb_angle_deg - b.parallactic_angle_deg;
       const phaseName = moonPhaseName(k, story.waxing);
       disc.replaceChildren(
@@ -461,8 +476,11 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     const placeZ = placeZone(s);
     const jd = s.time.jd_utc;
     const f = s.settings.angleFormat;
-    // The time bar being dragged, or playing: the heavier rows wait for it to settle.
-    const moving = motion.note(jd);
+    // The time bar being dragged, or playing: the heavier rows wait for it to settle. Faster
+    // than eight days a second (playback.ts `fastPlayback`) they are not asked at all
+    // (verify2): a new day every frame, and a settle timer fires between two slow frames.
+    const fast = fastPlayback(s);
+    const moving = motion.note(jd) || fast;
     currentMoving = moving;
 
     // Head
@@ -558,7 +576,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
 
     // Extras
     const [a] = dayOf(s);
-    const key = `${name}|${b.kind}|${a}|${s.settings.timeDisplay}|${s.settings.hourCycle}|${s.settings.units}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.settings.horizon}|${s.settings.height_of_eye_m}`;
+    const key = `${name}|${b.kind}|${fast ? 'fast' : a}|${s.settings.timeDisplay}|${s.settings.hourCycle}|${s.settings.units}|${s.observer.lat_deg}|${s.observer.lon_deg}|${s.settings.horizon}|${s.settings.height_of_eye_m}`;
     if (key !== extrasKey) {
       extrasKey = key;
       if (b.kind === 'sun') buildSunExtras(s);
@@ -567,14 +585,21 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     }
     lastBody = b;
     updateExtras(b, s);
-    if (b.kind === 'sun') light.update(s, moving);
-    if (b.kind === 'moon') moon.update(b, s, moving);
-    when.update(s, name, moving);
+    // During fast playback the tools keep their last answer, dimmed (verify2).
+    if (fast !== wasFast) {
+      wasFast = fast;
+      for (const el of [light.el, moon.el, when.el, milky.el, mag.el]) el.toggleAttribute('data-stale', fast);
+    }
+    if (!fast) {
+      if (b.kind === 'sun') light.update(s, moving);
+      if (b.kind === 'moon') moon.update(b, s, moving);
+      when.update(s, name, moving);
+    }
     align.el.hidden = b.kind !== 'sun' && b.kind !== 'moon';
     if (!align.el.hidden) align.update(s, name);
-    milky.update(s, moving);
+    if (!fast) milky.update(s, moving);
     coords.update(b, s);
-    mag.update(b, s, a);
+    if (!fast) mag.update(b, s, a);
 
     setText(magValue, formatMagnitude(b.magnitude));
 
@@ -605,7 +630,9 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       ...(b.kind === 'sun' ? ([['Distance', formatDistance(b.distance_km, s.settings.units)]] as [string, string][]) : []),
       ...(b.kind !== 'star' && b.kind !== 'planet' && b.constellation ? ([['Constellation', b.constellation]] as [string, string][]) : []),
     ];
-    if (details.open) predict(b, info, s);
+    // A predicted reading is one engine call: not during fast playback (verify2).
+    predictBox.toggleAttribute('data-stale', fast);
+    if (details.open && !fast) predict(b, info, s);
     const cells = detailsGrid.children;
     if (cells.length !== rows.length || rows.some(([k], i) => cells[i]?.querySelector('.sf-kv__k')?.textContent !== k)) {
       detailsGrid.replaceChildren(...rows.map(([k, v]) => kv(null, k, v)));

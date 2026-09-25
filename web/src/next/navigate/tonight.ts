@@ -33,6 +33,7 @@ import { sightTierAt } from './tier.js';
 import { workingFor } from './working.js';
 import { workingsTable } from './workings.js';
 import { ringWhileShown } from '../sky/highlight.js'; // sky2 agent: tonight's bodies ringed in the Sky view
+import { fastPlayback } from '../playback.js';
 
 export interface TonightOptions {
   /** Compact list for the side panel (default) or the full plan (Navigate's Plan tab). */
@@ -244,6 +245,7 @@ export function tonightSights(options: TonightOptions = {}): Component {
     const compute = (): void => {
       timer = null;
       lastRun = Date.now();
+      body.removeAttribute('data-stale');
       const inputs = inputsFor(ctx, from);
       // navigate2: no plan outside the validated tier (CONVENTIONS 15.1): the sentence says why,
       // on the time-ui agent's `tierAt` and `sightsOnlyText` (tier.ts). The window searched runs a
@@ -274,6 +276,16 @@ export function tonightSights(options: TonightOptions = {}): Component {
       }
     };
     const request = (): void => {
+      // Faster than eight days a second (playback.ts `fastPlayback`) no plan is made: a new
+      // night every frame, and at most one plan in five seconds still took the page's time
+      // (verify2). The last plan stays, dimmed; a new one follows once time slows.
+      if (fastPlayback(ctx.store.get())) {
+        if (timer !== null) clearTimeout(timer);
+        timer = null;
+        lastKey = '';
+        body.setAttribute('data-stale', '');
+        return;
+      }
       const inputs = inputsFor(ctx, from);
       const st = ctx.store.get().settings;
       const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), st.angleFormat, st.timeDisplay, st.hourCycle, ctx.store.get().observer.zone, st.calendar, st.yearStyle]);
