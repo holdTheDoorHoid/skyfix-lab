@@ -39,6 +39,9 @@
 
 mod bessel;
 pub(crate) mod cheb;
+// Expansion programme P12 (eclipselimb agent): the lunar limb profile, behind
+// `Eclipses::local_with_limb` and the optional `lunar-limb` pack.
+pub mod limb;
 mod local;
 mod lunar;
 mod path;
@@ -54,6 +57,7 @@ use skyfix_ephemeris::sun::SunProvider;
 use skyfix_ephemeris::topocentric::Site;
 
 pub use bessel::{K_PENUMBRA, K_UMBRA};
+pub use limb::{Bead, LimbContact, LimbProfile, LimbRing, SolarLimb, profile_at};
 pub use local::{
     LocalEvent, LocalEventKind, LocalType, SUN_RISE_SET_ALT_DEG, Visibility, obscuration,
 };
@@ -309,6 +313,10 @@ pub struct SolarLocal {
     pub visible_max: Option<LocalEvent>,
     pub delta_t_s: f64,
     pub delta_t_sigma_s: f64,
+    /// Limb-corrected circumstances, only when asked for (`Eclipses::local_with_limb`,
+    /// `options.limb`); absent otherwise, so the mean-limb output is unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub limb: Option<Box<SolarLimb>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -414,6 +422,8 @@ struct SolarModel {
     g: solar::SolarGlobal,
     summary: SolarEclipse,
     sun: SunProvider,
+    /// With the same DUT1 as `sun` (the limb profile's orientation needs the Moon).
+    moon: MoonProvider,
 }
 
 struct LunarModel {
@@ -580,6 +590,7 @@ impl Eclipses {
             g,
             summary,
             sun,
+            moon,
         }))
     }
 
@@ -751,6 +762,28 @@ impl Eclipses {
 
     /// Local circumstances of eclipse `id` at `site`.
     pub fn local(&self, id: &str, site: &Site) -> Result<EclipseLocal, EclipseError> {
+        self.local_inner(id, site, None)
+    }
+
+    /// [`Eclipses::local`] with the limb-corrected circumstances of a solar eclipse in
+    /// `SolarLocal::limb` (`limb.rs`): from `ring` when the `lunar-limb` pack is loaded,
+    /// else a note saying what the pack would add. The mean-limb fields are identical to
+    /// [`Eclipses::local`]'s. A lunar eclipse is returned as by [`Eclipses::local`].
+    pub fn local_with_limb(
+        &self,
+        id: &str,
+        site: &Site,
+        ring: Option<&LimbRing>,
+    ) -> Result<EclipseLocal, EclipseError> {
+        self.local_inner(id, site, Some(ring))
+    }
+
+    fn local_inner(
+        &self,
+        id: &str,
+        site: &Site,
+        limb: Option<Option<&LimbRing>>,
+    ) -> Result<EclipseLocal, EclipseError> {
         check_site(site)?;
         let observer = ObserverEcho {
             lat_deg: site.lat_deg,
@@ -760,6 +793,13 @@ impl Eclipses {
         Ok(match self.model(id)? {
             Model::Solar(m) => {
                 let r = local::solar_local(&m.el, &m.sun, site)?;
+                let limb = match limb {
+                    None => None,
+                    Some(None) => Some(Box::new(SolarLimb::not_loaded())),
+                    Some(Some(ring)) => Some(Box::new(limb::solar_limb(
+                        ring, &m.el, &m.sun, &m.moon, site, &r,
+                    )?)),
+                };
                 EclipseLocal::Solar(SolarLocal {
                     id: m.summary.id.clone(),
                     observer,
@@ -773,6 +813,7 @@ impl Eclipses {
                     visible_max: r.visible_max,
                     delta_t_s: m.summary.delta_t_s,
                     delta_t_sigma_s: m.summary.delta_t_sigma_s,
+                    limb,
                 })
             }
             Model::Lunar(m) => {

@@ -50,6 +50,8 @@ a fact you expect is not where you thought, it has moved, not gone.
 | NAIF lunar orientation kernels (DE440), published occultation predictions (BAA; IOTA via EarthSky and Astronomy) | Development-time truth for the Moon in detail (`docs/ACCURACY.md` section 14) | US Government works; published times are facts, transcribed; **never shipped** | None (not in the runtime at all) |
 | NOAA CO-OPS tide stations, harmonic constants, datums and subordinate offsets (3 499 stations) | Tide predictions, the optional `tides-us` pack (downloaded when turned on) | U.S. Government work (public domain); NOS *requests* attribution, a docs line here | None |
 | Schureman (1958), *Manual of Harmonic Analysis and Prediction of Tides* (USC&GS Special Publication 98) | Node factors, equilibrium arguments, constituent definitions of the tides engine | U.S. Government work (public domain); formulas transcribed | None |
+| LRO LOLA gridded topography LDEM_16 (NASA PDS, LRO-L-LOLA-4-GDR-V1.0), resampled around the mean limb | The lunar limb profile, the optional `lunar-limb` pack: limb-corrected eclipse contacts, the drawn limb, Baily's beads | U.S. Government work (NASA mission data in the PDS, no reuse restriction); the PDS asks publications to cite the product: [cited here](#lunar-limb-profile-optional-lunar-limb-pack) | None |
+| NASA Scientific Visualization Studio city times for the 2023 and 2024 eclipses (item 5073) | Development-time truth for the limb-corrected contacts (`docs/ACCURACY.md`, "Lunar limb") | U.S. Government work; SVS asks for credit, given here; **never shipped** | None (not in the runtime at all) |
 
 ## Runtime data
 
@@ -2099,3 +2101,65 @@ Government works or facts; their acknowledgements are made here.
 | Meeus, *Astronomical Algorithms*, 2nd ed., table 38.C (perihelion and aphelion 1991-2010, as transcribed in `soniakeys/meeus`, `perihelion/pp_test.go`, MIT) and examples 43.a, 44.b, 45.a | apsides, central meridians, E5, rings | published facts |
 | The Minor Planet Center's `MPCORB.DAT` (six lines, by byte range) and `CometEls.txt` (<https://minorplanetcenter.net/iau/MPCORB/>, retrieved 2026-09-25): twelve lines kept verbatim as test input in `planetdetail_orbits.json` and two in `web/test/next/planetdetail-engine.test.ts` | orbits (`planetdetail_orbits.rs`, the web tests) | the MPC permits redistribution with the source stated: **"Source: Minor Planet Center"**, as the fixture and the test carry |
 | Skyfield 1.55 (`skyfield.data.mpc`, `almanac`, `searchlib`) with `de440s.bsp` and `hip_main.dat` (all listed under "Reference data" above) | conjunctions, stations, apsides, orbits, transit contacts | MIT (Skyfield); JPL and ESA terms as listed above |
+
+## Expansion programme — the Selected card's tools (photo agent, Q8, 2026-09-25)
+
+Owner: photo agent (`web/src/next/panel/{photo,moon-tools,alignment,when,sun-tools,selected}.ts`,
+`web/src/next/map/pick.ts`). **No third-party data is added to the site.** Every number the
+card shows comes from the engines, whose sources are listed above; the one computation of
+its own, the direction to a point picked on the map, is a published method.
+
+| Item | What is used | Basis |
+|---|---|---|
+| T. Vincenty, "Direct and inverse solutions of geodesics on the ellipsoid with application of nested equations", *Survey Review* 23 (176), 88-93 (1975) | the inverse formula (`panel/sun-tools.ts`, `geodesicInverse`), written from its published equations | a method; cited, no code copied |
+
+#### Development-time references
+
+- **The Geocentric Datum of Australia Technical Manual's worked example of Vincenty's
+  inverse formula** (Intergovernmental Committee on Surveying and Mapping, chapter 4):
+  Flinders Peak (−37° 57′ 03.72030″, 144° 25′ 29.52440″) to Buninyong (−37° 39′ 10.15610″,
+  143° 55′ 35.38390″), 54 972.271 m, azimuths 306° 52′ 05.37″ and 127° 10′ 25.07″. Read
+  from the sample data Geoscience Australia keeps at the end of its own implementation,
+  <https://github.com/GeoscienceAustralia/Wind_multipliers/blob/master/utilities/vincenty.py>
+  (which cites the manual's former address, `http://www.anzlic.org.au/icsm/gdatum/chapter4.html`),
+  retrieved 2026-09-25. Seven published numbers (facts), typed into
+  `web/test/next/photo-tools.test.ts`; nothing else is copied.
+
+## Lunar limb profile (optional `lunar-limb` pack)
+
+Owner: eclipselimb agent (expansion programme P12; `crates/skyfix-almanac/src/eclipses/limb.rs`,
+`crates/skyfix-wasm/src/limb.rs`, `tools/limb/`). Added 2026-09-25. No new crate or npm
+dependency. The data ships as an **optional pack**, `web/public/data/packs/lunar-limb-<rev>.bin`
+(2.21 MB, 1.66 MB gzipped), downloaded only when the person turns it on or accepts the
+eclipse view's prompt (EXPANSION_PLAN §3); the core module does not contain it.
+
+### LRO LOLA gridded topography, LDEM_16 (runtime data, in the pack)
+
+| | |
+|---|---|
+| Product | LDEM_16, product version V3.1 (created 2019-03-15), data set LRO-L-LOLA-4-GDR-V1.0: the Moon's radius from the Lunar Orbiter Laser Altimeter on the Lunar Reconnaissance Orbiter, gridded at 16 pixels per degree (1895.21 m per pixel), 2880 × 5760 little-endian int16, height = DN × 0.5 m above the 1737.4 km sphere, simple cylindrical, pixel-registered, in the "MEAN EARTH/POLAR AXIS OF DE421" frame (from the PDS3 label, which `tools/limb/ring.py` checks field by field) |
+| Publisher | NASA Planetary Data System, Geosciences Node (Washington University in St. Louis) |
+| URL | `https://pds-geosciences.wustl.edu/lro/lro-l-lola-3-rdr-v1/lrolol_1xxx/data/lola_gdr/cylindrical/img/ldem_16.img` and `ldem_16.lbl` |
+| Retrieved | 2026-09-25 (UTC) by `tools/limb/fetch.py` (download approved by the owner: 33 177 600 bytes, SHA-256 `a511e40d7a3ea3275945b4da2a1df377133264fab0be94b7434b1cf8907254cb`; label 5 121 bytes, SHA-256 `9aef29463ccc6ed3a3fbe0df3ecd830a99c69e16b564f455507dee2697096579`); kept git-ignored in `tools/limb/data/` with `provenance.json` |
+| Licence basis | NASA mission data archived in the PDS: a U.S. Government work, not subject to copyright in the United States, with no reuse restriction stated by the PDS or on the data set's page; the PDS asks that publications cite the products. No on-screen credit (the owner's preference, `EXPANSION_PLAN.md` §1); the citation is here. |
+| Citation | Neumann, G. A. (2009), *Lunar Orbiter Laser Altimeter Raw Data Set*, LRO-L-LOLA-4-GDR-V1.0, NASA Planetary Data System (2010), doi:10.17189/1520642 (the PDS's own citation text). The instrument: Smith, D. E., et al. (2010), "The Lunar Orbiter Laser Altimeter investigation on the Lunar Reconnaissance Orbiter mission", *Space Science Reviews* 150, 209-241. |
+| Processing | `tools/limb/build.py` (deterministic): heights interpolated bilinearly from the grid at the nodes of a ring around the mean limb (5 760 axis angles × 384 distances from the mean limb, 1/16° apart, ±12°; CONVENTIONS 15.7), rounded to 5 m (at most 2.5 m, 0.0014″), coded as byte residuals of a planar predictor (145 two-byte escapes) and wrapped in the common pack header; the build decodes the result and refuses it unless it matches exactly. The payload format is in EXPLORER_API "Expansion programme P12 — the lunar limb". |
+| Not used | SLDEM2015 (LOLA with SELENE/Kaguya Terrain Camera stereo, 512 pixels per degree), which NASA's own eclipse visualisations use: JAXA's terms for its share were not checked (data audit, section 9), and at 60 m even the ring would be gigabytes. LDEM_64 (474 m) would make a 71 MB ring, LDEM_4 (0.25°) a 0.3 MB one four times coarser than this (data audit, section 9). |
+
+### NASA Scientific Visualization Studio: limb-corrected city times (development-time only)
+
+| | |
+|---|---|
+| Item | "The 2023 and 2024 Solar Eclipses: Map and Data", NASA SVS item 5073 (`https://svs.gsfc.nasa.gov/5073`), eclipse data by Ernie Wright (USRA) with lunar topography from LRO LOLA and SELENE (SLDEM2015), terrain from SRTM and positions from JPL DE421 |
+| Files | `https://svs.gsfc.nasa.gov/vis/a000000/a005000/a005073/cities-eclipse-2024.json` (4 350 357 bytes, 32 174 U.S. cities, 3 330 of them in the path of totality) and `cities-eclipse-2023.json` (4 323 853 bytes, 811 in the path of annularity): for each city "An array of UTC times for the [0.01%, 50%, 100%, 50%, 0.01%] points of coverage (normalized with respect to the maximum coverage achieved)", with the start and end of the central phase to the whole second |
+| Retrieved | 2026-09-25 (UTC) by `tools/limb/reference.py svs`; size and SHA-256 recorded in the fixture |
+| Licence basis | U.S. Government work (NASA). SVS asks: "Please give credit for this item to: NASA's Scientific Visualization Studio" — given here. |
+| Use | `fixtures/reference/eclipse_limb_svs.json` keeps the rows of 51 cities verbatim (32 for 2024, 19 for 2023) with a ground height this project assigned each; a test oracle only (`tests/eclipse_limb.rs`), **never shipped**. |
+
+### Independent reference implementation (development-time only)
+
+`fixtures/reference/eclipse_limb_skyfield.json` is computed by `tools/limb/reference.py
+skyfield` with sources already recorded in this document: Skyfield 1.55 and JPL DE440s
+(section "Reference data"), NAIF's DE440 lunar orientation kernels
+`moon_pa_de440_200625.bpc` and `moon_de440_250416.tf` (section "The Moon in detail:
+reference data"), and the raw LDEM_16 grid above. Nothing from the Rust code enters it.

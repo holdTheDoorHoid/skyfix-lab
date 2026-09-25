@@ -30,7 +30,7 @@ import { chipNeeded, scaleLabel, scaleReason, timeInfoAt, uncertaintyText, uncer
 
 /** An event as every list, calendar file and table sees it. */
 export interface EventItem {
-  /** Names the event wherever it is computed (the UID's name part; see CONVENTIONS 15.7). */
+  /** Names the event wherever it is computed (the UID's name part; see CONVENTIONS 15.8). */
   readonly id: string;
   /** The list it belongs to, for files: `Moon`, `Planets`, `Meteor showers`… */
   readonly group: string;

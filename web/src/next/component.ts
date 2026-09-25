@@ -29,6 +29,7 @@ import {
   type AlmanacEngine,
   type BodySelection,
   type EclipseEngine,
+  type EclipseLocalOptions,
   type EventOptions,
   type ExplorerEngine,
   type Observer,
@@ -374,8 +375,11 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): M
       ? {
           eclipses: (jdStart: number, jdEnd: number) =>
             cached('eclipses', `${jdStart}|${jdEnd}`, 4, () => engine.eclipses(jdStart, jdEnd)),
-          eclipseLocal: (id: string, observer: Observer) =>
-            cached('eclipseLocal', `${id}|${observerKey(observer)}`, 64, () => engine.eclipseLocal(id, observer)),
+          // With `options.limb` (P12) the result carries the limb block: its own key.
+          eclipseLocal: (id: string, observer: Observer, options?: EclipseLocalOptions) =>
+            cached('eclipseLocal', `${id}|${observerKey(observer)}|${options?.limb ? 'limb' : ''}`, 64, () =>
+              options ? engine.eclipseLocal(id, observer, options) : engine.eclipseLocal(id, observer),
+            ),
           eclipsePath: (id: string) => cached('eclipsePath', id, 4, () => engine.eclipsePath(id)),
         }
       : {}),

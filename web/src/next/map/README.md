@@ -73,6 +73,29 @@ first, e.g. `geo/greatcircle.ts`), `ellipseFeature(center, semiMajorNm, semiMino
 orientationDeg)`, `pointFeature(position)`. Lower level: `geometry.ts` (`smallCircle`,
 `capPolygon`, `circleLine`, `splitLine`, `polygonPieces`, …).
 
+## Picking a point on the map (photo agent, expansion programme Q8)
+
+```ts
+import { mapPickerFor } from '../map/pick.js';
+
+const stop = mapPickerFor(ctx).request({
+  prompt: 'Click the point the bearing should run to: a street, a peak, a window.',
+  onPick: (point) => { /* {lat_deg, lon_deg}, longitude in (-180, 180] */ },
+  onCancel: () => { /* Cancel, Escape, a newer request, or stop() */ },
+});
+```
+
+- One picker per page (per store), like the map service; it exists without a map on screen,
+  and the map shows the prompt when it mounts.
+- While a request waits, the map's next click (a tap on a touch screen) goes to it and does
+  not set the place; the map shows the prompt with **Cancel** at its top, a crosshair cursor
+  (`sfm--picking`), and Escape cancels. A newer request cancels an older one.
+- The map view calls `offer(point)` first thing in its click handling and
+  `attachPickPrompt(root, ctx)` once (three lines in `map-view.ts`, marked "photo agent").
+- The Selected card's bearing tools use it (`panel/photo.ts`, `photoBearing`) and draw the
+  bearing as the overlay `photo-bearing`, listed in Layers under "The bearing from the
+  Selected card".
+
 ## Files
 
 | File | What |
@@ -88,6 +111,7 @@ orientationDeg)`, `pointFeature(position)`. Lower level: `geometry.ts` (`smallCi
 | `measure.ts`, `format.ts` | Great circle and rhumb line; number formats |
 | `place.ts` | Naming a position and guessing its zone |
 | `overlays.ts`, `overlay-layers.ts` | The map service and how overlays become MapLibre layers |
+| `pick.ts`, `pick.css` | One click for another part of the page, with its prompt (photo agent) |
 | `controls.ts`, `map.css` | Stage controls (design-system primitives) and the dial's styles |
 | `dev/` | The developer page `web/next/dev-map.html` (address options in `dev-map.ts`) |
 
