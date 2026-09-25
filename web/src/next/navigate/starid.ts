@@ -170,13 +170,13 @@ export function starIdPanel(nc: NavCtx, read: () => StarIdFormInputs, pick: (bod
   const bearingField = field('Rough bearing of the body (°)', bearing, { help: 'From a hand-bearing compass, or the ship’s head and a guess.' });
   const kind = selectInput<BearingKind>(
     [
-      { value: 'compass', label: 'By compass (deviation and variation)' },
-      { value: 'magnetic', label: 'Magnetic (variation only)' },
+      { value: 'compass', label: 'By compass' },
+      { value: 'magnetic', label: 'Magnetic' },
       { value: 'true', label: 'True' },
     ],
     'compass',
   );
-  const kindField = field('The bearing is', kind);
+  const kindField = field('The bearing is', kind, { help: 'By compass: the deviation and the variation are applied; magnetic: the variation only.' });
   const deviation = textInput({ size: 7, placeholder: '0' });
   const deviationField = field('Deviation (optional)', deviation, { help: 'With its name: 2.5 W. Empty: none.' });
   const tolerance = selectInput<'5' | '10' | '20'>(
