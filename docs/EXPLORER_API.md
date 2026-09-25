@@ -1142,3 +1142,144 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+## Expansion programme P8 — the Moon in detail (`moondetail.rs`, moondetail agent)
+
+Specified by the moondetail agent (2026-09-25). Engines: `skyfix_almanac::{libration,
+lunar_features, apsides, occultations}`; definitions in CONVENTIONS 13.10; validation in
+`docs/ACCURACY.md`, "Moon in detail". TypeScript: `MoonDetailEngine` and
+`isMoonDetailEngine` at the end of `types.ts`, implemented by the WASM engine, the mock and
+the memoised wrapper. Every export throws a string for malformed input or an instant the
+Moon or the Sun cannot be computed at; the astronomy is the explorer's (DUT1 = 0,
+CONVENTIONS 13.2). `observer_json` is as in "Common rules"; where it may be `null` (or
+empty), the answer is for the Earth's centre.
+
+Selenographic places are latitude north-positive and **east** longitude (toward Mare
+Crisium, IAU), `(-180, 180]`, in the mean Earth/polar axis frame of IAU coordinates and of
+the named features. `DiscPoint` is where a point of the Moon appears on its disc, in disc
+radii: `{east, north, x, y, visible}` — `east`/`north` along celestial east (position angle
+90°) and north; `x`/`y` as the observer sees the Moon with the zenith up (`x` right, `y`
+up), or with celestial north up and east to the left when there is no observer; `visible`
+when the point faces the observer.
+
+### `moon_orientation(observer_json | null, jd_utc) -> MoonOrientation`
+
+How the Moon is turned and lit (about 0.5 ms natively):
+
+```ts
+{ jd_utc, utc, topocentric: boolean,
+  libration: { lon_deg, lat_deg,                        // total, as the observer sees it
+               optical_lon_deg, optical_lat_deg,         // Meeus l', b' (geocentric)
+               physical_lon_deg, physical_lat_deg,       // Meeus l'', b'' (geocentric)
+               diurnal_lon_deg, diurnal_lat_deg },       // observer minus geocentre; 0 without one
+  sub_observer: Selenographic,  // = libration lon/lat: the point at the disc's centre
+  sub_earth: Selenographic,     // the same from the Earth's centre
+  sub_solar: Selenographic,     // where the Sun is overhead
+  colongitude_deg,              // 90 − sub_solar.lon_deg, [0, 360): ~270 new, 0 first quarter, 90 full, 180 last
+  axis_position_angle_deg,      // the Moon's north pole on the sky, north through east (observer)
+  geocentric_axis_position_angle_deg,
+  bright_limb_angle_deg,        // the ephemeris's (geocentric, CONVENTIONS 13.5)
+  illuminated_fraction, phase_angle_deg, waxing: boolean,
+  terminator: { pole: Selenographic,                    // the sub-solar point
+                morning_lon_deg, evening_lon_deg,        // where the sunrise/sunset terminators cross the equator
+                points: [lat_deg, lon_deg][],            // the great circle every 5°, 72 points
+                disc: [x, y][] },                        // the visible half, cusp to cusp, 1° steps
+  distance_km, semidiameter_arcmin, apparent_diameter_arcmin,   // observer to Moon
+  diameter_vs_mean_percent,     // against the mean distance 384 400 km
+  geocentric_distance_km, geocentric_semidiameter_arcmin,
+  alt_deg | null, az_deg | null,           // topocentric geometric (CONVENTIONS 13.2)
+  parallactic_angle_deg | null,            // position angle of the zenith at the Moon, (-180, 180]
+  north_pole_disc: DiscPoint, sub_solar_disc: DiscPoint }
+```
+
+`optical + physical + diurnal` differs from the total by the fixed 78.7″ between the pole
+of Meeus's figure frame and the mean rotation pole (at most 0.022°; CONVENTIONS 13.10).
+
+### `moon_features(observer_json | null, jd_utc) -> MoonFeatures`
+
+The 150 named features (maria, craters, ranges, rilles, valleys, capes, one albedo swirl,
+the six Apollo sites) at an instant, about 0.5 ms natively:
+
+```ts
+{ jd_utc, utc, topocentric, colongitude_deg, sub_solar, sub_observer,
+  axis_position_angle_deg, parallactic_angle_deg | null, illuminated_fraction, waxing,
+  terminator_band_deg: 10,
+  tonight: string[],        // visible relief features near the terminator: rank 1 first, then lowest Sun
+  features: [{ name, kind, lat_deg, lon_deg, diameter_km, rank: 1 | 2 | 3, description,
+               sun_altitude_deg,            // the Sun's altitude over the feature (negative: night)
+               lit, morning,                // lunar morning: the Sun is climbing there
+               near_terminator,             // faces the observer, Sun between −r and 10° + r (r its angular radius)
+               visible, angle_from_disc_centre_deg, disc: DiscPoint }],   // 150, table order
+  source: string }          // "USGS/IAU Gazetteer … (U.S. Public Domain); selection … SkyFix Lab"
+```
+
+`kind`: `mare | oceanus | lacus | sinus | palus | mons | montes | rupes | rima | vallis |
+dorsum | promontorium | albedo | crater | landing_site`. `diameter_km` is the gazetteer's
+(the length for rilles, valleys and ranges), 0 for a landing site. Rank: 1 a showpiece,
+2 notable, 3 more to find. An albedo marking has no relief and is never in `tonight`.
+
+### `moon_apsides(jd_start, jd_end) -> MoonApsides`
+
+Perigees, apogees, new and full Moons with supermoon flags, instants in the window clipped
+to the Moon's coverage (`truncated` says so). At most a century; about 0.1 s of CPU a year
+natively (most of it the phase search). Throws for a non-finite or reversed window.
+
+```ts
+{ jd_start, jd_end, truncated, coverage_start_utc, coverage_end_utc,
+  apsides: [{ kind: 'perigee' | 'apogee', jd_utc, utc, distance_km,   // centre to centre, geometric
+              semidiameter_arcmin, diameter_arcmin, diameter_vs_mean_percent }],
+  syzygies: [{ kind: 'new_moon' | 'full_moon', jd_utc, utc, distance_km, diameter_arcmin,
+               diameter_vs_mean_percent,
+               perigee: { jd_utc, utc, distance_km },   // the perigee and apogee on either side of it in time
+               apogee: { jd_utc, utc, distance_km },
+               hours_from_perigee, perigee_fraction,    // 0 at apogee, 1 at perigee
+               supermoon, micromoon,                    // fraction >= 0.9 / <= 0.1 (Nolle)
+               largest_of_year, smallest_of_year }],    // full Moons of the UTC calendar year
+  definitions: { apsis, supermoon, micromoon, largest_of_year, mean_distance_km } }
+```
+
+The new and full Moons are exactly `moon_phases`'s instants.
+
+### `occultations(observer_json, jd_start, jd_end, options_json) -> OccultationList`
+
+Lunar occultations of stars and planets seen from one place, contacts at the Moon's
+**mean limb**, the window at most 400 days (clipped to the coverage). A year with the
+default bodies takes about 0.1 s natively (64 ms of CPU); down to magnitude 6.5 about
+0.6 s. `options_json` (all optional, `{}` or `null` for the defaults; an unknown key
+throws):
+
+| key | default | meaning |
+|---|---|---|
+| `max_magnitude` | 3.5 | Bright Star Catalogue stars brighter than this join the 58 navigational stars; −2 .. 6.5 |
+| `stars`, `planets` | true | search them |
+| `include_below_horizon` | false | keep events with the Moon below the horizon at every contact |
+| `include_near_misses` | true | keep bodies that pass outside the mean limb within 1′ |
+| `bodies` | null | only these names (as results spell them; an unknown name throws) |
+
+```ts
+{ jd_start, jd_end, truncated, coverage_start_utc, coverage_end_utc,
+  limb_note: string,        // show it beside the times: mean limb, real limb differs by seconds, up to a minute near the Moon's poles
+  bodies_searched,          // after the ecliptic filter (stars within 7° of the ecliptic)
+  events: [{ body, kind: 'star' | 'planet', designation | null, hr | null, magnitude | null,
+             navigational, occulted,        // false: a near miss
+             graze,                         // passes within 1′ of the mean limb, inside or out
+             disappearance: Contact | null, reappearance: Contact | null,
+             closest: { jd_utc, utc, limb_distance_arcmin,   // negative inside the disc
+                        position_angle_deg, moon_alt_deg },
+             duration_s | null, body_semidiameter_arcsec,    // 0 for a star
+             moon_illuminated_fraction, waxing,
+             visible }],                    // the Moon is up at a contact (at closest approach for a near miss)
+  errors: BodyError[] }
+
+Contact = { kind: 'disappearance' | 'reappearance', jd_utc, utc,
+            position_angle_deg,   // on the limb, from celestial north through east
+            vertex_angle_deg,     // the same from the zenith
+            cusp_angle_deg,       // from the nearer cusp, positive on the dark limb, negative on the bright
+            cusp: 'N' | 'S', limb: 'dark' | 'bright',
+            moon_alt_deg, moon_az_deg, moon_above_horizon,
+            sun_alt_deg, sky_phase,   // CONVENTIONS 13.4
+            crossing_s }              // planets: seconds for the disc to cross the limb; 0 for a star
+```
+
+Events are sorted by their first contact. A planet's contacts are those of its centre. A
+star's name is its proper name, else its designation, else `"HR n"`.

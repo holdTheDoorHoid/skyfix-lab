@@ -36,6 +36,9 @@ reproduce each row are in the numbered section named.
 | Planet events: oppositions, conjunctions, greatest elongations, closest approaches (vs Skyfield + DE440s, all 2266 of 1990-2060; list vs NASA SKYCAL) | every event matched one for one; conjunctions and oppositions within 55 s (Neptune's slow motion), elongations and closest approaches within 68 s; the 12 transits are NASA's | 1 min / 10 min | 13 |
 | Navigation methods: noon sight, Polaris, averaging, running fix (noise-free vs Skyfield truth; Bowditch's worked examples) | within 0.0001–0.0013′ of truth; running fix within 0.4–36 m; Bowditch reproduced to 0.02–0.19′ | — (numerical regression) | 3, "Navigation methods" |
 | Navigation methods: seeded-coverage of the stated sigma | 93.8–96.0 % (Polaris very near the pole with a poor DR: 89.8 %, a documented limit, `polaris_near_pole`) | ≈95 % | 3, "Navigation methods" |
+| Moon in detail: libration, sub-solar point, axis (vs Skyfield + JPL's DE440 lunar orientation; Meeus 53.a) | 0.0052° / 0.0060° / 0.0061° over 1550–2650 (model), 0.0058° end to end for observers; Meeus 53.a to every printed digit | 0.05° | 14 |
+| Moon in detail: perigee, apogee, supermoons (vs Skyfield + DE440s) | instants within 11.2 s, distances 0.22 km; every supermoon/micromoon flag agrees | 2 min, 10 km | 14 |
+| Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s | 30 s | 14 |
 
 ## 1. What accuracy means here
 
@@ -1399,3 +1402,138 @@ each.
   about five minutes).
 - `cargo test --release -p skyfix-almanac --test planet_events -- --include-ignored
   --nocapture` prints the numbers for 2019-2026 and 1990-2060.
+
+## 14. Moon in detail: libration, named features, apsides and supermoons, occultations
+
+Owner: moondetail agent (expansion programme P8, 2026-09-25). Engines
+`skyfix_almanac::{libration, lunar_features, apsides, occultations}` (definitions in
+CONVENTIONS 13.10; wire format in `docs/EXPLORER_API.md`, "Expansion programme P8 — the
+Moon in detail"). Everything here is display: none of it enters a sight.
+
+### Libration and orientation (target 0.05°)
+
+The model is Meeus's chapter 53 (Eckhardt's physical libration with every term of
+0.0001°, the IAU `I = 1°32′32.7″`) built as one rotation matrix, plus the published
+78.6944″ tilt from the figure pole to the mean rotation pole (CONVENTIONS 13.10). The
+reference is **Skyfield with JPL's own lunar orientation**: NAIF's binary PCK
+`moon_pa_de440_200625.bpc` (the principal-axes frame integrated with DE440, 1550–2650) and
+frame kernel `moon_de440_250416.tf` (to `MOON_ME_DE440_ME421`), whose worked example the
+generator reproduces to a millimetre. `tests/moon_libration.rs` against
+`fixtures/reference/moon_libration.json`:
+
+| check | cases | sub-observer point | sub-solar point | axis position angle |
+|---|---|---|---|---|
+| the model alone, Skyfield's apparent places in, 1550–2650 (DE440) | 330 | **0.0052°** (longitude 0.0024°, latitude 0.0052°) | **0.0060°** | **0.0061°** |
+| the whole chain, the geocentre and six observers (equator to 70° N and 60° S, one at 4000 m), 1990–2060, UT1 = UTC | 300 | **0.0052°** | **0.0054°** (colongitude 0.0021°) | **0.0058°** |
+
+The topocentric distance agrees to 0.24 km and the semidiameter to 0.00005′; the largest
+diurnal libration in the sample is 1.008°. Before the figure-to-mean-pole tilt was applied
+the sub-Earth latitude carried a steady +0.0223° (measured, and within 1.7″ of the tilt
+DE440 publishes); the tilt removes it, and what is left (0.0024° rms in latitude, 0.0007°
+in longitude) is the difference between Eckhardt's analytic theory and DE440's integrated
+librations.
+
+**Meeus's example 53.a** (1992 April 12, 0h TD): with his own λ, β and Δψ the closed
+formulas reproduce his printed `l′ = −1.206°`, `b′ = +4.194°`, `l″ = −0.025°`,
+`b″ = +0.006°`, `ρ = −0.01042°`, `σ = −0.01574°`, `τ = +0.02673°` to their last digit; from
+this project's own Moon and Sun (whose λ differs from his chapter-47 value by 0.0005°) the
+figure-frame totals `l = −1.23°`, `b = +4.20°`, `P = 15.08°` and the Sun's `l0 = 67.89°`,
+`b0 = +1.46°`, `c0 = 22.11°` all agree to their printed rounding.
+
+### Named features
+
+Positions, diameters and names are the USGS/IAU gazetteer's (0.01° precision; `docs/
+THIRD_PARTY.md`); the Sun's altitude over each is exact geometry on the frame above, so
+its error is the orientation's (0.006°, about 0.2 km on the ground). What the numbers do
+not include: the Sun's radius (0.27°: the terminator is a band, not a line), the local
+slope and the height of the feature (a peak catches the light before the plain around
+it), and irregular outlines (a mare's "centre" and "diameter" are the gazetteer's
+nominal figures). `lunar_features` tests: the table's integrity (150 unique rows, ranges,
+the Apollo sites), every near-side feature lit at full Moon and dark at new Moon, and the
+central features on the terminator at first quarter.
+
+### Perigee, apogee and supermoons (target 2 min, 10 km)
+
+`tests/moon_apsides.rs` against `fixtures/reference/moon_apsides.json` (every perigee
+and apogee of 1990–2060 from Skyfield + DE440s by the generator's own sampling and
+golden-section search — Skyfield's `find_maxima` returned a spurious duplicate apogee in
+2022 and was not used — and every new and full Moon with its distance):
+
+| quantity | cases (1990–93, 2024–27, 2057–60) | worst |
+|---|---|---|
+| perigee and apogee instants (in TT) | 317 | **11.2 s** |
+| distances at the extremes | 317 | **0.22 km** |
+| distance at new and full Moon | 296 | **0.25 km** |
+| perigee fraction (Nolle's measure) | 296 | **0.00001** |
+| supermoon, micromoon, largest and smallest of the year | 296 | every flag agrees |
+
+Every fixture event inside the three windows is found, and nothing else. **Meeus's
+example 50.a** (the apogee of 1988 October 7, searched on the embedded ELP series since
+1988 is outside this build's coverage): **−0.8 s and −0.18 km** from Skyfield, and 8.7 s
+from Meeus's own chapter-50 series (JDE 2447442.3543, 20h30m TD).
+
+The supermoon count is a consequence of the definition, not a property of the sky:
+Nolle's rule with the orbit's own extremes flags 568 of the 1756 new and full Moons of
+1990–2060 (32 %); a rule against a fixed distance or "within 24 h of perigee" flags fewer.
+The result carries both distances so the interface can say what it means.
+
+### Lunar occultations (target 30 s against Skyfield's own geometry)
+
+`tests/moon_occultations.rs` against `fixtures/reference/moon_occultations.json`: 27
+events chosen by the generator (the first close approaches from 2017 of Aldebaran,
+Regulus, Spica, Antares, Alcyone, Venus, Mars, Jupiter and Saturn, at most one a year, at
+the first of twelve places worldwide that sees both contacts with the Moon 5° up),
+Skyfield's topocentric apparent places (DE440s, Hipparcos, UT1 = UTC), mean limb:
+
+| quantity | worst over 48 contacts (24 events) |
+|---|---|
+| contact time | **1.42 s** |
+| position angle on the limb | **0.033°** |
+| Moon's altitude | **0.0018°** |
+| Sun's altitude | **0.0034°** |
+
+Three of the 27 are shallow (the body passes 0.24′, 0.54′ and 0.63′ inside the limb):
+flagged as grazes, their least limb distance matches, and their contacts agree within 1 s
+too, though near a graze a contact moves by tens of seconds per arcsecond of position.
+Alcyone is searched from its catalogue place (the path the Bright Star Catalogue stars
+take), the others through the engine's own providers.
+
+**Against published predictions** (`fixtures/reference/moon_occultations_published.json`,
+transcribed by hand, retrieved 2026-09-25; the sources give city names, not the exact
+points, so each place is the city's usual centre):
+
+| event | source | places | our contacts minus theirs |
+|---|---|---|---|
+| Saturn, 2024-08-21 | British Astronomical Association (Foulkes), UT to 0.1 min | Greenwich, Edinburgh | −5 to +5 s |
+| Aldebaran, 2017-12-31 | EarthSky (McClure), from IOTA, UT to the second | London, Reykjavik | −4 to +18 s |
+| Mars, 2025-01-14 | Astronomy magazine (Bakich) and J. L. Hunt, from IOTA, local times to the minute | New York, Chicago | −5 to +48 s |
+
+Everything is inside the rounding of the published time plus a minute for the unstated
+observing point and the prediction's own limb and ephemeris.
+
+**What the numbers are not.** They are the mean limb's. The real limb's mountains and
+valleys (±2 km, about ±1″) shift a contact by seconds where the body meets the limb
+squarely and by up to a minute where it meets it obliquely, near the Moon's poles; a
+graze's very existence depends on the real profile. The result says so beside every
+list (`limb_note`). A lunar-limb pack (programme item P12) would be the remedy.
+
+### Speed
+
+Release build natively, CPU time on the shared machine (400 bare Moon positions cost
+30 ms there; `tests/perf.rs`, `moon_detail_budget`): a year of occultations at one place
+with the 58 stars within reach and the 7 planets **64 ms** (budget 200 ms), with the
+Bright Star Catalogue to magnitude 3.5 about the same (the extra stars cost a few ms), to
+magnitude 6.5 about 0.6 s; a year of apsides with supermoons 120 ms (mostly the phase
+search); `moon_orientation` and `moon_features` about 0.5 ms each. The Moon is evaluated
+once a day for the occultation search and interpolated (within 0.1 km, 0.06″); the
+planets every 4 (Mercury), 8 (Venus) or 16 days (the rest), measured to 0.02°, 0.005° and
+0.01°.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python -m tools.moon.gen_reference [libration] [apsides]
+  [occultations]` regenerates the three Skyfield fixtures (about 1, 3 and 10 minutes;
+  needs `de440.bsp`, `de440s.bsp`, `hip_main.dat` and the two NAIF lunar kernels in
+  `tools/reference/data/`).
+- `cargo test -p skyfix-almanac --test moon_libration --test moon_apsides --test
+  moon_occultations -- --nocapture` prints every number above.
