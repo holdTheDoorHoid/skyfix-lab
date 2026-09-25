@@ -1,7 +1,7 @@
 /**
  * Calendar files: events as an RFC 5545 iCalendar file (`.ics`) that any calendar program
  * imports, made in the page and never sent anywhere. OWNER: events2 agent (expansion
- * programme Q4); shared by any view that offers "Add to calendar" (CONVENTIONS 13.13).
+ * programme Q4); shared by any view that offers "Add to calendar" (CONVENTIONS 15.7).
  *
  *   const text = icsCalendar({ name: 'SkyFix Lab: Moon', now: Date.now(), events: [
  *     { uid: 'full-moon-20261026@skyfix-lab.events', start: jd, summary: 'Full Moon',

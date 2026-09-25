@@ -27,6 +27,13 @@
  *      time and UT on the clock, the ±ΔT chip, the calendar's century step and October 1582,
  *      UTC inside 1972-2035; playback at ten years a second on the Map view (frame times
  *      and script time per frame, reported) and the Sky view.
+ *   8. (events2) every Events tab and sub-list (Eclipses; Moon: phases, perigee, occultations;
+ *      Planets: highlights, close approaches, retrograde, transits, Jupiter's moons; Meteors;
+ *      Seasons) in each theme and size: filled in, no overlap or cut-off text, no sideways
+ *      scroll, the view ending where the sheet begins, a clean console, no blue or white light
+ *      in the night theme; the occultation, transit and shower cards with their drawings; the
+ *      Save menu writing a real calendar file (RFC 5545 basics) and table; a background search
+ *      that waits while the time bar is dragged and finishes once it is let go.
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
  * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
@@ -60,7 +67,9 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,events').split(','));
+/** events2: the Events view's tabs and sub-lists, `tab` or `tab/sub`. */
+const EVENT_VIEWS = (process.env.EVENTS ?? 'eclipses,moon/phases,moon/apsides,moon/occultations,planets/events,planets/conjunctions,planets/retrograde,planets/transits,planets/jupiter,meteors,seasons').split(',');
 /** charts2: the Charts view's tabs and sub-views, `tab` or `tab/sub`. */
 const CHART_VIEWS = (process.env.CHARTS ?? 'day,year,sun/path,sun/analemma,sun/bearings,sun/eot,sun/solar,moon/phases,moon/year,planets,tides').split(',');
 const SWITCHES = Number(process.env.SWITCHES ?? 50);
@@ -640,6 +649,160 @@ async function main() {
           /20[0-2]\d|199\d/.test(year) && fast.fast && fast.same && !after.fast && after.segments > 0,
           JSON.stringify({ ...fast, after, reached: year }),
         );
+      }
+    }
+    // 8. The Events view (events2): every tab and sub-list, the cards, the Save menu, and a
+    // background search that waits for the time bar.
+    if (ONLY.has('events')) {
+      summary.events = { views: [], files: [], drag: null };
+      const EV_MOMENT = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&t=2026-09-25T16:00:00Z&body=Moon';
+      const ready = {
+        eclipses: `document.querySelector('.sfe-eclipses')?.dataset.local === 'done'`,
+        'moon/phases': `!!document.querySelector('.sfe-phases')`,
+        'moon/apsides': `document.querySelector('.sfe-aps')?.dataset.state === 'done'`,
+        'moon/occultations': `document.querySelector('.sfe-occ')?.dataset.state === 'done'`,
+        'planets/events': `!!document.querySelector('.sfe-pe-list')`,
+        'planets/conjunctions': `document.querySelector('.sfe-conj')?.dataset.state === 'done'`,
+        'planets/retrograde': `document.querySelector('.sfe-retro')?.dataset.state === 'done'`,
+        'planets/transits': `document.querySelector('.sfe-transits')?.dataset.state === 'done'`,
+        'planets/jupiter': `document.querySelector('.sfe-jup')?.dataset.state === 'done'`,
+        meteors: `document.querySelector('.sfe-showers')?.dataset.state === 'done'`,
+        seasons: `!!document.querySelector('.sfe-season-table') && !/Computing/.test(document.querySelector('.sfe-tabbody')?.textContent ?? '')`,
+      };
+      const openEvents = async (spec) => {
+        const [tab, sub] = spec.split('/');
+        await evaluate(`document.querySelector('.sfe-tabs [id$="-${tab}"]')?.click(); true`);
+        if (sub) {
+          await waitFor(`!!document.querySelector('.sfe-subtabs [data-sub="${sub}"]')`, 5000);
+          await evaluate(`document.querySelector('.sfe-subtabs [data-sub="${sub}"]')?.click(); true`);
+        }
+        return waitFor(ready[spec] ?? 'true', 60000);
+      };
+      for (const size of SIZES) {
+        const [w, h, mobile] = DIMS[size];
+        await viewport(w, h, mobile);
+        for (const theme of THEMES) {
+          for (const spec of EVENT_VIEWS) {
+            messages.length = 0;
+            await open(`${EV_MOMENT}&view=events`, { theme });
+            const filled = await openEvents(spec);
+            await sleep(400);
+            const info = JSON.parse(await evaluate(`JSON.stringify({ rows: document.querySelectorAll('.sfe-ev2, .sfe-row, .sfe-pe, .sfe-phases td, .sfe-season-table td').length, alert: document.querySelector('.sfe-tabbody [role=alert], .sfe-eclipses [role=alert]')?.textContent ?? '' })`));
+            const L = JSON.parse(await evaluate(LAYOUT));
+            const png = await shot(`events-${size}-${theme}-${spec.replace('/', '-')}`);
+            const tag = `events ${spec}, ${theme}, ${size}`;
+            const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+            check(`${tag}: filled in`, filled && info.rows > 0 && !info.alert, info.alert || `${info.rows} rows`);
+            check(`${tag}: no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+            if (mobile) check(`${tag}: the view ends where the sheet begins`, L.underSheet <= 0, `${L.underSheet}px under the sheet`);
+            check(`${tag}: console clean`, noise.length === 0, noise.slice(0, 3).join(' | '));
+            if (theme === 'night') {
+              const n = lightNotRed(decodePng(png));
+              check(`${tag}: no blue, green or white light`, n.count < 50, n.count ? `${n.count} px, worst ${JSON.stringify(n.worst)}` : '');
+            }
+            summary.events.views.push({ spec, size, theme, layout: L, messages: noise, rows: info.rows });
+          }
+        }
+      }
+      await viewport(1440, 900, false);
+
+      // The cards: an occultation seen from here, a transit, a meteor shower, with their drawings.
+      const cards = [
+        ['moon/occultations', `.sfe-occ .sfe-ev2__open`, `.sfe-card--occ svg.sfe-occ__disc`, 'occultation'],
+        ['planets/transits', `.sfe-transits .sfe-ev2__open`, `.sfe-card--transit svg.sfe-tr__svg`, 'transit'],
+        ['meteors', `.sfe-showers [data-shower="PER"] .sfe-ev2__open`, `.sfe-card--shower .sfe-facts`, 'shower'],
+      ];
+      for (const theme of ['light', 'night']) {
+        for (const [spec, row, drawn, name] of cards) {
+          messages.length = 0;
+          await open(`${EV_MOMENT}&view=events`, { theme });
+          await openEvents(spec);
+          await evaluate(`document.querySelector('${row}')?.click(); true`);
+          const ok = await waitFor(`!!document.querySelector('${drawn}')`, 10000);
+          await sleep(400);
+          await evaluate(`document.querySelector('.sfe-cardcol .sfe-card')?.scrollIntoView({ block: 'nearest' }); true`);
+          const L = JSON.parse(await evaluate(LAYOUT));
+          const png = await shot(`events-card-${name}-${theme}`);
+          check(`events: the ${name} card opens with its drawing (${theme})`, ok);
+          check(`events: the ${name} card has no overlap or cut-off text (${theme})`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+          check(`events: the ${name} card keeps the console clean (${theme})`, !messages.some((m) => /^(error|warning|warn|exception)/.test(m)), messages.slice(0, 3).join(' | '));
+          if (theme === 'night') {
+            const n = lightNotRed(decodePng(png));
+            check(`events: the ${name} card shows no blue, green or white light`, n.count < 50, n.count ? `${n.count} px, worst ${JSON.stringify(n.worst)}` : '');
+          }
+        }
+      }
+
+      // The Save menu writes a real calendar file and a real table (into a scratch folder).
+      const evDownloads = join(scratch, 'event-downloads');
+      mkdirSync(evDownloads, { recursive: true });
+      await send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: evDownloads });
+      for (const [spec, action] of [['moon/occultations', 'ics'], ['moon/occultations', 'csv'], ['meteors', 'ics'], ['planets/conjunctions', 'ics']]) {
+        await open(`${EV_MOMENT}&view=events`, { theme: 'night' });
+        await openEvents(spec);
+        await evaluate(`document.querySelector('.sfe-save__btn').click(); true`);
+        await sleep(300);
+        await evaluate(`document.querySelector('.sfe-save__menu [data-action=${action}]').click(); true`);
+        const saved = await waitFor(`/^Saved /.test(document.querySelector('.sfe-save__status')?.textContent ?? '')`, 15000);
+        const status = await evaluate(`document.querySelector('.sfe-save__status')?.textContent ?? ''`);
+        const name = (/^Saved (.+)\.$/.exec(status) ?? [])[1] ?? '';
+        await sleep(700);
+        const file = join(evDownloads, name);
+        const got = saved && name && existsSync(file);
+        const text = got ? readFileSync(file, 'utf8') : '';
+        let valid = false;
+        if (action === 'ics') {
+          const lines = text.split('\r\n');
+          const events = text.match(/\r\nBEGIN:VEVENT\r\n/g)?.length ?? 0;
+          valid =
+            text.startsWith('BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:') &&
+            text.endsWith('END:VCALENDAR\r\n') &&
+            !/[^\r]\n/.test(text) &&
+            lines.every((l) => Buffer.byteLength(l, 'utf8') <= 75) &&
+            events > 0 &&
+            events === (text.match(/\r\nDTSTART:\d{8}T\d{6}Z\r\n/g)?.length ?? -1) &&
+            events === (text.match(/\r\nUID:/g)?.length ?? -1);
+        } else {
+          valid = text.startsWith('﻿# SkyFix Lab') && /\r\nInstant,Scale,Local date,/.test(text);
+        }
+        check(`Save ${action.toUpperCase()} on ${spec}: a real file`, got && valid, `${status} ${got ? `${statSync(file).size} bytes` : ''}`);
+        summary.events.files.push({ spec, action, name, bytes: got ? statSync(file).size : 0 });
+      }
+
+      // A background search waits while the time bar is dragged, and finishes once it is let go.
+      await open(`${EV_MOMENT}&view=events`, { theme: 'dark' });
+      await evaluate(`document.querySelector('.sfe-tabs [id$="-planets"]').click(); true`);
+      await waitFor(`!!document.querySelector('.sfe-subtabs [data-sub="conjunctions"]')`, 5000);
+      await evaluate(`document.querySelector('.sfe-subtabs [data-sub="conjunctions"]').click(); true`);
+      await sleep(150);
+      const hb = JSON.parse(await evaluate(`JSON.stringify((() => { const r = document.querySelector('.sf-ribbon__handle').getBoundingClientRect(); const t = document.querySelector('.sf-ribbon').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, left: t.left, right: t.right }; })())`));
+      await evaluate(`window.__f = []; (function loop(t) { window.__f.push(t); if (window.__f.length < 100000) requestAnimationFrame(loop); })(performance.now()); true`);
+      const progress = `(() => { const m = /(\\d+)%/.exec(document.querySelector('.sfe-conj .sfe-status')?.textContent ?? ''); return m ? Number(m[1]) : (document.querySelector('.sfe-conj')?.dataset.state === 'done' ? 100 : -1); })()`;
+      const p0 = await evaluate(progress);
+      const f0 = await evaluate('window.__f.length');
+      await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: hb.x, y: hb.y, button: 'left', clickCount: 1 });
+      const during = [];
+      for (let i = 1; i <= 90; i++) {
+        await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: hb.x + ((hb.right - 60 - hb.x) * (i % 30)) / 30, y: hb.y, button: 'left', buttons: 1 });
+        await sleep(16);
+        if (i % 15 === 0) during.push(await evaluate(progress));
+      }
+      await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: hb.x, y: hb.y, button: 'left', clickCount: 1 });
+      const ts = JSON.parse(await evaluate(`JSON.stringify(window.__f.slice(${f0}))`));
+      const finished = await waitFor(`document.querySelector('.sfe-conj')?.dataset.state === 'done'`, 60000);
+      const d = ts.slice(1).map((t, i) => t - ts[i]).sort((a, b) => a - b);
+      const q = (p) => +(d[Math.min(d.length - 1, Math.floor(p * d.length))] ?? 0).toFixed(1);
+      summary.events.drag = { progressBefore: p0, progressDuring: during, frames: d.length, medianMs: q(0.5), p95Ms: q(0.95), finished };
+      console.log(`info  dragging the time bar over a running search: ${JSON.stringify(summary.events.drag)}`);
+      // While the pointer holds the time bar the search makes no progress (the list's months
+      // move by a day at most, inside the window being searched), and it finishes once the
+      // pointer lets go. Judged only when the search was running during the drag (on a fast
+      // machine it may have finished before the drag began).
+      if (during.length > 1 && during[0] >= 0 && during[0] < 100) {
+        const stalled = during.every((v) => v === during[0]);
+        check('events: a background search waits while the time bar is dragged, and finishes after', stalled && finished, JSON.stringify({ p0, during, finished }));
+      } else {
+        console.log(`info  the search was not running during the drag (${JSON.stringify(during)}): not judged`);
       }
     }
   } finally {

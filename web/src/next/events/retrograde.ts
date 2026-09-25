@@ -147,7 +147,7 @@ function timeline(found: readonly PlanetStation[], anchor: number, dir: Directio
   };
   setNow(now);
   const legend = h('p', { class: 'sfe-note sfe-retro__legend' }, bodyGlyph('Mars', { size: 12 }), ' Bars: each planet’s retrograde loops in these 12 months; the line is the time shown.');
-  const el = h('figure', { class: 'sfe-retro' }, svg, h('figcaption', {}, legend));
+  const el = h('figure', { class: 'sfe-retro-fig' }, svg, h('figcaption', {}, legend));
   return { el, setNow };
 }
 

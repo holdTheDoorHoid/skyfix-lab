@@ -1185,7 +1185,7 @@
 
 /* Retrograde loops: the year's timeline */
 
-.sfe-retro {
+.sfe-retro-fig {
   display: flex;
   flex-direction: column;
   gap: 4px;

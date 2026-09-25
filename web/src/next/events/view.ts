@@ -30,7 +30,7 @@ import '../theme/index.js';
 import './events.css';
 import { h } from '../../dom.js';
 import { disposer, type Component, type Mounted } from '../component.js';
-import { setTime } from '../playback.js';
+import { fastPlayback, setTime } from '../playback.js';
 import { dateMedium } from '../shell/format.js';
 import { createStore, displayZone, type ExplorerStore } from '../state.js';
 import { roundToMinute, zoneShortName } from '../time.js';
@@ -115,8 +115,10 @@ const view: Component = (host, ctx) => {
     });
   };
 
-  // The pace of background searches: none while the page is still, slower while the time
-  // bar is dragged or playing (the live clock's ticks do not count).
+  // The pace of background searches: none while the page is still; they wait while a
+  // pointer is pressed anywhere on the page (dragging the time bar or the map, scrolling by
+  // touch) and until the time has been still for SETTLE_MS (keys, the wheel), and take a
+  // piece at most every PLAYING_PACE_MS while playing. The live clock's ticks do not count.
   let lastMove = Number.NEGATIVE_INFINITY;
   const now = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
   d.add(
@@ -127,7 +129,28 @@ const view: Component = (host, ctx) => {
       },
     ),
   );
+  const pressed = new Set<number>();
+  if (typeof document !== 'undefined') {
+    const down = (e: PointerEvent): void => {
+      pressed.add(e.pointerId);
+    };
+    const up = (e: PointerEvent): void => {
+      pressed.delete(e.pointerId);
+    };
+    const clear = (): void => pressed.clear();
+    document.addEventListener('pointerdown', down, true);
+    document.addEventListener('pointerup', up, true);
+    document.addEventListener('pointercancel', up, true);
+    window.addEventListener('blur', clear);
+    d.add(() => {
+      document.removeEventListener('pointerdown', down, true);
+      document.removeEventListener('pointerup', up, true);
+      document.removeEventListener('pointercancel', up, true);
+      window.removeEventListener('blur', clear);
+    });
+  }
   const pace = (): number => {
+    if (pressed.size) return SETTLE_MS;
     if (ctx.store.get().time.playing) return PLAYING_PACE_MS;
     const since = now() - lastMove;
     return since < SETTLE_MS ? Math.ceil(SETTLE_MS - since) + 20 : 0;
@@ -205,14 +228,25 @@ const view: Component = (host, ctx) => {
     ),
   );
 
-  // The anchor follows the explorer's time, except after a jump made from this view.
+  // The anchor follows the explorer's time, except after a jump made from this view, and
+  // while time plays faster than eight days a second (CONVENTIONS 15.6: the lists hold still
+  // and catch up once it stops or slows, rather than searching afresh every frame).
   d.add(
     ctx.store.select(
       (s) => s.time.jd_utc,
       (jd) => {
         if (ownJump !== null && jd === ownJump) return;
         ownJump = null;
+        if (fastPlayback(ctx.store.get())) return;
         ui.patch({ anchor: jd });
+      },
+    ),
+  );
+  d.add(
+    ctx.store.select(
+      (s) => fastPlayback(s),
+      (fast) => {
+        if (!fast) ui.patch({ anchor: ctx.store.get().time.jd_utc });
       },
     ),
   );
