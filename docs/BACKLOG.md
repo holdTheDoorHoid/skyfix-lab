@@ -137,3 +137,17 @@ This file is the single list; the completion report links here.
 | Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
 | Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
 | Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |
+
+## Expansion programme — photo (Q8): the Selected card's tools (photo agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Golden and blue hour, the alignment finder with the map picker, "When is it at…?" by bearing, the Milky Way planner, the Moon in detail, RA/Dec and the magnetic bearing on every body, the predicted sextant reading, the tides line in Place | completed | `web/src/next/panel/{photo,moon-tools,alignment,when,selected}.ts`, `web/src/next/map/pick.ts`; `docs/ACCURACY.md` section 17 |
+| The planets' apparent size | waiting | needs planetdetail's `planet_disc`, not merged when this was built; the place is marked `// planetdetail:` in `panel/selected.ts` (the Moon's size is on the card) |
+| The ±ΔT chip and the tier helper | waiting | `deltaTNote` and `inValidatedTier` in `panel/photo.ts` stand in for the time-ui agent's shared helpers (`// time-ui:`); every time the card shows goes through them |
+| Opening Charts on its Tides tab | waiting | the tides line's "Tides chart" opens Charts; the Tides tab and a way to ask for it are the charts2 agent's (`// charts2:` in `panel/photo.ts`) |
+| Aiming the Sky view | waiting | "Show in Sky" (Milky Way) and "See it up close" (the Moon) open the Sky view at the moment; pointing it at the galactic centre and the Moon's close-up inset are the sky2 agent's (`// sky2:`) |
+| Alignments for the planets and a horizon profile | unstarted | the engine takes any body; the finder offers the Sun and the Moon. A skyline's height per bearing (the real horizon) would replace the single "At a height" |
+| Alignment dates across a daylight-saving change | known limit | `alignment_days` lays a year on one fixed UTC offset (the one at the time shown); the list writes each day in the real zone, so only the grouping into runs of an event within an hour of local midnight could differ |
+| Offering the tides pack from the Place section | decided against | the line appears only when the pack is on the device; offering it everywhere would put a US-only download in front of every visitor, and knowing that a place is near a US station needs the pack itself |
+

@@ -49,6 +49,7 @@ reproduce each row are in the numbered section named.
 | Moon in detail: perigee, apogee, supermoons (vs Skyfield + DE440s) | instants within 11.2 s, distances 0.22 km; every supermoon/micromoon flag agrees | 2 min, 10 km | 14 |
 | Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s; a year at one place in 76 ms of CPU | 30 s; 200 ms | 14 |
 | Tides, `tides-us` pack (vs NOAA's own predictions: 20 harmonic stations × 30 days, 6 subordinate, and a 3-day sweep of all 3 492 predictable stations) | high and low water within 1.10 min and 1.08 cm (20 stations, 2 087 extremes; Anchorage the 1.08 cm, the others ≤ 0.12 cm); curve within 1.38 cm (others ≤ 0.29 cm); sweep 39 120 extremes within 1.36 min and 0.99 cm | 2 min, 5 cm | 16 |
+| Selected card: a bearing picked on the map (Vincenty on WGS84 vs Geoscience Australia's worked example); the card's own cost per time step | 54 972.271 m within 1 mm, azimuths within 0.5″ both ways; the card renders in 1.5 ms (median; 95 % within 3 ms) with every drawer open | 1 mm, 1″; 5 ms | 17 |
 
 ## 1. What accuracy means here
 
@@ -2264,3 +2265,61 @@ base commit 28131c5 (2.06 MB / 849 KB before, 2.15 MB / 885 KB with tides).
   perf -- --ignored --nocapture` for the timings.
 - The data and fixtures: `tools/tides/README.md` (NOAA's API, about 4 800 requests,
   cached).
+
+## 17. The Selected card's tools for photographers and astronomers (photo agent, expansion programme Q8)
+
+The card shows the engines' numbers and formats them; each is validated in its engine's
+own section: golden and blue hour, bearing crossings, alignments and the galactic centre
+(section 14, "Sun tools"), the Moon's libration, size, apsides and named features (section
+14, "Moon in detail"), the magnetic variation (section 15), tides (section 16), the
+predicted sextant reading (section 10), right ascension and declination (`sky_state`,
+section 2). What is new here is checked below. Tests: `web/test/next/photo-tools.test.ts`
+(logic, with the mock engine) and the `photo` set of `web/scripts/ui-check.mjs` (the built
+site in Chrome, with the real core).
+
+### A bearing picked on the map
+
+The direction from the place to a clicked point is the initial azimuth of the geodesic on
+WGS84 (CONVENTIONS 13.12), by Vincenty's inverse formula. Against Geoscience Australia's
+worked example of that formula (GDA technical manual: Flinders Peak to Buninyong, GRS80,
+whose flattening differs from WGS84's by 5 × 10⁻¹²): distance 54 972.271 m reproduced
+within 1 mm, forward azimuth 306° 52′ 05.37″ and reverse azimuth 127° 10′ 25.07″ each
+within 0.5″ ("reproduces Geoscience Australia's worked example"). Points almost antipodal,
+where the iteration does not converge, fall back to the sphere's great circle (up to about
+0.2° off), and the code says which it used. The ray drawn on the map is the sphere's great
+circle leaving on the bearing: display only.
+
+### End to end: Manhattanhenge
+
+The alignment finder in the built site, with the real core, gives the days the engine's
+own tests give (section 14): at 42nd Street and Fifth Avenue, bearing 299°, sunset
+(upper limb on a sea-level horizon), 0.5° either side, 2026: 23-26 May and 16-19 July,
+closest 24 May and 18 July (`ui-check.mjs`, "the alignment finder gives Manhattanhenge
+2026"). With the centre at an apparent 0.5° (the centre at 0° without refraction, to 1′)
+the closest days are 28 May and 14 July, the first the American Museum of Natural History's
+"half Sun" date.
+
+### Speed
+
+Measured in Chrome on the development build, the Moon selected and every drawer open
+(the most the card does), 200 steps of the time shown by 2 minutes: the card's render took
+1.5 ms at the median and at most 3 ms for 95 % of steps (the Sun, Jupiter and Sirius about
+1 ms), inside the 5 ms budget of a time-bar frame. What costs more is asked once per span
+and, while the time is dragged or playing, only once it settles (`Motion`, `Settler` in
+`panel/photo.ts`): `sun_hours` about 3 ms a day, `moon_features` 4 ms an hour,
+`moon_orientation` 1 ms a quarter-hour, `moon_apsides` 22 ms plus 1 ms a day (a
+fortnight's list), a month of `galactic_centre_windows` about 0.1 s, `alignment_days`
+0.2 s (the Sun) and 0.9 s (the Moon) only when Find is pressed (WebAssembly in Node,
+V8). In the built site the open drawers added 0.3 to 1 ms of script to a time-bar frame
+(the least of three drags each, a quiet machine); `ui-check.mjs` judges this only when a
+star's frame alone stays under 16 ms, since other work on a shared machine otherwise sets
+the numbers.
+
+### Labels
+
+Golden and blue hour are photographers' conventions and say so; tide heights say
+"predicted, not observed" and carry NOAA's label; the magnetic bearing's tooltip gives the
+model and its own one-sigma uncertainty, and there is none before 1900 or after 2030; the
+predicted sextant reading is offered only for the bodies and years sights are offered for,
+and assumes the standard 10 °C and 1010 hPa for refraction.
+
