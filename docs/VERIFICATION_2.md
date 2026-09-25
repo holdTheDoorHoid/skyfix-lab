@@ -1,5 +1,10 @@
 # Verification of the expansion programme
 
+> Section numbers of `ACCURACY.md` cited in this report are those of 2026-09-25 before the
+> documentation pass renumbered that file's tail. Mapping: old 14 (sun tools) → 14; old 16
+> (tides) → 20; old 17 (planet detail) → 21; old 18 (photography tools) → 24; old 19 (lunar
+> limb) → 25; old 20 (Sky layers) → 26; old 21 (coverage tiers) → 31; old 22 (module size) → 32.
+
 The `verify2` agent's report (2026-09-25): an independent, adversarial check of everything
 the expansion programme added, the eleven engines and the interface built on them. The
 standard is the previous verifier's (`COMPLETION_REPORT.md`, "Adversarial verification"):
