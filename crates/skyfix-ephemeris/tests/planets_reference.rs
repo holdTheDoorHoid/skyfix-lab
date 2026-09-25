@@ -29,7 +29,7 @@
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
-use skyfix_core::time::parse_utc;
+use skyfix_core::time::{legacy_fixture_instant, parse_utc};
 use skyfix_core::units::norm_180;
 use skyfix_ephemeris::AstroProvider;
 use skyfix_ephemeris::planets::{
@@ -210,6 +210,11 @@ fn compare(planet: Planet, text: &str, label: &str) -> Result<Report, String> {
                 case.utc
             ));
         }
+        // timescales agent: the fixture took TT = UTC + 69.184 s and UT1 = UTC after 2035;
+        // the clock is UT there now (CONVENTIONS 15.2). Evaluate the fixture's own TT and
+        // UT1 (identical up to 2035) until the fixture is regenerated on the new scale.
+        let (jd, shift) = legacy_fixture_instant(jd);
+        let plain = PlanetProvider::with_dut1_s(plain.dut1_s() + shift);
         let p = plain
             .position(planet, jd)
             .map_err(|e| format!("{label} {}: {e}", case.utc))?;
@@ -264,7 +269,7 @@ fn compare(planet: Planet, text: &str, label: &str) -> Result<Report, String> {
             }
         }
         if let Some(dut1) = case.dut1_s {
-            let w = PlanetProvider::with_dut1_s(dut1)
+            let w = PlanetProvider::with_dut1_s(dut1 + shift)
                 .position(planet, jd)
                 .map_err(|e| format!("{label} {}: {e}", case.utc))?;
             let d = norm_180(w.gha_deg - b.gha_deg) * 60.0;

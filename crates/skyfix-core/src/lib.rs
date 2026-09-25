@@ -6,7 +6,9 @@
 //!
 //! Module map (owners fill the stubs; signatures in `types` are the shared contract):
 //! - [`units`]      section 1: constants and angle conversions
-//! - [`time`]       section 6: UTC parsing, Julian dates, leap seconds, TT
+//! - [`time`]       sections 6 and 15.2: timestamps, the UTC/UT clock, leap seconds, TT, UT1, DUT1
+//! - [`deltat`]     section 15.2: Delta-T with its uncertainty, the IERS UT1 - UTC history
+//! - [`calendar`]   section 15.3: Julian and Gregorian dates for any year
 //! - [`geometry`]   sections 2-3: altitude/azimuth, partials, circles, intersections
 //! - [`types`]      sections 4, 8-10, 12: session model, results, warnings
 //! - [`corrections`] section 5: the correction chain
@@ -20,7 +22,9 @@
 //! - [`planner`]    observation planner (optional deliverable)
 //! - [`methods`]    noon sight, Polaris latitude, averaging a run (docs/NAVIGATION_METHODS.md)
 
+pub mod calendar;
 pub mod corrections;
+pub mod deltat;
 pub mod error;
 pub mod geometry;
 pub mod linalg;
