@@ -1,0 +1,263 @@
+# Deep-sky objects listed by SkyFix Lab. Display only (CONVENTIONS 13.6).
+#
+# Written for this project. The object selection, types, names and one-line
+# descriptions are SkyFix Lab's own; positions and V magnitudes come from Wikidata
+# (CC0) and are cross-checked against SIMBAD and Corwin's NGC/IC positions by
+# tools/starfield/dso.py, which refuses the build on a disagreement it cannot explain.
+#
+# Selection. All 110 Messier objects, and SkyFix Lab's own choice of NGC/IC objects not
+# in Messier's list, by this rule (magnitudes as adopted in our table):
+#   1. open clusters with an integrated V of 5.0 or brighter;
+#   2. globular clusters with V 7.5 or brighter;
+#   3. galaxies with V 9.5 or brighter (with the two Magellanic Clouds);
+#   4. planetary nebulae with V 9.5 or brighter;
+#   5. emission and reflection nebulae and supernova remnants at least 30' across that
+#      have a common name (the Lobster Nebula, NGC 6357, is left out: Wikidata's position
+#      is 22' from both references);
+#   6. four naked-eye clusters outside the NGC and IC: the Hyades, the Alpha Persei
+#      Cluster, the Coma Star Cluster and the Coathanger.
+#
+# Format: id | type | size | name | description | extra
+#   id    M1..M110, NGC<n>, IC<n>, or a short name for the few objects outside the NGC/IC
+#   type  oc open cluster, gc globular cluster, pn planetary nebula, en emission nebula,
+#         rn reflection nebula, snr supernova remnant, cn cluster with nebula, sg spiral
+#         galaxy, eg elliptical galaxy, lg lenticular galaxy, ig irregular galaxy,
+#         ds double star, as asterism, sc star cloud
+#   size  apparent size in arcminutes, "major x minor" or one number, as commonly quoted
+#         for the eye or a small telescope; blank = SIMBAD's, rounded (dso.py). Written
+#         here where SIMBAD has none or gives a cluster's full extent (M21, M36, NGC 2362
+#         and others) instead of what is seen.
+#   name  common name, or blank
+#   description  one line in our own words, or blank (the app then says "Open cluster
+#         in Cassiopeia" and so on)
+#   extra ';'-separated: ngc= other NGC/IC numbers (cross-identification), wikidata=
+#         Wikidata item (objects without a Messier/NGC/IC code), simbad= SIMBAD
+#         identifier when it differs, v= adopted V when Wikidata has none or a wrong
+#         one (with vsrc= where it came from), corwin=none when Corwin has no position
+
+# --- The Messier catalogue ---
+M1   | snr | | Crab Nebula | The remnant of a supernova seen in 1054, with a pulsar at its centre | ngc=NGC 1952
+M2   | gc | | | One of the larger and brighter globular clusters | ngc=NGC 7089
+M3   | gc | | | A bright globular cluster rich in variable stars | ngc=NGC 5272
+M4   | gc | | | One of the nearest globular clusters, just west of Antares | ngc=NGC 6121
+M5   | gc | | | A large, bright and very old globular cluster | ngc=NGC 5904
+M6   | oc | | Butterfly Cluster | An open cluster whose stars outline a butterfly | ngc=NGC 6405
+M7   | oc | | Ptolemy Cluster | A bright open cluster known since antiquity | ngc=NGC 6475
+M8   | en | 90x40 | Lagoon Nebula | A star-forming nebula visible to the naked eye | ngc=NGC 6523
+M9   | gc | | | A globular cluster near the centre of the Galaxy | ngc=NGC 6333
+M10  | gc | | | A bright globular cluster in Ophiuchus | ngc=NGC 6254
+M11  | oc | 14 | Wild Duck Cluster | One of the richest and most compact open clusters | ngc=NGC 6705
+M12  | gc | | | A loose globular cluster, a neighbour of M10 | ngc=NGC 6218
+M13  | gc | | Hercules Cluster | The finest globular cluster in the northern sky | ngc=NGC 6205
+M14  | gc | | | A globular cluster in Ophiuchus | ngc=NGC 6402
+M15  | gc | | | A dense globular cluster with a collapsed core | ngc=NGC 7078
+M16  | cn | 35x28 | Eagle Nebula | A young cluster in the nebula of the Pillars of Creation | ngc=NGC 6611
+M17  | en | 11 | Omega Nebula | A bright star-forming nebula, also called the Swan | ngc=NGC 6618
+M18  | oc | 9 | | A small open cluster between M17 and M24 | ngc=NGC 6613
+M19  | gc | | | An oblate globular cluster near the Galactic centre | ngc=NGC 6273
+M20  | en | | Trifid Nebula | An emission and reflection nebula split by dark lanes | ngc=NGC 6514
+M21  | oc | 13 | | A young open cluster beside the Trifid Nebula | ngc=NGC 6531
+M22  | gc | | | One of the brightest and nearest globular clusters | ngc=NGC 6656
+M23  | oc | | | A large open cluster in Sagittarius | ngc=NGC 6494
+M24  | sc | 120x60 | Sagittarius Star Cloud | A window through the dust onto a distant arm of the Galaxy | ngc=IC 4715; corwin=none
+M25  | oc | | | A bright open cluster in Sagittarius | ngc=IC 4725; corwin=none
+M26  | oc | 15 | | A small open cluster in Scutum | ngc=NGC 6694
+M27  | pn | | Dumbbell Nebula | The first planetary nebula ever found (1764) | ngc=NGC 6853; v=7.5; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+M28  | gc | | | A globular cluster near the Teapot's lid | ngc=NGC 6626
+M29  | oc | 7 | Cooling Tower | A small open cluster south of Sadr | ngc=NGC 6913
+M30  | gc | | | A globular cluster with a collapsed core | ngc=NGC 7099
+M31  | sg | | Andromeda Galaxy | The nearest large galaxy, 2.5 million light-years away | ngc=NGC 224
+M32  | eg | | | A compact elliptical galaxy, satellite of M31 | ngc=NGC 221
+M33  | sg | | Triangulum Galaxy | The third-largest galaxy of the Local Group | ngc=NGC 598
+M34  | oc | | | A bright open cluster in Perseus | ngc=NGC 1039
+M35  | oc | | | A large open cluster at Castor's feet | ngc=NGC 2168
+M36  | oc | 12 | Pinwheel Cluster | A young open cluster in Auriga | ngc=NGC 1960
+M37  | oc | | | The richest of the three Auriga clusters | ngc=NGC 2099
+M38  | oc | | Starfish Cluster | An open cluster in Auriga | ngc=NGC 1912
+M39  | oc | 32 | | A large, loose open cluster in Cygnus | ngc=NGC 7092
+M40  | ds | 1 | Winnecke 4 | A double star Messier listed while looking for a nebula | corwin=none
+M41  | oc | | | A bright open cluster four degrees south of Sirius | ngc=NGC 2287
+M42  | en | | Orion Nebula | The nearest large star-forming region, visible to the naked eye | ngc=NGC 1976
+M43  | en | 20x15 | De Mairan's Nebula | A detached part of the Orion Nebula | ngc=NGC 1982
+M44  | oc | 95 | Beehive Cluster | A naked-eye open cluster in Cancer, also called Praesepe | ngc=NGC 2632
+M45  | oc | 110 | Pleiades | The Seven Sisters, the best-known star cluster | corwin=none
+M46  | oc | | | A rich open cluster with a planetary nebula in front of it | ngc=NGC 2437
+M47  | oc | | | A bright, loose open cluster in Puppis | ngc=NGC 2422
+M48  | oc | | | A large open cluster in Hydra | ngc=NGC 2548
+M49  | eg | | | A giant elliptical galaxy, the brightest in the Virgo Cluster | ngc=NGC 4472
+M50  | oc | 16 | | An open cluster in Monoceros | ngc=NGC 2323
+M51  | sg | | Whirlpool Galaxy | A spiral galaxy pulling on a smaller companion | ngc=NGC 5194
+M52  | oc | | | A rich open cluster in Cassiopeia | ngc=NGC 7654
+M53  | gc | | | A globular cluster in the outer halo of the Galaxy | ngc=NGC 5024
+M54  | gc | | | A globular cluster belonging to the Sagittarius Dwarf Galaxy | ngc=NGC 6715
+M55  | gc | | | A large, loose globular cluster in Sagittarius | ngc=NGC 6809
+M56  | gc | | | A globular cluster between Albireo and Sulafat | ngc=NGC 6779
+M57  | pn | | Ring Nebula | A planetary nebula seen as a smoke ring | ngc=NGC 6720; v=8.8; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+M58  | sg | | | A barred spiral galaxy in the Virgo Cluster | ngc=NGC 4579
+M59  | eg | | | An elliptical galaxy in the Virgo Cluster | ngc=NGC 4621
+M60  | eg | | | A giant elliptical galaxy beside the spiral NGC 4647 | ngc=NGC 4649
+M61  | sg | | | A spiral galaxy where many supernovae have been seen | ngc=NGC 4303
+M62  | gc | | | A globular cluster near the Galactic centre | ngc=NGC 6266
+M63  | sg | | Sunflower Galaxy | A spiral galaxy with patchy, short arms | ngc=NGC 5055
+M64  | sg | | Black Eye Galaxy | A spiral galaxy with a dark band of dust across its core | ngc=NGC 4826
+M65  | sg | | | A spiral galaxy of the Leo Triplet | ngc=NGC 3623
+M66  | sg | | | A spiral galaxy of the Leo Triplet | ngc=NGC 3627
+M67  | oc | | | One of the oldest known open clusters | ngc=NGC 2682
+M68  | gc | | | A globular cluster in Hydra | ngc=NGC 4590
+M69  | gc | | | A globular cluster near the Teapot's spout | ngc=NGC 6637
+M70  | gc | | | A small globular cluster near M69 | ngc=NGC 6681
+M71  | gc | | | A loose globular cluster in Sagitta | ngc=NGC 6838
+M72  | gc | | | A distant globular cluster in Aquarius | ngc=NGC 6981
+M73  | as | 3 | | Four unrelated stars that Messier listed as a cluster | ngc=NGC 6994
+M74  | sg | | Phantom Galaxy | A face-on spiral galaxy of low surface brightness | ngc=NGC 628
+M75  | gc | | | A compact, distant globular cluster | ngc=NGC 6864
+M76  | pn | | Little Dumbbell Nebula | A planetary nebula in Perseus | ngc=NGC 650; v=10.1; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+M77  | sg | | Cetus A | A spiral galaxy with an active nucleus | ngc=NGC 1068
+M78  | rn | 8x6 | | The brightest reflection nebula in the sky | ngc=NGC 2068
+M79  | gc | | | A globular cluster in Lepus, far from the Galactic centre | ngc=NGC 1904
+M80  | gc | | | A dense globular cluster between Antares and Acrab | ngc=NGC 6093
+M81  | sg | | Bode's Galaxy | A grand spiral galaxy in Ursa Major | ngc=NGC 3031
+M82  | ig | 11x4.3 | Cigar Galaxy | A starburst galaxy stirred by its neighbour M81 | ngc=NGC 3034
+M83  | sg | | Southern Pinwheel Galaxy | A barred spiral galaxy in Hydra | ngc=NGC 5236
+M84  | lg | | | A lenticular galaxy at the head of Markarian's Chain | ngc=NGC 4374
+M85  | lg | | | A lenticular galaxy in Coma Berenices | ngc=NGC 4382
+M86  | lg | | | A lenticular galaxy in Markarian's Chain | ngc=NGC 4406
+M87  | eg | | Virgo A | The giant galaxy whose black hole was the first imaged | ngc=NGC 4486
+M88  | sg | | | A spiral galaxy in the Virgo Cluster | ngc=NGC 4501
+M89  | eg | | | An elliptical galaxy in the Virgo Cluster | ngc=NGC 4552
+M90  | sg | | | A spiral galaxy in the Virgo Cluster | ngc=NGC 4569
+M91  | sg | | | A barred spiral galaxy in Coma Berenices | ngc=NGC 4548
+M92  | gc | | | A bright globular cluster, often overlooked beside M13 | ngc=NGC 6341
+M93  | oc | | | An open cluster in Puppis | ngc=NGC 2447
+M94  | sg | | | A spiral galaxy with a bright inner ring | ngc=NGC 4736
+M95  | sg | | | A barred spiral galaxy in Leo | ngc=NGC 3351
+M96  | sg | | | A spiral galaxy in Leo | ngc=NGC 3368
+M97  | pn | | Owl Nebula | A planetary nebula with two dark 'eyes' | ngc=NGC 3587; v=9.9; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+M98  | sg | | | A spiral galaxy seen nearly edge-on | ngc=NGC 4192
+M99  | sg | | Coma Pinwheel | A face-on spiral galaxy in Coma Berenices | ngc=NGC 4254
+M100 | sg | | | A grand-design spiral galaxy in Coma Berenices | ngc=NGC 4321
+M101 | sg | | Pinwheel Galaxy | A large face-on spiral galaxy | ngc=NGC 5457
+M102 | lg | | Spindle Galaxy | A lenticular galaxy seen edge-on (usually taken as NGC 5866) | ngc=NGC 5866
+M103 | oc | | | A small open cluster in Cassiopeia | ngc=NGC 581
+M104 | sg | | Sombrero Galaxy | A spiral galaxy seen edge-on with a dark dust lane | ngc=NGC 4594
+M105 | eg | | | An elliptical galaxy in Leo | ngc=NGC 3379
+M106 | sg | | | A spiral galaxy with an active nucleus | ngc=NGC 4258
+M107 | gc | | | A loose globular cluster in Ophiuchus | ngc=NGC 6171
+M108 | sg | | Surfboard Galaxy | A barred spiral galaxy seen nearly edge-on | ngc=NGC 3556
+M109 | sg | | | A barred spiral galaxy near Phecda | ngc=NGC 3992
+M110 | eg | | | A dwarf elliptical galaxy, satellite of M31 | ngc=NGC 205
+
+# --- Open clusters, V 5.0 or brighter ---
+IC2602  | oc | 50 | Southern Pleiades | A bright open cluster around Theta Carinae |
+IC2391  | oc | 50 | Omicron Velorum Cluster | A bright, loose open cluster in Vela |
+NGC6231 | oc | 15 | | A young open cluster in the tail of Scorpius |
+NGC3532 | oc | | Wishing Well Cluster | One of the finest open clusters for binoculars |
+NGC2451 | oc | 45 | | Two open clusters in the same direction in Puppis | v=2.8; vsrc=integrated magnitude as commonly quoted (Wikidata gives 9.5)
+NGC869  | oc | | Double Cluster (h Persei) | One half of the Double Cluster |
+NGC884  | oc | | Double Cluster (Chi Persei) | One half of the Double Cluster |
+NGC2516 | oc | 30 | Southern Beehive | A bright open cluster in Carina |
+NGC2232 | oc | 30 | | An open cluster in Monoceros |
+NGC2264 | cn | 40 | Christmas Tree Cluster | A cluster with the Cone Nebula at its foot |
+NGC2362 | oc | 8 | Tau Canis Majoris Cluster | A young cluster around Tau Canis Majoris |
+NGC1981 | oc | 25 | | A loose cluster just north of the Orion Nebula |
+IC4665  | oc | | Summer Beehive | A large open cluster near Beta Ophiuchi |
+NGC3114 | oc | | | A large open cluster in Carina |
+NGC4755 | oc | | Jewel Box | A bright, colourful open cluster beside Mimosa |
+IC2581  | oc | | | An open cluster in Carina |
+NGC6633 | oc | | | An open cluster in Ophiuchus, near IC 4756 |
+IC4756  | oc | | Graff's Cluster | A large open cluster in Serpens |
+IC2395  | oc | 8 | | An open cluster in Vela |
+NGC2547 | oc | | | An open cluster in Vela |
+NGC3293 | oc | 6 | Gem Cluster | A young cluster near the Carina Nebula |
+NGC2244 | oc | 24 | | The cluster at the heart of the Rosette Nebula |
+
+# --- Globular clusters, V 7.5 or brighter ---
+NGC5139 | gc | | Omega Centauri | The largest globular cluster of the Galaxy |
+NGC104  | gc | | 47 Tucanae | The second-brightest globular cluster, beside the Small Magellanic Cloud |
+NGC6397 | gc | | | One of the two nearest globular clusters |
+NGC6752 | gc | | | A bright globular cluster in Pavo |
+NGC2808 | gc | | | A massive globular cluster in Carina |
+NGC362  | gc | | | A globular cluster seen beside the Small Magellanic Cloud |
+NGC6541 | gc | | | A globular cluster in Corona Australis |
+NGC3201 | gc | | | A loose globular cluster in Vela on a backward orbit |
+NGC6388 | gc | | | A dense globular cluster in Scorpius |
+NGC1851 | gc | | | A compact globular cluster in Columba |
+NGC6723 | gc | | | A globular cluster near the Corona Australis nebula |
+NGC5286 | gc | | | A globular cluster in Centaurus |
+NGC6441 | gc | | | A globular cluster beside G Scorpii |
+NGC4833 | gc | | | A globular cluster in Musca |
+
+# --- Galaxies, V 9.5 or brighter ---
+LMC     | ig | | Large Magellanic Cloud | The largest satellite galaxy of the Milky Way | wikidata=Q49957; simbad=NAME LMC; corwin=none
+SMC     | ig | | Small Magellanic Cloud | A satellite galaxy of the Milky Way | wikidata=Q49984; ngc=NGC 292; simbad=NAME SMC; corwin=none
+NGC5128 | eg | | Centaurus A | A radio galaxy crossed by a band of dust |
+NGC253  | sg | | Sculptor Galaxy | A bright starburst spiral galaxy, also called the Silver Coin |
+NGC55   | sg | | | A spiral galaxy seen edge-on in Sculptor |
+NGC300  | sg | | | A face-on spiral galaxy in Sculptor |
+NGC2403 | sg | | | A spiral galaxy in Camelopardalis |
+NGC4945 | sg | | | A spiral galaxy seen edge-on in Centaurus |
+NGC6822 | ig | | Barnard's Galaxy | A dwarf irregular galaxy of the Local Group |
+NGC1316 | lg | | Fornax A | A radio galaxy in the Fornax Cluster |
+NGC3115 | lg | | | A lenticular galaxy seen edge-on in Sextans |
+IC342   | sg | | Hidden Galaxy | A large spiral galaxy dimmed by dust in our own Galaxy |
+NGC6744 | sg | | | A large spiral galaxy much like the Milky Way |
+NGC2903 | sg | | | A barred spiral galaxy in Leo |
+NGC7793 | sg | | | A spiral galaxy in Sculptor |
+NGC247  | sg | | Needle's Eye Galaxy | A spiral galaxy in Cetus |
+NGC185  | eg | | | A dwarf elliptical galaxy, satellite of M31 |
+NGC4631 | sg | | Whale Galaxy | A spiral galaxy seen edge-on |
+NGC7331 | sg | | | A spiral galaxy in Pegasus |
+NGC1097 | sg | | | A barred spiral galaxy in Fornax |
+NGC2997 | sg | | | A spiral galaxy in Antlia |
+NGC3521 | sg | | | A spiral galaxy in Leo |
+NGC3628 | sg | | Hamburger Galaxy | The third galaxy of the Leo Triplet |
+NGC6946 | sg | | Fireworks Galaxy | A spiral galaxy where many supernovae have been seen |
+NGC1291 | sg | | | A ring galaxy in Eridanus |
+NGC4697 | eg | | | An elliptical galaxy in Virgo |
+
+# --- Planetary nebulae, V 9.5 or brighter ---
+NGC7293 | pn | | Helix Nebula | One of the nearest planetary nebulae | v=7.6; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC7009 | pn | | Saturn Nebula | A planetary nebula with two faint extensions | v=8.0; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC3242 | pn | 0.7 | Ghost of Jupiter | A bright planetary nebula in Hydra | v=7.7; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC6543 | pn | | Cat's Eye Nebula | A planetary nebula near the north ecliptic pole | v=8.1; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC6572 | pn | | | A small, bright planetary nebula in Ophiuchus | v=8.1; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC3918 | pn | | Blue Planetary | A bright planetary nebula in Centaurus | v=8.1; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC7662 | pn | | Blue Snowball | A bright planetary nebula in Andromeda | v=8.3; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC6826 | pn | | Blinking Planetary | A planetary nebula that seems to vanish when looked at directly | v=8.8; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC6210 | pn | | Turtle Nebula | A bright planetary nebula in Hercules | v=8.8; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC7027 | pn | | | A young, compact planetary nebula in Cygnus | v=8.5; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC2392 | pn | | Eskimo Nebula | A planetary nebula in Gemini | v=9.2; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+IC418   | pn | | Spirograph Nebula | A planetary nebula in Lepus | v=9.0; vsrc=SIMBAD (Wikidata gives 13.0, the central star)
+NGC2440 | pn | | | A planetary nebula in Puppis | v=9.4; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC1360 | pn | | Robin's Egg Nebula | A large planetary nebula in Fornax | v=9.4; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+NGC6818 | pn | | Little Gem Nebula | A planetary nebula in Sagittarius | v=9.3; vsrc=visual magnitude as commonly quoted in observing references (Wikidata gives the central star)
+
+# --- Nebulae at least 30' across with a common name ---
+NGC3372 | en | 120 | Carina Nebula | A vast star-forming nebula around Eta Carinae |
+NGC7000 | en | 120x100 | North America Nebula | A large emission nebula shaped like the continent |
+IC5070  | en | 60x50 | Pelican Nebula | An emission nebula beside the North America Nebula |
+NGC2237 | en | 80x60 | Rosette Nebula | A ring-shaped nebula around the cluster NGC 2244 | ngc=NGC 2238, NGC 2239, NGC 2246
+NGC1499 | en | 145x40 | California Nebula | A long, faint emission nebula in Perseus |
+NGC6960 | snr | 70x6 | Western Veil Nebula | Part of the Veil, the remnant of an ancient supernova |
+NGC6992 | snr | 60x8 | Eastern Veil Nebula | Part of the Veil, the remnant of an ancient supernova | ngc=NGC 6995
+IC1396  | en | | Elephant's Trunk Nebula | A large emission nebula and cluster in Cepheus |
+IC1805  | en | 150x150 | Heart Nebula | An emission nebula with a young cluster in Cassiopeia |
+IC1848  | en | 150x75 | Soul Nebula | An emission nebula beside the Heart Nebula |
+IC2944  | en | 75x45 | Running Chicken Nebula | An emission nebula and cluster in Centaurus |
+IC434   | en | 60x10 | Horsehead Nebula | A faint nebula with the dark Horsehead against it |
+IC2177  | en | 120x40 | Seagull Nebula | A long emission nebula between Canis Major and Monoceros |
+NGC281  | en | 35x30 | Pacman Nebula | An emission nebula with a young cluster in Cassiopeia |
+IC405   | en | 37x19 | Flaming Star Nebula | A nebula lit by the runaway star AE Aurigae |
+NGC6334 | en | 40x20 | Cat's Paw Nebula | A star-forming nebula in Scorpius |
+IC4628  | en | 90x60 | Prawn Nebula | A large emission nebula in Scorpius |
+IC4604  | rn | 60x25 | Rho Ophiuchi Nebula | A reflection nebula in the cloud complex around Rho Ophiuchi |
+IC443   | snr | 50x40 | Jellyfish Nebula | A supernova remnant in Gemini |
+IC2118  | rn | 180x60 | Witch Head Nebula | A faint reflection nebula lit by Rigel |
+NGC2070 | en | 40x25 | Tarantula Nebula | The largest star-forming region of the Local Group, in the LMC |
+NGC2174 | en | 40x30 | Monkey Head Nebula | An emission nebula in Orion |
+
+# --- Naked-eye clusters outside the NGC and IC ---
+Mel25   | oc | 330 | Hyades | The nearest open cluster, forming the face of Taurus | wikidata=Q13511; simbad=Cl Melotte 25; corwin=none
+Mel20   | oc | 185 | Alpha Persei Cluster | A large naked-eye cluster around Mirfak | wikidata=Q1072618; simbad=Cl Melotte 20; corwin=none
+Mel111  | oc | 275 | Coma Star Cluster | A large naked-eye cluster in Coma Berenices | wikidata=Q84275359; simbad=Cl Melotte 111; corwin=none
+Cr399   | as | 60 | Coathanger | An asterism of ten stars shaped like a coat hanger | wikidata=Q9290; simbad=Cl Collinder 399; corwin=none

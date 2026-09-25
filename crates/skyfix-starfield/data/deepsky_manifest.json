@@ -1,0 +1,148 @@
+{
+  "dso": {
+    "authored_sha256": "faeb14b1c639644846f38f408b2b7482ef1184a2184b329091ee09bd1a69c940",
+    "generator": "tools/starfield/dso.py",
+    "inputs": {
+      "corwin_ngcic_pos.tsv": {
+        "retrieved_utc": "2026-09-25T03:27:00Z",
+        "sha256": "ea0845ccdbdb6f5566dc332b17a90329e56ea8b7caec233eb9584a319a7a5466",
+        "size_bytes": 1053860,
+        "url": "https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=VII%2F239A%2Ficpos&-out.max=unlimited&-out=Cat%2CNGC%2FIC%2Cn_NGC%2FIC%2CRAJ2000%2CDEJ2000%2CqPos%2CN%2Ce_RAJ2000%2Ce_DEJ2000"
+      },
+      "heasarc_globclust.txt": {
+        "retrieved_utc": "2026-09-25T03:33:38Z",
+        "sha256": "b4e4ecbb8f9193663e71cf3003bb24e93bf03a6790b29e58feafa0c21e815bf8",
+        "size_bytes": 8578,
+        "url": "https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync"
+      },
+      "heasarc_rc3.txt": {
+        "retrieved_utc": "2026-09-25T03:33:40Z",
+        "sha256": "3cba0768ccba83b694ebfa34054f8bde91d4843680ae2232ff63d21b57d39bb0",
+        "size_bytes": 91475,
+        "url": "https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync"
+      },
+      "simbad_dso.csv": {
+        "retrieved_utc": "2026-09-25T03:26:56Z",
+        "sha256": "1774b51702fc2f2920462b0247b8f187c18b01a98a540da483e1af89d7d07dce",
+        "size_bytes": 25201,
+        "url": "https://simbad.u-strasbg.fr/simbad/sim-tap/sync"
+      },
+      "wikidata_items.csv": {
+        "retrieved_utc": "2026-09-25T03:29:33Z",
+        "sha256": "8f08928d66ff511d9b835ef3b16cf5dec35258c364f2a66c87f5980bd1801530",
+        "size_bytes": 6577,
+        "url": "https://query.wikidata.org/sparql"
+      },
+      "wikidata_messier.csv": {
+        "retrieved_utc": "2026-09-25T03:29:32Z",
+        "sha256": "34a330a7d8503675232af74e7adca4a868c2b8d7dfd73ae11d051bdcbd32f58a",
+        "size_bytes": 105884,
+        "url": "https://query.wikidata.org/sparql"
+      },
+      "wikidata_ngcic.csv": {
+        "retrieved_utc": "2026-09-25T03:29:33Z",
+        "sha256": "d2f9771bd06f5d541c745d796fb78514a960e62c07f9aa5dca621e29a0313806",
+        "size_bytes": 61192,
+        "url": "https://query.wikidata.org/sparql"
+      }
+    },
+    "summary": {
+      "by_type": {
+        "as": 2,
+        "cn": 2,
+        "ds": 1,
+        "eg": 11,
+        "en": 22,
+        "gc": 43,
+        "ig": 4,
+        "lg": 6,
+        "oc": 50,
+        "pn": 19,
+        "rn": 3,
+        "sc": 1,
+        "sg": 45,
+        "snr": 4
+      },
+      "bytes": 20181,
+      "galaxies_with_rc3_colour": 61,
+      "median_galaxy_colour_bv": 0.81,
+      "messier": 110,
+      "notes": [
+        "M3: Wikidata Q78384126 has RA [205.548417, 205.55] and Dec [28.377278, 28.383] (0.353' apart); the values nearest SIMBAD's ship",
+        "M10: adopted V 6.60 (harris); Wikidata has [4.98]",
+        "M14: adopted V 7.59 (harris); Wikidata has [5.73]",
+        "M19: adopted V 6.77 (harris); Wikidata has [5.57]",
+        "M22: adopted V 5.10 (harris); Wikidata has [6.17]",
+        "M27: adopted V 7.50 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [14.089]",
+        "M34: Wikidata Q13729 has RA [40.5208, 40.521] and Dec [42.76167, 42.7617] (0.009' apart); the values nearest SIMBAD's ship",
+        "M35: Wikidata Q13736 has RA [92.225] and Dec [24.3333, 24.33333] (0.002' apart); the values nearest SIMBAD's ship",
+        "M39: Wikidata Q13883 has RA [322.95] and Dec [48.4333, 48.43333] (0.002' apart); the values nearest SIMBAD's ship",
+        "M42: Wikidata Q13903 has RA [83.81042, 83.82208] and Dec [-5.39111, -5.375] (1.191' apart); the values nearest SIMBAD's ship",
+        "M48: Wikidata Q13951 has RA [123.429, 123.4292] and Dec [-5.75] (0.012' apart); the values nearest SIMBAD's ship",
+        "M49: adopted V 8.41 (rc3); Wikidata has [12.17]",
+        "M50: Wikidata Q13956 has RA [105.6979, 105.69792] and Dec [-8.33778] (0.001' apart); the values nearest SIMBAD's ship",
+        "M57: adopted V 8.80 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [15.769]",
+        "M70: adopted V 7.87 (harris); Wikidata has [9.06]",
+        "M71: adopted V 8.19 (harris); Wikidata has [6.1]",
+        "M74: Wikidata Q14013 has RA [24.173917, 24.17405] and Dec [15.7834611, 15.783583] (0.011' apart); the values nearest SIMBAD's ship",
+        "M76: adopted V 10.10 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [17.48]",
+        "M84: Wikidata Q92258118 has RA [186.25, 186.265597208] and Dec [12.867, 12.886983139] (1.507' apart); the values nearest SIMBAD's ship",
+        "M84: adopted V 9.11 (rc3); Wikidata has [10.49, 20.0]",
+        "M86: Wikidata Q92258250 has RA [186.549225, 186.55] and Dec [12.9, 12.9459694] (2.759' apart); the values nearest SIMBAD's ship",
+        "M88: adopted V 9.63 (rc3); Wikidata has [13.18]",
+        "M90: Wikidata Q14343 has RA [189.207458, 189.2075667] and Dec [13.1628694, 13.162944] (0.008' apart); the values nearest SIMBAD's ship",
+        "M91: adopted V 10.15 (rc3); Wikidata has [13.57]",
+        "M92: Wikidata Q78262275 has RA [259.2807167, 259.280792] and Dec [43.1358389, 43.135944] (0.007' apart); the values nearest SIMBAD's ship",
+        "M97: adopted V 9.90 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [15.777]",
+        "M100: Wikidata Q14365 has RA [185.7288828545226, 185.729167] and Dec [15.822303972823, 15.822639] (0.026' apart); the values nearest SIMBAD's ship",
+        "M104: Wikidata Q91461627 has RA [189.997632708, 190.0] and Dec [-11.623054278, -11.617] (0.389' apart); the values nearest SIMBAD's ship",
+        "NGC2451: adopted V 2.80 (authored: integrated magnitude as commonly quoted (Wikidata gives 9.5)); Wikidata has [9.5]",
+        "NGC5139: adopted V 3.68 (harris); Wikidata has [5.33]",
+        "NGC2808: Wikidata Q939452 has RA [138.012917, 138.01542] and Dec [-64.8635, -64.8625] (0.088' apart); the values nearest SIMBAD's ship",
+        "NGC6541: adopted V 6.30 (harris); Wikidata has [7.32]",
+        "NGC3201: Wikidata Q840010 has RA [154.4, 154.403417] and Dec [-46.417, -46.412472] (0.306' apart); the values nearest SIMBAD's ship",
+        "NGC3201: adopted V 6.75 (harris); Wikidata has [8.24]",
+        "NGC1851: adopted V 7.14 (harris); Wikidata has [9.403]",
+        "NGC5286: Wikidata Q915535 has RA [206.611708, 206.625] and Dec [-51.383, -51.37425] (0.723' apart); the values nearest SIMBAD's ship",
+        "NGC4945: adopted V 8.49 (rc3_bt_median_colour); Wikidata has [14.4]",
+        "NGC7293: Wikidata Q97017154 has RA [337.4083, 337.4106054491761] and Dec [-20.83722, -20.8371516925291] (0.129' apart); the values nearest SIMBAD's ship",
+        "NGC7293: adopted V 7.60 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [13.524]",
+        "NGC7009: adopted V 8.00 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [12.07]",
+        "NGC3242: adopted V 7.70 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [12.15]",
+        "NGC6543: adopted V 8.10 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [11.28]",
+        "NGC6572: adopted V 8.10 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [10.8]",
+        "NGC6210: adopted V 8.80 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [11.7]",
+        "NGC7027: Wikidata Q85518442 has RA [316.7561042, 316.7573] and Dec [42.2361, 42.2362556] (0.054' apart); the values nearest SIMBAD's ship",
+        "NGC7027: adopted V 8.50 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [9.68, 10.9]",
+        "IC418: adopted V 9.00 (authored: SIMBAD (Wikidata gives 13.0, the central star)); Wikidata has [13.0]",
+        "NGC1360: adopted V 9.40 (authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)); Wikidata has [11.16]",
+        "IC2944: Wikidata Q79642350 has RA [174.58333, 174.585] and Dec [-63.37278] (0.045' apart); the values nearest SIMBAD's ship"
+      ],
+      "objects": 213,
+      "sep_corwin_arcmin": {
+        "count": 203,
+        "max": 58.141,
+        "median": 0.034
+      },
+      "sep_simbad_arcmin": {
+        "max": 77.052,
+        "median": 0.0
+      },
+      "size_sources": {
+        "authored": 57,
+        "simbad": 156
+      },
+      "southern": 110,
+      "v_sources": {
+        "authored: SIMBAD (Wikidata gives 13.0, the central star)": 1,
+        "authored: integrated magnitude as commonly quoted (Wikidata gives 9.5)": 1,
+        "authored: visual magnitude as commonly quoted in observing references (Wikidata gives the central star)": 18,
+        "harris": 43,
+        "none": 12,
+        "rc3": 61,
+        "rc3_bt_median_colour": 5,
+        "wikidata": 72
+      }
+    }
+  }
+}
