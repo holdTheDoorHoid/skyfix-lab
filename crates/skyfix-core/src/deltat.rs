@@ -8,7 +8,7 @@
 //!
 //! | span (Julian epoch, TT) | Delta-T | source |
 //! |---|---|---|
-//! | 1973-01-02 to 2027-09-21 | IERS: `32.184 s + (TAI - UTC) - (UT1 - UTC)` from the weekly table ([`DUT1_E4`](data::DUT1_E4)); observed to 2026-09-24, IERS Bulletin A's prediction after | `iers`, then `prediction` |
+//! | 1973-01-02 to 2027-09-28 | IERS: `32.184 s + (TAI - UTC) - (UT1 - UTC)` from the weekly table ([`DUT1_E4`](data::DUT1_E4), IERS finals2000A of 2026-09-25); observed to 2026-09-24, IERS Bulletin A's prediction after | `iers`, then `prediction` |
 //! | -720 to 1973 | Stephenson, Morrison & Hohenkerk 2016 splines in their 2020 revision (Table S15.2020), the last segment's linear term adjusted to meet the table's first value | `smh2016` |
 //! | beyond both | the long-term parabola `-320 + 32.5 ((y - 1825)/100)^2` s | `parabola` |
 //!
@@ -20,20 +20,19 @@
 //! -1520 and after 2800. The right-hand join is labelled `prediction`, the rest
 //! `parabola`.
 //!
-//! Given the same table, Skyfield reproduces this curve to 1 microsecond
-//! (`tools/timescales/gen_timescales.py` builds that Skyfield timescale and
+//! Given the same table, Skyfield reproduces this curve to 1 microsecond, and Skyfield
+//! built from the same finals2000A.all (daily) agrees with it to the weekly sampling's
+//! 2 ms over 1973-2027 (`tools/timescales/gen_timescales.py` builds both;
 //! `tests/timescales_reference.rs` compares). Skyfield's own bundled table ends in 2027
-//! and has been a prediction since about 2026-01-23, 0.1 s off by September 2026, so its
-//! future Delta-T differs from this one by up to 18 s around 2240, well inside either
+//! and is a prediction after 2026-01-23, 0.11 s off by September 2026, so its future
+//! Delta-T differs from this one by up to about 18 s around 2250, well inside either
 //! one's uncertainty; both are the parabola after 2800.
 //!
 //! # The standard uncertainty
 //!
 //! - IERS observed values: 0.001 s (the weekly table's interpolation error: at most
-//!   1.9 ms, 0.5 ms rms).
-//! - 2026-01-24 to 2026-09-17, where the table is a prediction corrected to the
-//!   observations at both ends: a Brownian bridge, `sqrt(0.001^2 + M^2 s (1 - s))` with
-//!   `M` = 0.105 s, the size of the correction.
+//!   1.9 ms, 0.5 ms rms; the IERS formal errors are at most 1.5 ms in 1973-1984 and
+//!   0.06 ms since 1990).
 //! - After the last observation (2026-09-24): the larger of IERS Bulletin A's own
 //!   prediction error `0.00025 n^0.75` s (`n` days) and Huber's random walk with drift
 //!   ([`huber_sigma_s`], NASA's formula) counted from that date: 0.05 s after a year,
@@ -48,10 +47,7 @@
 
 mod data;
 
-use data::{
-    DUT1_E4, EOP_BULLETIN_FIRST_OBSERVED_MJD, EOP_BUNDLE_LAST_OBSERVED_MJD, EOP_FIRST_MJD,
-    EOP_GAP_MISS_S, EOP_LAST_OBSERVED_MJD, EOP_STEP_DAYS, S15, SMH_SIGMA,
-};
+use data::{DUT1_E4, EOP_FIRST_MJD, EOP_LAST_OBSERVED_MJD, EOP_STEP_DAYS, S15, SMH_SIGMA};
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
 
@@ -176,15 +172,8 @@ fn ut1_minus_tai(mjd_utc: f64) -> Option<f64> {
 
 /// Standard uncertainty of the table's UT1 - UTC (and so of its Delta-T) at an MJD.
 fn table_sigma_s(mjd_utc: f64) -> f64 {
-    let t0 = f64::from(EOP_BUNDLE_LAST_OBSERVED_MJD);
-    let t1 = f64::from(EOP_BULLETIN_FIRST_OBSERVED_MJD);
-    let last_obs = f64::from(EOP_LAST_OBSERVED_MJD);
-    if mjd_utc <= t0 || (t1..=last_obs).contains(&mjd_utc) {
+    if mjd_utc <= f64::from(EOP_LAST_OBSERVED_MJD) {
         SIGMA_OBSERVED_S
-    } else if mjd_utc < t1 {
-        let s = (mjd_utc - t0) / (t1 - t0);
-        (SIGMA_OBSERVED_S * SIGMA_OBSERVED_S + EOP_GAP_MISS_S * EOP_GAP_MISS_S * s * (1.0 - s))
-            .sqrt()
     } else {
         future_sigma_s(mjd_utc)
     }
@@ -199,7 +188,7 @@ fn future_sigma_s(mjd_utc: f64) -> f64 {
 }
 
 /// UT1 - UTC from the IERS table at `jd_utc`, with its standard uncertainty, or `None`
-/// outside the table (MJD 41684 = 1973-01-02 to the last predicted sample, 2027-09-21).
+/// outside the table (MJD 41684 = 1973-01-02 to the last predicted sample, 2027-09-28).
 /// Past 2026-09-24 the values are IERS Bulletin A's prediction.
 pub fn iers_dut1(jd_utc: f64) -> Option<(f64, f64)> {
     let mjd = jd_utc - MJD_OFFSET;

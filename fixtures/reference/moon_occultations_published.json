@@ -1,0 +1,107 @@
+{
+  "schema": "skyfix.reference/1",
+  "generator": {
+    "tool": "hand transcription (moondetail agent, 2026-09-25)",
+    "description": "Published local circumstances of three lunar occultations, transcribed from the pages named below and retrieved 2026-09-25. Times only (facts); nothing else is reproduced. Never regenerated from Rust output (CONVENTIONS section 11).",
+    "places": "None of the sources states the coordinates it used for a city; each place here is the city's usual centre (or the Royal Observatory for Greenwich), so a few kilometres of difference in the observing point are part of each tolerance.",
+    "tolerance": "Rounding of the published time (30 s for whole minutes, 3 s for tenths of a minute, 0.5 s for seconds) plus 60 s for the unstated observing point and the prediction's limb and ephemeris; a chord that meets the limb obliquely moves fastest with position."
+  },
+  "events": [
+    {
+      "body": "Mars",
+      "date": "2025-01-14",
+      "source": "Michael E. Bakich, 'Watch the full Moon cover Mars', Astronomy (astronomy.com/observing/watch-the-full-moon-cover-mars/); Jeffrey L. Hunt, 'Wolf Moon occults Mars' (whenthecurveslineup.com/2024/12/30/2025-january-13-wolf-moon-occults-mars/); both from IOTA's prediction",
+      "published_as": "local clock times, whole minutes (EST = UTC-5, CST = UTC-6)",
+      "places": [
+        {
+          "name": "New York",
+          "lat_deg": 40.7128,
+          "lon_deg": -74.006,
+          "height_m": 10.0,
+          "disappearance_utc": "2025-01-14T02:21:00Z",
+          "reappearance_utc": "2025-01-14T03:37:00Z",
+          "disappearance_jd_utc": 2460689.597916667,
+          "reappearance_jd_utc": 2460689.650694444,
+          "tolerance_s": 90.0,
+          "note": "9:21 and 10:37 p.m. EST on January 13"
+        },
+        {
+          "name": "Chicago",
+          "lat_deg": 41.8781,
+          "lon_deg": -87.6298,
+          "height_m": 180.0,
+          "disappearance_utc": "2025-01-14T02:07:00Z",
+          "reappearance_utc": "2025-01-14T03:16:00Z",
+          "disappearance_jd_utc": 2460689.588194444,
+          "reappearance_jd_utc": 2460689.636111111,
+          "tolerance_s": 90.0,
+          "note": "8:07 and 9:16 p.m. CST on January 13"
+        }
+      ]
+    },
+    {
+      "body": "Saturn",
+      "date": "2024-08-21",
+      "source": "Mike Foulkes, 'Observers' challenge: a lunar occultation of Saturn on 2024 August 21', British Astronomical Association (britastro.org/2024/observers-challenge-a-lunar-occultation-of-saturn-on-2024-august-21)",
+      "published_as": "UT to a tenth of a minute",
+      "places": [
+        {
+          "name": "Greenwich",
+          "lat_deg": 51.4769,
+          "lon_deg": -0.0005,
+          "height_m": 47.0,
+          "disappearance_utc": "2024-08-21T03:28:42Z",
+          "reappearance_utc": "2024-08-21T04:21:12Z",
+          "disappearance_jd_utc": 2460543.644930555,
+          "reappearance_jd_utc": 2460543.681388889,
+          "tolerance_s": 63.0,
+          "note": "03:28.7 and 04:21.2 UT"
+        },
+        {
+          "name": "Edinburgh",
+          "lat_deg": 55.9533,
+          "lon_deg": -3.1883,
+          "height_m": 50.0,
+          "disappearance_utc": "2024-08-21T03:33:30Z",
+          "reappearance_utc": "2024-08-21T04:09:48Z",
+          "disappearance_jd_utc": 2460543.648263889,
+          "reappearance_jd_utc": 2460543.673472222,
+          "tolerance_s": 63.0,
+          "note": "03:33.5 and 04:09.8 UT"
+        }
+      ]
+    },
+    {
+      "body": "Aldebaran",
+      "date": "2017-12-31",
+      "source": "Bruce McClure, 'Moon occults Aldebaran on December 30', EarthSky (earthsky.org/sky-archive/moon-occults-aldebaran-on-december-30/), from IOTA's prediction",
+      "published_as": "UT to the second (London GMT and Reykjavik UTC in December)",
+      "places": [
+        {
+          "name": "London",
+          "lat_deg": 51.5074,
+          "lon_deg": -0.1278,
+          "height_m": 20.0,
+          "disappearance_utc": "2017-12-31T01:13:38Z",
+          "reappearance_utc": "2017-12-31T01:58:56Z",
+          "disappearance_jd_utc": 2458118.551134259,
+          "reappearance_jd_utc": 2458118.582592593,
+          "tolerance_s": 61.0,
+          "note": "01:13:38 and 01:58:56 GMT"
+        },
+        {
+          "name": "Reykjavik",
+          "lat_deg": 64.1466,
+          "lon_deg": -21.9426,
+          "height_m": 30.0,
+          "disappearance_utc": "2017-12-31T00:35:05Z",
+          "reappearance_utc": "2017-12-31T01:38:39Z",
+          "disappearance_jd_utc": 2458118.524363426,
+          "reappearance_jd_utc": 2458118.568506944,
+          "tolerance_s": 61.0,
+          "note": "00:35:05 and 01:38:39 UT"
+        }
+      ]
+    }
+  ]
+}

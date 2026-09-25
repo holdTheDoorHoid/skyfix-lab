@@ -20,6 +20,7 @@
     "horizon": "sea"
   },
   "clock": {
+    "dut1_s": 0,
     "uncertainty_s": 0.0,
     "correction_s": 0.0
   },

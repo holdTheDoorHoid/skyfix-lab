@@ -35,9 +35,13 @@ pub mod navsky;
 // Optional data packs: header, registry and dispatcher (packs agent; EXPLORER_API "Packs").
 pub mod packs;
 pub mod planet_events;
+// Expansion programme, sailings agent: sailings, DR, routes, star identification, star finder.
+pub mod sailings;
 pub mod starfield;
 // Expansion programme, wave 1 (docs/EXPANSION_PLAN.md section 5): one module per agent.
 pub mod timescale;
+// Expansion programme P8 (moondetail agent): the Moon in detail.
+pub mod moondetail;
 // Expansion programme (tides agent): tide predictions from the optional tides-us pack.
 pub mod tides;
 

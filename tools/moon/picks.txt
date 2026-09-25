@@ -1,0 +1,177 @@
+# The named lunar features SkyFix Lab shows, picked and described by this project.
+#
+# One line per feature: name | rank | description
+#   name        exactly as the USGS/IAU Gazetteer of Planetary Nomenclature spells it;
+#               or "Apollo NN" for a landing site, followed by "| source=<gazetteer name>"
+#               naming the approved feature at the landing point whose coordinates it uses
+#   rank        1 = a showpiece anyone should look for, 2 = notable, 3 = more to find
+#   description one line in plain words, written for this project (not copied from any
+#               list); Latin names are translated where it helps
+#
+# Coordinates, diameters and the feature type come from the gazetteer at build time
+# (tools/moon/build.py); nothing numeric is typed here. The choice is this project's
+# own: the near-side maria, the major craters and ranges, rilles, scarps and valleys
+# that show well near the terminator, a few features in the libration zones, and the
+# six Apollo landing sites.
+
+# --- Maria and the ocean ---------------------------------------------------------
+Oceanus Procellarum | 1 | The Ocean of Storms, the largest of the dark lava plains
+Mare Imbrium | 1 | The Sea of Showers, a huge impact basin ringed by mountains
+Mare Serenitatis | 1 | The Sea of Serenity, a round lava plain with pale shores
+Mare Tranquillitatis | 1 | The Sea of Tranquillity, where Apollo 11 landed
+Mare Crisium | 1 | The Sea of Crises, an isolated oval sea near the eastern limb
+Mare Fecunditatis | 2 | The Sea of Fertility, east of Tranquillitatis
+Mare Nectaris | 2 | The Sea of Nectar, a small round basin with a ring of cliffs
+Mare Nubium | 2 | The Sea of Clouds, home of the Straight Wall
+Mare Humorum | 2 | The Sea of Moisture, a round basin with Gassendi on its shore
+Mare Frigoris | 2 | The Sea of Cold, a long thin band across the far north
+Mare Vaporum | 2 | The Sea of Vapours, south of the Apennines
+Mare Cognitum | 3 | The Known Sea, named after Ranger 7 photographed it in 1964
+Mare Insularum | 3 | The Sea of Islands, around Copernicus and Kepler
+Mare Anguis | 3 | The Serpent Sea, a small dark patch north-east of Crisium
+Mare Undarum | 3 | The Sea of Waves, dark patches near the eastern limb
+Mare Marginis | 2 | The Border Sea, on the eastern limb; best when libration tilts it into view
+Mare Smythii | 2 | Smyth's Sea, on the eastern limb at the equator; needs good libration
+Mare Humboldtianum | 3 | Humboldt's Sea, on the north-eastern limb
+Mare Australe | 3 | The Southern Sea, a scatter of dark floors on the south-eastern limb
+Mare Orientale | 2 | A great ringed basin on the western limb, glimpsed only at good libration
+
+# --- Bays, lakes and marshes -------------------------------------------------------
+Sinus Iridum | 1 | The Bay of Rainbows, a half-drowned crater edged by the Jura mountains
+Sinus Medii | 2 | The Central Bay, at the centre of the Moon's face
+Sinus Aestuum | 3 | The Seething Bay, a dark bay east of Copernicus
+Sinus Roris | 3 | The Bay of Dew, joining Frigoris to Procellarum
+Sinus Amoris | 3 | The Bay of Love, off the north-east of Tranquillitatis
+Lacus Somniorum | 3 | The Lake of Dreams, a pale plain north-east of Serenitatis
+Lacus Mortis | 3 | The Lake of Death, a flooded plain with a rille across it
+Palus Putredinis | 3 | The Marsh of Decay, at the foot of the Apennines
+Palus Epidemiarum | 3 | The Marsh of Epidemics, south-west of Nubium
+
+# --- Mountain ranges and peaks ------------------------------------------------------
+Montes Apenninus | 1 | The Apennines, the grandest range, part of the rim of Imbrium
+Montes Alpes | 1 | The Alps, cut through by the Alpine Valley
+Montes Caucasus | 2 | The Caucasus, between Imbrium and Serenitatis
+Montes Carpatus | 2 | The Carpathians, on the southern rim of Imbrium
+Montes Jura | 2 | The Jura, the bright arc around Sinus Iridum
+Montes Haemus | 3 | The Haemus range, along the south-west shore of Serenitatis
+Montes Taurus | 3 | The Taurus mountains, east of Serenitatis
+Montes Pyrenaeus | 3 | The Pyrenees, along the eastern shore of Nectaris
+Montes Riphaeus | 3 | The Riphaeus mountains, peaks poking out of Mare Cognitum
+Montes Recti | 2 | The Straight Range, a short, ruler-straight ridge in Imbrium
+Montes Teneriffe | 3 | The Teneriffe mountains, a group of isolated peaks in Imbrium
+Montes Harbinger | 3 | The Harbinger mountains, which catch the dawn just before Aristarchus
+Montes Cordillera | 3 | The Cordillera, the outer ring of the Orientale basin on the limb
+Mons Pico | 2 | Pico, a lone peak on the Imbrium plain with a long pointed shadow
+Mons Piton | 3 | Piton, another lone Imbrium peak
+Mons Hadley | 2 | Mount Hadley, the massif beside the Apollo 15 landing site
+Mons Huygens | 3 | Mount Huygens, one of the highest peaks of the Apennines
+Mons Rümker | 3 | Mons Rümker, a cluster of volcanic domes in Procellarum
+Mons Gruithuisen Gamma | 3 | Gruithuisen Gamma, a steep-sided volcanic dome
+Mont Blanc | 3 | Mont Blanc, a high peak of the lunar Alps
+Mons Malapert | 3 | Mons Malapert, a mountain near the south pole, seen at good libration
+
+# --- Scarps, rilles, valleys, ridges, capes and a swirl -----------------------------
+Rupes Recta | 1 | The Straight Wall: a dark line before full Moon, a bright one after
+Rupes Altai | 2 | The Altai Scarp, a curving cliff on the old rim of the Nectaris basin
+Vallis Alpes | 1 | The Alpine Valley, a straight flat-floored cleft through the Alps
+Vallis Schröteri | 1 | Schröter's Valley, the largest winding rille, beside Aristarchus
+Vallis Rheita | 2 | The Rheita Valley, a long gouge of overlapping craters
+Rima Hadley | 2 | Hadley Rille, the lava channel Apollo 15 drove to
+Rima Ariadaeus | 2 | The Ariadaeus Rille, a long straight trench
+Rima Hyginus | 2 | The Hyginus Rille, two arms of pits meeting at a crater
+Rimae Triesnecker | 3 | The Triesnecker rilles, a tangled network near the centre
+Rimae Hippalus | 3 | The Hippalus rilles, arcs along the shore of Humorum
+Rimae Sirsalis | 3 | The Sirsalis rille, one of the longest on the Moon
+Dorsa Smirnov | 2 | The Serpentine Ridge, a wrinkle ridge winding across Serenitatis
+Promontorium Heraclides | 2 | Cape Heraclides, the western tip of Sinus Iridum
+Promontorium Laplace | 3 | Cape Laplace, the eastern tip of Sinus Iridum
+Reiner Gamma | 1 | A bright swirl on the dark plain, with no relief at all
+
+# --- Craters ---------------------------------------------------------------------
+Copernicus | 1 | A crater with terraced walls and central peaks; rays at full Moon
+Tycho | 1 | A young crater whose bright rays cross the whole disc at full Moon
+Kepler | 2 | A bright ray crater in Oceanus Procellarum
+Aristarchus | 1 | The brightest crater on the Moon, on a dark volcanic plateau
+Plato | 1 | A crater with a flat, dark lava floor, north of Imbrium
+Clavius | 1 | One of the largest craters, with an arc of smaller craters on its floor
+Ptolemaeus | 1 | A great walled plain near the centre, first of a chain of three
+Alphonsus | 2 | A crater with a central peak and dark-halo pits; Ranger 9 hit here
+Arzachel | 2 | A crater with a sharp central peak, south of Alphonsus
+Theophilus | 1 | A deep crater with massive central peaks
+Cyrillus | 2 | An older crater overlapped by Theophilus
+Catharina | 2 | A worn crater, the third of the Theophilus trio
+Langrenus | 2 | A large crater near the eastern limb, bright at full Moon
+Petavius | 1 | A large crater with a rille running from its central peaks
+Vendelinus | 3 | A worn walled plain between Langrenus and Petavius
+Grimaldi | 2 | The darkest patch on the western limb, a lava-floored basin
+Schickard | 2 | A vast walled plain in the south-west
+Gassendi | 1 | A crater with a cracked floor on the north shore of Humorum
+Eratosthenes | 2 | A crater at the end of the Apennines
+Archimedes | 2 | A flat-floored crater in Imbrium
+Aristillus | 3 | A crater with terraced walls and central peaks in Imbrium
+Autolycus | 3 | A small crater; Luna 2 struck close by in 1959
+Posidonius | 2 | A crater with rilles on its floor, on the shore of Serenitatis
+Atlas | 3 | A crater in the north-east, paired with Hercules
+Hercules | 3 | A crater beside Atlas
+Endymion | 3 | A dark-floored crater near the north-eastern limb
+Messier | 2 | Messier and Messier A, a small pair with twin comet-tail rays
+Proclus | 3 | A bright crater with rays fanning out on one side only
+Maurolycus | 3 | A large crater in the crowded southern highlands
+Stöfler | 3 | A large crater with a smooth, flat floor
+Walter | 3 | A walled plain, last of the Purbach chain
+Purbach | 3 | A worn crater, first of a chain with Regiomontanus and Walter
+Deslandres | 3 | An ancient walled plain, one of the largest on the near side
+Longomontanus | 3 | A walled plain south-west of Tycho
+Maginus | 3 | A worn walled plain that vanishes in sunlight at full Moon
+Moretus | 3 | A crater with a tall central peak, towards the south pole
+Schiller | 2 | A long crater, like a footprint, in the south-west
+Wargentin | 2 | A crater filled to the brim with lava: a raised plateau
+Bailly | 2 | One of the largest craters, on the south-western limb
+Hevelius | 3 | A crater with rilles on its floor, near the western limb
+Riccioli | 3 | A crater with a dark patch in its floor, near the western limb
+Humboldt | 3 | A large crater with a fractured floor on the eastern limb
+Janssen | 3 | An ancient walled plain crossed by rilles
+Fracastorius | 2 | A crater whose northern wall was drowned by Mare Nectaris
+Albategnius | 2 | A walled plain next to Ptolemaeus
+Hipparchus | 3 | A worn walled plain near the centre
+Manilius | 3 | A crater on the edge of Mare Vaporum
+Menelaus | 3 | A bright crater on the southern shore of Serenitatis
+Linné | 3 | A small bright crater once wrongly thought to have vanished
+Eudoxus | 3 | A crater south of Aristoteles
+Aristoteles | 2 | A crater with terraced walls on the edge of Mare Frigoris
+Cassini | 3 | A crater with a smaller crater inside it
+Pythagoras | 3 | A large crater near the north-western limb
+Anaxagoras | 3 | A young crater near the north pole with bright rays
+Bullialdus | 2 | A crater with terraced walls in Mare Nubium
+Fra Mauro | 2 | A worn crater; the Apollo 14 site lies in the hills to its north
+Letronne | 3 | A half-drowned crater opening onto Procellarum
+Pitatus | 3 | A crater with a dark floor on the edge of Nubium
+Descartes | 2 | A worn crater; the Apollo 16 site lies in the highlands to its north
+Rheita | 3 | A crater at the head of the Rheita Valley
+Marius | 3 | A crater among the Marius Hills, a field of volcanic domes
+Herodotus | 3 | A crater beside Aristarchus, at the head of Schröter's Valley
+Birt | 3 | A small crater beside the Straight Wall
+Hyginus | 3 | A small crater at the bend of the Hyginus Rille
+Picard | 3 | A crater inside Mare Crisium
+Pytheas | 3 | A bright crater between Copernicus and Lambert
+Harpalus | 3 | A bright young crater in Sinus Roris
+Gruithuisen | 3 | A crater near the Gruithuisen domes
+Flamsteed | 3 | A crater just north of which Surveyor 1 landed in 1966
+Hortensius | 3 | A crater with a field of small volcanic domes to its north
+Hesiodus | 3 | A crater at the end of a long rille
+Torricelli | 3 | A small keyhole-shaped crater in Sinus Asperitatis
+Gutenberg | 3 | A crater breached by lava on the edge of Fecunditatis
+Colombo | 3 | A large crater on the south-west shore of Fecunditatis
+Hainzel | 3 | A crater made of overlapping rings
+Kies | 3 | A lava-flooded ghost crater in Mare Nubium
+Mercator | 3 | A crater on the edge of Palus Epidemiarum
+Shackleton | 3 | A crater at the south pole, its floor in permanent shadow
+Peary | 3 | A crater at the north pole
+
+# --- Apollo landing sites (coordinates of the approved feature at the landing point) --
+Apollo 11 | 1 | Tranquility Base, the first crewed landing, 20 July 1969 | source=Statio Tranquillitatis
+Apollo 12 | 2 | Apollo 12 landed beside the Surveyor 3 probe, November 1969 | source=Surveyor
+Apollo 14 | 2 | Apollo 14 explored the Fra Mauro highlands, February 1971 | source=Triplet
+Apollo 15 | 2 | Apollo 15 drove the first rover along Hadley Rille, July 1971 | source=Last
+Apollo 16 | 2 | Apollo 16 explored the Descartes highlands, April 1972 | source=Spot
+Apollo 17 | 2 | Apollo 17, the last crewed landing, Taurus-Littrow valley, December 1972 | source=Trident

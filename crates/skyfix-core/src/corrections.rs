@@ -115,6 +115,105 @@ pub fn dip_arcmin(height_of_eye_m: f64) -> f64 {
     }
 }
 
+// --- dip short of the horizon (sailings agent, expansion programme) ------------------
+
+/// Feet in Bowditch's nautical mile (vol. 2 §402): `6076.1`.
+pub const BOWDITCH_FEET_PER_NM: f64 = 6076.1;
+/// Bowditch's curvature-and-refraction constant (vol. 2 §402), NM: `8268 = 2 R'`, with
+/// `R'` = 4134 NM the Earth's radius as terrestrial refraction makes it look.
+pub const BOWDITCH_DIP_SHORT_NM: f64 = 8268.0;
+/// Metres per international foot.
+pub const M_PER_FT: f64 = 0.3048;
+
+/// Dip of the sea short of the horizon, arcminutes: the depression below the horizontal
+/// of the waterline `distance_nm` away seen from `height_of_eye_m` (Bowditch 2019 vol. 2
+/// §402 and Table 14):
+///
+/// ```text
+/// Ds = 60 tan⁻¹( h_ft / (6076.1 d) + d / 8268 )          (degrees -> minutes)
+/// ```
+///
+/// The first term is the height seen from the distance; the second the Earth's
+/// curvature, `d / 2R'`, with the effective radius `R'` = 4134 NM that terrestrial
+/// refraction produces (the same refraction that makes the sea dip `0.97′ √h_ft`: the
+/// formula is least at `d = √(8268 h_ft / 6076.1)`, the sea horizon, where it equals
+/// that dip). For small angles it is `0.4158′ d + 1.8562′ h_m / d`, the two constants
+/// being 3437.75/8268 and 3437.75/(0.3048 × 6076.1); the arctangent matters only for a
+/// waterline a few cables off a high eye (0.63′ at 100 ft and 0.2 NM). The distance
+/// must be positive and finite; [`check_horizon`] refuses anything else upstream.
+pub fn dip_short_arcmin(height_of_eye_m: f64, distance_nm: f64) -> f64 {
+    let h_ft = height_of_eye_m.max(0.0) / M_PER_FT;
+    let t = h_ft / (BOWDITCH_FEET_PER_NM * distance_nm) + distance_nm / BOWDITCH_DIP_SHORT_NM;
+    t.atan().to_degrees() * 60.0
+}
+
+/// Distance of the sea horizon, nautical miles, as the dip-short formula places it: the
+/// distance at which [`dip_short_arcmin`] is least, `√(8268 h_ft / 6076.1)` (2.113 √h_m;
+/// Bowditch's `1.17 √h_ft`). A shoreline farther than this is below the sea horizon.
+pub fn sea_horizon_distance_nm(height_of_eye_m: f64) -> f64 {
+    (BOWDITCH_DIP_SHORT_NM * height_of_eye_m.max(0.0) / M_PER_FT / BOWDITCH_FEET_PER_NM).sqrt()
+}
+
+/// What step 2 subtracts for a horizon with a dip.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct HorizonDip {
+    pub dip_arcmin: f64,
+    /// `true` when the dip short of the horizon was used (a shoreline nearer than the
+    /// sea horizon), `false` for the sea dip.
+    pub short: bool,
+    /// For a shore horizon: the distance of the sea horizon, NM.
+    pub sea_horizon_nm: Option<f64>,
+    /// For a shore horizon: the shoreline is at or beyond the sea horizon, so the sea dip
+    /// was used ([`Warning::ShoreBeyondSeaHorizon`]).
+    pub beyond_horizon: bool,
+}
+
+/// The dip of a horizon mode (CONVENTIONS section 5, step 2), or `None` for a horizon
+/// without one (artificial, electronic).
+///
+/// - `sea`: [`dip_arcmin`], `1.76′ √h`.
+/// - `shore { distance_nm }`: [`dip_short_arcmin`] while the shoreline is nearer than
+///   [`sea_horizon_distance_nm`], never less than the sea dip (Bowditch's constants make
+///   the formula's minimum `1.7569′ √h`, 0.18 % under the chain's rounded `1.76′ √h`, so
+///   within a few per cent of the horizon distance the sea dip is the larger and is
+///   used); at or beyond the sea horizon, the sea dip.
+pub fn horizon_dip(horizon: HorizonMode, height_of_eye_m: f64) -> Option<HorizonDip> {
+    match horizon {
+        HorizonMode::Sea => Some(HorizonDip {
+            dip_arcmin: dip_arcmin(height_of_eye_m),
+            short: false,
+            sea_horizon_nm: None,
+            beyond_horizon: false,
+        }),
+        HorizonMode::Shore { distance_nm } => {
+            let sea = dip_arcmin(height_of_eye_m);
+            let horizon_nm = sea_horizon_distance_nm(height_of_eye_m);
+            if distance_nm >= horizon_nm {
+                Some(HorizonDip {
+                    dip_arcmin: sea,
+                    short: false,
+                    sea_horizon_nm: Some(horizon_nm),
+                    beyond_horizon: true,
+                })
+            } else {
+                let short = dip_short_arcmin(height_of_eye_m, distance_nm);
+                Some(HorizonDip {
+                    dip_arcmin: short.max(sea),
+                    short: short > sea,
+                    sea_horizon_nm: Some(horizon_nm),
+                    beyond_horizon: false,
+                })
+            }
+        }
+        HorizonMode::ArtificialReflected | HorizonMode::ElectronicVertical => None,
+    }
+}
+
+/// The dip a horizon mode subtracts, arcminutes (0 for a horizon without one).
+pub fn horizon_dip_arcmin(horizon: HorizonMode, height_of_eye_m: f64) -> f64 {
+    horizon_dip(horizon, height_of_eye_m).map_or(0.0, |d| d.dip_arcmin)
+}
+
 /// Bennett (1982) refraction in arcminutes for an apparent altitude in degrees,
 /// scaled for pressure (hPa) and temperature (C). Caller enforces the validity range.
 ///
@@ -254,7 +353,11 @@ pub fn ignored_correction_kinds_for(
     if inputs.index_correction_arcmin != 0.0 {
         ignored.push(CorrectionKind::IndexCorrection);
     }
-    if inputs.horizon == HorizonMode::Sea && inputs.height_of_eye_m > 0.0 {
+    // A shoreline has a dip even at a height of 0 (the curvature term), so a `shore`
+    // horizon always has one to ignore.
+    if (inputs.horizon == HorizonMode::Sea && inputs.height_of_eye_m > 0.0)
+        || matches!(inputs.horizon, HorizonMode::Shore { .. })
+    {
         ignored.push(CorrectionKind::Dip);
     }
     if inputs.horizon == HorizonMode::ArtificialReflected {
@@ -358,6 +461,40 @@ pub fn correct_sight(
     // --- 2a. dip (sea horizon only), subtracted -----------------------------
     if !needs_horizon_steps {
         steps.push(make_step(CorrectionKind::Dip, h, h, false, already.clone()));
+    } else if let HorizonMode::Shore { distance_nm } = inputs.horizon {
+        // Dip short of the horizon (Bowditch vol. 2 Table 14), or the sea dip when the
+        // shoreline is beyond the sea horizon.
+        let dip =
+            horizon_dip(inputs.horizon, inputs.height_of_eye_m).expect("a shore horizon has a dip");
+        let after = h - dip.dip_arcmin / 60.0;
+        let horizon_nm = dip.sea_horizon_nm.unwrap_or(0.0);
+        let eye = inputs.height_of_eye_m.max(0.0);
+        let note = if dip.beyond_horizon {
+            warnings.push(Warning::ShoreBeyondSeaHorizon {
+                id: id.to_string(),
+                distance_nm,
+                sea_horizon_nm: horizon_nm,
+            });
+            format!(
+                "shore horizon {distance_nm:.3} NM away is beyond the sea horizon ({horizon_nm:.2} NM \
+                 for {eye:.3} m): the sea horizon is the one seen, sea dip {:.3}' subtracted",
+                dip.dip_arcmin
+            )
+        } else if dip.short {
+            format!(
+                "shore horizon {distance_nm:.3} NM away, height of eye {eye:.3} m: dip short of the \
+                 horizon {:.3}' subtracted (Bowditch Table 14; the sea horizon is {horizon_nm:.2} NM)",
+                dip.dip_arcmin
+            )
+        } else {
+            format!(
+                "shore horizon {distance_nm:.3} NM away, next to the sea horizon ({horizon_nm:.2} NM): \
+                 the sea dip {:.3}' is the larger and is subtracted",
+                dip.dip_arcmin
+            )
+        };
+        steps.push(make_step(CorrectionKind::Dip, h, after, true, note));
+        h = after;
     } else if inputs.horizon == HorizonMode::Sea {
         let dip = dip_arcmin(inputs.height_of_eye_m);
         let after = h - dip / 60.0;
@@ -739,6 +876,26 @@ fn check_inputs(
             field: format!("observation {id}: semidiameter_arcmin/horizontal_parallax_arcmin"),
         });
     }
+    check_horizon(
+        inputs.horizon,
+        &format!("observation {id}: horizon.shore.distance_nm"),
+    )?;
+    Ok(())
+}
+
+/// A `shore` horizon needs a finite distance greater than zero.
+pub fn check_horizon(horizon: HorizonMode, field: &str) -> Result<(), SkyfixError> {
+    if let HorizonMode::Shore { distance_nm } = horizon
+        && !(distance_nm.is_finite() && distance_nm > 0.0)
+    {
+        return Err(SkyfixError::InvalidField {
+            field: field.to_string(),
+            message: format!(
+                "the distance to the shoreline must be a positive number of nautical miles \
+                 (got {distance_nm})"
+            ),
+        });
+    }
     Ok(())
 }
 
@@ -829,12 +986,38 @@ pub fn kind_name(kind: AltitudeKind) -> &'static str {
     }
 }
 
-/// Serialised spelling of a [`HorizonMode`], for notes and CSV.
+/// Serialised spelling of a [`HorizonMode`]'s kind, for notes (`"shore"` without its
+/// distance; [`horizon_label`] keeps it).
 pub fn horizon_name(horizon: HorizonMode) -> &'static str {
     match horizon {
         HorizonMode::Sea => "sea",
         HorizonMode::ArtificialReflected => "artificial_reflected",
         HorizonMode::ElectronicVertical => "electronic_vertical",
+        HorizonMode::Shore { .. } => "shore",
+    }
+}
+
+/// A [`HorizonMode`] as one CSV cell: its name, and for a shore horizon
+/// `shore:<distance_nm>` with the shortest decimal that parses back to the same number.
+/// [`parse_horizon_label`] is the inverse.
+pub fn horizon_label(horizon: HorizonMode) -> String {
+    match horizon {
+        HorizonMode::Shore { distance_nm } => format!("shore:{distance_nm}"),
+        other => horizon_name(other).to_string(),
+    }
+}
+
+/// Parse a [`horizon_label`]: `sea`, `artificial_reflected`, `electronic_vertical` or
+/// `shore:<distance_nm>`. `None` for anything else.
+pub fn parse_horizon_label(s: &str) -> Option<HorizonMode> {
+    match s.trim() {
+        "sea" => Some(HorizonMode::Sea),
+        "artificial_reflected" => Some(HorizonMode::ArtificialReflected),
+        "electronic_vertical" => Some(HorizonMode::ElectronicVertical),
+        other => {
+            let d = other.strip_prefix("shore:")?.trim().parse::<f64>().ok()?;
+            Some(HorizonMode::Shore { distance_nm: d })
+        }
     }
 }
 

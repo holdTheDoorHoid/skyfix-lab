@@ -62,6 +62,7 @@ fn bowditch_1910_latitude_at_local_apparent_noon() {
             name: "Bowditch 1910".into(),
             index_correction_arcmin: f(&i["index_correction_arcmin"]),
             horizon: HorizonMode::Sea,
+            index_error_log: Vec::new(),
         },
         clock: Clock::default(),
         observations: vec![Observation {

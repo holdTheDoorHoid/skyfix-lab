@@ -24,6 +24,7 @@ import {
   isEclipseEngine,
   isPackEngine,
   isPlanetEventsEngine,
+  isSailingsEngine,
   isTidesEngine,
   type AlmanacEngine,
   type BodySelection,
@@ -34,6 +35,7 @@ import {
   type PackEngine,
   type PackService,
   type PlanetEventsEngine,
+  type SailingsEngine,
   type TideDatum,
   type TidesEngine,
 } from './engine/types.js';
@@ -381,6 +383,18 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): M
           planetEvents: (jdStart: number, jdEnd: number) =>
             cached('planetEvents', `${jdStart}|${jdEnd}`, 4, () => engine.planetEvents(jdStart, jdEnd)),
         }
+      : {}),
+    // Optional (sailings agent): passage planning and sight extras run on demand, so they
+    // pass through; the star finder's geometry is a table per latitude band and date.
+    ...(isSailingsEngine(engine)
+      ? {
+          sailing: (request) => engine.sailing(request),
+          drAdvance: (request) => engine.drAdvance(request),
+          routePositions: (request) => engine.routePositions(request),
+          starIdentify: (request) => engine.starIdentify(request),
+          starFinderGeometry: (latBand: number, jdUtc?: number) =>
+            cached('starFinderGeometry', `${latBand}|${jdUtc ?? ''}`, 4, () => engine.starFinderGeometry(latBand, jdUtc)),
+        } satisfies SailingsEngine
       : {}),
     // Tides (tides agent): present exactly when the engine predicts tides
     // (`isTidesEngine`). Station lists and tables are kept a few at a time; the state

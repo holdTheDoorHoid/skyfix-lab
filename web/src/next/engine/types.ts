@@ -643,7 +643,8 @@ export interface SightObserver {
   dut1_s?: number | null;
 }
 
-export type SightHorizon = 'sea' | 'artificial_reflected' | 'electronic_vertical';
+/** Any horizon the core's chain takes, a shore horizon included (sailings agent). */
+export type SightHorizon = import('../../types.js').HorizonMode;
 export type SightLimb = 'center' | 'lower' | 'upper';
 export type SightAltitudeKind = 'sextant_hs' | 'apparent_ha' | 'observed_ho';
 
@@ -2431,6 +2432,662 @@ export interface SolarEclipsePath {
 }
 export interface LunarEclipsePath {
   delta_t_sigma_s?: number;
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — sailings, dead reckoning, star identification, star finder
+// (sailings agent, 2026-09-24). Rust: crates/skyfix-core/src/sailings/,
+// crates/skyfix-core/src/methods/{starid,starfinder}.rs, crates/skyfix-wasm/src/sailings.rs.
+// Wire format: docs/EXPLORER_API.md, "Expansion programme — sailings"; methods:
+// docs/NAVIGATION_METHODS.md sections 9-11. Behind `isSailingsEngine`.
+// ---------------------------------------------------------------------------------
+
+/** The figure Mercator sailing's meridional parts are computed on (default `sphere`). */
+export type MeridionalParts = 'sphere' | 'wgs84';
+/** How a leg of constant course is run (default `rhumb`). */
+export type DrMethod = 'rhumb' | 'mid_latitude' | 'great_circle';
+/** Waypoints every so many NM, or on every whole multiple of so many degrees of longitude. */
+export type WaypointSpacing = { every_nm: number } | { every_deg_lon: number };
+
+export interface PassageRequest {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  waypoints?: WaypointSpacing | null;
+  /** Composite sailing: north positive (47 keeps the track south of 47° N). */
+  limiting_latitude_deg?: number | null;
+  meridional_parts?: MeridionalParts;
+  speed_kn?: number | null;
+  departure_utc?: string | null;
+}
+
+export interface SailingVertex {
+  lat_deg: number;
+  lon_deg: number;
+  /** Along the track from the departure; negative when behind it. */
+  distance_from_start_nm: number;
+  on_route: boolean;
+}
+
+export interface SailingWaypoint {
+  index: number;
+  lat_deg: number;
+  lon_deg: number;
+  /** Along the great circle (or composite track). */
+  distance_from_start_nm: number;
+  track_course_deg: number;
+  /** The rhumb line to the next waypoint; null at the destination. */
+  leg_course_deg: number | null;
+  leg_distance_nm: number | null;
+  /** Rhumb-line legs sailed to here. */
+  sailed_nm: number;
+  eta_utc: string | null;
+  eta_jd_utc: number | null;
+}
+
+export interface SailingArrival {
+  hours: number;
+  utc: string | null;
+  jd_utc: number | null;
+}
+
+export interface GreatCircleReport {
+  distance_nm: number;
+  distance_km: number;
+  distance_deg: number;
+  initial_course_deg: number | null;
+  final_course_deg: number | null;
+  vertex: SailingVertex | null;
+  highest_latitude_deg: number;
+  equator_crossing: LatLonDeg | null;
+  waypoints: SailingWaypoint[];
+  waypoint_route_nm: number;
+  /** For drawing, at most 60 NM apart. */
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+}
+
+export interface RhumbReport {
+  course_deg: number | null;
+  distance_nm: number;
+  distance_km: number;
+  dlat_arcmin: number;
+  dlo_arcmin: number;
+  departure_nm: number;
+  /** Null when an end is at a pole. */
+  meridional_difference_arcmin: number | null;
+  meridional_parts: MeridionalParts;
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+}
+
+export interface MidLatitudeReport {
+  course_deg: number | null;
+  distance_nm: number;
+  mean_latitude_deg: number;
+  dlat_arcmin: number;
+  dlo_arcmin: number;
+  departure_nm: number;
+  arrival: SailingArrival | null;
+}
+
+export interface CompositeLegReport {
+  kind: 'great_circle' | 'parallel';
+  from: LatLonDeg;
+  to: LatLonDeg;
+  distance_nm: number;
+  initial_course_deg: number | null;
+  final_course_deg: number | null;
+}
+
+export interface CompositeReport {
+  limiting_latitude_deg: number;
+  /** False when the great circle stays within the limit (then it is the track). */
+  applies: boolean;
+  distance_nm: number;
+  distance_km: number;
+  extra_distance_nm: number;
+  legs: CompositeLegReport[];
+  waypoints: SailingWaypoint[];
+  waypoint_route_nm: number;
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+  note: string;
+}
+
+export interface PassageReport {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  great_circle: GreatCircleReport;
+  rhumb_line: RhumbReport;
+  /** Null across the equator. */
+  mid_latitude: MidLatitudeReport | null;
+  composite: CompositeReport | null;
+  great_circle_saving_nm: number;
+  speed_kn: number | null;
+  departure_utc: string | null;
+  notes: string[];
+}
+
+export interface DrRequest {
+  from: LatLonDeg;
+  course_deg: number;
+  speed_kn: number;
+  /** Negative: where the vessel was that long before. */
+  hours: number;
+  method?: DrMethod;
+  meridional_parts?: MeridionalParts;
+  start_utc?: string | null;
+}
+
+export interface DrReport {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  course_deg: number;
+  speed_kn: number;
+  hours: number;
+  distance_nm: number;
+  method: DrMethod;
+  meridional_parts: MeridionalParts;
+  /** The course on arrival: turns along a great circle, constant on a rhumb line. */
+  final_course_deg: number;
+  arrival_utc: string | null;
+  arrival_jd_utc: number | null;
+}
+
+/** The running fix's leg shape (`RunningFixLeg`): a route's legs go to `runningFix` as they are. */
+export interface RouteLeg {
+  start_utc?: string | null;
+  course_deg: number;
+  speed_kn: number;
+}
+
+export interface RouteRequest {
+  start: LatLonDeg;
+  start_utc: string;
+  legs: RouteLeg[];
+  end_utc?: string | null;
+  method?: DrMethod;
+  meridional_parts?: MeridionalParts;
+  times_utc?: string[];
+  /** Needs `end_utc`. */
+  step_minutes?: number | null;
+}
+
+export type RouteStatus = 'before_start' | 'waiting' | 'under_way' | 'after_end';
+
+export interface RoutePoint {
+  utc: string;
+  jd_utc: number;
+  lat_deg: number;
+  lon_deg: number;
+  leg: number | null;
+  status: RouteStatus;
+  distance_run_nm: number;
+}
+
+export interface RouteLegReport {
+  index: number;
+  start_utc: string;
+  start_jd_utc: number;
+  end_utc: string | null;
+  end_jd_utc: number | null;
+  from: LatLonDeg;
+  to: LatLonDeg | null;
+  course_deg: number;
+  speed_kn: number;
+  distance_nm: number | null;
+}
+
+export interface RouteMadeGood {
+  course_deg: number | null;
+  distance_nm: number;
+  hours: number;
+  speed_kn: number | null;
+}
+
+export interface RouteReport {
+  method: DrMethod;
+  meridional_parts: MeridionalParts;
+  legs: RouteLegReport[];
+  points: RoutePoint[];
+  made_good: RouteMadeGood | null;
+  notes: string[];
+}
+
+export type BearingKind = 'true' | 'magnetic' | 'compass';
+
+export interface StarIdRequest {
+  /** RFC 3339 UTC, already corrected for the watch. */
+  utc: string;
+  observer: SightObserver;
+  instrument?: SightInstrument & { index_error_log?: import('../../types.js').IndexErrorLogEntry[] };
+  altitude_deg: number;
+  altitude_kind?: SightAltitudeKind;
+  bearing_deg: number;
+  bearing_kind?: BearingKind;
+  /** Degrees, east positive. */
+  variation_deg?: number | null;
+  deviation_deg?: number | null;
+  /** Default 2. */
+  altitude_tolerance_deg?: number;
+  /** Default 5. */
+  bearing_tolerance_deg?: number;
+}
+
+export type StarIdCandidateKind = 'star' | 'planet' | 'moon';
+
+export interface StarIdMatch {
+  rank: number;
+  body: string;
+  kind: StarIdCandidateKind;
+  navigational: boolean;
+  /** Airless topocentric altitude at the DR (the Moon's parallax removed). */
+  altitude_deg: number;
+  azimuth_deg: number;
+  /** Observed minus the body's. */
+  delta_altitude_deg: number;
+  delta_bearing_deg: number;
+  separation_deg: number;
+  score: number;
+  within_tolerance: boolean;
+  magnitude: number | null;
+  bright_enough: boolean | null;
+}
+
+export interface StarIdResult {
+  utc: string;
+  jd_utc: number;
+  observed_altitude_deg: number;
+  observed_bearing_deg: number;
+  corrections: SightCorrectionBreakdown;
+  altitude_tolerance_deg: number;
+  bearing_tolerance_deg: number;
+  sun_altitude_deg: number;
+  sky: SkyPhase;
+  limiting_magnitude: number;
+  candidates: StarIdMatch[];
+  best: string | null;
+  ambiguous: boolean;
+  message: string;
+  source: string;
+  warnings: SightWarning[];
+  notes: string[];
+}
+
+export type StarFinderSide = 'north' | 'south';
+export type StarFinderPoint = [number, number];
+
+export interface StarFinderStar {
+  name: string;
+  sha_deg: number;
+  dec_deg: number;
+  magnitude: number;
+  north: StarFinderPoint;
+  south: StarFinderPoint;
+}
+
+export interface AriesTick {
+  lha_aries_deg: number;
+  north: StarFinderPoint;
+  south: StarFinderPoint;
+  kind: 'label' | 'major' | 'minor';
+}
+
+export interface StarFinderLine {
+  value_deg: number;
+  points: StarFinderPoint[];
+}
+
+export interface StarFinderTemplate {
+  latitude_deg: number;
+  side: StarFinderSide;
+  zenith: StarFinderPoint;
+  horizon: StarFinderPoint[];
+  altitude_circles: StarFinderLine[];
+  azimuth_lines: StarFinderLine[];
+}
+
+/** Unit-disc coordinates, x right, y up, the base seen from outside the sphere. */
+export interface StarFinderGeometry {
+  requested_latitude_deg: number;
+  template_latitude_deg: number;
+  side: StarFinderSide;
+  /** Rotate the template anticlockwise by rotation_sign × LHA ♈ degrees. */
+  rotation_sign: number;
+  equator_radius: number;
+  epoch: string;
+  stars: StarFinderStar[];
+  aries_index: AriesTick[];
+  template: StarFinderTemplate;
+  notes: string[];
+}
+
+/** Sailings, dead reckoning, routes, star identification and the star finder. */
+export interface SailingsEngine {
+  sailing(request: PassageRequest): PassageReport;
+  drAdvance(request: DrRequest): DrReport;
+  routePositions(request: RouteRequest): RouteReport;
+  starIdentify(request: StarIdRequest): StarIdResult;
+  /** `latBand`: any latitude, snapped to its template (5° to 85°, signed); `jdUtc` plots apparent places of that date. */
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry;
+}
+
+export function isSailingsEngine(engine: unknown): engine is SailingsEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<SailingsEngine>;
+  return (
+    typeof e.sailing === 'function' &&
+    typeof e.drAdvance === 'function' &&
+    typeof e.routePositions === 'function' &&
+    typeof e.starIdentify === 'function' &&
+    typeof e.starFinderGeometry === 'function'
+  );
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme P8 — the Moon in detail (moondetail agent). Rust:
+// crates/skyfix-wasm/src/moondetail.rs over skyfix_almanac::{libration, lunar_features,
+// apsides, occultations}. Wire format: docs/EXPLORER_API.md, "Moon in detail";
+// definitions: CONVENTIONS 13.10.
+// ---------------------------------------------------------------------------------
+
+/** A place on the Moon, or a direction from its centre: selenographic latitude and east
+ * longitude (toward Mare Crisium, IAU), degrees, longitude in (-180, 180]. */
+export interface Selenographic {
+  lat_deg: number;
+  lon_deg: number;
+}
+
+/** Where a point of the Moon appears on its disc, in disc radii. */
+export interface DiscPoint {
+  /** Toward celestial east (position angle 90°) and north (0°). */
+  east: number;
+  north: number;
+  /** As the observer sees it with the zenith up: x to the right, y up. Without an
+   * observer: celestial north up, east to the left. */
+  x: number;
+  y: number;
+  /** On the hemisphere facing the observer. */
+  visible: boolean;
+}
+
+/** Libration, degrees: the selenographic place at the centre of the disc. */
+export interface LibrationAngles {
+  /** As the observer sees it (topocentric with an observer, else geocentric). */
+  lon_deg: number;
+  lat_deg: number;
+  /** Meeus's optical (orbit) and physical (the Moon's own rocking) parts, geocentric. */
+  optical_lon_deg: number;
+  optical_lat_deg: number;
+  physical_lon_deg: number;
+  physical_lat_deg: number;
+  /** The observer's own offset from the Earth's centre (up to about 1°); 0 without one. */
+  diurnal_lon_deg: number;
+  diurnal_lat_deg: number;
+}
+
+export interface MoonTerminator {
+  /** The sub-solar point, the circle's pole. */
+  pole: Selenographic;
+  /** Where the sunrise and sunset terminators cross the lunar equator. */
+  morning_lon_deg: number;
+  evening_lon_deg: number;
+  /** The whole great circle every 5°, `[lat_deg, lon_deg]`. */
+  points: [number, number][];
+  /** The half the observer sees, cusp to cusp, `[x, y]` in disc radii (DiscPoint x/y). */
+  disc: [number, number][];
+}
+
+export interface MoonOrientation {
+  jd_utc: number;
+  utc: string;
+  topocentric: boolean;
+  libration: LibrationAngles;
+  sub_observer: Selenographic;
+  sub_earth: Selenographic;
+  sub_solar: Selenographic;
+  /** Selenographic colongitude of the Sun: ~270 new, 0 first quarter, 90 full, 180 last. */
+  colongitude_deg: number;
+  /** Position angle of the Moon's north pole as the observer sees it (north through east). */
+  axis_position_angle_deg: number;
+  geocentric_axis_position_angle_deg: number;
+  /** Position angle of the bright limb's midpoint (the ephemeris's, geocentric). */
+  bright_limb_angle_deg: number;
+  illuminated_fraction: number;
+  phase_angle_deg: number;
+  waxing: boolean;
+  terminator: MoonTerminator;
+  /** Observer (or geocentre) to the Moon's centre. */
+  distance_km: number;
+  semidiameter_arcmin: number;
+  apparent_diameter_arcmin: number;
+  /** Size against the mean distance of 384 400 km, percent. */
+  diameter_vs_mean_percent: number;
+  geocentric_distance_km: number;
+  geocentric_semidiameter_arcmin: number;
+  /** Topocentric geometric; null without an observer. */
+  alt_deg: number | null;
+  az_deg: number | null;
+  /** Position angle of the zenith at the Moon; null without an observer. */
+  parallactic_angle_deg: number | null;
+  north_pole_disc: DiscPoint;
+  sub_solar_disc: DiscPoint;
+}
+
+export type LunarFeatureKind =
+  | 'mare'
+  | 'oceanus'
+  | 'lacus'
+  | 'sinus'
+  | 'palus'
+  | 'mons'
+  | 'montes'
+  | 'rupes'
+  | 'rima'
+  | 'vallis'
+  | 'dorsum'
+  | 'promontorium'
+  | 'albedo'
+  | 'crater'
+  | 'landing_site';
+
+export interface LunarFeatureState {
+  name: string;
+  kind: LunarFeatureKind;
+  lat_deg: number;
+  lon_deg: number;
+  /** km; 0 for a landing site. */
+  diameter_km: number;
+  /** 1 showpiece, 2 notable, 3 more to find. */
+  rank: 1 | 2 | 3;
+  description: string;
+  /** The Sun's altitude over the feature (negative: night). */
+  sun_altitude_deg: number;
+  lit: boolean;
+  /** Lunar morning there (the Sun climbing). */
+  morning: boolean;
+  /** Faces the observer and the terminator crosses it or lies within the band: best relief. */
+  near_terminator: boolean;
+  visible: boolean;
+  /** 0 at the disc's centre, 90 at the limb. */
+  angle_from_disc_centre_deg: number;
+  disc: DiscPoint;
+}
+
+export interface MoonFeatures {
+  jd_utc: number;
+  utc: string;
+  topocentric: boolean;
+  colongitude_deg: number;
+  sub_solar: Selenographic;
+  sub_observer: Selenographic;
+  axis_position_angle_deg: number;
+  parallactic_angle_deg: number | null;
+  illuminated_fraction: number;
+  waxing: boolean;
+  terminator_band_deg: number;
+  /** Visible relief features near the terminator, best first (names). */
+  tonight: string[];
+  /** All 150, in table order. */
+  features: LunarFeatureState[];
+  source: string;
+}
+
+export interface MoonApsis {
+  kind: 'perigee' | 'apogee';
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+  semidiameter_arcmin: number;
+  diameter_arcmin: number;
+  diameter_vs_mean_percent: number;
+}
+
+export interface MoonApsisRef {
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+}
+
+export interface MoonSyzygy {
+  kind: 'new_moon' | 'full_moon';
+  jd_utc: number;
+  utc: string;
+  distance_km: number;
+  diameter_arcmin: number;
+  diameter_vs_mean_percent: number;
+  /** The perigee and apogee on either side of it in time. */
+  perigee: MoonApsisRef;
+  apogee: MoonApsisRef;
+  hours_from_perigee: number;
+  /** 0 at apogee, 1 at perigee. */
+  perigee_fraction: number;
+  /** perigee_fraction >= 0.9 (Nolle). */
+  supermoon: boolean;
+  /** perigee_fraction <= 0.1. */
+  micromoon: boolean;
+  /** Full Moons: nearest and farthest of the UTC calendar year. */
+  largest_of_year: boolean;
+  smallest_of_year: boolean;
+}
+
+export interface MoonApsides {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  apsides: MoonApsis[];
+  syzygies: MoonSyzygy[];
+  definitions: {
+    apsis: string;
+    supermoon: string;
+    micromoon: string;
+    largest_of_year: string;
+    mean_distance_km: number;
+  };
+}
+
+/** `occultations` options (all optional; defaults in brackets). */
+export interface OccultationOptions {
+  /** Catalogue stars brighter than this join the 58 navigational stars [3.5], at most 6.5. */
+  max_magnitude?: number;
+  /** Search stars [true] and planets [true]. */
+  stars?: boolean;
+  planets?: boolean;
+  /** Keep events with the Moon below the horizon at every contact [false]. */
+  include_below_horizon?: boolean;
+  /** Keep near misses within 1′ of the mean limb [true]. */
+  include_near_misses?: boolean;
+  /** Only these bodies (names as results spell them). */
+  bodies?: string[] | null;
+}
+
+export interface OccultationContact {
+  kind: 'disappearance' | 'reappearance';
+  jd_utc: number;
+  utc: string;
+  /** On the limb, from celestial north through east. */
+  position_angle_deg: number;
+  /** The same from the zenith. */
+  vertex_angle_deg: number;
+  /** From the nearer cusp, positive on the dark limb, negative on the bright. */
+  cusp_angle_deg: number;
+  cusp: 'N' | 'S';
+  limb: 'dark' | 'bright';
+  moon_alt_deg: number;
+  moon_az_deg: number;
+  moon_above_horizon: boolean;
+  sun_alt_deg: number;
+  sky_phase: SkyPhase;
+  /** Planets: seconds for the disc to cross the limb; 0 for a star. */
+  crossing_s: number;
+}
+
+export interface Occultation {
+  body: string;
+  kind: 'star' | 'planet';
+  designation: string | null;
+  hr: number | null;
+  magnitude: number | null;
+  navigational: boolean;
+  /** Hidden by the mean limb; false for a near miss. */
+  occulted: boolean;
+  /** Passes within 1′ of the mean limb. */
+  graze: boolean;
+  disappearance: OccultationContact | null;
+  reappearance: OccultationContact | null;
+  closest: {
+    jd_utc: number;
+    utc: string;
+    /** From the mean limb, arcminutes, negative inside. */
+    limb_distance_arcmin: number;
+    position_angle_deg: number;
+    moon_alt_deg: number;
+  };
+  duration_s: number | null;
+  body_semidiameter_arcsec: number;
+  moon_illuminated_fraction: number;
+  waxing: boolean;
+  /** The Moon is up at a contact (at closest approach for a near miss). */
+  visible: boolean;
+}
+
+export interface OccultationList {
+  jd_start: number;
+  jd_end: number;
+  truncated: boolean;
+  coverage_start_utc: string;
+  coverage_end_utc: string;
+  /** Say this beside the times: mean limb, real limb differs. */
+  limb_note: string;
+  bodies_searched: number;
+  /** Sorted by the first contact. */
+  events: Occultation[];
+  errors: BodyError[];
+}
+
+/** The Moon in detail (moondetail agent). */
+export interface MoonDetailEngine {
+  /** Libration, axis, terminator and disc geometry; `null` observer = the Earth's centre. */
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation;
+  /** The 150 named features at an instant (about a millisecond natively). */
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures;
+  /** Perigees, apogees, supermoons in a window (about 0.1 s a year natively). */
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides;
+  /** Occultations for one place, at most 400 days (about 0.1 s a year natively). */
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList;
+}
+
+export function isMoonDetailEngine(engine: unknown): engine is MoonDetailEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<MoonDetailEngine>;
+  return (
+    typeof e.moonOrientation === 'function' &&
+    typeof e.moonFeatures === 'function' &&
+    typeof e.moonApsides === 'function' &&
+    typeof e.occultations === 'function'
+  );
 }
 
 // ---------------------------------------------------------------------------------

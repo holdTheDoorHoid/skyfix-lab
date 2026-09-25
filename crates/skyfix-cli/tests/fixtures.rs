@@ -89,6 +89,7 @@ fn sextant_json() -> String {
         name: "simulated sextant, 2.0' index error on the arc".to_string(),
         index_correction_arcmin: -2.0,
         horizon: HorizonMode::Sea,
+        index_error_log: Vec::new(),
     };
     let mut b = SessionBuilder::new(
         "Philadelphia four-star, raw sextant readings",

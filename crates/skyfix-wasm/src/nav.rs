@@ -346,9 +346,11 @@ mod tests {
         let sights = case["sights"].as_array().unwrap();
         let options = json!({"dr": case["dr"]}).to_string();
         let plain = session_json(sights, Some("Vega"));
+        let mut zero: Value = serde_json::from_str(&plain).unwrap();
+        zero["clock"] = json!({"dut1_s": 0.0});
         let mut with: Value = serde_json::from_str(&plain).unwrap();
         with["clock"] = json!({"dut1_s": 0.5});
-        let a = average_sights_json(&plain, &options, "auto").unwrap();
+        let a = average_sights_json(&zero.to_string(), &options, "auto").unwrap();
         let b = average_sights_json(&with.to_string(), &options, "auto").unwrap();
         // The reduced sights' GHAs move with the Earth, 7.5" for half a second.
         let shift = (b.sights[0].gha_deg - a.sights[0].gha_deg) * 3600.0;

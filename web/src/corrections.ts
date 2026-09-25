@@ -17,10 +17,37 @@ import type {
   Session,
   Warning,
 } from './types.js';
+import { isShoreHorizon } from './types.js';
 
 /** Dip of the sea horizon, arcminutes, for a height of eye in metres. */
 export function dipArcmin(heightOfEyeM: number): number {
   return 1.76 * Math.sqrt(Math.max(heightOfEyeM, 0));
+}
+
+/**
+ * Dip of the sea short of the horizon, arcminutes, for a waterline `distanceNm` away
+ * (Bowditch vol. 2 section 402, Table 14): 60 atan(h_ft / (6076.1 d) + d / 8268), as
+ * `skyfix_core::corrections::dip_short_arcmin`.
+ */
+export function dipShortArcmin(heightOfEyeM: number, distanceNm: number): number {
+  const hFt = Math.max(heightOfEyeM, 0) / 0.3048;
+  return Math.atan(hFt / (6076.1 * distanceNm) + distanceNm / 8268) * (180 / Math.PI) * 60;
+}
+
+/** Distance of the sea horizon, NM, where the dip short of the horizon is least. */
+export function seaHorizonNm(heightOfEyeM: number): number {
+  return Math.sqrt((8268 * Math.max(heightOfEyeM, 0)) / 0.3048 / 6076.1);
+}
+
+/** The dip a horizon subtracts, arcminutes (0 without one), as the core's `horizon_dip`. */
+export function horizonDipArcmin(horizon: HorizonMode, heightOfEyeM: number): number {
+  if (horizon === 'sea') return dipArcmin(heightOfEyeM);
+  if (isShoreHorizon(horizon)) {
+    const sea = dipArcmin(heightOfEyeM);
+    const d = horizon.shore.distance_nm;
+    return d >= seaHorizonNm(heightOfEyeM) ? sea : Math.max(dipShortArcmin(heightOfEyeM, d), sea);
+  }
+  return 0;
 }
 
 /** Bennett 1982 refraction, arcminutes, at the given apparent altitude in degrees. */
@@ -92,9 +119,9 @@ export function reduceAltitude(session: Session, obs: Observation): CorrectionBr
     );
   }
 
-  // 2a. Dip — natural sea horizon only.
-  if (past === 0 && horizon === 'sea') {
-    const dip = dipArcmin(session.observer.height_of_eye_m);
+  // 2a. Dip — natural sea horizon, or a shoreline nearer than it (dip short).
+  if (past === 0 && (horizon === 'sea' || isShoreHorizon(horizon))) {
+    const dip = horizonDipArcmin(horizon, session.observer.height_of_eye_m);
     const after = h - dip / 60;
     steps.push(
       step(
@@ -102,7 +129,9 @@ export function reduceAltitude(session: Session, obs: Observation): CorrectionBr
         true,
         h,
         after,
-        `dip for ${session.observer.height_of_eye_m.toFixed(1)} m height of eye, natural sea horizon`,
+        isShoreHorizon(horizon)
+          ? `dip short of the horizon for a shoreline ${horizon.shore.distance_nm} NM away, ${session.observer.height_of_eye_m.toFixed(1)} m height of eye`
+          : `dip for ${session.observer.height_of_eye_m.toFixed(1)} m height of eye, natural sea horizon`,
       ),
     );
     h = after;
@@ -253,6 +282,6 @@ export function inverseToSextantReading(
   const r = refractionArcmin(hoDeg, session.observer.pressure_hpa, session.observer.temperature_c);
   let ha = hoDeg + r / 60;
   if (horizon === 'artificial_reflected') ha = ha * 2;
-  const dip = horizon === 'sea' ? dipArcmin(session.observer.height_of_eye_m) : 0;
+  const dip = horizonDipArcmin(horizon, session.observer.height_of_eye_m);
   return ha + dip / 60 - session.instrument.index_correction_arcmin / 60;
 }

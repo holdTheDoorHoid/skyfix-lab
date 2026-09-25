@@ -90,6 +90,7 @@ pub fn fixture_session(observations: Vec<Observation>) -> Session {
             name: "fixture".into(),
             index_correction_arcmin: f(&o["index_correction_arcmin"]),
             horizon: HorizonMode::Sea,
+            index_error_log: Vec::new(),
         },
         clock: Clock::default(),
         observations,

@@ -44,6 +44,22 @@ import type {
 } from './types.js';
 import type { MisfitEngine } from './types.js';
 import type {
+  DrReport,
+  DrRequest,
+  PassageReport,
+  PassageRequest,
+  RouteReport,
+  RouteRequest,
+  SailingsEngine,
+  StarFinderGeometry,
+  StarIdRequest,
+  StarIdResult,
+  MoonApsides,
+  MoonDetailEngine,
+  MoonFeatures,
+  MoonOrientation,
+  OccultationList,
+  OccultationOptions,
   TideCurve,
   TideDatum,
   TideExtremes,
@@ -148,6 +164,17 @@ export interface ExplorerWasmExports {
   time_info?(jdUtc: number): unknown;
   set_dut1?(seconds: number | null | undefined): unknown;
   calendar_convert?(requestJson: string): unknown;
+  /** Expansion programme, sailings agent (EXPLORER_API "Expansion programme — sailings"). */
+  sailing?(requestJson: string): unknown;
+  dr_advance?(requestJson: string): unknown;
+  route_positions?(requestJson: string): unknown;
+  star_identify?(requestJson: string): unknown;
+  star_finder_geometry?(latBand: number, jdUtc?: number): unknown;
+  /** Expansion P8, the Moon in detail (EXPLORER_API "Moon in detail"); absent in older builds. */
+  moon_orientation?(observerJson: string, jdUtc: number): unknown;
+  moon_features?(observerJson: string, jdUtc: number): unknown;
+  moon_apsides?(jdStart: number, jdEnd: number): unknown;
+  occultations?(observerJson: string, jdStart: number, jdEnd: number, optionsJson: string): unknown;
   // --- Tides (tides agent, EXPLORER_API "Tides"); absent in builds before the tides work.
   tide_stations_near?(latDeg: number, lonDeg: number, n: number): unknown;
   tide_station?(stationId: string): unknown;
@@ -226,7 +253,15 @@ function rebuildError(name: string, what: string): Error {
 }
 
 export class WasmEngine
-  implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine, PackEngine, TimeEngine
+  implements
+    ExplorerEngine,
+    AlmanacEngine,
+    EclipseEngine,
+    PlanetEventsEngine,
+    PackEngine,
+    TimeEngine,
+    SailingsEngine,
+    MoonDetailEngine
 {
   readonly kind = 'wasm' as const;
   readonly description: string;
@@ -583,6 +618,77 @@ export class WasmEngine
     if (typeof fn !== 'function') throw rebuildError('calendar_convert', 'time scales');
     return this.call('calendar_convert', () => fn.call(this.x, JSON.stringify(request)));
   }
+
+  // --- Expansion programme: sailings, DR, routes, star identification, star finder ---
+
+  /** Great-circle, rhumb-line, mid-latitude and composite sailing between two points (`sailing`). */
+  sailing(request: PassageRequest): PassageReport {
+    const fn = this.x.sailing;
+    if (typeof fn !== 'function') throw rebuildError('sailing', 'sailings');
+    return this.call('sailing', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** One leg of dead reckoning (`dr_advance`). */
+  drAdvance(request: DrRequest): DrReport {
+    const fn = this.x.dr_advance;
+    if (typeof fn !== 'function') throw rebuildError('dr_advance', 'dead reckoning');
+    return this.call('dr_advance', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** Positions along a route of legs (`route_positions`). */
+  routePositions(request: RouteRequest): RouteReport {
+    const fn = this.x.route_positions;
+    if (typeof fn !== 'function') throw rebuildError('route_positions', 'routes');
+    return this.call('route_positions', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** Which body a sight was of, from its altitude and bearing (`star_identify`). */
+  starIdentify(request: StarIdRequest): StarIdResult {
+    const fn = this.x.star_identify;
+    if (typeof fn !== 'function') throw rebuildError('star_identify', 'star identification');
+    return this.call('star_identify', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** The star finder's base plate, Aries index and template (`star_finder_geometry`). */
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry {
+    const fn = this.x.star_finder_geometry;
+    if (typeof fn !== 'function') throw rebuildError('star_finder_geometry', 'star finder');
+    return this.call('star_finder_geometry', () => fn.call(this.x, latBand, jdUtc));
+  }
+
+  // Expansion programme P8 (moondetail agent): the Moon in detail. `null` observer = the
+  // Earth's centre (orientation and features only).
+
+  /** Libration, axis, terminator and disc geometry (`moon_orientation`). */
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation {
+    const fn = this.x.moon_orientation;
+    if (typeof fn !== 'function') throw rebuildError('moon_orientation', 'Moon detail');
+    const o = observer ? observerJson(observer) : 'null';
+    return this.call('moon_orientation', () => fn.call(this.x, o, jdUtc));
+  }
+
+  /** The 150 named features at an instant (`moon_features`). */
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures {
+    const fn = this.x.moon_features;
+    if (typeof fn !== 'function') throw rebuildError('moon_features', 'Moon detail');
+    const o = observer ? observerJson(observer) : 'null';
+    return this.call('moon_features', () => fn.call(this.x, o, jdUtc));
+  }
+
+  /** Perigees, apogees, supermoons (`moon_apsides`). */
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides {
+    const fn = this.x.moon_apsides;
+    if (typeof fn !== 'function') throw rebuildError('moon_apsides', 'Moon detail');
+    return this.call('moon_apsides', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  /** Lunar occultations for one place (`occultations`). */
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList {
+    const fn = this.x.occultations;
+    if (typeof fn !== 'function') throw rebuildError('occultations', 'Moon detail');
+    const opts = JSON.stringify(options ?? {});
+    return this.call('occultations', () => fn.call(this.x, observerJson(observer), jdStart, jdEnd, opts));
+  }
   // ---------------------------------------------------------------------------------
   // Tides (tides agent; EXPLORER_API "Tides"; TidesEngine in types.ts). Each throws
   // `pack_not_loaded: …` until the tides-us pack is installed (`loadPack('tides-us', …)`).
@@ -633,6 +739,11 @@ export class WasmEngine
 
   // --- end tides
 }
+
+// The WASM engine is a Moon-detail engine (checked here rather than in its `implements`
+// list, so parallel additions to that line do not collide).
+const _wasmIsMoonDetail: (e: WasmEngine) => MoonDetailEngine = (e) => e;
+void _wasmIsMoonDetail;
 
 export type WasmLoad =
   | { status: 'ready'; engine: WasmEngine; missingOptional: string[] }

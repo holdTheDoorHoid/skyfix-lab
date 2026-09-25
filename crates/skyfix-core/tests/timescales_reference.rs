@@ -3,14 +3,19 @@
 //!
 //! - `delta_t_s`: Skyfield's own `build_delta_t` run on this project's IERS table. The
 //!   Rust model must reproduce it to 1 microsecond everywhere, -2000..3000.
-//! - `skyfield_builtin_s`: Skyfield's shipped timescale. The brief's acceptance numbers:
-//!   within 0.01 s where both are IERS observations (1973-01-02..2026-01-23), within 1 s
-//!   where both are the Stephenson-Morrison-Hohenkerk splines (-720..1972), equal where
-//!   both are the parabola. Between 2026 and 2800 the two differ by design: Skyfield's
-//!   bundled table is a January-2026 prediction; the difference is measured and must stay
-//!   inside the model's own standard uncertainty.
+//! - `skyfield_finals_s`: Skyfield's timescale built from the same finals2000A.all, daily:
+//!   the brief's "within 0.01 s of Skyfield's delta_t where both use IERS" over the whole
+//!   IERS span 1973-01-02..2027-09-28 (observed and predicted), the splines and the
+//!   parabola to 0.1 ms, and the future join inside the model's own uncertainty.
+//! - `skyfield_builtin_s`: Skyfield's shipped timescale, whose table is an earlier
+//!   finals2000A.all: within 0.01 s where it is observed and unrevised (to 2026-01-16),
+//!   within 1 s on the Stephenson-Morrison-Hohenkerk splines (-720..1972), equal on the
+//!   parabola. After 2026-01-16 its table is a January-2026 prediction, 0.11 s off the
+//!   observations by September 2026; the difference is measured and must stay inside the
+//!   model's own standard uncertainty or 0.35 s.
 //! - `dut1_daily`, `bulletin_a_observed`: the weekly table against the daily series it was
-//!   sampled from, and against IERS Bulletin A of 2026-09-24.
+//!   sampled from (flags `I` observed, `P` predicted), and against the text of IERS
+//!   Bulletin A of 2026-09-24.
 //! - `delta_t_sigma`: the standard uncertainty against an independent implementation of
 //!   the rules in the generator.
 //! - `calendar`: Julian day numbers against Skyfield's `compute_calendar_date` in both
@@ -45,7 +50,8 @@ struct Generator {
 #[derive(Deserialize)]
 struct Tolerances {
     delta_t_vs_python_model_s: f64,
-    delta_t_vs_skyfield_iers_observed_s: f64,
+    delta_t_vs_skyfield_finals_s: f64,
+    delta_t_vs_skyfield_builtin_observed_s: f64,
     delta_t_vs_skyfield_smh2016_s: f64,
     dut1_vs_daily_s: f64,
     ut1_to_tt_s: f64,
@@ -57,8 +63,14 @@ struct Table {
     first_mjd: f64,
     last_mjd: f64,
     samples: usize,
-    bundle_last_observed_mjd: f64,
-    bulletin_a_last_observed_mjd: f64,
+    last_observed_mjd: f64,
+    skyfield_bundle: BundleComparison,
+}
+
+#[derive(Deserialize)]
+struct BundleComparison {
+    #[serde(rename = "agrees_within_0.1_ms_to_mjd")]
+    agrees_to_mjd: f64,
 }
 
 #[derive(Deserialize)]
@@ -66,6 +78,7 @@ struct DeltaTCase {
     jd_tt: f64,
     band: String,
     delta_t_s: f64,
+    skyfield_finals_s: f64,
     skyfield_builtin_s: f64,
 }
 
@@ -79,6 +92,7 @@ struct Ut1Case {
 #[derive(Deserialize)]
 struct Dut1Case {
     mjd_utc: f64,
+    flag: String,
     dut1_s: f64,
 }
 
@@ -142,47 +156,102 @@ fn delta_t_reproduces_skyfields_construction_everywhere() {
     );
 }
 
+/// Worst |difference| per band, with the year where it happens.
+type Worst = std::collections::BTreeMap<String, (f64, f64)>;
+
+fn see(worst: &mut Worst, band: &str, diff: f64, year: f64) {
+    let w = worst.entry(band.to_string()).or_default();
+    if diff > w.0 {
+        *w = (diff, year);
+    }
+}
+
+#[test]
+fn delta_t_against_skyfield_from_the_same_iers_data() {
+    let f = fixture();
+    let t = &f.generator.tolerances;
+    let mut worst = Worst::default();
+    for c in &f.delta_t {
+        let d = deltat::delta_t(c.jd_tt);
+        let diff = (d.value_s - c.skyfield_finals_s).abs();
+        let year = deltat::epoch_year(c.jd_tt);
+        match c.band.as_str() {
+            // Both read the same IERS days: only our weekly sampling differs.
+            "iers_observed" | "iers_predicted" => {
+                assert!(diff <= t.delta_t_vs_skyfield_finals_s, "{} {diff}", c.jd_tt)
+            }
+            // The splines' last segment meets each table's first value: ours is rounded
+            // to 0.1 ms.
+            "smh2016" | "parabola_and_join" => assert!(diff <= 1e-4, "{} {diff}", c.jd_tt),
+            _ if year < 1973.0 || year >= deltat::parabola_rejoins_year() => {
+                assert!(diff <= 1e-4, "{} {diff}", c.jd_tt)
+            }
+            // The join to the parabola starts from each table's end (ours up to six days
+            // earlier) and last-year slope: inside the model's uncertainty.
+            _ => assert!(diff <= d.sigma_s, "{} {diff} > {}", c.jd_tt, d.sigma_s),
+        }
+        see(&mut worst, &c.band, diff, year);
+    }
+    for (band, (d, y)) in worst {
+        println!(
+            "Delta-T vs Skyfield from the same finals2000A.all, {band}: worst {d:.4} s (year {y:.1})"
+        );
+    }
+}
+
 #[test]
 fn delta_t_against_skyfields_own_timescale() {
     let f = fixture();
     let t = &f.generator.tolerances;
-    let mut worst: std::collections::BTreeMap<String, (f64, f64)> = Default::default();
+    let agrees_to = f.generator.table.skyfield_bundle.agrees_to_mjd;
+    let mut worst = Worst::default();
     for c in &f.delta_t {
         let d = deltat::delta_t(c.jd_tt);
         let diff = (d.value_s - c.skyfield_builtin_s).abs();
         let mjd = c.jd_tt - MJD0 - 69.184 / 86_400.0;
         let year = deltat::epoch_year(c.jd_tt);
-        match c.band.as_str() {
-            "iers_observed" => {
-                assert!(mjd <= f.generator.table.bundle_last_observed_mjd + 1.0);
+        let band = match c.band.as_str() {
+            "iers_observed" if mjd <= agrees_to => {
                 assert!(
-                    diff <= t.delta_t_vs_skyfield_iers_observed_s,
+                    diff <= t.delta_t_vs_skyfield_builtin_observed_s,
                     "{} {diff}",
                     c.jd_tt
                 );
+                "iers_observed, both observed".to_string()
             }
-            "smh2016" => assert!(
-                diff <= t.delta_t_vs_skyfield_smh2016_s,
-                "{} {diff}",
-                c.jd_tt
-            ),
-            "parabola_and_join" => assert!(diff <= 1e-6, "{} {diff}", c.jd_tt),
+            "smh2016" => {
+                assert!(
+                    diff <= t.delta_t_vs_skyfield_smh2016_s,
+                    "{} {diff}",
+                    c.jd_tt
+                );
+                c.band.clone()
+            }
+            "parabola_and_join" => {
+                assert!(diff <= 1e-6, "{} {diff}", c.jd_tt);
+                c.band.clone()
+            }
             _ if year >= deltat::parabola_rejoins_year() || year < -720.0 => {
-                assert!(diff <= 1e-6, "{} {diff}", c.jd_tt)
+                assert!(diff <= 1e-6, "{} {diff}", c.jd_tt);
+                c.band.clone()
             }
-            // 2026 on: fresher IERS data than Skyfield's bundle, and a join to the
-            // parabola that starts from it. The difference stays inside our uncertainty.
-            _ => assert!(
-                diff <= d.sigma_s.max(0.35),
-                "{} {diff} > {}",
-                c.jd_tt,
-                d.sigma_s
-            ),
-        }
-        let w = worst.entry(c.band.clone()).or_default();
-        if diff > w.0 {
-            *w = (diff, year);
-        }
+            // After 2026-01-16 Skyfield's bundle is its January-2026 prediction, and its
+            // join to the parabola starts from that: inside our uncertainty or 0.35 s.
+            other => {
+                assert!(
+                    diff <= d.sigma_s.max(0.35),
+                    "{} {diff} > {}",
+                    c.jd_tt,
+                    d.sigma_s
+                );
+                if other == "iers_observed" {
+                    "iers_observed, bundle predicted".to_string()
+                } else {
+                    other.to_string()
+                }
+            }
+        };
+        see(&mut worst, &band, diff, year);
     }
     for (band, (d, y)) in worst {
         println!("Delta-T vs Skyfield 1.55's own timescale, {band}: worst {d:.4} s (year {y:.1})");
@@ -219,11 +288,11 @@ fn ut1_to_tt_as_skyfield() {
 fn dut1_table_against_the_daily_series_and_bulletin_a() {
     let f = fixture();
     let tab = &f.generator.table;
-    assert_eq!(tab.samples, 2856);
+    assert_eq!(tab.samples, 2857);
     let (first, last, last_obs) = deltat::iers_table_span();
     assert_eq!(first, tab.first_mjd + MJD0);
     assert_eq!(last, tab.last_mjd + MJD0);
-    assert_eq!(last_obs, tab.bulletin_a_last_observed_mjd + MJD0);
+    assert_eq!(last_obs, tab.last_observed_mjd + MJD0);
     let mut worst = 0.0_f64;
     for c in &f.dut1_daily {
         let (v, _) = deltat::iers_dut1(c.mjd_utc + MJD0).unwrap();
@@ -239,6 +308,12 @@ fn dut1_table_against_the_daily_series_and_bulletin_a() {
         let d = time::dut1_info(c.mjd_utc + MJD0, None);
         assert_eq!(d.source, time::Dut1Source::Iers);
         assert_eq!(d.value_s, v);
+        // Observed days carry the table's 1 ms; predicted ones at least that.
+        match c.flag.as_str() {
+            "I" => assert_eq!(d.sigma_s, deltat::SIGMA_OBSERVED_S, "MJD {}", c.mjd_utc),
+            "P" => assert!(d.sigma_s >= deltat::SIGMA_OBSERVED_S, "MJD {}", c.mjd_utc),
+            other => panic!("flag {other:?}"),
+        }
     }
     for c in &f.bulletin_a_observed {
         let (v, s) = deltat::iers_dut1(c.mjd_utc + MJD0).unwrap();
@@ -278,6 +353,7 @@ fn sources_are_labelled() {
         let d = deltat::delta_t(c.jd_tt);
         let expect = match c.band.as_str() {
             "iers_observed" => Some(DeltaTSource::Iers),
+            "iers_predicted" => Some(DeltaTSource::Prediction),
             "smh2016" => Some(DeltaTSource::Smh2016),
             "parabola_and_join" => Some(DeltaTSource::Parabola),
             "future" => Some(

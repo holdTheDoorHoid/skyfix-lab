@@ -176,6 +176,7 @@ fn validate_inner(
         "instrument.index_correction_arcmin",
         session.instrument.index_correction_arcmin,
     )?;
+    corrections::check_horizon(session.instrument.horizon, "instrument.horizon")?;
     finite("clock.uncertainty_s", session.clock.uncertainty_s)?;
     if session.clock.uncertainty_s < 0.0 {
         return Err(SkyfixError::InvalidField {
@@ -187,6 +188,8 @@ fn validate_inner(
     if let Some(dut1) = session.clock.dut1_s {
         check_dut1(dut1, &mut warnings)?;
     }
+    // Index-error and watch logs (sailings agent): parseable times, finite values.
+    warnings.extend(crate::error_logs::validate_logs(session)?);
 
     // --- observations -------------------------------------------------------
     if session.observations.is_empty() {
@@ -219,6 +222,7 @@ fn validate_inner(
 
         finite(&at("altitude_deg"), obs.altitude_deg)?;
         let horizon = obs.horizon.unwrap_or(session.instrument.horizon);
+        corrections::check_horizon(horizon, &at("horizon"))?;
         // A reflected artificial-horizon sextant reading is the DOUBLE angle
         // (section 5), so it may legitimately run to 180 deg before halving.
         let double_angle = horizon == HorizonMode::ArtificialReflected
@@ -472,7 +476,7 @@ pub fn to_csv(session: &Session) -> String {
     );
     head(
         "instrument.horizon",
-        corrections::horizon_name(session.instrument.horizon).to_string(),
+        corrections::horizon_label(session.instrument.horizon),
     );
     head("clock.uncertainty_s", num(session.clock.uncertainty_s));
     head("clock.correction_s", num(session.clock.correction_s));
@@ -480,6 +484,19 @@ pub fn to_csv(session: &Session) -> String {
     // byte-for-byte what it was before the field existed.
     if let Some(dut1) = session.clock.dut1_s {
         head("clock.dut1_s", num(dut1));
+    }
+    // The error logs ride as one JSON array each (serde_json round-trips every f64).
+    if !session.instrument.index_error_log.is_empty() {
+        head(
+            "instrument.index_error_log",
+            serde_json::to_string(&session.instrument.index_error_log).unwrap_or_default(),
+        );
+    }
+    if !session.clock.watch_log.is_empty() {
+        head(
+            "clock.watch_log",
+            serde_json::to_string(&session.clock.watch_log).unwrap_or_default(),
+        );
     }
 
     out.push_str(&CSV_COLUMNS.join(","));
@@ -504,9 +521,8 @@ pub fn to_csv(session: &Session) -> String {
             num(obs.sigma_arcmin),
             corrections::limb_name(obs.limb).to_string(),
             obs.horizon
-                .map(corrections::horizon_name)
-                .unwrap_or("")
-                .to_string(),
+                .map(corrections::horizon_label)
+                .unwrap_or_default(),
             gha,
             dec,
             sd,
@@ -733,18 +749,13 @@ fn parse_limb(s: &str, field: &str) -> Result<Limb, SkyfixError> {
 }
 
 fn parse_horizon(s: &str, field: &str) -> Result<HorizonMode, SkyfixError> {
-    match s {
-        "sea" => Ok(HorizonMode::Sea),
-        "artificial_reflected" => Ok(HorizonMode::ArtificialReflected),
-        "electronic_vertical" => Ok(HorizonMode::ElectronicVertical),
-        other => Err(SkyfixError::InvalidField {
-            field: field.to_string(),
-            message: format!(
-                "unknown horizon {other:?}; expected sea, artificial_reflected or \
-                 electronic_vertical"
-            ),
-        }),
-    }
+    corrections::parse_horizon_label(s).ok_or_else(|| SkyfixError::InvalidField {
+        field: field.to_string(),
+        message: format!(
+            "unknown horizon {s:?}; expected sea, artificial_reflected, electronic_vertical or \
+             shore:<distance_nm>"
+        ),
+    })
 }
 
 fn parse_horizon_opt(s: &str, field: &str) -> Result<Option<HorizonMode>, SkyfixError> {
@@ -839,6 +850,20 @@ fn apply_header(session: &mut Session, key: &str, value: &str) -> Result<(), Sky
             } else {
                 Some(number_here(value)?)
             };
+        }
+        "instrument.index_error_log" => {
+            session.instrument.index_error_log =
+                serde_json::from_str(value).map_err(|e| SkyfixError::InvalidField {
+                    field: field.clone(),
+                    message: format!("expected a JSON array of {{utc, ic_arcmin, note}}: {e}"),
+                })?;
+        }
+        "clock.watch_log" => {
+            session.clock.watch_log =
+                serde_json::from_str(value).map_err(|e| SkyfixError::InvalidField {
+                    field: field.clone(),
+                    message: format!("expected a JSON array of {{utc, correction_s, note}}: {e}"),
+                })?;
         }
         other => {
             return Err(SkyfixError::InvalidField {

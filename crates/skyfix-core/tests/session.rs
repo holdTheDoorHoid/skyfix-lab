@@ -690,15 +690,23 @@ fn dut1_beyond_the_iers_bound_warns_and_nonsense_is_refused() {
 #[test]
 fn the_dut1_lookup_takes_the_users_value_and_the_sessions_reference_instant() {
     // The single lookup (EXPLORER_API.md, "Expansion programme"): a user value wins;
-    // without one the interim fallback is 0 s until the timescales work lands.
+    // without one the engine's own value answers (the IERS history inside its span,
+    // CONVENTIONS 15.2), which the IERS keeps within 0.9 s.
     let jd = 2_461_314.5;
     assert_eq!(skyfix_core::time::dut1_s(jd, Some(-0.31)), -0.31);
-    assert_eq!(skyfix_core::time::dut1_s(jd, None), 0.0);
+    let automatic = skyfix_core::time::dut1_s(jd, None);
+    assert_eq!(automatic, skyfix_core::time::dut1_info(jd, None).value_s);
+    assert!(automatic.abs() <= 0.9, "{automatic}");
     let mut s = session(vec![
         with_direction(observation("b", "Vega", "2026-10-01T01:35:00Z", 40.0)),
         with_direction(observation("a", "Vega", "2026-10-01T01:30:00Z", 41.0)),
     ]);
-    assert_eq!(skyfix_core::reduce::session_dut1_s(&s), 0.0);
+    // Without a session value: the engine's own value at the earliest sight (01:30).
+    let earliest = skyfix_core::time::parse_utc("2026-10-01T01:30:00Z").unwrap();
+    assert_eq!(
+        skyfix_core::reduce::session_dut1_s(&s),
+        skyfix_core::time::dut1_s(earliest, None)
+    );
     s.clock.dut1_s = Some(0.12);
     assert_eq!(skyfix_core::reduce::session_dut1_s(&s), 0.12);
     // No sights at all: still an answer.

@@ -1702,7 +1702,7 @@ the interface may call it every frame). Throws for a non-finite `jd_utc`.
   splines back to 1000, 90 s at year 0, 180 s at −720, an hour at −2000.
 - `dut1_source`: `iers` (the table; past 2026-09-24 its values are Bulletin A's
   prediction, with the growing `dut1_sigma_s`), `user` (`set_dut1`, σ 0.05 s), `assumed`
-  (UTC scale, no value: 0 ± 0.9 s; 1972, and 2027-09-22 to 2035), `model` (UT scale).
+  (UTC scale, no value: 0 ± 0.9 s; 1972, and 2027-09-29 to 2035), `model` (UT scale).
 - `tier`: until the deeptime agent's `coverage::tier_at` is merged (one line, marked
   `MERGE` in `timescale.rs`), `validated` inside the providers' coverage and `outside`
   elsewhere; the mock does the same over its 1990-2060.
@@ -1748,6 +1748,368 @@ not the observer's. `Date` and `Intl` are proleptic Gregorian only, and `Date.UT
 years 0-99 to 1900-1999 (`setUTCFullYear` does not). Show Julian dates and years BC from
 `time_info.civil` and `calendar_convert`, and compute an observer's local mean time from
 the longitude (CONVENTIONS 15.3), rather than through `Date`/`Intl`.
+
+## Expansion programme — sailings, dead reckoning, star identification, star finder (sailings agent)
+
+Rust: `crates/skyfix-core/src/sailings/`, `crates/skyfix-core/src/methods/{starid,starfinder}.rs`,
+`crates/skyfix-core/src/error_logs.rs`; WASM: `crates/skyfix-wasm/src/sailings.rs`. TypeScript:
+`SailingsEngine` and `isSailingsEngine` at the end of `web/src/next/engine/types.ts`; the
+WASM wrapper's methods are on `WasmEngine` (`web/src/next/engine/wasm.ts`), the mock's in
+`web/src/next/engine/mock-sailings.ts`, and the memoised engine forwards them. Methods and
+validation: `docs/NAVIGATION_METHODS.md` sections 9–13. Every request is a JSON document;
+malformed input throws a string naming the field. Angles in degrees, distances in nautical
+miles (with kilometres beside the main ones), times as `jd_utc` and RFC 3339 `utc`.
+
+| export | TypeScript | takes | returns |
+|---|---|---|---|
+| `sailing(request_json)` | `sailing(request)` | `PassageRequest` | `PassageReport` |
+| `dr_advance(request_json)` | `drAdvance(request)` | `DrRequest` | `DrReport` |
+| `route_positions(request_json)` | `routePositions(request)` | `RouteRequest` | `RouteReport` |
+| `star_identify(request_json)` | `starIdentify(request)` | `StarIdRequest` | `StarIdResult` |
+| `star_finder_geometry(lat_band, jd_utc?)` | `starFinderGeometry(latBand, jdUtc?)` | a latitude (snapped to its template band), an optional date | `StarFinderGeometry` |
+
+### `sailing(request_json) -> PassageReport`
+
+```json
+{"from": {"lat_deg": 36.9617, "lon_deg": -75.7033}, "to": {"lat_deg": 45.6517, "lon_deg": -1.4967},
+ "waypoints": {"every_deg_lon": 10}, "limiting_latitude_deg": 47,
+ "meridional_parts": "sphere", "speed_kn": 12, "departure_utc": "2026-10-01T12:00:00Z"}
+```
+
+Only `from` and `to` are required. `waypoints` is `{"every_nm": N}` or
+`{"every_deg_lon": M}` (at most 2000); `limiting_latitude_deg` asks for composite sailing
+(north positive); `meridional_parts` is `"sphere"` (default) or `"wgs84"` (Bowditch's
+Table 6, for the rhumb line only); `speed_kn` (0 to 1000) gives hours under way, and with
+`departure_utc` ETAs. The answer (abbreviated):
+
+```json
+{"from": {...}, "to": {...},
+ "great_circle": {"distance_nm": 3264.54, "distance_km": 6045.92, "distance_deg": 54.409,
+   "initial_course_deg": 55.807, "final_course_deg": 109.003,
+   "vertex": {"lat_deg": 48.6297, "lon_deg": -27.2117, "distance_from_start_nm": 2205.18, "on_route": true},
+   "highest_latitude_deg": 48.6297, "equator_crossing": null,
+   "waypoints": [{"index": 0, "lat_deg": 36.9617, "lon_deg": -75.7033, "distance_from_start_nm": 0.0,
+                  "track_course_deg": 55.807, "leg_course_deg": 57.549, "leg_distance_nm": 317.81,
+                  "sailed_nm": 0.0, "eta_utc": "2026-10-01T12:00:00.000Z", "eta_jd_utc": 2461315.0},
+                 {"index": 1, "lat_deg": 39.8038, "lon_deg": -70.0, "...": "..."}, "...",
+                 {"index": 8, "...": "...", "leg_course_deg": null, "leg_distance_nm": null}],
+   "waypoint_route_nm": 3266.47, "track": [{"lat_deg": ..., "lon_deg": ...}, "..."],
+   "arrival": {"hours": 272.206, "utc": "2026-10-12T20:12:21.898Z", "jd_utc": 2461326.3419}},
+ "rhumb_line": {"course_deg": 81.118, "distance_nm": 3376.90, "distance_km": 6254.02,
+   "dlat_arcmin": 521.4, "dlo_arcmin": 4452.396, "departure_nm": 3336.41,
+   "meridional_difference_arcmin": 695.80, "meridional_parts": "sphere", "track": [...], "arrival": {...}},
+ "mid_latitude": {"course_deg": 81.139, "distance_nm": 3384.98, "mean_latitude_deg": 41.3067,
+   "dlat_arcmin": 521.4, "dlo_arcmin": 4452.396, "departure_nm": 3344.58, "arrival": {...}},
+ "composite": {"limiting_latitude_deg": 47.0, "applies": true, "distance_nm": 3271.27,
+   "distance_km": 6058.39, "extra_distance_nm": 6.73,
+   "legs": [{"kind": "great_circle", "from": {...}, "to": {"lat_deg": 47.0, "lon_deg": -30.2688},
+             "distance_nm": 2081.98, "initial_course_deg": 58.597, "final_course_deg": 90.0},
+            {"kind": "parallel", "...": "...", "distance_nm": 463.25},
+            {"kind": "great_circle", "...": "...", "distance_nm": 726.04}],
+   "waypoints": [...], "waypoint_route_nm": 3272.87, "track": [...], "arrival": {...},
+   "note": "the great circle would reach 48.6297°; the composite track follows ..."},
+ "great_circle_saving_nm": 112.37, "speed_kn": 12.0, "departure_utc": "2026-10-01T12:00:00.000Z",
+ "notes": ["Distances are on the sphere of 1′ = 1 NM. On the WGS84 ellipsoid ... at most 0.52 % ...",
+           "Steering the rhumb lines between the waypoints sails 3266.5 NM, 1.9 NM more than ..."]}
+```
+
+- `great_circle.vertex` is Bowditch's vertex (the departure's hemisphere; the one ahead
+  for a departure on the equator), `null` for a track along the equator;
+  `distance_from_start_nm` is negative when it lies behind the departure.
+- Each waypoint carries the rhumb line to the next (`leg_course_deg`, `leg_distance_nm`,
+  `null` at the destination) and `sailed_nm`, the sum of those legs to it; ETAs are along
+  them. `waypoints` is empty when none were asked for (then `waypoint_route_nm` is the
+  great circle's own length).
+- `track` arrays are for drawing, at most 60 NM apart.
+- `mid_latitude` is `null` across the equator; `composite` is `null` unless a limit was
+  given, and `applies: false` (with the great circle as its one leg) when the great circle
+  stays within the limit. An end beyond the limit, antipodal ends, a rhumb line through a
+  pole and a spacing that is not positive throw.
+
+### `dr_advance(request_json) -> DrReport`
+
+```json
+{"from": {"lat_deg": 44.605, "lon_deg": -31.305}, "course_deg": 270, "speed_kn": 17, "hours": 4.5,
+ "method": "rhumb", "meridional_parts": "sphere", "start_utc": "2026-10-01T15:30:00Z"}
+```
+
+`method` is `"rhumb"` (default), `"mid_latitude"` or `"great_circle"` (the running fix's
+leg model); negative `hours` give where the vessel was. Returns
+
+```json
+{"from": {...}, "to": {"lat_deg": 44.605, "lon_deg": -33.095819}, "course_deg": 270.0,
+ "speed_kn": 17.0, "hours": 4.5, "distance_nm": 76.5, "method": "rhumb", "meridional_parts": "sphere",
+ "final_course_deg": 270.0, "arrival_utc": "2026-10-01T20:00:00.000Z", "arrival_jd_utc": 2461315.3333}
+```
+
+(`final_course_deg` is the direction of travel on arrival: the course itself, except on a
+great-circle leg, where it turns.)
+
+### `route_positions(request_json) -> RouteReport`
+
+```json
+{"start": {"lat_deg": 40.0, "lon_deg": -70.0}, "start_utc": "2026-10-01T00:00:00Z",
+ "legs": [{"course_deg": 90, "speed_kn": 10},
+          {"start_utc": "2026-10-01T03:00:00Z", "course_deg": 0, "speed_kn": 10}],
+ "end_utc": "2026-10-01T06:00:00Z", "method": "rhumb",
+ "times_utc": ["2026-10-01T02:00:00Z", "2026-10-01T07:00:00Z"], "step_minutes": null}
+```
+
+The legs are the running fix's `RunningFixLeg` shape, so `request.legs` can be passed to
+`running_fix` as they are. The first leg's `start_utc` may be omitted (it starts with the
+route); later legs need one, in increasing order. `step_minutes` adds a position every so
+many minutes from the start to `end_utc` (required then); at most 20 000 positions.
+Returns
+
+```json
+{"method": "rhumb", "meridional_parts": "sphere",
+ "legs": [{"index": 0, "start_utc": "2026-10-01T00:00:00.000Z", "start_jd_utc": 2461314.5,
+           "end_utc": "2026-10-01T03:00:00.000Z", "end_jd_utc": 2461314.625,
+           "from": {"lat_deg": 40.0, "lon_deg": -70.0}, "to": {"lat_deg": 40.0, "lon_deg": -69.347296},
+           "course_deg": 90.0, "speed_kn": 10.0, "distance_nm": 30.0}, {...}],
+ "points": [{"utc": "2026-10-01T02:00:00.000Z", "jd_utc": 2461314.5833, "lat_deg": 40.0,
+             "lon_deg": -69.564864, "leg": 0, "status": "under_way", "distance_run_nm": 20.0},
+            {"utc": "2026-10-01T07:00:00.000Z", "...": "...", "leg": null, "status": "after_end",
+             "distance_run_nm": 60.0}],
+ "made_good": {"course_deg": 44.894, "distance_nm": 42.348, "hours": 7.0, "speed_kn": 6.05},
+ "notes": ["Some instants are after the route's end: the vessel is taken to have stopped there."]}
+```
+
+`status` is `under_way`, `waiting` (at the start before a later first leg), `before_start`
+(the start position is reported, not extrapolated) or `after_end`. A leg with no end (the
+last, when the route has none) has `end_utc`, `to` and `distance_nm` `null`.
+
+### `star_identify(request_json) -> StarIdResult`
+
+```json
+{"utc": "2026-10-01T00:30:00Z",
+ "observer": {"lat_deg": 39.95, "lon_deg": -75.17, "height_of_eye_m": 2.5},
+ "instrument": {"index_correction_arcmin": -1.2},
+ "altitude_deg": 72.59, "altitude_kind": "sextant_hs",
+ "bearing_deg": 286, "bearing_kind": "compass", "variation_deg": -12.5, "deviation_deg": 0,
+ "altitude_tolerance_deg": 2, "bearing_tolerance_deg": 5}
+```
+
+`observer` and `instrument` are the `predict_sextant` shapes (the instrument's
+`index_error_log` and `horizon`, a shore horizon included, apply). `altitude_kind` is
+`sextant_hs` (default), `apparent_ha` or `observed_ho` (corrected as for a star);
+`bearing_kind` is `true` (default), `magnetic` (the variation is added) or `compass` (the
+deviation and the variation). The tolerances default to 2° and 5°. Returns
+
+```json
+{"utc": "2026-10-01T00:30:00.000Z", "jd_utc": 2461314.5208,
+ "observed_altitude_deg": 72.5184, "observed_bearing_deg": 273.5,
+ "corrections": {"input_kind": "sextant_hs", "input_deg": 72.59, "steps": [...], "ho_deg": 72.5184, ...},
+ "altitude_tolerance_deg": 2.0, "bearing_tolerance_deg": 5.0,
+ "sun_altitude_deg": -20.91, "sky": "night", "limiting_magnitude": 4.5,
+ "candidates": [{"rank": 1, "body": "Vega", "kind": "star", "navigational": true,
+                 "altitude_deg": 72.5162, "azimuth_deg": 273.566, "delta_altitude_deg": 0.0023,
+                 "delta_bearing_deg": -0.066, "separation_deg": 0.020, "score": 0.0100,
+                 "within_tolerance": true, "magnitude": 0.03, "bright_enough": true},
+                {"rank": 2, "body": "Eltanin", "...": "...", "within_tolerance": false}, "..."],
+ "best": "Vega", "ambiguous": false,
+ "message": "Vega (1.2′ away: the sight is 0.1′ higher and its bearing 4.0′ less).",
+ "source": "skyfix-sky (Sun, Moon, planets, stars)", "warnings": [], "notes": ["Brightness: ..."]}
+```
+
+`candidates` lists every body within the tolerances, best first, then (when fewer than
+three match) the nearest others with `within_tolerance: false`; `best` is `null` when
+nothing matches and `message` then names the nearest. `altitude_deg` is the body's airless
+topocentric altitude at the DR (the Moon's parallax removed); `delta_*` are observed minus
+the body's. The candidates are the 58 stars, Mercury to Saturn and the Moon; `kind` is
+`star`, `planet` or `moon`. `sky` is the CONVENTIONS 13.4 phase at the DR. Outside the
+ephemeris coverage the call throws the provider's sentence.
+
+### `star_finder_geometry(lat_band, jd_utc?) -> StarFinderGeometry`
+
+`lat_band` is any latitude (degrees, south negative); it picks the template of its 10°
+band (5° to 85°, signed; 0 counts as north). `jd_utc`, when given, plots apparent places
+of that date; otherwise the J2000.0 catalogue places. Every point is on the unit disc,
+`x` right, `y` up, the base seen from outside the celestial sphere (about 100 kB).
+
+```json
+{"requested_latitude_deg": 39.95, "template_latitude_deg": 35.0, "side": "north",
+ "rotation_sign": 1.0, "equator_radius": 0.5, "epoch": "J2000.0 catalogue place",
+ "stars": [{"name": "Acamar", "sha_deg": 315.4347, "dec_deg": -40.3047, "magnitude": 2.88,
+            "north": [0.515754, 0.507987], "south": [0.196697, -0.193735]}, "..."],
+ "aries_index": [{"lha_aries_deg": 0.0, "north": [1.0, 0.0], "south": [1.0, -0.0], "kind": "label"},
+                 {"lha_aries_deg": 1.0, "north": [0.999848, 0.017452], "south": [0.999848, -0.017452],
+                  "kind": "minor"}, "..."],
+ "template": {"latitude_deg": 35.0, "side": "north", "zenith": [0.305556, 0.0],
+              "horizon": [[x, y], ...],
+              "altitude_circles": [{"value_deg": 5.0, "points": [[x, y], ...]}, "... every 5° to 85°"],
+              "azimuth_lines": [{"value_deg": 0.0, "points": [[x, y], ...]}, "... every 10°"]},
+ "notes": ["Azimuthal equidistant projection centred on the celestial pole ...", "..."]}
+```
+
+To set the finder: draw the base side `side` (the stars' `north` or `south` points and
+the `aries_index`), then draw the template rotated anticlockwise by
+`rotation_sign × LHA ♈` degrees about the centre; the template's arrow is its `+x` axis
+through `zenith`. The 58 stars are the 57 and Polaris. Template circles are closed (73
+points, every 5° of azimuth); azimuth lines run from the horizon to the zenith (37
+points). `kind` of an index graduation is `label` every 10°, `major` every 5°, `minor`
+every degree.
+
+### Session and reduction additions (additive; older files load unchanged)
+
+- **Shore horizon.** `instrument.horizon` and an observation's `horizon` may be
+  `{"shore": {"distance_nm": 1.2}}` besides the three strings (TypeScript `ShoreHorizon`;
+  `HorizonName` and `horizonName()` give its kind as a string). CSV cells write it
+  `shore:1.2`. The distance must be positive.
+- **Error logs.** `instrument.index_error_log: [{"utc", "ic_arcmin", "note"}]` and
+  `clock.watch_log: [{"utc", "correction_s", "note"}]`, absent when empty (so older
+  outputs are byte-identical). In CSV each rides in the header block as one JSON array
+  (`# instrument.index_error_log=[...]` in the Rust dialect).
+- **Reduced sight.** `ReducedSight` gains `index_correction_from_log` and
+  `clock_correction_from_log` when a log was used:
+  `{"value", "method": "interpolated"|"at_entry"|"only_entry"|"held_before_first"|"held_after_last", "from": {"utc", "value"}|null, "to": {...}|null, "hours_outside", "note"}`;
+  absent otherwise.
+- **Warnings** (appended to `Warning`): `shore_beyond_sea_horizon {id, distance_nm,
+  sea_horizon_nm}` (a note: the sea dip was used) and `error_log_outside_span {id, log,
+  held_value, hours_outside}` (a caution: a logged value was held, not extrapolated).
+- `SightHorizon` (the `predict_sextant` and `plan_sights` instrument's horizon) is now the
+  session's `HorizonMode`, a shore horizon included.
+
+## Expansion programme P8 — the Moon in detail (`moondetail.rs`, moondetail agent)
+
+Specified by the moondetail agent (2026-09-25). Engines: `skyfix_almanac::{libration,
+lunar_features, apsides, occultations}`; definitions in CONVENTIONS 13.10; validation in
+`docs/ACCURACY.md`, "Moon in detail". TypeScript: `MoonDetailEngine` and
+`isMoonDetailEngine` at the end of `types.ts`, implemented by the WASM engine, the mock and
+the memoised wrapper. Every export throws a string for malformed input or an instant the
+Moon or the Sun cannot be computed at; the astronomy is the explorer's (DUT1 = 0,
+CONVENTIONS 13.2). `observer_json` is as in "Common rules"; where it may be `null` (or
+empty), the answer is for the Earth's centre.
+
+Selenographic places are latitude north-positive and **east** longitude (toward Mare
+Crisium, IAU), `(-180, 180]`, in the mean Earth/polar axis frame of IAU coordinates and of
+the named features. `DiscPoint` is where a point of the Moon appears on its disc, in disc
+radii: `{east, north, x, y, visible}` — `east`/`north` along celestial east (position angle
+90°) and north; `x`/`y` as the observer sees the Moon with the zenith up (`x` right, `y`
+up), or with celestial north up and east to the left when there is no observer; `visible`
+when the point faces the observer.
+
+### `moon_orientation(observer_json | null, jd_utc) -> MoonOrientation`
+
+How the Moon is turned and lit (about 0.5 ms natively):
+
+```ts
+{ jd_utc, utc, topocentric: boolean,
+  libration: { lon_deg, lat_deg,                        // total, as the observer sees it
+               optical_lon_deg, optical_lat_deg,         // Meeus l', b' (geocentric)
+               physical_lon_deg, physical_lat_deg,       // Meeus l'', b'' (geocentric)
+               diurnal_lon_deg, diurnal_lat_deg },       // observer minus geocentre; 0 without one
+  sub_observer: Selenographic,  // = libration lon/lat: the point at the disc's centre
+  sub_earth: Selenographic,     // the same from the Earth's centre
+  sub_solar: Selenographic,     // where the Sun is overhead
+  colongitude_deg,              // 90 − sub_solar.lon_deg, [0, 360): ~270 new, 0 first quarter, 90 full, 180 last
+  axis_position_angle_deg,      // the Moon's north pole on the sky, north through east (observer)
+  geocentric_axis_position_angle_deg,
+  bright_limb_angle_deg,        // the ephemeris's (geocentric, CONVENTIONS 13.5)
+  illuminated_fraction, phase_angle_deg, waxing: boolean,
+  terminator: { pole: Selenographic,                    // the sub-solar point
+                morning_lon_deg, evening_lon_deg,        // where the sunrise/sunset terminators cross the equator
+                points: [lat_deg, lon_deg][],            // the great circle every 5°, 72 points
+                disc: [x, y][] },                        // the visible half, cusp to cusp, 1° steps
+  distance_km, semidiameter_arcmin, apparent_diameter_arcmin,   // observer to Moon
+  diameter_vs_mean_percent,     // against the mean distance 384 400 km
+  geocentric_distance_km, geocentric_semidiameter_arcmin,
+  alt_deg | null, az_deg | null,           // topocentric geometric (CONVENTIONS 13.2)
+  parallactic_angle_deg | null,            // position angle of the zenith at the Moon, (-180, 180]
+  north_pole_disc: DiscPoint, sub_solar_disc: DiscPoint }
+```
+
+`optical + physical + diurnal` differs from the total by the fixed 78.7″ between the pole
+of Meeus's figure frame and the mean rotation pole (at most 0.022°; CONVENTIONS 13.10).
+
+### `moon_features(observer_json | null, jd_utc) -> MoonFeatures`
+
+The 150 named features (maria, craters, ranges, rilles, valleys, capes, one albedo swirl,
+the six Apollo sites) at an instant, about 0.5 ms natively:
+
+```ts
+{ jd_utc, utc, topocentric, colongitude_deg, sub_solar, sub_observer,
+  axis_position_angle_deg, parallactic_angle_deg | null, illuminated_fraction, waxing,
+  terminator_band_deg: 10,
+  tonight: string[],        // visible relief features near the terminator: rank 1 first, then lowest Sun
+  features: [{ name, kind, lat_deg, lon_deg, diameter_km, rank: 1 | 2 | 3, description,
+               sun_altitude_deg,            // the Sun's altitude over the feature (negative: night)
+               lit, morning,                // lunar morning: the Sun is climbing there
+               near_terminator,             // faces the observer, Sun between −r and 10° + r (r its angular radius)
+               visible, angle_from_disc_centre_deg, disc: DiscPoint }],   // 150, table order
+  source: string }          // "USGS/IAU Gazetteer … (U.S. Public Domain); selection … SkyFix Lab"
+```
+
+`kind`: `mare | oceanus | lacus | sinus | palus | mons | montes | rupes | rima | vallis |
+dorsum | promontorium | albedo | crater | landing_site`. `diameter_km` is the gazetteer's
+(the length for rilles, valleys and ranges), 0 for a landing site. Rank: 1 a showpiece,
+2 notable, 3 more to find. An albedo marking has no relief and is never in `tonight`.
+
+### `moon_apsides(jd_start, jd_end) -> MoonApsides`
+
+Perigees, apogees, new and full Moons with supermoon flags, instants in the window clipped
+to the Moon's coverage (`truncated` says so). At most a century; about 0.1 s of CPU a year
+natively (most of it the phase search). Throws for a non-finite or reversed window.
+
+```ts
+{ jd_start, jd_end, truncated, coverage_start_utc, coverage_end_utc,
+  apsides: [{ kind: 'perigee' | 'apogee', jd_utc, utc, distance_km,   // centre to centre, geometric
+              semidiameter_arcmin, diameter_arcmin, diameter_vs_mean_percent }],
+  syzygies: [{ kind: 'new_moon' | 'full_moon', jd_utc, utc, distance_km, diameter_arcmin,
+               diameter_vs_mean_percent,
+               perigee: { jd_utc, utc, distance_km },   // the perigee and apogee on either side of it in time
+               apogee: { jd_utc, utc, distance_km },
+               hours_from_perigee, perigee_fraction,    // 0 at apogee, 1 at perigee
+               supermoon, micromoon,                    // fraction >= 0.9 / <= 0.1 (Nolle)
+               largest_of_year, smallest_of_year }],    // full Moons of the UTC calendar year
+  definitions: { apsis, supermoon, micromoon, largest_of_year, mean_distance_km } }
+```
+
+The new and full Moons are exactly `moon_phases`'s instants.
+
+### `occultations(observer_json, jd_start, jd_end, options_json) -> OccultationList`
+
+Lunar occultations of stars and planets seen from one place, contacts at the Moon's
+**mean limb**, the window at most 400 days (clipped to the coverage). A year with the
+default bodies takes about 0.1 s natively (76 ms of CPU); down to magnitude 6.5 about
+0.5 s. `options_json` (all optional, `{}` or `null` for the defaults; an unknown key
+throws):
+
+| key | default | meaning |
+|---|---|---|
+| `max_magnitude` | 3.5 | Bright Star Catalogue stars brighter than this join the 58 navigational stars; −2 .. 6.5 |
+| `stars`, `planets` | true | search them |
+| `include_below_horizon` | false | keep events with the Moon below the horizon at every contact |
+| `include_near_misses` | true | keep bodies that pass outside the mean limb within 1′ |
+| `bodies` | null | only these names (as results spell them; an unknown name throws) |
+
+```ts
+{ jd_start, jd_end, truncated, coverage_start_utc, coverage_end_utc,
+  limb_note: string,        // show it beside the times: mean limb, real limb differs by seconds, up to a minute near the Moon's poles
+  bodies_searched,          // after the ecliptic filter (stars within 7° of the ecliptic)
+  events: [{ body, kind: 'star' | 'planet', designation | null, hr | null, magnitude | null,
+             navigational, occulted,        // false: a near miss
+             graze,                         // passes within 1′ of the mean limb, inside or out
+             disappearance: Contact | null, reappearance: Contact | null,
+             closest: { jd_utc, utc, limb_distance_arcmin,   // negative inside the disc
+                        position_angle_deg, moon_alt_deg },
+             duration_s | null, body_semidiameter_arcsec,    // 0 for a star
+             moon_illuminated_fraction, waxing,
+             visible }],                    // the Moon is up at a contact (at closest approach for a near miss)
+  errors: BodyError[] }
+
+Contact = { kind: 'disappearance' | 'reappearance', jd_utc, utc,
+            position_angle_deg,   // on the limb, from celestial north through east
+            vertex_angle_deg,     // the same from the zenith
+            cusp_angle_deg,       // from the nearer cusp, positive on the dark limb, negative on the bright
+            cusp: 'N' | 'S', limb: 'dark' | 'bright',
+            moon_alt_deg, moon_az_deg, moon_above_horizon,
+            sun_alt_deg, sky_phase,   // CONVENTIONS 13.4
+            crossing_s }              // planets: seconds for the disc to cross the limb; 0 for a star
+```
+
+Events are sorted by their first contact. A planet's contacts are those of its centre. A
+star's name is its proper name, else its designation, else `"HR n"`.
 ## Expansion programme — tides (`tides.rs`, tides agent)
 
 Tide predictions for NOAA's 3 499 tide stations, from the optional **`tides-us`** pack

@@ -23,6 +23,9 @@ pub mod averaging;
 pub mod compass;
 pub mod noon;
 pub mod polaris;
+// Sailings agent (expansion programme): star identification and the star finder.
+pub mod starfinder;
+pub mod starid;
 
 use crate::SkyfixError;
 use crate::geometry::{Point, altitude_azimuth, destination};

@@ -1,0 +1,250 @@
+{
+  "schema": "skyfix.reference/1",
+  "generator": {
+    "tool": "typed by hand from a published source (CONVENTIONS section 11)",
+    "source": "The American Practical Navigator (Bowditch), NGA Pub. No. 9, 2019 edition, Volume 1, Part 2, Chapter 12 'The Sailings' (sections 1207-1220, pages 193-213). This is the chapter the 2002 edition numbered 24.",
+    "url": "https://msi.nga.mil/Publications/APN",
+    "copy_consulted": "https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/04-%20Part%202-%20Piloting/Chapter%2012-%20The%20Sailings.pdf",
+    "retrieved": "2026-09-24",
+    "licence": "U.S. Government work (National Geospatial-Intelligence Agency), not subject to copyright in the United States (17 U.S.C. 105). Only the numbers of the worked examples are used.",
+    "rounding": "The book works each example with four-decimal trigonometric values and prints answers to 0.1' of arc, 0.1 NM or 0.1 degree of course (0.01 degree where it says so). Where a printed answer inherits an intermediate rounding (a course rounded to 0.1 degree before the distance is taken from it, a ratio rounded to four decimals before an arc-cosine), the case's 'tolerance' is that rounding carried through, and 'why' says so. Errata are recorded, not reproduced.",
+    "meridional_parts": "Mercator examples take their meridional parts from the book's Table 6, which is spheroidal; these cases run with meridional_parts = wgs84 (whose parts agree with the printed ones to 0.25'). On the sphere of 1' = 1 NM the same courses differ by up to 0.16 degree; tests/sailings_worked_examples.rs states the difference.",
+    "never_a_runtime_dependency": "Test data only. Never regenerated from Rust output."
+  },
+  "cases": [
+    {
+      "name": "1208-ex1",
+      "kind": "gc_inverse",
+      "text": "Using the calculations method, find the distance and initial great circle course from L 22° S, l 116° E to 20° S, l 031° E.",
+      "input": {"from": [-22.0, 116.0], "to": [-20.0, 31.0]},
+      "expected": {"distance_deg": 78.23, "distance_nm": 4693.5, "initial_course_deg": 252.99},
+      "tolerance": {"distance_deg": 0.005, "distance_nm": 0.05, "initial_course_deg": 0.005},
+      "why": "The computation prints D = 78.23° = 4,693.8 nm, which is the rounded arc times 60; the book's own Pub. No. 229 solution of the same example (section 1207 example 1) gives 78° 13.5' = 4,693.5 nm, the unrounded arc. C = S 72.99° W."
+    },
+    {
+      "name": "1208-ex2",
+      "kind": "gc_inverse",
+      "text": "Find the distance and initial great circle course from L 28° N, l 122° W to L 24° S, l 151° E.",
+      "input": {"from": [28.0, -122.0], "to": [-24.0, 151.0]},
+      "expected": {"distance_deg": 98.55, "distance_nm": 5913.2, "initial_course_deg": 247.3},
+      "tolerance": {"distance_deg": 0.005, "distance_nm": 0.05, "initial_course_deg": 0.05},
+      "why": "Computation: D = 98.55° = 5,913.1 nm (again the rounded arc times 60); Pub. No. 229 (section 1207 example 2): 98° 33.2' = 5,913.2 nm. C = N 112.7° W, Cn = 247.3° T."
+    },
+    {
+      "name": "1208-ex3",
+      "kind": "gc_final_course",
+      "text": "Find the final course from L 22° S, l 116° E to L 20° S, l 031° E. Additional, D = 4,693.8 nm = 78.23°.",
+      "input": {"from": [-22.0, 116.0], "to": [-20.0, 31.0], "book_D_deg": 78.23, "book_L1_deg": 22.0, "book_L2_deg": 20.0},
+      "expected": {"printed_final_course_deg": 287.4, "printed_cos_C": 0.2988},
+      "tolerance": {"final_course_deg": 0.01},
+      "why": "ERRATUM. The book's formula cos C = (sin L1 - cos D sin L2) / (sin D cos L2) with its own inputs gives 0.3314, not the printed .2988, so C = N 70.65° W and Cn = 289.35° T, not 287.4° T. The test evaluates the book's formula independently and compares SkyFix's final course with it."
+    },
+    {
+      "name": "1209-ex1",
+      "kind": "gc_points_dlo_from_vertex",
+      "text": "Determine points along the great circle track 12° on either side of the vertex, with Lv 41° 21.2' N, lv 160° 34.4' W.",
+      "input": {"vertex": [41.35333333333333, -160.57333333333332], "dlo_deg": [-12.0, 12.0]},
+      "expected": {"lat_deg": 40.7252, "lat_text": "40° 43.5' N", "lon_deg": [-172.57333333333332, -148.57333333333332]},
+      "tolerance": {"lat_arcmin": 0.15, "lon_arcmin": 0.05},
+      "why": "The book multiplies four-decimal values, (.9781)(.8802) = .8609, and atan(.8609) = 40.7252°; unrounded the latitude is 40.7264° (40° 43.6'). A half-unit in the fourth decimal of .8609 is 0.1' of latitude."
+    },
+    {
+      "name": "1209-ex2-300",
+      "kind": "gc_points_distance_from_vertex",
+      "text": "Determine points along the great circle track 300 nm ... from the vertex, with Lv 41° 21.2' N, lv 160° 34.4' W.",
+      "input": {"vertex": [41.35333333333333, -160.57333333333332], "distance_nm": 300.0},
+      "expected": {"lat_deg": 41.16333333333333, "lat_text": "41° 09.8' N", "lon_w_deg": -167.22166666666666, "lon_e_deg": -153.925},
+      "tolerance": {"lat_arcmin": 0.15, "lon_arcmin": 0.06},
+      "why": "sin Lx = (.6607)(.9962) = .6582 in four decimals gives 41.1627°; unrounded 41.1617° (41° 09.7'). Longitudes 167° 13.3' W and 153° 55.5' W."
+    },
+    {
+      "name": "1209-ex2-600",
+      "kind": "gc_points_distance_from_vertex",
+      "text": "... and 600 nm from the vertex.",
+      "input": {"vertex": [41.35333333333333, -160.57333333333332], "distance_nm": 600.0},
+      "expected": {"lat_deg": 40.595, "lat_text": "40° 35.7' N", "lon_w_deg": -173.78833333333333, "lon_e_deg": -147.35833333333332},
+      "tolerance": {"lat_arcmin": 0.3, "lon_arcmin": 0.3},
+      "why": "sin Lx = (.6607)(.9848) = .6507 and sin DLovx = (.1736)/(.7593) = .2286, each rounded to four decimals, move the book's answers by 0.2': unrounded the point is 40° 35.5' N at 173° 47.5' W and 147° 21.3' W. A half-unit in the fourth decimal of a sine near 40° is 0.23' of arc."
+    },
+    {
+      "name": "1209-ex3",
+      "kind": "gc_points_on_meridians",
+      "text": "Find a number of points along the great circle from L 28° N, l 125° W when the initial great circle course angle is N 111° W (Cn = 249° T) by calculation. Determine points 5°, 10° and 15° from the point of departure.",
+      "input": {"from": [28.0, -125.0], "course_deg": 249.0, "meridians_deg": [-130.0, -135.0, -140.0]},
+      "expected": {"vertex_lat_deg": 34.4824, "vertex_lon_deg": -85.7356, "lat_deg": [26.18833333333333, 24.141666666666666, 21.855]},
+      "tolerance": {"vertex_lat_arcmin": 0.05, "vertex_lon_arcmin": 0.5, "lat_arcmin": 0.3},
+      "why": "The vertex longitude comes from sin DLov = (-.3584)/(.5662) = -.6329, DLov = -39.2644°; with unrounded sines DLov = -39.2712°, so the vertex is at 085° 43.7' W, not 085° 44.1' W (the ratio of two four-decimal values is out by 1e-4, 0.43' of arc). The points inherit it: 26° 11.3' N, 24° 08.3' N (printed 08.5'), 21° 51.3' N. The book prints the vertex latitude here as 34° 29.9' N, a typo for the 34° 28.9' N it prints for the same computation in section 1211."
+    },
+    {
+      "name": "1209-table-1209a",
+      "kind": "gc_points_along_course",
+      "text": "Table 1209a: points from L 28° N, l 125° W on initial course N 111° W (249° T) by Pub. No. 229, at 5°, 10°, 15° and 50° of arc.",
+      "input": {"from": [28.0, -125.0], "course_deg": 249.0, "arc_deg": [5.0, 10.0, 15.0, 50.0]},
+      "expected": {"lat_deg": [26.11, 24.041666666666668, 21.813333333333333, 3.4033333333333333], "dlo_deg": [5.2, 10.2, 15.1, 45.8]},
+      "tolerance": {"lat_arcmin": 0.06, "dlo_deg": 0.05},
+      "why": "Pub. No. 229 prints Hc to 0.1' and Z to 0.1°: 26° 06.6' N, 24° 02.5' N, 21° 48.8' N, 03° 24.2' N at DLo 5.2°, 10.2°, 15.1°, 45.8°."
+    },
+    {
+      "name": "1209-table-1209b",
+      "kind": "gc_points_along_course",
+      "text": "Table 1209b: points from L 28° N, l 125° W on initial course N 069° W (291° T) by Pub. No. 229, at 5°, 10°, 15° of arc, and the column printed as D = 110° (6,600 nm) with Dec. 20°.",
+      "input": {"from": [28.0, -125.0], "course_deg": 291.0, "arc_deg": [5.0, 10.0, 15.0, 70.0]},
+      "expected": {"lat_deg": [29.686666666666667, 31.15, 32.368333333333333, 27.251666666666667], "dlo_deg": [5.4, 10.9, 16.6, 80.7]},
+      "tolerance": {"lat_arcmin": 0.06, "dlo_deg": 0.05},
+      "why": "ERRATUM in the last column: its declination entry is 20°, i.e. D = 90° - 20° = 70° (4,200 nm), and at 70° the track is at 27° 15.1' N, DLo 80.7°, as printed; the printed D (110°, 6,600 nm) is wrong, and so is the printed longitude 154.3° W: 125° W + 80.7° W is 205.7° W, which is 154.3° E. The case is run at 70°."
+    },
+    {
+      "name": "1211-ex1",
+      "kind": "gc_vertex_from_course",
+      "text": "Find the vertex of the great circle track from lat. 28° N, long. 125° W when the initial great circle course angle (C) is N 069° W.",
+      "input": {"from": [28.0, -125.0], "course_deg": 291.0},
+      "expected": {"lat_deg": 34.48166666666667, "lat_text": "34° 28.9' N", "lon_deg": -164.265, "lon_text": "164° 15.9' W", "distance_nm": 2040.0},
+      "tolerance": {"lat_arcmin": 0.05, "lon_arcmin": 0.5, "distance_nm": 30.0},
+      "why": "The same four-decimal sin DLov as section 1209 example 3: unrounded the vertex is at 164° 16.3' W. The distance to the vertex is the Pub. No. 229 solution's, 90° - 56° = 34° = 2,040 nm, found by inspecting whole degrees of declination (half a degree is 30 nm); unrounded it is 33.980° = 2,038.8 nm."
+    },
+    {
+      "name": "1213-ex1",
+      "kind": "composite",
+      "text": "Determine the longitude at which a limiting latitude of 47° N will be reached when using a composite sailing from L 36° 57.7' N, l 075° 42.2' W to L 45° 39.1' N, l 001° 29.8' W. Also determine the longitude when the limiting latitude should be left and the great circle track resumed.",
+      "input": {"from": [36.96166666666667, -75.70333333333333], "to": [45.651666666666664, -1.4966666666666666], "limit_deg": 47.0},
+      "expected": {"lon1_deg": -30.266666666666666, "lon1_text": "030° 16.0' W", "lon2_deg": -18.958333333333332, "lon2_text": "018° 57.5' W"},
+      "tolerance": {"lon1_arcmin": 0.15, "lon2_arcmin": 1.0},
+      "why": "cos DLov1 = (.7525)/(1.0724) = .7017 gives 45° 26.2' (unrounded 45° 26.1'). cos DLov2 = (1.0230)/(1.0724) = .9539 gives 17° 27.9'; unrounded the ratio is .95397 and DLov2 = 17° 27.1', so the great circle is resumed at 018° 56.9' W. Near 1 the arc-cosine multiplies a half-unit in the fourth decimal by 3.3: 0.57' of arc, and the four-decimal tangents add as much again."
+    },
+    {
+      "name": "1215-ex1",
+      "kind": "plane_direct",
+      "text": "A vessel steams 188.0 nm on course 005° T. Required: difference of latitude and departure.",
+      "input": {"course_deg": 5.0, "distance_nm": 188.0},
+      "expected": {"dlat_nm": 187.3, "departure_nm": 16.4},
+      "tolerance": {"dlat_nm": 0.05, "departure_nm": 0.05},
+      "why": "l = 187.3' N, p = 16.4 nm E."
+    },
+    {
+      "name": "1215-ex2",
+      "kind": "plane_inverse",
+      "text": "A ship has steamed 136.0 nm north and 203.0 nm west. Required: course and distance.",
+      "input": {"dlat_nm": 136.0, "departure_nm": -203.0},
+      "expected": {"course_deg": 303.82, "distance_nm": 244.3},
+      "tolerance": {"course_deg": 0.005, "distance_nm": 0.05},
+      "why": "C = N 56.18° W, Cn ≈ 304° T, D = 244.3 nm."
+    },
+    {
+      "name": "1216-ex",
+      "kind": "traverse",
+      "text": "A ship steams as follows: course 158°, distance 15.5 nm; course 135°, distance 33.7 nm; course 259°, distance 16.1 nm; course 293°, distance 39.0 nm; course 169°, distance 40.4 nm.",
+      "input": {"legs": [[158.0, 15.5], [135.0, 33.7], [259.0, 16.1], [293.0, 39.0], [169.0, 40.4]]},
+      "expected": {"course_deg": 192.3, "distance_nm": 67.3},
+      "tolerance": {"course_deg": 0.05, "distance_nm": 0.15},
+      "why": "The book rounds each leg's difference of latitude and departure to 0.1 nm from the traverse table before summing (S 65.8, W 14.4; unrounded S 65.69, W 14.36), then D = 65.8 / cos 12.3° = 67.3; unrounded D = 67.24 nm."
+    },
+    {
+      "name": "1217-ex1",
+      "kind": "parallel_departure",
+      "text": "The DR latitude of a ship on course 090° is 49° 30' N. The ship steams on this course until the longitude changes 3° 30'. Required: the departure.",
+      "input": {"lat_deg": 49.5, "dlo_arcmin": 210.0},
+      "expected": {"departure_nm": 136.4},
+      "tolerance": {"departure_nm": 0.05},
+      "why": "p = (210')(cos 49.5°) = 136.4 nm."
+    },
+    {
+      "name": "1217-ex2",
+      "kind": "parallel_dlo",
+      "text": "The DR latitude of a ship on course 270° is L 38° 15' S. The ship steams on this course for a distance of 215.5 nm. Required: the change in longitude.",
+      "input": {"lat_deg": -38.25, "departure_nm": -215.5},
+      "expected": {"dlo_arcmin": -274.4},
+      "tolerance": {"dlo_arcmin": 0.05},
+      "why": "DLo = 215.5' / cos 38.25° = 274.4' W = 4° 34.4' W."
+    },
+    {
+      "name": "1218-ex1",
+      "kind": "midlat_direct",
+      "text": "A vessel steams 1,253 nm on course 070° from lat. 15° 17.0' N, l 151° 37.0' E. Required: latitude and longitude of the point of arrival.",
+      "input": {"from": [15.283333333333333, 151.61666666666667], "course_deg": 70.0, "distance_nm": 1253.0},
+      "expected": {"lat_deg": 22.426666666666666, "lat_text": "22° 25.6' N", "lon_deg": 172.35333333333333, "lon_text": "172° 21.2' E"},
+      "tolerance": {"lat_arcmin": 0.05, "lon_arcmin": 0.05},
+      "why": "l = 428.6' N, p = 1,177.4 nm E, Lm = 18° 51.3' N, DLo = 1,244.2' E."
+    },
+    {
+      "name": "1218-ex2",
+      "kind": "midlat_inverse",
+      "text": "A vessel at lat. 8° 48.9' S, l 89° 53.3' W is to proceed to lat. 17° 06.9' S, l 104° 51.6' W. Required: course and distance.",
+      "input": {"from": [-8.815, -89.88833333333334], "to": [-17.115, -104.86]},
+      "expected": {"course_deg": 240.4, "distance_nm": 1008.3, "mean_latitude_deg": -12.965, "departure_nm": -875.4},
+      "tolerance": {"course_deg": 0.05, "distance_nm": 1.6, "mean_latitude_arcmin": 0.05, "departure_nm": 0.05},
+      "why": "The book rounds the course to S 60.4° W before taking D = 498' / cos 60.4° = 1,008.3 nm (the answer line prints 1,008.2); with the unrounded course (60.365°) D = 1,007.14 nm. At this course a half-tenth of a degree moves D by 1.5 nm."
+    },
+    {
+      "name": "1219-ex1",
+      "kind": "mercator_inverse",
+      "text": "A ship at lat. 32° 14.7' N, l 66° 28.9' W is to head for a point near Chesapeake Light, lat. 36° 58.7' N, l 75° 42.2' W. Required: course and distance.",
+      "input": {"from": [32.245, -66.48166666666667], "to": [36.97833333333333, -75.70333333333333], "meridional_parts": "wgs84"},
+      "expected": {"meridional_difference_arcmin": 343.7, "dlo_arcmin": -553.3, "course_deg": 301.8, "distance_nm": 538.9},
+      "tolerance": {"meridional_difference_arcmin": 0.1, "dlo_arcmin": 0.05, "course_deg": 0.05, "distance_nm": 0.8},
+      "why": "M2 = 2377.1 and M1 = 2033.4 from Table 6 (WGS84: 2377.15 and 2033.45). The book rounds C to N 58.2° W before D = 284.0' / cos 58.2° = 538.9 nm; with the unrounded course (58.153°) D = 538.2 nm. At this course 0.05° of course is 0.76 nm."
+    },
+    {
+      "name": "1219-ex2",
+      "kind": "mercator_direct",
+      "text": "A ship at lat. 75° 31.7' N, l 79° 08.7' W, in Baffin Bay, steams 263.5 nm on course 155°. Required: latitude and longitude of the point of arrival.",
+      "input": {"from": [75.52833333333334, -79.145], "course_deg": 155.0, "distance_nm": 263.5, "meridional_parts": "wgs84"},
+      "expected": {"lat_deg": 71.54833333333333, "lat_text": "71° 32.9' N", "lon_deg": -72.56833333333333, "lon_text": "072° 34.1' W"},
+      "tolerance": {"lat_arcmin": 0.05, "lon_arcmin": 0.1},
+      "why": "l = 238.8' S, M1 = 7072.4, M2 = 6226.1, m = 846.3 (WGS84: 846.37), DLo = 394.6' E = 6° 34.6'. The meridional difference printed to 0.1' moves DLo by 0.05'."
+    },
+    {
+      "name": "1220-plane-1",
+      "kind": "plane_direct",
+      "text": "A vessel steams 117.3 nm on course 214° T. Required: difference of latitude, departure, by plane sailing.",
+      "input": {"course_deg": 214.0, "distance_nm": 117.3},
+      "expected": {"dlat_nm": -97.2, "departure_nm": -65.6},
+      "tolerance": {"dlat_nm": 0.05, "departure_nm": 0.05},
+      "why": "l 97.2' S, p 65.6 nm W."
+    },
+    {
+      "name": "1220-plane-2",
+      "kind": "plane_inverse",
+      "text": "A steamer is bound for a port 173.3 nm south and 98.6 nm east of the vessel's position. Required: course, distance, by plane sailing.",
+      "input": {"dlat_nm": -173.3, "departure_nm": 98.6},
+      "expected": {"course_deg": 150.4, "distance_nm": 199.4},
+      "tolerance": {"course_deg": 0.05, "distance_nm": 0.05},
+      "why": "C 150.4°, D 199.4 nm by computation."
+    },
+    {
+      "name": "1220-traverse",
+      "kind": "traverse",
+      "text": "A ship steams as follows: course 359° T, distance 28.8 nm; course 006°, distance 16.4 miles; course 266° T, distance 4.9 nm; course 144°, distance 3.1 nm; course 333° T, distance 35.8 nm; course 280°, distance 19.3 nm.",
+      "input": {"legs": [[359.0, 28.8], [6.0, 16.4], [266.0, 4.9], [144.0, 3.1], [333.0, 35.8], [280.0, 19.3]]},
+      "expected": {"course_deg": 334.4, "distance_nm": 86.1},
+      "tolerance": {"course_deg": 0.05, "distance_nm": 0.3},
+      "why": "Worked from the traverse table, each of six legs' components rounded to 0.1 nm; unrounded D = 85.93 nm."
+    },
+    {
+      "name": "1220-parallel-dr",
+      "kind": "dr_rhumb",
+      "text": "The 1530 DR position of a ship is lat. 44° 36.3' N, l 031° 18.3' W. The ship is on course 270° T, speed 17 knots. Required: the 2000 DR position, by parallel sailing.",
+      "input": {"from": [44.605, -31.305], "course_deg": 270.0, "distance_nm": 76.5, "meridional_parts": "sphere"},
+      "expected": {"lat_deg": 44.605, "lon_deg": -33.095, "lon_text": "033° 05.7' W"},
+      "tolerance": {"lat_arcmin": 0.05, "lon_arcmin": 0.05},
+      "why": "4.5 h at 17 kn is 76.5 nm; DLo = 76.5 sec 44.605° = 107.4'."
+    },
+    {
+      "name": "1220-mercator-cape-town",
+      "kind": "mercator_inverse",
+      "text": "A ship at lat. 33° 53.3' S, l 018° 23.1' E, leaving Cape Town, heads for a destination near Ambrose Light, lat. 40° 27.1' N, l 073° 49.4' W. Required: course and distance, by Mercator sailing.",
+      "input": {"from": [-33.888333333333335, 18.385], "to": [40.45166666666667, -73.82333333333334], "meridional_parts": "wgs84"},
+      "expected": {"course_deg": 310.9, "distance_nm": 6811.5},
+      "tolerance": {"course_deg": 0.05, "distance_nm": 0.3},
+      "why": "Cn = 310.9° T, D 6,811.5 nm by computation (6,812.8 by traverse table). Table 6 is interpolated by hand and was computed on an older spheroid whose parts differ from WGS84's by up to 0.25' at these latitudes; over 4,794' of meridional difference that is 0.2 nm of distance."
+    },
+    {
+      "name": "1220-mercator-dr",
+      "kind": "mercator_direct",
+      "text": "A ship at lat. 15° 03.7' N, l. 151° 26.8' E steams 57.4 nm on course 035° T. Required: latitude and longitude of the point of arrival, by Mercator sailing.",
+      "input": {"from": [15.061666666666667, 151.44666666666667], "course_deg": 35.0, "distance_nm": 57.4, "meridional_parts": "wgs84"},
+      "expected": {"lat_deg": 15.845, "lat_text": "15° 50.7' N", "lon_deg": 152.01166666666666, "lon_text": "152° 00.7' E"},
+      "tolerance": {"lat_arcmin": 0.05, "lon_arcmin": 0.05},
+      "why": "L 15° 50.7' N, l 152° 00.7' E."
+    }
+  ]
+}
