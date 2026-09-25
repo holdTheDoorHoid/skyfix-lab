@@ -1,6 +1,6 @@
 //! Lunar occultations of bright stars and planets, with local times.
 //!
-//! OWNER: moondetail agent (expansion programme P8). Definitions in CONVENTIONS 13.10;
+//! OWNER: moondetail agent (expansion programme P8). Definitions in CONVENTIONS 13.12;
 //! wire format in `docs/EXPLORER_API.md`, `occultations`; accuracy in
 //! `docs/ACCURACY.md`, "Moon in detail".
 //!

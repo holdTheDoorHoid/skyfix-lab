@@ -65,7 +65,7 @@ export function sizeWords(diameterVsMeanPercent: number): string {
  * Which edge of the Moon is tipped toward us, in words. Libration in longitude is the east
  * (selenographic, IAU: toward Mare Crisium) longitude of the point at the disc's centre, so a
  * positive value shows more of the eastern edge; in latitude a positive value shows more of
- * the north pole (CONVENTIONS 13.10).
+ * the north pole (CONVENTIONS 13.12).
  */
 export function librationWords(lib: Pick<LibrationAngles, 'lon_deg' | 'lat_deg'>): { sentence: string; tip: string } {
   const lon = lib.lon_deg;

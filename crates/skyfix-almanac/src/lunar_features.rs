@@ -1,7 +1,7 @@
 //! Named lunar features: which are near the terminator tonight (the best relief), which
 //! are lit, and where each appears on the disc.
 //!
-//! OWNER: moondetail agent (expansion programme P8). CONVENTIONS 13.10; wire format in
+//! OWNER: moondetail agent (expansion programme P8). CONVENTIONS 13.12; wire format in
 //! `docs/EXPLORER_API.md`, `moon_features`.
 //!
 //! The table (`data/lunar_features.tsv`, 150 rows) is built by `tools/moon/build.py`:

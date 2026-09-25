@@ -21,7 +21,7 @@ pub mod occultations;
 
 // Planet detail (expansion programme P9, planetdetail agent): discs, rings, the
 // Galilean moons, transits of Mercury and Venus, conjunctions and stations, the Earth's
-// apsides and user-supplied orbits. CONVENTIONS 13.12.
+// apsides and user-supplied orbits. CONVENTIONS 13.13.
 pub mod conjunctions;
 pub mod discs;
 pub mod earth_apsides;

@@ -4,7 +4,7 @@
  * the place (`occultations`) or somewhere else on Earth (from the conjunctions: see
  * `occultedSomewhere`). OWNER: events2 agent. Pure: tested in events-models.test.ts.
  *
- * Definitions are the engine's (CONVENTIONS 13.10): a supermoon is Nolle's (a new or full
+ * Definitions are the engine's (CONVENTIONS 13.12): a supermoon is Nolle's (a new or full
  * Moon at least 90 % of the way from apogee to perigee), contacts are at the Moon's mean
  * limb, sizes are against the mean distance of 384 400 km.
  */

@@ -2,7 +2,7 @@
 //! (B'), the position angle of the ring's minor axis (P), the size of the ellipses the
 //! ring edges make on the sky, and Saturn's magnitude with its rings.
 //!
-//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.12; wire format
+//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.13; wire format
 //! `docs/EXPLORER_API.md`, "Planet detail"; accuracy `docs/ACCURACY.md`, "Planet
 //! detail".
 //!

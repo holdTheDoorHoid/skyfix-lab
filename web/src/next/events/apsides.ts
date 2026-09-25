@@ -112,6 +112,6 @@ function apsisGlyph(item: EventItem): SVGSVGElement {
   return g;
 }
 
-/** What the words mean (the engine's definitions, CONVENTIONS 13.10). */
+/** What the words mean (the engine's definitions, CONVENTIONS 13.12). */
 const DEFINITIONS =
   'Supermoon here means a new or full Moon at least 90% of the way from apogee to perigee (Nolle, 1979): about a third of them qualify. Other sources use stricter rules, so their lists are shorter. Sizes are against the Moon’s average distance, 384 400 km, centre to centre.';

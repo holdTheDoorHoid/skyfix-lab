@@ -1,7 +1,7 @@
 //! The Earth's perihelion and aphelion: the instants its centre is nearest to and
 //! farthest from the Sun's in a calendar year.
 //!
-//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.12; wire format
+//! OWNER: planetdetail agent (expansion programme P9). CONVENTIONS 13.13; wire format
 //! `docs/EXPLORER_API.md`, "Planet detail"; accuracy `docs/ACCURACY.md`, "Planet
 //! detail".
 //!

@@ -5,7 +5,7 @@
  * transits and occultations of Jupiter's four big moons (`galilean_events`), night by
  * night. OWNER: events2 agent. Pure: tested in events-models.test.ts.
  *
- * Definitions are the engine's (CONVENTIONS 13.12): a conjunction is a closest approach
+ * Definitions are the engine's (CONVENTIONS 13.13): a conjunction is a closest approach
  * in apparent separation; a station is where the ecliptic longitude of date stops
  * changing; transit contacts are the discs' tangencies; a Galilean phenomenon starts and
  * ends when the moon's centre crosses Jupiter's limb or the edge of a shadow.

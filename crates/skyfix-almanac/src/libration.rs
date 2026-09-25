@@ -2,7 +2,7 @@
 //! way its axis points on the sky, where the Sun stands over it and where the
 //! terminator runs.
 //!
-//! OWNER: moondetail agent (expansion programme P8). CONVENTIONS 13.10; wire format in
+//! OWNER: moondetail agent (expansion programme P8). CONVENTIONS 13.12; wire format in
 //! `docs/EXPLORER_API.md`, "Moon in detail"; accuracy in `docs/ACCURACY.md`, "Moon in
 //! detail".
 //!

@@ -2791,7 +2791,7 @@ export function isSailingsEngine(engine: unknown): engine is SailingsEngine {
 // Expansion programme P8 — the Moon in detail (moondetail agent). Rust:
 // crates/skyfix-wasm/src/moondetail.rs over skyfix_almanac::{libration, lunar_features,
 // apsides, occultations}. Wire format: docs/EXPLORER_API.md, "Moon in detail";
-// definitions: CONVENTIONS 13.10.
+// definitions: CONVENTIONS 13.12.
 // ---------------------------------------------------------------------------------
 
 /** A place on the Moon, or a direction from its centre: selenographic latitude and east
@@ -3637,7 +3637,7 @@ export function isTidePackNotLoaded(error: unknown): boolean {
 // Expansion programme — planet detail (planetdetail agent, P9). Rust:
 // crates/skyfix-wasm/src/planetdetail.rs over skyfix_almanac::{discs, rings,
 // satellites, transits, conjunctions, earth_apsides, orbits}. Wire format:
-// docs/EXPLORER_API.md, "Planet detail"; definitions: CONVENTIONS §13.12.
+// docs/EXPLORER_API.md, "Planet detail"; definitions: CONVENTIONS §13.13.
 // ---------------------------------------------------------------------------------
 
 export type GalileanMoonName = 'Io' | 'Europa' | 'Ganymede' | 'Callisto';
