@@ -36,6 +36,11 @@ reproduce each row are in the numbered section named.
 | Planet events: oppositions, conjunctions, greatest elongations, closest approaches (vs Skyfield + DE440s, all 2266 of 1990-2060; list vs NASA SKYCAL) | every event matched one for one; conjunctions and oppositions within 55 s (Neptune's slow motion), elongations and closest approaches within 68 s; the 12 transits are NASA's | 1 min / 10 min | 13 |
 | Navigation methods: noon sight, Polaris, averaging, running fix (noise-free vs Skyfield truth; Bowditch's worked examples) | within 0.0001–0.0013′ of truth; running fix within 0.4–36 m; Bowditch reproduced to 0.02–0.19′ | — (numerical regression) | 3, "Navigation methods" |
 | Navigation methods: seeded-coverage of the stated sigma | 93.8–96.0 % (Polaris very near the pole with a poor DR: 89.8 %, a documented limit, `polaris_near_pole`) | ≈95 % | 3, "Navigation methods" |
+| Sailings: great-circle, rhumb-line, mid-latitude, composite, plane, traverse and parallel sailing (Bowditch 2019 ch. 12, every worked example: 26 cases, 77 quantities) | all to the printed precision, or to the book's own four-decimal rounding carried through (worst such 0.62′ of longitude, §1213); two errata found and recorded | printed precision | 14 |
+| Sailings: the sphere of 1′ = 1 NM against WGS84 (Vincenty geodesic, WGS84 loxodrome; 19 806 random pairs) | worst 0.502 % (great circle and rhumb line), 0.514 % on 10 NM legs | a stated bound | 14 |
+| Dip short of the horizon (Bowditch 2019 vol. 2 Table 14, 28 entries, 5–100 ft, 0.2–10 NM) | worst 0.046′ (the table prints 0.1′) | 0.1′ | 14 |
+| Star identification (each of the 58 stars from its own predicted Hs and Zn, 5 random places and times each; 400 sights with 1′, 1.5° and 10 NM of error) | 290/290 ranked first (worst separation < 0.00001°); with errors 400/400 within tolerance, 400/400 first | every star recovered | 14 |
+| Star finder geometry (a set template against section 3, 20 000 random cases) | every star on its altitude and azimuth to 1e-9 of the disc's radius | exact | 14 |
 
 ## 1. What accuracy means here
 
@@ -1399,3 +1404,84 @@ each.
   about five minutes).
 - `cargo test --release -p skyfix-almanac --test planet_events -- --include-ignored
   --nocapture` prints the numbers for 2019-2026 and 1990-2060.
+
+## 14. Sailings, dip short, star identification, star finder (expansion programme)
+
+*Sailings agent, 2026-09-24. Methods: `docs/NAVIGATION_METHODS.md` sections 9–13.*
+
+### Sailings against Bowditch
+
+`fixtures/reference/bowditch_sailings.json` types every numbered worked example of Bowditch
+2019 vol. 1 ch. 12 "The Sailings" (26 cases, 77 compared quantities), and
+`crates/skyfix-core/tests/sailings_worked_examples.rs` runs each through
+`skyfix_core::sailings`. Everything agrees to the printed precision (0.1′, 0.1 NM, 0.1° of
+course; 0.01° where the book prints it) except where the book's own arithmetic moves the
+printed number: it rounds trigonometric values to four decimals (up to 0.43′ on a vertex
+longitude from a ratio of two such values, 0.62′ where an arc-cosine near 1 magnifies one),
+and it rounds a course to 0.1° before taking the distance from it (up to 1.5 NM at the
+courses of its examples). Each such tolerance is that rounding carried through, and each
+case says why. Two errata: §1208 example 3's final course (printed 287.4°; the book's own
+formula with its own inputs gives 289.35°, which SkyFix matches to 0.0014°), and Table
+1209b's last column (its arc and distance should be 70° and 4200 NM, as its declination
+entry says, and its longitude east, not west). The Mercator examples use the WGS84
+meridional parts, as the book's Table 6 does; on the sphere their courses move by 0.12° and
+0.16°. The full table is in `docs/NAVIGATION_METHODS.md` section 9.9.
+
+### The sphere against WGS84
+
+`crates/skyfix-core/tests/sailings_wgs84.rs`: Vincenty's inverse (checked against the
+Geocentric Datum of Australia's worked example, 54 972.271 m to 1 mm, and the WGS84 quarter
+meridian, 10 001 965.729 m) and the WGS84 loxodrome (isometric latitude and meridian arc)
+against the sphere's great-circle and rhumb-line distances over 19 806 random pairs
+(latitudes within 80°, up to 170° apart): worst **0.502 %** for both; on 10 NM legs at
+latitudes 0°–89°, **0.514 %**. A minute of latitude is 1842.9 m at the equator and 1861.6 m
+at the poles against the sphere's 1852 m. The passage's notes state the bound.
+
+### Dip short of the horizon
+
+`crates/skyfix-core/tests/dip_short.rs` against 28 entries of Bowditch 2019 vol. 2 Table 14
+(`fixtures/reference/bowditch_dip_short.json`), 5 to 100 ft and 0.2 to 10 NM, four of them
+beyond the sea horizon where the table repeats the sea dip: worst **0.046′**, inside the
+table's own 0.05′ rounding. The arctangent form is needed at the table's corner (100 ft,
+0.2 NM: 282.3′ printed; the linear form's 282.97′ would miss by 0.67′). Predicted readings to
+a shore horizon reduce back to their `Hc` exactly; the shore horizon round-trips through
+JSON and CSV.
+
+### Star identification
+
+`crates/skyfix-wasm/src/sailings.rs` tests, with the explorer's sky (58 stars, Mercury to
+Saturn, the Moon): each of the 58 stars, from its own predicted sextant reading and azimuth
+(`predict_sextant`, height of eye 3 m, index correction −1.2′) at five random places and
+times each, 10° to 80° high, is ranked first: **290 of 290**, worst separation under
+0.00001°. With 1′ of altitude error, 1.5° of bearing error and a DR 10 NM out (1 sigma each),
+the true star is within the default tolerances in **400 of 400** sights and first in all
+400. The Moon is found from its own lower-limb reading. The brightness rule
+(`limiting_magnitude`) is a labelled heuristic, equal to the planner's in nautical twilight
+by test; it is not validated against observations.
+
+### Star finder
+
+`crates/skyfix-core/src/methods/starfinder.rs` tests: at 20 000 random template latitudes,
+hour angles of Aries and stars, the template set on the Aries index places each star above
+the horizon at its CONVENTIONS section 3 altitude and azimuth to **1e-9** of the disc's
+radius; the same holds for the real 58 stars at a real time. The grid is geometric (no
+refraction, no dip), like the printed 2102-D, and a template serves ±5° of latitude, where
+readings are good to a few degrees: that is the instrument's accuracy, stated, not tested.
+
+### Index-error and watch logs
+
+`crates/skyfix-core/tests/error_logs.rs`: the interpolated values, the held values and their
+warning, the reduced sight's record of the value used, JSON and CSV round trips, a
+predicted reading that reduces back to its `Hc` with a logged index correction, and an
+averaged sight written on the logged watch that reduces back to its own instant (to 1 ms).
+Sessions without logs reduce byte-identically.
+
+### Reproduce
+
+```console
+cargo test -p skyfix-core --test sailings_worked_examples -- --nocapture
+cargo test -p skyfix-core --test sailings_wgs84 -- --nocapture
+cargo test -p skyfix-core --test dip_short -- --nocapture
+cargo test -p skyfix-core --test error_logs
+cargo test -p skyfix-wasm sailings -- --nocapture
+```

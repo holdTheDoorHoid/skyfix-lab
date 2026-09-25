@@ -416,18 +416,26 @@ pub fn star_identify(
         m.rank = i + 1;
     }
 
+    // An angle in words: arcminutes under a degree, degrees above.
+    let angle = |deg: f64| {
+        if deg.abs() < 1.0 {
+            format!("{:.1}′", deg.abs() * 60.0)
+        } else {
+            format!("{:.1}°", deg.abs())
+        }
+    };
     let describe = |m: &StarIdMatch| {
         format!(
-            "{} ({:.1}° away: the sight is {:.1}° {} and its bearing {:.1}° {})",
+            "{} ({} away: the sight is {} {} and its bearing {} {})",
             m.body,
-            m.separation_deg,
-            m.delta_altitude_deg.abs(),
+            angle(m.separation_deg),
+            angle(m.delta_altitude_deg),
             if m.delta_altitude_deg >= 0.0 {
                 "higher"
             } else {
                 "lower"
             },
-            m.delta_bearing_deg.abs(),
+            angle(m.delta_bearing_deg),
             if m.delta_bearing_deg >= 0.0 {
                 "greater"
             } else {

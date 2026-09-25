@@ -532,3 +532,53 @@ mod tests {
         assert!(star_identify_impl(r#"{"utc": "2026-10-01T00:00:00Z"}"#).is_err());
     }
 }
+
+#[cfg(test)]
+mod api_examples {
+    /// The first ```json block after `heading` in docs/EXPLORER_API.md.
+    fn example(heading: &str) -> String {
+        let doc = std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../docs/EXPLORER_API.md"),
+        )
+        .unwrap();
+        let at = doc
+            .find(heading)
+            .unwrap_or_else(|| panic!("no heading {heading}"));
+        let open = at + doc[at..].find("```json").unwrap() + "```json".len();
+        let close = open + doc[open..].find("```").unwrap();
+        doc[open..close].to_string()
+    }
+
+    #[test]
+    fn the_documented_requests_give_the_documented_answers() {
+        let p =
+            super::sailing_impl(&example("### `sailing(request_json) -> PassageReport`")).unwrap();
+        assert!((p.great_circle.distance_nm - 3264.54).abs() < 0.005);
+        assert!((p.rhumb_line.distance_nm - 3376.90).abs() < 0.005);
+        let c = p.composite.unwrap();
+        assert!(c.applies && (c.distance_nm - 3271.27).abs() < 0.005);
+        assert_eq!(
+            p.great_circle.arrival.unwrap().utc.as_deref(),
+            Some("2026-10-12T20:12:21.898Z")
+        );
+        let d =
+            super::dr_advance_impl(&example("### `dr_advance(request_json) -> DrReport`")).unwrap();
+        assert!((d.to.lon_deg + 33.095819).abs() < 1e-6);
+        assert_eq!(d.arrival_utc.as_deref(), Some("2026-10-01T20:00:00.000Z"));
+        let r = super::route_positions_impl(&example(
+            "### `route_positions(request_json) -> RouteReport`",
+        ))
+        .unwrap();
+        assert!((r.points[0].lon_deg + 69.564864).abs() < 1e-6);
+        assert!((r.made_good.unwrap().distance_nm - 42.348).abs() < 0.001);
+        let s = super::star_identify_impl(&example(
+            "### `star_identify(request_json) -> StarIdResult`",
+        ))
+        .unwrap();
+        assert_eq!(s.best.as_deref(), Some("Vega"));
+        assert_eq!(
+            s.message,
+            "Vega (1.2′ away: the sight is 0.1′ higher and its bearing 4.0′ less)."
+        );
+    }
+}

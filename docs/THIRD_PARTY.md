@@ -1331,6 +1331,55 @@ listed under "Reference data" above: the 2266 events of 1990-2060 with Skyfield'
 `almanac.oppositions_conjunctions`, `find_maxima` and `find_minima`, and whether each
 inferior conjunction is a transit.
 
+### Sailings, dip short of the horizon, star finder (sailings agent, expansion programme)
+
+Owner: sailings agent (`crates/skyfix-core/src/sailings/`, `corrections.rs` dip short,
+`methods/{starid,starfinder}.rs`; fixtures `bowditch_sailings.json`,
+`bowditch_dip_short.json`). No data is shipped: the runtime uses published formulas only.
+
+#### The American Practical Navigator (Bowditch), NGA Pub. No. 9, 2019 — sailings and Table 14
+
+- **What is used at runtime:** published formulas (facts), implemented here — the sailings of
+  volume 1, chapter 12 (great-circle, Mercator with meridional parts, mid-latitude, parallel,
+  plane, traverse and composite sailing) and the dip of the sea short of the horizon of
+  volume 2, chapter 4, section 402 (`Ds = 60 tan^-1(h/(6076.1 d) + d/8268)`), with its two
+  constants.
+- **What is used as test data:** the numbers of every worked example of volume 1, chapter 12
+  (sections 1207–1220), typed with the book's rounding and two errata recorded into
+  `fixtures/reference/bowditch_sailings.json`; 28 entries of volume 2, Table 14 (the 2002
+  edition's Table 22) into `fixtures/reference/bowditch_dip_short.json`. No text or figure
+  is reproduced.
+- **URL:** <https://msi.nga.mil/Publications/APN>; read from the copies at
+  <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/04-%20Part%202-%20Piloting/Chapter%2012-%20The%20Sailings.pdf>,
+  `.../Volume-_2/06-%20Piloting%20Tables/Table%2014-%20Dip%20of%20the%20Sea%20Short%20of%20the%20Horizon.pdf`
+  and `.../Volume-_2/09-%20Mathematics%20For%20Navigation/Chapter%204-%20Calculations%20and%20Conversion.pdf`.
+- **Retrieved:** 2026-09-24.
+- **Licence:** a work of the U.S. Government (National Geospatial-Intelligence Agency), not
+  subject to copyright in the United States (17 U.S.C. 105). No credit required; cited as a
+  source.
+
+#### Geodesy checks in `crates/skyfix-core/tests/sailings_wgs84.rs` (test code only)
+
+- **Vincenty's inverse formula** (T. Vincenty, *Survey Review* 23 (176), 1975): a published
+  method, implemented in the test to measure the sphere against WGS84; nothing shipped.
+- **The WGS84 quarter meridian, 10 001 965.729 m**: follows from WGS84's defining
+  constants (NIMA TR8350.2, a U.S. Government work); used as a check.
+- **The Geocentric Datum of Australia technical manual's worked example** (Intergovernmental
+  Committee on Surveying and Mapping: Flinders Peak to Buninyong, 54 972.271 m): four
+  coordinates and one distance, facts used only to check the test's Vincenty implementation,
+  which reproduces them to 1 mm. The figures are the widely reproduced published example;
+  the manual itself was not fetched for this work. Acknowledged here; nothing shipped.
+
+#### Star Finder and Identifier No. 2102-D (consulted, nothing used)
+
+The Weems & Plath instruction sheet for the 2102-D
+(<https://www.weems-plath.com/core/media/media.nl/id.1497/c.449809/.f?h=Y9xhAiPAr8xkc_7y46E7w1Ivopn1hkA7o3ADM6G_wmgRW8L8>,
+read 2026-09-24) and Bowditch 2019 volume 1 chapter 18 were consulted for how the instrument
+is built and set (a base with a north and a south side, blue templates every 10° of
+latitude, the arrow set on LHA Aries). No text, figure or data from them is used: the
+geometry (`methods/starfinder.rs`) is derived here from the sight-reduction formulas and
+tested against them.
+
 ## Licence decisions
 
 Most of the sources above needed only a fact to be recorded — a URL, a retrieval date, a

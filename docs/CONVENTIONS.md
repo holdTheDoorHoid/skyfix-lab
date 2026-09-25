@@ -85,12 +85,21 @@ Order for `sextant_hs`:
    arc" (positive reading with the mirrors parallel) gives a **negative** IC.
    Example: index error 2.0' on the arc -> `IC = -2.0'`. This is the only sign convention
    for IC in the project; the UI labels the field "index correction (added)".
+   When `instrument.index_error_log` has entries, IC is the log's value at the sight's time
+   (section 10; sailings agent).
 2. **Horizon step**, by horizon mode:
    - `sea`: subtract **dip** `= 1.76' * sqrt(height_of_eye_m)` (Nautical Almanac /
      Bowditch; equals 0.97' sqrt(height_ft)). Requires `height_of_eye_m >= 0`.
    - `artificial_reflected`: **halve after IC**: `Ha = (Hs + IC) / 2`. **No dip.** The
      sight's `sigma_arcmin` describes the recorded double angle, so it is halved too.
    - `electronic_vertical`: `Ha = Hs + IC` where IC is the instrument zero offset. No dip.
+   - `shore` (`{"shore": {"distance_nm": d}}`; sailings agent, expansion programme): a
+     waterline `d` NM away, nearer than the sea horizon. Subtract the **dip short of the
+     horizon** `Ds = 60 tan^-1(h_ft / (6076.1 d) + d / 8268)` arcmin (Bowditch 2019 vol. 2
+     section 402 and Table 14; `h_ft` the height of eye in feet), never less than the sea
+     dip, while `d` is less than the sea horizon's distance `sqrt(8268 h_ft / 6076.1)` NM;
+     at or beyond it subtract the sea dip and warn `shore_beyond_sea_horizon` (the
+     waterline is hidden). `d > 0` is required. docs/NAVIGATION_METHODS.md section 12.
 3. **Refraction** (Bennett 1982, standard conditions 1010 hPa, 10 C), subtracted:
    `R' = cot(Ha_deg + 7.31 / (Ha_deg + 4.4))` arcmin, scaled by
    `(P_hPa / 1010) * (283 / (273 + T_C))`.
@@ -286,6 +295,24 @@ low-altitude term above.
   parameter that would have to be ignored). The last two are warnings, not errors
   (`LimbIgnoredForStar`, `AlreadyCorrected`).
 
+- **Shore horizon** (sailings agent): `horizon` (the instrument's or an observation's) may
+  be `{"shore": {"distance_nm": d}}` besides the three strings (section 5, step 2); CSV
+  writes it as `shore:<d>`.
+- **Error logs** (sailings agent, additive): `instrument.index_error_log` is a list of
+  `{"utc", "ic_arcmin", "note"}` (the index correction, added, as
+  `index_correction_arcmin`) and `clock.watch_log` a list of `{"utc", "correction_s",
+  "note"}` (added to the watch, as `correction_s`). When a log has entries, a sight's value
+  is read from it instead of the single field: linear between the entries either side, the
+  entry itself at its instant, a one-entry log as a constant; before the first or after the
+  last entry the nearest entry's value is **held, not extrapolated**, and the sight warns
+  `error_log_outside_span`. The watch log is read at the sight's recorded time, the index
+  log at the corrected time. Entries need RFC 3339 `Z` times, finite values and distinct
+  instants; a nonzero single value beside a log is noted as unused. The reduced sight
+  reports the value used (`index_correction_from_log`, `clock_correction_from_log`) and the
+  index-correction step's note names the entries. Both lists are omitted when empty, so
+  older files and their outputs are unchanged; in CSV each rides in the header block as one
+  JSON array. `crate::error_logs`.
+
 CSV import/export carries the same fields with one observation per row; the session-level
 fields ride in a `#`-prefixed header block. The CSV path must round-trip through JSON
 without loss.
@@ -477,6 +504,30 @@ the rest of this file:
 - A vessel's motion over a noon or averaging run is a constant course and speed along the
   great circle through the method's reference position; the running fix keeps
   `docs/MOTION.md`'s leg model.
+
+Additions of the expansion programme (sailings agent; docs/NAVIGATION_METHODS.md sections
+9-13, wire shapes in EXPLORER_API.md "Expansion programme — sailings"):
+
+- **Sailings and dead reckoning** (`skyfix_core::sailings`) are on the sphere of section 1
+  (1′ = 1 NM), except that Mercator sailing may take `meridional_parts = wgs84`: the course
+  and difference of longitude of the WGS84 loxodrome (a Mercator chart, Bowditch's Table 6)
+  with Bowditch's `D = l sec C`, 1′ of latitude = 1 NM. Courses are true, `[0, 360)`;
+  distances NM, with km beside the main ones. The sphere is within 0.52 % of WGS84
+  distances (measured, section 9.8).
+- **Dead-reckoning legs**: `dr_advance` and routes default to the rhumb line of the course
+  (what steering a compass course does); `great_circle` is the running fix's leg model and
+  `mid_latitude` Bowditch's approximation. A route's legs have the running fix's
+  `RunningFixLeg` shape. Before a route's start its start position is reported, after its
+  end its last position, each with a status; nothing is extrapolated.
+- **Star identification** (`methods::starid`) reduces the observation as a star (section
+  5 steps 1-3) and compares it with each candidate's airless topocentric altitude (parallax
+  removed); matches lie within 2° of altitude and 5° of bearing by default, measured in
+  the observed direction's tangent plane; the brightness rule is a stated clear-sky
+  heuristic equal to the planner's in nautical twilight.
+- **Star finder** (`methods::starfinder`) coordinates are on the unit disc, `x` right, `y`
+  up, the base seen from outside the celestial sphere (polar azimuthal equidistant to the
+  opposite pole); a template is set by turning it anticlockwise through `+LHA ♈` on the
+  north side and `−LHA ♈` on the south.
 
 ## 15. Deep time: coverage tiers, time scales and calendars (expansion programme, 2026-09-24)
 

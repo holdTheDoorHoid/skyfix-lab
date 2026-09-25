@@ -1142,3 +1142,224 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+## Expansion programme — sailings, dead reckoning, star identification, star finder (sailings agent)
+
+Rust: `crates/skyfix-core/src/sailings/`, `crates/skyfix-core/src/methods/{starid,starfinder}.rs`,
+`crates/skyfix-core/src/error_logs.rs`; WASM: `crates/skyfix-wasm/src/sailings.rs`. TypeScript:
+`SailingsEngine` and `isSailingsEngine` at the end of `web/src/next/engine/types.ts`; the
+WASM wrapper's methods are on `WasmEngine` (`web/src/next/engine/wasm.ts`), the mock's in
+`web/src/next/engine/mock-sailings.ts`, and the memoised engine forwards them. Methods and
+validation: `docs/NAVIGATION_METHODS.md` sections 9–13. Every request is a JSON document;
+malformed input throws a string naming the field. Angles in degrees, distances in nautical
+miles (with kilometres beside the main ones), times as `jd_utc` and RFC 3339 `utc`.
+
+| export | TypeScript | takes | returns |
+|---|---|---|---|
+| `sailing(request_json)` | `sailing(request)` | `PassageRequest` | `PassageReport` |
+| `dr_advance(request_json)` | `drAdvance(request)` | `DrRequest` | `DrReport` |
+| `route_positions(request_json)` | `routePositions(request)` | `RouteRequest` | `RouteReport` |
+| `star_identify(request_json)` | `starIdentify(request)` | `StarIdRequest` | `StarIdResult` |
+| `star_finder_geometry(lat_band, jd_utc?)` | `starFinderGeometry(latBand, jdUtc?)` | a latitude (snapped to its template band), an optional date | `StarFinderGeometry` |
+
+### `sailing(request_json) -> PassageReport`
+
+```json
+{"from": {"lat_deg": 36.9617, "lon_deg": -75.7033}, "to": {"lat_deg": 45.6517, "lon_deg": -1.4967},
+ "waypoints": {"every_deg_lon": 10}, "limiting_latitude_deg": 47,
+ "meridional_parts": "sphere", "speed_kn": 12, "departure_utc": "2026-10-01T12:00:00Z"}
+```
+
+Only `from` and `to` are required. `waypoints` is `{"every_nm": N}` or
+`{"every_deg_lon": M}` (at most 2000); `limiting_latitude_deg` asks for composite sailing
+(north positive); `meridional_parts` is `"sphere"` (default) or `"wgs84"` (Bowditch's
+Table 6, for the rhumb line only); `speed_kn` (0 to 1000) gives hours under way, and with
+`departure_utc` ETAs. The answer (abbreviated):
+
+```json
+{"from": {...}, "to": {...},
+ "great_circle": {"distance_nm": 3264.54, "distance_km": 6045.92, "distance_deg": 54.409,
+   "initial_course_deg": 55.807, "final_course_deg": 109.003,
+   "vertex": {"lat_deg": 48.6297, "lon_deg": -27.2117, "distance_from_start_nm": 2205.18, "on_route": true},
+   "highest_latitude_deg": 48.6297, "equator_crossing": null,
+   "waypoints": [{"index": 0, "lat_deg": 36.9617, "lon_deg": -75.7033, "distance_from_start_nm": 0.0,
+                  "track_course_deg": 55.807, "leg_course_deg": 57.549, "leg_distance_nm": 317.81,
+                  "sailed_nm": 0.0, "eta_utc": "2026-10-01T12:00:00.000Z", "eta_jd_utc": 2461315.0},
+                 {"index": 1, "lat_deg": 39.8038, "lon_deg": -70.0, "...": "..."}, "...",
+                 {"index": 8, "...": "...", "leg_course_deg": null, "leg_distance_nm": null}],
+   "waypoint_route_nm": 3266.47, "track": [{"lat_deg": ..., "lon_deg": ...}, "..."],
+   "arrival": {"hours": 272.206, "utc": "2026-10-12T20:12:21.898Z", "jd_utc": 2461326.3419}},
+ "rhumb_line": {"course_deg": 81.118, "distance_nm": 3376.90, "distance_km": 6254.02,
+   "dlat_arcmin": 521.4, "dlo_arcmin": 4452.396, "departure_nm": 3336.41,
+   "meridional_difference_arcmin": 695.80, "meridional_parts": "sphere", "track": [...], "arrival": {...}},
+ "mid_latitude": {"course_deg": 81.139, "distance_nm": 3384.98, "mean_latitude_deg": 41.3067,
+   "dlat_arcmin": 521.4, "dlo_arcmin": 4452.396, "departure_nm": 3344.58, "arrival": {...}},
+ "composite": {"limiting_latitude_deg": 47.0, "applies": true, "distance_nm": 3271.27,
+   "distance_km": 6058.39, "extra_distance_nm": 6.73,
+   "legs": [{"kind": "great_circle", "from": {...}, "to": {"lat_deg": 47.0, "lon_deg": -30.2688},
+             "distance_nm": 2081.98, "initial_course_deg": 58.597, "final_course_deg": 90.0},
+            {"kind": "parallel", "...": "...", "distance_nm": 463.25},
+            {"kind": "great_circle", "...": "...", "distance_nm": 726.04}],
+   "waypoints": [...], "waypoint_route_nm": 3272.87, "track": [...], "arrival": {...},
+   "note": "the great circle would reach 48.6297°; the composite track follows ..."},
+ "great_circle_saving_nm": 112.37, "speed_kn": 12.0, "departure_utc": "2026-10-01T12:00:00.000Z",
+ "notes": ["Distances are on the sphere of 1′ = 1 NM. On the WGS84 ellipsoid ... at most 0.52 % ...",
+           "Steering the rhumb lines between the waypoints sails 3266.5 NM, 1.9 NM more than ..."]}
+```
+
+- `great_circle.vertex` is Bowditch's vertex (the departure's hemisphere; the one ahead
+  for a departure on the equator), `null` for a track along the equator;
+  `distance_from_start_nm` is negative when it lies behind the departure.
+- Each waypoint carries the rhumb line to the next (`leg_course_deg`, `leg_distance_nm`,
+  `null` at the destination) and `sailed_nm`, the sum of those legs to it; ETAs are along
+  them. `waypoints` is empty when none were asked for (then `waypoint_route_nm` is the
+  great circle's own length).
+- `track` arrays are for drawing, at most 60 NM apart.
+- `mid_latitude` is `null` across the equator; `composite` is `null` unless a limit was
+  given, and `applies: false` (with the great circle as its one leg) when the great circle
+  stays within the limit. An end beyond the limit, antipodal ends, a rhumb line through a
+  pole and a spacing that is not positive throw.
+
+### `dr_advance(request_json) -> DrReport`
+
+```json
+{"from": {"lat_deg": 44.605, "lon_deg": -31.305}, "course_deg": 270, "speed_kn": 17, "hours": 4.5,
+ "method": "rhumb", "meridional_parts": "sphere", "start_utc": "2026-10-01T15:30:00Z"}
+```
+
+`method` is `"rhumb"` (default), `"mid_latitude"` or `"great_circle"` (the running fix's
+leg model); negative `hours` give where the vessel was. Returns
+
+```json
+{"from": {...}, "to": {"lat_deg": 44.605, "lon_deg": -33.095819}, "course_deg": 270.0,
+ "speed_kn": 17.0, "hours": 4.5, "distance_nm": 76.5, "method": "rhumb", "meridional_parts": "sphere",
+ "final_course_deg": 270.0, "arrival_utc": "2026-10-01T20:00:00.000Z", "arrival_jd_utc": 2461315.3333}
+```
+
+(`final_course_deg` is the direction of travel on arrival: the course itself, except on a
+great-circle leg, where it turns.)
+
+### `route_positions(request_json) -> RouteReport`
+
+```json
+{"start": {"lat_deg": 40.0, "lon_deg": -70.0}, "start_utc": "2026-10-01T00:00:00Z",
+ "legs": [{"course_deg": 90, "speed_kn": 10},
+          {"start_utc": "2026-10-01T03:00:00Z", "course_deg": 0, "speed_kn": 10}],
+ "end_utc": "2026-10-01T06:00:00Z", "method": "rhumb",
+ "times_utc": ["2026-10-01T02:00:00Z", "2026-10-01T07:00:00Z"], "step_minutes": null}
+```
+
+The legs are the running fix's `RunningFixLeg` shape, so `request.legs` can be passed to
+`running_fix` as they are. The first leg's `start_utc` may be omitted (it starts with the
+route); later legs need one, in increasing order. `step_minutes` adds a position every so
+many minutes from the start to `end_utc` (required then); at most 20 000 positions.
+Returns
+
+```json
+{"method": "rhumb", "meridional_parts": "sphere",
+ "legs": [{"index": 0, "start_utc": "2026-10-01T00:00:00.000Z", "start_jd_utc": 2461314.5,
+           "end_utc": "2026-10-01T03:00:00.000Z", "end_jd_utc": 2461314.625,
+           "from": {"lat_deg": 40.0, "lon_deg": -70.0}, "to": {"lat_deg": 40.0, "lon_deg": -69.347296},
+           "course_deg": 90.0, "speed_kn": 10.0, "distance_nm": 30.0}, {...}],
+ "points": [{"utc": "2026-10-01T02:00:00.000Z", "jd_utc": 2461314.5833, "lat_deg": 40.0,
+             "lon_deg": -69.564864, "leg": 0, "status": "under_way", "distance_run_nm": 20.0},
+            {"utc": "2026-10-01T07:00:00.000Z", "...": "...", "leg": null, "status": "after_end",
+             "distance_run_nm": 60.0}],
+ "made_good": {"course_deg": 44.894, "distance_nm": 42.348, "hours": 7.0, "speed_kn": 6.05},
+ "notes": ["Some instants are after the route's end: the vessel is taken to have stopped there."]}
+```
+
+`status` is `under_way`, `waiting` (at the start before a later first leg), `before_start`
+(the start position is reported, not extrapolated) or `after_end`. A leg with no end (the
+last, when the route has none) has `end_utc`, `to` and `distance_nm` `null`.
+
+### `star_identify(request_json) -> StarIdResult`
+
+```json
+{"utc": "2026-10-01T00:30:00Z",
+ "observer": {"lat_deg": 39.95, "lon_deg": -75.17, "height_of_eye_m": 2.5},
+ "instrument": {"index_correction_arcmin": -1.2},
+ "altitude_deg": 72.59, "altitude_kind": "sextant_hs",
+ "bearing_deg": 286, "bearing_kind": "compass", "variation_deg": -12.5, "deviation_deg": 0,
+ "altitude_tolerance_deg": 2, "bearing_tolerance_deg": 5}
+```
+
+`observer` and `instrument` are the `predict_sextant` shapes (the instrument's
+`index_error_log` and `horizon`, a shore horizon included, apply). `altitude_kind` is
+`sextant_hs` (default), `apparent_ha` or `observed_ho` (corrected as for a star);
+`bearing_kind` is `true` (default), `magnetic` (the variation is added) or `compass` (the
+deviation and the variation). The tolerances default to 2° and 5°. Returns
+
+```json
+{"utc": "2026-10-01T00:30:00.000Z", "jd_utc": 2461314.5208,
+ "observed_altitude_deg": 72.5184, "observed_bearing_deg": 273.5,
+ "corrections": {"input_kind": "sextant_hs", "input_deg": 72.59, "steps": [...], "ho_deg": 72.5184, ...},
+ "altitude_tolerance_deg": 2.0, "bearing_tolerance_deg": 5.0,
+ "sun_altitude_deg": -20.91, "sky": "night", "limiting_magnitude": 4.5,
+ "candidates": [{"rank": 1, "body": "Vega", "kind": "star", "navigational": true,
+                 "altitude_deg": 72.5162, "azimuth_deg": 273.566, "delta_altitude_deg": 0.0023,
+                 "delta_bearing_deg": -0.066, "separation_deg": 0.020, "score": 0.0100,
+                 "within_tolerance": true, "magnitude": 0.03, "bright_enough": true},
+                {"rank": 2, "body": "Eltanin", "...": "...", "within_tolerance": false}, "..."],
+ "best": "Vega", "ambiguous": false,
+ "message": "Vega (1.2′ away: the sight is 0.1′ higher and its bearing 4.0′ less).",
+ "source": "skyfix-sky (Sun, Moon, planets, stars)", "warnings": [], "notes": ["Brightness: ..."]}
+```
+
+`candidates` lists every body within the tolerances, best first, then (when fewer than
+three match) the nearest others with `within_tolerance: false`; `best` is `null` when
+nothing matches and `message` then names the nearest. `altitude_deg` is the body's airless
+topocentric altitude at the DR (the Moon's parallax removed); `delta_*` are observed minus
+the body's. The candidates are the 58 stars, Mercury to Saturn and the Moon; `kind` is
+`star`, `planet` or `moon`. `sky` is the CONVENTIONS 13.4 phase at the DR. Outside the
+ephemeris coverage the call throws the provider's sentence.
+
+### `star_finder_geometry(lat_band, jd_utc?) -> StarFinderGeometry`
+
+`lat_band` is any latitude (degrees, south negative); it picks the template of its 10°
+band (5° to 85°, signed; 0 counts as north). `jd_utc`, when given, plots apparent places
+of that date; otherwise the J2000.0 catalogue places. Every point is on the unit disc,
+`x` right, `y` up, the base seen from outside the celestial sphere (about 100 kB).
+
+```json
+{"requested_latitude_deg": 39.95, "template_latitude_deg": 35.0, "side": "north",
+ "rotation_sign": 1.0, "equator_radius": 0.5, "epoch": "J2000.0 catalogue place",
+ "stars": [{"name": "Acamar", "sha_deg": 315.4347, "dec_deg": -40.3047, "magnitude": 2.88,
+            "north": [0.515754, 0.507987], "south": [0.196697, -0.193735]}, "..."],
+ "aries_index": [{"lha_aries_deg": 0.0, "north": [1.0, 0.0], "south": [1.0, -0.0], "kind": "label"},
+                 {"lha_aries_deg": 1.0, "north": [0.999848, 0.017452], "south": [0.999848, -0.017452],
+                  "kind": "minor"}, "..."],
+ "template": {"latitude_deg": 35.0, "side": "north", "zenith": [0.305556, 0.0],
+              "horizon": [[x, y], ...],
+              "altitude_circles": [{"value_deg": 5.0, "points": [[x, y], ...]}, "... every 5° to 85°"],
+              "azimuth_lines": [{"value_deg": 0.0, "points": [[x, y], ...]}, "... every 10°"]},
+ "notes": ["Azimuthal equidistant projection centred on the celestial pole ...", "..."]}
+```
+
+To set the finder: draw the base side `side` (the stars' `north` or `south` points and
+the `aries_index`), then draw the template rotated anticlockwise by
+`rotation_sign × LHA ♈` degrees about the centre; the template's arrow is its `+x` axis
+through `zenith`. The 58 stars are the 57 and Polaris. Template circles are closed (73
+points, every 5° of azimuth); azimuth lines run from the horizon to the zenith (37
+points). `kind` of an index graduation is `label` every 10°, `major` every 5°, `minor`
+every degree.
+
+### Session and reduction additions (additive; older files load unchanged)
+
+- **Shore horizon.** `instrument.horizon` and an observation's `horizon` may be
+  `{"shore": {"distance_nm": 1.2}}` besides the three strings (TypeScript `ShoreHorizon`;
+  `HorizonName` and `horizonName()` give its kind as a string). CSV cells write it
+  `shore:1.2`. The distance must be positive.
+- **Error logs.** `instrument.index_error_log: [{"utc", "ic_arcmin", "note"}]` and
+  `clock.watch_log: [{"utc", "correction_s", "note"}]`, absent when empty (so older
+  outputs are byte-identical). In CSV each rides in the header block as one JSON array
+  (`# instrument.index_error_log=[...]` in the Rust dialect).
+- **Reduced sight.** `ReducedSight` gains `index_correction_from_log` and
+  `clock_correction_from_log` when a log was used:
+  `{"value", "method": "interpolated"|"at_entry"|"only_entry"|"held_before_first"|"held_after_last", "from": {"utc", "value"}|null, "to": {...}|null, "hours_outside", "note"}`;
+  absent otherwise.
+- **Warnings** (appended to `Warning`): `shore_beyond_sea_horizon {id, distance_nm,
+  sea_horizon_nm}` (a note: the sea dip was used) and `error_log_outside_span {id, log,
+  held_value, hours_outside}` (a caution: a logged value was held, not extrapolated).
+- `SightHorizon` (the `predict_sextant` and `plan_sights` instrument's horizon) is now the
+  session's `HorizonMode`, a shore horizon included.
