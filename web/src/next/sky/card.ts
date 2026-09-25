@@ -115,7 +115,12 @@ export function infoCard(onAction: (id: string, content: CardContent) => void, o
             ),
           )
         : null,
-      c.source ? h('p', { class: 'sky-card__source' }, c.source) : null,
+      // The source: one short line; a long catalogue description folds away.
+      c.source
+        ? c.source.length <= 60
+          ? h('p', { class: 'sky-card__source' }, c.source)
+          : h('details', { class: 'sky-card__source' }, h('summary', {}, 'Source'), h('p', {}, c.source))
+        : null,
     ];
     el.replaceChildren(...parts.filter((p): p is Node => p !== null));
   };

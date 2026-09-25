@@ -89,12 +89,15 @@ export const MIN_SYMBOL_R = 4.2;
 
 /**
  * How much fainter than the zenith's naked-eye limit a deep-sky object may be and still
- * be drawn, for a scale of `pxPerDeg` CSS pixels per degree: 1.5 magnitudes on a
- * whole-sky chart of a laptop screen (binocular objects), up to 4 zoomed in.
+ * be drawn, for a scale of `pxPerDeg` CSS pixels per degree (near the middle of the view):
+ * 1.5 magnitudes on a whole-sky chart of a laptop screen (3.4 px a degree: binocular
+ * objects), 1.6 more each time the scale doubles, up to 4 zoomed in; on a phone's
+ * whole-sky chart (about 1 px a degree) a magnitude brighter than the naked eye's limit,
+ * so only the showpieces are drawn.
  */
 export function dsoReach(pxPerDeg: number): number {
-  const r = 1.5 + 1.6 * Math.log2(Math.max(1, pxPerDeg / 5));
-  return Math.min(4, Math.max(1, r));
+  const r = 1.5 + 1.6 * Math.log2(Math.max(0.05, pxPerDeg) / 3.4);
+  return Math.min(4, Math.max(-1, r));
 }
 
 export class DeepSkyField {

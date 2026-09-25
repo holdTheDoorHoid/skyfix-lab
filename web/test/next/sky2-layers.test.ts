@@ -248,10 +248,11 @@ describe('deep-sky objects (deepsky.ts)', () => {
   });
 
   it('reaches fainter as the chart zooms in, within bounds', () => {
-    expect(dsoReach(1)).toBe(1.5);
-    expect(dsoReach(10)).toBeCloseTo(3.1, 6);
+    expect(dsoReach(3.4)).toBeCloseTo(1.5, 9); // a laptop's whole-sky chart
+    expect(dsoReach(6.8)).toBeCloseTo(3.1, 9);
+    expect(dsoReach(1)).toBe(-1); // a phone's whole-sky chart: the showpieces only
     expect(dsoReach(100)).toBe(4);
-    for (let px = 1; px < 60; px += 1) expect(dsoReach(px + 1)).toBeGreaterThanOrEqual(dsoReach(px));
+    for (let px = 0.5; px < 60; px += 0.5) expect(dsoReach(px + 0.5)).toBeGreaterThanOrEqual(dsoReach(px));
   });
 
   it('places the catalogue by the engine, cuts it by magnitude, and hit-tests the small over the large', () => {

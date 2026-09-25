@@ -310,6 +310,15 @@
   font-size: var(--text-2xs);
 }
 
+.sky-card__source summary {
+  cursor: pointer;
+  width: max-content;
+}
+
+.sky-card__source p {
+  margin: 4px 0 0;
+}
+
 /* The close-up: bottom right of the stage. */
 .sky-upclose {
   position: absolute;
