@@ -23,6 +23,16 @@
 //!   additive corrections to the secular parts of W1, W2 and W3 fitted by this project
 //!   to DE441 and DE440 ([`ElpModel`]).
 //!
+//! The encoding is compact for the module's download budget (schema
+//! `skyfix.series/2`): each body's VSOP87 frequencies are stored once and referenced by
+//! a 16-bit index; amplitudes are f32 below 3e-3 au and phases a 32-bit fraction of a
+//! turn, and under 2e-6 au a term takes a 16-bit amplitude (fixed point on its group's
+//! scale) and a 16-bit phase; the lunar main-problem amplitudes are f32 below 100, the
+//! perturbations f32 pairs or, under 0.05, 16-bit amplitude and phase; the correction
+//! coefficients are f32. The generator quantises before it fits the corrections and
+//! computes the checkpoints, so both describe exactly these numbers. The checkpoints themselves are not embedded:
+//! they are `../data/series_checks.json`, which the tests read ([`self_check`]).
+//!
 //! Hot path: the decoded set lives in a `OnceLock`; after the first call every
 //! evaluation reads plain `Vec`s with no lock and no allocation.
 
@@ -35,7 +45,7 @@ use crate::pack::{Reader, Sections, parse_container};
 
 const SERIES_BIN: &[u8] = include_bytes!("../data/series.bin");
 /// The payload schema this build reads (META `schema`).
-pub const SERIES_SCHEMA: &str = "skyfix.series/1";
+pub const SERIES_SCHEMA: &str = "skyfix.series/2";
 
 const ARCSEC: f64 = std::f64::consts::PI / 648_000.0;
 const TAU: f64 = std::f64::consts::TAU;
@@ -196,6 +206,12 @@ fn read_vsop(bytes: &[u8]) -> Result<Vec<VsopBody>, String> {
                 "VSOP section: body index {idx} is wrong or repeated"
             ));
         }
+        // The body's frequency dictionary: every record names its C by index.
+        let n_freq = usize::from(r.u16()?);
+        let mut freq = Vec::with_capacity(n_freq);
+        for _ in 0..n_freq {
+            freq.push(r.f64()?);
+        }
         let mut coords = Vec::with_capacity(3);
         for _ in 0..3 {
             let n_powers = usize::from(r.u8()?);
@@ -205,25 +221,33 @@ fn read_vsop(bytes: &[u8]) -> Result<Vec<VsopBody>, String> {
             let mut terms = Vec::new();
             let mut groups = Vec::with_capacity(n_powers);
             for _ in 0..n_powers {
-                let n_total = r.count(16)?;
+                let n_total = r.count(6)?;
                 let n_valid = r.u32()? as usize;
                 let n_wide = r.u32()? as usize;
-                if n_valid > n_total || n_wide > n_total {
+                let n_fine = r.u32()? as usize;
+                let coarse_scale = r.f64()?;
+                if n_valid > n_total || n_wide > n_fine || n_fine > n_total {
                     return Err(format!(
-                        "VSOP section: {} of {n_total} validated, {n_wide} wide",
-                        n_valid
+                        "VSOP section: {n_valid} of {n_total} validated, {n_wide} wide, \
+                         {n_fine} fine"
                     ));
                 }
                 let start = terms.len();
                 for i in 0..n_total {
-                    let term = if i < n_wide {
-                        [r.f64()?, r.f64()?, r.f64()?]
-                    } else {
+                    let (a, b) = if i < n_wide {
+                        (r.f64()?, r.f64()?)
+                    } else if i < n_fine {
                         let a = f64::from(r.f32()?);
-                        let b = f64::from(r.u32()?) / 4_294_967_296.0 * 2.0 * std::f64::consts::PI;
-                        [a, b, r.f64()?]
+                        (a, f64::from(r.u32()?) / 4_294_967_296.0 * TAU)
+                    } else {
+                        let a = f64::from(r.u16()?) * coarse_scale;
+                        (a, f64::from(r.u16()?) / 65_536.0 * TAU)
                     };
-                    terms.push(term);
+                    let k = usize::from(r.u16()?);
+                    let c = *freq
+                        .get(k)
+                        .ok_or_else(|| format!("VSOP section: frequency index {k} of {n_freq}"))?;
+                    terms.push([a, b, c]);
                 }
                 groups.push(Group {
                     start,
@@ -419,7 +443,7 @@ fn read_corrections(bytes: &[u8]) -> Result<Corrections, String> {
                     ));
                 }
                 for _ in 0..m {
-                    c.push(r.f64()?);
+                    c.push(f64::from(r.f32()?));
                 }
             }
             fits.push(CorrectionFit { spec, coef });
@@ -701,11 +725,20 @@ fn read_elp(k_bytes: &[u8], s_bytes: &[u8]) -> Result<ElpModel, String> {
         let kind = r.u8()?;
         let coord = usize::from(r.u8()?);
         let power = usize::from(r.u8()?);
-        let n_total = r.count(12)?;
+        let n_total = r.count(8)?;
         let n_valid = r.u32()? as usize;
-        if coord > 2 || kind > 1 || (kind == 0 && power != 0) || power > 3 || n_valid > n_total {
+        let n_wide = r.u32()? as usize;
+        let coarse_scale = r.f64()?;
+        if coord > 2
+            || kind > 1
+            || (kind == 0 && power != 0)
+            || power > 3
+            || n_valid > n_total
+            || n_wide > n_total
+        {
             return Err(format!(
-                "ELPS section: bad group (kind {kind}, coordinate {coord}, power {power}, {n_valid} of {n_total})"
+                "ELPS section: bad group (kind {kind}, coordinate {coord}, power {power}, \
+                 {n_valid} of {n_total}, {n_wide} wide)"
             ));
         }
         let slot = if kind == 0 { 0 } else { power + 1 };
@@ -716,7 +749,7 @@ fn read_elp(k_bytes: &[u8], s_bytes: &[u8]) -> Result<ElpModel, String> {
         if kind == 0 {
             let g = &mut main[coord];
             g.n_valid = n_valid;
-            for _ in 0..n_total {
+            for i in 0..n_total {
                 let mut mult = [0i8; 4];
                 for m in mult.iter_mut() {
                     *m = r.i8()?;
@@ -724,26 +757,33 @@ fn read_elp(k_bytes: &[u8], s_bytes: &[u8]) -> Result<ElpModel, String> {
                         return Err(format!("ELPS section: multiplier {m} in the main problem"));
                     }
                 }
-                g.terms.push(MainTerm {
-                    mult,
-                    amp: r.f64()?,
-                });
+                let amp = if i < n_wide {
+                    r.f64()?
+                } else {
+                    f64::from(r.f32()?)
+                };
+                g.terms.push(MainTerm { mult, amp });
             }
         } else {
             let g = &mut pert[coord][power];
             g.n_valid = n_valid;
-            for _ in 0..n_total {
+            for i in 0..n_total {
                 let mut mult = [0i8; 13];
                 for m in mult.iter_mut() {
                     *m = r.i8()?;
                 }
-                let s = f64::from(r.f32()?);
-                let c = f64::from(r.f32()?);
-                let amp = (c * c + s * s).sqrt();
-                let mut pha = c.atan2(s);
-                if pha < 0.0 {
-                    pha += TAU;
-                }
+                let (amp, pha) = if i < n_wide {
+                    let s = f64::from(r.f32()?);
+                    let c = f64::from(r.f32()?);
+                    let mut pha = c.atan2(s);
+                    if pha < 0.0 {
+                        pha += TAU;
+                    }
+                    ((c * c + s * s).sqrt(), pha)
+                } else {
+                    let amp = f64::from(r.u16()?) * coarse_scale;
+                    (amp, f64::from(r.u16()?) / 65_536.0 * TAU)
+                };
                 // READFILE: the argument polynomial from the Delaunay arguments, the
                 // planetary mean longitudes (linear) and zeta.
                 let mut fk = [0.0f64; 5];
@@ -789,11 +829,19 @@ pub struct Meta {
     #[serde(default)]
     pub generated_utc: String,
     #[serde(default)]
-    pub checkpoints: Vec<Checkpoint>,
-    #[serde(default)]
     pub vsop87a: serde_json::Value,
     #[serde(default)]
     pub elpmpp02: serde_json::Value,
+}
+
+/// `../data/series_checks.json`: what the generator computed from the stored numbers,
+/// kept out of the shipped bytes.
+#[derive(Debug, Clone, Deserialize)]
+pub struct Checks {
+    pub schema: String,
+    /// CRC-32 of the payload the checks were computed for, lower-case hex.
+    pub series_crc32: String,
+    pub checkpoints: Vec<Checkpoint>,
     #[serde(default)]
     pub measured: serde_json::Value,
 }
@@ -893,13 +941,22 @@ pub struct SelfCheck {
 }
 
 /// Re-evaluate the embedded series at the checkpoints the generator computed from the
-/// same stored numbers. Differences are arithmetic only (summation order, and the
-/// rounding of arguments that reach millions of radians far from J2000): about 2e-14
-/// au and 1e-6 arcsec. Anything larger means the file or the decoder is wrong.
-pub fn self_check() -> Result<SelfCheck, EphemerisError> {
+/// same stored numbers (`checks_json`, the text of `data/series_checks.json`, which
+/// must name this file's checksum). Differences are arithmetic only (summation order,
+/// and the rounding of arguments that reach millions of radians far from J2000): about
+/// 2e-14 au and 1e-6 arcsec. Anything larger means the file or the decoder is wrong.
+pub fn self_check(checks_json: &str) -> Result<SelfCheck, EphemerisError> {
     let s = series()?;
+    let checks: Checks = serde_json::from_str(checks_json)
+        .map_err(|e| EphemerisError::Data(format!("series checks: {e}")))?;
+    if checks.schema != SERIES_SCHEMA || checks.series_crc32 != format!("{:08x}", s.crc32) {
+        return Err(EphemerisError::Data(format!(
+            "series checks are for {} {}, the embedded file is {SERIES_SCHEMA} {:08x}",
+            checks.schema, checks.series_crc32, s.crc32
+        )));
+    }
     let mut out = SelfCheck::default();
-    for c in &s.meta.checkpoints {
+    for c in &checks.checkpoints {
         let full = c.tier == "labelled";
         match c.kind.as_str() {
             "vsop" => {
@@ -944,11 +1001,14 @@ fn dist(a: [f64; 3], b: [f64; 3]) -> f64 {
 mod tests {
     use super::*;
 
+    /// The generator's checkpoints: test data, not embedded in the library.
+    const CHECKS: &str = include_str!("../data/series_checks.json");
+
     #[test]
     fn the_embedded_file_decodes_and_matches_its_checkpoints() {
         let s = series().expect("embedded series must decode");
         assert_eq!(s.meta.schema, SERIES_SCHEMA);
-        let c = self_check().unwrap();
+        let c = self_check(CHECKS).unwrap();
         assert!(c.checkpoints >= 16, "{c:?}");
         assert!(c.vsop_au < 1e-12, "{c:?}");
         assert!(c.corrected_au < 1e-12, "{c:?}");

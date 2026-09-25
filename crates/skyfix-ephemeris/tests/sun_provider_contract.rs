@@ -157,10 +157,13 @@ fn dut1_shifts_gha_only() {
 }
 
 /// The embedded series (the Sun's Earth is VSOP87A's, shared with the planets) still
-/// reproduces the checkpoints the generator computed from the same stored numbers.
+/// reproduces the checkpoints the generator computed from the same stored numbers
+/// (`data/series_checks.json`, test data kept out of the shipped bytes).
 #[test]
 fn embedded_series_still_matches_its_checkpoints() {
-    let c = skyfix_ephemeris::series::self_check().unwrap();
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("data/series_checks.json");
+    let checks = std::fs::read_to_string(&path).unwrap();
+    let c = skyfix_ephemeris::series::self_check(&checks).unwrap();
     assert!(c.checkpoints > 0);
     assert!(c.vsop_au < 1e-12 && c.corrected_au < 1e-12, "{c:?}");
 }

@@ -33,9 +33,19 @@ choice are in docs/ACCURACY.md, "Historical accuracy"):
   group as for VSOP87.
 
 The file uses the pack container of EXPLORER_API "Packs" (magic SKYFIXPK, format 1,
-name "series", CRC-32 of the payload); the payload layout is documented in
-EXPLORER_API "Series payload (deeptime agent)" and parsed by
-crates/skyfix-ephemeris/src/pack.rs.
+name "series", CRC-32 of the payload); the payload layout (schema skyfix.series/2) is
+documented in EXPLORER_API "Series payload (deeptime agent)" and parsed by
+crates/skyfix-ephemeris/src/series.rs. It is compact on purpose (the module's download
+budget): each body's VSOP87 frequencies are stored once and referenced by a 16-bit
+index; amplitudes are f32 below 3e-3 au (f64 above) and phases a 32-bit fraction of a
+turn, and a term under 2e-6 au takes a 16-bit amplitude (fixed point on its group's
+scale) and a 16-bit phase; the lunar main-problem amplitudes are f32 below 100 (arcsec or
+km), the perturbation terms f32 pairs, or 16-bit amplitude and phase under 0.05; the
+correction coefficients are f32. Everything is quantised before the corrections are
+fitted and the checkpoints computed, so both describe exactly the stored numbers.
+
+The checkpoints the Rust tests re-evaluate and the generator's own measurements go to
+crates/skyfix-ephemeris/data/series_checks.json, which is not embedded.
 """
 
 from __future__ import annotations
@@ -57,7 +67,8 @@ from . import vsop87 as V
 
 ARC = math.pi / 648000.0
 OUT = os.path.join(c.REPO, "crates", "skyfix-ephemeris", "data", "series.bin")
-SCHEMA = "skyfix.series/1"
+CHECKS_OUT = os.path.join(c.REPO, "crates", "skyfix-ephemeris", "data", "series_checks.json")
+SCHEMA = "skyfix.series/2"
 PACK_NAME = "series"
 
 #: Validated tier (DE440's span, CONVENTIONS 15.1) and labelled tier, in the app's
@@ -262,7 +273,8 @@ def fit_corrections(series, keep, ref, jd, spec, kernel=None):
         coef = {}
         for k, v in y.items():
             x, *_ = np.linalg.lstsq(A / scale, v, rcond=None)
-            coef[k] = x / scale
+            # Stored as f32: round here so the checkpoints and measurements use them.
+            coef[k] = (x / scale).astype(np.float32).astype(np.float64)
         out[name] = coef
     return out
 
@@ -453,9 +465,37 @@ def u32_turns_to_rad(v):
     return v / 4294967296.0 * 2.0 * math.pi
 
 
-#: A VSOP term's amplitude is stored as f64 ("wide" record, 24 B) when |A| tabs^n
-#: exceeds this (au): the f32 rounding of anything smaller is under 1e-10 au.
+def turns_u16(b):
+    """Phase B (rad) as a fraction of a turn in 16 bits (resolution 9.6e-5 rad)."""
+    f = (b / (2.0 * math.pi)) % 1.0
+    return int(round(f * 65536.0)) % 65536
+
+
+def u16_turns_to_rad(v):
+    return v / 65536.0 * 2.0 * math.pi
+
+
+#: A VSOP term's amplitude and phase are stored as f64 ("wide" record, 18 B) when
+#: |A| tabs^n exceeds this (au): the f32 rounding of anything smaller is under 1e-10 au.
 WIDE_AU = 3.0e-3
+#: Below this |A| tabs^n (au) a term is "coarse" (6 B): its amplitude is a 16-bit
+#: fixed-point fraction of its group's largest coarse amplitude (rounding under 1.6e-11
+#: au) and its phase 16 bits of a turn (rounding at most 4.8e-5 rad, under 1e-10 au).
+#: Between the two the amplitude is f32 and the phase 32 bits ("fine", 10 B).
+COARSE_AU = 2.0e-6
+#: Lunar main-problem amplitudes below this (arcsec, or km for the distance) are f32:
+#: the rounding is under 6e-6 of either.
+ELP_WIDE_AMP = 100.0
+#: Lunar perturbation terms with |A| tau^n below this (arcsec or km) are coarse: a
+#: 16-bit amplitude on the group's scale and a 16-bit phase (errors under 3e-6).
+ELP_COARSE_AMP = 0.05
+
+
+def fixed_u16(values):
+    """(scale, [q]): non-negative values as q * scale, q in 0..65535."""
+    top = max(values) if len(values) else 0.0
+    scale = top / 65535.0 if top > 0 else 1.0
+    return scale, [int(round(v / scale)) for v in values]
 
 
 def vsop_groups(series, keep_v, keep_l, tabs_l):
@@ -479,7 +519,9 @@ def vsop_groups(series, keep_v, keep_l, tabs_l):
                 chosen = order[:n]
                 wide = np.abs(s.A[chosen]) * tabs_l ** p > WIDE_AU
                 n_wide = int(np.flatnonzero(wide).max() + 1) if wide.any() else 0
-                powers.append((chosen, n_v, n_wide))
+                fine = np.abs(s.A[chosen]) * tabs_l ** p > COARSE_AU
+                n_fine = max(n_wide, int(np.flatnonzero(fine).max() + 1) if fine.any() else 0)
+                powers.append((chosen, n_v, n_wide, n_fine))
             # drop trailing empty powers
             while powers and len(powers[-1][0]) == 0:
                 powers.pop()
@@ -495,14 +537,17 @@ def dequantized(series, groups):
     for name, s in series.items():
         coord, power, A, B, C, valid = [], [], [], [], [], []
         for ci, powers in enumerate(groups[name]):
-            for p, (chosen, n_v, n_wide) in enumerate(powers):
+            for p, (chosen, n_v, n_wide, n_fine) in enumerate(powers):
+                scale, q = fixed_u16([float(s.A[j]) for j in chosen[n_fine:]])
                 for i, j in enumerate(chosen):
                     coord.append(ci)
                     power.append(p)
                     if i < n_wide:
                         A.append(s.A[j]); B.append(s.B[j])
-                    else:
+                    elif i < n_fine:
                         A.append(f32_round(s.A[j])); B.append(u32_turns_to_rad(turns_u32(s.B[j])))
+                    else:
+                        A.append(q[i - n_fine] * scale); B.append(u16_turns_to_rad(turns_u16(s.B[j])))
                     C.append(s.C[j])
                     valid.append(i < n_v)
         out[name] = (V.Terms(coord, power, A, B, C), np.array(valid, bool))
@@ -510,19 +555,30 @@ def dequantized(series, groups):
 
 
 def pack_vsop(series, groups):
+    """Per body: its frequency dictionary (the distinct C of the stored terms, sorted,
+    f64), then per coordinate and power the counts and the records, each naming its
+    frequency by a u16 index."""
     b = bytearray()
     b += struct.pack("<B", len(series))
     for name, s in series.items():
         b += struct.pack("<B", BODY_INDEX[name])
+        used = sorted({float(s.C[j]) for powers in groups[name] for chosen, *_ in powers for j in chosen})
+        assert len(used) < 65536
+        index = {v: k for k, v in enumerate(used)}
+        b += struct.pack("<H", len(used)) + struct.pack("<%dd" % len(used), *used)
         for powers in groups[name]:
             b += struct.pack("<B", len(powers))
-            for chosen, n_v, n_wide in powers:
-                b += struct.pack("<III", len(chosen), n_v, n_wide)
+            for chosen, n_v, n_wide, n_fine in powers:
+                scale, q = fixed_u16([float(s.A[j]) for j in chosen[n_fine:]])
+                b += struct.pack("<IIIId", len(chosen), n_v, n_wide, n_fine, scale)
                 for i, j in enumerate(chosen):
+                    f = index[float(s.C[j])]
                     if i < n_wide:
-                        b += struct.pack("<ddd", s.A[j], s.B[j], s.C[j])
+                        b += struct.pack("<ddH", s.A[j], s.B[j], f)
+                    elif i < n_fine:
+                        b += struct.pack("<fIH", s.A[j], turns_u32(s.B[j]), f)
                     else:
-                        b += struct.pack("<fId", s.A[j], turns_u32(s.B[j]), s.C[j])
+                        b += struct.pack("<HHH", q[i - n_fine], turns_u16(s.B[j]), f)
     return bytes(b)
 
 
@@ -539,7 +595,7 @@ def pack_vcor(coefs, validated_jd):
             for comp in ("lon", "lat", "rad"):
                 v = coefs[tier][name][comp]
                 b += struct.pack("<H", len(v))
-                b += struct.pack("<%dd" % len(v), *v)
+                b += struct.pack("<%df" % len(v), *v)
     return bytes(b)
 
 
@@ -566,19 +622,55 @@ def pack_elp_series(S, keep_v, keep_l, tabs_l):
                 n_v = int(np.flatnonzero(kv).max() + 1) if kv.any() else 0
                 n_l = int(np.flatnonzero(kl).max() + 1) if kl.any() else 0
                 n = max(n_v, n_l)
-                groups.append((kind, iv, p, order[:n], n_v))
+                chosen = order[:n]
+                if kind == 0:
+                    big = np.abs(S.amp[chosen]) >= ELP_WIDE_AMP
+                else:
+                    big = np.abs(S.amp[chosen]) * tabs_l ** p >= ELP_COARSE_AMP
+                n_wide = int(np.flatnonzero(big).max() + 1) if big.any() else 0
+                groups.append((kind, iv, p, chosen, n_v, n_wide))
     b += struct.pack("<H", len(groups))
-    for kind, iv, p, chosen, n_v in groups:
-        b += struct.pack("<BBBII", kind, iv, p, len(chosen), n_v)
-        for j in chosen:
+    for kind, iv, p, chosen, n_v, n_wide in groups:
+        scale = elp_coarse(S, chosen, n_wide)[0] if kind == 1 else 1.0
+        b += struct.pack("<BBBIIId", kind, iv, p, len(chosen), n_v, n_wide, scale)
+        _, q, ph = elp_coarse(S, chosen, n_wide) if kind == 1 else (1.0, [], [])
+        for i, j in enumerate(chosen):
             if kind == 0:
                 mult = [int(x) for x in S.mult[j][:4]]
-                b += struct.pack("<4bd", *mult, S.amp[j])
+                if i < n_wide:
+                    b += struct.pack("<4bd", *mult, S.amp[j])
+                else:
+                    b += struct.pack("<4bf", *mult, S.amp[j])
             else:
                 mult = [int(x) for x in S.mult[j][:13]]
-                s_, c_ = S.raw[j]
-                b += struct.pack("<13bff", *mult, s_, c_)
+                if i < n_wide:
+                    s_, c_ = S.raw[j]
+                    b += struct.pack("<13bff", *mult, s_, c_)
+                else:
+                    b += struct.pack("<13bHH", *mult, q[i - n_wide], ph[i - n_wide])
     return bytes(b), groups
+
+
+def elp_coarse(S, chosen, n_wide):
+    """(scale, [amplitude q], [phase turns u16]) of a perturbation group's coarse tail."""
+    amps, phases = [], []
+    for j in chosen[n_wide:]:
+        s_, c_ = S.raw[j]
+        amps.append(math.hypot(s_, c_))
+        phases.append(turns_u16(S_phase(S, j)))
+    scale, q = fixed_u16(amps)
+    return scale, q, phases
+
+
+def elp_pert_stored(S, coarse, n_wide, i, j):
+    """(amplitude, phase) of perturbation term j exactly as the file stores it;
+    `coarse` is its group's `elp_coarse`."""
+    if i < n_wide:
+        s_, c_ = f32_round(S.raw[j][0]), f32_round(S.raw[j][1])
+        pha = math.atan2(c_, s_)
+        return math.sqrt(s_ * s_ + c_ * c_), pha + 2 * E.CPI if pha < 0.0 else pha
+    scale, q, ph = coarse
+    return q[i - n_wide] * scale, u16_turns_to_rad(ph[i - n_wide])
 
 
 def container(payload):
@@ -610,6 +702,7 @@ def main(argv=None):
                     help="directory of the ELP/MPP02 files (default %(default)s)")
     ap.add_argument("--quick", action="store_true", help="smaller grids (for development)")
     ap.add_argument("--out", default=OUT)
+    ap.add_argument("--checks-out", default=CHECKS_OUT)
     args = ap.parse_args(argv)
     t_start = time.time()
     lab = c.parse_window(args.window)
@@ -675,6 +768,16 @@ def main(argv=None):
     elps_bin, elp_groups = pack_elp_series(S, elp_keep_v, elp_keep_l, tabs_l_cy)
 
     checkpoints = make_checkpoints(deq, coefs, S, fk_corr, elp_groups, M405, val, lab)
+    checks = {
+        "schema": SCHEMA,
+        "about": ("Not embedded. What tools/reference/build_series.py computed from the stored "
+                  "numbers of series.bin (checkpoints, which crates/skyfix-ephemeris re-evaluates "
+                  "in its tests) and its own measurement of the stored model against JPL DE440 "
+                  "and DE441 (geometric directions, per bin)."),
+        "series_crc32": None,
+        "checkpoints": checkpoints,
+        "measured": measured,
+    }
     meta = {
         "schema": SCHEMA,
         "generator": "tools/reference/build_series.py",
@@ -698,6 +801,7 @@ def main(argv=None):
                              "closest_au_validated": closest_v[n], "closest_au_labelled": closest_l[n]}
                          for n in series},
             "wide_record_threshold_au": WIDE_AU,
+            "coarse_phase_threshold_au": COARSE_AU,
         },
         "vsop87a_corrections": {
             "what": ("delta longitude, delta latitude and delta r / r (arcsec units) of the "
@@ -720,9 +824,10 @@ def main(argv=None):
             "terms_validated": int(sum(g[4] for g in elp_groups)),
             "table8_worst_km": worst_t8[0],
             "frame": "note Table 7, JPL405: epsilon 23 26' 21.40960\", phi -0.05028\"",
+            "main_amplitude_f64_from": ELP_WIDE_AMP,
+            "perturbation_coarse_below": ELP_COARSE_AMP,
         },
-        "measured": measured,
-        "checkpoints": checkpoints,
+        "checks": "crates/skyfix-ephemeris/data/series_checks.json (not embedded)",
     }
     meta_bin = json.dumps(meta, sort_keys=True, separators=(",", ":")).encode("utf-8")
     payload = sections([("META", meta_bin), ("VSOP", vsop_bin), ("VCOR", vcor_bin),
@@ -730,6 +835,10 @@ def main(argv=None):
     blob = container(payload)
     with open(args.out, "wb") as f:
         f.write(blob)
+    checks["series_crc32"] = "%08x" % (zlib.crc32(payload) & 0xFFFFFFFF)
+    # Plain json: the checkpoints need every bit (repr floats round-trip exactly).
+    with open(args.checks_out, "w", encoding="utf-8") as f:
+        f.write(json.dumps(checks, indent=1, sort_keys=True) + "\n")
     print("wrote %s: %d B (VSOP %d, VCOR %d, ELPK %d, ELPS %d, META %d); gzip -9 %d B; %.0f s"
           % (os.path.relpath(args.out, c.REPO), len(blob), len(vsop_bin), len(vcor_bin), len(elpk_bin),
              len(elps_bin), len(meta_bin), len(zlib.compress(blob, 9)), time.time() - t_start))
@@ -826,18 +935,15 @@ def make_checkpoints(deq, coefs, S, fk_corr, elp_groups, M405, val, lab):
         # The Moon from exactly the stored ELP terms (dequantised S and C).
         t = np.array([(jd - 2451545.0) / 36525.0])
         tot = np.zeros(3)
-        for kind, iv, p, chosen, n_v in elp_groups:
+        for kind, iv, p, chosen, n_v, n_wide in elp_groups:
             use = chosen[:n_v] if in_band else chosen
-            for j in use:
+            coarse = elp_coarse(S, chosen, n_wide) if kind == 1 else None
+            for i, j in enumerate(use):
                 if kind == 0:
-                    amp = S.amp[j]
+                    amp = S.amp[j] if i < n_wide else f32_round(S.amp[j])
                     f = fk_corr[j]
                 else:
-                    s_, c_ = f32_round(S.raw[j][0]), f32_round(S.raw[j][1])
-                    amp = math.sqrt(s_ * s_ + c_ * c_)
-                    pha = math.atan2(c_, s_)
-                    if pha < 0.0:
-                        pha += 2 * E.CPI
+                    amp, pha = elp_pert_stored(S, coarse, n_wide, i, j)
                     f = fk_corr[j].copy()
                     f[0] = f[0] - S_phase(S, j) + pha
                 arg = f[0] + f[1] * t[0] + f[2] * t[0] ** 2 + f[3] * t[0] ** 3 + f[4] * t[0] ** 4
