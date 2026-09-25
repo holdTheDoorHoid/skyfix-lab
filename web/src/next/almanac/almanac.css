@@ -127,8 +127,9 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Room for the list's arrow, which the browser draws inside the right padding. */
 .almanac select.sf-input {
-  padding-right: var(--space-1, 4px);
+  padding-right: 24px;
 }
 
 .alm-entry {
@@ -259,27 +260,28 @@
 /* The spread and its pages                                                             */
 /* ---------------------------------------------------------------------------------- */
 
+/* The two pages side by side where both fit at their own width (what the view has, not
+   the window: the sidebar takes part of it), one above the other otherwise; on a phone a
+   page scrolls sideways inside itself. */
 .alm-spread {
-  display: grid;
-  grid-template-columns: minmax(0, max-content);
-  gap: var(--space-5, 20px);
+  display: flex;
+  flex-wrap: wrap;
   justify-content: center;
+  align-items: stretch;
+  gap: var(--space-5, 20px);
   margin: 0 auto;
 }
 
-/* Two facing pages where both fit at a readable size (from 10.8 px at 1800 px wide).
-   Screen only, like the narrow layout below: in print the media width is the paper's. */
+.alm-spread > .alm-page {
+  flex: 0 1 auto;
+  max-width: 100%;
+}
+
+/* A slightly smaller face on wide screens, so both pages fit more often. Screen only, like
+   the narrow layout below: in print the media width is the paper's. */
 @media screen and (min-width: 1800px) {
   .almanac {
     --alm-table-size: clamp(10.8px, 0.6vw, 11.6px);
-  }
-
-  /* Equal columns in a fit-content grid: both pages as wide as the wider one. */
-  .alm-spread {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: fit-content;
-    max-width: 100%;
-    align-items: stretch;
   }
 }
 

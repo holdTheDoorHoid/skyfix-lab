@@ -811,14 +811,17 @@ async function main() {
       check('almanac increments: "Print all 30 pages" builds the thirty sheets', all);
       check('almanac increments: the thirty sheets are removed after printing', await waitFor(`document.querySelector('.almanac')?.dataset.printAll === undefined && !document.querySelector('.alm-print-all .alm-page')`, 5000));
 
-      // The screenshots named in the report: the opening's two facing pages side by side, an
-      // increments page, the Moon's corrections; light, and the opening at night.
+      // The screenshots named in the report: the opening's two facing pages side by side (a
+      // 2560-class screen: the pages sit side by side where the view is wide enough for both),
+      // an increments page, the Moon's corrections; light, and the opening at night.
       for (const [theme, name] of [['light', 'light'], ['night', 'night']]) {
-        await viewport(1920, 2100, false);
+        await viewport(2600, 1750, false);
         await open(`${AT}&view=almanac`, { theme });
         await openTab('pages');
         await setMode('opening');
         await sleep(500);
+        const side = await evaluate(`(() => { const [a, b] = document.querySelectorAll('.alm-spread .alm-page'); return !!a && !!b && Math.abs(a.getBoundingClientRect().top - b.getBoundingClientRect().top) < 1; })()`);
+        check(`almanac opening on a 2600 px screen (${name}): the two pages face each other`, side);
         await shot(`almanac-opening-pair-${name}`);
       }
       await viewport(1440, 1500, false);
