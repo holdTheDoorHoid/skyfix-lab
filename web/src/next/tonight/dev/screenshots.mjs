@@ -64,6 +64,8 @@ const SHOTS = {
   'eclipse-2026-08-28': [PHILLY('2026-08-28T02:00:00Z'), DESKTOP, light, [{ until: done }]],
   'year-2200': [PHILLY('2200-09-24T23:30:00Z'), DESKTOP, light, [{ until: done }]],
   print: [PHILLY('2026-09-24T23:30:00Z'), { width: 1100, height: 1500, scale: 1 }, dark, [{ until: done }], 'print'],
+  // The Help menu with About in it (About left the tab strip).
+  help: [PHILLY('2026-09-24T23:30:00Z'), DESKTOP, dark, [{ until: done }, { run: `document.querySelector('button[aria-label="Help and keys"]').click()` }, { wait: 600 }]],
   // The printed sheet itself: Chrome's PDF on Letter and A4 paper (must be one page each).
   sheet: [PHILLY('2026-09-24T23:30:00Z'), DESKTOP, dark, [{ until: done }], 'pdf'],
   'sheet-perseids': [PHILLY('2026-08-13T02:00:00Z'), DESKTOP, light, [{ until: done }], 'pdf'],

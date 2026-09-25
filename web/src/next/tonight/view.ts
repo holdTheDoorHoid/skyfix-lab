@@ -284,6 +284,8 @@ const view: Component = (host, ctx) => {
   let comingMissing: string[] = [];
   let tides: TideCard | null = null;
   let tidePending = false;
+  /** The person pressed Get: the pack service's card asks (a saved pack loads with no question). */
+  let tideAsking = false;
   let manifestAsked = false;
   let tlModel: TimelineModel | null = null;
   let shownKey = '';
@@ -645,7 +647,12 @@ const view: Component = (host, ctx) => {
       return;
     }
     tidesCard.el.hidden = false;
-    if (t.kind === 'loading') return void fill(body, para('Loading the tides pack…', 'sft-p sft-muted'));
+    if (t.kind === 'loading') {
+      const text = tideAsking
+        ? 'Getting the tides pack: the card at the bottom of the view asks before anything is downloaded, and shows its progress.'
+        : 'Loading the tides pack saved on this device…';
+      return void fill(body, para(text, 'sft-p sft-muted'));
+    }
     if (t.kind === 'error') return void fill(body, para(`Tides could not be worked out: ${t.message}`, 'sft-p sft-muted'));
     if (t.kind === 'offer') {
       // The size is the site's list's (asked for once, see `learnPackSize`).
@@ -843,9 +850,11 @@ const view: Component = (host, ctx) => {
 
   const getTides = (declined: boolean): void => {
     tidePending = true;
+    tideAsking = true;
     refreshTides();
     const done = (ok: boolean): void => {
       tidePending = false;
+      tideAsking = false;
       if (!ok) markDeclined(ctx);
       refreshTides();
       tidesCard.body.querySelector<HTMLElement>('button, .sft-time')?.focus();
