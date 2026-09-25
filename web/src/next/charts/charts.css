@@ -1107,7 +1107,8 @@
   text-underline-offset: 2px;
 }
 
-.sfc-link[hidden] {
+.sfc-link[hidden],
+.sfc-controls[hidden] {
   display: none;
 }
 
@@ -1150,6 +1151,10 @@
 .sfc-card[data-computing] .sfc-plot > svg {
   opacity: 0.55;
   transition: opacity var(--dur) var(--ease);
+}
+
+.sfc-readout:empty {
+  display: none;
 }
 
 .sfc-readout--line {

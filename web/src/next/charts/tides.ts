@@ -62,7 +62,7 @@ const PACK_REASON = 'Tide predictions need the US tides data pack.';
 /** Thrown while the tides pack is not loaded. */
 class PackMissingError extends Error {
   constructor() {
-    super('Tide predictions need the US tides data pack (NOAA’s stations), which is not loaded on this device.');
+    super('The tide curve and the tables appear here once the US tides data pack is loaded.');
     this.name = 'PackMissingError';
   }
 }
@@ -90,6 +90,8 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
   const datumSelect = h('select', { class: 'sfc-select', 'aria-label': 'Heights above (datum)' });
   const mapButton = button({ label: 'Show on the map', icon: 'map', size: 'sm', variant: 'ghost', tip: 'Mark the station on the map and go there' });
   const noaaLink = h('a', { class: 'sfc-link', target: '_blank', rel: 'noopener noreferrer' }, 'NOAA’s page ↗');
+  /** The station and datum pickers: shown once there are stations to pick from. */
+  let controls: HTMLElement | null = null;
 
   const inputFor = (state: ExplorerState): TideInput => {
     const zone = displayZone(state);
@@ -164,9 +166,9 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
         map.flyTo({ lat_deg: st.lat_deg, lon_deg: st.lon_deg }, 10);
         ctx.store.patch({ view: 'map' });
       });
-      const controls = h(
+      controls = h(
         'div',
-        { class: 'sfc-controls', role: 'group', 'aria-label': 'Station and datum' },
+        { class: 'sfc-controls', role: 'group', 'aria-label': 'Station and datum', hidden: true },
         h('label', { class: 'sfc-control' }, h('span', {}, 'Station'), stationSelect),
         h('label', { class: 'sfc-control' }, h('span', {}, 'Heights above'), datumSelect),
         mapButton,
@@ -201,6 +203,10 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
       shell.c.subtitle.textContent = `${when} · near ${placeName(st)} · local times, ${zoneLabel(i.day.jd_start + 0.5, i.zone)}`;
       const navLabel = shell.c.nav.querySelector('.sfc-nav-label');
       if (navLabel) navLabel.textContent = i.span === 'day' ? dateShort(i.day.date) : `from ${dateShort(i.day.date)}`;
+      const have = shell.data !== null && shell.failure === null;
+      if (controls) controls.hidden = !have;
+      shell.c.legend.hidden = !have || shell.ui.get().mode === 'table';
+      if (!have) readout.replaceChildren();
       renderPack(shell);
     },
     draw: (shell) => draw(shell),
