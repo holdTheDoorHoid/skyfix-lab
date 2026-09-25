@@ -418,6 +418,9 @@ async function main() {
       const FAR = process.env.FAR_T ?? '-0584-05-28T12:00:00Z';
       for (const view of (process.env.FAR_VIEWS ?? 'sky,tonight,events,map,charts,almanac,navigate,learn').split(',')) {
         await open(`${PLACE}&t=${FAR}&view=${view}`);
+        await sleep(1500);
+        // Every folded tool opened, so each one asks its engine.
+        await evaluate(`document.querySelectorAll('details').forEach((d) => { d.open = true; d.dispatchEvent(new Event('toggle')); }); true`);
         await sleep(2500);
         await shot(`far-${view}`);
         const text = await evaluate(`document.querySelector('.sf-stage')?.innerText ?? document.body.innerText`);
@@ -429,14 +432,18 @@ async function main() {
         // No silent blanks: where an engine answers fewer years, the view says which (the
         // planner's list for 585 BC), and the Now section does not offer sights.
         const all = `${text}\n${panel}\n${notices}`;
-        const says = (what, re) => check(`585 BC, ${view}: ${what}`, re.test(all), JSON.stringify((all.match(re) ?? [''])[0]).slice(0, 160));
-        says('the Now section says sights are offered only in the validated years', /The Sun is up[^]*?Sights are offered only between 1550 and 2650/);
+        const says = (what, re) => check(`${FAR.slice(0, 5)}, ${view}: ${what}`, re.test(all), JSON.stringify((all.match(re) ?? [''])[0]).slice(0, 160));
+        const nowText = await evaluate(`document.querySelector('.sf-now__meaning')?.textContent ?? ''`);
+        check(`${FAR.slice(0, 5)}, ${view}: the Now section says sights are offered only in the validated years`, /Sights are offered only between 1550 and 2650/.test(nowText), JSON.stringify(nowText.slice(0, 200)));
         if (view === 'sky') says('the star field says it is drawn only for 1550 to 2650', /Stars are drawn only for 1550 to 2650/);
         if (view === 'tonight') {
           says('planets, deep sky and showers say their years', /Planets, deep sky and meteor showers: worked out only for 1550 to 2650/);
-          check('585 BC, tonight: the Moon card’s distance is not denied by its note', !/The Moon’s distance: worked out only/.test(all) && /The Moon’s distance from here: worked out only/.test(all), '');
+          check(`${FAR.slice(0, 5)}, tonight: the Moon card’s distance is not denied by its note`, !/The Moon’s distance: worked out only/.test(all) && /The Moon’s distance from here: worked out only/.test(all), '');
         }
         if (view === 'events') says('the eclipse list says the years it covers', /Eclipses are computed for 1990 to 2060/);
+        const whole = await evaluate(`document.body.innerText`);
+        const raw = /jd_utc|\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z|provider|is outside [A-Z]|OutOfCoverage/.exec(whole);
+        check(`${FAR.slice(0, 5)}, ${view}: no engine message as it came (with every folded tool open)`, !raw, raw ? JSON.stringify(whole.slice(Math.max(0, raw.index - 120), raw.index + 120)) : '');
       }
     }
 
