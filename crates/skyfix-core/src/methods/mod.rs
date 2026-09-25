@@ -19,6 +19,8 @@
 //! minutes, meridian passage, and the altitude equation solved for latitude.
 
 pub mod averaging;
+// Compass error by azimuth and amplitude (expansion programme, geomag agent).
+pub mod compass;
 pub mod noon;
 pub mod polaris;
 
