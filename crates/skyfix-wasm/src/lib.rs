@@ -51,6 +51,9 @@ pub mod deepsky;
 // Expansion programme (tides agent): tide predictions from the optional tides-us pack.
 pub mod tides;
 
+// Planet detail (expansion programme P9, planetdetail agent): EXPLORER_API.md "Planet detail".
+pub mod planetdetail;
+
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 

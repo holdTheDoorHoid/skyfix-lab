@@ -14,11 +14,17 @@
  *
  * Everything here is presentation: which instants to ask the engine about, and where to
  * draw what it answered. No astronomy.
+ *
+ * Dates are in the display calendar (time/civil.ts; time-ui agent): the Julian calendar
+ * before 15 October 1582 unless Settings chose ISO, so a year before the reform has its
+ * Julian days and 1582 has 355. No `Date.UTC` (it reads the years 0-99 as 1900-1999).
  */
 
 import { jdFromUnixMs } from '../engine/types.js';
 import { addDays, startOfLocalDay, type DisplayZone, type LocalDate } from '../geo/timezone.js';
 import { jdFromWallClock, msFromJd, wallClock, zoneOffsetMs, type Zone } from '../time.js';
+import { calendarMode, dayOfYear as civilDayOfYear, localMsOfDate, monthLength, yearLength } from '../time/civil.js';
+import { isoDateKey } from '../time/format.js';
 
 export type { LocalDate } from '../geo/timezone.js';
 
@@ -56,13 +62,9 @@ export function zoneKey(zone: Zone): string {
   return zone.kind === 'iana' ? zone.zone : `fixed:${zone.offsetMs}:${zone.name}`;
 }
 
-function pad(n: number, width = 2): string {
-  return String(n).padStart(width, '0');
-}
-
-/** `2026-09-24` */
+/** `2026-09-24`, `-0584-05-28`: ISO order, the wire's year numbering. */
 export function dateKey(d: LocalDate): string {
-  return `${pad(d.year, 4)}-${pad(d.month)}-${pad(d.day)}`;
+  return isoDateKey(d);
 }
 
 export function sameDate(a: LocalDate, b: LocalDate): boolean {
@@ -105,7 +107,7 @@ export function localDays(zone: Zone, first: LocalDate, count: number): LocalDay
       continue;
     }
     const prevOffset = offsets[i - 1]!;
-    const guess = Date.UTC(date.year, date.month - 1, date.day) - prevOffset;
+    const guess = localMsOfDate(date) - prevOffset;
     const offset = zoneOffsetMs(guess, zone);
     if (offset === prevOffset) {
       starts.push(guess);
@@ -145,12 +147,14 @@ export function localDayAt(jd: number, zone: Zone): LocalDay {
   return localDay(zone, localDateOf(jd, zone));
 }
 
+/** A leap year of the display calendar (Julian rules before 1582: 1500 was one). */
 export function isLeapYear(year: number): boolean {
-  return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0;
+  return yearLength(year) === 366;
 }
 
+/** Days in a month of the display calendar (October 1582 has 21). */
 export function daysInMonth(year: number, month: number): number {
-  return [31, isLeapYear(year) ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1] ?? 30;
+  return monthLength(year, month);
 }
 
 /** A small cache of window lists: they depend only on the zone and the calendar, and cost Intl calls. */
@@ -170,23 +174,24 @@ function cachedDays(key: string, make: () => LocalDay[]): readonly LocalDay[] {
   return value;
 }
 
-/** Every local day of a calendar year (365 or 366 windows: within `day_events_batch`'s 400). */
+/**
+ * Every local day of a calendar year (365 or 366 windows: within `day_events_batch`'s 400;
+ * 355 for 1582 in the historical calendar).
+ */
 export function daysOfYear(zone: Zone, year: number): readonly LocalDay[] {
-  return cachedDays(`y|${zoneKey(zone)}|${year}`, () =>
-    localDays(zone, { year, month: 1, day: 1 }, isLeapYear(year) ? 366 : 365),
-  );
+  return cachedDays(`y|${calendarMode()}|${zoneKey(zone)}|${year}`, () => localDays(zone, { year, month: 1, day: 1 }, yearLength(year)));
 }
 
 /** Every local day of a calendar month. */
 export function daysOfMonth(zone: Zone, year: number, month: number): readonly LocalDay[] {
-  return cachedDays(`m|${zoneKey(zone)}|${year}|${month}`, () =>
+  return cachedDays(`m|${calendarMode()}|${zoneKey(zone)}|${year}|${month}`, () =>
     localDays(zone, { year, month, day: 1 }, daysInMonth(year, month)),
   );
 }
 
-/** Day of the year, 0 for 1 January. */
+/** Day of the year, 0 for 1 January (display calendar). */
 export function dayOfYear(date: LocalDate): number {
-  return Math.round((Date.UTC(date.year, date.month - 1, date.day) - Date.UTC(date.year, 0, 1)) / 86_400_000);
+  return civilDayOfYear(date);
 }
 
 /** True when the zone offset changes during the day (a clock change). */

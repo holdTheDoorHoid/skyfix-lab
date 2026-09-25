@@ -1,13 +1,16 @@
 /**
  * Engine results the chrome shares, asked the same way by every section so the memoised
  * engine answers each question once per frame (`memoEngine`, component.ts). Failures
- * become one keyed notice instead of an exception. OWNER: shell-design agent.
+ * become one keyed notice instead of an exception. OWNER: shell-design agent; coverage
+ * gating: time-ui agent (the tiers themselves are time/tier.ts `tierAt`: `covered` is true
+ * in the validated and the labelled tier, where the engine answers).
  */
 
 import type { Ctx } from '../component.js';
+import { fastPlayback } from '../playback.js';
 import type { BodyEvents, BodyState, DayEvents, ExplorerEngine, PhaseSegment, SkyEvent, SkyState } from '../engine/types.js';
-import { currentDayWindow, engineObserver, eventOptions, type ExplorerState } from '../state.js';
-import { jdFromIso } from '../time.js';
+import { currentDayWindow, displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
+import { jdFromIso, type Zone } from '../time.js';
 import { isUp, passageNow, type Passage } from './sky.js';
 
 function errorText(error: unknown): string {
@@ -86,13 +89,19 @@ export function skySelected(ctx: Ctx, s: ExplorerState): SkyState | null {
 
 let lastDay: { key: string; window: [number, number] } | null = null;
 
+function zoneId(zone: Zone): string {
+  return zone.kind === 'iana' ? zone.zone : `${zone.name}${zone.offsetMs}`;
+}
+
 /**
  * `currentDayWindow` (state.ts), remembered: the local day only changes when the time
  * crosses a midnight or the zone changes, and working it out goes through `Intl` several
  * times. Every section asks for it on every change of state.
  */
 export function dayOf(s: ExplorerState): [number, number] {
-  const key = `${s.settings.timeDisplay}|${JSON.stringify(s.observer.zone)}|${s.observer.lon_deg}`;
+  // The zone itself, resolved at the time shown: before 1850 a zone that follows the place
+  // is local mean time (time.ts `resolveZone`), so the same choice can mean another clock.
+  const key = `${s.settings.timeDisplay}|${JSON.stringify(s.observer.zone)}|${s.observer.lon_deg}|${zoneId(displayZone(s))}`;
   const jd = s.time.jd_utc;
   if (lastDay && lastDay.key === key && jd >= lastDay.window[0] && jd < lastDay.window[1]) return lastDay.window;
   const window = currentDayWindow(s);
@@ -118,8 +127,13 @@ export interface Day {
   sun: BodyEvents | null;
 }
 
-/** The Sun over the local day being shown: its sky phases and events. */
+/**
+ * The Sun over the local day being shown: its sky phases and events. Null while time runs
+ * faster than eight days a second (playback.ts `fastPlayback`): a new day every few frames
+ * would cost 5 ms a frame; views draw it in full once time stops or slows (time-ui agent).
+ */
 export function sunToday(ctx: Ctx, s: ExplorerState): Day | null {
+  if (fastPlayback(s)) return null;
   const window = dayOf(s);
   const span = clampToCoverage(ctx, window[0], window[1]);
   if (!span) return null;
@@ -133,9 +147,12 @@ export function sunToday(ctx: Ctx, s: ExplorerState): Day | null {
 /**
  * A body's events from the day before to the day after the one shown (with the Sun's
  * phases over the same span): enough to find the passage around now and the next
- * twilight. Cached per day, so dragging within a day costs nothing.
+ * twilight. Cached per day, so dragging within a day costs nothing. Null while time runs
+ * faster than eight days a second, as `sunToday`: 4 ms a day for the Sun, 20 ms for the
+ * Moon, with a new day every few frames.
  */
 export function aroundToday(ctx: Ctx, s: ExplorerState, body: string): DayEvents | null {
+  if (fastPlayback(s)) return null;
   const [a, b] = dayOf(s);
   if (!covered(ctx, s.time.jd_utc)) return null;
   const span = clampToCoverage(ctx, a - 1, b + 1);

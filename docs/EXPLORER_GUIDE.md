@@ -61,19 +61,53 @@ and day — with rise, highest point and set marked for whichever body is select
 Drag the handle, or use any of these:
 
 - **The day arrows** beside the date step one calendar day at a time.
-- **The date**, clicked, opens a calendar for picking any day directly.
+- **The date**, clicked, opens a calendar for picking any day directly. Under the month
+  there is a **year field** for any year — type `1066`, or `585` with **BC** chosen beside
+  it (or `585 BC`, or `−584`) and press **Go** — and buttons that move the time by 10, 100
+  or 1000 years either way, keeping the day and the time of day.
 - **The clock**, clicked, lets you type a time of day.
 - **Now** jumps to the current moment and starts following the real clock (a small dot
   shows it is "live"); moving the time by hand turns this off again.
 - **Play** runs time forward (or backward — there is a direction switch beside the speed)
-  at a chosen speed, from real time up to a month per second:
+  at a chosen speed, from real time up to ten years per second:
 
   | speed |  | speed |
   |---|---|---|
-  | Real time | | 6 hours per second |
-  | 1 minute per second | | 1 day per second |
-  | 10 minutes per second | | 1 week per second |
-  | 1 hour per second | | 1 month per second |
+  | Real time | | 1 day per second |
+  | 1 minute per second | | 1 week per second |
+  | 10 minutes per second | | 1 month per second |
+  | 1 hour per second | | 1 year per second |
+  | 6 hours per second | | 10 years per second |
+
+  Faster than about a week per second the rising and setting times and the ribbon's
+  colours are left out while time runs (they would change every frame); they come back
+  the moment you pause or slow down.
+
+Along the top edge of the ribbon a thin strip marks the Sun's **golden hour** (the Sun
+between 6° above and 4° below the horizon: warm, low light) and **blue hour** (4° to 6°
+below: a deep blue sky); hover over it for the times.
+
+**Far from today.** The explorer is built for 2000 BC to AD 3000 (how much of that your
+copy covers is in About), and the time bar says what changes as you go back or forward:
+
+- **Dates** before 15 October 1582 are in the **Julian calendar**, as people then wrote
+  them, marked *Julian* beside the date; Thursday 4 October 1582 was followed by Friday
+  15 October. Years before AD 1 are written "585 BC" (astronomers call that year −584).
+  Settings can show the Gregorian calendar carried back instead, and years in the
+  astronomers' or ISO style.
+- **The clock** beside your local time is **UTC** from 1972 to 2035 and **UT** (Universal
+  Time, the time scale of the almanacs) outside those years: UTC did not exist before
+  1972, and leap seconds are to end in 2035.
+- **Before 1850** the local clock is **local mean time** (LMT) at your place's longitude —
+  the Sun's time there, which clocks kept before time zones — unless you pinned a zone.
+- **A ± chip** such as `±12 min` beside the clock means the Earth's rotation at that date is
+  known only that well, so every clock time carries that uncertainty (the positions of the
+  bodies among the stars do not). It appears when the uncertainty passes 30 seconds —
+  before about AD 700 and after about 2100 — and always on estimated years.
+- **Outside the checked years** a message says so: dates the core does not cover show
+  nothing, with the years it does cover; years only estimated (with the optional Deep time
+  data pack) say *Historical estimate* or *Far-future estimate*, and sights are offered only
+  in the checked years.
 
 **Keyboard shortcuts**, usable anywhere on the page (they are also listed under the
 **?** Help button in the top bar):
@@ -84,6 +118,7 @@ Drag the handle, or use any of these:
 | `Shift` + `←` / `→` | 1 hour |
 | `Alt` + `←` / `→` | 1 day |
 | `Page Up` / `Page Down` | 1 month (with `Shift`, 1 year) |
+| `Ctrl` + `Page Up` / `Page Down` | 100 years (with `Shift`, 1000 years); browsers with tabs may keep these keys for themselves, so the calendar's ±100 and ±1000 buttons do the same |
 | `Space` | play or pause |
 | `N` | now: follow the clock |
 | `Esc` | close a menu |
@@ -141,13 +176,74 @@ constellations" — and never affects a fix.
 
 ### Charts
 
-Four charts, each also available as a plain table (**View as** → **Table**, top right):
-**Day** (the height of each body through the day, over the twilight bands), **Year**
-(sunrise, sunset and twilight for every day of the year, with the Moon's phase along the
-top), **Moon** (a monthly phase calendar with moonrise and moonset), and **Planets** (when
-each is up in the dark, through the year).
+Six tabs of charts, each also available as a plain table (**View as** → **Table**, top
+right), and each with a **Save** menu (see [Saving, printing and sharing a
+chart](#saving-printing-and-sharing-a-chart) below). The place and the time are the
+explorer's own: clicking a time or a day on any chart moves the whole explorer there.
+
+- **Day**: the height of each body through the day, over the twilight bands.
+- **Year**: sunrise, sunset and twilight for every day of the year, with the Moon's phase
+  along the top.
+- **Sun**: five charts of the Sun, chosen from the second row of tabs.
+  - **Sun path**: the Sun's path across the sky today, with its hours marked, between its
+    paths on the June and December solstices and at the equinoxes; every day's path lies
+    between the two solstices. **From above** shows the sky dome as a map does, north up,
+    the zenith in the middle and the horizon round the edge; **Along the horizon** shows
+    bearing across and height up, as you see it facing the equator. Sunrise and sunset are
+    marked with their times; click the path to go to that moment.
+  - **Analemma**: where the Sun stands at one clock time — 12:00 unless you choose another
+    — on every day of the year: the figure-8 a camera fixed to one spot would record.
+    **Local mean time** is the clock of your longitude (at 12:00 the figure sits on the
+    meridian); **Zone time** is your zone's standard time all year, what a watch without
+    daylight saving reads. The first of each month is marked, and the explorer's date.
+  - **Sunrise bearings**: where on the horizon the Sun rises and sets on every day of the
+    year (north up in both panels), and how high it stands at solar noon.
+  - **Equation of time**: how far a sundial runs ahead of or behind the clock through the
+    year (up to about 16 minutes either way), and how far north or south of the equator
+    the Sun is overhead (its declination). The navigator knows both from the almanac.
+  - **Solar panel**: a **clear-sky estimate** of the sunlight reaching a panel, day by day
+    through the year and hour by hour on the explorer's day, for a tilt and a direction
+    you choose (it starts tilted at your latitude, facing the equator). It gives the year's
+    total, the same on flat ground, and the tilt that would collect the most, with a
+    button to use it. Clouds are not modelled, nor haze, snow, shading, dirt, heat or the
+    panel's own efficiency: the numbers are the ceiling on a clear day, not a forecast, and
+    the page says so beside every one, with the model's typical error.
+- **Moon**: **Phases** is a monthly calendar with each day's Moon, moonrise and moonset,
+  and the days the Moon is **nearest** (perigee) and **farthest** (apogee), with the
+  distance; supermoons and micromoons are marked on their full Moons. **Through the
+  year** shows how high the Moon stands, and in which direction, at one hour of the
+  evening (21:00 unless you choose another) on every day of the year: it comes back to
+  the same part of the sky only about once a month.
+- **Planets**: when each planet is up in the dark, through the year.
+- **Tides**: predicted high and low water and the tide curve for the day or the week at
+  the US tide station nearest your place, or another of the twelve nearest, with the
+  explorer's time as a moving cursor and night shown along the bottom. Heights are above a
+  datum you choose — mean lower low water (MLLW, the chart datum of US charts) unless you
+  choose another the station has. **Show on the map** marks the station on the map; a link
+  opens NOAA's own page for it. Tides are **predictions, not observations**: weather,
+  surge and river flow are not included, and the page says so. They come from NOAA's
+  harmonic constants for its 3 499 US stations, an optional data pack of 0.34 MB that the
+  tab offers to download the first time (see [Working offline](#working-offline)); some
+  stations give only high and low water, and the curve between is then an estimate,
+  drawn dashed. Predictions are offered for 1900 to 2100.
 
 ![The Year chart: a whole year of sunrise, sunset and twilight bands for Philadelphia, with the solstices, equinoxes and Moon phases marked.](design/charts-year-light.png)
+
+#### Saving, printing and sharing a chart
+
+Every chart's **Save** menu offers:
+
+- **Save picture (PNG)**: the chart as you see it, always in the light colours so it
+  prints and reads anywhere, with a caption underneath saying what it shows, for where and
+  when, what the numbers are and how far to trust them.
+- **Save table (CSV)**: the chart's Table view as a spreadsheet file. Angles are decimal
+  degrees and heights plain numbers (the column headings give the units); the first lines,
+  starting with `#`, say what the file is.
+- **Print**: this chart alone, as wide as the page (across the page when the chart is wide).
+- **Share picture…**, on phones and tablets that have a share sheet.
+
+Files are made in your browser and saved or shared only when you choose; nothing is sent
+anywhere.
 
 ### Almanac
 
@@ -232,7 +328,10 @@ celestial navigation works, and the coverage simulator — see
 
 What the page is, where every number comes from, and a table of how closely each part
 (the Sun, the Moon, the planets, the stars) has been checked against an independent
-reference ephemeris, with which are validated for real sights. It also explains, in one
+reference ephemeris, and for which years — the checked years and the estimated ones — with
+which are validated for real sights, and a short table of how far a clock time can be
+trusted in each age (the uncertainty in the Earth's rotation, from an hour at 2000 BC to
+under a second today). It also explains, in one
 place, what happens to your chosen place (nothing, unless you press Share), links this
 manual and the source code, and credits the map, star and font data. The **?** Help menu
 has the same two links.
@@ -253,7 +352,10 @@ choices:
 
 **Settings** (the sliders icon beside Theme) also controls: whether the clock shows your
 local time or UTC first; a 24-hour or 12-hour clock for local times (`18:40` or
-`6:40 PM`; UTC always stays on the 24-hour clock, as navigators write it); how angles are
+`6:40 PM`; UTC always stays on the 24-hour clock, as navigators write it); the
+**calendar** for dates before 15 October 1582 (the Julian calendar people then used, or
+the Gregorian calendar carried back, as ISO 8601 has it) and how **years** are written
+(`585 BC`, the astronomers' `−584`, or ISO's `-0584`); how angles are
 written (`26° 02.3′`, `26° 02′ 17″`, or `26.038°`); units (metric, nautical, or
 imperial); whether rise and set are figured for a sea-level horizon or dipped for your own
 height of eye; and a **Navigator's terms** switch that shows the navigator's word beside

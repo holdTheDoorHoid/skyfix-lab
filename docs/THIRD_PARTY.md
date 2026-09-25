@@ -2063,6 +2063,64 @@ February, 126 (the limiting-magnitude range of each class, a fact). Meteor rates
 standard ZHR conversion (IMO). Each is written from the publication's equations and
 checked by hand evaluation (`docs/ACCURACY.md`, "Deep sky").
 
+## Expansion programme — planet detail (planetdetail agent, 2026-09-25)
+
+Owner: planetdetail agent (`crates/skyfix-almanac/src/{satellites, satellites/e5, rings,
+discs, transits, conjunctions, earth_apsides, orbits, planet_geometry}.rs`,
+`crates/skyfix-wasm/src/planetdetail.rs`, `tools/reference/gen_planetdetail.py`,
+`fixtures/reference/planetdetail_*.json`). **Nothing here needs on-screen credit, and no
+dataset ships**: the runtime carries published constants and formulas (facts), and the
+person supplies any comet or asteroid elements. The development-time references are U.S.
+Government works or facts; their acknowledgements are made here.
+
+### Shipped in the core module (facts)
+
+- **IAU WGCCRE 2015 rotation models** (Archinal, B. A. et al. 2018, "Report of the IAU
+  Working Group on Cartographic Coordinates and Rotational Elements: 2015", *Celestial
+  Mechanics and Dynamical Astronomy* 130:22), as NAIF distributes them in
+  `pck00011.tpc` (<https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc>,
+  NASA JPL, U.S. Government work): the poles, prime meridians and their periodic terms of
+  Mercury to Neptune, and the IAU radii already listed under "Physical constants".
+  Jupiter's Systems I and II (`67.1° + 877.900°/d`, `43.3° + 870.270°/d`, IAU 1976, as the
+  *Explanatory Supplement to the Astronomical Almanac* gives them). Transcribed by hand;
+  the Saturn pole is checked against the planet provider's own constant.
+- **Lieske's E5 theory of the Galilean satellites** (J. H. Lieske 1998, *Astronomy and
+  Astrophysics Supplement* 129, 205), in the form Meeus prints it (*Astronomical
+  Algorithms*, 2nd ed., chapter 44, "higher accuracy"), with Jupiter's node and inclination
+  of date from his table 31.A: published coefficients, transcribed by hand and compared
+  number for number, by a script, with the transcription in `soniakeys/meeus`
+  (<https://github.com/soniakeys/meeus>, `v3/jupitermoons`, MIT licence; no code taken).
+  Meeus's example 44.b is a unit test.
+- **The Galilean moons' and Jupiter system's GM** (km³/s²: 5 959.915466, 3 202.712100,
+  9 887.832753, 7 179.283403; 126 712 764.1), the values of JPL's JUP365 and DE440
+  (NAIF, U.S. Government work): they place Jupiter's centre from its barycentre.
+- **Meeus, chapter 36** (the times of Mercury's and Venus's inferior conjunctions, tables
+  36.A and 36.B) as the search's first guesses, and **chapter 41**'s 1984 Astronomical
+  Almanac magnitude of Saturn (for comparison only): published formulas.
+- **Saturn's ring radii** (A 136 780 / 122 340, B 117 507 / 91 975, C inner 74 658 km)
+  from NASA's NSSDCA *Saturnian Rings Fact Sheet*
+  (<https://nssdc.gsfc.nasa.gov/planetary/factsheet/satringfact.html>, retrieved
+  2026-09-25): a U.S. Government work, facts.
+- **The IAU H-G magnitude system** (Bowell, E. et al. 1989, in *Asteroids II*) and the
+  comet total-magnitude formula `M1 + 5 log Δ + K1 log r`; **Gauss's gravitational
+  constant** 0.01720209895; the J2000 obliquity 84 381.448″: published constants.
+- **The MPC's formats** (<https://minorplanetcenter.net/iau/info/MPOrbitFormat.html>,
+  `…/PackedDes.html`, `…/CometOrbitFormat.html`, retrieved 2026-09-25): the parser follows
+  their column layouts and packing rules (facts about a format); their worked examples are
+  unit tests. No MPC data ships.
+
+### Development-time references (never shipped)
+
+| Source | Used for | Terms |
+|---|---|---|
+| JPL Horizons API, `https://ssd.jpl.nasa.gov/api/horizons.api` (observer tables for the Earth's centre: quantities 2, 9, 10, 11, 13, 14, 15, 17, 19, 20, 24, 32), retrieved 2026-09-25; each request's URL, size and SHA-256 in `planetdetail_horizons.json` | discs and rings (`planetdetail_discs.rs`) | NASA/JPL-Caltech; Horizons states no terms for its output; numbers used as a reference only |
+| JPL satellite ephemeris `jup365.bsp`, `https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/satellites/jup365.bsp`, read by HTTP range requests and cut to 20 short excerpts (`python -m jplephem excerpt`, targets 501-504 and 599) kept in the git-ignored `tools/reference/data/planetdetail/`; on `de440.bsp` (listed above) | the Galilean moons (`planetdetail_galilean.json`) | NAIF, U.S. Government work |
+| NASA's transit catalogues by F. Espenak: `https://eclipse.gsfc.nasa.gov/transit/catalog/VenusCatalog.html` and `…/MercuryCatalog.html`; the 2004 and 2012 pages `https://eclipse.gsfc.nasa.gov/OH/transit04.html` and `…/transit12.html`; the city tables under `https://eclipse.gsfc.nasa.gov/transit/TV2004/` and `…/TV2012/`; retrieved 2026-09-25, sizes and SHA-256 in `planetdetail_transits.json` | transits (`planetdetail_transits.rs`) | NASA GSFC, U.S. Government work; acknowledgment as the pages ask: **"Transit Predictions by Fred Espenak, NASA/GSFC"** |
+| USNO seasons API, `https://aa.usno.navy.mil/api/seasons?year=1990` … `2060`, retrieved 2026-09-25, per-year SHA-256 in `planetdetail_apsides.json` | the Earth's apsides | U.S. Naval Observatory, U.S. Government work (see "The USNO caveat" above) |
+| Meeus, *Astronomical Algorithms*, 2nd ed., table 38.C (perihelion and aphelion 1991-2010, as transcribed in `soniakeys/meeus`, `perihelion/pp_test.go`, MIT) and examples 43.a, 44.b, 45.a | apsides, central meridians, E5, rings | published facts |
+| The Minor Planet Center's `MPCORB.DAT` (six lines, by byte range) and `CometEls.txt` (<https://minorplanetcenter.net/iau/MPCORB/>, retrieved 2026-09-25): twelve lines kept verbatim as test input in `planetdetail_orbits.json` and two in `web/test/next/planetdetail-engine.test.ts` | orbits (`planetdetail_orbits.rs`, the web tests) | the MPC permits redistribution with the source stated: **"Source: Minor Planet Center"**, as the fixture and the test carry |
+| Skyfield 1.55 (`skyfield.data.mpc`, `almanac`, `searchlib`) with `de440s.bsp` and `hip_main.dat` (all listed under "Reference data" above) | conjunctions, stations, apsides, orbits, transit contacts | MIT (Skyfield); JPL and ESA terms as listed above |
+
 ## Expansion programme — deep time (deeptime agent, 2026-09-25)
 
 What the Sun, Moon, planet and star providers are built from since the coverage became
@@ -2149,7 +2207,7 @@ several centuries into the past") is why the labelled tier uses DE441. On the pa
 the Moon's tidal acceleration with Delta T: Stephenson, Morrison & Hohenkerk's Delta T
 assumes -25.85"/cy^2 and ELP/MPP02's DE405 constants carry -25.858"/cy^2, the same to the
 precision that matters; the secular terms this project refitted to DE441/DE440 absorb
-whatever of the lunar longitude's quadratic term differs from JPL's (ACCURACY section 17).
+whatever of the lunar longitude's quadratic term differs from JPL's (ACCURACY section 18).
 
 Also consulted, all facts: USNO's Celestial Navigation Data at 15 dates 1800-2050 for
 Rigil Kentaurus (to establish that USNO extrapolates A's Hipparcos motion linearly);

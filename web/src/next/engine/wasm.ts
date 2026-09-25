@@ -85,6 +85,22 @@ import type {
   Tonight,
   TonightOptions,
 } from './types.js';
+// Planet detail (expansion programme P9, planetdetail agent).
+import type {
+  ConjunctionList,
+  ConjunctionOptions,
+  CustomBodyInput,
+  CustomBodyStates,
+  EarthApsides,
+  GalileanEvents,
+  GalileanMoons,
+  OrbitalElements,
+  PlanetDetailEngine,
+  PlanetDisc,
+  PlanetStationList,
+  PlanetTransitList,
+  SaturnRings,
+} from './types.js';
 import { createWasmMisfit } from './wasm-misfit.js';
 // Expansion programme — sun tools (suntools agent).
 import type {
@@ -232,6 +248,50 @@ export interface ExplorerWasmExports {
   solar_day?(observerJson: string, jdStart: number, jdEnd: number, panelJson: string, stepMinutes: number): unknown;
   solar_year?(observerJson: string, requestJson: string): unknown;
   galactic_centre_windows?(observerJson: string, jdStart: number, jdEnd: number, optionsJson: string): unknown;
+}
+
+// ---------------------------------------------------------------------------
+// Planet detail (expansion programme P9, planetdetail agent): the exports of
+// crates/skyfix-wasm/src/planetdetail.rs (EXPLORER_API "Planet detail"). Optional: a
+// build without them answers with `rebuildError`.
+// ---------------------------------------------------------------------------
+
+export interface PlanetDetailWasmExports {
+  galilean_moons?(jdUtc: number): unknown;
+  galilean_events?(jdStart: number, jdEnd: number): unknown;
+  saturn_rings?(jdUtc: number): unknown;
+  planet_disc?(body: string, jdUtc: number): unknown;
+  /** `observerJson` empty for the geocentric circumstances only. */
+  transits?(jdStart: number, jdEnd: number, observerJson: string): unknown;
+  /** `optionsJson` empty for every default. */
+  conjunctions?(jdStart: number, jdEnd: number, optionsJson: string): unknown;
+  stations?(jdStart: number, jdEnd: number): unknown;
+  earth_apsides?(year: number): unknown;
+  parse_orbits?(text: string): unknown;
+  custom_body_states?(observerJson: string, jdUtc: number, customBodiesJson: string): unknown;
+  sample_custom_bodies?(
+    observerJson: string,
+    customBodiesJson: string,
+    jdStart: number,
+    jdEnd: number,
+    stepMinutes: number,
+  ): unknown;
+}
+
+// Declaration merging: the planet-detail exports are part of the module's shape.
+export interface ExplorerWasmExports extends PlanetDetailWasmExports {}
+
+/** Only the fields `ConjunctionOptions` defines (the Rust side rejects any other). */
+export function conjunctionOptionsJson(o: ConjunctionOptions | undefined): string {
+  if (!o) return '';
+  const out: Record<string, unknown> = {};
+  if (o.planets !== undefined) out.planets = o.planets;
+  if (o.moon !== undefined) out.moon = o.moon;
+  if (o.stars !== undefined) out.stars = o.stars;
+  if (o.max_separation_deg !== undefined) out.max_separation_deg = o.max_separation_deg;
+  if (o.min_sun_elongation_deg !== undefined) out.min_sun_elongation_deg = o.min_sun_elongation_deg;
+  if (o.observer !== undefined) out.observer = JSON.parse(observerJson(o.observer)) as unknown;
+  return JSON.stringify(out);
 }
 
 export function missingExports(module: object): { required: string[]; optional: string[] } {
@@ -855,12 +915,85 @@ export class WasmEngine
   }
 
   // --- end tides
+
+  // -------------------------------------------------------------------------
+  // Planet detail (expansion programme P9, planetdetail agent): `PlanetDetailEngine`.
+  // -------------------------------------------------------------------------
+
+  private planetDetail<T>(name: keyof PlanetDetailWasmExports, args: unknown[]): T {
+    const fn = this.x[name] as ((...a: unknown[]) => unknown) | undefined;
+    if (typeof fn !== 'function') throw rebuildError(name, 'planet detail');
+    return this.call<T>(name, () => fn.apply(this.x, args));
+  }
+
+  /** The four Galilean moons (`galilean_moons`). */
+  galileanMoons(jdUtc: number): GalileanMoons {
+    return this.planetDetail('galilean_moons', [jdUtc]);
+  }
+
+  /** Their transits, shadow transits, occultations and eclipses (`galilean_events`). */
+  galileanEvents(jdStart: number, jdEnd: number): GalileanEvents {
+    return this.planetDetail('galilean_events', [jdStart, jdEnd]);
+  }
+
+  saturnRings(jdUtc: number): SaturnRings {
+    return this.planetDetail('saturn_rings', [jdUtc]);
+  }
+
+  planetDisc(body: string, jdUtc: number): PlanetDisc {
+    return this.planetDetail('planet_disc', [body, jdUtc]);
+  }
+
+  /** Transits of Mercury and Venus; `local` for each when an observer is given. */
+  transits(jdStart: number, jdEnd: number, observer?: Observer): PlanetTransitList {
+    return this.planetDetail('transits', [jdStart, jdEnd, observer ? observerJson(observer) : '']);
+  }
+
+  conjunctions(jdStart: number, jdEnd: number, options?: ConjunctionOptions): ConjunctionList {
+    return this.planetDetail('conjunctions', [jdStart, jdEnd, conjunctionOptionsJson(options)]);
+  }
+
+  stations(jdStart: number, jdEnd: number): PlanetStationList {
+    return this.planetDetail('stations', [jdStart, jdEnd]);
+  }
+
+  earthApsides(year: number): EarthApsides {
+    return this.planetDetail('earth_apsides', [year]);
+  }
+
+  parseOrbits(text: string): OrbitalElements[] {
+    return this.planetDetail('parse_orbits', [text]);
+  }
+
+  customBodyStates(observer: Observer, jdUtc: number, bodies: CustomBodyInput[]): CustomBodyStates {
+    return this.planetDetail('custom_body_states', [observerJson(observer), jdUtc, JSON.stringify(bodies)]);
+  }
+
+  sampleCustomBodies(
+    observer: Observer,
+    bodies: CustomBodyInput[],
+    jdStart: number,
+    jdEnd: number,
+    stepMinutes: number,
+  ): Sampled {
+    return this.planetDetail('sample_custom_bodies', [
+      observerJson(observer),
+      JSON.stringify(bodies),
+      jdStart,
+      jdEnd,
+      stepMinutes,
+    ]);
+  }
 }
 
 // The WASM engine is a Moon-detail engine (checked here rather than in its `implements`
 // list, so parallel additions to that line do not collide).
 const _wasmIsMoonDetail: (e: WasmEngine) => MoonDetailEngine = (e) => e;
 void _wasmIsMoonDetail;
+
+// Planet detail (planetdetail agent), checked the same way.
+const _wasmIsPlanetDetail: (e: WasmEngine) => PlanetDetailEngine = (e) => e;
+void _wasmIsPlanetDetail;
 
 export type WasmLoad =
   | { status: 'ready'; engine: WasmEngine; missingOptional: string[] }
