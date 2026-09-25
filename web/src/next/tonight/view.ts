@@ -79,6 +79,13 @@ interface Remembered {
   shown: number;
   /** The list of the night's moments is open (open at first on a wide screen). */
   moments: boolean | null;
+  /**
+   * The night this view last moved the explorer's time within: a best moment at dawn (a planet
+   * "as dawn comes") lies after astronomical dawn, where the rule would already show the next
+   * night; the view keeps showing the night it came from while the time stays where it put it
+   * (as Events keeps its lists after a jump). Any other change of time lets the rule decide.
+   */
+  pin: { jd: number; n: number } | null;
 }
 
 const memory = new WeakMap<ExplorerStore, Remembered>();
@@ -86,7 +93,7 @@ const memory = new WeakMap<ExplorerStore, Remembered>();
 function remembered(store: ExplorerStore): Remembered {
   let m = memory.get(store);
   if (!m) {
-    m = { sky: { ...DEFAULT_SKY }, shown: DSO_FIRST, moments: null };
+    m = { sky: { ...DEFAULT_SKY }, shown: DSO_FIRST, moments: null, pin: null };
     memory.set(store, m);
   }
   return m;
@@ -184,7 +191,7 @@ const view: Component = (host, ctx) => {
     status,
   );
 
-  const timeline = timelineView((jd) => setTime(store, Math.round(jd * 1440) / 1440));
+  const timeline = timelineView((jd) => moveTo(Math.round(jd * 1440) / 1440));
   const tl = card('timeline', 'The night', 'clock');
   const tlMoments = h('ol', { class: 'sft-moments' });
   // Every moment as a button: the timeline's keyboard route (and its words). Open at first on
@@ -263,7 +270,7 @@ const view: Component = (host, ctx) => {
     if (!target || !root.contains(target)) return;
     event.stopPropagation();
     const jd = Number(target.getAttribute('data-jd'));
-    if (Number.isFinite(jd)) setTime(store, jd);
+    if (Number.isFinite(jd)) moveTo(jd);
   };
   root.addEventListener('click', onTime);
   d.add(() => root.removeEventListener('click', onTime));
@@ -369,6 +376,7 @@ const view: Component = (host, ctx) => {
         const now = store.get().time.jd_utc;
         const upNow = moonSpans.some((b) => now >= b.start && now <= b.end);
         const jd = upNow ? null : moonSpans.length ? (moonSpans[0]!.start + moonSpans[0]!.end) / 2 : nightMiddle(core!);
+        pinAt(jd);
         showInSky(ctx, { kind: 'body', name: 'Moon', inset: true }, jd);
       },
     });
@@ -403,7 +411,9 @@ const view: Component = (host, ctx) => {
           const now = store.get().time.jd_utc;
           const p = core?.tonight?.planets.find((x) => x.body === r.body);
           const upNow = p?.up_from && p.up_until && now >= p.up_from.jd_utc && now <= p.up_until.jd_utc;
-          showInSky(ctx, { kind: 'body', name: r.body }, upNow ? null : r.best.jd_utc);
+          const jd = upNow ? null : r.best.jd_utc;
+          pinAt(jd);
+          showInSky(ctx, { kind: 'body', name: r.body }, jd);
         });
         return h('li', {}, open, ...r.extra.map((x) => para(x, 'sft-p sft-extra')));
       }),
@@ -431,7 +441,8 @@ const view: Component = (host, ctx) => {
             onClick: () => {
               mem.shown += DSO_FIRST;
               drawDeep(fmtOf(store.get()));
-              list.querySelectorAll<HTMLElement>('.sft-dso')[shown.length]?.querySelector('button')?.focus();
+              // The list was drawn again: the keyboard goes to the first object added.
+              deepCard.body.querySelectorAll<HTMLElement>('.sft-dso')[shown.length]?.querySelector('button')?.focus();
             },
           })
         : null;
@@ -476,7 +487,10 @@ const view: Component = (host, ctx) => {
       size: 'sm',
       variant: 'secondary',
       tip: `Open the Sky view at ${clock(r.best.jd_utc, f)}, when ${r.title.split(' · ')[0]} is best placed`,
-      onClick: () => showInSky(ctx, { kind: 'deep_sky', id: r.id, label: r.title, ra_j2000_deg: r.ra_j2000_deg, dec_j2000_deg: r.dec_j2000_deg }, r.best.jd_utc),
+      onClick: () => {
+        pinAt(r.best.jd_utc);
+        showInSky(ctx, { kind: 'deep_sky', id: r.id, label: r.title, ra_j2000_deg: r.ra_j2000_deg, dec_j2000_deg: r.dec_j2000_deg }, r.best.jd_utc);
+      },
     });
     show.setAttribute('aria-label', `Show ${r.title} in the Sky view`);
     return h(
@@ -518,7 +532,9 @@ const view: Component = (host, ctx) => {
                 tip: `Open the Sky view at ${clock(r.best.jd_utc, f)} on the ${r.name}’ radiant`,
                 onClick: () => {
                   const s = core?.tonight?.showers.find((x) => x.code === r.code);
-                  if (s) showInSky(ctx, { kind: 'radiant', code: s.code, label: s.name, ra_j2000_deg: s.radiant_ra_deg, dec_j2000_deg: s.radiant_dec_deg }, r.best!.jd_utc);
+                  if (!s) return;
+                  pinAt(r.best!.jd_utc);
+                  showInSky(ctx, { kind: 'radiant', code: s.code, label: s.name, ra_j2000_deg: s.radiant_ra_deg, dec_j2000_deg: s.radiant_dec_deg }, r.best!.jd_utc);
                 },
               })
             : null;
@@ -560,7 +576,10 @@ const view: Component = (host, ctx) => {
           size: 'sm',
           variant: 'ghost',
           tip: `Open the Sky view at ${clock(best.jd, f)}, looking ${compassPoint(best.az)}`,
-          onClick: () => showInSky(ctx, { kind: 'direction', label: 'The Milky Way’s core', alt_deg: best.alt, az_deg: best.az }, best.jd),
+          onClick: () => {
+            pinAt(best.jd);
+            showInSky(ctx, { kind: 'direction', label: 'The Milky Way’s core', alt_deg: best.alt, az_deg: best.az }, best.jd);
+          },
         })
       : null;
     fill(
@@ -608,6 +627,7 @@ const view: Component = (host, ctx) => {
     // time-ui: the ±ΔT chip beside this time once time-ui's helpers land.
     open.addEventListener('click', () => {
       store.batch(() => {
+        pinAt(i.jd);
         setTime(store, i.jd);
         if (i.body) store.patch({ selection: { body: i.body } });
         store.patch({ view: 'events' });
@@ -742,7 +762,24 @@ const view: Component = (host, ctx) => {
   };
 
   // --- work -----------------------------------------------------------------------------------
-  const nightOf = (s: ExplorerState): number | null => chooseNight(ctx, s);
+  /** The night the explorer's time belongs to (night.ts), or the one this view pinned it in. */
+  const nightOf = (s: ExplorerState): number | null => {
+    if (mem.pin && mem.pin.jd === s.time.jd_utc) return mem.pin.n;
+    mem.pin = null;
+    return chooseNight(ctx, s);
+  };
+
+  /** Remember the shown night when the view moves the time to a moment of it (see `Remembered.pin`). */
+  const pinAt = (jd: number | null): void => {
+    const n = core?.covered ? core.q.n : null;
+    mem.pin = jd !== null && n !== null && jd >= n && jd < n + 1 ? { jd, n } : null;
+  };
+
+  /** Move the explorer's time to a moment of this night (the timeline, a time button). */
+  const moveTo = (jd: number): void => {
+    pinAt(jd);
+    setTime(store, jd);
+  };
 
   const runComing = (gen: number, q: NightQuery, f: Fmt, index: number): void => {
     if (gen !== generation) return;
@@ -905,7 +942,10 @@ const view: Component = (host, ctx) => {
   });
 
   const stepNight = (dir: -1 | 1): void => {
-    setTime(store, stepNightTime(ctx, store.get(), dir));
+    const s = store.get();
+    const jd = stepNightTime(ctx, s, dir, nightOf(s));
+    mem.pin = null;
+    setTime(store, jd);
     request(true);
   };
 
@@ -915,6 +955,7 @@ const view: Component = (host, ctx) => {
   };
 
   const planPhoto = (jd: number): void => {
+    pinAt(jd);
     setTime(store, jd);
     // photo: call openMilkyWayPlanner(ctx) from ../panel/photo.js once the photo agent's
     // Selected-card planner is on main; until then the Selected card is brought into view.

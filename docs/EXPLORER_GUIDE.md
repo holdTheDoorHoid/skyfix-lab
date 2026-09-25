@@ -189,7 +189,9 @@ astronomical dawn, when the Sun climbs back above 18° below the horizon. Where 
 never gets that low (summer at high latitudes) the switch comes when the darkest stretch
 ends, with no darkness at all at sunrise, and in the midnight sun at local midnight.
 (The deep-sky engine on its own switches at sunrise; the page chooses the night itself and
-asks the engine about that night.) **◀ ▶** step a night — they move the explorer's time,
+asks the engine about that night.) A moment chosen on the page keeps its night: a planet
+best seen "as dawn comes" takes you past astronomical dawn, and coming back you still see
+the night you chose it from, until the time is moved some other way. **◀ ▶** step a night — they move the explorer's time,
 so every other view follows — and **Tonight** comes back to the real night, following the
 clock. The heading says "Tonight", "Tomorrow night" or "Last night" against the real date,
 and "The night of" otherwise.

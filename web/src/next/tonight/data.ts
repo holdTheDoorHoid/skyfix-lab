@@ -113,10 +113,11 @@ export function chooseNight(ctx: Pick<Ctx, 'engine'>, s: ExplorerState, jd: numb
  * to the neighbouring night (the usual case), else that night's evening (18:00 local mean
  * time), since dawn moves by a minute or two a day and the same clock time can fall on the
  * other side of the switch. A plain day when the engine cannot say which night it is.
+ * `shown` is the night on screen (the view may keep one the rule would have left).
  */
-export function stepNightTime(ctx: Pick<Ctx, 'engine'>, s: ExplorerState, dir: -1 | 1): number {
+export function stepNightTime(ctx: Pick<Ctx, 'engine'>, s: ExplorerState, dir: -1 | 1, shown: number | null = chooseNight(ctx, s)): number {
   const candidate = addCalendar(s.time.jd_utc, displayZone(s), { days: dir });
-  const n = chooseNight(ctx, s);
+  const n = shown;
   // Outside the engine's years there is no night to find: a day, as the time bar's arrows step.
   if (n === null) return candidate;
   const target = n + dir;
