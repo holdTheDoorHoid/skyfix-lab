@@ -32,6 +32,8 @@ pub mod nav;
 pub mod navsky;
 pub mod planet_events;
 pub mod starfield;
+// Planet detail (expansion programme P9, planetdetail agent): EXPLORER_API.md "Planet detail".
+pub mod planetdetail;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;

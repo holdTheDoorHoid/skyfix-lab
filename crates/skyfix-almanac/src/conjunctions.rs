@@ -364,10 +364,13 @@ fn parse_bodies(opts: &ConjunctionOptions) -> Result<(Vec<Body>, Vec<Body>), Alm
                 "conjunctions: {name:?} is not a planet (Mercury..Neptune)"
             ))
         })?;
-        if !planets.contains(&Body::Planet(p)) {
-            planets.push(Body::Planet(p));
+        if !planets.contains(&p) {
+            planets.push(p);
         }
     }
+    // In the Sun-outward order whatever the request's, so `body` is the inner planet.
+    planets.sort_by_key(|p| Planet::ALL.iter().position(|q| q == p));
+    let planets: Vec<Body> = planets.into_iter().map(Body::Planet).collect();
     let mut stars = Vec::new();
     for name in &opts.stars {
         let entry = skyfix_ephemeris::catalog::find(name).ok_or_else(|| {
@@ -735,7 +738,8 @@ mod tests {
         let opts = ConjunctionOptions {
             moon: false,
             stars: vec![],
-            planets: vec!["Jupiter".into(), "Saturn".into()],
+            // Listed outer first: `body` is still the inner planet.
+            planets: vec!["Saturn".into(), "Jupiter".into()],
             ..ConjunctionOptions::default()
         };
         let l = conjunctions(civil_to_jd(2020, 12, 1), civil_to_jd(2021, 1, 1), &opts).unwrap();

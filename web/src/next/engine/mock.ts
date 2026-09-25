@@ -51,6 +51,22 @@ import type {
   StarfieldCatalog,
 } from './types.js';
 import type { NavTools } from './wasm-nav.js';
+// Planet detail (expansion programme P9, planetdetail agent): mock/planetdetail.ts.
+import * as PD from './mock/planetdetail.js';
+import type {
+  ConjunctionList,
+  ConjunctionOptions,
+  CustomBodyInput,
+  CustomBodyStates,
+  EarthApsides,
+  GalileanEvents,
+  GalileanMoons,
+  OrbitalElements,
+  PlanetDisc,
+  PlanetStationList,
+  PlanetTransitList,
+  SaturnRings,
+} from './types.js';
 
 export const MOCK_DESCRIPTION =
   'MOCK ENGINE for developing the interface. Every number on this page is illustrative: positions come from ' +
@@ -512,6 +528,69 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
 
   almanacDay(date: string): AlmanacDay {
     return mockAlmanacDay(this, date);
+  }
+
+  // -------------------------------------------------------------------------
+  // Planet detail (expansion programme P9, planetdetail agent): `PlanetDetailEngine`,
+  // illustrative like everything here (mock/planetdetail.ts).
+  // -------------------------------------------------------------------------
+
+  private get planetDetailEnv(): PD.PlanetDetailMockEnv {
+    return {
+      start: COVERAGE_START,
+      end: COVERAGE_END,
+      constellationAt: (ra, dec, jd) => this.constellationAt(ra, dec, jd),
+    };
+  }
+
+  galileanMoons(jdUtc: number): GalileanMoons {
+    return PD.mockGalileanMoons(this.planetDetailEnv, jdUtc);
+  }
+
+  galileanEvents(jdStart: number, jdEnd: number): GalileanEvents {
+    return PD.mockGalileanEvents(this.planetDetailEnv, jdStart, jdEnd);
+  }
+
+  saturnRings(jdUtc: number): SaturnRings {
+    return PD.mockSaturnRings(this.planetDetailEnv, jdUtc);
+  }
+
+  planetDisc(body: string, jdUtc: number): PlanetDisc {
+    return PD.mockPlanetDisc(this.planetDetailEnv, body, jdUtc);
+  }
+
+  transits(jdStart: number, jdEnd: number, observer?: Observer): PlanetTransitList {
+    return PD.mockTransits(this.planetDetailEnv, jdStart, jdEnd, observer);
+  }
+
+  conjunctions(jdStart: number, jdEnd: number, options?: ConjunctionOptions): ConjunctionList {
+    return PD.mockConjunctions(this.planetDetailEnv, jdStart, jdEnd, options);
+  }
+
+  stations(jdStart: number, jdEnd: number): PlanetStationList {
+    return PD.mockStations(this.planetDetailEnv, jdStart, jdEnd);
+  }
+
+  earthApsides(year: number): EarthApsides {
+    return PD.mockEarthApsides(this.planetDetailEnv, year);
+  }
+
+  parseOrbits(text: string): OrbitalElements[] {
+    return PD.mockParseOrbits(text);
+  }
+
+  customBodyStates(observer: Observer, jdUtc: number, bodies: CustomBodyInput[]): CustomBodyStates {
+    return PD.mockCustomBodyStates(this.planetDetailEnv, observer, jdUtc, bodies);
+  }
+
+  sampleCustomBodies(
+    observer: Observer,
+    bodies: CustomBodyInput[],
+    jdStart: number,
+    jdEnd: number,
+    stepMinutes: number,
+  ): Sampled {
+    return PD.mockSampleCustomBodies(this.planetDetailEnv, observer, bodies, jdStart, jdEnd, stepMinutes);
   }
 
   // -------------------------------------------------------------------------

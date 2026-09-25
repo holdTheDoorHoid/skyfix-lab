@@ -113,7 +113,8 @@ pub struct TransitLocal {
     pub observer: TransitObserver,
     /// `"visible"` (the Sun is up throughout), `"partly_below_horizon"` (it rises or
     /// sets during the transit; the `sunrise`/`sunset` event is listed) or
-    /// `"below_horizon"` (it is down throughout).
+    /// `"below_horizon"` (it is down throughout); `"none"` when, seen from here, the
+    /// planet misses the Sun (possible only near a geocentric graze).
     pub visibility: String,
     pub events: Vec<TransitLocalEvent>,
     pub path: Vec<TransitPathPoint>,
