@@ -165,7 +165,10 @@ fn galactic_centre_and_arch_against_skyfield() {
         w_top_alt * 3600.0,
         w_top_az * 3600.0
     );
-    assert!(w_radec < 0.01 && w_alt < 0.01 && w_az < 0.01);
+    // verify2: 1" (measured 0.02", 0.26", 0.31"); 0.01 deg is 36", more than annual
+    // aberration or nutation, so a place missing either passed.
+    const ARCSEC_DEG: f64 = 1.0 / 3600.0;
+    assert!(w_radec < ARCSEC_DEG && w_alt < ARCSEC_DEG && w_az < ARCSEC_DEG);
     // The fixture's pole is Skyfield's galactic frame (0.3" from the stated one) and its
     // top is found by golden section to about 0.1".
     assert!(w_top_alt < 0.01 && w_top_az < 0.01);
@@ -253,7 +256,8 @@ fn bearing_crossings_against_skyfield_within_a_second() {
         cases.len(),
         worst_sky * 3600.0
     );
-    assert!(worst_sky < 0.01 && worst_s < 1.0 && worst_alt < 0.01);
+    // verify2: 1" on the sky and 0.1 s (measured 0.28", 0.020 s), not 0.01 deg and 1 s.
+    assert!(worst_sky < 1.0 / 3600.0 && worst_s < 0.1 && worst_alt < 1.0 / 3600.0);
 }
 
 #[test]
@@ -284,7 +288,8 @@ fn manhattan_sunset_azimuths_against_skyfield() {
         "Manhattan sunsets (h0 = -50'): worst {worst_s:.3} s, azimuth {:.3}\"",
         worst_az * 3600.0
     );
-    assert!(worst_s < 1.0 && worst_az < 0.01);
+    // verify2: 0.1 s and 1" (measured 0.001 s, 0.12").
+    assert!(worst_s < 0.1 && worst_az < 1.0 / 3600.0);
     // The alignment finder reports exactly these sets.
     let a = alignment_days(
         &sky,
@@ -341,7 +346,8 @@ fn analemma_against_skyfield() {
             .max((norm_180(p.az_deg - num(&r["az_deg"])) * p.alt_deg.to_radians().cos()).abs());
     }
     eprintln!("analemma at 12:00 LMT: worst {:.3}\"", worst * 3600.0);
-    assert!(worst < 0.01);
+    // verify2: 1" (measured 0.25"), not 0.01 deg.
+    assert!(worst < 1.0 / 3600.0);
 }
 
 #[test]
@@ -379,4 +385,6 @@ fn clear_sky_formulas_as_printed() {
         n += 1;
     }
     eprintln!("clear-sky and plane-of-array formulas: {n} cases to 1e-5 W/m2");
+    // verify2: the count ACCURACY.md quotes, so an emptied fixture cannot pass.
+    assert_eq!(n, 67);
 }

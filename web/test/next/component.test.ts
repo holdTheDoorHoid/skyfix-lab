@@ -300,3 +300,57 @@ describe('small helpers', () => {
     expect(order).toEqual([2, 1, 3]);
   });
 });
+
+// --- verify2: the wrapper's own mutations and keys ---------------------------------------
+describe('memoised engine: a pack load and non-finite arguments (verify2)', () => {
+  /** A fake pack engine with one pass-through query, counting the engine's calls. */
+  function packEngine() {
+    const calls = { timeInfo: 0, loadPack: 0 };
+    let packs = 0;
+    const raw = Object.assign(fakeEngine(), {
+      packs: () => [],
+      loadPack: (_name: string, _bytes: Uint8Array) => {
+        calls.loadPack += 1;
+        packs += 1;
+        return {};
+      },
+      // What the engine answers depends on the packs loaded, as a coverage or a tier does.
+      timeInfo: (jd: unknown) => {
+        calls.timeInfo += 1;
+        return { jd: String(jd), packs };
+      },
+    });
+    return { raw, calls };
+  }
+
+  it('forgets every remembered result when a pack is loaded through the wrapper', () => {
+    const { raw, calls } = packEngine();
+    const engine = memoEngine(raw as unknown as ExplorerEngine) as unknown as {
+      loadPack(name: string, bytes: Uint8Array): unknown;
+      timeInfo(jd: unknown): { jd: string; packs: number };
+      skyState: ExplorerEngine['skyState'];
+    };
+    expect(engine.timeInfo(1).packs).toBe(0);
+    expect(engine.timeInfo(1).packs).toBe(0);
+    engine.skyState({ lat_deg: 0, lon_deg: 0 }, 1, 'all');
+    expect(calls.timeInfo).toBe(1);
+    engine.loadPack('lunar-limb', new Uint8Array(4));
+    expect(calls.loadPack).toBe(1);
+    // Asked again: the engine's new answer, not the one remembered from before the pack.
+    expect(engine.timeInfo(1).packs).toBe(1);
+    expect(calls.timeInfo).toBe(2);
+    engine.skyState({ lat_deg: 0, lon_deg: 0 }, 1, 'all');
+    expect((raw as unknown as { calls: Record<string, number> }).calls.skyState).toBe(2);
+  });
+
+  it('keys NaN, Infinity, -Infinity and null apart', () => {
+    const { raw, calls } = packEngine();
+    const engine = memoEngine(raw as unknown as ExplorerEngine) as unknown as { timeInfo(jd: unknown): { jd: string } };
+    const answers = [Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY, null].map((x) => engine.timeInfo(x).jd);
+    expect(answers).toEqual(['NaN', 'Infinity', '-Infinity', 'null']);
+    expect(calls.timeInfo).toBe(4);
+    // Each is still remembered under its own key.
+    expect(engine.timeInfo(Number.NaN).jd).toBe('NaN');
+    expect(calls.timeInfo).toBe(4);
+  });
+});

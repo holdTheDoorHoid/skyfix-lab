@@ -336,11 +336,12 @@ mod tests {
             }
         }
         println!(
-            "58 stars x 5 random places and times: all first, worst separation {worst:.5} deg"
+            "58 stars x 5 random places and times: all first, worst separation {worst:.2e} deg"
         );
         // The chain inverts exactly; what is left is the sphere vs the explorer's star
-        // places, far under a hundredth of a degree.
-        assert!(worst < 0.01, "{worst}");
+        // places. ACCURACY.md claims under 0.00001 deg (verify2: this asserted 0.01, a
+        // thousand times the claim).
+        assert!(worst < 1e-5, "{worst}");
     }
 
     #[test]
@@ -378,7 +379,8 @@ mod tests {
             100.0 * first as f64 / n as f64
         );
         assert_eq!(matched, n);
-        assert!(first as f64 >= 0.9 * n as f64);
+        // ACCURACY.md: first in all 400 (verify2: this asserted 90 %).
+        assert_eq!(first, n);
     }
 
     #[test]

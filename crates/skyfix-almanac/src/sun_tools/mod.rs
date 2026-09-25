@@ -345,6 +345,15 @@ mod tests {
         let jd = civil_to_jd(2026, 5, 30) + 25.0 / 1440.0;
         assert_eq!(local_date(jd, -4.0), "2026-05-29");
         assert_eq!(local_date(jd, 0.0), "2026-05-30");
+        // verify2: an expanded year keeps its whole date (transit ids use this).
+        assert_eq!(
+            local_date(civil_to_jd(-584, 5, 22) + 0.5, 0.0),
+            "-0584-05-22"
+        );
+        assert_eq!(
+            local_date(civil_to_jd(12_345, 1, 2) + 0.5, 0.0),
+            "+12345-01-02"
+        );
         let (a, b) = year_window(2026, -5.0).unwrap();
         assert!((a - (civil_to_jd(2026, 1, 1) + 5.0 / 24.0)).abs() < 1e-12);
         assert!((b - a - 365.0).abs() < 1e-9);

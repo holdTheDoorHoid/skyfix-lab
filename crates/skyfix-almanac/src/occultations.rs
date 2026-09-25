@@ -316,7 +316,9 @@ impl Default for OccultationOptions {
 // The Moon's track: daily exact positions, eight-point Lagrange interpolation
 // ---------------------------------------------------------------------------
 
-pub(crate) struct MoonTrack {
+pub(crate) struct MoonTrack<'m> {
+    /// The provider, for the exact place where the stencil would be one-sided.
+    moon: &'m MoonProvider,
     /// UTC Julian date of sample 0.
     t0: f64,
     /// Apparent geocentric position, true equator and equinox of date, km.
@@ -325,15 +327,15 @@ pub(crate) struct MoonTrack {
     weights: [f64; STENCIL],
 }
 
-impl MoonTrack {
+impl<'m> MoonTrack<'m> {
     /// Samples every [`TRACK_STEP`] from `lo - 4` to `hi + 4` days, clipped to `[c0, c1]`.
     pub(crate) fn new(
-        moon: &MoonProvider,
+        moon: &'m MoonProvider,
         lo: f64,
         hi: f64,
         c0: f64,
         c1: f64,
-    ) -> Result<MoonTrack, AlmanacError> {
+    ) -> Result<MoonTrack<'m>, AlmanacError> {
         let first = (lo - 4.0).max(c0);
         let last = (hi + 4.0).min(c1);
         let n = (((last - first) / TRACK_STEP).floor() as usize + 1).max(STENCIL);
@@ -359,7 +361,12 @@ impl MoonTrack {
             *w = if i % 2 == 0 { c } else { -c };
             c = c * (STENCIL - 1 - i) as f64 / (i + 1) as f64;
         }
-        Ok(MoonTrack { t0, pos, weights })
+        Ok(MoonTrack {
+            moon,
+            t0,
+            pos,
+            weights,
+        })
     }
 
     pub(crate) fn start(&self) -> f64 {
@@ -374,8 +381,17 @@ impl MoonTrack {
     pub(crate) fn at(&self, jd: f64) -> Vec3 {
         let x = (jd - self.t0) / TRACK_STEP;
         let n = self.pos.len();
-        let j = (x.floor() as isize - (STENCIL as isize / 2 - 1)).clamp(0, (n - STENCIL) as isize)
-            as usize;
+        let centred = x.floor() as isize - (STENCIL as isize / 2 - 1);
+        // verify2: where the stencil cannot be centred (within 3 days of an end of the
+        // samples, which only happens at an end of the coverage) its error is not the
+        // 0.1 km of the middle but 0.03-1.9 km with the Moon's anomaly (about 1", 2 s of
+        // contact): take the exact place there.
+        if (centred < 0 || centred > (n - STENCIL) as isize)
+            && let Ok(p) = self.moon.position(jd)
+        {
+            return p.apparent_km;
+        }
+        let j = centred.clamp(0, (n - STENCIL) as isize) as usize;
         let (mut num, mut den) = ([0.0; 3], 0.0);
         for i in 0..STENCIL {
             let d = x - (j + i) as f64;
@@ -536,7 +552,7 @@ fn limb_distance_deg(moon: &MoonTrack, target: &TargetTrack, obs: &Observer, t: 
 /// Everything an event needs to know about the search: the providers, the observer, the
 /// tracks.
 struct Search<'a> {
-    moon: &'a MoonTrack,
+    moon: &'a MoonTrack<'a>,
     sun: &'a SunProvider,
     site: &'a Site,
     /// UT1 - UTC of the Moon provider, seconds (0 in the explorer, CONVENTIONS 13.2).
@@ -1088,9 +1104,21 @@ mod tests {
         let exact = moon.position(t).unwrap().apparent_km;
         // In the last day the stencil is one-sided, and its error there follows the
         // anomalistic month: 0.03 to 1.9 km over a month of end dates (deeptime agent,
-        // measured at the validated tier's end and a century before it). It is 0.69 km at
-        // this end (2650-01-22) and was 0.19 km at the old one (2060-12-31).
-        assert!(norm(sub(track.at(t), exact)) < 2.5);
+        // measured at the validated tier's end and a century before it). It was 0.69 km at
+        // this end (2650-01-22); verify2 made the track exact where its stencil cannot be
+        // centred, at both ends.
+        assert!(norm(sub(track.at(t), exact)) < 1e-9);
+        let start = parse_utc(&moon.coverage().start_utc).unwrap();
+        let early = MoonTrack::new(&moon, start, start + 10.0, start, c1).unwrap();
+        for dt in [0.05, 0.3, 1.7, 2.9] {
+            let exact = moon.position(start + dt).unwrap().apparent_km;
+            assert!(norm(sub(early.at(start + dt), exact)) < 1e-9, "{dt}");
+        }
+        // Away from the ends the interpolation is unchanged.
+        let t = c1 - 5.5;
+        let exact = moon.position(t).unwrap().apparent_km;
+        let d = norm(sub(track.at(t), exact));
+        assert!(d > 0.0 && d < 0.2, "{d}");
     }
 
     #[test]

@@ -1728,6 +1728,19 @@ they use the IERS history, and with neither 0. Not read by `almanac_day`, whose 
 is UT1 as in the printed almanac (CONVENTIONS 15.2), nor by `moon_phases` and `seasons`,
 which do not depend on the Earth's rotation. A session's `clock.dut1_s` overrides it for
 that session (the navigation exports).
+<!-- verify2 -->
+As built (verify2, 2026-09-25): also read by `compass_error`, `eclipse_local_limb` and
+`lunar_limb_profile`, and, since this agent's fix, by the session exports (`reduce`,
+`solve`, `misfit_grid`, `misfit_default_bounds`, `noon_sight`, `polaris_latitude`,
+`average_sights`, `running_fix`) for a session without `clock.dut1_s`, and by
+`predict_sextant`, `plan_sights` and `lunar_distance` for an observer without `dut1_s`:
+the order is the session's or observer's own value, then this one, then the IERS history.
+Before, those exports skipped it, so a page-wide DUT1 would have reached the worksheet's
+GHA Aries (`sidereal`) but not the reduced sights beside it. Not read by the sun tools, the
+Moon in detail, `star_identify` or the almanac tables, which turn the Earth with DUT1 = 0
+(the sun tools and the Moon in detail by up to 0.9 s of UT1, 13.5″, from `sky_state`'s
+IERS value). No view calls `set_dut1` today.
+<!-- /verify2 -->
 
 **`calendar_convert(request_json) -> CalendarConversion`**: `{"jd_utc": 2461308.0}` or
 `{"civil": {"calendar": "julian"|"gregorian", "year", "month", "day", "hour"?, "minute"?,
@@ -2577,7 +2590,7 @@ JPL's satellite ephemeris). Under a millisecond.
 | `eclipsed` | in Jupiter's shadow (the Sun's centre hidden) |
 | `shadow_on_disc`, `shadow_x_rj`, `shadow_y_rj` | the moon's shadow falls on Jupiter, and where (same axes); `null` otherwise |
 | `jupiter.sub_earth_lat_deg` | planetocentric latitude of the Earth seen from Jupiter (the tilt of the moons' paths) |
-| `accuracy_arcsec` | the worst offset error measured against JPL (ACCURACY 17) |
+| `accuracy_arcsec` | the worst offset error measured against JPL (ACCURACY 17) for the instant's era: 0.5 (1900-2040), 1.0 (1800-1900, 2040-2100), 1.5 (1600-1800, 2100-2200), 3.0 outside 1600-2200, where no JPL satellite ephemeris reaches and the figure is an extrapolation (verify2: it was a constant 0.5, exceeded after about 2040) |
 
 ### `galilean_events(jd_start, jd_end) -> GalileanEvents`
 

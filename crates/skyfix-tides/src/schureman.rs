@@ -352,9 +352,9 @@ pub const NOAA_STANDARD: usize = 37;
 
 /// NOAA's 37 standard constituents in NOAA's own numbering, then the 83 further ones of
 /// NOAA's extended set (so far published only for Anchorage, 9455920), in NOAA's order.
-/// Elementary terms from Schureman Table 2 (σ1 is A20, χ1 A27, θ1 A28,
+/// Elementary terms from Schureman Table 2 (χ1 A27, θ1 A28,
 /// TK1 = π1 B15, RP1 = ψ1 B24, KP1 = φ1 B31); compounds as their names say (MP1 =
-/// M2 − P1 and SO1 = S2 − O1 rather than A29 and A30), each
+/// M2 − P1 and SO1 = S2 − O1 rather than A29 and A30, σ1 = 2O1 − P1 rather than A20), each
 /// checked against NOAA's printed speed and NOAA's Anchorage predictions.
 pub const CONSTITUENTS: [Constituent; 120] = [
     el("M2", [2, -2, 2, 0, 0], 0.0, NodeRule::M2),
@@ -409,7 +409,11 @@ pub const CONSTITUENTS: [Constituent; 120] = [
     cp("M8", &[("M2", 4)]),
     cp("MS4", &[("M2", 1), ("S2", 1)]),
     // NOAA's extended set, numbers 38-120.
-    el("SIGMA1", [1, -4, 3, 0, 0], 90.0, NodeRule::O1),
+    // σ1 as the compound 2O1 − P1 (verify2): the same V as Schureman's A20
+    // (T − 4s + 3h + 90°) and the same speed, but f = f(O1)² and u = 2u(O1), which is
+    // what NOAA's predictions use. With A20's own f and u (formula 75) Anchorage's curve
+    // is 7.3 mm rms from NOAA's over 2026 and 2027, all of it at σ1's speed.
+    cp("SIGMA1", &[("O1", 2), ("P1", -1)]),
     // MP1 as the compound M2 − P1 (same V as Schureman A29, but u and f of M2): it
     // reproduces NOAA's Anchorage curve 0.4 cm (rms) better than A29.
     cp("MP1", &[("M2", 1), ("P1", -1)]),

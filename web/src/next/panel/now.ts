@@ -10,6 +10,7 @@ import type { PhaseSegment, SkyPhase } from '../engine/types.js';
 import { aroundToday, dayOf, setAttr, setText, skySelected } from '../shell/derived.js';
 import { dateShort, eventTime as clockTime, otherDay, relative } from '../shell/format.js';
 import { timeInfoAt, uncertaintyText } from '../time/chip.js';
+import { sightsOffered, sightsOnlyText } from '../time/tier.js';
 import { PHASE_LABEL, PHASE_MEANING, skyFacts, type SkyFacts } from '../shell/sky.js';
 import { displayZone, eventOptions, shallowEqual } from '../state.js';
 import { icon, type IconName } from '../theme/icons.js';
@@ -104,6 +105,9 @@ export function nowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     }
     // Far from today every clock time carries the Earth's rotation's uncertainty (polish2).
     const parts = meaning(facts, jd, zone, uncertaintyText(timeInfoAt(ctx, jd)) ? ` ${uncertaintyText(timeInfoAt(ctx, jd))}` : '');
+    // "Sun sights are possible now" is the sky's word; outside the validated years the
+    // explorer offers none, and says so here too (verify2).
+    if (!sightsOffered(ctx, jd)) parts.push(` ${sightsOnlyText(ctx)}`);
     const key = parts.map((p) => (typeof p === 'string' ? p : `<${p.textContent ?? ''}>`)).join('');
     if (text.dataset.key !== key) {
       text.dataset.key = key;

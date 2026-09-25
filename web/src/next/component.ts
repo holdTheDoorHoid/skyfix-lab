@@ -359,7 +359,16 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): M
     ...(isPackEngine(engine)
       ? {
           packs: () => engine.packs(),
-          loadPack: (name: string, bytes: Uint8Array) => engine.loadPack(name, bytes),
+          // A pack lets the engine answer more (a date it refused, a wider coverage): forget
+          // every remembered result, as the other mutations below do (verify2: the loop below
+          // skips a name already here, so this one must clear the caches itself).
+          loadPack: (name: string, bytes: Uint8Array) => {
+            try {
+              return engine.loadPack(name, bytes);
+            } finally {
+              caches.clear();
+            }
+          },
         }
       : {}),
     // Optional: present on the wrapper exactly when the engine makes almanac pages (the
@@ -511,9 +520,15 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): M
   return memo;
 }
 
-/** A cache key for a pass-through call: the arguments as JSON (typed arrays by their bytes' length and a hash). */
+/**
+ * A cache key for a pass-through call: the arguments as JSON (typed arrays by their bytes'
+ * length and a hash). JSON writes NaN and ±Infinity as `null` and cannot write a BigInt: they
+ * get keys of their own (verify2), so `f(NaN)` never answers from `f(null)`'s entry.
+ */
 function argsKey(args: unknown[]): string {
   return JSON.stringify(args, (_key, value: unknown) => {
+    if (typeof value === 'number' && !Number.isFinite(value)) return `\u0000number:${value}`;
+    if (typeof value === 'bigint') return `\u0000bigint:${value}`;
     if (value instanceof Uint8Array || value instanceof Float64Array || value instanceof Float32Array) {
       let h = 0;
       for (let i = 0; i < value.length; i += 1) h = (h * 31 + Number(value[i])) | 0;

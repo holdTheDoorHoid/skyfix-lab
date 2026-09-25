@@ -1306,6 +1306,15 @@ Normative for every view under `web/src/next/`; the helpers are in `web/src/next
   (`FAST_PLAYBACK_S`) the per-day events are not computed while time runs (`sunToday` and
   `aroundToday` return null) and are drawn as soon as it stops or slows; a view with its own
   per-day work does the same (`fastPlayback(state)`).
+  <!-- verify2 -->
+  *verify2:* every view and the side panel now do: while `fastPlayback` is true a view asks
+  the engine only for the positions it draws (`sky_state`, the Sky view's `sidereal`) and the
+  clock's chip, tier and pack status; the Selected card's tools, Tonight, the charts and the
+  Almanac keep what they show (a tool dimmed, `data-stale`) and catch up once time slows.
+  Tonight's sights plan, which waits for the time to settle, waits while time plays for the
+  play to stop or five seconds, not for a gap between two frames (a slow frame is not a still
+  time). `web/scripts/verify2-check.mjs` (playback) counts the calls.
+  <!-- /verify2 -->
 
 ### 15.7 The lunar limb (expansion programme P12, eclipselimb agent)
 

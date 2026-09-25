@@ -208,7 +208,12 @@ fn every_unflagged_station_matches_noaas_sweep() {
         worst_dh * 100.0
     );
     assert!(failing.is_empty(), "{failing:#?}");
-    assert!(worst_dt <= 2.0 && worst_dh <= 0.05);
+    // verify2: the published sweep figures (1.36 min, 0.59 cm), not 2 min / 5 cm.
+    assert!(
+        worst_dt <= 1.5 && worst_dh <= 0.008,
+        "{worst_dt:.2} min, {:.2} cm",
+        worst_dh * 100.0
+    );
     assert!(stations * every >= 3400, "{stations}");
 }
 
@@ -232,6 +237,14 @@ fn the_flags_say_what_noaa_does() {
         assert!(
             db.get(id).unwrap().has(flags::NOAA_DIFFERS),
             "{id} not flagged"
+        );
+        // verify2: the list is written from this predictor's own failures
+        // (examples/noaa_sweep.rs --write), and the sweep skips flagged stations. The
+        // only reason to flag one is that NOAA serves nothing to compare with; a station
+        // we merely fail to reproduce must fail the sweep instead.
+        assert!(
+            sweep["refused"].get(id).is_some(),
+            "{id} is flagged noaa_differs but NOAA predicts it"
         );
     }
 }

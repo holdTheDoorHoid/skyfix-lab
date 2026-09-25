@@ -17,18 +17,28 @@
 import type { MeteorShower, ShowerDates, ShowerNight, ShowerYear } from '../engine/types.js';
 import { DEG, unitFromRaDec } from './astro.js';
 
-/** Solar longitude at `jd` between a shower's start, peak and end, relative to the peak (degrees). */
+/**
+ * Solar longitude at `jd` between a shower's start, peak and end, relative to the peak
+ * (degrees): the parabola through the engine's three instants, whose solar longitudes the
+ * table gives. (verify2: a straight line on each side of the peak left out the Sun's
+ * changing speed, up to 0.15° over the Southern Taurids' 46 days before their peak; the
+ * parabola is within 0.01° of the Sun over every shower of the table.)
+ */
 export function lambdaFromPeak(s: Pick<ShowerDates, 'start' | 'peak' | 'end'> & { shower: Pick<MeteorShower, 'lambda_start_deg' | 'lambda_peak_deg' | 'lambda_end_deg'> }, jd: number): number {
   const up = (a: number, b: number): number => ((((b - a) % 360) + 360) % 360);
   const { start, peak, end, shower } = s;
-  if (jd <= peak.jd_utc) {
-    const span = peak.jd_utc - start.jd_utc;
-    const dl = up(shower.lambda_start_deg, shower.lambda_peak_deg);
-    return span > 0 ? -dl * ((peak.jd_utc - jd) / span) : 0;
+  const t0 = start.jd_utc - peak.jd_utc;
+  const t2 = end.jd_utc - peak.jd_utc;
+  const l0 = -up(shower.lambda_start_deg, shower.lambda_peak_deg);
+  const l2 = up(shower.lambda_peak_deg, shower.lambda_end_deg);
+  const t = jd - peak.jd_utc;
+  if (!(t0 < 0 && t2 > 0)) {
+    // A degenerate table row (no time on one side of the peak): straight lines, as before.
+    if (t <= 0) return t0 < 0 ? l0 * (t / t0) : 0;
+    return t2 > 0 ? l2 * (t / t2) : 0;
   }
-  const span = end.jd_utc - peak.jd_utc;
-  const dl = up(shower.lambda_peak_deg, shower.lambda_end_deg);
-  return span > 0 ? dl * ((jd - peak.jd_utc) / span) : 0;
+  // Lagrange through (t0, l0), (0, 0), (t2, l2).
+  return (l0 * t * (t - t2)) / (t0 * (t0 - t2)) + (l2 * t * (t - t0)) / (t2 * (t2 - t0));
 }
 
 /** The radiant (J2000 degrees) at `dLambda` degrees of solar longitude from the peak. */

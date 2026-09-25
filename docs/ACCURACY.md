@@ -2019,6 +2019,22 @@ squarely and by up to a minute where it meets it obliquely, near the Moon's pole
 graze's very existence depends on the real profile. The result says so beside every
 list (`limb_note`). A lunar-limb pack (programme item P12) would be the remedy.
 
+<!-- verify2 -->
+**On the two-tier Moon (verify2, 2026-09-25).** The figures above were measured on ELP
+2000-82B; with ELP/MPP02 and its refitted secular terms (section 21) the same tests give:
+perigee and apogee instants within **23.9 s** and distances within **0.36 km** (317
+events), distance at new and full Moon **0.39 km**, perigee fraction 0.00001; Meeus's
+50.a +4.8 s and −0.15 km from Skyfield; the whole libration chain 0.0052° (sub-observer
+point), 0.0054° (sub-solar), 0.0058° (axis position angle), the topocentric distance
+**0.71 km**, the semidiameter 0.00006′; occultation contacts within **1.17 s**. Every one
+is inside its target (2 min and 10 km for the apsides, 0.05° for libration, 30 s for the
+contacts), and the Moon's distance error, about 2e-6 of its value, is inside section 21's
+3e-6. The tests held only those targets; they now hold 45 s and 1 km (apsides), 1 km and
+1e-4 (phases), 30 s and 1 km (Meeus 50.a), 0.01° with no case allowed to drop out
+(libration: at 0.05° the model without the 78.7″ figure-to-mean-pole tilt passed), 5 s
+(contacts; 30 s let a spherical-Earth parallax through) and the three grazes within 3 s.
+<!-- /verify2 -->
+
 ### Speed
 
 Release build natively, CPU time on the shared machine (400 bare Moon positions cost
@@ -2235,6 +2251,24 @@ none extra). Outside Anchorage the agreement is at NOAA's own rounding (heights 
 cm, curves ≤ 0.29 cm). Anchorage's residual, 0.7 cm rms, sits in the diurnal band near
 σ1 and 2Q1; no convention for those two (or for any other of the 83 extended
 constituents tried) reduces it further.
+
+<!-- verify2 -->
+**Anchorage resolved (verify2, 2026-09-25): NOAA treats σ1 as the compound 2O1 − P1.**
+Against a whole year of NOAA's hourly predictions (the CO-OPS API, 2026 and 2027, 8 760
+hours each) the residual was 7.3 mm rms, and a least-squares fit at the 120 constituents'
+speeds put all of it at σ1's: 10.0 mm, 21 % of σ1's 47 mm, with 0.29 mm left over (NOAA's
+millimetre rounding). Solving for NOAA's own σ1 term gives f = 1.3616 and u = −8.03° in
+2026 (1.2927, −13.24° in 2027): f(O1)² and 2u(O1) exactly, the node factor and angle of
+2O1 − P1, whose V (T − 4s + 3h + 90°) and speed are those of Schureman's A20. With σ1 as
+that compound (`schureman.rs`), Anchorage's high and low waters are within **0.19 cm**
+(was 1.08 cm) and its curve within **0.45 cm** (was 1.38 cm) in the table above; the
+year's residual is 1.9 mm rms, at M2, N2, M4 and M6, about 0.1 % of each: M2's is a steady
++0.039° in both years, which is the size of NOAA publishing phases to 0.1° while predicting
+from its unrounded constants. The 3-day sweep is now within 1.36 min and **0.59 cm** (0.99
+cm before). `tests/noaa_fixtures.rs` and `tests/pack_real.rs` now hold these figures (1.5
+min, 0.5 cm, 0.6 cm for the curve, 0.8 cm in the sweep, and no extreme through the
+flat-turn allowance) instead of only the brief's 2 min and 5 cm.
+<!-- /verify2 -->
 
 The validation rules (`skyfix_tides::validation`) also allow, at a flat turn of the
 tide, three times the time uncertainty that the rounding of NOAA's published constants
@@ -2492,6 +2526,41 @@ contacts within 57 s beyond the ΔT difference, durations within 52 s; two catal
 that print contact I equal to II are compared at greatest transit only) and the Galilean
 instants of 1650, 1850 and 2150, where E5 is 0.89″ from JPL (Ganymede, 1650): the
 engine's 0.5″ holds near the present, not across the whole coverage.
+
+<!-- verify2 -->
+**Verification (verify2, 2026-09-25).**
+
+- **Galilean moons: the published 0.5″ failed after about 2040; it now depends on the
+  date.** Against JPL Horizons at 400 instants of 1600-2200 (240 spread over the span of
+  JPL's satellite ephemeris, 160 over 1990-2060; `fixtures/reference/galilean_horizons.json`,
+  `tools/reference/gen_galilean_horizons.py`), E5's worst offset from Jupiter is 0.40″ in
+  1900-2040, 0.88″ in 2040-2100 (0.67″ by 2057, 0.55″ at 2047-11-20 04:47 UT for Callisto,
+  where Skyfield with jup365 and Horizons agree to 0.000″), 0.72″ in 1800-1900, 1.27″ in
+  1600-1800 and 1.20″ in 2100-2200. The table above samples 15 instants (and the far check
+  one instant per excerpt), which misses most of this: 12 instants in each of the same
+  excerpts give Ganymede 1.43″ at 1650 rather than 0.89″. `accuracy_arcsec` is now
+  `satellites::accuracy_arcsec_at`: 0.5″ (1900-2040), 1″ (1800-1900, 2040-2100), 1.5″
+  (1600-1800, 2100-2200), and 3″ outside 1600-2200, where no JPL satellite ephemeris
+  reaches and the figure is an extrapolation of E5's growth, not a measurement.
+  `tests/galilean_horizons.rs` holds every moon at every instant to the figure published
+  for its date. The phenomena's `conventions` sentence says the same in minutes.
+- **The two misprinted catalogue rows are confirmed.** NASA's Mercury catalogue (Espenak,
+  `MercuryCatalog.html`, fetched again) prints 1891 May 10 as `23:57 23:57 02:22 04:47
+  04:47` and 2282 Nov 15 as `23:41 23:41 … 05:02 05:02`. Neither transit grazes (least
+  separations 754″ and 198″), and Skyfield with DE440 at the engine's Delta T gives
+  1891: I 23:54:11, II 23:59:10, III 04:44:06, IV 04:49:05 (the engine: within 1 s of
+  each), 2282: I 23:44:02, II 23:45:46, III 05:05:24, IV 05:07:07 (within 1 s). Each
+  printed pair is the midpoint of the true pair, printed twice (for 2282 after NASA's
+  Delta T, 250 s larger than this project's, is allowed for). The test compares those two
+  rows at greatest transit only, as it should.
+- **Conjunctions: every pair is now held to the bodies' accuracy along the track.** The
+  test put every time difference over 5 minutes into a separate bucket and then asserted
+  that the rest were under 5 minutes, which could not fail; the along-track test (time
+  difference times the pair's relative speed, within the two bodies' position budget) was
+  applied only to that bucket. It now applies to all 3 223 closest approaches of
+  1990-2060: worst 0.68 of the budget (Mercury-Saturn, 20.6 s). With the two-tier series
+  only 2 pairs are more than 5 minutes out, not 24.
+<!-- /verify2 -->
 
 ## Charts: what the Sun, Tides and Moon charts compute themselves (charts2 agent, expansion programme Q5)
 
@@ -2769,6 +2838,38 @@ contact mean −1.10 s (worst 1.72 s), all 19 within 2 s. The third-contact offs
 is a little smaller than the −1.35 s and −1.47 s above; the test's window for its mean
 (`eclipse_limb.rs`) is now −2.0 to −0.5 s.
 
+<!-- verify2 -->
+**Third contact re-derived independently (verify2, 2026-09-25): the offset is SVS's, not
+ours.** A third implementation, sharing only the pack's data: Skyfield 1.55 with DE440s,
+the Moon's orientation from NAIF's DE440 lunar kernels at the light's departure, the
+ring decoded from the pack by a separate Python reader (EXPLORER_API's format), every node
+projected gnomonically about the Moon's centre, the silhouette as the largest radius in
+each 1/16° of position angle, and second and third contact as the zeros of "the Moon's
+radius minus the Sun's farthest point" (total) or its negative (annular) over all position
+angles. Against the engine it agrees within **0.44 s** at every one of the 96 contacts
+away from grazes (means +0.10 to −0.15 s). Against SVS: 2024, second contact **+0.21 s**
+(sd 0.45), third **−1.07 s** (sd 0.49); 2023, **+0.05 s** (0.37) and **−1.19 s** (0.35). So
+SVS's central phase is 1.25-1.28 s longer, and almost all of it is at third contact, in the
+total and the annular eclipse alike.
+- **Not Delta T.** Moving the Earth's rotation by 1 s of Delta T (the site 15.04″ west)
+  moves second and third contact together, by 0.35-0.45 s, and the central phase by
+  0.15 s. NASA's eclipse site states Delta T = 74 s (2024) and 73.7 s (2023) for its
+  Besselian elements (the Canon's extrapolation); SVS's times with that Delta T would be
+  about 1.9 s *earlier* than ours at both contacts, and they are later. SVS item 5073 states
+  no Delta T; its mean time is 0.43-0.57 s later than ours, which is what whole seconds
+  taken at or after each event give, or a Delta T about a second smaller than the observed
+  69.2 s.
+- **Not the limb or a radius.** A finer limb (SVS's 60 m against LDEM_16's 1.9 km) has deeper
+  valleys and higher peaks, which would shorten both central phases; a smaller Sun or a
+  larger Moon lengthens totality but shortens annularity; SVS's are longer in both.
+- **What is left is SVS's definition:** "the 100 % points of coverage (normalized with
+  respect to the maximum coverage achieved)", to the whole second from umbra shapes at
+  one-second steps. Any threshold on coverage below one part in about 10⁵ of the Sun's
+  area, or a whole-second convention, lengthens the central phase at its ends; it cannot be
+  confirmed without SVS's code. The engine's contacts are the geometric ones, and three
+  implementations agree on them.
+<!-- /verify2 -->
+
 ## 20. The Sky view's astronomy layers (sky2 agent, expansion programme Q3)
 
 Display only (CONVENTIONS 13.6): nothing on the Sky view reaches a sight, and every
@@ -2785,7 +2886,7 @@ to the engine that it rests on by a test in `web/test/next/sky2-layers.test.ts` 
 | when a star, deep-sky object, radiant or marked point rises (the card) | a brute-force rotation of the sky; the engine's `day_events` rise for Vega | 10 s; 1 min | "matches the rotating sky", "agrees with the engine's rise times" |
 | extinction toward the horizon | the engine's `extinction_table`, relative to the zenith: `k (X − 1)` with Pickering's (2002) air mass | 1e-4 mag at 10° | "dims by the engine's air mass" |
 | the Milky Way's glow | the engine's isophote rings, filled on a 0.5° grid in galactic longitude and latitude and blurred with σ = 1° | the rings' edges are straight in (l, b): within 0.1° of the great-circle arcs, every ring lying within 28° of the galactic equator; the engine's dust lane (0.25) and Sagittarius cloud (above 0.9) come out where they are | "fills the engine's Milky Way", "fills a band … whichever way the rings run" |
-| a meteor radiant between its start, peak and end | the engine's instants and its drift per degree of solar longitude | λ☉ interpolated linearly in time: within 0.05°, so the radiant within 0.1° | "interpolates the solar longitude", "drifts the radiant" |
+| a meteor radiant between its start, peak and end | the engine's instants and its drift per degree of solar longitude | λ☉ interpolated linearly in time: within 0.05°, so the radiant within 0.1° (verify2: not over the Southern Taurids' 46 days before their peak, 0.15°; now a parabola through the three instants, within 0.01° of the Sun for every shower) | "interpolates the solar longitude", "drifts the radiant", "follows the Sun between the engine's instants" |
 | a camera's field | `2 atan(w / 2f)` (a rectilinear lens) | exact; 50 mm on full frame is 39.6° × 27.0° | "works out a camera's field" |
 
 Left out on purpose, and said where it matters: the Milky Way raster is not refracted (0.6°
@@ -2877,6 +2978,32 @@ identical. Bowditch's three 2024 zone cases (their zones are not stated) give +1
 −1.2 here against +2.1, +0.4 and −1.3 printed: the zones are this project's own
 (CONVENTIONS 13.9.1), so a letter can differ; the exact correction for a stated
 temperature and pressure does not depend on them.
+
+<!-- verify2 -->
+**The ten differences checked (verify2, 2026-09-25).** An independent Python evaluation of
+this project's chain (Bennett, the semidiameters above, the Moon's upper part at HP
+57.7′) reproduces all ten of "here", so the tables compute what CONVENTIONS 13.9.1 says.
+Replacing only the refraction by a rigorous one (a ray trace through a standard
+atmosphere, 10 °C and 1010 hPa, dry air at 0.574 µm, which matches ERFA's `refco` to
+0.001′ from 10° to 67° and Bowditch's quoted 5.3′ at 10° and 2.6′ at 20°) turns four of
+them into the printed value: the stars at 27° 48.1′ (−1.825′), the Sun October-March at
+6° 29.7′ (+8.431′), the stars at 4° 02.1′ (−11.600′) and the temperature-and-pressure
+correction at 1° 19.7′ (+1.542′); the Sun April-September at 1° 19.7′ moves from −5.94′
+to −5.73′, past the printed −5.8′ (the printed table's own low-altitude atmosphere is not
+known to 0.1′ at 1.3°). Bennett's formula reads 0.04-0.07′ higher than a rigorous
+refraction between 5° and 30° (EXPANSION_PLAN 4.5 leaves it: "Bennett's residual").
+**The five Moon entries are not refraction**: a rigorous refraction moves every upper
+part further from the book (56.26, 62.67, 33.17, 52.38), and a Moon radius of 0.2724
+moves them by 0.006′. The printed upper part runs 0.05-0.16′ below this project's at
+every altitude checked (2° 30′ to 66° 40′), while its L and U mostly agree; an upper part
+at HP 57.6′ reproduces all four printed upper parts but then misses three of the four
+printed L and U. So the printed Moon table splits the correction in its own way, not
+recoverable from Bowditch; what a navigator adds up (upper plus lower part) is within
+0.13′ of the exact chain in this project and within 0.08′ in print, inside the 0.23′
+stated above. None of the ten is a bug; the "why" of the Moon rows above ("refraction,
+and the printed table's smaller Moon radius") is not borne out. The comparison test now
+pins these ten and the 36 identical (it asserted "at least 70 %").
+<!-- /verify2 -->
 
 **The 2016 Polaris page** (Bowditch 2019 Figure 1912c, LHA Aries 120°–239°; test
 `the_printed_2016_polaris_page`): every a1 (156) and every azimuth (84) identical; a0 42 of
@@ -3254,6 +3381,15 @@ formal errors, the uncertainty of its barycentre's proper motion (next).
   with the orbit, so Rigil Kentaurus meets the 0.05′ fixture tolerance there (worst
   0.0003′); against the previous, straight-line fixture it would differ by up to 15.4″
   (2055).
+- **Against measured positions** (verify2, 2026-09-25). ALMA measured alpha Cen A's
+  absolute ICRS position nine times in 2018-2019, referred to quasars (Akeson et al. 2021,
+  Table 2; 0.4-7 mas). With annual parallax added, the orbit model is **0.10-0.12″** from
+  every one of them; the straight line the Almanac and USNO extrapolate is **4.4-4.6″**
+  off (`crates/skyfix-ephemeris/tests/acen_alma.rs`, which holds the orbit within 0.25″
+  and the line beyond 4″). Against Akeson et al.'s own barycentre and orbit, the provider
+  is 0.15″ off in 2026 and 0.39″ in 2060 (the barycentric proper motions differ by 5 mas
+  a year); the straight line is 5.9″ and 16.4″ off. So the provider is the closer to the
+  sky by a factor of about 40 today, and the "1-2″ by 2060" above is a generous bound.
 
 ### What changed inside 1990–2060
 
@@ -3303,6 +3439,52 @@ purpose (each case at its own TT and UT1): the Moon's position at a given clock 
 long ago is uncertain by Delta T's σ times the Moon's 0.55″ a second: about half a
 degree at 2000 BC, where σ is an hour. The interface shows that as a band of time, not
 as a position error.
+
+<!-- verify2 -->
+**Verification (verify2, 2026-09-25).**
+
+- **The tidal acceleration.** Stephenson, Morrison & Hohenkerk (2016, §2) take −25.82″/cy²,
+  the value implicit in JPL's DE430 (lunar laser ranging), and say their Delta T "should
+  be used in conjunction with the lunar ephemeris JPL DE430"; −25.85″/cy² above (and in
+  THIRD_PARTY) is not theirs. The pairing still holds, for the reason given last: the
+  Moon here is refitted to DE440/DE441, JPL's successors to DE430, so ELP/MPP02's DE405
+  constant no longer governs it. A difference Δṅ of the order of the ones in play (0.03″/cy²)
+  is 0.91 Δṅ ((y − 1955)/100)² s of Delta T: 43 s at 2000 BC (1 % of σ) and 2.5 s at AD 1000
+  (0.17 σ).
+- **Delta T and its σ against the Five Millennium Canon** (Espenak & Meeus 2006: NASA's
+  polynomials, with the Canon's correction to −25.858″/cy²; σ as NASA's "Uncertainty in ΔT"
+  page gives it). At −2000: 47 228 ± 3 732 s here, 46 472 ± 3 732 s in the Canon (+755 s,
+  0.20 σ; the σ is the same Huber formula). At −500: 16 939 ± 150 s against 17 125 ± 431 s
+  (−186 s, 0.43 of the Canon's σ, 1.24 of this σ). At 1000: 1 650 ± 15 s against
+  1 562 ± 54 s (+88 s, 5.9 of this σ). At 2999: 4 159 ± 1 815 s against 4 414 ± 1 882 s
+  (−255 s, 0.14 σ; the σ grows from 2026 here, 2005 there). Between −720 and 1600 this
+  model is SMH 2016's splines with their published errors, which are three times smaller
+  than Morrison & Stephenson (2004)'s that the Canon used, and the two curves differ by up to
+  186 s at 1200 (12 of SMH's σ): a revision in the literature, not an error here, but the
+  ±15 s of 1000-1600 is SMH's formal error, and below 30 s no chip is shown. Before −720
+  the value is the long-term parabola, as in Skyfield, not SMH 2020's own table
+  (Table-DT-lod4500yrs.2020: 46 000 ± 1 000 s at −2000, 34 800 ± 700 s at −1500); the
+  differences, 1 228 s and 808 s, are inside the σ shown (Huber's 3 732 s and 1 900 s, which
+  is larger than that table's). Delta T and σ are continuous across every join (−1520,
+  −720, 1973, 2027-09-28, 2800); TT − clock steps by −0.04 s at 1972-01-01 and +1.54 s at
+  2036-01-01, as section 15.2 says.
+- **The labelled tier's 5″ cut, spot-checked** against DE441 in a frame independent of
+  `ltp.py` (ERFA's long-term precession and IAU 2000A nutation, pyerfa 2.0.1.5): Venus,
+  Mars and Neptune at −1500 and 2900 (closest approaches and random instants) within
+  1.38″, 4.25″ and 1.04″, and 0.30″, 2.61″ and 0.56″. Then every second closest approach of
+  Mercury to Saturn over the whole labelled tier, 11 955 cases: worst of RA and Dec
+  Mercury 0.0171′, Venus 0.0466′, Mars 0.1090′, Jupiter 0.2153′, Saturn 0.5925′, each
+  inside the published figure (0.02′, 0.06′, 0.15′, 0.25′, 0.7′). The historical table's
+  20 random epochs per bin miss the closest approaches, where a heliocentric error shows
+  largest: on the sky, Mars 5.93″ in 1100-1200 (the table: 4.14″, and 4.33″ for the whole
+  tier), Venus 2.25″ in 1800-1700 BC (0.67″), 2.70″ in 1900-1800 BC (1.18″), Jupiter
+  12.46″ (9.66″), Saturn 37.74″ (35.49″). The per-bin figures are a sample, not a bound;
+  the per-tier published figures stand.
+- **Mars, Jupiter and Saturn inside 1990-2060** (the deeptime report's "up to 0.0122′"):
+  0.0067′, 0.0084′ and 0.0122′ worst in GHA against the regenerated fixtures (the table
+  above), inside the 0.02′ each publishes for the validated tier (`accuracy_arcsec`) and a
+  sixth of the 0.1′ sights target.
+<!-- /verify2 -->
 
 ### Size
 

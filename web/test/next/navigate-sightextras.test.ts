@@ -251,7 +251,7 @@ describe('dates typed in the display calendar (time-ui civil helpers)', () => {
 const PKG = resolve(__dirname, '../../src/wasm-pkg/skyfix_wasm.js');
 
 describe.skipIf(!existsSync(PKG))('against the built core (npm run wasm)', () => {
-  it('reads the watch log exactly as the core does, and identifies Vega from its compass bearing', async () => {
+  it('reads the watch log exactly as the core does, and identifies Vega from its compass bearing', async ({ skip }) => {
     const mod = (await import(pathToFileURL(PKG).href)) as Record<string, unknown> & { initSync: (o: { module: Buffer }) => void; reduce: (s: string, m: string) => { status: string; sight: ReducedSight }[] };
     mod.initSync({ module: readFileSync(resolve(__dirname, '../../src/wasm-pkg/skyfix_wasm_bg.wasm')) });
     const reduced = mod.reduce(JSON.stringify(LOGGED), 'auto');
@@ -259,7 +259,7 @@ describe.skipIf(!existsSync(PKG))('against the built core (npm run wasm)', () =>
       const core = reduced[i]!.sight.clock_correction_from_log!.value;
       expect(watchCorrectionAt(LOGGED, obs.utc)).toBeCloseTo(core, 6);
     }
-    if (typeof mod.star_identify !== 'function') return;
+    if (typeof mod.star_identify !== 'function') return skip(); // verify2: skipped, not a silent pass
     const engine = new WasmEngine(mod as unknown as ExplorerWasmExports);
     const explorer = defaultState(Date.UTC(2026, 9, 1, 0, 30));
     const plain: Working = { ...defaultWorking(), session: { ...LOGGED, instrument: { name: '', index_correction_arcmin: -1.2, horizon: 'sea' }, clock: { uncertainty_s: 0, correction_s: 0 }, observer: { ...LOGGED.observer, height_of_eye_m: 2.5 } } };

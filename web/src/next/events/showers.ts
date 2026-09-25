@@ -218,7 +218,8 @@ export const showersTab: TabComponent = (host, env) => {
       notes.replaceChildren(
         h('p', { class: 'sfe-note' }, RATE_NOTE),
         ...(cal ? [h('p', { class: 'sfe-note' }, cal)] : []),
-        h('p', { class: 'sfe-note' }, data?.source ? `Shower table: ${data.source}` : ''),
+        // No source line (verify2): nothing on screen credits anything but OpenStreetMap; the
+        // table's sources are in THIRD_PARTY.md, which About links.
       );
       renderCard(w);
       save.refresh();

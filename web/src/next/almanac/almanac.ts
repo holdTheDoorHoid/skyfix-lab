@@ -37,7 +37,7 @@ import {
   type PolarisTable,
   type RefractionConditions,
 } from '../engine/types.js';
-import { goNow, setTime } from '../playback.js';
+import { fastPlayback, goNow, setTime } from '../playback.js';
 import { button, segmented } from '../theme/primitives.js';
 import { BANNER } from './cells.js';
 import { oneDayPages, openingPages, type HourRows, type RenderedPages } from './daily.js';
@@ -334,24 +334,38 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
   const render = settler(draw);
   d.add(() => render.cancel());
 
+  const follow = (jd: number): void => {
+    if (fastPlayback(ctx.store.get())) return;
+    const sd = shownDate(jd, lastCalendar);
+    if (shownWire.includes(sd.wire) && shownMode === mode && shownCalendar === lastCalendar) {
+      entry.set(sd, lastCalendar);
+      if (mode === 'opening') shownIndex = shownWire.indexOf(sd.wire);
+      highlight();
+      return;
+    }
+    if (urgent || shownMode === null) {
+      urgent = false;
+      render.now();
+    } else {
+      entry.set(sd, lastCalendar);
+      status.textContent = 'Waiting for the time to settle…';
+      render.request();
+    }
+  };
+  d.add(watch(ctx, (s) => s.time.jd_utc, follow));
+  // Faster than eight days a second (playback.ts `fastPlayback`) the pages hold still and the
+  // engine is asked nothing: an opening every few seconds was 0.2 s each (verify2). They
+  // catch up once time slows.
   d.add(
-    watch(ctx, (s) => s.time.jd_utc, (jd) => {
-      const sd = shownDate(jd, lastCalendar);
-      if (shownWire.includes(sd.wire) && shownMode === mode && shownCalendar === lastCalendar) {
-        entry.set(sd, lastCalendar);
-        if (mode === 'opening') shownIndex = shownWire.indexOf(sd.wire);
-        highlight();
-        return;
-      }
-      if (urgent || shownMode === null) {
-        urgent = false;
-        render.now();
-      } else {
-        entry.set(sd, lastCalendar);
-        status.textContent = 'Waiting for the time to settle…';
-        render.request();
-      }
-    }),
+    watch(
+      ctx,
+      (s) => fastPlayback(s),
+      (fast) => {
+        if (fast) render.cancel();
+        else follow(ctx.store.get().time.jd_utc);
+      },
+      { immediate: false },
+    ),
   );
   d.add(() => panel.replaceChildren());
   return { destroy: () => d.dispose() };
@@ -583,14 +597,24 @@ function mountAltitude(panel: HTMLElement, env: Env): TabMounted {
   );
   const settle = settler(draw);
   d.add(() => settle.cancel());
+  // The air from Settings → Sights starts the form when it is not the standard air, so Table
+  // A4's zone and exact corrections are for the air every other refraction on the page uses
+  // (verify2; the printed tables stay at the standard air, as the book's do).
+  const air = env.ctx.store.get().settings;
+  if (air.pressure_hpa !== 1010 || air.temperature_c !== 10) {
+    tIn.value = String(air.temperature_c);
+    pIn.value = String(air.pressure_hpa);
+    conditions = readConditions();
+  }
   draw();
   // Venus and Mars follow the year of the explorer's time.
   d.add(
     watch(
       env.ctx,
-      (s) => shownDate(s.time.jd_utc, lastCalendar).year,
+      // Not during fast playback (verify2): a new year ten times a second.
+      (s) => (fastPlayback(s) ? null : shownDate(s.time.jd_utc, lastCalendar).year),
       (year) => {
-        if (year !== planetsYear) settle.request();
+        if (year !== null && year !== planetsYear) settle.request();
       },
       { immediate: false },
     ),
@@ -681,8 +705,11 @@ function mountPolaris(panel: HTMLElement, env: Env): TabMounted {
   d.add(
     watch(
       env.ctx,
-      (s) => shownDate(s.time.jd_utc, lastCalendar).year,
-      () => settle.request(),
+      // Not during fast playback (verify2): a new year ten times a second.
+      (s) => (fastPlayback(s) ? null : shownDate(s.time.jd_utc, lastCalendar).year),
+      (year) => {
+        if (year !== null) settle.request();
+      },
       { immediate: false },
     ),
   );

@@ -23,7 +23,7 @@ import './tonight.css';
 import { h } from '../../dom.js';
 import { disposer, watch, type Component } from '../component.js';
 import { isDeepSkyEngine, isTidesEngine, type Dso } from '../engine/types.js';
-import { setTime } from '../playback.js';
+import { fastPlayback, setTime } from '../playback.js';
 import { displayZone, shallowEqual, type ExplorerState, type ExplorerStore } from '../state.js';
 import { bearing3, compassPoint, formatLat, formatLon } from '../shell/format.js';
 import { bodyGlyph, phaseDisc } from '../theme/glyphs.js';
@@ -995,10 +995,20 @@ const view: Component = (host, ctx) => {
           s.settings.skyQuality,
           s.settings.skyBortle,
           s.settings.skyNelm,
+          fastPlayback(s),
         ] as const,
       () => {
         const s = store.get();
         skyChoice.sync(s);
+        // Faster than eight days a second (playback.ts `fastPlayback`) the page keeps its
+        // night, dimmed, and asks the engine nothing: a new night every frame, and even
+        // choosing it asks for the day's events (verify2). It catches up once time slows.
+        if (fastPlayback(s)) {
+          if (timer !== null) clearTimeout(timer);
+          timer = null;
+          root.dataset.stale = 'true';
+          return;
+        }
         const n = nightOf(s);
         const key = n === null ? `outside|${s.observer.lat_deg}|${s.observer.lon_deg}` : queryKey(nightQuery(s, n, skyConditions(s.settings)));
         if (key !== shownKey) {

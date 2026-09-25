@@ -28,7 +28,7 @@ import { pointKey, radiantKey, SkyRenderer, type Frame } from '../../src/next/sk
 import { SkyScene } from '../../src/next/sky/scene.js';
 import { composeSnapshot } from '../../src/next/sky/snapshot.js';
 import { drawJupiterInset, drawMoonInset, drawPlanetInset, drawSaturnInset, type InsetFrame } from '../../src/next/sky/upclose-draw.js';
-import { globePoint, librationWords, litFraction, litRegion, nearSide, paDirection, skyBasis, toScreen } from '../../src/next/sky/upclose-geometry.js';
+import { GALILEAN_MEASURED_YEARS, galileanAccuracyWords, globePoint, librationWords, litFraction, litRegion, nearSide, paDirection, skyBasis, toScreen } from '../../src/next/sky/upclose-geometry.js';
 
 const PHILLY = { lat_deg: 39.9526, lon_deg: -75.1652, height_m: 0 };
 const T0 = 2_461_308.5 + 2 / 24; // 2026-09-25T02:00Z: a dark evening in Philadelphia
@@ -406,6 +406,24 @@ describe.skipIf(!(existsSync(WASM_FILE) && existsSync(GLUE_FILE)))('the close-up
           expect(Math.hypot(s.x - x.disc.x, -s.y - x.disc.y)).toBeLessThan(1e-9);
         }
       }
+    }
+  });
+});
+
+// --- verify2 -------------------------------------------------------------------------------
+describe('the Galilean moons’ accuracy in words (verify2)', () => {
+  const jdOfYear = (y: number): number => 2_451_545 + (y - 2000) * 365.25;
+
+  it('says "within … of JPL" only for the years JPL’s positions of the moons cover', () => {
+    expect(GALILEAN_MEASURED_YEARS).toEqual([1600, 2200]);
+    expect(galileanAccuracyWords(0.5, jdOfYear(2026))).toBe('within 0.5″ of JPL');
+    expect(galileanAccuracyWords(1.5, jdOfYear(1650))).toBe('within 1.5″ of JPL');
+    expect(galileanAccuracyWords(1.5, jdOfYear(2199.5))).toBe('within 1.5″ of JPL');
+    for (const y of [1500, 1599.5, 2200.5, 2999]) {
+      const words = galileanAccuracyWords(3, jdOfYear(y));
+      expect(words).not.toMatch(/within/);
+      expect(words).toMatch(/^to about 3\.0″, an estimate/);
+      expect(words).toMatch(/1600 to 2200/);
     }
   });
 });

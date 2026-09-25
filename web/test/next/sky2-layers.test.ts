@@ -36,7 +36,7 @@ import {
   skyModel,
   zenithLimit,
 } from '../../src/next/sky/conditions.js';
-import { customBodies, fromMpc, MAX_CUSTOM_BODIES, MPC_CREDIT } from '../../src/next/sky/custom.js';
+import { CUSTOM_EXAMPLE, customBodies, fromMpc, MAX_CUSTOM_BODIES } from '../../src/next/sky/custom.js';
 import { DeepSkyField, dsoKey, dsoReach, dsoShape, DsoShape, NO_MAGNITUDE_AS } from '../../src/next/sky/deepsky.js';
 import { hitWhere, panelSkyOptions, runSkySearch, targetOfHit } from '../../src/next/sky/find.js';
 import { formatDec, formatRa } from '../../src/next/sky/format.js';
@@ -320,6 +320,38 @@ describe('meteor radiants (meteors.ts)', () => {
     expect(lambdaFromPeak(shower, 120)).toBeCloseTo(5, 9);
   });
 
+  it('follows the Sun between the engine’s instants, over the longest run of the table (verify2)', () => {
+    // The Sun's longitude referred to the J2000 equinox (Meeus, Astronomical Algorithms,
+    // ch. 25, low precision: 0.01°), and the instants at which it reaches a shower's table
+    // values, as the engine finds them. The Southern Taurids of 2026 run 46 days to their
+    // peak: a straight line there was 0.15° off the Sun; the parabola must stay within 0.01°.
+    const sunLambda = (jd: number): number => {
+      const t = (jd - 2451545) / 36525;
+      const m = (357.52911 + 35999.05029 * t - 0.0001537 * t * t) * DEG;
+      const c = (1.914602 - 0.004817 * t) * Math.sin(m) + (0.019993 - 0.000101 * t) * Math.sin(2 * m) + 0.000289 * Math.sin(3 * m);
+      return (((280.46646 + 36000.76983 * t + 0.0003032 * t * t + c - 1.3969713 * t) % 360) + 360) % 360;
+    };
+    const when = (lambda: number, guess: number): number => {
+      let jd = guess;
+      for (let i = 0; i < 20; i += 1) jd -= ((((sunLambda(jd) - lambda + 540) % 360) - 180) / 360) * 365.2422;
+      return jd;
+    };
+    for (const [code, ls, lp, le, guess] of [['STA', 177, 223, 238, 2461350], ['PER', 114, 140, 151, 2461265]] as const) {
+      const s = {
+        shower: { lambda_start_deg: ls, lambda_peak_deg: lp, lambda_end_deg: le },
+        start: { jd_utc: when(ls, guess - 45), utc: '' },
+        peak: { jd_utc: when(lp, guess), utc: '' },
+        end: { jd_utc: when(le, guess + 15), utc: '' },
+      };
+      let worst = 0;
+      for (let jd = s.start.jd_utc; jd <= s.end.jd_utc; jd += 0.25) {
+        const truth = (((sunLambda(jd) - lp + 540) % 360) - 180);
+        worst = Math.max(worst, Math.abs(lambdaFromPeak(s, jd) - truth));
+      }
+      expect(worst, code).toBeLessThan(0.01);
+    }
+  });
+
   it('drifts the radiant from its place at the peak', () => {
     expect(radiantJ2000(shower.shower, 0)).toEqual({ ra: 100, dec: 20 });
     const r = radiantJ2000(shower.shower, 10);
@@ -558,13 +590,13 @@ describe('added comets and asteroids (custom.ts)', () => {
   const body = (name: string, source: OrbitalElements['source'] = 'manual'): OrbitalElements =>
     ({ name, designation: null, class: 'asteroid', epoch_jd_tt: T0, perihelion_distance_au: 2, eccentricity: 0.1, inclination_deg: 1, ascending_node_deg: 2, argument_of_perihelion_deg: 3, perihelion_jd_tt: T0, magnitude: { model: 'none' }, source }) as OrbitalElements;
 
-  it('adds, replaces by name, removes, keeps at most twenty, and credits the MPC', () => {
+  it('adds, replaces by name, removes, keeps at most twenty, and credits nothing it was not given (verify2: no MPC line)', () => {
     const ctx = { store: createExplorerStore({ storage: null }) };
     const c = customBodies(ctx);
     c.add([body('A'), body('B', 'mpcorb')]);
     c.add([body('A')], 'Source: a circular');
     expect(c.get().map((b) => b.name)).toEqual(['B', 'A']);
-    expect(c.creditOf(c.get()[0]!)).toBe(MPC_CREDIT);
+    expect(c.creditOf(c.get()[0]!)).toBe(''); // elements pasted in an MPC format are the person's: no line
     expect(c.creditOf(c.get()[1]!)).toBe('Source: a circular');
     expect(fromMpc(body('C', 'mpc_comet'))).toBe(true);
     c.remove('B');
@@ -698,8 +730,87 @@ describe.skipIf(!hasPackage)('the Sky view’s layers on the built WebAssembly p
     expect(rel[0]).toBeCloseTo(0.25 * (X(0) - X(90)), 3);
   });
 
-  it('has the Moon in detail for the close-up', () => {
-    if (load.status !== 'ready') return;
+  it('has the Moon in detail for the close-up', ({ skip }) => {
+    if (load.status !== 'ready') return skip(); // verify2: skipped, not a silent pass
     expect(isMoonDetailEngine(load.engine)).toBe(true);
+  });
+});
+
+// --- verify2: ACCURACY §20's two Milky Way figures, measured on the engine's rings ----------
+describe.skipIf(!hasPackage)('the Milky Way rings against ACCURACY §20 (verify2)', () => {
+  let load: WasmLoad;
+  beforeAll(async () => {
+    const glue = (await import(/* @vite-ignore */ pathToFileURL(GLUE_FILE).href)) as { initSync: (i: { module: BufferSource }) => unknown; init?: () => void };
+    glue.initSync({ module: readFileSync(WASM_FILE) });
+    glue.init?.();
+    load = inspectWasmModule(glue);
+  });
+
+  it('every ring lies within 28° of the galactic equator, and each straight (l, b) edge within 0.1° of its great-circle arc', ({ skip }) => {
+    if (load.status !== 'ready' || !isDeepSkyEngine(load.engine)) return skip();
+    const outline = load.engine.milkyWayOutline();
+    // The band the fill assumes (the old check was only "inside the 32° grid").
+    const maxAbsB = buildMilkyWayGrid(outline).maxAbsB;
+    expect(maxAbsB).toBeLessThan(28);
+    const unit = (ra: number, dec: number): number[] => [Math.cos(dec * DEG) * Math.cos(ra * DEG), Math.cos(dec * DEG) * Math.sin(ra * DEG), Math.sin(dec * DEG)];
+    const wrap = (d: number): number => ((((d + 180) % 360) + 360) % 360) - 180;
+    let worst = 0;
+    let longest = 0;
+    let edges = 0;
+    for (const ring of outline.rings) {
+      const n = Math.min(ring.ra_deg.length, ring.dec_deg.length);
+      for (let i = 0; i < n; i += 1) {
+        const j = (i + 1) % n;
+        const a = unit(ring.ra_deg[i]!, ring.dec_deg[i]!);
+        const b = unit(ring.ra_deg[j]!, ring.dec_deg[j]!);
+        const omega = Math.acos(Math.min(1, Math.max(-1, a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!)));
+        if (omega < 1e-9) continue;
+        edges += 1;
+        longest = Math.max(longest, omega / DEG);
+        const ga = galacticOf(ring.ra_deg[i]!, ring.dec_deg[i]!);
+        const gb = galacticOf(ring.ra_deg[j]!, ring.dec_deg[j]!);
+        // The straight edge the fill uses, in a local plane (l·cos b, b) about the edge.
+        const cosB = Math.cos(((ga.b + gb.b) / 2) * DEG);
+        const ex = wrap(gb.l - ga.l) * cosB;
+        const ey = gb.b - ga.b;
+        const len2 = ex * ex + ey * ey;
+        for (let k = 1; k < 16; k += 1) {
+          // The great circle's point a fraction t of the way along (slerp).
+          const t = k / 16;
+          const wa = Math.sin((1 - t) * omega) / Math.sin(omega);
+          const wb = Math.sin(t * omega) / Math.sin(omega);
+          const p = [0, 1, 2].map((c) => wa * a[c]! + wb * b[c]!);
+          const g = galacticOf(Math.atan2(p[1]!, p[0]!) / DEG, Math.asin(Math.max(-1, Math.min(1, p[2]!))) / DEG);
+          const px = wrap(g.l - ga.l) * cosB;
+          const py = g.b - ga.b;
+          const s = len2 > 0 ? Math.max(0, Math.min(1, (px * ex + py * ey) / len2)) : 0;
+          worst = Math.max(worst, Math.hypot(px - s * ex, py - s * ey));
+        }
+      }
+    }
+    console.info(`Milky Way rings: |b| at most ${maxAbsB.toFixed(2)}°, ${edges} edges, the longest ${longest.toFixed(2)}°, a straight (l, b) edge at most ${worst.toFixed(4)}° from its arc`);
+    expect(edges).toBeGreaterThan(100);
+    expect(longest).toBeLessThanOrEqual(14);
+    expect(worst).toBeLessThan(0.1);
+  });
+});
+
+// --- verify2: the worked example's values, credit-free ---------------------------------------
+describe('the add dialog’s worked example (verify2)', () => {
+  it('is (1) Ceres with JPL’s Small-Body Database elements, read by parse_orbits', () => {
+    const engine = new MockEngine({ syntheticStars: 0 });
+    const [ceres] = engine.parseOrbits(CUSTOM_EXAMPLE);
+    expect(ceres!.name).toBe('(1) Ceres');
+    expect(ceres!.source).toBe('manual');
+    // JPL SBDB, solution JPL 48 (2021-04-13), epoch 2461200.5 TDB: q 2.545159361, e 0.0796922951,
+    // i 10.5880278, node 80.2486268, peri 73.2942145, tp 2461599.841466614, H 3.34, G 0.12.
+    expect(ceres!.epoch_jd_tt).toBe(2461200.5);
+    expect(ceres!.perihelion_distance_au).toBeCloseTo(2.545159361, 6);
+    expect(ceres!.eccentricity).toBeCloseTo(0.0796922951, 6);
+    expect(ceres!.inclination_deg).toBeCloseTo(10.5880278, 5);
+    expect(ceres!.ascending_node_deg).toBeCloseTo(80.2486268, 5);
+    expect(ceres!.argument_of_perihelion_deg).toBeCloseTo(73.2942145, 4);
+    expect(ceres!.perihelion_jd_tt).toBeCloseTo(2461599.841466614, 6);
+    expect(ceres!.magnitude).toEqual({ model: 'hg', h: 3.34, g: 0.12 });
   });
 });

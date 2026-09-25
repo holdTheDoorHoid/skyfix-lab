@@ -455,7 +455,9 @@ mod tests {
         for (b, w) in &worst {
             println!("  {b:<8} {w:.5}");
             if b != "Venus" {
-                assert!(*w < 0.001, "{b}: {w}");
+                // verify2: ACCURACY.md claims 0.00001 deg (measured under 0.000005);
+                // 0.001 deg was a hundred times that.
+                assert!(*w < 1e-5, "{b}: {w}");
             }
         }
     }

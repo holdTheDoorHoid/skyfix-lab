@@ -33,6 +33,7 @@ import { sightTierAt } from './tier.js';
 import { workingFor } from './working.js';
 import { workingsTable } from './workings.js';
 import { ringWhileShown } from '../sky/highlight.js'; // sky2 agent: tonight's bodies ringed in the Sky view
+import { fastPlayback } from '../playback.js';
 
 export interface TonightOptions {
   /** Compact list for the side panel (default) or the full plan (Navigate's Plan tab). */
@@ -235,6 +236,8 @@ export function tonightSights(options: TonightOptions = {}): Component {
       return { destroy: () => d.dispose() };
     }
     let lastKey = '';
+    /** The time of the last request, to tell a moving time from a still one (verify2). */
+    let lastJd = Number.NaN;
     let lastRun = 0;
     let firstPending = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -244,6 +247,7 @@ export function tonightSights(options: TonightOptions = {}): Component {
     const compute = (): void => {
       timer = null;
       lastRun = Date.now();
+      body.removeAttribute('data-stale');
       const inputs = inputsFor(ctx, from);
       // navigate2: no plan outside the validated tier (CONVENTIONS 15.1): the sentence says why,
       // on the time-ui agent's `tierAt` and `sightsOnlyText` (tier.ts). The window searched runs a
@@ -274,19 +278,37 @@ export function tonightSights(options: TonightOptions = {}): Component {
       }
     };
     const request = (): void => {
+      // Faster than eight days a second (playback.ts `fastPlayback`) no plan is made: a new
+      // night every frame, and at most one plan in five seconds still took the page's time
+      // (verify2). The last plan stays, dimmed; a new one follows once time slows.
+      if (fastPlayback(ctx.store.get())) {
+        if (timer !== null) clearTimeout(timer);
+        timer = null;
+        lastKey = '';
+        body.setAttribute('data-stale', '');
+        return;
+      }
       const inputs = inputsFor(ctx, from);
       const st = ctx.store.get().settings;
       const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), st.angleFormat, st.timeDisplay, st.hourCycle, ctx.store.get().observer.zone, st.calendar, st.yearStyle]);
-      if (key === lastKey) return;
-      lastKey = key;
-      // A plan takes tens of milliseconds of the page's time. While the time keeps moving
-      // (the time bar dragged, or playing) it waits for the time to settle, so it never makes
-      // the frames of a drag late: once the time has been still for SETTLE_MS, and at least
-      // every MAX_WAIT_MS while it keeps moving. The first plan is made at once.
+      const moved = inputs.jdStart !== lastJd;
+      lastJd = inputs.jdStart;
+      const playing = ctx.store.get().time.playing;
+      if (key === lastKey && (timer === null || (!moved && playing))) return;
       const now = Date.now();
-      if (timer === null) firstPending = now;
-      else clearTimeout(timer);
-      const wait = lastRun === 0 || now - firstPending >= MAX_WAIT_MS ? 0 : SETTLE_MS;
+      if (key !== lastKey) {
+        lastKey = key;
+        if (timer === null) firstPending = now;
+      }
+      if (timer !== null) clearTimeout(timer);
+      // A plan takes tens of milliseconds of the page's time, so it never makes the frames of a
+      // drag or of playback late. The first plan is made at once; while the time is dragged, once
+      // it has been still for SETTLE_MS; while it plays, at most one every MAX_WAIT_MS, whatever
+      // the frames' pace; and SETTLE_MS after it stops. (verify2: the timer was armed only when
+      // the hour changed, so at an hour a second, or on slow frames, it fired between two
+      // changes and a plan of 100-150 ms was made every second.)
+      const waited = now - firstPending;
+      const wait = lastRun === 0 || waited >= MAX_WAIT_MS ? 0 : playing ? MAX_WAIT_MS - waited : SETTLE_MS;
       timer = setTimeout(compute, wait);
     };
     d.add(ctx.store.subscribe(request));

@@ -1662,7 +1662,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       if (o.cross_ids.length) lines.push({ label: 'Also', value: o.cross_ids.join(', ') });
       actions.push({ id: 'ranking', label: 'Tonight’s ranking', icon: 'list' });
       actions.push({ id: 'fov', label: view.fov.preset ? 'Field of view here' : 'Binocular view here', tip: 'Draw the field of view around it' });
-      source = scene.dso.source;
+      // verify2: the catalogue's sources (Wikidata, SIMBAD, HEASARC…) are not shown on the
+      // card: nothing on screen credits anything but OpenStreetMap; they are in THIRD_PARTY.md.
     } else if (kind === 'r') {
       const a = active.find((x) => radiantKey(x.dates.shower.code) === key);
       if (a) {
@@ -1887,7 +1888,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     const dark = q.skyQuality === 'bortle' ? `a Bortle ${q.skyBortle} sky` : q.skyQuality === 'nelm' ? `a sky to magnitude ${q.skyNelm.toFixed(1)}` : 'a dark sky';
     return {
       title: `The sky from ${place}`,
-      lines: [time, `${what}; stars drawn to magnitude ${zenith.toFixed(1)} overhead for ${dark} (an estimate). Star field: Yale Bright Star Catalogue (NASA HEASARC).`],
+      // No catalogue credit in the picture (verify2: nothing on screen credits anything but
+      // OpenStreetMap; the Bright Star Catalogue's entry is in THIRD_PARTY.md).
+      lines: [time, `${what}; stars drawn to magnitude ${zenith.toFixed(1)} overhead for ${dark} (an estimate).`],
     };
   }
 

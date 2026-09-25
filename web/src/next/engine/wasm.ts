@@ -337,6 +337,15 @@ export function missingExports(module: object): { required: string[]; optional: 
 const DEFAULT_OPTIONS: EventOptions = { horizon: 'standard', height_of_eye_m: 0 };
 
 /** wasm-bindgen throws the Rust `Err` value (a string); make it a readable Error. */
+/**
+ * `name: text`, with the export's name once: some exports' own messages already begin with it
+ * (planet detail's `planet_disc: "Pluto" is not a planet`), and EXPLORER_API promises one
+ * prefix (verify2).
+ */
+export function prefixedError(name: string, text: string): string {
+  return text.startsWith(`${name}: `) ? text : `${name}: ${text}`;
+}
+
 function errorText(error: unknown): string {
   if (typeof error === 'string') return error;
   if (error instanceof Error) return error.message;
@@ -373,11 +382,16 @@ function rebuildError(name: string, what: string): Error {
   );
 }
 
-/** Deep-sky sky conditions / options as the exports take them: JSON with only known fields. */
-export function conditionsJson(c: SkyConditionsInput | TonightOptions | undefined): string {
+/**
+ * Deep-sky sky conditions / options as the exports take them: JSON with only known fields.
+ * `limit` is `tonight`'s own option (`TonightOptions`): the other exports' conditions refuse
+ * any field they do not know, so it is sent only when `withLimit` (verify2; a
+ * `TonightOptions` passed where conditions are asked type-checks, and made them throw).
+ */
+export function conditionsJson(c: SkyConditionsInput | TonightOptions | undefined, withLimit = false): string {
   if (!c) return '';
   const out: Record<string, number> = {};
-  for (const key of ['bortle', 'nelm', 'k', 'limit'] as const) {
+  for (const key of withLimit ? (['bortle', 'nelm', 'k', 'limit'] as const) : (['bortle', 'nelm', 'k'] as const)) {
     const v = (c as Record<string, number | null | undefined>)[key];
     if (typeof v === 'number') out[key] = v;
   }
@@ -436,7 +450,7 @@ export class WasmEngine
     try {
       return fn() as T;
     } catch (error) {
-      throw new Error(`${name}: ${errorText(error)}`);
+      throw new Error(prefixedError(name, errorText(error)));
     }
   }
 
@@ -913,7 +927,7 @@ export class WasmEngine
   /** What the night `jdUtc` belongs to offers at the observer (`tonight`). */
   tonight(observer: Observer, jdUtc: number, options?: TonightOptions): Tonight {
     const fn = this.deep('tonight');
-    return this.call('tonight', () => fn.call(this.x, observerJson(observer), jdUtc, conditionsJson(options)));
+    return this.call('tonight', () => fn.call(this.x, observerJson(observer), jdUtc, conditionsJson(options, true)));
   }
 
   /** The extinction and limiting-magnitude table (`extinction_table`). */

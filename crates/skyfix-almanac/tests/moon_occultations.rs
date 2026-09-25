@@ -128,6 +128,12 @@ fn contacts_match_skyfields_topocentric_geometry() {
                 "{body} {} ({least:+.2}'): D {dt_d:+.1} s, R {dt_r:+.1} s",
                 e["site"].as_str().unwrap()
             ));
+            // verify2: ACCURACY.md says the grazes' contacts agree within about a second
+            // too (1.2 s measured); it was printed, not asserted.
+            assert!(
+                dt_d.abs() < 3.0 && dt_r.abs() < 3.0,
+                "{body} graze: D {dt_d:+.1} s, R {dt_r:+.1} s"
+            );
             continue;
         }
         n_normal += 1;
@@ -147,7 +153,10 @@ fn contacts_match_skyfields_topocentric_geometry() {
         graze_report.join("; ")
     );
     assert!(n_normal >= 12);
-    assert!(worst_s < 30.0, "{worst_s} s");
+    // verify2: 5 s (measured 1.17 s; ACCURACY.md 1.42 s). The brief's 30 s let a
+    // spherical-Earth parallax (up to 0.24', about 30 s of the Moon's motion) through.
+    assert!(worst_s < 5.0, "{worst_s} s");
+    assert_eq!(n_graze, 3, "the three grazes of the fixture");
     assert!(worst_pa < 0.5 && worst_alt < 0.02 && worst_sun < 0.02);
 }
 

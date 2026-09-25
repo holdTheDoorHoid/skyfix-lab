@@ -113,6 +113,9 @@ export default defineConfig(({ command }) => {
           'icons/icon-512.png',
           'icons/icon-maskable-512.png',
           'icons/apple-touch-icon.png',
+          // The typefaces' licence, shipped with them as the SIL OFL asks (verify2).
+          'licenses/inter-OFL.txt',
+          'licenses/jetbrains-mono-OFL.txt',
         ],
         worker: 'src/sw/sw.ts',
         allowOtherPages: withDevPages,

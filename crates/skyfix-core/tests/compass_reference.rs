@@ -267,7 +267,8 @@ fn a_sunset_amplitude_through_the_engine_is_the_suns_own_bearing_at_that_moment(
         a.visible_horizon_correction_deg,
         a.altitude_deg
     );
-    assert!((r.true_bearing_deg - az).abs() < 0.005);
+    // verify2: ACCURACY.md says 0.0000 deg for the Sun (measured under 0.00005).
+    assert!((r.true_bearing_deg - az).abs() < 1e-4);
     // Lower limb on the horizon from 3 m: dip 3.0', refraction 34.5' at -0.05 deg, the
     // centre a semidiameter higher: about -0.35 deg, so it sets a little north of the
     // celestial-horizon bearing (dec north, north latitude).
