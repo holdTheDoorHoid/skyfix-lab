@@ -489,6 +489,18 @@ runs one way only, and `crates/skyfix-starfield/tests/crate_boundary.rs` still k
   Julian dates) for the interface to format in the displayed zone (13.8); the engine
   never formats a local time.
 
+**The Sky view's limit and extinction (sky2 agent, expansion programme Q3).** The faintest
+magnitude the Sky view draws at the zenith is the twilight curve of the Sun's altitude
+(6.5 in full darkness: the automatic setting, a dark site), or in the Bortle and naked-eye
+settings the brighter of that and the site's own limit (`conditions.nelm`, as the engine
+resolves it). Away from the zenith a star, a deep-sky object or the Milky Way is dimmed by
+the extinction relative to the zenith, `extinction_mag(h) − extinction_mag(90°)` =
+`k (X − 1)` from the engine's table, at the apparent altitude drawn. The deep-sky limit is
+the zenith limit plus a reach that follows the chart's scale (1.5 mag on a laptop's
+whole-sky chart). The engine's estimates on the view (best time, instrument, meteor rates,
+the ranking) are asked with the same sky (`sky/conditions.ts` `skyConditions`; automatic =
+`{nelm: 6.5}`), so the chart and its cards agree.
+
 ### 13.7 Accuracy targets and validation
 
 Reference: Skyfield with JPL DE440s (DE421 as a cross-check), DUT1 = 0 columns as in

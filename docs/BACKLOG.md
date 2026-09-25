@@ -204,3 +204,18 @@ This file is the single list; the completion report links here.
 | The core module's size budget | decision | The lunar limb adds 45.3 KB raw / 20.7 KB gzipped to the core module; main alone (ab8f55c) is 2 997 407 bytes, 2.6 KB under the 3 MB budget, so the module is 42.7 KB over it (and 2.3 KB over 1.25 MB gzipped). Options: raise the budget, `opt-level = "z"` (about 5 %), or load the limb engine as a second module with its pack |
 | A smaller pack | unstarted | 1.66 MB gzipped; 10 m quanta would save about 0.4 MB gzipped (at most 5 m, 0.003", of rounding), a ±10° ring about a sixth |
 | Command line | unstarted | No `skyfix eclipse --limb` yet (cli3) |
+
+## Expansion programme Q3 — the Sky view's astronomy layers (sky2 agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Search, deep-sky objects, the Milky Way, the RA/Dec grid, fields of view, the sky's darkness and extinction, meteor radiants, the "Up close" insets, added comets and asteroids, tonight's sights ringed, save as a picture | completed | `web/src/next/sky/**`; the panel search's "Sky objects" group (`panel/search.ts`); `docs/ACCURACY.md` section 20; ui-check group `sky2` |
+| Aiming the Sky view from the Selected card (photo's two `// sky2:` hooks) | completed | "Show in Sky" marks the engine's galactic centre (`showInSky` with a `point`) at the best moment; "See it up close" opens the Moon's close-up with the card's features ringed (`openUpClose(ctx, 'Moon', { features })`). The photo section's row "Aiming the Sky view" above can be closed |
+| Dome zoom (pinch and wheel on the dome) | see the report | optional in the brief |
+| Comets and asteroids kept across visits | unstarted | kept for the page session only, like the Sky view's own settings; keeping them would add a stored key (state.ts privacy rules: only settings and layers are stored today), a decision for the owner |
+| Galaxies at their position angles | unstarted | the deep-sky catalogue has no position angles; the ellipses are drawn level. Adding a PA column (from the same Wikidata/SIMBAD cross-check) would orient them |
+| The Moon's light on the Sky view's star limit | unstarted | the cards' estimates include it (the engine's Krisciunas & Schaefer model at each object); the chart's limit is the sky's zenith limit alone. A per-direction limit would need the engine's moonlight model per texel or per star |
+| Saturn's shadows, Jupiter's markings | known limit | the close-ups leave out the globe's shadow on the rings and the rings' on the globe, and draw Jupiter's belts where they usually are (the Great Red Spot is not tracked, ACCURACY 17) |
+| The Moon close-up's maria | known limit | ellipses of each mare's size from the gazetteer, not outlines; a public-domain albedo map would need a source and a size decision |
+| The Milky Way and refraction | known limit | the raster is not refracted (0.6° at most, on the horizon, under one texel) |
+| Tonight's sights rings | design note | the ring marks the next twilight's bodies where they are at the time shown, which can be hours before the twilight |

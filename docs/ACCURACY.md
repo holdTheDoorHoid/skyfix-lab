@@ -2715,3 +2715,40 @@ measured levers; `opt-level = "z"` alone saves about 5 %).
 - The pack: `python3 -m tools.limb.fetch && tools/reference/.venv/bin/python -m
   tools.limb.build` (bit-identical). The references: `tools/reference/.venv/bin/python -m
   tools.limb.reference svs skyfield` (about 20 minutes).
+
+## 20. The Sky view's astronomy layers (sky2 agent, expansion programme Q3)
+
+Display only (CONVENTIONS 13.6): nothing on the Sky view reaches a sight, and every
+estimate it shows (the magnitude limit, extinction, a deep-sky object's best time and
+instrument, meteor rates, the ranking) is the deep-sky engine's, labelled on screen as an
+estimate (section 15). What the view computes itself is geometry, and each piece is held
+to the engine that it rests on by a test in `web/test/next/sky2-layers.test.ts` and
+`sky2-render.test.ts`:
+
+| what the view computes | held to | how close | test |
+|---|---|---|---|
+| deep-sky objects' places | `dso_list`'s apparent places of date (the engine's), carried to the horizon by the stars' own rotation and refraction | the same numbers (1e-9°) | "places the catalogue by the engine" |
+| the Moon close-up: every named feature on the disc | `moon_features`' `DiscPoint` (east, north and the zenith-up x, y) | 1e-9 disc radii, 150 features, 3 dates, geocentric and from Philadelphia | "places every named feature where moon_features does" |
+| when a star, deep-sky object, radiant or marked point rises (the card) | a brute-force rotation of the sky; the engine's `day_events` rise for Vega | 10 s; 1 min | "matches the rotating sky", "agrees with the engine's rise times" |
+| extinction toward the horizon | the engine's `extinction_table`, relative to the zenith: `k (X − 1)` with Pickering's (2002) air mass | 1e-4 mag at 10° | "dims by the engine's air mass" |
+| the Milky Way's glow | the engine's isophote rings, filled on a 0.5° grid in galactic longitude and latitude and blurred with σ = 1° | the rings' edges are straight in (l, b): within 0.1° of the great-circle arcs, every ring lying within 28° of the galactic equator; the engine's dust lane (0.25) and Sagittarius cloud (above 0.9) come out where they are | "fills the engine's Milky Way", "fills a band … whichever way the rings run" |
+| a meteor radiant between its start, peak and end | the engine's instants and its drift per degree of solar longitude | λ☉ interpolated linearly in time: within 0.05°, so the radiant within 0.1° | "interpolates the solar longitude", "drifts the radiant" |
+| a camera's field | `2 atan(w / 2f)` (a rectilinear lens) | exact; 50 mm on full frame is 39.6° × 27.0° | "works out a camera's field" |
+
+Left out on purpose, and said where it matters: the Milky Way raster is not refracted (0.6°
+at most, on the horizon, under one texel); the view's star limit does not include the
+Moon's light (the estimates on the cards do); galaxies are drawn level because the
+catalogue has no position angles; Saturn's shadows on its rings and the rings' on it are
+not drawn, and Jupiter's belts are drawn where they usually are (the Great Red Spot is not
+tracked: section 17).
+
+### Speed
+
+The budget (brief Q3): 9 000 stars plus the deep-sky objects and the Milky Way in 10 ms a
+frame; a search under 5 ms. What costs what, per frame: the stars' dimmed magnitudes and
+the per-frame grouping by them (a counting sort over the stars on screen), the 213
+deep-sky objects' rotation and projection, and the Milky Way's raster, remade only when
+the sky has turned 0.1° (every frame while time plays at an hour a second; at most ten
+times a second faster than a week a second) and drawn scaled up in one `drawImage`. The
+Milky Way's grid is filled once per page, away from the frame (about 10 ms).
+

@@ -2163,3 +2163,22 @@ skyfield` with sources already recorded in this document: Skyfield 1.55 and JPL 
 (section "Reference data"), NAIF's DE440 lunar orientation kernels
 `moon_pa_de440_200625.bpc` and `moon_de440_250416.tf` (section "The Moon in detail:
 reference data"), and the raw LDEM_16 grid above. Nothing from the Rust code enters it.
+
+## Expansion programme — the Sky view's astronomy layers (sky2 agent, Q3, 2026-09-25)
+
+No new dataset: the Sky view draws what the deep-sky, Moon-detail and planet-detail
+engines give (their sources are recorded in their sections above: the deep-sky catalogue,
+the meteor showers, the Milky Way's COBE/DIRBE isophotes, the USGS/IAU lunar gazetteer, the
+IAU rotation models). It uses these facts, compiled by this project:
+
+| fact | source | licence basis |
+|---|---|---|
+| The rotation from ICRS (J2000) to galactic coordinates, nine numbers | ESA (1997), *The Hipparcos and Tycho Catalogues*, ESA SP-1200, vol. 1, section 1.5.3 (the IAU 1958 galactic system through FK5 J2000) | a published constant (a fact); no credit required |
+| The names of Bortle's nine classes ("Excellent dark site" … "Inner-city sky") | J. E. Bortle (2001), "Introducing the Bortle Dark-Sky Scale", *Sky & Telescope* 101 (2), 126 | the class names are facts in common use; this project's own short wording; the limiting magnitude per class is the deep-sky engine's (its section) |
+| Typical true fields of view: naked eye about 50°, 7×50 binoculars 7.1°, 10×50 binoculars 6.5°, a small telescope about 1° | common figures, stated on screen as typical ("the one printed on your binoculars … is the one to trust") | facts; this project's wording |
+| Camera sensor sizes: full frame 36 × 24 mm, APS-C 23.5 × 15.6 mm (Canon's 22.3 × 14.9 mm), Micro Four Thirds 17.3 × 13 mm, 1-inch 13.2 × 8.8 mm | the formats' nominal dimensions | facts |
+
+The "Add from orbital elements…" example fills in (1) Ceres with the values of the API
+document's `parse_orbits` example, which are the Minor Planet Center's (MPCORB), and says
+"Source: Minor Planet Center" beside them, as the MPC asks; bodies the person pastes in an
+MPC format carry the same line on their card.
