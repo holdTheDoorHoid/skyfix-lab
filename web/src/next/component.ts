@@ -200,6 +200,18 @@ function displayForm(state: ExplorerState): string {
   return state.settings.hourCycle;
 }
 
+/** Every live `watch`'s way to draw again (see `redrawEverything`). */
+const redrawers = new Set<() => void>();
+
+/**
+ * Every `watch` draws again once, with its current value. For a change no selector can see:
+ * a data pack was loaded, so the engine now answers what it refused (packs/; main.ts calls
+ * this after `memoEngine(...).invalidate()`).
+ */
+export function redrawEverything(): void {
+  for (const redraw of [...redrawers]) redraw();
+}
+
 export interface WatchOptions<T> {
   /** Default `Object.is`; use `shallowEqual` for selectors that return tuples. */
   equals?: Equality<T>;
@@ -227,14 +239,17 @@ export function watch<T>(
     },
     options.equals ? { equals: options.equals } : {},
   );
-  const stopForm = ctx.store.select(displayForm, () => {
+  const redraw = (): void => {
     latest = selector(ctx.store.get());
     ctx.scheduler.schedule(task);
-  });
+  };
+  const stopForm = ctx.store.select(displayForm, redraw);
+  redrawers.add(redraw);
   if (options.immediate ?? true) ctx.scheduler.schedule(task);
   return () => {
     stop();
     stopForm();
+    redrawers.delete(redraw);
     ctx.scheduler.cancel(task);
   };
 }

@@ -12,7 +12,7 @@
  * `?harness` to the address. It is a separate chunk that a normal load never fetches.
  */
 
-import { createScheduler, memoEngine, type Component, type Ctx, type Mounted } from './component.js';
+import { createScheduler, memoEngine, redrawEverything, type Component, type Ctx, type Mounted } from './component.js';
 import { selectEngine } from './engine/index.js';
 import { createNotices } from './notices.js';
 import { startPacks } from './packs/index.js';
@@ -77,7 +77,12 @@ export async function boot(root: HTMLElement): Promise<Booted> {
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
   // Saved packs go into the engine before the first view mounts, so every view starts with
   // the whole engine (a visitor with no packs pays one cache lookup).
-  const packs = startPacks(selection.engine, () => engine.invalidate());
+  // After a load the engine answers more (a wider coverage, dates it refused): forget what
+  // it said, and draw every view again.
+  const packs = startPacks(selection.engine, () => {
+    engine.invalidate();
+    redrawEverything();
+  });
   await packs.ready;
   const ctx: Ctx = { store, engine, notices, scheduler, packs: packs.service };
   const stopPlayback = startPlayback(store, scheduler);

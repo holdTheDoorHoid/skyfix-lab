@@ -6,7 +6,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { createScheduler, memoEngine, watch } from '../../src/next/component.js';
+import { createScheduler, memoEngine, redrawEverything, watch } from '../../src/next/component.js';
 import { MockPacks } from '../../src/next/engine/mock/packs.js';
 import type { ExplorerEngine, PackStatus } from '../../src/next/engine/types.js';
 import { isPackEngine } from '../../src/next/engine/types.js';
@@ -22,6 +22,7 @@ import {
   setHourCycle,
 } from '../../src/next/shell/format.js';
 import { isIosDevice, IOS_HINT, startInstallOffer } from '../../src/next/shell/install.js';
+import { coverageSpan } from '../../src/next/shell/derived.js';
 import { MANUAL_URL, REPOSITORY_URL } from '../../src/next/shell/links.js';
 import { createExplorerStore, sanitizeSettings } from '../../src/next/state.js';
 import { jdFromIso, UTC_ZONE } from '../../src/next/time.js';
@@ -204,6 +205,35 @@ describe('the engines and data packs', () => {
     (memo as unknown as { loadPack(n: string, b: Uint8Array): unknown }).loadPack('deep-time', new Uint8Array());
     expect(loads).toEqual(['deep-time']);
     expect(isPackEngine(memoEngine({ ...raw, loadPack: undefined } as unknown as ExplorerEngine))).toBe(false);
+  });
+
+  it('after a pack loads, every watch draws again and the coverage span is worked out anew', () => {
+    const frames = new FakeFrames();
+    const scheduler = createScheduler({ requestFrame: frames.request, cancelFrame: frames.cancel });
+    const store = createExplorerStore({ storage: null });
+    const render = vi.fn();
+    const stop = watch({ store, scheduler }, (s) => s.view, render);
+    frames.step();
+    redrawEverything();
+    frames.step();
+    expect(render).toHaveBeenCalledTimes(2);
+    stop();
+    redrawEverything();
+    frames.step();
+    expect(render).toHaveBeenCalledTimes(2);
+
+    let end = '2060-12-31T23:59:59Z';
+    const raw = {
+      kind: 'wasm',
+      description: '',
+      coverage: () => ({ start_utc: '1990-01-01T00:00:00Z', end_utc: end, groups: [] }),
+    } as unknown as ExplorerEngine;
+    const engine = memoEngine(raw);
+    const before = coverageSpan({ engine });
+    end = '3000-12-31T23:59:59Z'; // a pack widened it
+    expect(coverageSpan({ engine })).toBe(before); // the memo still answers the old report
+    engine.invalidate();
+    expect(coverageSpan({ engine })![1]).toBeGreaterThan(before![1] + 300_000);
   });
 
   it('the WASM wrapper: packs() is empty for an older core, loadPack says to rebuild, and a load refreshes coverage', () => {
