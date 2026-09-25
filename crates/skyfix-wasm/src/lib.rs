@@ -32,6 +32,8 @@ pub mod nav;
 pub mod navsky;
 pub mod planet_events;
 pub mod starfield;
+// Expansion programme (tides agent): tide predictions from the optional tides-us pack.
+pub mod tides;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
