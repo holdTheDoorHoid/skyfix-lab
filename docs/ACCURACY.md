@@ -2494,3 +2494,23 @@ Every year chart is at or under the Year chart's own cost (the solar panel at ab
 it), computes once per place, year and setting, runs after the time settles while the time
 bar is dragged, and is kept for the page's lifetime; nothing heavier than a cursor moves per
 frame.
+
+## Interface: calendars, the clock's scale and the ΔT chip (time-ui agent, wave 2)
+
+The explorer's own calendar arithmetic (`web/src/next/time/civil.ts`, used by every date on
+screen) is exact integer arithmetic, held to the engine rather than to JavaScript's `Date`:
+
+- `web/test/next/time-civil.test.ts`: the Julian and Gregorian day numbers of the built
+  package's `calendar_convert` agree on 1 821 days over −2000..3000 (every 1 009th day, the
+  seven days around the 1582 reform, 29 February of 1 BC and of 1600, 28 May 585 BC; both
+  ways, both calendars); every
+  day of 2000 BC to AD 3000 round-trips in both calendars; JavaScript's proleptic Gregorian
+  `Date` agrees on every 97th day of the years 0-9999; the mock engine's calendars agree on
+  every 211th day. The years −584, 0, 99, 1066 and 12345 go wall clock → wire string → back
+  unchanged (the `Date.UTC` traps of the accuracy audit).
+- `web/test/next/time-tiers.test.ts`: the clock's scale (UTC 1972-2035, UT outside) and the
+  display calendar agree with the built package's `time_info` at 231 instants over
+  −2000..3000 and at the four instants either side of the scale's boundaries.
+
+What the chip shows is the engine's `time_info.delta_t_sigma_s` (section 14 above), rounded
+for reading (±s below 90 s, ±min below an hour, ±h above); it is not a new estimate.

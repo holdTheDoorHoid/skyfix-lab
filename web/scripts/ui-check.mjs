@@ -22,6 +22,11 @@
  *      sideways scroll, a clean console, no blue or white light in the night theme; the
  *      tides pack's one prompt and Get; the Save menu writing a real PNG and CSV; each
  *      chart's compute time and the frame times of a drag on the Sun path, reported.
+ *      than on a real screen);
+ *   7. deep time (time-ui agent): a BC date in the Julian calendar with its era, local mean
+ *      time and UT on the clock, the ±ΔT chip, the calendar's century step and October 1582,
+ *      UTC inside 1972-2035; playback at ten years a second on the Map view (frame times
+ *      and script time per frame, reported) and the Sky view.
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
  * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
@@ -29,6 +34,7 @@
  *   npm run build --prefix web && node web/scripts/ui-check.mjs
  *   SITE=site node web/scripts/ui-check.mjs          # the assembled Pages site
  *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts
+ *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,time
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
  * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
@@ -54,7 +60,7 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time').split(','));
 /** charts2: the Charts view's tabs and sub-views, `tab` or `tab/sub`. */
 const CHART_VIEWS = (process.env.CHARTS ?? 'day,year,sun/path,sun/analemma,sun/bearings,sun/eot,sun/solar,moon/phases,moon/year,planets,tides').split(',');
 const SWITCHES = Number(process.env.SWITCHES ?? 50);
@@ -556,6 +562,85 @@ async function main() {
       summary.charts.scrub = { frames: d.length, medianMs: q(0.5), p95Ms: q(0.95) };
       console.log(`info  dragging the time bar on the sun path: ${JSON.stringify(summary.charts.scrub)}`);
       console.log(`info  chart compute times: ${JSON.stringify(summary.charts.timings)}`);
+    }
+
+    // 7. Deep time (time-ui agent).
+    if (ONLY.has('time')) {
+      const PLACE = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&body=Sun';
+      const bar = `JSON.stringify((() => {
+        const q = (s) => document.querySelector(s);
+        const shown = (s) => (q(s) && !q(s).hidden ? q(s).textContent.trim() : '');
+        return { date: shown('.sf-tb-date__label'), tag: shown('.sf-tb-date__cal'), zone: shown('.sf-tb-clock__zone'), other: shown('.sf-tb-clock__utc'), chip: shown('.sf-tb-clock__chip'), chipTip: q('.sf-tb-clock__chip')?.dataset.tip ?? '' };
+      })())`;
+      for (const [size, [w, h, mobile]] of Object.entries(DIMS)) {
+        await viewport(w, h, mobile);
+        messages.length = 0;
+        await open(`${PLACE}&t=-0584-05-22T12:00:00Z&view=map`, { theme: size === 'phone' ? 'night' : 'light' });
+        const T = JSON.parse(await evaluate(bar));
+        await shot(`time-bc-${size}-${size === 'phone' ? 'night' : 'light'}`);
+        check(`585 BC (${size}): the date is Julian and carries its era`, /28 May 585 BC/.test(T.date) && T.tag === 'Julian', JSON.stringify(T));
+        check(`585 BC (${size}): the clock is local mean time with UT beside it`, T.zone === 'LMT' && / UT$/.test(T.other), `${T.zone} · ${T.other}`);
+        check(`585 BC (${size}): the ±ΔT chip is shown and explained`, /^±\d+ min$/.test(T.chip) && /Earth’s rotation/.test(T.chipTip), T.chip);
+        // The time bar's own controls (what deep time changes: a longer date, the Julian tag,
+        // the chip): no overlap or cut-off text among them, and no sideways scroll.
+        const L = JSON.parse(await evaluate(LAYOUT.replace("'button, a[href], input, select, textarea, [role=button], [role=tab], [role=switch], .sf-float, .sf-legend, .sf-attribution'", "'.sf-timebar button, .sf-timebar input, .sf-timebar [role=slider], .sf-timebar .sf-cal-tag, .sf-timebar .sf-dt-chip'").replace("document.querySelectorAll('body *')", "document.querySelectorAll('.sf-timebar *')")));
+        check(`585 BC (${size}): the time bar has no sideways scroll, overlap or cut-off text`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+        check(`585 BC (${size}): console clean`, !messages.some((m) => /^(error|warning|warn|exception)/.test(m)), messages.slice(0, 3).join(' | '));
+      }
+      await viewport(1440, 900, false);
+      await open(`${PLACE}&t=-0584-05-22T12:00:00Z&view=about`);
+      await evaluate(`document.querySelector('.sf-tb-date__label').click(); true`);
+      await sleep(500);
+      const title = await evaluate(`document.querySelector('.sf-cal__title')?.textContent ?? ''`);
+      await shot('time-calendar-bc');
+      await evaluate(`[...document.querySelectorAll('.sf-cal__step')].find((b) => b.textContent.trim() === '+100')?.click(); true`);
+      await sleep(500);
+      const after = JSON.parse(await evaluate(bar)).date;
+      check('the calendar steps a century: 28 May 585 BC + 100 years is 28 May 485 BC', title === 'May 585 BC' && /28 May 485 BC/.test(after), `${title} -> ${after}`);
+      await open(`${PLACE}&t=1582-10-14T17:00:00Z&view=about`);
+      await evaluate(`document.querySelector('.sf-tb-date__label').click(); true`);
+      await sleep(500);
+      const oct = JSON.parse(await evaluate(`JSON.stringify([...document.querySelectorAll('.sf-cal__day:not([data-outside])')].map((b) => b.textContent))`));
+      check('October 1582 has its 21 days: the 4th (Julian) is followed by the 15th (Gregorian)', oct.length === 21 && oct[3] === '4' && oct[4] === '15', oct.join(' '));
+      await open(`${PLACE}&t=2026-09-24T16:00:00Z&view=about`);
+      const now = JSON.parse(await evaluate(bar));
+      check('2026: the clock is EDT with UTC beside it, and no chip', now.zone === 'EDT' && / UTC$/.test(now.other) && now.chip === '' && now.tag === '', JSON.stringify(now));
+      // Playback at ten years a second from 1990 (inside today's coverage). Frame times are
+      // reported, as in the scrub check (headless Chrome draws WebGL in software, and a loaded
+      // machine starves it); what is judged does not depend on the machine: while time runs
+      // that fast the time bar computes no day's events and rebuilds nothing, and it draws the
+      // day in full again once paused.
+      for (const view of ['about', 'map', 'sky']) {
+        await open(`${PLACE}&t=1990-01-02T16:00:00Z&view=${view}`);
+        await evaluate(`document.querySelector('.sf-tb-speed').click(); true`);
+        await sleep(300);
+        await evaluate(`[...document.querySelectorAll('.sf-menu__item')].find((b) => /^10 years per second/.test(b.textContent))?.click(); true`);
+        // The first fast frame draws the bar once; from then on only its day moves.
+        await waitFor(`document.querySelector('.sf-timebar').classList.contains('sf-timebar--fast')`, 20000);
+        await sleep(300);
+        await evaluate(`window.__tick = document.querySelector('.sf-ribbon__tick'); true`);
+        await evaluate(`window.__f = []; (function loop(t) { window.__f.push(t); if (window.__f.length < 100000) requestAnimationFrame(loop); })(performance.now()); true`);
+        const m0 = Object.fromEntries((await send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
+        const f0 = await evaluate('window.__f.length');
+        await sleep(3000);
+        const m1 = Object.fromEntries((await send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]));
+        const ts = JSON.parse(await evaluate(`JSON.stringify(window.__f.slice(${f0}))`));
+        const year = JSON.parse(await evaluate(bar)).date;
+        const fast = JSON.parse(await evaluate(`JSON.stringify({ fast: document.querySelector('.sf-timebar').classList.contains('sf-timebar--fast'), same: window.__tick === document.querySelector('.sf-ribbon__tick') && window.__tick?.isConnected })`));
+        await evaluate(`document.querySelector('.sf-tb-play').click(); true`);
+        await waitFor(`!document.querySelector('.sf-timebar').classList.contains('sf-timebar--fast') && document.querySelectorAll('.sf-ribbon__seg').length > 0`, 20000);
+        const after = JSON.parse(await evaluate(`JSON.stringify({ fast: document.querySelector('.sf-timebar').classList.contains('sf-timebar--fast'), segments: document.querySelectorAll('.sf-ribbon__seg').length })`));
+        const d = ts.slice(1).map((t, i) => t - ts[i]).sort((a, b) => a - b);
+        const q = (p) => +(d[Math.min(d.length - 1, Math.floor(p * d.length))] ?? 0).toFixed(1);
+        const r = { frames: d.length, medianMs: q(0.5), p95Ms: q(0.95), scriptMsPerFrame: +(((m1.ScriptDuration - m0.ScriptDuration) * 1000) / Math.max(1, d.length)).toFixed(2), reached: year };
+        summary.scrub[`${view}-10y/s`] = r;
+        console.log(`info  playing at 10 years a second on ${view}: ${JSON.stringify(r)}`);
+        check(
+          `playing at 10 years a second on ${view}: time runs, the time bar computes no day's events and rebuilds nothing, and draws the day again once paused`,
+          /20[0-2]\d|199\d/.test(year) && fast.fast && fast.same && !after.fast && after.segments > 0,
+          JSON.stringify({ ...fast, after, reached: year }),
+        );
+      }
     }
   } finally {
     page.close();

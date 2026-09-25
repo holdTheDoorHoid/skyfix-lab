@@ -61,19 +61,53 @@ and day — with rise, highest point and set marked for whichever body is select
 Drag the handle, or use any of these:
 
 - **The day arrows** beside the date step one calendar day at a time.
-- **The date**, clicked, opens a calendar for picking any day directly.
+- **The date**, clicked, opens a calendar for picking any day directly. Under the month
+  there is a **year field** for any year — type `1066`, or `585` with **BC** chosen beside
+  it (or `585 BC`, or `−584`) and press **Go** — and buttons that move the time by 10, 100
+  or 1000 years either way, keeping the day and the time of day.
 - **The clock**, clicked, lets you type a time of day.
 - **Now** jumps to the current moment and starts following the real clock (a small dot
   shows it is "live"); moving the time by hand turns this off again.
 - **Play** runs time forward (or backward — there is a direction switch beside the speed)
-  at a chosen speed, from real time up to a month per second:
+  at a chosen speed, from real time up to ten years per second:
 
   | speed |  | speed |
   |---|---|---|
-  | Real time | | 6 hours per second |
-  | 1 minute per second | | 1 day per second |
-  | 10 minutes per second | | 1 week per second |
-  | 1 hour per second | | 1 month per second |
+  | Real time | | 1 day per second |
+  | 1 minute per second | | 1 week per second |
+  | 10 minutes per second | | 1 month per second |
+  | 1 hour per second | | 1 year per second |
+  | 6 hours per second | | 10 years per second |
+
+  Faster than about a week per second the rising and setting times and the ribbon's
+  colours are left out while time runs (they would change every frame); they come back
+  the moment you pause or slow down.
+
+Along the top edge of the ribbon a thin strip marks the Sun's **golden hour** (the Sun
+between 6° above and 4° below the horizon: warm, low light) and **blue hour** (4° to 6°
+below: a deep blue sky); hover over it for the times.
+
+**Far from today.** The explorer is built for 2000 BC to AD 3000 (how much of that your
+copy covers is in About), and the time bar says what changes as you go back or forward:
+
+- **Dates** before 15 October 1582 are in the **Julian calendar**, as people then wrote
+  them, marked *Julian* beside the date; Thursday 4 October 1582 was followed by Friday
+  15 October. Years before AD 1 are written "585 BC" (astronomers call that year −584).
+  Settings can show the Gregorian calendar carried back instead, and years in the
+  astronomers' or ISO style.
+- **The clock** beside your local time is **UTC** from 1972 to 2035 and **UT** (Universal
+  Time, the time scale of the almanacs) outside those years: UTC did not exist before
+  1972, and leap seconds are to end in 2035.
+- **Before 1850** the local clock is **local mean time** (LMT) at your place's longitude —
+  the Sun's time there, which clocks kept before time zones — unless you pinned a zone.
+- **A ± chip** such as `±12 min` beside the clock means the Earth's rotation at that date is
+  known only that well, so every clock time carries that uncertainty (the positions of the
+  bodies among the stars do not). It appears when the uncertainty passes 30 seconds —
+  before about AD 700 and after about 2100 — and always on estimated years.
+- **Outside the checked years** a message says so: dates the core does not cover show
+  nothing, with the years it does cover; years only estimated (with the optional Deep time
+  data pack) say *Historical estimate* or *Far-future estimate*, and sights are offered only
+  in the checked years.
 
 **Keyboard shortcuts**, usable anywhere on the page (they are also listed under the
 **?** Help button in the top bar):
@@ -84,6 +118,7 @@ Drag the handle, or use any of these:
 | `Shift` + `←` / `→` | 1 hour |
 | `Alt` + `←` / `→` | 1 day |
 | `Page Up` / `Page Down` | 1 month (with `Shift`, 1 year) |
+| `Ctrl` + `Page Up` / `Page Down` | 100 years (with `Shift`, 1000 years); browsers with tabs may keep these keys for themselves, so the calendar's ±100 and ±1000 buttons do the same |
 | `Space` | play or pause |
 | `N` | now: follow the clock |
 | `Esc` | close a menu |
@@ -293,7 +328,10 @@ celestial navigation works, and the coverage simulator — see
 
 What the page is, where every number comes from, and a table of how closely each part
 (the Sun, the Moon, the planets, the stars) has been checked against an independent
-reference ephemeris, with which are validated for real sights. It also explains, in one
+reference ephemeris, and for which years — the checked years and the estimated ones — with
+which are validated for real sights, and a short table of how far a clock time can be
+trusted in each age (the uncertainty in the Earth's rotation, from an hour at 2000 BC to
+under a second today). It also explains, in one
 place, what happens to your chosen place (nothing, unless you press Share), links this
 manual and the source code, and credits the map, star and font data. The **?** Help menu
 has the same two links.
@@ -314,7 +352,10 @@ choices:
 
 **Settings** (the sliders icon beside Theme) also controls: whether the clock shows your
 local time or UTC first; a 24-hour or 12-hour clock for local times (`18:40` or
-`6:40 PM`; UTC always stays on the 24-hour clock, as navigators write it); how angles are
+`6:40 PM`; UTC always stays on the 24-hour clock, as navigators write it); the
+**calendar** for dates before 15 October 1582 (the Julian calendar people then used, or
+the Gregorian calendar carried back, as ISO 8601 has it) and how **years** are written
+(`585 BC`, the astronomers' `−584`, or ISO's `-0584`); how angles are
 written (`26° 02.3′`, `26° 02′ 17″`, or `26.038°`); units (metric, nautical, or
 imperial); whether rise and set are figured for a sea-level horizon or dipped for your own
 height of eye; and a **Navigator's terms** switch that shows the navigator's word beside

@@ -162,3 +162,18 @@ This file is the single list; the completion report links here.
 | Tides map layer (stations on the map, the nearest highlighted) | unstarted | EXPANSION_PLAN names a map layer; this package only marks the chosen station ("Show on the map") |
 | Moon's rise and set bearings through the year | unstarted | `rise_set_azimuths` with `body: "Moon"` is ready (0.3 s natively a year); a panel beside the Moon through the year |
 | Print from the browser's own menu (Ctrl+P) | partial | Save → Print prints one chart; the browser's own print prints the whole app |
+
+## Expansion programme — deep time in the interface (time-ui agent, wave 2 Q1)
+
+| item | status | notes |
+|---|---|---|
+| Calendars, years, UT/UTC, LMT, tiers and the ±ΔT chip in the time bar, Settings and About | completed | `web/src/next/time/` (helpers every view uses: CONVENTIONS 15.6), `timebar/`, `playback.ts`; checks in `web/scripts/ui-check.mjs` (group `time`) |
+| Views that still write a literal "UTC" beside times that may be UT | unstarted (owners) | `events/`, `almanac/`, `navigate/`, `panel/selected.ts`, `panel/place.ts` (`formatOffset(…)` without the instant: "UTC−5:00:40" in 585 BC): use `scaleLabel(jd)` and `formatOffset(ms, jd)` |
+| The panel's zone reason before 1850 | unstarted (navigate2) | `panel/place.ts` says "From the place: America/New_York…" while the clock is local mean time; `lmtReason` and `zoneTooltip` give the words |
+| "1990–2060" and "1990 to 2060" in the interface | unstarted (owners) | `navigate/session-panel.ts:140`, `events/lists.ts:137, 263, 424, 425`, `events/eclipses.ts:749, 758`, `almanac/almanac.ts:557` (the date input's range), `panel/when.ts:82`; `tierNotice`, `sightsOnlyText` and `outsideCoverage` name the real bounds |
+| Navigate's sight-time field and expanded years | unstarted (navigate2) | `navigate/parse.ts` `UTC_PATTERN` takes four-digit years only; a `-0584-…` time gets a format error instead of "Sights are offered only between 1550 and 2650" |
+| The CLI's help text | unstarted (cli3) | `crates/skyfix-cli/src/cli.rs:193` says "from 1990-01-01 to 2060-12-31" |
+| Phone bottom sheet and the time bar's height | open | `panel/sheet.ts` measures the time bar only on window resize; the time bar now keeps one height on phones for every date, but a ResizeObserver there would make it robust |
+| Ctrl+Page Up / Page Down in tabbed browsers | known | Chrome and Firefox keep these keys for switching tabs; the calendar's ±100 and ±1000 buttons (and the grid's Ctrl+PgUp/PgDn, which the grid receives) do the same |
+| Phone Map outside the coverage: notices over the map's controls | unstarted (shell, map) | On a phone, a date outside the coverage shows two notices (the coverage one, and the Map's own "positions could not be computed" error), which cover the map's floating Layers button (ui-check's layout check, any date outside the years, e.g. 2080: it predates the deep-time work). The Map should not raise an error where `covered()`/`tierAt` already say nothing is computed, and the notice bar could leave the floating controls clear |
+| Views with their own per-day work during fast playback | open (owners) | above 8 days a second `sunToday`/`aroundToday` pause; the Map (`seasons` per year, `sampleBodies` per day), Sky (`sampleBodies` per day) and panel Place (`guessZone` each hour) views still work per frame; `fastPlayback(state)` is the switch |
