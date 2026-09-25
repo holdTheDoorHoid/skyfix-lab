@@ -244,6 +244,8 @@ describe('the Deep time pack a date needs', () => {
     expect(packForDate(service([pack({})]), Y2500BC)).toBeNull();
     expect(packForDate(service([pack({ loaded: true })]), Y1066)).toBeNull();
     expect(packForDate(service([pack({ supported: false })]), Y1066)).toBeNull();
+    expect(packForDate(service([pack({ offered: false })]), Y1066)).toBeNull();
+    expect(packForDate(service([pack({ offered: false, saved: true })]), Y1066)?.name).toBe('deep-time');
     expect(packForDate(service([pack({ name: 'tides-us', provides: ['tides:us'] })]), Y1066)).toBeNull();
     expect(packForDate(null, Y1066)).toBeNull();
   });

@@ -221,10 +221,11 @@ export function providedYears(entry: string): [number, number] | null {
 }
 
 /**
- * A pack that would let the engine answer at `jd`: this build can install it, it is not
- * loaded yet, and it provides an ephemeris span holding the date's year. Null when none
- * (nothing to offer: the date is covered, or no pack reaches it, or packs are not in this
- * build). The deep-time pack is the one the contract plans.
+ * A pack that would let the engine answer at `jd`: this build can install it, the site
+ * offers it (or a copy is saved on this device), it is not loaded yet, and it provides an
+ * ephemeris span holding the date's year. Null when none (nothing to offer: the date is
+ * covered, or no pack reaches it, or packs are not in this build or on this site). The
+ * deep-time pack is the one the contract plans.
  */
 export function packForDate(packs: Pick<PackService, 'status'> | null | undefined, jd: number): PackState | null {
   if (!packs || !Number.isFinite(jd)) return null;
@@ -236,7 +237,7 @@ export function packForDate(packs: Pick<PackService, 'status'> | null | undefine
   }
   const year = wireYear(jd);
   for (const p of list) {
-    if (p.loaded || !p.supported) continue;
+    if (p.loaded || !p.supported || !(p.offered || p.saved)) continue;
     for (const entry of p.provides) {
       const span = providedYears(entry);
       if (span && year >= span[0] && year <= span[1]) return p;
