@@ -993,6 +993,9 @@ export const eclipsesTab: TabComponent = (host, env) => {
     buildList();
     const now = ctx.store.get().time.jd_utc;
     const selected = ui.get().selected;
+    // With the Lunar limb pack the card's contacts are corrected, the list's are the smooth
+    // Moon's (60-75 ms an eclipse): a row's central duration says so (polish2, list item 42).
+    const meanLimbRows = isLimbEngine(engine) && engine.lunarLimbInfo() !== null;
     let seenCount = 0;
     let known = 0;
     for (const e of shown) {
@@ -1012,7 +1015,11 @@ export const eclipsesTab: TabComponent = (host, env) => {
           : r
             ? { text: 'Could not be computed here', tone: 'none' }
             : { text: 'Checking…', tone: 'pending' };
-      if (row.here.textContent !== label.text) row.here.textContent = label.text;
+      const hereText = meanLimbRows && label.tone === 'central' ? `${label.text} (mean limb)` : label.text;
+      if (row.here.textContent !== hereText) row.here.textContent = hereText;
+      const tip = meanLimbRows && label.tone === 'central' ? 'For the Moon’s smooth edge; the card corrects the times for its mountains and valleys (Lunar limb pack).' : null;
+      if (tip === null) row.here.removeAttribute('data-tip');
+      else if (row.here.dataset.tip !== tip) row.here.dataset.tip = tip;
       // The date the place sees it on (its local maximum), else that of greatest eclipse.
       const day = dateMedium(roundToMinute(r && 'ok' in r && seenHere(r.ok) ? jumpTarget(e, r.ok) : e.greatest.jd_utc), st.zone);
       if (row.date.textContent !== day) row.date.textContent = day;
