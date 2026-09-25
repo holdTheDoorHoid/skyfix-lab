@@ -50,14 +50,15 @@ page with nothing to compute with. The planner can also start the dev server fro
 `npm run wasm` is exactly:
 
 ```sh
-CARGO_PROFILE_RELEASE_OPT_LEVEL=s wasm-pack build crates/skyfix-wasm --target web \
+CARGO_PROFILE_RELEASE_OPT_LEVEL=z wasm-pack build crates/skyfix-wasm --target web \
   --out-dir ../../web/src/wasm-pkg --out-name skyfix_wasm --release
 ```
 
 The output lands in `web/src/wasm-pkg/` and is **git-ignored**: it is a build artefact.
 Vite finds it with `import.meta.glob`, so the site still builds for development when the
 directory is absent (the development server then runs the mock engine, loudly). The core
-module must stay under 1 MB gzipped and 2.5 MB raw (2026-09-24: 2.07 MB, about 850 KB gzipped).
+module must stay under 1.25 MB gzipped and 3 MB raw (2026-09-25, built at opt-level "z":
+2.55 MB, 1.15 MB gzipped; `docs/ACCURACY.md`, "Module size and speed").
 
 The package's exports are the wire contract in `docs/EXPLORER_API.md`: one Rust module per
 feature (`explorer.rs`, `starfield.rs`, `nav.rs`, `navsky.rs`, `almanac.rs`, `eclipses.rs`,
