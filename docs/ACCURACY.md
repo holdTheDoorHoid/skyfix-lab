@@ -2677,23 +2677,25 @@ predictions, and the output says so.
 ### Speed and size
 
 Measured on the development machine while other agents' builds kept it busy (load
-average 15-40 on 8 cores): the plain `eclipse_local`, 1.2-1.7 ms natively and 3-5 ms in
-WebAssembly on a quiet machine (section 12), took 1.8 ms and 6-7 ms. Thread CPU time:
+average 15-40 on 8 cores throughout): the plain `eclipse_local`, 1.2-1.7 ms natively and
+3-5 ms in WebAssembly on a quiet machine (section 12), took 1.8-4.3 ms and 6-8 ms. Thread
+CPU time:
 
-- **Natively** (release build): decoding the pack 10.5 ms; one eclipse with the limb
-  25-29 ms (about 5 500 slices of about 42 samples: the outline at maximum every 1/8°,
-  the windows around the four contacts every 1/16°); `profile_at` (5 760 slices) 20-24 ms.
+- **Natively** (release build): decoding the pack 10-25 ms; one eclipse with the limb
+  25-58 ms (about 5 500 slices of about 42 samples: the outline at maximum every 1/8°,
+  the windows around the four contacts every 1/16°); `profile_at` (5 760 slices) 20-52 ms.
 - **WebAssembly** in Node 24 (V8, Chrome's engine; `web/test/next/limb-engine.test.ts`
-  and the scripts beside it): the first `load_pack("lunar-limb", …)` 84-96 ms, run in the
-  engine's baseline code (42-47 ms once compiled; loading the same file again, which only
-  checks its header and CRC-32, 8-9 ms); the first corrected eclipse 90 ms, later ones
-  63-66 ms; `lunar_limb_profile` 53-56 ms.
+  and the scripts beside it), three builds: the first `load_pack("lunar-limb", …)` 84-111
+  ms, run in the engine's baseline code (42-56 ms once compiled; loading the same file
+  again, which only checks its header and CRC-32, 8-9 ms); the first corrected eclipse
+  90-98 ms, later ones 63-75 ms; `lunar_limb_profile` 53-63 ms.
 
 Scaled by the plain `eclipse_local`'s slowdown on that machine (1.4-2 times), a quiet
-machine takes about 50 ms for the first load and about 50 ms for the first corrected
-eclipse, 35-45 ms for each one after: each within the 100 ms of the brief, the two
-together at about it. The pack is loaded once per page session (CONVENTIONS 15.5) and a
-view asks for the corrected eclipse once per place (the memoised engine keeps it).
+machine takes 45-80 ms for the first load and 45-70 ms for the first corrected eclipse,
+35-55 ms for each one after: each within the brief's 100 ms, the two together about 100-
+150 ms the first time a page corrects an eclipse. The pack is loaded once per page
+session (CONVENTIONS 15.5) and a view asks for a corrected eclipse once per place (the
+memoised engine keeps it). Not yet measured on a quiet machine or in a browser.
 
 **Size.** The pack: 2 212 290 bytes (2.21 MB), 1 659 278 gzipped (1.66 MB; the target
 was 3 MB gzipped, and the brief's estimate of 4.4 MB raw for int16 heights came down with

@@ -2840,9 +2840,9 @@ new export and, in TypeScript, an option:
   valleys.", contacts: [], profile: null, beads: [], …}` and the mean-limb fields beside
   it are the results to show.
 
-About 15-25 ms natively for one eclipse and place (about 5 500 slices through the Moon's
-outline: every 1/8° at maximum, every 1/16° near each contact); ACCURACY section 19 has
-the browser's figures.
+About 25 ms of CPU natively for one eclipse and place, 60-75 ms in WebAssembly, both
+measured on a busy machine (about 5 500 slices through the Moon's outline: every 1/8° at
+maximum, every 1/16° near each contact); ACCURACY section 19 has the figures.
 
 ### `SolarEclipseLimb`
 
@@ -2887,7 +2887,8 @@ valleys at least 0.1" deep, within 15 s of the contact.
 The Moon's outline as the observer sees it at any instant (for drawing the Moon, a graze
 or an occultation), with the Sun's place from the ephemeris. Throws `pack_not_loaded: the
 lunar limb profile needs the lunar-limb pack (LRO LOLA topography), which is not loaded`
-without the pack. About 10-15 ms natively. In TypeScript: `LimbEngine.lunarLimbProfile`.
+without the pack. About 20 ms natively, 55-65 ms in WebAssembly (a busy machine). In
+TypeScript: `LimbEngine.lunarLimbProfile`.
 
 ```ts
 LimbProfile = { jd_utc, utc,
@@ -2922,7 +2923,8 @@ max_height_m: 6905}` for the installed ring, `null` before. In TypeScript:
 CRC-32 and calls the producer `skyfix_wasm::limb::install_lunar_limb(payload)` (the
 `lunar-limb` entry of `packs::PRODUCERS`: label "Lunar limb", description "The mountains
 and valleys at the Moon's edge, for eclipse contact times and Baily's beads", provides
-`["eclipses:lunar-limb"]`), which decodes the payload (about 15 ms natively) and keeps it
+`["eclipses:lunar-limb"]`), which decodes the payload (10-25 ms natively, 45-110 ms in WebAssembly the first time)
+and keeps it
 for the page session; a malformed payload changes nothing, a second install replaces
 the first. The mock engine's synthetic limb answers from the start
 (`MockEngineOptions.limbLoaded: false` makes it wait for `loadPack("lunar-limb", …)`); the

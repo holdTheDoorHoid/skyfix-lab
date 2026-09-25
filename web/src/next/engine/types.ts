@@ -4201,7 +4201,7 @@ export interface LimbPackInfo {
 
 /** The limb profile at any instant (P12). Separate from `EclipseEngine`. */
 export interface LimbEngine {
-  /** Throws `pack_not_loaded: …` until the lunar-limb pack is loaded. About 10 ms. */
+  /** Throws `pack_not_loaded: …` until the lunar-limb pack is loaded. About 60 ms in WebAssembly. */
   lunarLimbProfile(observer: Observer, jdUtc: number): LimbProfile;
   /** The installed ring, or null. */
   lunarLimbInfo(): LimbPackInfo | null;
