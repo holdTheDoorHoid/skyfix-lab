@@ -1347,5 +1347,9 @@ the Events view builds its entries in `web/src/next/events/items.ts`).
   the request on the explorer's channel `eventsRequests(store)` (the pattern of Tonight's
   `skyTargets`), which the view answers when it mounts or at once: the tab and list, the
   list built from `jd` and running forward so the event heads it, and the card of `id` (an
-  eclipse, occultation, transit or meteor shower) opened. Ids are the lists' own, which are
-  their calendar UIDs; `eventIds` builds them without loading the view.
+  eclipse, occultation, transit or meteor shower) opened, its row brought into view once the
+  list settles unless the person has touched, scrolled or typed meanwhile. Ids are the
+  lists' own, which are their calendar UIDs; `eventIds` builds them without loading the view.
+- **Cards beside a list** open level with their row (the card column is padded down to it),
+  so a row picked far down a long list never opens its card out of sight; on a narrow stage
+  the card goes under its row.
