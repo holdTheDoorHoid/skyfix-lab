@@ -2,16 +2,15 @@
 //!
 //! OWNER: tides agent (expansion programme, work package P5). Wire format:
 //! `docs/EXPLORER_API.md`, "Tides (tides agent)"; TypeScript mirror: `TidesEngine` in
-//! `web/src/next/engine/types.ts`; definitions: CONVENTIONS 13.10 and `skyfix_tides`.
+//! `web/src/next/engine/types.ts`; definitions: CONVENTIONS 13.11 and `skyfix_tides`.
 //!
 //! The station database lives in this module once a pack is installed, for the page
 //! session (CONVENTIONS 15.5). Every query throws `pack_not_loaded: …` until then.
 //!
-//! - [`install_tides_us`] is the producer function the pack dispatcher
-//!   (`packs::install`, the packs agent's) calls with the verified payload.
-//! - [`load_pack_tides_us`] takes a whole pack file (header, payload, CRC). It is
-//!   **temporary**, for as long as `packs.rs` is not on main; once `load_pack` exists it
-//!   can go (the web engine prefers `load_pack` when present).
+//! - [`install_tides_us`] is the producer function the pack dispatcher calls
+//!   (`packs::PRODUCERS`, entry `tides-us`): `load_pack("tides-us", bytes)` checks the
+//!   common header and the CRC-32, then hands over the payload.
+//! - `tide_pack_info` reports the installed pack with its station counts.
 
 use std::sync::{Arc, RwLock};
 
@@ -24,8 +23,8 @@ use crate::{err, to_js};
 
 static DB: RwLock<Option<Arc<TideDb>>> = RwLock::new(None);
 
-/// What installing the pack reports: the contract's `PackInfo` fields (`name`,
-/// `version`, `bytes`, `provides`) and the station counts.
+/// `tide_pack_info`: the contract's `PackInfo` fields (`name`, `version`, `bytes`,
+/// `provides`) and the station counts.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 pub struct TidesPackInfo {
     pub name: &'static str,
@@ -50,7 +49,7 @@ pub mod native {
             name: pack::PACK_NAME,
             version: db.version.clone(),
             bytes,
-            provides: vec!["tides:us-noaa"],
+            provides: vec!["tides:us"],
             stations: db.stations.len(),
             harmonic,
             subordinate: db.stations.len() - harmonic,
@@ -74,18 +73,6 @@ pub mod native {
         let i = info(&db, payload.len());
         set(db);
         Ok(i)
-    }
-
-    /// Parse and install a whole pack file (header, payload, CRC-32).
-    pub fn install_file(bytes: &[u8]) -> Result<TidesPackInfo, String> {
-        let (name, payload) = pack::parse_file(bytes).map_err(|e| e.to_string())?;
-        if name != pack::PACK_NAME {
-            return Err(format!(
-                "this is the {name:?} pack, not {:?}",
-                pack::PACK_NAME
-            ));
-        }
-        install_payload(payload)
     }
 
     /// The installed pack's summary, or `None`.
@@ -147,18 +134,17 @@ pub mod native {
     }
 }
 
-/// The producer function for the pack dispatcher: `packs::install("tides-us", payload)`
-/// calls this with the payload the common header wraps.
-pub fn install_tides_us(payload: &[u8]) -> Result<TidesPackInfo, String> {
-    native::install_payload(payload)
-}
-
-/// TEMPORARY (until `load_pack` from `packs.rs` is on main): install a whole `tides-us`
-/// pack file. Returns `TidesPackInfo`; throws when the magic, version, name, length or
-/// CRC is wrong. Idempotent.
-#[wasm_bindgen]
-pub fn load_pack_tides_us(bytes: &[u8]) -> Result<JsValue, JsValue> {
-    to_js(&native::install_file(bytes).map_err(err)?)
+/// The producer function of the `tides-us` entry in `packs::PRODUCERS`: the dispatcher
+/// has checked the common header and the CRC-32 and calls this with the payload. A
+/// malformed payload changes nothing; a second install replaces the first.
+pub fn install_tides_us(payload: &[u8]) -> Result<crate::packs::PackInfo, String> {
+    let info = native::install_payload(payload)?;
+    Ok(crate::packs::PackInfo {
+        name: info.name.to_string(),
+        version: info.version,
+        bytes: info.bytes as u64,
+        provides: info.provides.iter().map(|p| p.to_string()).collect(),
+    })
 }
 
 /// The installed pack's `TidesPackInfo`, or `null` when none is loaded.
@@ -268,15 +254,25 @@ mod tests {
         }
     }
 
+    /// Through the real dispatcher: `load_pack("tides-us", file)` checks the header and
+    /// the CRC-32 and calls `install_tides_us` (packs::PRODUCERS).
     #[test]
-    fn the_real_pack_installs_and_answers() {
+    fn the_real_pack_installs_through_the_dispatcher_and_answers() {
         let bytes = pack_file();
-        let info = install_file(&bytes).unwrap();
+        let info = crate::packs::load("tides-us", &bytes).unwrap();
         assert_eq!(info.name, "tides-us");
-        assert_eq!(info.stations, info.harmonic + info.subordinate);
-        assert!(info.harmonic > 1200 && info.subordinate > 2200, "{info:?}");
+        assert_eq!(info.bytes, bytes.len() as u64);
+        assert_eq!(info.provides, ["tides:us"]);
         // Idempotent.
-        assert_eq!(install_file(&bytes).unwrap(), info);
+        assert_eq!(crate::packs::load("tides-us", &bytes).unwrap(), info);
+        assert!(crate::packs::loaded_names().contains(&"tides-us".to_string()));
+        let summary = pack_info().unwrap();
+        assert_eq!(summary.version, info.version);
+        assert_eq!(summary.stations, summary.harmonic + summary.subordinate);
+        assert!(
+            summary.harmonic > 1200 && summary.subordinate > 2200,
+            "{summary:?}"
+        );
         let db = installed().unwrap();
         let db = Some(db.as_ref());
 
@@ -349,11 +345,15 @@ mod tests {
     }
 
     #[test]
-    fn a_damaged_pack_is_refused() {
+    fn a_damaged_or_mislabelled_pack_is_refused() {
         let mut bytes = pack_file();
         let n = bytes.len();
         bytes[n / 2] ^= 0x40;
-        let e = install_file(&bytes).unwrap_err();
-        assert!(e.contains("CRC"), "{e}");
+        let e = crate::packs::load("tides-us", &bytes).unwrap_err();
+        assert!(e.contains("damaged"), "{e}");
+        // A payload that is not a tides-us payload is refused by the producer itself.
+        let other = crate::packs::encode("tides-us", b"not tides").unwrap();
+        let e = crate::packs::load("tides-us", &other).unwrap_err();
+        assert!(e.contains("tides-us"), "{e}");
     }
 }

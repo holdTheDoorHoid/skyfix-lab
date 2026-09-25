@@ -308,6 +308,7 @@ pub fn simulate_detailed(
         clock: Clock {
             uncertainty_s: scenario.reported_clock_uncertainty_s,
             correction_s: 0.0,
+            dut1_s: None,
         },
         observations,
     };

@@ -12,13 +12,15 @@
  *             The new worker then WAITS. It takes over only when the person presses
  *             Reload in the page's prompt (message `SKIP_WAITING`) or every tab of the
  *             site has been closed. It never reloads a page by itself.
- * - activate: delete this site's older caches, take control of open pages.
+ * - activate: delete this site's older caches, take control of open pages. The page's own
+ *             cache of data packs (`packsCacheName`) is not the worker's and stays.
  * - fetch:    see `route` in policy.ts. Other origins are never touched.
  */
 
 import {
   RUNTIME_MAX_ENTRIES,
   cacheNames,
+  forwardPageHtml,
   inParallel,
   isStaleCache,
   offlinePageHtml,
@@ -37,7 +39,7 @@ declare const __SKYFIX_SW_BUILD__: SwBuild;
 const BUILD: SwBuild = __SKYFIX_SW_BUILD__;
 const ROOT = new URL('./', self.location.href).href;
 const NAMES = cacheNames(ROOT, BUILD.version);
-const INDEX = precacheIndex(ROOT, BUILD.entries, BUILD.redirects ?? []);
+const INDEX = precacheIndex(ROOT, BUILD.entries, BUILD.redirects ?? [], BUILD.networkOnly ?? []);
 const DOWNLOADS_AT_ONCE = 6;
 
 // ---------------------------------------------------------------------------------
@@ -118,7 +120,7 @@ self.addEventListener('message', (event) => {
 // ---------------------------------------------------------------------------------
 
 function offlinePage(): Response {
-  return new Response(offlinePageHtml(BUILD.pages, ROOT), {
+  return new Response(offlinePageHtml(BUILD.pages, ROOT, BUILD.links ?? []), {
     status: 503,
     statusText: 'Offline',
     headers: { 'content-type': 'text/html; charset=utf-8' },
@@ -189,6 +191,14 @@ self.addEventListener('fetch', (event) => {
       return;
     case 'redirect':
       event.respondWith(Response.redirect(decision.location, 301));
+      return;
+    case 'forward':
+      event.respondWith(
+        new Response(forwardPageHtml(decision.target, decision.fragments), {
+          status: 200,
+          headers: { 'content-type': 'text/html; charset=utf-8' },
+        }),
+      );
       return;
     case 'network-first':
       event.respondWith(networkFirst(event, decision.key, decision.navigate));

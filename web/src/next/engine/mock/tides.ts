@@ -144,7 +144,10 @@ function extremes(a: number, b: number, off: number): TideEvent[] {
 }
 
 export interface MockTidesOptions {
-  /** Answer as if the tides-us pack were loaded (default true); false exercises `pack_not_loaded`. */
+  /**
+   * Answer as if the tides-us pack were loaded (default true); false exercises
+   * `pack_not_loaded` until the mock's `loadPack('tides-us', …)`.
+   */
   loaded?: boolean;
 }
 
@@ -269,17 +272,15 @@ export class MockTides implements TidesEngine {
       name: 'tides-us',
       version: 'mock',
       bytes: 0,
-      provides: ['tides:us-noaa'],
+      provides: ['tides:us'],
       stations: 1,
       harmonic: 1,
       subordinate: 0,
     };
   }
 
-  /** Accepts any bytes, as the mock's `loadPack` does. */
-  loadTidesPack(bytes: Uint8Array): TidesPackInfo {
-    void bytes;
+  /** Called when the mock's `loadPack('tides-us', …)` runs: from then on the station answers. */
+  install(): void {
     this.loaded = true;
-    return this.tidePackInfo()!;
   }
 }

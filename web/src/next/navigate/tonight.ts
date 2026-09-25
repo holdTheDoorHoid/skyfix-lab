@@ -23,7 +23,8 @@ import type { SightInstrument, SightObserver, SightPlan, TwilightPlan } from '..
 import { displayZone } from '../state.js';
 import { bodyGlyph, glyphFor } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
-import { formatTime, zoneShortName, type Zone } from '../time.js';
+import { eventTime } from '../shell/format.js';
+import { zoneShortName, type Zone } from '../time.js';
 import { fmtAngle, fmtBearing, fmtMetres, fmtPosition, fmtSeconds } from './format.js';
 import type { PlannedSight } from './model.js';
 import { btn, errorText, kids, para } from './ui.js';
@@ -110,7 +111,7 @@ export function azimuthRose(window: TwilightPlan, size = 132): SVGSVGElement {
 
 function windowTitle(w: TwilightPlan, z: Zone, jdNow: number): { title: string; when: string } {
   const title = w.kind === 'evening' ? 'Evening twilight' : 'Morning twilight';
-  const range = `${formatTime(w.jd_start, z)}–${formatTime(w.jd_end, z)} ${zoneShortName(w.jd_start, z)}`;
+  const range = `${eventTime(w.jd_start, z)}–${eventTime(w.jd_end, z)} ${zoneShortName(w.jd_start, z)}`;
   const inSeconds = (w.jd_start - jdNow) * 86_400;
   const when = w.jd_start <= jdNow && w.jd_end >= jdNow ? `${range} · now` : inSeconds > 0 ? `${range} · in ${fmtSeconds(inSeconds)}` : range;
   return { title, when };
@@ -169,7 +170,7 @@ export function renderPlan(
       const m = w.plan.predicted;
       block.append(...kids(
         para(
-          `Predicted for ${formatTime(w.jd_predicted, z)} ${zoneShortName(w.jd_predicted, z)} (the Sun ${Math.abs(w.sun_altitude_deg).toFixed(1)}° below the horizon), for bodies brighter than magnitude ${w.limiting_magnitude.toFixed(1)}. ` +
+          `Predicted for ${eventTime(w.jd_predicted, z)} ${zoneShortName(w.jd_predicted, z)} (the Sun ${Math.abs(w.sun_altitude_deg).toFixed(1)}° below the horizon), for bodies brighter than magnitude ${w.limiting_magnitude.toFixed(1)}. ` +
             (m.semi_major_sigma_m !== null && m.semi_minor_sigma_m !== null
               ? `With 1′ sights, the fix would be good to about ${fmtMetres(m.semi_major_sigma_m)} × ${fmtMetres(m.semi_minor_sigma_m)} (1 sigma); the largest gap between bearings is ${m.max_azimuth_gap_deg.toFixed(0)}°.`
               : ''),
@@ -253,7 +254,7 @@ export function tonightSights(options: TonightOptions = {}): Component {
     };
     const request = (): void => {
       const inputs = inputsFor(ctx, from);
-      const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), ctx.store.get().settings.angleFormat, ctx.store.get().settings.timeDisplay, ctx.store.get().observer.zone]);
+      const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), ctx.store.get().settings.angleFormat, ctx.store.get().settings.timeDisplay, ctx.store.get().settings.hourCycle, ctx.store.get().observer.zone]);
       if (key === lastKey) return;
       lastKey = key;
       // A plan takes tens of milliseconds of the page's time. While the time keeps moving

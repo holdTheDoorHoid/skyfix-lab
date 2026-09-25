@@ -5,10 +5,10 @@
   "file": "tides-us-8fd019a61b7290b2.bin",
   "bytes": 344543,
   "sha256": "8fd019a61b7290b2f3b40d16bba59d7261fb2757ae180cf61b81178a3de41666",
-  "label": "Tides (US stations, NOAA)",
-  "description": "Tide predictions for NOAA's 3 499 tide stations: high and low water, tide curves and heights. Predictions, not observations; weather and surge not included.",
+  "label": "US tides",
+  "description": "Tide predictions for NOAA's tide stations, mostly in the United States",
   "provides": [
-    "tides:us-noaa"
+    "tides:us"
   ],
   "stations": {
     "harmonic": 1256,

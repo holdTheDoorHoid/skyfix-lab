@@ -112,7 +112,7 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
       const limb = kind === 'moon' || kind === 'sun' ? 'lower' : 'center';
       try {
         const p = nc.nav.predictSextant(
-          { lat_deg: plan.approximate_position.lat_deg, lon_deg: plan.approximate_position.lon_deg, height_of_eye_m: w.session.observer.height_of_eye_m, pressure_hpa: w.session.observer.pressure_hpa, temperature_c: w.session.observer.temperature_c },
+          { lat_deg: plan.approximate_position.lat_deg, lon_deg: plan.approximate_position.lon_deg, height_of_eye_m: w.session.observer.height_of_eye_m, pressure_hpa: w.session.observer.pressure_hpa, temperature_c: w.session.observer.temperature_c, dut1_s: w.session.clock.dut1_s ?? null },
           { index_correction_arcmin: w.session.instrument.index_correction_arcmin, horizon: w.session.instrument.horizon },
           b.body,
           limb,

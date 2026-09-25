@@ -12,6 +12,11 @@
 //!
 //! Each export is a thin wrapper over a plain Rust function of the same name with an
 //! `_impl` suffix, which the native tests call.
+//!
+//! DUT1 (expansion programme, moonshape): the observer document may carry `dut1_s`
+//! (UT1 - UTC in seconds, absent or null for automatic), as a session's `clock.dut1_s`
+//! does for the methods; the providers turn the Earth by it. It is read here, at the
+//! boundary, and is not part of the Rust `SightObserver`.
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
@@ -22,7 +27,7 @@ use skyfix_core::types::{
 };
 use skyfix_ephemeris::{AstroProvider, ProviderSource};
 
-use crate::{auto_provider, err, to_js};
+use crate::{err, to_js};
 
 /// A JSON document or an empty string (meaning "all defaults").
 fn parse_or_default<T: for<'de> Deserialize<'de> + Default>(
@@ -40,6 +45,37 @@ fn parse_or_default<T: for<'de> Deserialize<'de> + Default>(
 fn parse_observer(json: &str) -> Result<SightObserver, String> {
     serde_json::from_str(json.trim()).map_err(|e| format!("observer: {e}"))
 }
+
+// --- moonshape (expansion programme): DUT1 at the boundary -------------------------
+
+/// The `dut1_s` an observer document carries: `None` when absent or null (automatic);
+/// refused when it is not a number of seconds within the session's limit.
+fn observer_dut1(observer: &serde_json::Value) -> Result<Option<f64>, String> {
+    match observer.get("dut1_s") {
+        None | Some(serde_json::Value::Null) => Ok(None),
+        Some(v) => {
+            let d = v
+                .as_f64()
+                .ok_or_else(|| "observer.dut1_s: a number of seconds, or null".to_string())?;
+            if !d.is_finite() || d.abs() > skyfix_core::session::DUT1_LIMIT_S {
+                return Err(format!(
+                    "observer.dut1_s: UT1 - UTC is within 0.9 s (IERS); {d} s is not a value \
+                     in seconds"
+                ));
+            }
+            Ok(Some(d))
+        }
+    }
+}
+
+/// DUT1 for `jd_utc` from an observer document: its own value, else the engine's.
+fn dut1_from_observer_json(observer_json: &str, jd_utc: f64) -> Result<f64, String> {
+    let v: serde_json::Value =
+        serde_json::from_str(observer_json.trim()).map_err(|e| format!("observer: {e}"))?;
+    Ok(skyfix_core::time::dut1_s(jd_utc, observer_dut1(&v)?))
+}
+
+// --- end moonshape ----------------------------------------------------------------
 
 fn parse_limb(limb: &str) -> Result<Limb, String> {
     match limb.trim().to_ascii_lowercase().as_str() {
@@ -72,7 +108,8 @@ pub fn predict_sextant_impl(
     let instrument: Instrument = parse_or_default(instrument_json, "instrument")?;
     let limb = parse_limb(limb)?;
     let name = canonical_body(body)?;
-    let provider = auto_provider();
+    let provider =
+        crate::nav::auto_provider_with_dut1(dut1_from_observer_json(observer_json, jd_utc)?);
     let direction = provider
         .geocentric(name, jd_utc)
         .map_err(|e| e.to_string())?;
@@ -110,7 +147,13 @@ pub fn lunar_distance_impl(input_json: &str) -> Result<LunarDistanceResult, Stri
     let mut input: LunarDistanceInput =
         serde_json::from_str(input_json.trim()).map_err(|e| format!("lunar distance: {e}"))?;
     input.body = canonical_body(&input.body)?.to_string();
-    let source = ProviderSource(auto_provider());
+    let document: serde_json::Value =
+        serde_json::from_str(input_json.trim()).map_err(|e| format!("lunar distance: {e}"))?;
+    let user = observer_dut1(&document["observer"])?;
+    let jd = skyfix_core::time::parse_utc(&input.utc_estimate).map_err(|e| e.to_string())?;
+    let source = ProviderSource(crate::nav::auto_provider_with_dut1(
+        skyfix_core::time::dut1_s(jd, user),
+    ));
     skyfix_core::sights::lunar::lunar_distance(&input, &source).map_err(|e| e.to_string())
 }
 
@@ -133,8 +176,10 @@ pub fn plan_sights_impl(
 ) -> Result<SightPlan, String> {
     let observer = parse_observer(observer_json)?;
     let instrument: Instrument = parse_or_default(instrument_json, "instrument")?;
-    let sky = skyfix_ephemeris::body::Sky::new();
-    let provider = auto_provider();
+    // One DUT1 for the span (at most a week), taken at its start.
+    let dut1 = dut1_from_observer_json(observer_json, jd_start)?;
+    let sky = skyfix_ephemeris::body::Sky::with_dut1_s(dut1);
+    let provider = crate::nav::auto_provider_with_dut1(dut1);
     let bodies: Vec<&str> = skyfix_ephemeris::sights::sight_bodies()
         .into_iter()
         .filter(|b| *b != skyfix_ephemeris::body::SUN)
@@ -271,6 +316,45 @@ mod tests {
             ),
         }
         assert!(lunar_distance_impl("{}").is_err());
+    }
+
+    #[test]
+    fn the_observers_dut1_turns_the_earth_and_nonsense_is_refused() {
+        // Expansion programme (moonshape): `dut1_s` in the observer document.
+        let t = jd("2026-10-01T03:00:00Z");
+        let with = |d: &str| {
+            format!(
+                r#"{{"lat_deg": 39.9526, "lon_deg": -75.1652, "height_of_eye_m": 2.5, "dut1_s": {d}}}"#
+            )
+        };
+        let plain = predict_sextant_impl(PHL, "", "Moon", "lower", t).unwrap();
+        let null = predict_sextant_impl(&with("null"), "", "Moon", "lower", t).unwrap();
+        assert_eq!(plain, null);
+        let moved = predict_sextant_impl(&with("0.5"), "", "Moon", "lower", t).unwrap();
+        let shift = (moved.gha_deg - plain.gha_deg) * 3600.0;
+        assert!((shift - 7.5205).abs() < 0.01, "{shift}");
+        // The Moon's prediction carries its Earth-shape term (CONVENTIONS 15.4).
+        assert!(
+            plain.earth_shape_arcmin.abs() > 0.01,
+            "{}",
+            plain.earth_shape_arcmin
+        );
+        for bad in ["\"fast\"", "120", "-61"] {
+            let e = predict_sextant_impl(&with(bad), "", "Moon", "lower", t).unwrap_err();
+            assert!(e.contains("dut1_s"), "{bad}: {e}");
+        }
+        // The sight plan and a lunar distance read it too.
+        let start = jd("2026-10-01T12:00:00Z");
+        assert!(plan_sights_impl(&with("-0.3"), start, start + 1.0, "").is_ok());
+        assert!(plan_sights_impl(&with("99"), start, start + 1.0, "").is_err());
+        let lunar = |dut1: &str| {
+            format!(
+                r#"{{"observer": {{"lat_deg": 39.9526, "lon_deg": -75.1652, "dut1_s": {dut1}}},
+                    "body": "jupiter", "utc_estimate": "2026-10-01T03:00:00Z", "distance_deg": 40.0}}"#
+            )
+        };
+        let e = lunar_distance_impl(&lunar("1e9")).unwrap_err();
+        assert!(e.contains("dut1_s"), "{e}");
     }
 }
 

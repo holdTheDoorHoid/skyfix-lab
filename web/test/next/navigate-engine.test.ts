@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Session } from '../../src/types.js';
 import { memoEngine } from '../../src/next/component.js';
-import { createMockNav, createMockSessionApi, mockChain } from '../../src/next/engine/mock-nav.js';
+import { createMockNav, createMockSessionApi, mockChain, mockEarthShapeArcmin } from '../../src/next/engine/mock-nav.js';
 import { MockEngine } from '../../src/next/engine/mock.js';
 import type { ExplorerEngine } from '../../src/next/engine/types.js';
 import { inspectWasmModule } from '../../src/next/engine/wasm.js';
@@ -68,6 +68,9 @@ describe('the WASM navigation wrapper', () => {
     expect(calls.average_sights![0]![1]).toBe('{"reject_outliers":false}');
     expect(calls.running_fix![0]![1]).toBe('{"legs":[{"course_deg":45,"speed_kn":12}]}');
     expect(calls.predict_sextant![0]).toEqual(['{"lat_deg":1,"lon_deg":2,"height_of_eye_m":3}', '{"index_correction_arcmin":-1.2}', 'Moon', 'lower', 2461308.5]);
+    // UT1 − UTC travels with the observer when it is given (expansion programme).
+    expect(sightObserverJson({ lat_deg: 1, lon_deg: 2, dut1_s: -0.3 })).toBe('{"lat_deg":1,"lon_deg":2,"dut1_s":-0.3}');
+    expect(sightObserverJson({ lat_deg: 1, lon_deg: 2, dut1_s: null })).toBe('{"lat_deg":1,"lon_deg":2}');
     expect(calls.plan_sights![0]).toEqual(['{"lat_deg":1,"lon_deg":2}', 10, 11, '{}']);
     expect(sightObserverJson({ lat_deg: 1, lon_deg: 2, pressure_hpa: 990, temperature_c: -5 })).toBe('{"lat_deg":1,"lon_deg":2,"pressure_hpa":990,"temperature_c":-5}');
     expect(instrumentJson(undefined)).toBe('{}');
@@ -132,7 +135,22 @@ describe('the mock navigation tools (interface development only)', () => {
     const p = nav.predictSextant({ lat_deg: 39.9526, lon_deg: -75.1652, height_of_eye_m: 2 }, { index_correction_arcmin: -1.2 }, 'Moon', 'lower', jd);
     expect(p.corrections.ho_deg).toBeCloseTo(p.hc_deg, 6);
     expect(p.hs_deg).toBeLessThan(p.hc_deg);
+    // The Moon's Hc carries its Earth-shape term (CONVENTIONS 15.4), as the core's does.
+    expect(Math.abs(p.earth_shape_arcmin)).toBeGreaterThan(0);
+    expect(p.earth_shape_arcmin).toBeCloseTo(mockEarthShapeArcmin(39.9526, -75.1652, p.gha_deg, p.dec_deg, p.horizontal_parallax_arcmin), 12);
     expect(() => nav.predictSextant({ lat_deg: 0, lon_deg: 0 }, {}, 'Mercury', 'center', jd)).toThrow(/not offered for sights/);
+  });
+
+  it('computes the Moon’s Earth-shape term as the core does', () => {
+    // Independent Python values (the same ones skyfix-core's wgs84 tests pin).
+    const cases: [number, number, number, number, number, number][] = [
+      [54.7, 0.0, 0.0, 0.0, 61.5, 0.22332381215033395],
+      [39.9526, -75.1652, 352.0833, 26.305, 59.341, 0.05668299809180458],
+      [-33.9, 151.2, 200.0, -20.0, 55.0, 0.15560159358638626],
+      [12.0, -40.0, 80.0, 5.0, 57.3, 0.01216113580316577],
+    ];
+    for (const [lat, lon, gha, dec, hp, want] of cases) expect(mockEarthShapeArcmin(lat, lon, gha, dec, hp)).toBeCloseTo(want, 10);
+    expect(mockEarthShapeArcmin(40, -75, 10, 20, 0)).toBe(0);
   });
 
   it('keeps the methods’ failure modes', () => {

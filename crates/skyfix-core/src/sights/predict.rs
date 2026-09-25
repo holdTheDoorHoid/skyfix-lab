@@ -1,11 +1,13 @@
 //! The predicted sextant reading (CONVENTIONS sections 3 and 5, run in reverse).
 //!
 //! A navigator presets the sextant before the stars come out; this module answers
-//! "what will it read?". The computed altitude `Hc` of section 3 at the observer is the
-//! `Ho` a perfect sight would reduce to, so the reading `Hs` is the root of
-//! `correct_sight(Hs) = Hc`: the very chain [`crate::reduce`] uses, inverted
-//! numerically. Nothing is re-derived, so a prediction and a reduction can never
-//! disagree: reducing the predicted `Hs` gives back `Hc` to 1e-9'.
+//! "what will it read?". The computed altitude `Hc` of section 3 at the observer (for
+//! the Moon plus its Earth-shape term, section 15.4) is the `Ho` a perfect sight would
+//! reduce to, so the reading `Hs` is the root of `correct_sight(Hs) = Hc`: the very
+//! chain [`crate::reduce`] uses, inverted numerically. Nothing is re-derived, so a
+//! prediction and a reduction can never disagree: reducing the predicted `Hs` gives back
+//! `Hc` to 1e-9'. For the Moon the prediction is therefore what a perfect sextant on the
+//! real (WGS84) Earth reads at a sea-level site, not the sphere's reading.
 //!
 //! The chain is monotonic in `Hs` (its slope is `1 - dR/dHa` over one or two), so the
 //! root is bracketed from the lowest reading the horizon allows (`Ha = 0`, where the
@@ -73,7 +75,20 @@ pub fn predict_sextant(
         direction.gha_deg.to_radians(),
         direction.dec_deg.to_radians(),
     );
-    let hc = hc_rad.to_degrees();
+    // The model altitude (CONVENTIONS 15.4): the Moon's includes the Earth-shape term,
+    // so the reading is the real Earth's and reducing it lands on this Hc.
+    let earth_shape_arcmin =
+        match crate::reduce::moon_hp_arcmin(body, direction.horizontal_parallax_arcmin) {
+            Some(hp) => crate::sights::wgs84::earth_shape_arcmin(
+                observer.lat_deg,
+                observer.lon_deg,
+                direction.gha_deg,
+                direction.dec_deg,
+                hp,
+            ),
+            None => 0.0,
+        };
+    let hc = hc_rad.to_degrees() + earth_shape_arcmin / 60.0;
     let inputs = CorrectionInputs {
         id: body,
         is_sun: class == SightBody::Sun,
@@ -111,6 +126,7 @@ pub fn predict_sextant(
         ha_deg: ha,
         corrections: breakdown,
         warnings,
+        earth_shape_arcmin,
     })
 }
 

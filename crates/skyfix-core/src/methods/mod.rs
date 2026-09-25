@@ -19,6 +19,8 @@
 //! minutes, meridian passage, and the altitude equation solved for latitude.
 
 pub mod averaging;
+// Compass error by azimuth and amplitude (expansion programme, geomag agent).
+pub mod compass;
 pub mod noon;
 pub mod polaris;
 
@@ -232,6 +234,10 @@ struct LinearTrack {
     gha_rate_deg_per_day: f64,
     dec0_deg: f64,
     dec_rate_deg_per_day: f64,
+    /// The run's mean horizontal parallax, arcminutes: all the Moon's Earth-shape term
+    /// needs (CONVENTIONS 15.4). The Moon's HP moves by about 0.02' an hour, which
+    /// moves the term by under 0.0001'.
+    hp_arcmin: f64,
 }
 
 impl LinearTrack {
@@ -268,24 +274,33 @@ impl LinearTrack {
         } else {
             (nominal_gha_rate_deg_per_day, 0.0)
         };
+        let hp_mean = sights
+            .iter()
+            .map(|s| s.horizontal_parallax_arcmin)
+            .filter(|hp| hp.is_finite())
+            .sum::<f64>()
+            / n.max(1.0);
         LinearTrack {
             t0,
             gha0_deg: g_mean - gha_rate * t_mean,
             gha_rate_deg_per_day: gha_rate,
             dec0_deg: d_mean - dec_rate * t_mean,
             dec_rate_deg_per_day: dec_rate,
+            hp_arcmin: hp_mean,
         }
     }
 
-    /// Semidiameter and parallax are zero here on purpose: a track direction is used
-    /// for geometry only, never to correct an altitude (the sights are already reduced).
+    /// The semidiameter is zero here on purpose: a track direction is used for geometry
+    /// only, never to correct an altitude (the sights are already reduced). The
+    /// horizontal parallax is the run's mean, because the Moon's model altitude needs its
+    /// distance (CONVENTIONS 15.4).
     fn at(&self, jd_utc: f64) -> GeocentricDirection {
         let dt = jd_utc - self.t0;
         GeocentricDirection {
             gha_deg: norm_360(self.gha0_deg + self.gha_rate_deg_per_day * dt),
             dec_deg: (self.dec0_deg + self.dec_rate_deg_per_day * dt).clamp(-90.0, 90.0),
             semidiameter_arcmin: 0.0,
-            horizontal_parallax_arcmin: 0.0,
+            horizontal_parallax_arcmin: self.hp_arcmin,
         }
     }
 }
@@ -299,6 +314,9 @@ pub struct BodyTrack<'a> {
     body: String,
     provider: Option<&'a dyn DirectionSource>,
     linear: LinearTrack,
+    /// The body is the Moon: its model altitude includes the Earth-shape term
+    /// (CONVENTIONS 15.4).
+    moon: bool,
 }
 
 impl<'a> BodyTrack<'a> {
@@ -319,7 +337,19 @@ impl<'a> BodyTrack<'a> {
             body: body.to_string(),
             provider,
             linear,
+            moon: crate::corrections::sight_body(body) == crate::corrections::SightBody::Moon,
         }
+    }
+
+    /// True for the Moon, whose model altitude includes the Earth-shape term.
+    pub fn is_moon(&self) -> bool {
+        self.moon
+    }
+
+    /// The model altitude and azimuth (radians) of the body at `jd_utc` from `p`:
+    /// [`model_hc_zn`] on this track's direction.
+    pub fn model_hc_zn(&self, p: Point, jd_utc: f64) -> (f64, f64) {
+        model_hc_zn(p, &self.direction(jd_utc), self.moon)
     }
 
     /// Where the directions come from, for the report.
@@ -360,6 +390,25 @@ impl<'a> BodyTrack<'a> {
 /// `Hc` and `Zn` (radians) of a direction seen from `p` (CONVENTIONS 3).
 pub fn hc_zn(p: Point, d: &GeocentricDirection) -> (f64, f64) {
     altitude_azimuth(p, d.gha_deg.to_radians(), d.dec_deg.to_radians())
+}
+
+/// The model altitude and azimuth (radians) the methods fit an `Ho` with: [`hc_zn`], and
+/// for the Moon (`moon`) plus its Earth-shape term at `p` when the direction carries a
+/// horizontal parallax (CONVENTIONS 15.4). The azimuth is always the sphere's.
+pub fn model_hc_zn(p: Point, d: &GeocentricDirection, moon: bool) -> (f64, f64) {
+    let (h, zn) = hc_zn(p, d);
+    (h + earth_shape_rad(p, d, moon), zn)
+}
+
+/// The Moon's Earth-shape term (radians) at `p` for direction `d` (CONVENTIONS 15.4); 0
+/// for any other body (`moon` false) and for a direction without a horizontal parallax.
+pub fn earth_shape_rad(p: Point, d: &GeocentricDirection, moon: bool) -> f64 {
+    if !moon {
+        return 0.0;
+    }
+    crate::sights::wgs84::EarthShape::new(d.horizontal_parallax_arcmin).map_or(0.0, |shape| {
+        shape.term_rad(p.lat, p.lon, d.gha_deg.to_radians(), d.dec_deg.to_radians())
+    })
 }
 
 /// Every latitude in `[-pi/2, pi/2]` at which a body at (`gha`, `dec`) has altitude `h`

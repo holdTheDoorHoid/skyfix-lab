@@ -13,7 +13,7 @@ use skyfix_core::methods::polaris::{self, is_polaris};
 use skyfix_core::types::{DrPosition, PolarisOptions, PolarisResult, VesselMotion};
 use skyfix_ephemeris::stars::EphemerisPolarisTable;
 
-use super::args::{FormatArgs, parse_dr, parse_instant, parse_vessel};
+use super::args::{Dut1Args, FormatArgs, parse_dr, parse_vessel, wire_instant};
 use super::methods::{self, labelled, latitude_line};
 use super::text;
 use crate::provider::EphemerisChoice;
@@ -38,25 +38,30 @@ pub struct Args {
     #[arg(long, value_enum, default_value_t = EphemerisChoice::Auto, value_name = "MODE")]
     pub ephemeris: EphemerisChoice,
     #[command(flatten)]
+    pub dut1: Dut1Args,
+    #[command(flatten)]
     pub format: FormatArgs,
 }
 
 impl Args {
     pub fn options(&self) -> Result<PolarisOptions> {
-        if let Some(u) = &self.reference_utc {
-            parse_instant(u).map_err(|e| anyhow!("--reference-utc: {e}"))?;
-        }
+        // As the engine's wire string: the flag may be typed in the Julian calendar.
+        let reference_utc = match &self.reference_utc {
+            Some(u) => Some(wire_instant(u).map_err(|e| anyhow!("--reference-utc: {e}"))?),
+            None => None,
+        };
         Ok(PolarisOptions {
             dr: self.dr,
             vessel: self.vessel,
-            reference_utc: self.reference_utc.clone(),
+            reference_utc,
         })
     }
 }
 
 pub fn run(a: &Args) -> Result<u8> {
-    let session = methods::load(&a.session)?;
-    let source = methods::source(a.ephemeris);
+    let mut session = methods::load(&a.session)?;
+    a.dut1.apply(&mut session);
+    let source = methods::source(a.ephemeris, &session);
     let r = polaris::polaris_latitude(
         &session,
         source.as_ref(),

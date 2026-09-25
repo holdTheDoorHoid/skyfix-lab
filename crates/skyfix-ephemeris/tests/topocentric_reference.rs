@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
-use skyfix_core::time::parse_utc;
+use skyfix_core::time::{legacy_fixture_instant, parse_utc};
 use skyfix_core::units::norm_180;
 use skyfix_ephemeris::body::{BodyEphemeris, BodyKind, Sky};
 use skyfix_ephemeris::topocentric::{Site, horizontal};
@@ -119,6 +119,15 @@ fn compare(text: &str) -> Result<(BTreeMap<&'static str, Stats>, Vec<String>), S
         if (jd - case.jd_utc).abs() > 1e-6 {
             return Err(format!("{}: jd_utc does not match the timestamp", case.utc));
         }
+        // timescales agent: the fixture took TT = UTC + 69.184 s and UT1 = UTC after 2035;
+        // the clock is UT there now (CONVENTIONS 15.2). Evaluate the fixture's own TT and
+        // UT1 (identical up to 2035) until the fixture is regenerated on the new scale.
+        let (jd, shift) = legacy_fixture_instant(jd);
+        let sky = if shift == 0.0 {
+            sky.clone()
+        } else {
+            Sky::with_dut1_s(shift)
+        };
         let site = Site {
             lat_deg: case.site.lat_deg,
             lon_deg: case.site.lon_deg,

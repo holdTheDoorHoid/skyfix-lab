@@ -13,7 +13,7 @@
 //! - [`validation`]: comparison with a reference list of high and low waters (NOAA's),
 //!   shared by the tests and the pipeline's sweep.
 //!
-//! Definitions: `docs/CONVENTIONS.md` 13.10. Accuracy against NOAA's own predictions:
+//! Definitions: `docs/CONVENTIONS.md` 13.11. Accuracy against NOAA's own predictions:
 //! `docs/ACCURACY.md`, tides, backed by `tests/noaa_fixtures.rs`. Everything here builds
 //! for `wasm32-unknown-unknown`: no filesystem, no network. The pack is data, loaded at
 //! run time; the core module never depends on it.

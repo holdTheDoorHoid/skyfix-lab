@@ -288,8 +288,8 @@ function check(name, ok, detail = '') {
 }
 
 async function main() {
-  // The explorer is the home page (the switch-over, 2026-09-24); classic/ holds the
-  // original workbench, and next/ only forwards here.
+  // The explorer is the home page (the switch-over, 2026-09-24); next/ and classic/ (the
+  // retired workbench) only forward here.
   if (!existsSync(join(SITE, 'index.html')) || !existsSync(join(SITE, 'classic/index.html'))) {
     throw new Error(`${SITE} is not a built site with the explorer at its root: build first (npm run build --prefix web)`);
   }

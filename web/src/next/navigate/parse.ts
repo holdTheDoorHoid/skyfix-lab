@@ -14,7 +14,18 @@
 import { parseLatLon, parseLongitude } from '../geo/coords.js';
 import { jdFromIso } from '../time.js';
 
-export type Parsed<T> = { ok: true; value: T } | { ok: false; error: string };
+/**
+ * A parsed value, or one sentence saying what is wrong. `warning`, on a value that was
+ * understood, is a caution to show beside the field without refusing it.
+ */
+export type Parsed<T> = { ok: true; value: T; warning?: string } | { ok: false; error: string };
+
+/**
+ * Shown, not refused, when a sight time is typed as `HH:MM` (expansion programme,
+ * moonshape): `:00` is then assumed, and every second of time is 15″ of hour angle,
+ * 0.25′ of longitude (up to 15′ for a whole minute).
+ */
+export const SECONDS_OMITTED_WARNING = 'Seconds omitted: :00 assumed; each second is 0.25′ of longitude.';
 
 const ok = <T>(value: T): Parsed<T> => ({ ok: true, value });
 const fail = <T>(error: string): Parsed<T> => ({ ok: false, error });
@@ -72,8 +83,9 @@ const UTC_PATTERN =
 
 /**
  * An instant in UTC, returned as RFC 3339 with a trailing `Z` (CONVENTIONS section 6):
- * `2026-10-01 01:30:05`, `2026-10-01T01:30:05Z`, `2026-10-01 01:30` (seconds 0),
- * `2026-10-01 01:30:05.5`. A time with a zone offset is refused: this field is UTC.
+ * `2026-10-01 01:30:05`, `2026-10-01T01:30:05Z`, `2026-10-01 01:30` (seconds 0, with
+ * [`SECONDS_OMITTED_WARNING`]), `2026-10-01 01:30:05.5`. A time with a zone offset is
+ * refused: this field is UTC.
  */
 export function parseUtcInput(text: string): Parsed<string> {
   const raw = text.trim();
@@ -87,7 +99,7 @@ export function parseUtcInput(text: string): Parsed<string> {
   const frac = m[7] ? `.${m[7]}` : '';
   const iso = `${m[1]}-${p(m[2])}-${p(m[3])}T${p(m[4])}:${m[5]}:${p(m[6])}${frac}Z`;
   if (jdFromIso(iso) === null) return fail(`${raw} is not a real date and time (check the month, day, hour and minute).`);
-  return ok(iso);
+  return m[6] === undefined ? { ok: true, value: iso, warning: SECONDS_OMITTED_WARNING } : ok(iso);
 }
 
 export interface NumberRule {

@@ -548,3 +548,132 @@ provided:
   straight-line track through supplied directions is fine over minutes, not hours.
 - **Lunar distance** is a new method with its own clearing of the distance; nothing here
   covers it.
+- **The Moon's Earth-shape term** (expansion programme, CONVENTIONS 15.4). The Moon's
+  model altitude is the sphere's plus the part of its parallax the sphere leaves out, up
+  to 0.24′, and on the meridian that term is the whole error of a latitude reduced on
+  the sphere. The noon method's exact curve, its free parabola, the single maximum and
+  the ex-meridian latitude all use the model altitude, the meridian altitude it reports
+  is an `Ho` (the sphere's plus the term), and the rule it states reads
+  `latitude = declination ± (90° − (meridian altitude − term))`, with the term's value in
+  the sentence. The averaging method predicts the Moon's altitude the same way, and an
+  averaged Moon sight keeps the Moon's horizontal parallax in its direction so a fix made
+  from it keeps the term. A running fix takes the term at the estimated position at each
+  sight. `crates/skyfix-core/tests/moon_earth_shape.rs`: a noise-free Moon run on the real
+  Earth (term +0.22′ at 50° N) gives the latitude to 1e-6′ by the curve, 0.001′ by a
+  single maximum and 4e-6′ ex-meridian.
+
+---
+
+## 9. Compass error: by azimuth and by amplitude (expansion programme, geomag agent)
+
+**Status:** normative for `crates/skyfix-core/src/methods/compass.rs` and the export
+`compass_error` in `crates/skyfix-wasm/src/geomag.rs` (wire format: `docs/EXPLORER_API.md`,
+"Expansion programme — magnetic field and compass error"; conventions: CONVENTIONS 14.1-14.2).
+
+The sky is the navigator's one independent check of a compass. Take the compass bearing of
+a body, work out its true bearing, and the difference is the **compass error**. For a
+magnetic compass that error has two parts: the **variation** (the Earth's field, the same
+for every compass at that place, from the chart or a magnetic model) and the
+**deviation** (this compass's own error, from the ship's steel and electrics, which
+changes with the heading). A gyrocompass has only gyro error.
+
+| what goes in | what comes out |
+|---|---|
+| a body, the time of the bearing, the position, the compass bearing; magnetic or gyro | true bearing, compass error (E/W), variation and deviation, in one sentence: "Compass error 14.4° W; variation 11.8° W; deviation 2.6° W." |
+
+### 9.1 By azimuth (Bowditch 1501-1502)
+
+The true bearing is the body's azimuth at the moment of the bearing: the topocentric
+azimuth of its centre with the observer on the WGS84 ellipsoid, from the same apparent
+geocentric GHA and declination that sights use (so a bearing and a sight never disagree
+about where the body is). Refraction lifts a body but does not turn it, so the bearing
+needs none. For the Sun and the stars this is the Zn of CONVENTIONS 3 (the tables' Zn) to
+under 0.001°, and the result gives both; for the Moon the ellipsoid moves it by a few
+thousandths of a degree.
+
+Time matters when the bearing turns fast: the result gives the bearing's rate
+(`azimuth_rate_deg_per_min`) and a note when 10 seconds of time moves it more than 0.05°.
+Low bodies are easier to take a bearing of and turn slowly; a body far below the horizon at
+the given time gets a note (wrong time, date or body). Polaris is the classic body: its
+bearing changes by under a degree all night at mid-latitudes.
+
+### 9.2 By amplitude (Bowditch 1503-1506)
+
+An amplitude is the bearing of a body as it rises or sets, and needs no accurate time: at
+the horizon the bearing depends only on the latitude and the declination.
+
+- **Celestial horizon**: the body's centre at geocentric altitude 0 — for the Sun, its
+  lower limb about two thirds of a diameter above the sea horizon; for the Moon, its upper
+  limb on it. The amplitude is `sin A = sin dec / cos lat`, named E rising or W setting and
+  N or S with the declination ("W 32.6° N" is 32.6° north of west).
+- **Visible horizon** (the default, and Bowditch's advice at higher latitudes, where a
+  misjudged celestial horizon costs most): the chosen limb or the centre on the sea
+  horizon. SkyFix runs the correction chain of CONVENTIONS 5 for that moment — dip from the
+  height of eye, refraction at the resulting slightly negative apparent altitude, the
+  semidiameter, the parallax — to get the geocentric altitude `h` of the centre (about
+  -0.7° for the Sun's centre from a ship's bridge, Bowditch's own figure; about +0.25° for
+  the Moon, whose parallax more than makes up for refraction), then the exact bearing
+  `cos Z = (sin dec - sin lat sin h) / (cos lat cos h)`. The difference from the
+  celestial-horizon bearing is what Bowditch's Table 23 tabulates; here it is computed for
+  the actual latitude, declination, height of eye and body. The Moon's opposite sign is why
+  Bowditch tells the navigator to apply "one half of the correction toward the elevated
+  pole" for the Moon.
+- **The moment**: SkyFix finds the crossing of `h` nearest the time given (within 12
+  hours), rising or setting as asked or as the body's side of the meridian says, and uses
+  the declination at that moment. A crossing more than 30 minutes from the given time gets
+  a note. The result reports how many degrees the bearing moves per degree of misjudged
+  altitude (`bearing_per_altitude`); where the body meets the horizon at a shallow angle
+  (high latitudes) that factor is large, and a note says what 0.1° of misjudgement costs.
+
+### 9.3 Variation and deviation
+
+A magnetic compass needs the variation to split its error. The navigator can give the
+chart's (`variation_deg`, which wins); otherwise the model's is used at the observer and the
+moment: WMM2025 for 2025-2030, IGRF-14 for 1900-2024 (CONVENTIONS 14.1). The model's
+uncertainty comes with it and becomes the deviation's (±0.36° at Philadelphia; much more
+near the magnetic poles, where the result carries the model's caution or blackout note).
+After 2030 no model answers: the compass error is still found, the sentence stops there,
+and a note says why. `deviation = compass error - variation`, east positive.
+
+### 9.4 Validation
+
+*The American Practical Navigator* (Bowditch), NGA Pub. No. 9, 2019 edition, vol. 1,
+chapter 15 "Azimuths and Amplitudes" (a U.S. Government work); the numbers are in
+`fixtures/reference/bowditch_compass_examples.json` and
+`crates/skyfix-core/tests/compass_reference.rs` reproduces them. The book works to 0.1°
+with Pub. No. 229, the Nautical Almanac's Polaris table and Bowditch Tables 22-23.
+
+| example | Bowditch | SkyFix | difference |
+|---|---|---|---|
+| 1501, Sun's azimuth (Pub. 229 triple interpolation) | Zn 123.2°, gyro error 0.8° W | 123.187°, 0.813° W | 0.013° |
+| 1502, Polaris 2016-02-23 04:21:15 UT (through the engine) | 359.2° (Almanac table), 0.7° W | 359.250°, 0.650° W | 0.050° (the table's rounding) |
+| 1504, amplitude on the celestial horizon | W 32.6° N, 302.6°, 0.4° W | 32.666°, 302.666°, 0.334° W | 0.066° |
+| 1505, Table 23 on the visible horizon | 10.3° S, 100.3°, correction +1.2°, 0.6° E | 10.351°, 100.351°, +1.219°, 0.633° E | 0.051° |
+| 1506, the formula at Hc = -0.7° | 99.1°, 0.6° E | 99.133°, 0.633° E | 0.033° |
+
+Against the engine's own geometry (`crates/skyfix-wasm/src/geomag.rs`): the azimuth method
+equals `sky_state`'s `az_deg` to under 0.00001° for the Sun, the Moon, Jupiter, Vega,
+Sirius and Polaris at four places and four dates between 1995 and 2049; Venus differs by up
+to 0.006° by design (a bearing, like a sight, is of Venus's centre of light; `sky_state`
+draws its geometric centre). An amplitude's bearing equals the body's topocentric azimuth
+at the crossing to 0.0000° (Sun) and 0.003° (Moon, the ellipsoid), and the crossing is at
+the chain's altitude to 0.00001°.
+
+Reproduce:
+
+```console
+cargo test -p skyfix-core --test compass_reference -- --nocapture
+cargo test -p skyfix-wasm geomag -- --nocapture
+```
+
+### 9.5 What it does not do
+
+- **No deviation card yet.** Deviation changes with the ship's heading; a compass is
+  "swung" by taking the error on many headings and tabulating it. Each result here is one
+  heading's deviation; collecting them into a card is a later tool.
+- **Local anomalies are not in any model.** WMM2025 and IGRF-14 are the core field;
+  magnetised rock can move the local variation by degrees (NCEI: anomalies of 3-4° are not
+  uncommon, some exceed 10°). A chart's local note wins over the model, and the stated
+  uncertainty is a global average, not a guarantee at a point.
+- **Heeling error, a compass that is not level, a misread card**: the compass's own
+  problems are what the method measures, not what it corrects.

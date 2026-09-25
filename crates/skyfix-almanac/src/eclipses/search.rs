@@ -18,11 +18,18 @@
 //! **Saros number.** Eclipses one saros (223 lunations) apart belong to the same
 //! series, and van den Bergh's numbering of the series advances by one per inex (358
 //! lunations). So `N = 223 i + 358 s + c`: modulo 223 the lunation number fixes the
-//! series, and because every series alive in 1990-2060 lies within 111 of the
-//! reference, the residue picks it uniquely. References: the total solar eclipse of
-//! 2024 April 8 (lunation 300, saros 139) and the total lunar eclipse of 2025 March 14
-//! (lunation 311, saros 123), both from NASA's catalogues. The test against the canon
-//! checks every eclipse of the window.
+//! series, `s = s_ref + 38 (N - N_ref) mod 223` (38 inverts 358 modulo 223). Of the
+//! series with that residue, the one alive at lunation `N` is the one nearest the
+//! epoch's expected series `s_ref + (N - N_ref) / 358`: the series in progress at any
+//! time lie within about 40 of it (a series lives some 1 300 years, 70-85 eclipses),
+//! while the next candidate is 223 away. Before, the window was centred on the reference
+//! series itself, which is right only while the series alive stay within 111 of 139
+//! (solar) and 123 (lunar): it numbered series below 28 (solar) and 12 (lunar), alive
+//! before about 1000 BC, 223 too high (CONVENTIONS 15.3). References: the total solar
+//! eclipse of 2024 April 8 (lunation 300, saros 139) and the total lunar eclipse of 2025
+//! March 14 (lunation 311, saros 123), both from NASA's catalogues. The test against the
+//! canon checks every eclipse of 1990-2060; `saros_numbers_*` below check the rule
+//! over -1999..3000.
 
 use std::f64::consts::PI;
 
@@ -145,9 +152,11 @@ pub(crate) fn lunation_number(jd_tt: f64, solar: bool) -> i64 {
 pub(crate) fn saros_number(lunation: i64, solar: bool) -> i64 {
     // 358 = 135 (mod 223) and 135 * 38 = 5130 = 23 * 223 + 1, so 38 inverts 358.
     let (n_ref, s_ref) = if solar { (300, 139) } else { (311, 123) };
-    let ds = (38 * (lunation - n_ref)).rem_euclid(223);
-    let ds = if ds > 111 { ds - 223 } else { ds };
-    s_ref + ds
+    let residue = (s_ref + 38 * (lunation - n_ref)).rem_euclid(223);
+    // The epoch's expected series: one more per inex (358 lunations).
+    let expected = s_ref as f64 + (lunation - n_ref) as f64 / 358.0;
+    // The member of the residue class nearest to it.
+    residue + 223 * ((expected - residue as f64) / 223.0).round() as i64
 }
 
 #[cfg(test)]
@@ -182,6 +191,76 @@ mod tests {
         }
         for (n, s) in [(311, 123), (235, 134), (282, 136), (-29, 137)] {
             assert_eq!(saros_number(n, false), s, "lunar lunation {n}");
+        }
+    }
+
+    /// The old rule: the residue within 111 of the reference series.
+    fn old_rule(lunation: i64, solar: bool) -> i64 {
+        let (n_ref, s_ref) = if solar { (300, 139) } else { (311, 123) };
+        let ds = (38 * (lunation - n_ref)).rem_euclid(223);
+        s_ref + if ds > 111 { ds - 223 } else { ds }
+    }
+
+    /// Every eclipse candidate of -1999..3000 (Meeus's filter; no ephemeris), by kind.
+    fn candidates_of_the_canon_span(solar: bool) -> Vec<i64> {
+        // JDE of -1999-01-01 and 3000-12-31, widened.
+        let v = candidates(990_000.0, 2_817_000.0, solar);
+        v.iter().map(|c| lunation_number(c.jde, solar)).collect()
+    }
+
+    #[test]
+    fn saros_numbers_are_unchanged_where_the_old_rule_held() {
+        // Every eclipse of AD 1 to 3000 (1990-2060, the canon test's window, included):
+        // the old rule is right while the series alive stay within 111 of the reference.
+        for solar in [true, false] {
+            let v = candidates(1_721_424.0, 2_817_000.0, solar);
+            assert!(v.len() > 6_500, "{}", v.len());
+            for c in v {
+                let n = lunation_number(c.jde, solar);
+                assert_eq!(saros_number(n, solar), old_rule(n, solar), "{solar} {n}");
+            }
+        }
+    }
+
+    #[test]
+    fn saros_numbers_follow_each_series_through_five_millennia() {
+        for solar in [true, false] {
+            let ns = candidates_of_the_canon_span(solar);
+            assert!(ns.len() > 11_000, "{}", ns.len());
+            let set: std::collections::HashSet<i64> = ns.iter().copied().collect();
+            let mut lowest = i64::MAX;
+            let mut highest = i64::MIN;
+            for &n in &ns {
+                let s = saros_number(n, solar);
+                // One saros later the same series (whenever that eclipse also happens).
+                if set.contains(&(n + 223)) {
+                    assert_eq!(saros_number(n + 223, solar), s, "{solar}: {n}");
+                }
+                // One inex later the next series.
+                if set.contains(&(n + 358)) {
+                    assert_eq!(saros_number(n + 358, solar), s + 1, "{solar}: {n}");
+                }
+                // The series in progress stay near the epoch's expected one.
+                let (n_ref, s_ref) = if solar { (300, 139) } else { (311, 123) };
+                let expected = s_ref as f64 + (n - n_ref) as f64 / 358.0;
+                assert!(
+                    (s as f64 - expected).abs() < 60.0,
+                    "{solar}: {n} {s} {expected}"
+                );
+                lowest = lowest.min(s);
+                highest = highest.max(s);
+            }
+            // The old rule misnumbers the earliest series: it would never go below 28
+            // (solar) or 12 (lunar).
+            if solar {
+                assert!(lowest < 28, "{lowest}");
+            } else {
+                assert!(lowest < 12, "{lowest}");
+            }
+            println!(
+                "{}: series {lowest}..{highest} over -1999..3000",
+                if solar { "solar" } else { "lunar" }
+            );
         }
     }
 }

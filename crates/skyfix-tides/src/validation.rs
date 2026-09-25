@@ -1,7 +1,7 @@
 //! Comparing a list of high and low waters with a reference list (NOAA's), as the tests
 //! and the pipeline's sweep (`examples/noaa_sweep.rs`) do.
 //!
-//! The rules, and why (CONVENTIONS 13.10, ACCURACY "Tides"):
+//! The rules, and why (CONVENTIONS 13.11, ACCURACY "Tides"):
 //!
 //! - Each reference extreme is paired with our nearest extreme of the same kind within an
 //!   hour. Heights must agree within [`Tolerance::height_m`] (5 cm).

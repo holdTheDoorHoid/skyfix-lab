@@ -32,6 +32,7 @@ import { TABS, type Tab } from '../env.js';
 import { learnView } from '../index.js';
 import { isStoryId } from '../stories.js';
 import type { VariantId } from '../stories.js';
+import { NO_PACKS } from '../../packs/service.js';
 
 const THEMES: ThemeName[] = ['light', 'dark', 'night'];
 const VARIANTS: VariantId[] = ['robust', 'clock-sigma', 'estimate-bias', 'third-star'];
@@ -54,7 +55,7 @@ async function boot(root: HTMLElement): Promise<void> {
   const store = createExplorerStore({ storage: null, initial: { settings: { theme, units, angleFormat: angles }, view: 'learn' } });
   const scheduler = createScheduler();
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
-  const ctx: Ctx = { store, engine, notices, scheduler };
+  const ctx: Ctx = { store, engine, notices, scheduler, packs: NO_PACKS };
 
   const themeSelect = h('select', { 'aria-label': 'Theme' });
   for (const t of THEMES) themeSelect.append(h('option', { value: t, selected: t === theme }, t));

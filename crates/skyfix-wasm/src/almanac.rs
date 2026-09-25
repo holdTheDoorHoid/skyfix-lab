@@ -6,8 +6,12 @@
 //! Same two layers as `explorer.rs`: [`native`] takes the export's arguments and returns
 //! the serde type (tested natively), and the `#[wasm_bindgen]` export serialises it with
 //! `Serializer::json_compatible` (`None` is `null`). The astronomy is
-//! [`skyfix_ephemeris::body::Sky`] with DUT1 = 0 (CONVENTIONS 6), as everywhere in the
-//! explorer.
+//! [`skyfix_ephemeris::body::Sky`] with DUT1 = 0, and here that is not an assumption:
+//! the page's argument is UT1, as in the printed Nautical Almanac, which a navigator
+//! enters with UTC + DUT1 (CONVENTIONS 15.2). A provider with DUT1 = 0 makes the clock
+//! instant of each row its UT1; TT is then off by DUT1 (under 0.9 s: 0.5" of the Moon,
+//! a tenth of the printed precision). The explorer's `set_dut1` value and the IERS
+//! history therefore do not apply to the page; they apply to `sky_state` and the rest.
 
 use wasm_bindgen::prelude::*;
 
@@ -19,7 +23,8 @@ pub mod native {
     use skyfix_ephemeris::body::Sky;
 
     /// The daily page for one UT date, `YYYY-MM-DD`. Errors: a malformed date, a date
-    /// outside the ephemeris coverage (1990-01-01 to 2060-12-31), or no Sun.
+    /// outside the ephemeris coverage (1990-01-01 to 2060-12-31), or no Sun. DUT1 = 0 on
+    /// purpose: the argument is UT1 (module docs).
     pub fn almanac_day(date: &str) -> Result<AlmanacDay, String> {
         pages::almanac_day(&Sky::new(), date).map_err(|e| e.to_string())
     }

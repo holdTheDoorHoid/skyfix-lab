@@ -12,6 +12,7 @@ use std::path::PathBuf;
 use clap::{Args, Parser, Subcommand};
 use skyfix_core::types::{LatLon, PositionPrior};
 
+use crate::commands::explorer::args::Dut1Args;
 use crate::commands::plan::ObjectiveArg;
 use crate::commands::solve;
 use crate::provider::EphemerisChoice;
@@ -30,6 +31,13 @@ use crate::provider::EphemerisChoice;
 pub struct Cli {
     #[command(subcommand)]
     pub command: Command,
+
+    /// The calendar of the dates you type and of the dates printed: `julian`, or
+    /// `gregorian` (proleptic before 1582-10-15, as ISO 8601). Default: Julian up to
+    /// 1582-10-04 and Gregorian from 1582-10-15, as the explorer shows them. JSON output
+    /// is always proleptic Gregorian.
+    #[arg(long, global = true, value_enum, value_name = "CALENDAR")]
+    pub calendar: Option<crate::commands::explorer::args::CalendarArg>,
 }
 
 #[derive(Subcommand, Debug)]
@@ -56,6 +64,8 @@ pub enum Command {
         /// Print one CSV row per sight with the numeric columns.
         #[arg(long)]
         csv: bool,
+        #[command(flatten)]
+        dut1: Dut1Args,
     },
 
     /// Solve a position fix from a session.
@@ -69,6 +79,8 @@ pub enum Command {
         /// Exit 3 unless the result is a single unique fix.
         #[arg(long = "require-unique")]
         require_unique: bool,
+        #[command(flatten)]
+        dut1: Dut1Args,
     },
 
     /// List the bodies a session may name and which provider answers for each.
@@ -171,6 +183,8 @@ pub enum Command {
         taken: Option<PathBuf>,
         #[arg(long)]
         json: bool,
+        #[command(flatten)]
+        dut1: Dut1Args,
     },
 
     /// Print the daily pages of a nautical almanac for one UT date: GHA and Dec every hour,
@@ -259,6 +273,7 @@ impl SolveFlags {
             no_multistart: self.no_multistart,
             grid_step: self.grid_step,
             require_unique,
+            dut1: None,
         }
     }
 }

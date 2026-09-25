@@ -20,7 +20,8 @@ import { SOLAR_SYSTEM } from '../engine/bodies.js';
 import type { BodyKind, BodyState, SkyPhase } from '../engine/types.js';
 import { setPlaying, setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
-import { formatTime, zoneLabel, type Zone } from '../time.js';
+import { axisTime, endOfDay } from '../shell/format.js';
+import { zoneLabel, type Zone } from '../time.js';
 import { computeDay, curveAt, DAY_STEP_MINUTES, type DayData, type DayInput, type DaySeries } from './day-data.js';
 import {
   altitude,
@@ -371,7 +372,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     timeLabels = [];
     for (const m of major) {
       const jd = day.jd_start + m.k / 24;
-      const t = svgText(xs(m.k), y1 + 16, m.k >= day.hours - 1e-9 ? '24:00' : formatTime(jd, zone), { 'text-anchor': 'middle' });
+      const t = svgText(xs(m.k), y1 + 16, m.k >= day.hours - 1e-9 ? endOfDay(zone) : axisTime(jd, zone), { 'text-anchor': 'middle' });
       timeLabels.push({ el: t, x: xs(m.k) });
       axis.append(t);
     }

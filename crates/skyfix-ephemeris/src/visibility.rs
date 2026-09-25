@@ -28,8 +28,15 @@
 //! 0.06 degrees, far inside the uncertainty of the approximate position a plan rests on,
 //! so it is deliberately not modelled: a plan that turned on a 0.06-degree distinction
 //! would be pretending to a precision it does not have.
+//!
+//! The altitude of the Moon is its model altitude, the sphere's plus its Earth-shape term
+//! (CONVENTIONS 15.4, `skyfix_core::methods::model_hc_zn`), so the planner, the sight
+//! plan's `hc_deg` and a reduction all use one figure for it (moonshape, expansion
+//! programme).
 
-use skyfix_core::geometry::{Point, altitude_azimuth};
+use skyfix_core::corrections::{SightBody, sight_body};
+use skyfix_core::geometry::Point;
+use skyfix_core::methods::model_hc_zn;
 use skyfix_core::planner::{self, Candidate, Plan, PlanOptions};
 use skyfix_core::time::{format_utc, parse_utc};
 use skyfix_core::types::{
@@ -60,7 +67,8 @@ pub const NOTE_SUN_UNKNOWN: &str = "Sun altitude unknown";
 ///
 /// Each body is queried from `provider`, its apparent geocentric GHA/Dec turned into an
 /// altitude and azimuth at `position` through
-/// [`skyfix_core::geometry::altitude_azimuth`], and kept when the altitude is at least
+/// [`skyfix_core::geometry::altitude_azimuth`] (the Moon's with its Earth-shape term,
+/// `skyfix_core::methods::model_hc_zn`), and kept when the altitude is at least
 /// `min_altitude_deg`. `sigma_arcmin` comes from
 /// [`planner::expected_sigma_arcmin`] applied to `base_sigma_arcmin`, and the magnitude
 /// comes from the star catalogue when the body is a catalogue star (the Sun and anything
@@ -83,7 +91,7 @@ pub fn visible_bodies(
     let mut out = Vec::new();
     for body in bodies {
         let d = provider.geocentric(body, jd_utc)?;
-        let (h, zn) = altitude_azimuth(observer, d.gha_deg.to_radians(), d.dec_deg.to_radians());
+        let (h, zn) = model_hc_zn(observer, &d, sight_body(body) == SightBody::Moon);
         let altitude_deg = h.to_degrees();
         // A NaN altitude fails this test and is dropped, which is the intent.
         if altitude_deg < min_altitude_deg || altitude_deg.is_nan() {
@@ -575,11 +583,7 @@ fn plan_window(
                 continue;
             }
         };
-        let (h, zn) = altitude_azimuth(
-            point,
-            direction.gha_deg.to_radians(),
-            direction.dec_deg.to_radians(),
-        );
+        let (h, zn) = model_hc_zn(point, &direction, sight_body(body) == SightBody::Moon);
         let altitude_deg = h.to_degrees();
         if altitude_deg < options.min_altitude_deg || altitude_deg.is_nan() {
             continue;

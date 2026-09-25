@@ -49,10 +49,9 @@ OUT_DIR = os.path.join(REPO, "web", "public", "data", "packs")
 DIFFERS = os.path.join(HERE, "noaa_differs.json")
 
 PACK_NAME = "tides-us"
-LABEL = "Tides (US stations, NOAA)"
-DESCRIPTION = ("Tide predictions for NOAA's 3 499 tide stations: high and low water, "
-               "tide curves and heights. Predictions, not observations; weather and surge "
-               "not included.")
+#: As in the core's pack registry (crates/skyfix-wasm/src/packs.rs, PRODUCERS).
+LABEL = "US tides"
+DESCRIPTION = "Tide predictions for NOAA's tide stations, mostly in the United States"
 
 #: Mirrors `CONSTITUENTS` in crates/skyfix-tides/src/schureman.rs: NOAA's 37 standard
 #: constituents in NOAA's numbering, then its extended set (Anchorage). The decoder maps
@@ -265,7 +264,7 @@ def main() -> int:
         "sha256": sha,
         "label": LABEL,
         "description": DESCRIPTION,
-        "provides": ["tides:us-noaa"],
+        "provides": ["tides:us"],
         "stations": {"harmonic": counts["harmonic"], "subordinate": counts["subordinate"],
                      "flags": counts["flags"]},
         "source": "NOAA CO-OPS (tidesandcurrents.noaa.gov), retrieved %s to %s; public "

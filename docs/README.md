@@ -13,9 +13,9 @@ Live site: <https://holdthedoorhoid.github.io/skyfix-lab/> — this book:
 <https://holdthedoorhoid.github.io/skyfix-lab/docs/>.
 
 > The map-first **explorer** is the site's home page (since 2026-09-24; it was at `/next/`,
-> which now forwards there). The original workbench is kept for reference at
-> [`/classic/`](https://holdthedoorhoid.github.io/skyfix-lab/classic/). New to the site?
-> Start with [Using the explorer](EXPLORER_GUIDE.md).
+> which now forwards there). The original workbench has been retired: its old address,
+> `/classic/`, opens the explorer's Navigate and Learn views, which do everything it did.
+> New to the site? Start with [Using the explorer](EXPLORER_GUIDE.md).
 
 ## Quick start
 

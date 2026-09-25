@@ -118,6 +118,7 @@ pub fn reduce_observation(
 
     // --- correction chain (section 5) ---------------------------------------
     let horizon = obs.horizon.unwrap_or(session.instrument.horizon);
+    let class = corrections::sight_body(&obs.body);
     let breakdown = corrections::correct_sight(
         obs.altitude_deg,
         obs.altitude_kind,
@@ -133,18 +134,41 @@ pub fn reduce_observation(
             temperature_c: session.observer.temperature_c,
             direction: Some(direction),
         },
-        corrections::sight_body(&obs.body),
+        class,
     )?;
     warnings.extend(breakdown.warnings.iter().cloned());
 
+    // The Moon's Earth-shape term belongs to the model altitude (section 15.4). It needs
+    // the Moon's distance: without a horizontal parallax (possible only for an
+    // `observed_ho` record whose supplied direction leaves it out, since the chain
+    // refuses any other) it cannot be computed, and the sight is modelled on the sphere.
+    let hp_arcmin = direction.horizontal_parallax_arcmin;
+    let earth_shape = class == corrections::SightBody::Moon
+        && crate::sights::wgs84::EarthShape::new(hp_arcmin).is_some();
+    if class == corrections::SightBody::Moon && !earth_shape {
+        warnings.push(Warning::Other {
+            message: format!(
+                "Moon sight {id} has no horizontal parallax in its direction, so the Moon's \
+                 Earth-shape term (up to 0.24', CONVENTIONS section 15.4) is left out of its \
+                 computed altitude; give horizontal_parallax_arcmin to include it"
+            ),
+        });
+    }
+
     // --- sight reduction at the assumed position (section 3) ----------------
-    let (hc_deg, zn_deg, intercept_nm) = match session.observer.assumed_position {
+    let (hc_deg, zn_deg, intercept_nm, earth_shape_arcmin) = match session.observer.assumed_position
+    {
         Some(ap) => {
             check_assumed_position(&ap)?;
             let observer = Point::from_deg(ap.lat_deg, ap.lon_deg);
             let (hc_rad, zn_rad) =
                 geometry::altitude_azimuth(observer, gha_deg.to_radians(), dec_deg.to_radians());
-            let hc = hc_rad.to_degrees();
+            let term = earth_shape.then(|| {
+                crate::sights::wgs84::earth_shape_arcmin(
+                    ap.lat_deg, ap.lon_deg, gha_deg, dec_deg, hp_arcmin,
+                )
+            });
+            let hc = hc_rad.to_degrees() + term.unwrap_or(0.0) / 60.0;
             // 1 arcminute of altitude = 1 nautical mile of intercept (section 1);
             // positive means "Ho more, toward" (section 3).
             let intercept = (breakdown.ho_deg - hc) * 60.0;
@@ -152,9 +176,10 @@ pub fn reduce_observation(
                 Some(hc),
                 Some(units::norm_360(zn_rad.to_degrees())),
                 Some(intercept),
+                term,
             )
         }
-        None => (None, None, None),
+        None => (None, None, None, None),
     };
 
     Ok(ReducedSight {
@@ -172,6 +197,8 @@ pub fn reduce_observation(
         zn_deg,
         intercept_nm,
         warnings,
+        horizontal_parallax_arcmin: hp_arcmin,
+        earth_shape_arcmin,
     })
 }
 
@@ -189,7 +216,9 @@ pub fn reduce_session(
 }
 
 /// Convert reduced sights to solver input (radians). The GHA rate is the source's rate
-/// for that body at the sight's own instant (CONVENTIONS 13.1).
+/// for that body at the sight's own instant (CONVENTIONS 13.1). A Moon sight whose
+/// direction carries a horizontal parallax takes it along, so the solver's model
+/// altitude includes the Earth-shape term at every trial position (CONVENTIONS 15.4).
 pub fn to_sights(reduced: &[ReducedSight], source: &dyn DirectionSource) -> Vec<Sight> {
     reduced
         .iter()
@@ -204,8 +233,44 @@ pub fn to_sights(reduced: &[ReducedSight], source: &dyn DirectionSource) -> Vec<
                 .gha_rate_deg_per_hour_at(&r.body, r.jd_utc)
                 .to_radians()
                 / 3600.0,
+            moon_hp_arcmin: moon_hp_arcmin(&r.body, r.horizontal_parallax_arcmin),
         })
         .collect()
+}
+
+/// The horizontal parallax a Moon sight carries into the model altitude (CONVENTIONS
+/// 15.4): `Some(hp)` for the Moon with a usable HP, `None` for every other body (the
+/// term is under 0.0022' for a planet and is not applied to one).
+pub fn moon_hp_arcmin(body: &str, horizontal_parallax_arcmin: f64) -> Option<f64> {
+    (corrections::sight_body(body) == corrections::SightBody::Moon
+        && crate::sights::wgs84::EarthShape::new(horizontal_parallax_arcmin).is_some())
+    .then_some(horizontal_parallax_arcmin)
+}
+
+/// DUT1 (UT1 - UTC, seconds) for building a session's providers: the session's
+/// `clock.dut1_s` when given, otherwise the engine's own value, through the single
+/// lookup [`crate::time::dut1_s`] at the session's reference instant, its earliest sight
+/// (after the chronometer correction). A provider is built **once per session** with
+/// this value: over a session of hours DUT1 moves by well under a millisecond (0.004"
+/// of GHA). A leap second inside a session would be the one case one value cannot
+/// cover (DUT1 steps by 1 s there); a session without sights uses J2000.
+pub fn session_dut1_s(session: &Session) -> f64 {
+    let correction_days = if session.clock.correction_s.is_finite() {
+        session.clock.correction_s / 86_400.0
+    } else {
+        0.0
+    };
+    let reference = session
+        .observations
+        .iter()
+        .filter_map(|o| crate::time::parse_utc(&o.utc).ok())
+        .fold(f64::INFINITY, f64::min);
+    let jd = if reference.is_finite() {
+        reference + correction_days
+    } else {
+        crate::time::JD_J2000
+    };
+    crate::time::dut1_s(jd, session.clock.dut1_s)
 }
 
 /// Reduce a session and keep only the sights that survived, alongside the failures.

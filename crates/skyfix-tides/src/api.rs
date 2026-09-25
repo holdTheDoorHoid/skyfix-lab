@@ -54,7 +54,7 @@ pub struct TideStation {
     pub reference_id: Option<String>,
     pub reference_name: Option<String>,
     /// `semidiurnal`, `mixed_semidiurnal`, `mixed_diurnal` or `diurnal`, by the form
-    /// number (CONVENTIONS 13.10); a subordinate station reports its reference's.
+    /// number (CONVENTIONS 13.11); a subordinate station reports its reference's.
     pub tide_type: Option<&'static str>,
     /// `F = (K1 + O1)/(M2 + S2)` of the harmonic constants (the reference station's for
     /// a subordinate one).

@@ -13,8 +13,8 @@
  * marks `<html data-print-view>` while mounted and hides everything around itself.
  *
  * `VIEW_FOLDERS` says which folder serves which view id (`map` and `globe` are both the
- * map agent's). A folder that is not there yet shows a friendly "coming soon" page
- * (`placeholder.ts`). The component takes over the element it is given and fills it (the
+ * map agent's). Every view is present; one that could not be loaded says so in its place
+ * (stage.ts `viewError`). The component takes over the element it is given and fills it (the
  * host is `position: absolute`). Nothing of the shell's covers it: on phones the host ends
  * where the bottom sheet begins, so its size changes when the sheet moves. It is destroyed
  * when another folder's view is chosen; switching between two ids served by the same
@@ -25,8 +25,8 @@
  *
  *   src/next/<folder>/slots/<slot>.ts   export default (host, ctx) => ({ destroy })
  *
- * Today there is one slot, `star-sights` ("Tonight's star sights"). When no module
- * provides it, the panel shows its own placeholder there.
+ * Today there is one slot, `star-sights` ("Tonight's star sights"), filled by
+ * `navigate/slots/star-sights.ts`.
  */
 
 import type { Component } from '../component.js';

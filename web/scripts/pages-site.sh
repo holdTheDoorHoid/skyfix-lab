@@ -5,12 +5,15 @@
 #
 #   web/scripts/pages-site.sh                              # every step, as the workflow
 #   SKIP_WASM=1 SKIP_INSTALL=1 web/scripts/pages-site.sh   # reuse the WebAssembly package and node_modules
+#   SKIP_PACK_CHECK=1 ...                                  # skip installing the committed data packs natively
 #
 # The workflow pins mdBook 0.4.52; this uses whichever mdbook is on the PATH.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 [ "${SKIP_WASM:-}" = 1 ] || npm run wasm --prefix web
+# Every committed data pack must install into this build's core (docs/EXPLORER_API.md, "Packs").
+[ "${SKIP_PACK_CHECK:-}" = 1 ] || cargo test -q -p skyfix-wasm --lib packs::
 [ "${SKIP_INSTALL:-}" = 1 ] || npm ci --prefix web
 npm run build --prefix web
 if command -v mdbook > /dev/null; then

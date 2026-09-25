@@ -78,7 +78,7 @@ describe('the mock tides engine', () => {
     }
     expect(isTidePackNotLoaded(caught)).toBe(true);
     expect(unloaded.tidePackInfo()).toBeNull();
-    unloaded.loadTidesPack(new Uint8Array([1, 2, 3]));
+    unloaded.loadPack('tides-us', new Uint8Array([1, 2, 3]));
     expect(unloaded.tideExtremes('MOCK001', JD, JD + 1).extremes.length).toBeGreaterThan(0);
   });
 
@@ -158,7 +158,8 @@ const GLUE_FILE = resolve(PKG, 'skyfix_wasm.js');
 const PACKS = resolve(import.meta.dirname, '../../public/data/packs');
 const packFile = existsSync(PACKS) ? readdirSync(PACKS).find((f) => /^tides-us-[0-9a-f]{16}\.bin$/.test(f)) : undefined;
 const glueExports = existsSync(GLUE_FILE) ? readFileSync(GLUE_FILE, 'utf8') : '';
-const hasTides = existsSync(WASM_FILE) && glueExports.includes('tide_extremes') && packFile !== undefined;
+const hasTides =
+  existsSync(WASM_FILE) && glueExports.includes('tide_extremes') && glueExports.includes('load_pack') && packFile !== undefined;
 
 describe.skipIf(!hasTides)('the built package with the shipped tides-us pack', () => {
   let engine: WasmEngine;
@@ -179,9 +180,12 @@ describe.skipIf(!hasTides)('the built package with the shipped tides-us pack', (
     if (engine.tidePackInfo() === null) {
       expect(() => engine.tideExtremes('8443970', JD, JD + 1)).toThrow(/pack_not_loaded/);
     }
-    const info = engine.loadTidesPack(new Uint8Array(readFileSync(resolve(PACKS, packFile!))));
+    const bytes = new Uint8Array(readFileSync(resolve(PACKS, packFile!)));
+    const info = engine.loadPack('tides-us', bytes);
     expect(info.name).toBe('tides-us');
-    expect(info.stations).toBe(3499);
+    expect(info.bytes).toBe(bytes.byteLength);
+    expect(engine.packs().find((p) => p.name === 'tides-us')?.loaded).toBe(true);
+    expect(engine.tidePackInfo()?.stations).toBe(3499);
     const near = engine.tideStationsNear(42.3548, -71.0534, 3);
     expect(near[0]!.id).toBe('8443970');
     const ex = engine.tideExtremes('8443970', JD, JD + 1);

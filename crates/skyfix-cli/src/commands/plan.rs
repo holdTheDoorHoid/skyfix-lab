@@ -31,6 +31,7 @@ use skyfix_core::types::LatLon;
 use skyfix_ephemeris::visibility;
 use skyfix_ephemeris::{AstroProvider, catalog, sun::SunProvider};
 
+use crate::commands::explorer::args::Dut1Args;
 use crate::exit;
 use crate::input;
 use crate::provider::{self, EphemerisChoice};
@@ -76,19 +77,26 @@ pub struct Args {
     pub objective: ObjectiveArg,
     pub taken: Option<PathBuf>,
     pub json: bool,
+    /// `--dut1` (expansion programme): UT1 - UTC for the plan's instant, and over a
+    /// `--taken` session's own.
+    pub dut1: Dut1Args,
 }
 
 pub fn run(args: &Args) -> Result<u8> {
-    let astro = provider::auto_provider();
+    // DUT1 at the plan's instant; an unparseable instant is reported by `plan_at` below.
+    let dut1_s = skyfix_core::time::parse_utc(&args.utc)
+        .map(|jd| args.dut1.at(jd))
+        .unwrap_or(0.0);
+    let astro = provider::auto_provider_with_dut1(dut1_s);
 
     // The twilight flag. An instant outside the Sun provider's coverage is not fatal:
     // the plan then says "Sun altitude unknown" rather than inventing a sky.
-    let sun_altitude_deg = sun_altitude(args.position, &args.utc);
+    let sun_altitude_deg = sun_altitude(args.position, &args.utc, dut1_s);
 
     let mut extra_notes = Vec::new();
     let already_taken = match &args.taken {
         Some(path) => {
-            let (candidates, note) = taken_from_session(path, args.position)?;
+            let (candidates, note) = taken_from_session(path, args.position, args.dut1)?;
             extra_notes.push(note);
             candidates
         }
@@ -129,9 +137,11 @@ pub fn run(args: &Args) -> Result<u8> {
 
 /// The Sun's geometric altitude at this place and instant, or `None` when the provider
 /// cannot answer (outside coverage, or an unparseable timestamp).
-fn sun_altitude(position: LatLon, utc: &str) -> Option<f64> {
+fn sun_altitude(position: LatLon, utc: &str, dut1_s: f64) -> Option<f64> {
     let jd = skyfix_core::time::parse_utc(utc).ok()?;
-    let d = SunProvider::new().geocentric("Sun", jd).ok()?;
+    let d = SunProvider::with_dut1_s(dut1_s)
+        .geocentric("Sun", jd)
+        .ok()?;
     let observer = Point::from_deg(position.lat_deg, position.lon_deg);
     let h = geometry::altitude(observer, d.gha_deg.to_radians(), d.dec_deg.to_radians());
     Some(h.to_degrees())
@@ -142,11 +152,12 @@ fn sun_altitude(position: LatLon, utc: &str) -> Option<f64> {
 /// Every sight is reduced first, so a record that supplies its own direction and one the
 /// provider resolves are treated identically, and the sigma is the reduced sigma — the
 /// one an artificial-horizon halving or a low-altitude inflation already adjusted.
-fn taken_from_session(path: &Path, at: LatLon) -> Result<(Vec<Candidate>, String)> {
+fn taken_from_session(path: &Path, at: LatLon, dut1: Dut1Args) -> Result<(Vec<Candidate>, String)> {
     let bodies = provider::known_bodies();
-    let loaded =
+    let mut loaded =
         input::load(path, &bodies).with_context(|| format!("--taken {}", path.display()))?;
-    let source = provider::direction_source(EphemerisChoice::Auto);
+    dut1.apply(&mut loaded.session);
+    let source = provider::session_source(EphemerisChoice::Auto, &loaded.session);
     let (reduced, errors) =
         skyfix_core::reduce::reduce_session_partitioned(&loaded.session, source.as_ref());
     for e in &errors {
@@ -418,6 +429,7 @@ mod tests {
                 lon_deg: -75.1652,
             },
             "2026-10-01T01:30:00Z",
+            0.0,
         )
         .expect("the Sun provider covers 2026");
         // 21:30 local on 1 October: well past nautical twilight.
@@ -438,8 +450,8 @@ mod tests {
             lat_deg: 39.9526,
             lon_deg: -75.1652,
         };
-        assert!(sun_altitude(p, "1850-01-01T00:00:00Z").is_none());
-        assert!(sun_altitude(p, "not a timestamp").is_none());
+        assert!(sun_altitude(p, "1850-01-01T00:00:00Z", 0.0).is_none());
+        assert!(sun_altitude(p, "not a timestamp", 0.0).is_none());
         assert_eq!(
             visibility::sun_altitude_note(None),
             visibility::NOTE_SUN_UNKNOWN

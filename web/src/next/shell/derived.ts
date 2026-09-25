@@ -14,21 +14,27 @@ function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-const ranges = new WeakMap<ExplorerEngine, readonly [number, number] | null>();
+/**
+ * Spans worked out, by the coverage report they came from: the memoised engine returns the
+ * same report until a data pack widens it (`memoEngine(...).invalidate()`), and a new
+ * report is worked out again (packs agent, 2026-09-24).
+ */
+const ranges = new WeakMap<object, readonly [number, number] | null>();
 
 /** The span of time the engine covers (explorer_coverage), or null if it does not say. */
 export function coverageSpan(ctx: Pick<Ctx, 'engine'>): readonly [number, number] | null {
-  if (!ranges.has(ctx.engine)) {
-    try {
-      const c = ctx.engine.coverage();
-      const a = jdFromIso(c.start_utc);
-      const b = jdFromIso(c.end_utc);
-      ranges.set(ctx.engine, a !== null && b !== null ? [a, b] : null);
-    } catch {
-      ranges.set(ctx.engine, null);
-    }
+  let c: ReturnType<ExplorerEngine['coverage']>;
+  try {
+    c = ctx.engine.coverage();
+  } catch {
+    return null;
   }
-  return ranges.get(ctx.engine) ?? null;
+  if (!ranges.has(c)) {
+    const a = jdFromIso(c.start_utc);
+    const b = jdFromIso(c.end_utc);
+    ranges.set(c, a !== null && b !== null ? [a, b] : null);
+  }
+  return ranges.get(c) ?? null;
 }
 
 /** True when the engine can compute at `jd`. Outside, the shell asks nothing and says why once. */

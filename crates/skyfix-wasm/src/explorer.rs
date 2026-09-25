@@ -12,8 +12,12 @@
 //!   and serialise with `Serializer::json_compatible` (`None` is `null`), except
 //!   `sample_bodies`, whose arrays are real `Float64Array`s built with `js_sys`.
 //!
-//! The astronomy is always [`skyfix_ephemeris::body::Sky`] with DUT1 = 0 (CONVENTIONS
-//! section 6): the Sun, Moon, planets and the 58 stars behind one provider. A body the
+//! The astronomy is always [`skyfix_ephemeris::body::Sky`]: the Sun, Moon, planets and
+//! the 58 stars behind one provider, built per request by [`native::sky_at`] with DUT1
+//! from `skyfix_core::time::dut1_s` at the request's instant (the explorer-wide
+//! `set_dut1` value, else the IERS history, else 0; CONVENTIONS 15.2). A window uses the
+//! DUT1 of its middle: DUT1 drifts by a few milliseconds a day, so only a window across
+//! a leap second is off, by at most 1 s of UT1 (15") on one side. A body the
 //! provider cannot answer for (outside its coverage) comes back in `errors`, never as an
 //! invented position. `BodyState.constellation` is the one value joined in from the
 //! display-only star field (`skyfix_starfield::constellation_at`), here and not in
@@ -39,9 +43,25 @@ pub mod native {
     use skyfix_ephemeris::sun::SunProvider;
     use skyfix_ephemeris::{AstroProvider, Coverage};
 
-    /// The explorer's astronomy: every body, DUT1 = 0.
+    /// The explorer's astronomy with DUT1 = 0: for results that do not depend on the
+    /// Earth's rotation (Moon phases, seasons).
     pub fn sky() -> Sky {
         Sky::new()
+    }
+
+    /// The explorer's astronomy at `jd_utc`: DUT1 from `skyfix_core::time::dut1_s` with
+    /// the explorer-wide user value (`timescale::set_dut1`), the IERS history, or 0.
+    pub fn sky_at(jd_utc: f64) -> Sky {
+        Sky::with_dut1_s(dut1_at(jd_utc))
+    }
+
+    /// DUT1 at `jd_utc` as the explorer uses it.
+    pub fn dut1_at(jd_utc: f64) -> f64 {
+        if jd_utc.is_finite() {
+            skyfix_core::time::dut1_s(jd_utc, crate::timescale::user_dut1())
+        } else {
+            0.0
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -219,7 +239,8 @@ pub mod native {
     ) -> Result<SkyState, String> {
         let site = parse_observer(observer_json)?;
         let bodies = parse_bodies(bodies_json)?;
-        let mut s = sky::sky_state(&sky(), &site, jd_utc, &bodies).map_err(|e| e.to_string())?;
+        let mut s =
+            sky::sky_state(&sky_at(jd_utc), &site, jd_utc, &bodies).map_err(|e| e.to_string())?;
         // The constellation comes from the display-only star field, joined here and
         // only here: skyfix-almanac must not depend on it (CONVENTIONS 13.6). A
         // direction the boundaries cannot place stays `null`.
@@ -240,7 +261,8 @@ pub mod native {
     ) -> Result<Sampled, String> {
         let site = parse_observer(observer_json)?;
         let bodies = parse_bodies(bodies_json)?;
-        sky::sample_bodies(&sky(), &site, &bodies, jd_start, jd_end, step_minutes)
+        let sky = sky_at(0.5 * (jd_start + jd_end));
+        sky::sample_bodies(&sky, &site, &bodies, jd_start, jd_end, step_minutes)
             .map_err(|e| e.to_string())
     }
 
@@ -254,7 +276,8 @@ pub mod native {
         let site = parse_observer(observer_json)?;
         let bodies = parse_bodies(bodies_json)?;
         let options = parse_options(options_json)?;
-        events::day_events(&sky(), &site, jd_start, jd_end, &bodies, &options)
+        let sky = sky_at(0.5 * (jd_start + jd_end));
+        events::day_events(&sky, &site, jd_start, jd_end, &bodies, &options)
             .map_err(|e| e.to_string())
     }
 
@@ -269,7 +292,11 @@ pub mod native {
         let options = parse_options(options_json)?;
         let windows: Vec<(f64, f64)> = serde_json::from_str(windows_json.trim())
             .map_err(|e| format!("windows: expected [[jd_start, jd_end], ...]: {e}"))?;
-        events::day_events_batch(&sky(), &site, &windows, &bodies, &options)
+        let mid = match (windows.first(), windows.last()) {
+            (Some(a), Some(b)) => 0.5 * (a.0 + b.1),
+            _ => f64::NAN,
+        };
+        events::day_events_batch(&sky_at(mid), &site, &windows, &bodies, &options)
             .map_err(|e| e.to_string())
     }
 
@@ -281,7 +308,8 @@ pub mod native {
         altitude_deg: f64,
     ) -> Result<Vec<AltitudeCrossing>, String> {
         let site = parse_observer(observer_json)?;
-        events::find_altitude(&sky(), &site, body, jd_start, jd_end, altitude_deg)
+        let sky = sky_at(0.5 * (jd_start + jd_end));
+        events::find_altitude(&sky, &site, body, jd_start, jd_end, altitude_deg)
             .map_err(|e| e.to_string())
     }
 
@@ -297,8 +325,16 @@ pub mod native {
         events::seasons(&sky(), year as i32).map_err(|e| e.to_string())
     }
 
+    /// GHA Aries with the same DUT1 as `sky_state` at that instant.
     pub fn sidereal(jd_utc: f64) -> Result<Sidereal, String> {
-        events::sidereal(jd_utc).map_err(|e| e.to_string())
+        let s = events::sidereal(jd_utc).map_err(|e| e.to_string())?;
+        let dut1 = dut1_at(jd_utc);
+        if dut1 == 0.0 {
+            return Ok(s);
+        }
+        Ok(Sidereal {
+            gha_aries_deg: skyfix_ephemeris::sidereal::gha_aries_deg(jd_utc, dut1),
+        })
     }
 }
 

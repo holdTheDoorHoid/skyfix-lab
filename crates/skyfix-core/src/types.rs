@@ -130,6 +130,13 @@ pub struct Clock {
     /// Known chronometer correction, seconds, ADDED to every recorded time.
     #[serde(default)]
     pub correction_s: f64,
+    /// UT1 - UTC in seconds, from the time signal or IERS Bulletin A (CONVENTIONS 6 and
+    /// 15.2). `None` (absent, or `null`) means "automatic": the engine's history or
+    /// model through [`crate::time::dut1_s`]. Added by the expansion programme
+    /// (moonshape agent); older files load unchanged, and a session without it is
+    /// written without it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub dut1_s: Option<f64>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -240,13 +247,26 @@ pub struct ReducedSight {
     /// The final sigma the solver uses; always equal to `corrections.sigma_ho_arcmin`.
     pub sigma_arcmin: f64,
     pub corrections: CorrectionBreakdown,
-    /// Computed at the assumed position (if any).
+    /// Computed at the assumed position (if any): CONVENTIONS section 3, plus
+    /// `earth_shape_arcmin` for the Moon (section 15.4).
     pub hc_deg: Option<f64>,
     pub zn_deg: Option<f64>,
     /// `Ho - Hc` in nautical miles, positive toward the body.
     pub intercept_nm: Option<f64>,
     /// The complete list for this sight: a superset of `corrections.warnings`.
     pub warnings: Vec<Warning>,
+    /// The direction's horizontal parallax, arcminutes (0 for a star): what the Moon's
+    /// Earth-shape term needs wherever the model altitude is evaluated (CONVENTIONS
+    /// 15.4). Added by the expansion programme.
+    #[serde(default)]
+    pub horizontal_parallax_arcmin: f64,
+    /// The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4):
+    /// the WGS84 geometry at the assumed position minus the sphere's. `None` for every
+    /// other body, without an assumed position, and for a Moon direction without a
+    /// horizontal parallax. The correction chain (`corrections`, `ho_deg`) never
+    /// includes it. Added by the expansion programme.
+    #[serde(default)]
+    pub earth_shape_arcmin: Option<f64>,
 }
 
 /// Solver input, radians. Built by `reduce`; never deserialised from user JSON.
@@ -260,6 +280,11 @@ pub struct Sight {
     pub sigma_rad: f64,
     /// Rate of GHA change for clock-uncertainty propagation (section 6).
     pub gha_rate_rad_per_s: f64,
+    /// The Moon's horizontal parallax, arcminutes, when this is a Moon sight whose
+    /// direction carries one: the model altitude then includes the Earth-shape term at
+    /// the trial position (CONVENTIONS 15.4, `sights::wgs84::EarthShape`). `None` for
+    /// every other body. Set by `reduce::to_sights`.
+    pub moon_hp_arcmin: Option<f64>,
 }
 
 // ---------------------------------------------------------------------------
@@ -1139,7 +1164,8 @@ pub struct PredictedSight {
     pub dec_deg: f64,
     pub semidiameter_arcmin: f64,
     pub horizontal_parallax_arcmin: f64,
-    /// Computed altitude and true azimuth at the observer (section 3).
+    /// Computed altitude and true azimuth at the observer (section 3; for the Moon the
+    /// altitude includes `earth_shape_arcmin`, section 15.4).
     pub hc_deg: f64,
     pub zn_deg: f64,
     /// The sextant reading: the double angle with a reflected artificial horizon.
@@ -1149,6 +1175,10 @@ pub struct PredictedSight {
     /// The forward chain from `hs_deg`: every correction, landing on `hc_deg`.
     pub corrections: CorrectionBreakdown,
     pub warnings: Vec<Warning>,
+    /// The Moon's Earth-shape term included in `hc_deg`, arcminutes (CONVENTIONS 15.4);
+    /// 0 for every other body. Added by the expansion programme.
+    #[serde(default)]
+    pub earth_shape_arcmin: f64,
 }
 
 /// Which edge of a disc a lunar distance was measured to.

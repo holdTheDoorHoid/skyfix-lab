@@ -74,6 +74,7 @@ use crate::{to_latlon, to_point};
 use skyfix_core::geometry::{
     Point, altitude, altitude_azimuth, angular_distance, geographic_position, tangent_row,
 };
+use skyfix_core::sights::wgs84::EarthShape;
 use skyfix_core::solver::solve;
 use skyfix_core::types::{FixResult, LatLon, Sight, SolveOptions, Warning};
 use skyfix_core::units::{norm_2pi, rad_to_arcmin, rad_to_deg, rad_to_m, rad_to_nm};
@@ -360,14 +361,28 @@ fn build(
             sigma_motion_arcmin: rad_to_arcmin(sigma_motion),
             sigma_total_arcmin: rad_to_arcmin(sigma_total),
         });
+        // The Moon's Earth-shape term (skyfix-core CONVENTIONS 15.4) depends on where the
+        // observer really was, which the rotated GP no longer says. It is evaluated at the
+        // estimated position at the sight, with the sight's own direction, and taken out
+        // of Ho; the advanced sight is then an ordinary sphere sight. The estimate is
+        // re-linearised whenever it moves more than a mile, and the term's slope is under
+        // 2e-4 of the main term's below 70 deg of altitude (7e-4 at 85 deg), so this
+        // costs under 0.001'.
+        let ho_rad = match s.moon_hp_arcmin.and_then(EarthShape::new) {
+            Some(shape) => {
+                s.ho_rad - shape.term_rad(at_sight.lat, at_sight.lon, s.gha_rad, s.dec_rad)
+            }
+            None => s.ho_rad,
+        };
         advanced.push(Sight {
             id: s.id.clone(),
             body: s.body.clone(),
             gha_rad: norm_2pi(-moved_gp.lon),
             dec_rad: moved_gp.lat,
-            ho_rad: s.ho_rad,
+            ho_rad,
             sigma_rad: sigma_total,
             gha_rate_rad_per_s: s.gha_rate_rad_per_s,
+            moon_hp_arcmin: None,
         });
     }
     (advanced, inflations)
@@ -523,6 +538,7 @@ mod tests {
             ho_rad: altitude_deg.to_radians(),
             sigma_rad: arcmin_to_rad(1.0),
             gha_rate_rad_per_s: SIDEREAL_RATE_DEG_PER_HOUR.to_radians() / 3600.0,
+            moon_hp_arcmin: None,
         }
     }
 
@@ -744,6 +760,67 @@ mod tests {
             .join(" ");
         assert!(text.contains("does not cover"), "{text}");
         assert!(text.contains("early"), "{text}");
+    }
+
+    #[test]
+    fn a_moon_sight_under_way_keeps_its_earth_shape_term() {
+        // skyfix-core CONVENTIONS 15.4: a Moon sight's model altitude includes the
+        // Earth-shape term where the observer really was. The Moon two hours before the
+        // reference, then two stars, all built on the real Earth along the track: the
+        // running fix recovers the reference position, and without the term it misses.
+        let reference = T0 + 2.0 * HOUR;
+        let truth = Point::from_deg(50.0, -30.0);
+        let track = Track::constant(T0, 45.0, 10.0);
+        let hp = 58.0;
+        let timed: Vec<TimedSight> = [
+            (T0, 45.0, 180.0),
+            (T0 + HOUR, 40.0, 60.0),
+            (reference, 50.0, 300.0),
+        ]
+        .iter()
+        .enumerate()
+        .map(|(i, &(t, alt, az))| {
+            let at = track.advance(truth, reference, t);
+            let mut s = sight_at(&format!("s{i}"), at, alt, az);
+            if i == 0 {
+                let term = EarthShape::new(hp)
+                    .unwrap()
+                    .term_rad(at.lat, at.lon, s.gha_rad, s.dec_rad);
+                s.body = "Moon".to_string();
+                s.ho_rad += term;
+                s.moon_hp_arcmin = Some(hp);
+            }
+            TimedSight::new(s, t)
+        })
+        .collect();
+        let options = SolveOptions {
+            initializer: Some(LatLon {
+                lat_deg: 50.2,
+                lon_deg: -30.3,
+            }),
+            ..Default::default()
+        };
+        let fix_miss = |sights: &[TimedSight]| -> f64 {
+            match running_fix(
+                sights,
+                &track,
+                &MotionUncertainty::default(),
+                reference,
+                &options,
+            ) {
+                FixResult::Unique { fix, .. } => {
+                    rad_to_m(angular_distance(to_point(fix.position), truth))
+                }
+                other => panic!("{other:?}"),
+            }
+        };
+        let with = fix_miss(&timed);
+        let mut dropped = timed.clone();
+        dropped[0].sight.moon_hp_arcmin = None;
+        let without = fix_miss(&dropped);
+        println!("running fix with a Moon sight: {with:.3} m; the term dropped: {without:.1} m");
+        assert!(with < 1.0, "{with} m");
+        assert!(without > 50.0, "{without} m");
     }
 
     #[test]
