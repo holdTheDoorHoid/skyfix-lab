@@ -152,8 +152,11 @@ export function mountChart<I, D>(host: HTMLElement, ctx: Ctx, ui: Store<ChartUi>
     get failure() {
       return failure;
     },
-    redraw: () => schedule(),
+    redraw: () => {
+      if (alive) schedule();
+    },
     refresh: () => {
+      if (!alive) return;
       dataDirty = true;
       schedule();
     },

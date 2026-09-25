@@ -127,8 +127,7 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
     },
     setup(shell) {
       const { c } = shell;
-      const nav = stepperNav(c.nav, 'Earlier', 'Later', (dir) => stepTime(ctx.store, { unit: 'day', count: choice.span === 'week' ? 7 * dir : dir }));
-      void nav;
+      stepperNav(c.nav, 'Earlier', 'Later', (dir) => stepTime(ctx.store, { unit: 'day', count: choice.span === 'week' ? 7 * dir : dir }));
       const span = segmented<TideSpan>({
         label: 'Span',
         size: 'sm',
@@ -400,7 +399,7 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
     svg.append(cursor);
     const hover = s('g', { class: 'sfc-hover', 'pointer-events': 'none' });
     svg.append(hover);
-    svg.addEventListener('pointermove', (event) => onHover(event, shell, hover as SVGGElement));
+    svg.addEventListener('pointermove', (event) => onHover(event, hover as SVGGElement));
     svg.addEventListener('pointerleave', () => {
       tip?.hide();
       hover.replaceChildren();
@@ -503,7 +502,7 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
     return `${when}: ${heightText(hgt, units)} above ${data.datum}, ${state} ${rateText(rate, units)} (predicted)${nexts ? `; ${nexts}` : ''}.`;
   }
 
-  function onHover(event: PointerEvent, shell: Shell<TideInput, TideData>, layer: SVGGElement): void {
+  function onHover(event: PointerEvent, layer: SVGGElement): void {
     if (!geom || !tip) return;
     const rect = geom.svg.getBoundingClientRect();
     const px = event.clientX - rect.left;
@@ -524,7 +523,6 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
     const near = data.extremes.extremes.find((e) => Math.abs(geom!.xs(e.jd_utc) - px) < 8);
     if (near) rows.push(tipRow(clock(near.jd_utc, data.input.zone), `${near.kind === 'high' ? 'High' : 'Low'} water, ${heightText(near.height_m, units)}`));
     tip.show(px, py, rows);
-    void shell;
   }
 
   function summary(shell: Shell<TideInput, TideData>): string {

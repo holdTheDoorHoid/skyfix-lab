@@ -52,7 +52,8 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     return { observer: engineObserver(state), zone, year: dayOf(state.time.jd_utc, zone).date.year, hour: chosenHour };
   };
 
-  return mountChart<MoonYearInput, MoonYearData>(host, ctx, ui, {
+  let gone = false;
+  const mounted = mountChart<MoonYearInput, MoonYearData>(host, ctx, ui, {
     kind: 'moonyear',
     heading: 'The Moon through the year',
     heavy: true,
@@ -97,6 +98,10 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     fileParts: (shell) => ['moon-through-the-year', shell.input.year, `${String(shell.input.hour).padStart(2, '0')}h`],
     labels: () => ['Heights are what the eye sees (apparent altitude, refraction included); bearings from true north.'],
   });
+  const destroy = (): void => {
+    gone = true;
+    mounted.destroy();
+  };
 
   /** The hour picker's options, written on the person's clock (24- or 12-hour). */
   function fillHours(zone: MoonYearInput['zone']): void {
@@ -196,7 +201,7 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
       phases.append(svgText(x0, strip / 2 + 5, 'Moon phases…', { class: 'sfc-strip-label' }));
       const k = `${zoneKey(data.input.zone)}|${data.input.year}`;
       setTimeout(() => {
-        if (!geom || geom.data !== data) return;
+        if (gone || !geom || geom.data !== data) return;
         try {
           sky = yearSkyMemo(ctx, data.input.zone, data.input.year);
           skyKey = k;
@@ -315,4 +320,6 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     }
     return [t.table];
   }
+
+  return { destroy };
 };

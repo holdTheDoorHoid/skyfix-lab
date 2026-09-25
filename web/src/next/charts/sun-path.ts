@@ -184,7 +184,7 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
       const svg = picture.svg;
       nowLayer = s('g', { class: 'sfc-now sfc-b-sun', 'pointer-events': 'none' }) as SVGGElement;
       svg.append(nowLayer);
-      svg.addEventListener('click', (event) => onClick(event, shell));
+      svg.addEventListener('click', (event) => onClick(event));
       svg.addEventListener('pointermove', (event) => onHover(event, shell));
       svg.addEventListener('pointerleave', () => tip?.hide());
       shell.c.plot.replaceChildren(svg, tip!.el);
@@ -258,11 +258,9 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
     return best;
   }
 
-  function onClick(event: MouseEvent, shell: Shell<SunPathInput, PathChartData>): void {
+  function onClick(event: MouseEvent): void {
     const q = nearest(event);
-    if (!q) return;
-    void shell;
-    setTime(ctx.store, q.p.jd);
+    if (q) setTime(ctx.store, q.p.jd);
   }
 
   function onHover(event: PointerEvent, shell: Shell<SunPathInput, PathChartData>): void {
