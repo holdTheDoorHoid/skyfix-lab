@@ -32,6 +32,8 @@ pub mod nav;
 pub mod navsky;
 pub mod planet_events;
 pub mod starfield;
+// Expansion programme, wave 1 (docs/EXPANSION_PLAN.md section 5): one module per agent.
+pub mod timescale;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;

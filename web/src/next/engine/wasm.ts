@@ -16,6 +16,8 @@ import type {
   AlmanacEngine,
   AltitudeCrossing,
   BodyInfo,
+  CalendarConversion,
+  CalendarConvertRequest,
   BodySelection,
   ConstellationBoundary,
   DayEvents,
@@ -34,6 +36,8 @@ import type {
   SeasonEvent,
   SkyState,
   StarfieldCatalog,
+  TimeEngine,
+  TimeInfo,
 } from './types.js';
 import type { MisfitEngine } from './types.js';
 import { createWasmMisfit } from './wasm-misfit.js';
@@ -98,6 +102,10 @@ export interface ExplorerWasmExports {
   eclipse_path?(id: string): unknown;
   /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
   planet_events?(jdStart: number, jdEnd: number): unknown;
+  /** Expansion wave 1, time scales (EXPLORER_API "time_info"); absent in older builds. */
+  time_info?(jdUtc: number): unknown;
+  set_dut1?(seconds: number | null | undefined): unknown;
+  calendar_convert?(requestJson: string): unknown;
   version?(): string;
 }
 
@@ -148,7 +156,9 @@ function rebuildError(name: string, what: string): Error {
   );
 }
 
-export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine {
+export class WasmEngine
+  implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine, TimeEngine
+{
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -340,6 +350,27 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
     const fn = this.x.planet_events;
     if (typeof fn !== 'function') throw rebuildError('planet_events', 'planet events');
     return this.call('planet_events', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  /** Scale, tier, Delta-T, DUT1 and the civil dates of an instant (`time_info`). */
+  timeInfo(jdUtc: number): TimeInfo {
+    const fn = this.x.time_info;
+    if (typeof fn !== 'function') throw rebuildError('time_info', 'time scales');
+    return this.call('time_info', () => fn.call(this.x, jdUtc));
+  }
+
+  /** The explorer-wide UT1 - UTC in seconds, or null for the IERS history (`set_dut1`). */
+  setDut1(seconds: number | null): void {
+    const fn = this.x.set_dut1;
+    if (typeof fn !== 'function') throw rebuildError('set_dut1', 'time scales');
+    this.call('set_dut1', () => fn.call(this.x, seconds));
+  }
+
+  /** A JD or a civil date in either calendar, converted both ways (`calendar_convert`). */
+  calendarConvert(request: CalendarConvertRequest): CalendarConversion {
+    const fn = this.x.calendar_convert;
+    if (typeof fn !== 'function') throw rebuildError('calendar_convert', 'time scales');
+    return this.call('calendar_convert', () => fn.call(this.x, JSON.stringify(request)));
   }
 }
 

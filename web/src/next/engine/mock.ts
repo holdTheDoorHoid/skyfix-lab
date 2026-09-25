@@ -17,6 +17,7 @@ import { createMockNav } from './mock-nav.js';
 import { mockAlmanacDay } from './mock/almanac.js';
 import * as A from './mock/astro.js';
 import { crossings, grid, sample } from './mock/roots.js';
+import * as T from './mock/timescale.js';
 import { createMockMisfit } from './mock-misfit.js';
 import type { MisfitEngine } from './types.js';
 import {
@@ -29,6 +30,8 @@ import type {
   AlmanacDay,
   AlmanacEngine,
   AltitudeCrossing,
+  CalendarConversion,
+  CalendarConvertRequest,
   BodyError,
   BodyEvents,
   BodyInfo,
@@ -49,6 +52,8 @@ import type {
   SkyPhase,
   SkyState,
   StarfieldCatalog,
+  TimeEngine,
+  TimeInfo,
 } from './types.js';
 import type { NavTools } from './wasm-nav.js';
 
@@ -193,11 +198,20 @@ function skyPhase(altDeg: number): SkyPhase {
   return 'night';
 }
 
+/** Run `fn`; a thrown string becomes an `Error` named after the export, as in the WASM engine. */
+function rethrow<R>(name: string, fn: () => R): R {
+  try {
+    return fn();
+  } catch (error) {
+    throw new Error(`${name}: ${typeof error === 'string' ? error : String(error)}`);
+  }
+}
+
 function inCoverage(jd: number): boolean {
   return jd >= COVERAGE_START && jd <= COVERAGE_END;
 }
 
-export class MockEngine implements ExplorerEngine, AlmanacEngine {
+export class MockEngine implements ExplorerEngine, AlmanacEngine, TimeEngine {
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
   /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
@@ -512,6 +526,27 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
 
   almanacDay(date: string): AlmanacDay {
     return mockAlmanacDay(this, date);
+  }
+
+  // -------------------------------------------------------------------------
+  // Time scales, Delta-T and calendars (mock/timescale.ts: exact calendars, the Rust
+  // model's Delta-T without its IERS table, no DUT1 history)
+  // -------------------------------------------------------------------------
+
+  private userDut1: number | null = null;
+
+  timeInfo(jdUtc: number): TimeInfo {
+    // The deeptime agent's mock tiers replace this `validated`/`outside` split.
+    const tier = inCoverage(jdUtc) ? 'validated' : 'outside';
+    return rethrow('time_info', () => T.timeInfo(jdUtc, this.userDut1, tier));
+  }
+
+  setDut1(seconds: number | null): void {
+    this.userDut1 = rethrow('set_dut1', () => T.checkDut1(seconds));
+  }
+
+  calendarConvert(request: CalendarConvertRequest): CalendarConversion {
+    return rethrow('calendar_convert', () => T.calendarConvert(request));
   }
 
   // -------------------------------------------------------------------------
