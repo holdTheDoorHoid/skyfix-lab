@@ -1,0 +1,41 @@
+/*
+ * The map's "click a point" prompt (pick.ts; photo agent, expansion programme Q8): a line at
+ * the top of the map while another part of the page waits for a click, and a crosshair.
+ */
+
+.sfm-pick {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  z-index: var(--z-stage-overlay);
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100% - 32px);
+  padding: 8px 8px 8px 12px;
+  color: var(--ui-ink);
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
+.sfm-pick[hidden] {
+  display: none;
+}
+
+.sfm-pick__text {
+  margin: 0;
+  min-width: 0;
+}
+
+.sfm--picking .maplibregl-canvas-container.maplibregl-interactive,
+.sfm--picking .maplibregl-canvas {
+  cursor: crosshair;
+}
+
+@media (max-width: 767px) {
+  .sfm-pick {
+    top: 8px;
+  }
+}

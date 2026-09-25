@@ -2841,7 +2841,7 @@ new export and, in TypeScript, an option:
   it are the results to show.
 
 About 15-25 ms natively for one eclipse and place (about 5 500 slices through the Moon's
-outline: every 1/8° at maximum, every 1/16° near each contact); ACCURACY section 18 has
+outline: every 1/8° at maximum, every 1/16° near each contact); ACCURACY section 19 has
 the browser's figures.
 
 ### `SolarEclipseLimb`
