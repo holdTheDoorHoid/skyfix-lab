@@ -481,7 +481,12 @@ pub fn plan(position_json: &str, utc: &str, options_json: &str) -> Result<JsValu
     } else {
         serde_json::from_str(trimmed).map_err(|e| err(format!("plan options: {e}")))?
     };
-    let provider = auto_provider();
+    // DUT1 through the single lookup at the plan's instant (moonshape, expansion
+    // programme): the engine's own value, there being no session here.
+    let dut1_s = skyfix_core::time::parse_utc(utc)
+        .map(|jd| skyfix_core::time::dut1_s(jd, None))
+        .unwrap_or(0.0);
+    let provider = nav::auto_provider_with_dut1(dut1_s);
     let sun_altitude_deg = sun_altitude(&provider, position, utc);
     let plan = skyfix_ephemeris::visibility::plan_at(
         &provider,
