@@ -149,7 +149,7 @@ export function openingHeading(dates: readonly AlmanacOpeningDay[]): string {
     else if (d.month !== prev.month) text += `, ${MONTHS[d.month - 1]!.toUpperCase()} ${d.day}`;
     else text += `, ${d.day}`;
   }
-  return `${text} (${dates.map((d) => WEEKDAY_ABBR[d.weekday] ?? d.weekday.toUpperCase()).join(' ')})`;
+  return `${text} (${dates.map((d) => WEEKDAY_ABBR[d.weekday] ?? d.weekday.toUpperCase()).join(', ')})`;
 }
 
 /** `2026 SEPTEMBER 24 (THURSDAY)`, a one-day heading in the display calendar. */

@@ -2,7 +2,7 @@
 //!
 //! OWNER: almanac2 agent (expansion programme Q7). Wire format: docs/EXPLORER_API.md,
 //! "Expansion programme — almanac tables and three-day pages"; definitions: CONVENTIONS
-//! 13.12, `skyfix_almanac::tables` and `skyfix_almanac::opening`.
+//! 13.9.1, `skyfix_almanac::tables` and `skyfix_almanac::opening`.
 //!
 //! Same two layers as `almanac.rs`: [`native`] takes the export's arguments and returns
 //! the serde type (tested natively), and each `#[wasm_bindgen]` export serialises it with

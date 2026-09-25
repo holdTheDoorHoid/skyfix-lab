@@ -23,6 +23,7 @@ import type {
   BodyError,
 } from '../engine/types.js';
 import { caption, decCell, ghaCell, numCell, pageFooter, th, timeCell, type Child } from './cells.js';
+import { civilFromJdn, dayMonthYear } from '../time/index.js';
 import { dayHeading, openingHeading, type ShownDate } from './dates.js';
 import { blocks, dayOfMonth, phaseName, phaseSymbol, showDecDegrees } from './layout.js';
 
@@ -164,12 +165,12 @@ function explainBox(): HTMLElement {
 function riseSetTables(
   rows: readonly AlmanacLatitudeRow[],
   moon: readonly { moonrise: AlmanacTime[]; moonset: AlmanacTime[] }[],
-  moonDates: readonly string[],
   moonLabels: readonly string[],
+  moonTitles: readonly string[],
   when: string,
 ): HTMLTableElement[] {
   const moonHeads = (): HTMLTableCellElement[] =>
-    moonLabels.map((label, i) => th(label, { scope: 'col', title: moonDates[i] ?? '' }));
+    moonLabels.map((label, i) => th(label, { scope: 'col', title: moonTitles[i] ?? '' }));
   const body = (cells: (r: AlmanacLatitudeRow, i: number) => AlmanacTime[]): HTMLTableSectionElement[] =>
     blocks(
       rows.map((r, i) => ({ r, i })),
@@ -291,6 +292,8 @@ interface DateBlock {
   /** `7`, the day of the month in the display calendar. */
   dayNumber: string;
   weekday: string;
+  /** `7 March 2016`, the date in the display calendar and year style. */
+  text: string;
 }
 
 /** One tbody per date: the date's label spans its 24 rows; rows 6, 12, 18 start a block. */
@@ -352,7 +355,7 @@ function leftHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: HourR
   const table = h(
     'table',
     { class: `alm-table alm-hourly alm-hourly-left${multi ? ' alm-multi' : ''}` },
-    caption(`GHA of Aries, and GHA and declination of the planets, every hour of ${dates.map((d) => d.day.date).join(', ')} UT`),
+    caption(`GHA of Aries, and GHA and declination of the planets, every hour of ${dates.map((d) => d.text).join(', ')} UT`),
     h('thead', {}, head1, head2),
     ...hourBodies(
       dates,
@@ -384,7 +387,7 @@ function rightHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: Hour
   const table = h(
     'table',
     { class: `alm-table alm-hourly alm-hourly-right${multi ? ' alm-multi' : ''}` },
-    caption(`GHA and declination of the Sun, and GHA, v, declination, d and HP of the Moon, every hour of ${dates.map((d) => d.day.date).join(', ')} UT`),
+    caption(`GHA and declination of the Sun, and GHA, v, declination, d and HP of the Moon, every hour of ${dates.map((d) => d.text).join(', ')} UT`),
     h(
       'thead',
       {},
@@ -449,11 +452,14 @@ export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], h
     day,
     dayNumber: String(o.dates[i]?.day ?? dayOfMonth(day.date)),
     weekday: o.dates[i]?.weekday ?? day.weekday,
+    text: o.dates[i] ? dayMonthYear(o.dates[i]!) : day.date,
   }));
   const middle = o.days[1]!;
+  const middleText = dates[1]!.text;
   const rows: HourRows = [];
   const labels = o.dates.map((d) => String(d.day));
   const moonLabels = o.moon_days.map((d) => String(d.day));
+  const moonTitles = o.moon_days.map((d) => dayMonthYear(d));
   const left = h(
     'article',
     { class: 'alm-page alm-page-left alm-opening', 'aria-label': `Left page for ${heading}: Aries, planets, stars` },
@@ -462,7 +468,7 @@ export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], h
       'div',
       { class: 'alm-grid' },
       h('div', { class: 'alm-main' }, leftHourly(dates, middle, rows), explainBox()),
-      h('div', { class: 'alm-side' }, starTable(middle, `12h UT on ${middle.date}`), planetBox(middle, o.planet_sha_00h, `0h UT on ${middle.date}`)),
+      h('div', { class: 'alm-side' }, starTable(middle, `12h UT on ${middleText}`), planetBox(middle, o.planet_sha_00h, `0h UT on ${middleText}`)),
     ),
     pageFooter(`Stars, planets' SHA, v, d and Mer. Pass. for the middle date · ${heading}`),
   );
@@ -477,7 +483,7 @@ export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], h
       h(
         'div',
         { class: 'alm-side' },
-        ...riseSetTables(middle.rise_set.rows, o.moon_rows, o.moon_dates, moonLabels, `the middle date, ${middle.date}`),
+        ...riseSetTables(middle.rise_set.rows, o.moon_rows, moonLabels, moonTitles, `the middle date, ${middleText}`),
         sunMoonBox(o.days, labels),
       ),
     ),
@@ -490,24 +496,27 @@ export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], h
 /** One date on two facing pages (the almanac agent's layout). */
 export function oneDayPages(day: AlmanacDay, shown: ShownDate, extraNotes: readonly string[], headExtra: Child, mock: boolean): RenderedPages {
   const heading = dayHeading(shown, day.weekday);
-  const dates: DateBlock[] = [{ day, dayNumber: String(shown.day), weekday: day.weekday }];
+  const text = dayMonthYear(shown);
+  const dates: DateBlock[] = [{ day, dayNumber: String(shown.day), weekday: day.weekday, text }];
   const rows: HourRows = [];
-  const labels = day.rise_set.moon_dates.map((wire, i) => (i === 0 ? String(shown.day) : dayOfMonth(wire)));
+  // The moon columns' dates (this date and the next) in the display calendar, not the wire's.
+  const moonDays = day.rise_set.moon_dates.map((_, i) => civilFromJdn(shown.calendar, shown.jdn + i));
+  const labels = moonDays.map((d) => String(d.day));
   const left = h(
     'article',
-    { class: 'alm-page alm-page-left', 'aria-label': `Left page for ${day.date}: Aries, planets, stars` },
+    { class: 'alm-page alm-page-left', 'aria-label': `Left page for ${text}: Aries, planets, stars` },
     pageHead(heading, 'ARIES · PLANETS · STARS', headExtra, mock),
     h(
       'div',
       { class: 'alm-grid' },
-      h('div', { class: 'alm-main' }, leftHourly(dates, day, rows), planetBox(day, null, `12h UT on ${day.date}`), explainBox()),
-      h('div', { class: 'alm-side' }, starTable(day, `12h UT on ${day.date}`)),
+      h('div', { class: 'alm-main' }, leftHourly(dates, day, rows), planetBox(day, null, `12h UT on ${text}`), explainBox()),
+      h('div', { class: 'alm-side' }, starTable(day, `12h UT on ${text}`)),
     ),
-    pageFooter(`Stars and SHA at 12h UT · ${day.weekday} ${day.date}`),
+    pageFooter(`Stars and SHA at 12h UT · ${day.weekday} ${text}`),
   );
   const right = h(
     'article',
-    { class: 'alm-page alm-page-right', 'aria-label': `Right page for ${day.date}: Sun, Moon, twilight, rise and set` },
+    { class: 'alm-page alm-page-right', 'aria-label': `Right page for ${text}: Sun, Moon, twilight, rise and set` },
     pageHead(heading, 'SUN · MOON · TWILIGHT', headExtra, mock),
     h(
       'div',
@@ -519,13 +528,13 @@ export function oneDayPages(day: AlmanacDay, shown: ShownDate, extraNotes: reado
         ...riseSetTables(
           day.rise_set.rows,
           day.rise_set.rows.map((r) => ({ moonrise: r.moonrise, moonset: r.moonset })),
-          day.rise_set.moon_dates,
           labels,
-          day.date,
+          moonDays.map((d) => dayMonthYear(d)),
+          text,
         ),
       ),
     ),
-    pageFooter(`Twilight, rise and set: LMT at Greenwich · ${day.weekday} ${day.date}`),
+    pageFooter(`Twilight, rise and set: LMT at Greenwich · ${day.weekday} ${text}`),
   );
   return { pages: [left, right], rows };
 }

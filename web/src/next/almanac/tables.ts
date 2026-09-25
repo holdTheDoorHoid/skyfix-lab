@@ -22,7 +22,7 @@ import type {
   RefractionZone,
 } from '../engine/types.js';
 import { caption, howTo, notesList, sheet, th, type Child } from './cells.js';
-import { MONTHS } from './dates.js';
+import { MONTHS, yearText } from './dates.js';
 import {
   ARC_RANGES,
   criticalLines,
@@ -205,7 +205,7 @@ function dipMore(rows: { printed_height: string; dip: { printed: string } }[], u
 }
 
 function a2Sheet(t: AltitudeTables, pc: PlanetCorrections | null, mock: boolean): HTMLElement {
-  const year = pc ? String(pc.year) : '';
+  const year = pc ? yearText(pc.year) : '';
   return sheet(
     {
       heading: 'ALTITUDE CORRECTION TABLES 10°–90° — SUN, STARS, PLANETS',
@@ -384,7 +384,7 @@ function a4Sheet(t: AltitudeTables, mock: boolean): HTMLElement {
     ),
     howTo(
       'Find the zone letter where the air temperature and the pressure meet on the chart. In that column, on the row of the apparent altitude (interpolating between rows, not between columns), read the correction and add it to the apparent altitude, as well as the main correction.',
-      [{ title: 'Example', text: 'Bowditch §1907: 88 °F, 982 hPa is zone M; at apparent altitude 6° 29.7′ the correction is between the 6° and 7° rows of column M.' }],
+      [{ title: 'Example', text: 'Bowditch (2019) §1907: at 88 °F and 982 hPa the chart gives zone M; at an apparent altitude of 6° 29.7′, between the 6° and 7° rows of column M, the additional correction is +0.8′.' }],
     ),
   );
 }
@@ -493,10 +493,10 @@ function polarisSheet(t: PolarisTable, page: 0 | 1 | 2, mock: boolean): HTMLElem
   const first = cols[0]!.from_deg;
   return sheet(
     {
-      heading: `POLARIS (POLE STAR) TABLES, ${t.year < 1 ? `${1 - t.year} BC` : t.year}`,
+      heading: `POLARIS (POLE STAR) TABLES, ${yearText(t.year)}`,
       side: 'FOR LATITUDE AND AZIMUTH',
       right: `LHA ARIES ${first}°–${first + 119}°`,
-      label: `Polaris tables for ${t.year}, LHA Aries ${first} to ${first + 119} degrees`,
+      label: `Polaris tables for ${yearText(t.year)}, LHA Aries ${first} to ${first + 119} degrees`,
       footer: `Mean position SHA ${t.printed_mean.sha}, Dec ${t.printed_mean.dec} · formula error ${t.formula_error_arcmin.toFixed(3)}′ · Latitude = Ho − 1° + a₀ + a₁ + a₂`,
       mock,
       extraClass: 'alm-sheet alm-pol-sheet',

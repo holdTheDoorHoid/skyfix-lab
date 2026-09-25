@@ -4,7 +4,7 @@ daily pages, computed independently of the Rust (crates/skyfix-almanac/src/table
 Development-time only (docs/CONVENTIONS.md section 11): nothing here is a runtime
 dependency, and no fixture is ever regenerated from Rust output.
 
-Coded from the definitions in CONVENTIONS 13.12 and the module docs of tables/, with
+Coded from the definitions in CONVENTIONS 13.9.1 and the module docs of tables/, with
 different algorithms wherever there is a choice, so that agreement means something:
 
 * **Increments** (minutes 0, 1, 18, 27, 44, 58, 59): exact rational arithmetic
@@ -441,7 +441,7 @@ def main():
             description=(
                 "The Nautical Almanac's increments and corrections, altitude corrections "
                 "(Sun, stars and planets, the Moon, dip, non-standard conditions, Venus and "
-                "Mars) and Polaris tables, computed from the definitions of CONVENTIONS 13.12 "
+                "Mars) and Polaris tables, computed from the definitions of CONVENTIONS 13.9.1 "
                 "independently of crates/skyfix-almanac/src/tables/ (see this script's "
                 "docstring for the algorithms)."
             ),

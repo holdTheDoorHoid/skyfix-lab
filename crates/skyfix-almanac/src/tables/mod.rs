@@ -4,7 +4,7 @@
 //! corrections for non-standard conditions and for Venus and Mars) and the Polaris
 //! (Pole Star) tables.
 //!
-//! OWNER: almanac2 agent (expansion programme Q7). Definitions: CONVENTIONS 13.12; wire
+//! OWNER: almanac2 agent (expansion programme Q7). Definitions: CONVENTIONS 13.9.1; wire
 //! format: EXPLORER_API.md "Expansion programme — almanac tables and three-day pages".
 //!
 //! # Where the numbers come from
@@ -25,7 +25,7 @@
 //! - **Venus and Mars** (the additional correction) and **Polaris** need the ephemeris:
 //!   the planets' horizontal parallax through the year, and Polaris' apparent place.
 //!
-//! # Rounding rules (CONVENTIONS 13.12)
+//! # Rounding rules (CONVENTIONS 13.9.1)
 //!
 //! - Every value is rounded to the printed precision, exact halves **up** (toward
 //!   `+∞`), as the printed tables do (`0′ 01″` of the Sun's increment is 0.25′ and is

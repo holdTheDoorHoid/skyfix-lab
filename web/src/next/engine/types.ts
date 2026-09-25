@@ -4063,7 +4063,7 @@ export function isPlanetDetailEngine(engine: unknown): engine is PlanetDetailEng
 // Expansion programme Q7 — almanac tables and three-day openings (almanac2 agent).
 // docs/EXPLORER_API.md "Expansion programme — almanac tables and three-day pages";
 // crates/skyfix-wasm/src/almanac_tables.rs over skyfix_almanac::{tables, opening};
-// definitions CONVENTIONS 13.12. As with the daily pages, every tabulated value has its
+// definitions CONVENTIONS 13.9.1. As with the daily pages, every tabulated value has its
 // number and, under `printed`, the text the table prints; views show `printed`.
 // ---------------------------------------------------------------------------
 

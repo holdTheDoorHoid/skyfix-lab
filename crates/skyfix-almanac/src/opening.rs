@@ -2,7 +2,7 @@
 //! cover three UT dates, built from [`crate::pages`]' one-date pages.
 //!
 //! OWNER: almanac2 agent (expansion programme Q7; the "three-day extension" of the daily
-//! pages). Definitions: CONVENTIONS 13.12; wire format: EXPLORER_API.md "Expansion
+//! pages). Definitions: CONVENTIONS 13.9.1; wire format: EXPLORER_API.md "Expansion
 //! programme — almanac tables and three-day pages".
 //!
 //! # Which three dates
