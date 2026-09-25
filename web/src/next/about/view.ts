@@ -68,7 +68,9 @@ const view: Component = (host, ctx) => {
         {},
         h('li', {}, manualLink(), ': how to use every view, how far each number can be trusted, the command-line tool, and where every piece of data comes from. Pages you have read stay readable offline.'),
         h('li', {}, repositoryLink(), ' (MIT or Apache-2.0): the Rust core that does every calculation, this page, and the command-line tool.'),
-        h('li', {}, 'Map data: Natural Earth (public domain). Stars: the Yale Bright Star Catalogue from NASA HEASARC. Fonts: Inter and JetBrains Mono (SIL Open Font License). ', sourcesLink(), ' in the manual.'),
+        // verify2: no credits on screen but OpenStreetMap's; every source and licence is on
+        // the manual's page this links.
+        h('li', {}, sourcesLink(), ' in the manual: where every piece of data and each typeface comes from.'),
       ),
       install.el,
     ),

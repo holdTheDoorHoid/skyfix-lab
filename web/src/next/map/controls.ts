@@ -239,16 +239,20 @@ export interface Credit {
   setStreets(on: boolean): void;
 }
 
-/** The data credit, bottom right. Always on, whether or not the map's own controls are. */
+/**
+ * The data credit, bottom right: OpenStreetMap's, exactly while its street tiles are shown
+ * (the only on-screen credit the explorer carries; Natural Earth is public domain and asks for
+ * none: verify2, which removed "Map data: Natural Earth").
+ */
 export function createCredit(): Credit {
   const osm = h('a', { href: OSM_COPYRIGHT_URL, target: '_blank', rel: 'noopener noreferrer' }, OSM_ATTRIBUTION);
-  const osmPart = h('span', { class: 'sfm-osm', hidden: true }, ' · ', osm);
-  const credit = h('span', { class: 'sf-attribution' }, 'Map data: Natural Earth', osmPart);
-  const element = h('div', { class: 'sf-overlay sf-overlay--br sf-on-stage sfm-credit' }, credit);
+  const osmPart = h('span', { class: 'sfm-osm' }, osm);
+  const credit = h('span', { class: 'sf-attribution' }, osmPart);
+  const element = h('div', { class: 'sf-overlay sf-overlay--br sf-on-stage sfm-credit', hidden: true }, credit);
   return {
     element,
     setStreets(on) {
-      osmPart.hidden = !on;
+      element.hidden = !on;
     },
   };
 }
