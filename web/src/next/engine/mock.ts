@@ -51,6 +51,15 @@ import type {
   StarfieldCatalog,
 } from './types.js';
 import type { NavTools } from './wasm-nav.js';
+import { mockMoonApsides, mockMoonFeatures, mockMoonOrientation, mockOccultations } from './mock/moondetail.js';
+import type {
+  MoonApsides,
+  MoonDetailEngine,
+  MoonFeatures,
+  MoonOrientation,
+  OccultationList,
+  OccultationOptions,
+} from './types.js';
 
 export const MOCK_DESCRIPTION =
   'MOCK ENGINE for developing the interface. Every number on this page is illustrative: positions come from ' +
@@ -830,4 +839,28 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
     }
     return out;
   }
+
+  // Expansion programme P8 (moondetail agent): the Moon in detail, low precision
+  // (mock/moondetail.ts), illustrative like everything here.
+
+  moonOrientation(observer: Observer | null, jdUtc: number): MoonOrientation {
+    return mockMoonOrientation(observer, jdUtc);
+  }
+
+  moonFeatures(observer: Observer | null, jdUtc: number): MoonFeatures {
+    return mockMoonFeatures(observer, jdUtc);
+  }
+
+  moonApsides(jdStart: number, jdEnd: number): MoonApsides {
+    return mockMoonApsides(this, jdStart, jdEnd);
+  }
+
+  occultations(observer: Observer, jdStart: number, jdEnd: number, options?: OccultationOptions): OccultationList {
+    return mockOccultations(observer, jdStart, jdEnd, options);
+  }
 }
+
+// The mock is a Moon-detail engine (checked here rather than in its `implements` list,
+// so parallel additions to that line do not collide).
+const _mockIsMoonDetail: (e: MockEngine) => MoonDetailEngine = (e) => e;
+void _mockIsMoonDetail;

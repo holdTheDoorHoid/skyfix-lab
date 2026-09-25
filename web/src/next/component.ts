@@ -31,6 +31,7 @@ import {
   type Observer,
   type PlanetEventsEngine,
 } from './engine/types.js';
+import { isMoonDetailEngine, type MoonDetailEngine } from './engine/types.js';
 import type { Notices } from './notices.js';
 import type { Equality, ExplorerState, ExplorerStore } from './state.js';
 
@@ -377,6 +378,29 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     // The residual heat map passes through unmemoised: it runs on demand, never per frame.
     ...(engine.misfit ? { misfit: engine.misfit } : {}),
   };
+  // Expansion programme P8 (moondetail agent): the Moon in detail, present exactly when
+  // the engine has it (`isMoonDetailEngine`). Orientation and features per instant and
+  // place; apsides per window; occultations (the costliest, ~0.1 s a year) per place and
+  // window.
+  if (isMoonDetailEngine(engine)) {
+    const place = (o: Observer | null): string => (o ? observerKey(o) : 'geocentre');
+    const moonDetail: MoonDetailEngine = {
+      moonOrientation: (observer, jd) =>
+        cached('moonOrientation', `${place(observer)}|${jd}`, capacity, () => engine.moonOrientation(observer, jd)),
+      moonFeatures: (observer, jd) =>
+        cached('moonFeatures', `${place(observer)}|${jd}`, 4, () => engine.moonFeatures(observer, jd)),
+      moonApsides: (jdStart, jdEnd) =>
+        cached('moonApsides', `${jdStart}|${jdEnd}`, 4, () => engine.moonApsides(jdStart, jdEnd)),
+      occultations: (observer, jdStart, jdEnd, opts) =>
+        cached(
+          'occultations',
+          `${observerKey(observer)}|${jdStart}|${jdEnd}|${JSON.stringify(opts ?? {})}`,
+          4,
+          () => engine.occultations(observer, jdStart, jdEnd, opts),
+        ),
+    };
+    Object.assign(memo, moonDetail);
+  }
   return memo;
 }
 
