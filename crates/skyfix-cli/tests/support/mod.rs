@@ -98,7 +98,12 @@ impl SessionBuilder {
                 },
                 observer: Observer::default(),
                 instrument: Instrument::default(),
-                clock: Clock::default(),
+                // The generated truths assume UT1 = UTC, so the sessions say so: without
+                // it the engine's IERS DUT1 would apply (CONVENTIONS 15.2).
+                clock: Clock {
+                    dut1_s: Some(0.0),
+                    ..Clock::default()
+                },
                 observations: Vec::new(),
             },
         }
