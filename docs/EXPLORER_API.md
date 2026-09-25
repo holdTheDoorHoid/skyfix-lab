@@ -1228,8 +1228,9 @@ no precache, no runtime copy) and never deletes the page's packs cache (`isStale
 - **`remove(name)`** deletes the saved copy; a loaded pack stays in the engine (there is no
   unloading) until the page is reloaded, and Settings says so.
 - After every load the explorer's memoised engine forgets its results
-  (`memoEngine(...).invalidate()`), and the WASM wrapper asks `explorer_coverage()` again.
-  A view that showed "not computed" for what a pack now answers redraws after `ensure`
-  resolves true, or on `ctx.packs.subscribe`.
+  (`memoEngine(...).invalidate()`), the WASM wrapper asks `explorer_coverage()` again, and
+  every view draws again once (`redrawEverything()` in `component.ts`: each live `watch`
+  re-renders with its current value), so nothing keeps saying "not computed" for what the
+  engine now answers. `ctx.packs.subscribe` hears every change (progress included).
 - Developer harnesses pass `NO_PACKS`; the mock engine lists `deep-time`, `tides-us` and
   `lunar-limb` and accepts any bytes (`engine/mock/packs.ts`).
