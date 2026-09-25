@@ -146,7 +146,7 @@
     }
   },
   "milkyway": {
-    "bytes": 3785,
+    "bytes": 3236,
     "checks": {
       "galactic_vs_pixel_file_max_deg": 0.000632,
       "pixels_masked_as_point_sources": 18444
@@ -175,10 +175,10 @@
     "levels": [
       {
         "level_mjy_sr": 0.32,
-        "points": 460,
-        "points_before": 3104,
-        "rings": 12,
-        "rings_dropped_small": 1
+        "points": 324,
+        "points_before": 2010,
+        "rings": 4,
+        "rings_dropped_small": 0
       },
       {
         "level_mjy_sr": 0.5,
@@ -233,7 +233,7 @@
       "tau_v_cap": 30.0,
       "unit_deg": 0.01
     },
-    "sha256": "ede5a41853ae3390dae8538025959593e15ea643938a84229a68cfd6b32cfcdc"
+    "sha256": "58202e2139d51c4cb081fd3b380ba8129a0a15bbdf5f02024e71acf1be9c441c"
   },
   "names": {
     "bytes": 7401,

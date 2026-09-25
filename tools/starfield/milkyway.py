@@ -29,7 +29,11 @@ quadrilateralized-cube projection code is needed. The steps:
    images, not fitted: it is a picture, not a measurement;
 5. the Magellanic Clouds masked (they are listed as objects instead);
 6. contours at four levels, by oriented marching squares: every ring keeps the
-   brighter side on its left in (l, b), so a renderer can fill it;
+   brighter side on its left in (l, b), so a renderer can fill it. The faintest level
+   is drawn on the starlight *before* the dust weighting, so it outlines the whole band,
+   the Great Rift included; the three brighter levels on the weighted map, where the
+   rift and the star clouds show. The weighting only ever dims, so every brighter
+   region lies inside the faintest;
 7. each ring to J2000 RA/Dec and simplified by Douglas-Peucker on the sphere to 0.2
    degrees; rings shorter than 3 degrees are dropped.
 
@@ -420,11 +424,18 @@ def main(argv) -> int:
              + np.cos(np.radians(B)) * math.cos(math.radians(b0)) * np.cos(np.radians(L - l0)))
         vis = np.where(c > math.cos(math.radians(r)), min(LEVELS_MJY_SR) * 0.5, vis)
 
+    # The faintest level on the unweighted starlight (Clouds masked the same way).
+    band = m1.copy()
+    for l0, b0, r in MASKED:
+        c = (np.sin(np.radians(B)) * math.sin(math.radians(b0))
+             + np.cos(np.radians(B)) * math.cos(math.radians(b0)) * np.cos(np.radians(L - l0)))
+        band = np.where(c > math.cos(math.radians(r)), min(LEVELS_MJY_SR) * 0.5, band)
+
     rings_by_level, stats = [], []
     tol = math.radians(SIMPLIFY_DEG)
-    for level in LEVELS_MJY_SR:
+    for k, level in enumerate(LEVELS_MJY_SR):
         kept, points_in, dropped = [], 0, 0
-        for ring in contour_rings(vis, level):
+        for ring in contour_rings(band if k == 0 else vis, level):
             pts = [lb_to_radec_unit(x * STEP_DEG, -90.0 + y * STEP_DEG) for x, y in ring]
             length = sum(angle(pts[k], pts[(k + 1) % len(pts)]) for k in range(len(pts)))
             if math.degrees(length) < MIN_RING_DEG:
@@ -448,7 +459,7 @@ def main(argv) -> int:
         png(os.path.join(pngdir, "milkyway_vis.png"), sky_image((lg - lo) / (hi - lo) * 255))
         lv = np.zeros_like(vis)
         for k, level in enumerate(LEVELS_MJY_SR):
-            lv[vis > level] = (k + 1) * 255 / len(LEVELS_MJY_SR)
+            lv[(band if k == 0 else vis) > level] = (k + 1) * 255 / len(LEVELS_MJY_SR)
         png(os.path.join(pngdir, "milkyway_levels.png"), sky_image(lv))
 
     with open(os.path.join(RAW, "provenance.json"), encoding="utf-8") as f:
