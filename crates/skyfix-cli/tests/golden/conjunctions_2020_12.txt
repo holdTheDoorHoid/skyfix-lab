@@ -15,7 +15,7 @@ Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS8
   2020-12-24 20:21:32  2020-12-25T01:21:32Z  Moon - Uranus        3.148  157       123  - / 5.7     2020-12-24 20:06 +60 02.7 / +63 26.1
   2020-12-27 13:47:11  2020-12-27T18:47:11Z  Moon - Aldebaran     4.540  347       153  - / 0.9     2020-12-27 22:02 +71 08.5 / +66 32.9
 
-Closest approaches in apparent separation from the Earth's centre (CONVENTIONS 13.12).
+Closest approaches in apparent separation from the Earth's centre (CONVENTIONS 13.13).
 PA is the first body seen from the second, north through east; from Sun the first body's
 elongation, degrees. With an observer, best is the moment within 12 hours when the lower
 of the two stands highest with the Sun below -6 deg, and the two apparent altitudes
