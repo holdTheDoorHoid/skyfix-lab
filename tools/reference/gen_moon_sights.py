@@ -12,6 +12,14 @@ Development-time only (CONVENTIONS section 11): Skyfield 1.55 with JPL DE440s. T
 Rust workspace reads the JSON and nothing else, and no number here ever comes from
 Rust output.
 
+    tools/reference/.venv/bin/python -m tools.reference.gen_moon_sights \
+        [--window 2020..2039] [--kernel de440s]
+
+`--window` is where the random sights are drawn (2020-2039 by default; the lunar
+distances keep 2022-2035 then) and which fixed sessions and twilight days are kept;
+years 1-9999 (Python datetime). Instants are on the app's clock with SkyFix Lab's own
+Delta T and UT1 = UTC on the UTC scale (`common.load_timescale(dut1_zero=True)`).
+
 What a sextant would read
 -------------------------
 Every sight is built the way the sky makes it, not by running the project's own
@@ -19,8 +27,9 @@ chain backwards:
 
 1. Skyfield places the observer on the Earth and returns the body's **topocentric
    airless** altitude and distance (`site.at(t).observe(body).apparent().altaz()`,
-   no refraction). The instant is on a timescale with **UT1 = UTC** (the trick of
-   gen_moon.py), so the whole horizon frame carries the DUT1 = 0 of CONVENTIONS 6.
+   no refraction). The instant is on the app's clock with **UT1 = UTC** on the UTC
+   scale (and the clock's UT outside it), so the whole horizon frame carries the
+   DUT1 = 0 of CONVENTIONS 6.
 2. A limb is the centre moved by the body's **topocentric** semidiameter,
    asin(R / topocentric distance), with R = 0.2725076 x 6378.14 km for the Moon (the
    Moon provider's k) and 959.63" at 1 au for the Sun. The lowest point of a small
@@ -103,9 +112,7 @@ class Sky:
         from skyfield.toposlib import Geoid
 
         self.load = load
-        self.eph = c.load_ephemeris(c.EPHEMERIS_CROSSCHECK_FILE)  # DE440s
-        self.eph_file = c.EPHEMERIS_CROSSCHECK_FILE
-        self.eph_url = c.EPHEMERIS_CROSSCHECK_URL
+        self.eph = c.run_ephemeris()  # --kernel, DE440s by default
         self.earth = self.eph["earth"]
         self.sun = self.eph["sun"]
         self.moon = self.eph["moon"]
@@ -120,8 +127,7 @@ class Sky:
             "Saturn": self.eph["saturn barycenter"],
         }
         self.targets.update(stars)
-        self.ts_builtin = load.timescale(builtin=True)
-        self._ts = {}
+        self.ts0 = c.load_timescale(dut1_zero=True)
         # A sphere: Skyfield's Geoid with a flattening of 1e-15.
         self.earths = {
             "sphere": Geoid("sphere_6378140m", SPHERE_RADIUS_M, 1e15),
@@ -129,12 +135,8 @@ class Sky:
         }
 
     def time(self, when):
-        """The instant on a timescale where UT1 = UTC exactly (gen_moon.py)."""
-        t_b = self.ts_builtin.from_datetime(when)
-        era = round((float(t_b.tai) - c.jd_utc_of(t_b)) * 86400.0)
-        if era not in self._ts:
-            self._ts[era] = self.load.timescale(delta_t=32.184 + era)
-        t = self._ts[era].from_datetime(when)
+        """The app's clock instant `when`, with UT1 = UTC on the UTC scale."""
+        t = self.ts0.from_datetime(when)
         assert abs(float(t.dut1)) < 1e-6, (when, float(t.dut1))
         return t
 
@@ -385,10 +387,21 @@ def random_instant(rng, lo, hi):
     return _dt.datetime.fromtimestamp(int(rng.integers(lo, hi)), _dt.timezone.utc)
 
 
+def window_timestamps():
+    """This run's --window as POSIX seconds (Python datetime: years 1-9999)."""
+    out = []
+    for jd in c.RUN.window:
+        y, mo, d, h = c.gregorian_from_jd(jd)
+        if not 1 <= y <= 9999:
+            raise SystemExit("gen_moon_sights draws instants with Python datetime: "
+                             "keep --window within years 1-9999")
+        out.append(int(round((jd - 2440587.5) * 86400.0)))
+    return out
+
+
 def build_sight_cases(sky):
     rng = np.random.default_rng(20260925)
-    lo = int(_dt.datetime(2020, 1, 1, tzinfo=_dt.timezone.utc).timestamp())
-    hi = int(_dt.datetime(2040, 1, 1, tzinfo=_dt.timezone.utc).timestamp())
+    lo, hi = window_timestamps()
     plan = (
         [("Moon", "lower")] * 60
         + [("Moon", "upper")] * 40
@@ -593,7 +606,7 @@ def build_session(sky, spec, earth_model):
             "name": spec["title"] + (" (spherical Earth)" if earth_model == "sphere" else ""),
             "notes": (
                 spec["about"] + " Synthetic, zero noise; raw sextant readings built by "
-                "tools/reference/gen_moon_sights.py from Skyfield + JPL DE440s on "
+                "tools/reference/gen_moon_sights.py from Skyfield + JPL %s on " % c.kernel_label()
                 + ("a spherical Earth of radius 6378.14 km, the Earth CONVENTIONS "
                    "section 1 reduces sights on." if earth_model == "sphere" else
                    "the WGS84 Earth.")
@@ -614,7 +627,7 @@ def build_session(sky, spec, earth_model):
             "index_correction_arcmin": c.arcmin(spec["index_correction_arcmin"]),
             "horizon": "sea",
         },
-        "clock": {"uncertainty_s": c.secs(0.0), "correction_s": c.secs(0.0)},
+        "clock": {"uncertainty_s": c.secs(0.0), "correction_s": c.secs(0.0), "dut1_s": 0},
         "observations": obs,
     }
     truth = {
@@ -637,7 +650,7 @@ def build_session(sky, spec, earth_model):
         "observations": detail,
         "worst_intercept_at_truth_arcmin": c.Num(worst, 5),
         "independent_python_solution": {
-            "method": "Gauss-Newton on the CONVENTIONS section 3 sphere with the Ho of the amended section 5 text (Python transcription), directions from DE440s",
+            "method": "Gauss-Newton on the CONVENTIONS section 3 sphere with the Ho of the amended section 5 text (Python transcription), directions from %s" % c.kernel_label(),
             "position": c.Inline({"lat_deg": c.deg(phi), "lon_deg": c.deg(lam)}),
             "offset_from_truth_m": c.Inline({"north": c.metres(dn), "east": c.metres(de), "distance": c.metres(math.hypot(dn, de))}),
         },
@@ -777,8 +790,11 @@ def lunar_case(sky, n, when, lat, lon, body, hoe, ic, p, t_c, offset_s):
 
 def build_lunar_cases(sky):
     rng = np.random.default_rng(20260926)
-    lo = int(_dt.datetime(2022, 1, 1, tzinfo=_dt.timezone.utc).timestamp())
-    hi = int(_dt.datetime(2036, 1, 1, tzinfo=_dt.timezone.utc).timestamp())
+    if c.RUN.facts()["window_is_default"]:
+        lo = int(_dt.datetime(2022, 1, 1, tzinfo=_dt.timezone.utc).timestamp())
+        hi = int(_dt.datetime(2036, 1, 1, tzinfo=_dt.timezone.utc).timestamp())
+    else:
+        lo, hi = window_timestamps()
     wanted = ["Sun"] * 8 + LUNAR_STARS + ["Venus", "Jupiter", "Saturn", "Mars"]
     cases = []
     for n, body in enumerate(wanted, start=1):
@@ -840,8 +856,10 @@ def build_twilights(sky):
     for name, lat, lon, day in TWILIGHT_SITES:
         start = _dt.datetime.strptime(day, "%Y-%m-%d").replace(tzinfo=_dt.timezone.utc)
         t0 = sky.time(start)
+        if not c.in_window(c.jd_utc_of(t0)):
+            continue
         t1 = sky.time(start + _dt.timedelta(days=2))
-        ts = sky._ts[round((float(t0.tai) - c.jd_utc_of(t0)) * 86400.0)]
+        ts = sky.ts0
         site = sky.site("wgs84", lat, lon)
         events = []
         for level in (-6.0, -12.0):
@@ -883,10 +901,13 @@ def generator(description, tolerance, justification, extra=None):
             "applied_as": "true -> apparent by solving H - R(H) = h for the apparent altitude H",
             "skyfield_refraction": "not used (it differs from CONVENTIONS by 0.07 % of the refraction)",
         },
+        timescale=c.project_timescale_facts(),
         extra={
-            "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+            "run": c.RUN.facts(),
+            "ephemeris": c.run_kernel_facts(),
             "catalogue": c.file_facts(c.HIPPARCOS_FILE, c.HIPPARCOS_URL),
-            "ut1": "Every instant is on a timescale with UT1 = UTC (Delta-T = 32.184 s + TAI - UTC), so GHA and the horizon frame carry DUT1 = 0 (CONVENTIONS section 6).",
+            "stars": "Hipparcos with SIMBAD radial velocities and rigorous space motion; Rigil Kentaurus (alpha Cen A) on its ORB6 orbit (common.build_stars)",
+            "ut1": "Every instant is on the app's clock with UT1 = UTC on the UTC scale (common.load_timescale(dut1_zero=True); the clock is UT1 after 2035), so GHA and the horizon frame carry DUT1 = 0 (CONVENTIONS section 6).",
             "semidiameters": "Moon asin(0.2725076 x 6378.14 km / d); Sun 959.63 arcsec at 1 au; planets asin(IAU 2015 equatorial radius / d); topocentric d for the sights, geocentric d for the supplied directions",
             "horizontal_parallax": "Moon asin(6378.14 km / geometric distance); planets asin(6378.137 km / light-time distance); Sun 8.794 arcsec at 1 au",
             "venus": "centre of light: moved toward the Sun by 0.44 (1 - cos i) SD (the Nautical Almanac convention, skyfix_ephemeris::sights)",
@@ -896,7 +917,8 @@ def generator(description, tolerance, justification, extra=None):
     return block
 
 
-def main():
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "2020..2039", "de440s")
     sky = Sky()
 
     cases, worst = build_sight_cases(sky)
@@ -930,6 +952,9 @@ def main():
         print("   worst chain - expected, %-6s %-6s %.4f'" % (k[0], k[1], v))
 
     for spec in SESSIONS:
+        first = _dt.datetime.strptime(spec["sights"][0][0], "%Y-%m-%dT%H:%M:%SZ")
+        if not c.in_window(c.jd_from_gregorian(first.year, first.month, first.day)):
+            continue
         for earth_model in ("wgs84", "sphere"):
             name, session, truth, expected, miss = build_session(sky, spec, earth_model)
             expected["generator"] = generator(

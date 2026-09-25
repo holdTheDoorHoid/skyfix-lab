@@ -435,11 +435,15 @@ mod tests {
             "{n} instants: x, y {:.2e} Earth radii; d {:.2e} deg; mu {:.2e} deg; l1, l2 {:.2e}; tan f {:.1e}",
             worst[0], worst[1], worst[2], worst[3], worst[4]
         );
-        // Measured: x, y 9.7e-5 Earth radii (620 m; the shadow covers that in 0.7 s),
-        // d 2.5e-5 deg, mu 4.2e-5 deg, l1 and l2 1.5e-6, tan f 2.1e-7. NASA's lunar
-        // theory is ELP-2000/85 where ours is ELP 2000-82B, and its tables are cubic
-        // least-squares fits printed to six decimals.
-        assert!(worst[0] < 1.2e-4, "x, y {}", worst[0]);
+        // Measured: x, y 1.3e-4 Earth radii (830 m; the shadow covers that in 1 s),
+        // d 2.5e-5 deg, mu 4.2e-5 deg, l1 and l2 1.5e-6, tan f 2.1e-7. The x, y floor is
+        // NASA's: the same elements computed from Skyfield with JPL DE440s differ from
+        // these pages by up to 1.22e-4 (2023-04-20; 7e-6 for 2017-08-21), and our Moon
+        // (ELP/MPP02 with its secular terms fitted to DE440, deeptime agent) is within
+        // 0.4" of DE440s. With the older ELP 2000-82B the figure was 9.7e-5, its own
+        // errors partly cancelling NASA's. NASA's tables are also cubic least-squares
+        // fits printed to six decimals.
+        assert!(worst[0] < 1.5e-4, "x, y {}", worst[0]);
         assert!(
             worst[1] < 5e-5 && worst[2] < 1e-4,
             "d {} mu {}",

@@ -18,6 +18,8 @@ import type {
   BodyInfo,
   CalendarConversion,
   CalendarConvertRequest,
+  CoverageTier,
+  CoverageTierEngine,
   BodySelection,
   ConstellationBoundary,
   DayEvents,
@@ -211,6 +213,8 @@ export interface ExplorerWasmExports {
   time_info?(jdUtc: number): unknown;
   set_dut1?(seconds: number | null | undefined): unknown;
   calendar_convert?(requestJson: string): unknown;
+  /** Expansion programme, coverage tiers (deeptime agent); absent in older builds. */
+  tier_at?(jdUtc: number): string;
   /** Expansion programme, sailings agent (EXPLORER_API "Expansion programme — sailings"). */
   sailing?(requestJson: string): unknown;
   dr_advance?(requestJson: string): unknown;
@@ -391,6 +395,7 @@ export class WasmEngine
     SailingsEngine,
     MoonDetailEngine,
     DeepSkyEngine,
+    CoverageTierEngine,
     LimbEngine
 {
   readonly kind = 'wasm' as const;
@@ -771,6 +776,13 @@ export class WasmEngine
     const fn = this.x.calendar_convert;
     if (typeof fn !== 'function') throw rebuildError('calendar_convert', 'time scales');
     return this.call('calendar_convert', () => fn.call(this.x, JSON.stringify(request)));
+  }
+
+  /** The coverage tier of an instant (`tier_at`, deeptime agent): validated, labelled or outside. */
+  tierAt(jdUtc: number): CoverageTier {
+    const fn = this.x.tier_at;
+    if (typeof fn !== 'function') throw rebuildError('tier_at', 'coverage tiers');
+    return this.call('tier_at', () => fn.call(this.x, jdUtc) as CoverageTier);
   }
 
   // --- Expansion programme: sailings, DR, routes, star identification, star finder ---

@@ -40,6 +40,7 @@ import {
 } from '../engine/types.js';
 import { mapServiceFor, pathFeature, pointFeature } from '../map/overlays.js';
 import { mapPickerFor } from '../map/pick.js';
+import { showInSky } from '../sky/requests.js'; // sky2 agent: "Show in Sky" aims the Sky view at the galactic centre
 import { setTime } from '../playback.js';
 import { clampToCoverage, dayOf, setAttr, setText } from '../shell/derived.js';
 import { bearing3, compassPoint, compassWords, dateShort, eventTime, formatAngle, formatAzimuth, MINUS, otherDay } from '../shell/format.js';
@@ -783,12 +784,11 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
       const show = h('button', { type: 'button', class: 'sf-btn sf-btn--secondary sf-btn--sm' }, icon('clock'), h('span', { class: 'sf-btn__label' }, `Show ${at}`));
       show.addEventListener('click', () => setTime(store, best.jd_utc));
       const sky = h('button', { type: 'button', class: 'sf-btn sf-btn--secondary sf-btn--sm' }, icon('sky'), h('span', { class: 'sf-btn__label' }, 'Show in Sky'));
+      const centre = result.galactic_centre;
       sky.addEventListener('click', () => {
-        // sky2: aim the Sky view at the galactic centre (az best.az_deg, alt best.alt_apparent_deg) once it offers a way.
-        store.batch(() => {
-          setTime(store, best.jd_utc);
-          store.patch({ view: 'sky' });
-        });
+        // sky2 agent: the Sky view at the best moment, turned to the galactic centre and marking it.
+        setTime(store, best.jd_utc);
+        showInSky(ctx, { kind: 'point', id: 'Galactic centre', ra_j2000_deg: centre.ra_j2000_deg, dec_j2000_deg: centre.dec_j2000_deg });
       });
       actions.replaceChildren(show, sky);
     }

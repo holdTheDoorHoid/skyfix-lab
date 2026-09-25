@@ -178,8 +178,14 @@ describe('the tier notice and the Deep time pack prompt', () => {
     const scheduler = createScheduler({ requestFrame: frames.request, cancelFrame: frames.cancel });
     const notices = createNotices();
     const base = new MockEngine({ syntheticStars: 0 });
-    const c = { ...base.coverage(), ...coverageOver };
-    const engine = memoEngine(Object.assign(Object.create(base) as ExplorerEngine, { coverage: () => c }));
+    // The mock reports its own window as its validated tier and answers `tierAt` from it
+    // (deeptime agent); this engine is the coverage below and nothing else, so it drops
+    // both and its tiers come from `coverageOver` alone.
+    const { validated_start_utc: _vs, validated_end_utc: _ve, ...mockCoverage } = base.coverage();
+    const c = { ...mockCoverage, ...coverageOver };
+    const engine = memoEngine(
+      Object.assign(Object.create(base) as ExplorerEngine, { coverage: () => c, tierAt: undefined }),
+    );
     const ctx = { store, engine, notices, scheduler, packs };
     const stop = startTimeServices(ctx);
     const flush = (): void => scheduler.flush();

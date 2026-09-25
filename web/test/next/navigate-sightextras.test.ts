@@ -182,7 +182,12 @@ describe('the tier gate: sights only in the validated span', () => {
   });
 
   it('with the mock engine (no tiers reported): outside its coverage, no sights, and its own years named', () => {
-    const t = sightTierAt(new MockEngine(), 2415020.5); // 1900-01-01
+    // The mock reports its window as its validated tier and answers `tierAt` (deeptime
+    // agent); an engine that reports no tiers is the mock without both.
+    const base = new MockEngine();
+    const { validated_start_utc: _vs, validated_end_utc: _ve, ...plain } = base.coverage();
+    const noTiers = Object.assign(Object.create(base) as MockEngine, { coverage: () => plain, tierAt: undefined });
+    const t = sightTierAt(noTiers, 2415020.5); // 1900-01-01
     expect(t.offered).toBe(false);
     expect(t.sentence).toBe('No sights for 1 January 1900: it is outside the years the SkyFix Lab core covers (1 January 1990 to 31 December 2060, Gregorian calendar), so nothing can be computed for it.');
   });
@@ -272,8 +277,9 @@ describe.skipIf(!existsSync(PKG))('against the built core (npm run wasm)', () =>
       const bySingle = nav.predictSextant(observer, { index_correction_arcmin: -3 }, 'Vega', 'center', 2461314.5625);
       expect(byLog.hs_deg).toBeCloseTo(bySingle.hs_deg, 12);
     }
-    // The tier from the real engine: 1980 is outside this build's coverage.
-    expect(sightTierAt(engine, 2444391.5).offered).toBe(false);
+    // The tier from the real engine: 1500 is before the validated tier (1550-2650; it was
+    // outside the one-tier core's 1990-2060 as well).
+    expect(sightTierAt(engine, 2268923.5).offered).toBe(false);
     expect(sightTierAt(engine, 2461314.5).offered).toBe(true);
   });
 });

@@ -20,7 +20,12 @@ Two files, each independent of the Rust code:
 
 Never regenerated from Rust output (CONVENTIONS section 11).
 
-    tools/reference/.venv/bin/python -m tools.reference.gen_planet_events [--offline | --network-only]
+    tools/reference/.venv/bin/python -m tools.reference.gen_planet_events [--offline | --network-only] \
+        [--window 1990..2060] [--kernel de440s]
+
+`--window` sets the span of both lists (whole years); `--kernel` names the Skyfield
+side's ephemeris. Instants are on the app's clock with SkyFix Lab's own Delta T
+(`common.load_timescale`).
 """
 
 from __future__ import annotations
@@ -86,8 +91,7 @@ def fetch(url):
 
 def build_skycal(ts):
     rows, sources = [], []
-    lo = c.jd_utc_of(ts.utc(1990, 1, 1))
-    hi = c.jd_utc_of(ts.utc(2061, 1, 1))
+    lo, hi = c.RUN.window
     for d in DECADES:
         url = "%s/jc%04d.js" % (SKYCAL, d)
         raw = fetch(url)
@@ -143,13 +147,13 @@ def build_skycal(ts):
 
 def build_skyfield(ts):
     from skyfield import almanac
-    from skyfield.api import load_file
     from skyfield.framelib import ecliptic_frame
     from skyfield.searchlib import find_maxima, find_minima
 
-    eph = load_file(c.EPHEMERIS_CROSSCHECK_FILE)
+    eph = c.run_ephemeris()
     earth, sun = eph["earth"], eph["sun"]
-    t0, t1 = ts.utc(1990, 1, 1), ts.utc(2060, 12, 31, 23, 59, 59)
+    y0, y1 = c.window_years()
+    t0, t1 = ts.utc(y0, 1, 1), ts.utc(y1, 12, 31, 23, 59, 59)
     events = []
 
     def state(t, target):
@@ -229,7 +233,8 @@ def build_skyfield(ts):
             ),
             "generated_utc": c.generated_utc(),
             "versions": c.versions(),
-            "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+            "run": c.RUN.facts(),
+            "ephemeris": c.run_kernel_facts(),
             "definitions": {
                 "conjunction_opposition": (
                     "skyfield.almanac.oppositions_conjunctions: apparent ecliptic longitude of "
@@ -273,7 +278,7 @@ def main(argv=None):
     mode = ap.add_mutually_exclusive_group()
     mode.add_argument("--offline", action="store_true", help="skip NASA SKYCAL (keep the file)")
     mode.add_argument("--network-only", action="store_true", help="refresh only the NASA SKYCAL file")
-    args = ap.parse_args(argv)
+    args = c.setup(argv, None, "1990..2060", "de440s", parser=ap)
     ts = c.load_timescale()
     ref = c.FIX_REFERENCE
     if not args.offline:

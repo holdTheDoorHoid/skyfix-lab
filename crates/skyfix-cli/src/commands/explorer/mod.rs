@@ -30,6 +30,7 @@ pub mod almanac_tables;
 pub mod args;
 pub mod average;
 pub mod calendar;
+pub mod coverage;
 pub mod deepsky;
 pub mod eclipse;
 pub mod eclipses;
@@ -295,6 +296,13 @@ pub enum ExplorerCommand {
 
     /// The Polaris tables for a year: a0, a1, a2 and the azimuth.
     AlmanacPolaris(almanac_tables::PolarisArgs),
+
+    /// The explorer's coverage in two tiers: validated (1550-2650, for sights) and
+    /// labelled (2000 BC to AD 3000, display only), per provider group.
+    ExplorerCoverage(coverage::CoverageArgs),
+
+    /// The coverage tier of an instant: validated, labelled or outside.
+    TierAt(coverage::TierArgs),
 }
 
 /// Run one explorer command, returning the exit code it earned.
@@ -371,5 +379,7 @@ pub fn run(command: ExplorerCommand) -> Result<u8> {
         ExplorerCommand::AlmanacAltitude(a) => almanac_tables::run_altitude(&a),
         ExplorerCommand::AlmanacPlanets(a) => almanac_tables::run_planets(&a),
         ExplorerCommand::AlmanacPolaris(a) => almanac_tables::run_polaris(&a),
+        ExplorerCommand::ExplorerCoverage(a) => coverage::run_coverage(&a),
+        ExplorerCommand::TierAt(a) => coverage::run_tier(&a),
     }
 }

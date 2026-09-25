@@ -18,6 +18,11 @@ the same Bennett formula but with a constant of 0.016667 deg (1.00002 arcmin)
 and a scale factor 0.28*P/(T+273) which is 0.999293 of the CONVENTIONS factor
 at standard conditions. Mixing the two would put a 0.07 % refraction error into
 a fixture whose job is to test the chain to 0.02 arcmin.
+
+    tools/reference/.venv/bin/python -m tools.reference.gen_sun_sextant \
+        [--window 2026-10-01..2026-10-02] [--kernel de421]
+
+The sights are at one date: `--window` must contain it; `--kernel` names the ephemeris.
 """
 
 from __future__ import annotations
@@ -52,7 +57,7 @@ SESSION_NAME = "reference-sun-sextant"
 
 def build():
     ts = c.load_timescale()
-    eph = c.load_ephemeris()
+    eph = c.run_ephemeris()
     earth, sun = eph["earth"], eph["sun"]
     site = earth + c.topos(TRUTH_LAT, TRUTH_LON, TRUTH_ELEV)
 
@@ -146,7 +151,7 @@ def session(sights):
             "index_correction_arcmin": c.arcmin(INDEX_CORRECTION_ARCMIN),
             "horizon": "sea",
         },
-        "clock": {"uncertainty_s": c.secs(0.0), "correction_s": c.secs(0.0)},
+        "clock": {"uncertainty_s": c.secs(0.0), "correction_s": c.secs(0.0), "dut1_s": 0},
         "observations": [
             {
                 "id": s["id"],
@@ -414,7 +419,9 @@ def expected(sights, worst_roundtrip):
     }
 
 
-def main():
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "2026-10-01..2026-10-02", "de421")
+    c.require_in_window(c.jd_from_gregorian(*DATE, 16.5), "the Sun sequence")
     sights, worst = build()
     print(
         "   Sun transit 16:50:15Z; five sights %s; azimuths %.2f to %.2f deg"

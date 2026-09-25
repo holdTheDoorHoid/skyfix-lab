@@ -38,7 +38,8 @@ pub struct WhenArg {
 }
 
 impl WhenArg {
-    fn jd(&self) -> Result<f64> {
+    /// The Julian date on the app's clock the flags name.
+    pub fn jd(&self) -> Result<f64> {
         super::calendar::the_jd(&super::calendar::Args {
             date: self.date.clone(),
             jd: self.jd,

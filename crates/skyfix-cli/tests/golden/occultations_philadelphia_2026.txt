@@ -5,12 +5,12 @@ Window     2026-01-01T05:00:00Z to 2026-07-01T05:00:00Z, shown in UTC-05:00
 Searched   36 bodies near the Moon's path (stars within 7 deg of the ecliptic)
 
   body       mag  disappears           disappears UTC        PA, limb    reappears  PA, limb
-  τ Sgr     3.32  2026-01-17 13:03:24  2026-01-17T18:03:24Z  120 bright  13:54:10   198 dark    day
+  τ Sgr     3.32  2026-01-17 13:03:25  2026-01-17T18:03:25Z  120 bright  13:54:10   198 dark    day
   Regulus   1.36  2026-02-02 20:53:17  2026-02-03T01:53:17Z  149 bright  21:51:06   266 dark    night
-  τ Sgr     3.32  2026-03-13 03:52:46  2026-03-13T08:52:46Z   94 bright  05:11:31   259 dark    night
+  τ Sgr     3.32  2026-03-13 03:52:47  2026-03-13T08:52:47Z   94 bright  05:11:32   259 dark    night
   Fang      2.89  -                    -                     -           -          -           near miss, 0.87' outside the limb, graze
-  Regulus   1.36  2026-04-25 19:52:52  2026-04-26T00:52:52Z   54 dark    20:14:47    23 dark    graze, nautical twilight
-  Venus    -4.01  2026-06-17 14:51:30  2026-06-17T19:51:30Z  101 dark    16:11:15   320 bright  day
+  Regulus   1.36  2026-04-25 19:52:53  2026-04-26T00:52:53Z   54 dark    20:14:47    23 dark    graze, nautical twilight
+  Venus    -4.01  2026-06-17 14:51:31  2026-06-17T19:51:31Z  101 dark    16:11:16   320 bright  day
   Fang      2.89  -                    -                     -           -          -           near miss, 0.54' outside the limb, graze
 
 Mean lunar limb (a sphere of radius 0.2725076 × 6378.14 km). The real limb's mountains

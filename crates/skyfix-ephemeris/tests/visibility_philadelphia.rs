@@ -281,11 +281,11 @@ fn a_time_outside_coverage_is_refused_rather_than_guessed() {
         &provider,
         &names(),
         PHILADELPHIA,
-        "1889-05-06T12:00:00Z",
+        "1549-05-06T12:00:00Z",
         &PlanOptions::default(),
         None,
     )
-    .expect_err("1889 is outside the provider's coverage");
+    .expect_err("1549 is outside the provider's coverage");
     let text = err.to_string();
     assert!(text.contains("coverage"), "{text}");
 

@@ -3,6 +3,11 @@
     python -m tools.reference.generate_all            # everything
     python -m tools.reference.generate_all --offline  # skip the USNO query
 
+Every generator runs with its own default `--window` and `--kernel` (the ones its
+committed file was written with). `gen_deeptime` (DE440 + DE441, about two minutes)
+and `build_series` (the embedded series, about ten minutes) are separate:
+`make -C tools/reference deeptime series`.
+
 Run from the repository root with the virtualenv Python:
 
     tools/reference/.venv/bin/python -m tools.reference.generate_all
@@ -16,24 +21,24 @@ import sys
 import time
 
 from . import common as c
-from . import gen_almanac, gen_eclipses, gen_events, gen_geocentric, gen_moon, gen_moon_sights, gen_nav_methods, gen_planet_events, gen_planets, gen_sessions, gen_stars, gen_sun_sextant, gen_topocentric, gen_usno, gen_usno_sights
+from . import gen_almanac, gen_eclipses, gen_events, gen_geocentric, gen_moon, gen_moon_sights, gen_nav_methods, gen_planet_events, gen_planets, gen_sessions, gen_stars, gen_sun_sextant, gen_sun_tools, gen_topocentric, gen_usno, gen_usno_sights
 
 STEPS = [
-    ("navigational_stars_hip", gen_stars.main, False),
-    ("geocentric_sun_stars", gen_geocentric.main, False),
-    ("topocentric_altaz", gen_topocentric.main, False),
-    ("philadelphia star sessions", gen_sessions.main, False),
-    ("reference-sun-sextant", gen_sun_sextant.main, False),
-    ("moon_geocentric + moon_topocentric", gen_moon.main, False),
-    ("planets_* (Mercury to Neptune, DE440s)", gen_planets.main, False),
-    ("nav_methods", gen_nav_methods.main, False),
-    ("moon and planet sights, sessions, lunar distances, twilight", gen_moon_sights.main, False),
-    ("events: rise/set/twilight, seasons, Moon phases", gen_events.main_offline, False),
-    ("usno_celnav cross-check", gen_usno.main, True),
-    ("usno_celnav Venus phase and Moon corrections", gen_usno_sights.main, True),
-    ("events USNO cross-check", gen_events.main_usno_only, True),
-    ("almanac_days: daily almanac pages", gen_almanac.main_offline, False),
-    ("almanac_usno: USNO spot checks of the pages", gen_almanac.main_usno_only, True),
+    ("navigational_stars_hip", lambda: gen_stars.main([]), False),
+    ("geocentric_sun_stars", lambda: gen_geocentric.main([]), False),
+    ("topocentric_altaz", lambda: gen_topocentric.main([]), False),
+    ("philadelphia star sessions", lambda: gen_sessions.main([]), False),
+    ("reference-sun-sextant", lambda: gen_sun_sextant.main([]), False),
+    ("moon_geocentric + moon_topocentric", lambda: gen_moon.main([]), False),
+    ("planets_* (Mercury to Neptune, DE440s)", lambda: gen_planets.main([]), False),
+    ("nav_methods", lambda: gen_nav_methods.main([]), False),
+    ("moon and planet sights, sessions, lunar distances, twilight", lambda: gen_moon_sights.main([]), False),
+    ("events: rise/set/twilight, seasons, Moon phases", lambda: gen_events.main(["--offline"]), False),
+    ("usno_celnav cross-check", lambda: gen_usno.main([]), True),
+    ("usno_celnav Venus phase and Moon corrections", lambda: gen_usno_sights.main([]), True),
+    ("events USNO cross-check", lambda: gen_events.main(["--usno-only"]), True),
+    ("almanac_days: daily almanac pages", lambda: gen_almanac.main([]), False),
+    ("almanac_usno: USNO spot checks of the pages", lambda: gen_almanac.main(["--usno-only"]), True),
     ("eclipses_skyfield", lambda: gen_eclipses.main(["--offline"]), False),
     (
         "eclipses_nasa_canon + eclipses_nasa_paths + eclipses_usno_local",
@@ -42,6 +47,7 @@ STEPS = [
     ),
     ("planet_events_skyfield", lambda: gen_planet_events.main(["--offline"]), False),
     ("planet_events_nasa_skycal", lambda: gen_planet_events.main(["--network-only"]), True),
+    ("sun_tools_skyfield", lambda: gen_sun_tools.main([]), False),
 ]
 
 
@@ -84,7 +90,8 @@ def main(argv=None):
             versions["jplephem"],
         )
     )
-    print("ephemeris de421.bsp, catalogue hip_main.dat, timescale builtin=True\n")
+    print("each generator's default --window/--kernel; catalogue hip_main.dat; the app's clock "
+          "(tools/timescales/skyfield_timescale.py)\n")
 
     failures = []
     for name, fn, needs_network in STEPS:

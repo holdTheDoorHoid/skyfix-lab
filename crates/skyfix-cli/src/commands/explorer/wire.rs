@@ -58,13 +58,25 @@ pub fn set_explorer_dut1(dut1: Option<f64>) -> Result<()> {
     call(skyfix_wasm::timescale::native::set_dut1(dut1))
 }
 
-/// The span every body is computed over, from the engine itself (`explorer_coverage`,
-/// the providers' intersection): `1990-01-01 to 2060-12-31`, never a literal in the help
-/// text. The dates are the wire's, proleptic Gregorian.
-pub fn coverage_dates() -> String {
-    let c = skyfix_wasm::explorer::native::explorer_coverage();
+/// `-2000-01-01 to 3000-12-31`: the day parts of two wire instants.
+fn span(start_utc: &str, end_utc: &str) -> String {
     let day = |s: &str| s.split('T').next().unwrap_or(s).to_string();
-    format!("{} to {}", day(&c.start_utc), day(&c.end_utc))
+    format!("{} to {}", day(start_utc), day(end_utc))
+}
+
+/// The span the display path answers (both coverage tiers, CONVENTIONS 15.1), from the
+/// engine itself (`explorer_coverage`), never a literal in the help text: for a command
+/// whose export uses the explorer's display sky. Wire dates, proleptic Gregorian.
+pub fn display_span() -> String {
+    let c = skyfix_wasm::explorer::native::explorer_coverage();
+    span(&c.start_utc, &c.end_utc)
+}
+
+/// The validated tier (`explorer_coverage`'s `validated_*`): the span a command whose
+/// engine keeps the default policy answers (the almanac pages, the navigation paths).
+pub fn validated_span() -> String {
+    let c = skyfix_wasm::explorer::native::explorer_coverage();
+    span(&c.validated_start_utc, &c.validated_end_utc)
 }
 
 /// `Label      text`, the text wrapped under itself at column 12: a report's header line.

@@ -80,7 +80,7 @@ pub struct Frame {
 }
 
 impl Frame {
-    /// The frame at `jd_utc`, inside the star field's range (1800-2200).
+    /// The frame at `jd_utc`, inside the star field's range (1550-2650).
     pub fn at(jd_utc: f64) -> Result<Frame, StarfieldError> {
         check_jd_utc(jd_utc)?;
         let t = jd_tt(jd_utc);

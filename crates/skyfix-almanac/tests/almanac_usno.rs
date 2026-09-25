@@ -201,12 +201,25 @@ fn page_positions_agree_with_usno_celestial_navigation_data() {
                 star => {
                     let s = day.stars.iter().find(|s| s.body == star).unwrap();
                     let g = norm_360(row.aries.gha_deg + s.sha_deg);
-                    w.add(
-                        "stars GHA (GHA Aries + SHA at 12h)",
-                        norm_180(g - gha) * 60.0,
-                        at.clone(),
-                    );
-                    w.add("stars Dec", (s.dec_deg - dec) * 60.0, at);
+                    let (mut dg, mut dd) = (norm_180(g - gha) * 60.0, (s.dec_deg - dec) * 60.0);
+                    // deeptime agent: the page's Rigil Kentaurus follows alpha Cen A's orbit,
+                    // USNO extrapolates A's 1991 proper motion in a straight line (docs/
+                    // ACCURACY.md, "Rigil Kentaurus"). Take the orbit's departure from that
+                    // line out before comparing, and record it (5.8" in 2026).
+                    let entry = skyfix_ephemeris::catalog::find(star).unwrap();
+                    if let Some([north, east]) =
+                        entry.orbit_departure_arcsec(skyfix_core::time::jd_tt(jd))
+                    {
+                        dg += east / dec.to_radians().cos() / 60.0;
+                        dd -= north / 60.0;
+                        w.add(
+                            "Rigil Kentaurus: orbit's departure from USNO's line",
+                            north.hypot(east) / 60.0,
+                            at.clone(),
+                        );
+                    }
+                    w.add("stars GHA (GHA Aries + SHA at 12h)", dg, at.clone());
+                    w.add("stars Dec", dd, at);
                 }
             }
         }
@@ -242,6 +255,9 @@ fn page_positions_agree_with_usno_celestial_navigation_data() {
     let last = moon_offsets.values().last().copied().unwrap();
     assert!(first < 0.0 && last > 9.0, "{moon_offsets:?}");
     assert!(w.get("Venus GHA") > 0.2);
+    // The orbit's departure reached 5.8" (0.097') by 2026, the latest instant here.
+    let dep = w.get("Rigil Kentaurus: orbit's departure from USNO's line");
+    assert!((0.09..0.1).contains(&dep), "{dep}'");
 }
 
 fn usno_minutes(s: &str) -> f64 {

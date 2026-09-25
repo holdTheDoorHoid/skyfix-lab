@@ -62,7 +62,8 @@ fn almanac_refuses_bad_or_uncovered_dates_with_exit_1() {
     skyfix(["almanac", "--date", "2026-9-24"])
         .expect_code(1)
         .expect_stderr("YYYY-MM-DD");
-    skyfix(["almanac", "--date", "2061-01-01"])
+    // Past the validated tier (2650-01-22, deeptime agent).
+    skyfix(["almanac", "--date", "2651-01-01"])
         .expect_code(1)
         .expect_stderr("coverage");
     skyfix(["almanac", "--date", "2026-09-24", "--format", "pdf"]).expect_code(1);

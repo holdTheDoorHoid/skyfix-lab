@@ -18,14 +18,32 @@
 //! not the same thing — it is a *direction* correction and is already inside the
 //! apparent place (up to 0.74" for Rigil Kentaurus).
 //!
+//! ## Space motion (expansion programme)
+//!
+//! Each star moves from its catalogue place at J1991.25 by rigorous rectilinear space
+//! motion with its SIMBAD radial velocity ([`crate::frames::space_motion`]: the
+//! perspective acceleration is included), and **Rigil Kentaurus** (alpha Centauri A,
+//! the body the Nautical Almanac tabulates) follows its orbit about the A-B barycentre
+//! (USNO Sixth Orbit Catalog elements; [`crate::catalog::StarEntry::barycentric_direction`]).
+//! USNO's celnav and the Almanac extrapolate A's Hipparcos place linearly, which is
+//! exactly this model at J1991.25 and leaves A's real path by 5.8" in 2026 and 17" in
+//! 2060: that is the one place this provider and the printed Almanac differ by more
+//! than a few hundredths of an arcsecond (`docs/ACCURACY.md`, "Rigil Kentaurus").
+//!
+//! ## Tiers
+//!
+//! [`StarProvider::new`] answers the validated tier (1550-2650); with
+//! [`TierPolicy::WithLabelled`] it answers 2000 BC to AD 3000, where the precession is
+//! the long-term model (CONVENTIONS 15.1).
+//!
 //! ## Error budget (arcminutes, against a rigorous reference)
 //!
 //! | term | size | note |
 //! |---|---|---|
 //! | DUT1 assumed 0 | up to 0.23' | `|DUT1| < 0.9 s`; supply it with [`StarProvider::with_dut1`] |
-//! | proper motion, no radial velocity | <= 0.010' | Rigil Kentaurus at 2060; <= 0.0002' for every other star |
-//! | model chain (nutation, aberration, parallax, deflection) | 0.00027' measured | see below |
-//! | catalogue position and proper-motion error | ~0.001' | Hipparcos formal errors carried to 2060 |
+//! | model chain (space motion, nutation, aberration, parallax, deflection) | 0.00027' measured; 0.019" against Skyfield over 1550-2650, 0.057" over 2000 BC-AD 3000 | see below and `tests/deeptime_reference.rs` |
+//! | catalogue position, proper-motion and radial-velocity error (formal 1 sigma) | 0.03" in 1990-2060; 1.7" at the validated tier's edges (Betelgeuse, 2650); 10.9" at 2000 BC | Hipparcos formal errors, SIMBAD's RV errors, through the space motion |
+//! | Rigil Kentaurus's barycentric proper motion | 1-2" by 2060, ~10" at the tier edges | published values differ by 15-30 mas/yr |
 //!
 //! The model row is measured, not asserted: the reduction reproduces ERFA's
 //! `eraAtci13` worked example — which uses IAU 2000A nutation, the `eraEpv00` Earth
@@ -33,53 +51,58 @@
 //! and Meeus's example 23.a to 0.073". Those two checks live in
 //! `tests/apparent_place_reference.rs` and print their residuals.
 //!
-//! [`crate::Coverage::accuracy_arcmin`] reports **0.02'**, the worst case over the
-//! whole coverage window (the Rigil Kentaurus proper-motion term at 2060 plus
-//! catalogue error), not the 0.0003' measured mid-window: a provider should quote the
-//! bound it can defend everywhere, not its best epoch. The DUT1 term is excluded from
-//! that figure because it is a *time* assumption the caller can remove, and it is
-//! called out separately in the coverage notes exactly as CONVENTIONS section 6
-//! requires. The Skyfield reference fixture, once it lands, is what can tighten or
-//! refute this number (`tests/reference_fixtures.rs`).
+//! [`crate::Coverage::accuracy_arcmin`] reports **0.03'** ([`STAR_ACCURACY_ARCMIN`]),
+//! the worst case over the whole validated tier: the model plus the catalogue's formal
+//! 1-sigma error, which grows with the distance from the catalogue epoch J1991.25 to
+//! 1.7" (0.028') at 2650; Rigil Kentaurus's barycentric motion is stated apart in the
+//! notes. Not the 0.0003' measured mid-window: a provider should quote the bound it can
+//! defend everywhere, not its best epoch. The DUT1 term is excluded from that figure
+//! because it is a *time* assumption the caller can remove, and it is called out
+//! separately in the coverage notes exactly as CONVENTIONS section 6 requires. The
+//! Skyfield fixtures that back these numbers are `tests/reference_fixtures.rs`
+//! (1995-2055) and `tests/deeptime_reference.rs` (both tiers).
 
 use std::cell::Cell;
 
-use skyfix_core::time::{civil_to_jd, jd_tt, jd_ut1};
+use skyfix_core::time::{jd_tt, jd_ut1};
 use skyfix_core::types::GeocentricDirection;
 use skyfix_core::units::norm_360;
 
 use crate::catalog::{self, StarEntry};
 use crate::frames::{
     EarthState, apply_annual_aberration, apply_annual_parallax, apply_solar_light_deflection,
-    bias_precession_nutation_matrix, earth_state_of_date, proper_motion_from_j2000,
-    radec_from_vector,
+    bias_precession_nutation_matrix, earth_state_of_date, radec_from_vector,
 };
 use crate::sidereal::{gast_deg, gha_aries_deg};
+use crate::tiers::{self, CoverageTier, TierPolicy};
 use crate::{AstroProvider, Coverage, EphemerisError};
 
 /// Provider name, used in errors and in `ReducedSight::direction_source`.
 pub const PROVIDER_NAME: &str = "skyfix-stars (IAU 2006/2000B, Hipparcos)";
 
-/// First instant the provider will answer for: 1990-01-01T00:00:00Z.
-pub const COVERAGE_START_UTC: &str = "1990-01-01T00:00:00Z";
-/// Last instant the provider will answer for: 2060-12-31T23:59:59Z.
-pub const COVERAGE_END_UTC: &str = "2060-12-31T23:59:59Z";
+/// First instant [`StarProvider::new`] answers: the validated tier's start.
+pub const COVERAGE_START_UTC: &str = tiers::VALIDATED_START_UTC;
+/// Last instant [`StarProvider::new`] answers: the validated tier's end.
+pub const COVERAGE_END_UTC: &str = tiers::VALIDATED_END_UTC;
 
-fn coverage_start_jd() -> f64 {
-    civil_to_jd(1990, 1, 1)
-}
-
-fn coverage_end_jd() -> f64 {
-    // 2060-12-31T23:59:59Z, exactly what COVERAGE_END_UTC advertises.
-    civil_to_jd(2060, 12, 31) + 86_399.0 / 86_400.0
-}
+/// Documented worst-case error of GHA (DUT1 = 0) and Dec over the validated tier,
+/// arcminutes: the model (0.019" against Skyfield) plus the catalogue's formal 1-sigma
+/// error at the tier's edges (1.67" measured), rounded up. Rigil Kentaurus's
+/// barycentric-motion caveat is in the notes.
+pub const STAR_ACCURACY_ARCMIN: f64 = 0.03;
+/// The same over the labelled tier, where the catalogue's formal errors carried over
+/// four millennia dominate (10.9" at 2000 BC, Betelgeuse), rounded up; Rigil
+/// Kentaurus is labelled separately in the notes.
+pub const STAR_LABELLED_ACCURACY_ARCMIN: f64 = 0.2;
 
 /// Apparent geocentric directions for the 57 Nautical Almanac navigational stars plus
-/// Polaris, for any date in [`COVERAGE_START_UTC`] ..= [`COVERAGE_END_UTC`].
+/// Polaris, over the validated tier (and the labelled one with
+/// [`TierPolicy::WithLabelled`]).
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct StarProvider {
     /// `UT1 - UTC`, seconds. Zero unless the caller knows better.
     dut1_s: f64,
+    policy: TierPolicy,
 }
 
 impl Default for StarProvider {
@@ -92,12 +115,30 @@ impl StarProvider {
     /// A provider that assumes `DUT1 = 0`, the same approximation a user of the
     /// printed almanac makes. Worth up to 0.23' of GHA.
     pub const fn new() -> Self {
-        StarProvider { dut1_s: 0.0 }
+        StarProvider {
+            dut1_s: 0.0,
+            policy: TierPolicy::ValidatedOnly,
+        }
     }
 
     /// A provider using a known `UT1 - UTC` in seconds (IERS Bulletin A/D).
     pub const fn with_dut1(dut1_s: f64) -> Self {
-        StarProvider { dut1_s }
+        StarProvider {
+            dut1_s,
+            policy: TierPolicy::ValidatedOnly,
+        }
+    }
+
+    /// The same provider answering the tiers `policy` allows.
+    pub const fn with_policy(self, policy: TierPolicy) -> Self {
+        StarProvider {
+            dut1_s: self.dut1_s,
+            policy,
+        }
+    }
+
+    pub const fn policy(&self) -> TierPolicy {
+        self.policy
     }
 
     /// The `UT1 - UTC` this provider is using, seconds.
@@ -119,21 +160,30 @@ impl StarProvider {
     }
 
     fn check_coverage(&self, jd_utc: f64) -> Result<(), EphemerisError> {
-        // A NaN compares false with both ends, so it must be refused on its own, as the
-        // Sun, Moon and planet providers do; otherwise it came back as a NaN direction.
-        if !jd_utc.is_finite() {
-            return Err(EphemerisError::Data(
-                "jd_utc is not a finite Julian date".to_string(),
-            ));
-        }
-        if jd_utc < coverage_start_jd() || jd_utc > coverage_end_jd() {
-            return Err(EphemerisError::OutOfCoverage {
-                provider: PROVIDER_NAME.to_string(),
-                jd_utc,
-                coverage: format!("{COVERAGE_START_UTC} .. {COVERAGE_END_UTC}"),
-            });
-        }
-        Ok(())
+        // A NaN compares false with both ends, so the policy refuses it on its own, as
+        // the Sun, Moon and planet providers do.
+        self.policy.check(PROVIDER_NAME, jd_utc).map(|_| ())
+    }
+
+    /// [`AstroProvider::geocentric`] with the time scales given: `jd_tt` for the
+    /// apparent place, `jd_ut1` for the hour angle (the historical fixtures build both
+    /// from one Delta T). Refused outside the labelled tier's span in TT.
+    pub fn geocentric_at(
+        &self,
+        body: &str,
+        jd_tt_v: f64,
+        jd_ut1_v: f64,
+    ) -> Result<GeocentricDirection, EphemerisError> {
+        crate::planets::check_model_span(PROVIDER_NAME, jd_tt_v)?;
+        let s = self.resolve(body)?;
+        let (ra, dec) = StarFrame::cached(jd_tt_v).apparent_radec_deg(s);
+        let gast = cached_gast_deg(jd_ut1_v, jd_tt_v);
+        Ok(GeocentricDirection {
+            gha_deg: norm_360(gast - ra),
+            dec_deg: dec,
+            semidiameter_arcmin: 0.0,
+            horizontal_parallax_arcmin: 0.0,
+        })
     }
 
     /// Apparent right ascension and declination of date, degrees. RA is `[0, 360)`.
@@ -233,17 +283,11 @@ impl StarFrame {
     }
 
     /// Apparent right ascension `[0, 360)` and declination of date, degrees, of a
-    /// catalogue star at this frame's instant. Identical to
-    /// [`crate::frames::apparent_radec_of_date`] for the same star and `jd_tt`.
+    /// catalogue star at this frame's instant. Identical, bit for bit, to
+    /// [`apparent_radec_of_star`] for the same star and `jd_tt`.
     pub fn apparent_radec_deg(&self, s: &StarEntry) -> (f64, f64) {
-        // The same chain, in the same order, as `frames::apparent_radec_of_date`.
-        let p = proper_motion_from_j2000(
-            s.ra_j2000_deg,
-            s.dec_j2000_deg,
-            s.pm_ra_cosdec_mas_per_year,
-            s.pm_dec_mas_per_year,
-            self.jd_tt,
-        );
+        // The same chain, in the same order, as `frames::apparent_radec_from_barycentric`.
+        let p = s.barycentric_direction(self.jd_tt);
         let m = &self.bpn;
         let p = [
             m[0][0] * p[0] + m[0][1] * p[1] + m[0][2] * p[2],
@@ -255,6 +299,19 @@ impl StarFrame {
         let p = apply_annual_aberration(p, self.earth.vel_c);
         radec_from_vector(p)
     }
+}
+
+/// Apparent right ascension `[0, 360)` and declination of date, degrees, of a
+/// catalogue star at `jd_tt`, without the per-instant frame cache: the star's
+/// barycentric direction ([`StarEntry::barycentric_direction`]: space motion with the
+/// radial velocity, and the orbit for Rigil Kentaurus) through
+/// [`crate::frames::apparent_radec_from_barycentric`].
+pub fn apparent_radec_of_star(s: &StarEntry, jd_tt: f64) -> (f64, f64) {
+    crate::frames::apparent_radec_from_barycentric(
+        s.barycentric_direction(jd_tt),
+        s.parallax_mas,
+        jd_tt,
+    )
 }
 
 /// [`gast_deg`] for `(jd_ut1, jd_tt)`, reusing this thread's previous answer when both
@@ -282,21 +339,26 @@ impl AstroProvider for StarProvider {
         let p = catalog::provenance();
         let mut notes = String::new();
         notes.push_str(
-            "Apparent geocentric place of date (CONVENTIONS section 7): frame bias and \
-             IAU 2006 (P03) precession via the Fukushima-Williams angles, IAU 2000B \
-             nutation (77 luni-solar terms, P03-adjusted), annual aberration by \
-             relativistic vector aberration from a Keplerian Earth velocity, annual \
-             parallax, and proper motion from J2000. GHA = GAST - RA with GAST from the \
-             IAU 2006 GMST plus the equation of the equinoxes. ",
+            "Apparent geocentric place of date (CONVENTIONS section 7): rigorous space \
+             motion from the Hipparcos catalogue at J1991.25 with SIMBAD's radial \
+             velocities (perspective acceleration included), frame bias and precession \
+             (IAU 2006 in the validated tier 1550-2650, Vondrak, Capitaine & Wallace 2011 \
+             outside), IAU 2000B nutation (77 luni-solar terms, full fundamental \
+             arguments), annual aberration by relativistic vector aberration from a \
+             Keplerian Earth velocity, annual parallax, and gravitational light \
+             deflection by the Sun. GHA = GAST - RA. ",
         );
         notes.push_str(
-            "Gravitational light deflection by the Sun is included. Not modelled: the \
-             perspective acceleration of proper motion (the catalogue carries no radial \
-             velocity; up to 0.6\" for Rigil Kentaurus by 2060, under 0.01\" for every \
-             other star), and diurnal aberration and topocentric parallax, which are \
-             altitude corrections rather than direction corrections (CONVENTIONS \
-             section 5). Measured agreement with ERFA's eraAtci13 worked example: \
-             0.016\" (0.0003'). ",
+            "Rigil Kentaurus is alpha Centauri A, the body the Nautical Almanac tabulates, \
+             and here it follows A's orbit about the A-B barycentre (USNO Sixth Orbit \
+             Catalog, Akeson et al. 2021) instead of extrapolating A's 1991 proper motion \
+             in a straight line as the Almanac and USNO's celnav do: the two differ by \
+             5.8\" in 2026 and 17\" in 2060. A sextant sees the A+B light centre, about 2\" \
+             from A in 2026; the barycentre's own proper motion is uncertain by 15-30 \
+             mas/yr (1-2\" by 2060, about 10\" at the tier edges). Not modelled: diurnal \
+             aberration and topocentric parallax, which are altitude corrections rather \
+             than direction corrections (CONVENTIONS section 5). Measured agreement with \
+             ERFA's eraAtci13 worked example: 0.016\" (0.0003'). ",
         );
         if self.dut1_s == 0.0 {
             notes.push_str(
@@ -341,14 +403,26 @@ impl AstroProvider for StarProvider {
         }
 
         Coverage {
-            start_utc: COVERAGE_START_UTC.to_string(),
-            end_utc: COVERAGE_END_UTC.to_string(),
+            start_utc: self.policy.start_utc().to_string(),
+            end_utc: self.policy.end_utc().to_string(),
             bodies: catalog::names().into_iter().map(str::to_string).collect(),
             notes,
             // Everything except the DUT1 assumption, which the notes call out and the
             // caller can remove. See the module-level error budget.
-            accuracy_arcmin: 0.02,
+            accuracy_arcmin: STAR_ACCURACY_ARCMIN,
         }
+    }
+
+    fn tiers(&self) -> Vec<CoverageTier> {
+        tiers::coverage_tiers(
+            self.policy,
+            STAR_ACCURACY_ARCMIN,
+            STAR_LABELLED_ACCURACY_ARCMIN,
+            "outside the validated tier: space motion and catalogue errors carried over \
+             millennia (Rigil Kentaurus about 2' at 2000 BC from its barycentric proper \
+             motion); the long-term precession; every time shown carries the Delta T \
+             uncertainty; display only, not offered for sights",
+        )
     }
 
     fn geocentric(&self, body: &str, jd_utc: f64) -> Result<GeocentricDirection, EphemerisError> {

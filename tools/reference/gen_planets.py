@@ -31,7 +31,13 @@ simplification that matters for Mercury and Venus:
 
 Run from the repository root:
 
-    tools/reference/.venv/bin/python -m tools.reference.gen_planets
+    tools/reference/.venv/bin/python -m tools.reference.gen_planets \
+        [--window 1990..2060] [--kernel de440s]
+
+Instants are on the app's clock with SkyFix Lab's own Delta T (`common.load_timescale`:
+UTC to 2035, UT after, CONVENTIONS 15.2), so a case's TT and UT1 are the Rust side's;
+outside the validated tier the frame of date is the app's long-term one
+(`common.use_app_frame`). Python datetime limits `--window` to years 1-9999.
 """
 
 from __future__ import annotations
@@ -70,8 +76,23 @@ EQUATORIAL_RADIUS_KM = {
 EARTH_EQUATORIAL_RADIUS_KM = 6378.137
 AU_KM = 149597870.700
 
+#: The window's first and last whole seconds (set from --window by `main`).
 START = (1990, 1, 1)
 END = (2060, 12, 31, 23, 59, 59)
+
+
+def _set_window():
+    global START, END
+    edges = []
+    for jd in c.RUN.window:
+        y = c.gregorian_from_jd(jd)[0]
+        if not 1 <= y <= 9999:
+            raise SystemExit("gen_planets uses Python datetime: keep --window within years 1-9999")
+        edges.append(_dt.datetime(1970, 1, 1, tzinfo=_dt.timezone.utc)
+                     + _dt.timedelta(seconds=round((jd - 2440587.5) * 86400.0)))
+    end = edges[1] - _dt.timedelta(seconds=1)
+    START = (edges[0].year, edges[0].month, edges[0].day)
+    END = (end.year, end.month, end.day, end.hour, end.minute, end.second)
 
 #: Regular-grid epochs and how densely each event list is sampled, per planet.
 #: (grid, {event: keep every n-th})
@@ -369,6 +390,8 @@ def build_planet(ts, eph, eph421, name, key, key421):
         cases.append(c.Inline({
             "utc": t.utc_strftime("%Y-%m-%dT%H:%M:%SZ"),
             "jd_utc": c.jd(c.jd_utc_of(t)),
+            "jd_tt": c.jd(float(t.tt)),
+            "jd_ut1": c.jd(float(t.ut1)),
             "delta_t_s": c.secs(float(t.delta_t)),
             "dut1_s": c.secs(float(t.dut1)),
             "tags": [tag],
@@ -378,8 +401,10 @@ def build_planet(ts, eph, eph421, name, key, key421):
     notes = [
         "GHA = normalise(t.gast * 15 - RA_of_date) into [0, 360), west-positive, exactly "
         "as CONVENTIONS section 2 defines it. Test a DUT1 = 0 model against "
-        "`gha_deg_dut1_zero`; `gha_deg` carries Skyfield's DUT1 (see the timescale "
-        "block), which is extrapolated beyond 2027.",
+        "`gha_deg_dut1_zero`; `gha_deg` carries the timescale's DUT1 (SkyFix Lab's IERS "
+        "table, see the timescale block). Instants are on the app's clock: UTC to 2035, "
+        "UT1 after it, where DUT1 is 0 and the two columns agree; jd_tt and jd_ut1 give "
+        "each case's TT and UT1.",
         "distance_au is the light-time distance |planet(t - tau) - earth(t)| of the "
         "astrometric position; semidiameter_arcmin = asin(R_eq / distance) with the IAU "
         "2015 equatorial radius in `radii_km`, horizontal_parallax_arcmin = asin(a / "
@@ -419,8 +444,9 @@ def build_planet(ts, eph, eph421, name, key, key421):
             tool="tools/reference/gen_planets.py",
             description=(
                 "Apparent geocentric of-date GHA/Dec/RA, distance, phase, elongation, "
-                "bright-limb angle and magnitude of %s at %d epochs, 1990-2060, from "
-                "Skyfield with JPL DE440s (DE421 cross-check)." % (name, len(cases))
+                "bright-limb angle and magnitude of %s at %d epochs, %s, from "
+                "Skyfield with JPL %s (DE421 cross-check)."
+                % (name, len(cases), c.RUN.window_text, c.kernel_label())
             ),
             tolerance_arcmin=c.Num(TOLERANCE_ARCMIN, 4),
             tolerance_justification=(
@@ -431,8 +457,11 @@ def build_planet(ts, eph, eph421, name, key, key421):
             ),
             frame_notes=FRAME_NOTES,
             refraction="none; these are geocentric directions, not altitudes",
+            timescale=c.project_timescale_facts(),
             extra={
-                "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+                "run": c.RUN.facts(),
+                "frame_of_date": c.app_frame_facts(),
+                "ephemeris": c.run_kernel_facts(),
                 "ephemeris_crosscheck": {
                     "file": c.file_facts(c.EPHEMERIS_FILE, c.EPHEMERIS_URL),
                     "coverage_utc": ["1899-07-28", "2053-10-08"],
@@ -469,8 +498,8 @@ def build_planet(ts, eph, eph421, name, key, key421):
                 },
                 "epoch_count": len(cases),
                 "epoch_sets": {
-                    "grid": "%d instants evenly spread over 1990-01-01 .. 2060-12-31, "
-                            "time of day varying" % n_grid,
+                    "grid": "%d instants evenly spread over the window (%s), "
+                            "time of day varying" % (n_grid, c.RUN.window_text),
                     "events": event_counts,
                     "event_rounding": "event instants rounded to the nearest UTC second",
                 },
@@ -488,9 +517,11 @@ def build_planet(ts, eph, eph421, name, key, key421):
     return doc
 
 
-def main():
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "1990..2060", "de440s")
+    _set_window()
     ts = c.load_timescale()
-    eph = c.load_ephemeris(c.EPHEMERIS_CROSSCHECK_FILE)  # DE440s is primary here
+    eph = c.run_ephemeris()  # --kernel, DE440s by default
     eph421 = c.load_ephemeris(c.EPHEMERIS_FILE)
     for name, key, key421 in PLANETS:
         doc = build_planet(ts, eph, eph421, name, key, key421)

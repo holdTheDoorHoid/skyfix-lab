@@ -37,7 +37,12 @@ Sections:
   eqs. 18 (Haurwitz GHI) and 22-23 (Meinel DNI), and the isotropic-sky plane of array,
   evaluated in Python from their printed form at a grid of cases.
 
-    tools/reference/.venv/bin/python -m tools.reference.gen_sun_tools
+    tools/reference/.venv/bin/python -m tools.reference.gen_sun_tools \
+        [--window 1990..2060] [--kernel de440s]
+
+`--window` sets the years of the equation-of-time sample (the other sections are at
+fixed 2026 dates and are kept only if the window contains them); `--kernel` names the
+ephemeris.
 """
 
 from __future__ import annotations
@@ -125,11 +130,12 @@ def civil_jd(y, m, d):
 def eot_cases(ts, earth, sun):
     rng = random.Random(20260924)
     jds = []
-    for y in range(1990, 2061, 5):
+    y0, y1 = c.window_years()
+    for y in range(y0, y1 + 1, 5):
         for m in range(1, 13):
             for d in (1, 15):
                 jds.append(civil_jd(y, m, d) + 0.5)
-    lo, hi = civil_jd(1990, 1, 1), civil_jd(2061, 1, 1)
+    lo, hi = c.RUN.window
     for _ in range(120):
         jds.append(round(lo + rng.random() * (hi - lo), 6))
     jds.sort()
@@ -442,7 +448,7 @@ def solar_formulas():
 
 def build():
     ts = dut1_zero_timescale()
-    eph = c.load_ephemeris(c.EPHEMERIS_CROSSCHECK_FILE)
+    eph = c.run_ephemeris()
     earth, sun = eph["earth"], eph["sun"]
     print("   equation of time ...")
     eot = eot_cases(ts, earth, sun)
@@ -503,6 +509,8 @@ def build():
 
 
 def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "1990..2060", "de440s")
+    c.require_in_window(civil_jd(2026, 7, 1), "the fixed 2026 sections")
     c.write_json(os.path.join(c.FIX_REFERENCE, OUT), build())
 
 

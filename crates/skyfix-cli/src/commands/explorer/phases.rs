@@ -1,5 +1,9 @@
 //! `skyfix phases` and `skyfix seasons`. OWNER: cli agent.
 //!
+//! The astronomy is the explorer's display sky (`skyfix_wasm::explorer::native::sky`,
+//! both coverage tiers, CONVENTIONS 15.1), as the exports use it: 585 BC's phases and
+//! seasons are answered, in the labelled tier.
+//!
 //! `skyfix_almanac::events::moon_phases` and `::seasons` (EXPLORER_API.md; definitions in
 //! CONVENTIONS 13.5): the instants when the Moon's apparent geocentric ecliptic longitude
 //! minus the Sun's is 0, 90, 180 and 270 degrees, and when the Sun's own is. `--format
@@ -14,7 +18,6 @@
 
 use anyhow::{Result, anyhow};
 use skyfix_almanac::events::{self, MoonPhaseKind, SeasonKind};
-use skyfix_ephemeris::body::Sky;
 
 use super::args::{FormatArgs, When, parse_when, window};
 use super::text;
@@ -48,7 +51,7 @@ pub struct SeasonsArgs {
         help = format!(
             "The calendar year (astronomical: 0 is 1 BC, -584 is 585 BC), inside the \
              coverage: {}",
-            super::wire::coverage_dates()
+            super::wire::display_span()
         )
     )]
     pub year: i32,
@@ -80,7 +83,8 @@ pub fn run_phases(a: &PhasesArgs) -> Result<u8> {
     let zone = a.zone.resolve()?;
     // A date is a date in the zone: local midnight to local midnight.
     let (start, end) = window(a.from, a.to, zone.offset_minutes)?;
-    let phases = events::moon_phases(&Sky::new(), start, end).map_err(|e| anyhow!("{e}"))?;
+    let phases = events::moon_phases(&skyfix_wasm::explorer::native::sky(), start, end)
+        .map_err(|e| anyhow!("{e}"))?;
     if a.format.is_json() {
         report::emit_line(&serde_json::to_string_pretty(&phases)?)?;
         return Ok(exit::OK);
@@ -107,7 +111,8 @@ pub fn run_phases(a: &PhasesArgs) -> Result<u8> {
 
 pub fn run_seasons(a: &SeasonsArgs) -> Result<u8> {
     let zone = a.zone.resolve()?;
-    let seasons = events::seasons(&Sky::new(), a.year).map_err(|e| anyhow!("{e}"))?;
+    let seasons = events::seasons(&skyfix_wasm::explorer::native::sky(), a.year)
+        .map_err(|e| anyhow!("{e}"))?;
     if a.format.is_json() {
         report::emit_line(&serde_json::to_string_pretty(&seasons)?)?;
         return Ok(exit::OK);

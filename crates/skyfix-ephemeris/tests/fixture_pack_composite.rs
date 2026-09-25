@@ -168,8 +168,9 @@ fn coverage_is_the_union_and_says_what_the_envelope_means() {
     let c = composite();
     let cov = c.coverage();
     assert_eq!(cov.bodies, vec!["Sun".to_string(), "Moon".to_string()]);
-    assert_eq!(cov.start_utc, "1990-01-01T00:00:00.000Z");
-    assert_eq!(cov.end_utc, "2061-01-01T00:00:00.000Z");
+    // The Sun's validated tier (CONVENTIONS 15.1) is the wider part.
+    assert_eq!(cov.start_utc, "1550-01-01T00:00:00.000Z");
+    assert_eq!(cov.end_utc, "2650-01-22T00:00:00.000Z");
     assert!(cov.notes.contains("SunProvider"));
     assert!(cov.notes.contains("FixturePackProvider[test-pack]"));
     assert!(

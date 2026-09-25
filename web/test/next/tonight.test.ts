@@ -53,7 +53,7 @@ import {
   upSpans,
   type SunWindow,
 } from '../../src/next/tonight/night.js';
-import { showInSky, skyTargets } from '../../src/next/tonight/sky-link.js';
+import { showInSky, skyTargets } from '../../src/next/sky/sky-link.js';
 import { timelineModel, timelineSpan } from '../../src/next/tonight/timeline.js';
 
 const PHILLY: Observer = { lat_deg: 39.9526, lon_deg: -75.1652, height_m: 0 };

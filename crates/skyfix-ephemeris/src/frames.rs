@@ -6,12 +6,12 @@
 //!
 //! | step | model | residual vs a rigorous reference |
 //! |---|---|---|
-//! | frame bias + precession | IAU 2006 (P03) Fukushima-Williams angles, `eraPfw06` polynomials | exact (same model) |
-//! | nutation | IAU 2000B, 77 luni-solar terms + the fixed planetary offsets, adjusted to P03 | <= 1 mas (0.001") |
-//! | mean obliquity | IAU 2006, `eraObl06` polynomial | exact (same model) |
+//! | frame bias + precession | IAU 2006 (P03) Fukushima-Williams angles, `eraPfw06` polynomials, inside the validated tier; the Vondrak-Capitaine-Wallace 2011 long-term precession (`eraLtpb`) outside it (deeptime agent) | exact (same models; the two differ by 7 mas at 1550 and 15 mas at 2650) |
+//! | nutation | IAU 2000B, 77 luni-solar terms + the fixed planetary offsets, adjusted to P03, with the full Simon et al. polynomial arguments | <= 1 mas (0.001") |
+//! | mean obliquity | IAU 2006, `eraObl06` polynomial; outside the validated tier the long-term model's | exact (same model) |
 //! | annual aberration | relativistic vector aberration with a Keplerian Earth velocity | see below |
 //! | annual parallax | same Keplerian Earth position (cheap, so it is included) | see below |
-//! | proper motion | unit-vector space motion from J2000, no radial velocity | <= 0.6" by 2060 (Rigil Kentaurus) |
+//! | proper motion | rigorous space motion from the catalogue epoch with the radial velocity ([`space_motion`]); the legacy unit-vector motion from J2000 without it ([`proper_motion_from_j2000`], the star field's) differs by <= 0.6" by 2060 (Rigil Kentaurus) | exact (the model Skyfield and ERFA use) |
 //! | light deflection by the Sun | included, point-mass Sun, source at infinity | <= 0.001" |
 //!
 //! The last three rows are checked together rather than separately: the whole chain
@@ -201,22 +201,65 @@ const EE_COMPLEMENTARY: [([i8; 5], f64, f64); 10] = [
     ([0, 1, 0, 0, -1], -1.26e-6, -0.01e-6),
 ];
 
-/// Delaunay arguments `(l, l', F, D, Omega)` in radians, in the truncated form the
-/// IAU 2000B model is defined with (Simon et al. 1994, linear terms only).
+/// Delaunay arguments `(l, l', F, D, Omega)` in radians: the full Simon et al. (1994)
+/// polynomials of the IERS Conventions 2003 (ERFA `eraFal03`, `eraFalp03`, `eraFaf03`,
+/// `eraFad03`, `eraFaom03`), four coefficients beyond the constant each.
+///
+/// IAU 2000B is *published* with the linear parts only (McCarthy & Luzum 2003). Those
+/// are fine for a century either side of J2000 but the dropped `t^2..t^4` terms grow
+/// quadratically: against IAU 2000A the linear arguments put the 2000B series 29 mas
+/// off over 1550-2650 and 950 mas at 2000 BC; with the full polynomials the same 77
+/// terms stay within 3 mas of 2000A over the whole -2000..+3000 span (the accuracy
+/// audit, `nutation_prec.py`). Inside 1990-2060 the change is under 0.1 mas. The
+/// equation of the equinoxes' complementary terms (`eraEect00`) are defined with
+/// these same full polynomials, so they now use exactly ERFA's arguments too.
 fn delaunay_arguments(tc: f64) -> [f64; 5] {
+    let arg = |c: [f64; 5]| (poly(tc, &c) % TURNAS) * ARCSEC;
     [
-        ((485_868.249_036 + 1_717_915_923.217_8 * tc) % TURNAS) * ARCSEC,
-        ((1_287_104.793_05 + 129_596_581.048_1 * tc) % TURNAS) * ARCSEC,
-        ((335_779.526_232 + 1_739_527_262.847_8 * tc) % TURNAS) * ARCSEC,
-        ((1_072_260.703_69 + 1_602_961_601.209_0 * tc) % TURNAS) * ARCSEC,
-        ((450_160.398_036 - 6_962_890.543_1 * tc) % TURNAS) * ARCSEC,
+        arg([
+            485_868.249_036,
+            1_717_915_923.217_8,
+            31.879_2,
+            0.051_635,
+            -0.000_244_70,
+        ]),
+        arg([
+            1_287_104.793_048,
+            129_596_581.048_1,
+            -0.553_2,
+            0.000_136,
+            -0.000_011_49,
+        ]),
+        arg([
+            335_779.526_232,
+            1_739_527_262.847_8,
+            -12.751_2,
+            -0.001_037,
+            0.000_004_17,
+        ]),
+        arg([
+            1_072_260.703_692,
+            1_602_961_601.209_0,
+            -6.370_6,
+            0.006_593,
+            -0.000_031_69,
+        ]),
+        arg([
+            450_160.398_036,
+            -6_962_890.543_1,
+            7.472_2,
+            0.007_702,
+            -0.000_059_39,
+        ]),
     ]
 }
 
 /// Nutation in longitude and obliquity, IAU 2000B (McCarthy & Luzum 2003).
 ///
 /// 77 luni-solar terms plus the fixed offsets that stand in for the omitted planetary
-/// terms. Agrees with the full IAU 2000A model to within 1 mas over 1995-2050.
+/// terms, evaluated with the full polynomial fundamental arguments
+/// ([`delaunay_arguments`]). Agrees with the full IAU 2000A model to within 1 mas over
+/// 1995-2050 and 3 mas over 2000 BC to AD 3000.
 pub fn nutation_2000b(jd_tt: f64) -> Nutation {
     let tc = centuries_since_j2000(jd_tt);
     let [el, elp, f, d, om] = delaunay_arguments(tc);
@@ -257,11 +300,24 @@ pub fn nutation_2000b_p03(jd_tt: f64) -> Nutation {
 }
 
 // ---------------------------------------------------------------------------
-// Obliquity and precession: IAU 2006 (P03)
+// Obliquity and precession: IAU 2006 (P03) inside the validated tier, Vondrak,
+// Capitaine & Wallace (2011) outside it
 // ---------------------------------------------------------------------------
 
-/// Mean obliquity of the ecliptic, IAU 2006 (`eraObl06` polynomial), radians.
+/// Mean obliquity of the ecliptic, radians: IAU 2006 (`eraObl06`) inside the
+/// validated tier, the long-term model ([`ltp_mean_obliquity_rad`]) outside it
+/// (CONVENTIONS section 7).
 pub fn mean_obliquity_rad(jd_tt: f64) -> f64 {
+    if crate::tiers::validated_model_at_tt(jd_tt) {
+        mean_obliquity_2006_rad(jd_tt)
+    } else {
+        ltp_mean_obliquity_rad(jd_tt)
+    }
+}
+
+/// Mean obliquity of the ecliptic, IAU 2006 (`eraObl06` polynomial), radians, any
+/// date (a polynomial: 2.7" from the long-term value at 2000 BC).
+pub fn mean_obliquity_2006_rad(jd_tt: f64) -> f64 {
     let tc = centuries_since_j2000(jd_tt);
     poly(
         tc,
@@ -274,6 +330,190 @@ pub fn mean_obliquity_rad(jd_tt: f64) -> f64 {
             -0.000_000_043_4,
         ],
     ) * ARCSEC
+}
+
+// ---------------------------------------------------------------------------
+// Long-term precession: Vondrak, Capitaine & Wallace 2011 (A&A 534, A22; erratum
+// 2012, A&A 541, C1), transcribed from ERFA 2.0 eraLtpecl, eraLtpequ, eraLtp, eraLtpb
+// (BSD 3-clause; docs/THIRD_PARTY.md) and checked against ERFA's published test values
+// ---------------------------------------------------------------------------
+
+/// `eraLtpecl` polynomial coefficients of P_A and Q_A, arcseconds, `t^0..t^3`.
+const LTP_PQPOL: [[f64; 4]; 2] = [
+    [5851.607687, -0.1189000, -0.00028913, 0.000000101],
+    [-1600.886300, 1.1689818, -0.00000020, -0.000000437],
+];
+/// `eraLtpecl` periodic terms: period (centuries), P cos, Q cos, P sin, Q sin.
+#[rustfmt::skip]
+const LTP_PQPER: [[f64; 5]; 8] = [
+    [708.15, -5486.751211, -684.661560, 667.666730, -5523.863691],
+    [2309.00, -17.127623, 2446.283880, -2354.886252, -549.747450],
+    [1620.00, -617.517403, 399.671049, -428.152441, -310.998056],
+    [492.20, 413.442940, -356.652376, 376.202861, 421.535876],
+    [1183.00, 78.614193, -186.387003, 184.778874, -36.776172],
+    [622.00, -180.732815, -316.800070, 335.321713, -145.278396],
+    [882.00, -87.676083, 198.296701, -185.138669, -34.744450],
+    [547.00, 46.140315, 101.135679, -120.972830, 22.885731],
+];
+/// `eraLtpequ` polynomial coefficients of X and Y, arcseconds, `t^0..t^3`.
+const LTP_XYPOL: [[f64; 4]; 2] = [
+    [5453.282155, 0.4252841, -0.00037173, -0.000000152],
+    [-73750.930350, -0.7675452, -0.00018725, 0.000000231],
+];
+/// `eraLtpequ` periodic terms: period (centuries), X cos, Y cos, X sin, Y sin.
+#[rustfmt::skip]
+const LTP_XYPER: [[f64; 5]; 14] = [
+    [256.75, -819.940624, 75004.344875, 81491.287984, 1558.515853],
+    [708.15, -8444.676815, 624.033993, 787.163481, 7774.939698],
+    [274.20, 2600.009459, 1251.136893, 1251.296102, -2219.534038],
+    [241.45, 2755.175630, -1102.212834, -1257.950837, -2523.969396],
+    [2309.00, -167.659835, -2660.664980, -2966.799730, 247.850422],
+    [492.20, 871.855056, 699.291817, 639.744522, -846.485643],
+    [396.10, 44.769698, 153.167220, 131.600209, -1393.124055],
+    [288.90, -512.313065, -950.865637, -445.040117, 368.526116],
+    [231.10, -819.415595, 499.754645, 584.522874, 749.045012],
+    [1610.00, -538.071099, -145.188210, -89.756563, 444.704518],
+    [620.00, -189.793622, 558.116553, 524.429630, 235.934465],
+    [157.87, -402.922932, -23.923029, -13.549067, 374.049623],
+    [220.30, 179.516345, -165.405086, -210.157124, -171.330180],
+    [1200.00, -9.814756, 9.344131, -44.919798, -22.899655],
+];
+
+/// Julian epoch of a TT Julian date, as the long-term functions take it.
+fn julian_epoch(jd_tt: f64) -> f64 {
+    2000.0 + (jd_tt - JD_J2000) / 365.25
+}
+
+/// Long-term ecliptic pole (`eraLtpecl`), a unit vector on the mean equator and
+/// equinox of J2000 axes, at Julian epoch `epj`.
+pub fn ltp_ecliptic_pole(epj: f64) -> [f64; 3] {
+    let t = (epj - 2000.0) / 100.0;
+    let (mut p, mut q) = (0.0, 0.0);
+    let w = std::f64::consts::TAU * t;
+    for [per, pc, qc, ps, qs] in LTP_PQPER {
+        let (s, c) = (w / per).sin_cos();
+        p += c * pc + s * ps;
+        q += c * qc + s * qs;
+    }
+    let mut w = 1.0;
+    for (a, b) in LTP_PQPOL[0].iter().zip(LTP_PQPOL[1].iter()) {
+        p += a * w;
+        q += b * w;
+        w *= t;
+    }
+    let (p, q) = (p * ARCSEC, q * ARCSEC);
+    let w = (1.0 - p * p - q * q).max(0.0).sqrt();
+    let (s, c) = (84381.406 * ARCSEC).sin_cos();
+    [p, -q * c - w * s, -q * s + w * c]
+}
+
+/// Long-term equator pole (`eraLtpequ`), a unit vector on the mean equator and
+/// equinox of J2000 axes, at Julian epoch `epj`.
+pub fn ltp_equator_pole(epj: f64) -> [f64; 3] {
+    let t = (epj - 2000.0) / 100.0;
+    let (mut x, mut y) = (0.0, 0.0);
+    let w = std::f64::consts::TAU * t;
+    for [per, xc, yc, xs, ys] in LTP_XYPER {
+        let (s, c) = (w / per).sin_cos();
+        x += c * xc + s * xs;
+        y += c * yc + s * ys;
+    }
+    let mut w = 1.0;
+    for (a, b) in LTP_XYPOL[0].iter().zip(LTP_XYPOL[1].iter()) {
+        x += a * w;
+        y += b * w;
+        w *= t;
+    }
+    let (x, y) = (x * ARCSEC, y * ARCSEC);
+    [x, y, (1.0 - x * x - y * y).max(0.0).sqrt()]
+}
+
+fn cross3(a: [f64; 3], b: [f64; 3]) -> [f64; 3] {
+    [
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    ]
+}
+
+/// Long-term precession matrix (`eraLtp`): mean J2000 -> mean equator and equinox of
+/// date, at Julian epoch `epj`.
+pub fn ltp_matrix(epj: f64) -> Mat3 {
+    let peqr = ltp_equator_pole(epj);
+    let pecl = ltp_ecliptic_pole(epj);
+    let eqx = normalize(cross3(peqr, pecl));
+    let v = cross3(peqr, eqx);
+    [eqx, v, peqr]
+}
+
+/// Long-term precession with the IERS 2010 frame bias (`eraLtpb`): GCRS -> mean
+/// equator and equinox of date.
+pub fn ltpb_matrix(epj: f64) -> Mat3 {
+    let dx = -0.016617 * ARCSEC;
+    let de = -0.0068192 * ARCSEC;
+    let dr = -0.0146 * ARCSEC;
+    let rp = ltp_matrix(epj);
+    let mut rpb = [[0.0; 3]; 3];
+    for i in 0..3 {
+        rpb[i][0] = rp[i][0] - rp[i][1] * dr + rp[i][2] * dx;
+        rpb[i][1] = rp[i][0] * dr + rp[i][1] + rp[i][2] * de;
+        rpb[i][2] = -rp[i][0] * dx - rp[i][1] * de + rp[i][2];
+    }
+    rpb
+}
+
+/// Mean obliquity of the long-term model: the angle between its ecliptic and equator
+/// poles, radians.
+pub fn ltp_mean_obliquity_rad(jd_tt: f64) -> f64 {
+    let epj = julian_epoch(jd_tt);
+    let (a, b) = (ltp_ecliptic_pole(epj), ltp_equator_pole(epj));
+    norm3(cross3(a, b)).atan2(dot(a, b))
+}
+
+fn norm3(v: [f64; 3]) -> f64 {
+    dot(v, v).sqrt()
+}
+
+/// Chebyshev coefficients (arcseconds) of `GMST - ERA` consistent with the long-term
+/// precession, over `t` in [-41, 11] Julian centuries of TT from J2000 (2100 BC to
+/// AD 3100); degree 12, fit residual under 0.001 mas. Generated by
+/// `tools/reference/.venv/bin/python -m tools.reference.ltp --gmst`, which derives it
+/// as minus the equation of the origins of the mean pole: the CIO locator integrated
+/// kinematically along the long-term pole, plus IAU 2006's nutation term of `s`. Near
+/// J2000 it reproduces the IAU 2006 GMST polynomial to 0.03 mas (2050) and 0.3 mas
+/// (1900); at the tier edges the two differ by 7 mas (1550) and 3 mas (2650).
+const LTP_GMST_CHEBYSHEV_ARCSEC: [f64; 13] = [
+    -68419.26359156298,
+    118864.92099166704,
+    449.91622944087254,
+    7.80642760221325,
+    -1.6621298622739902,
+    -0.0010118697532819638,
+    0.00326256765629512,
+    -0.00033439210619128795,
+    -1.1561280841983697e-05,
+    2.0044105815842973e-06,
+    3.318422952987343e-08,
+    4.3542706368702315e-09,
+    -3.150401889446579e-10,
+];
+const LTP_GMST_DOMAIN: (f64, f64) = (-41.0, 11.0);
+
+/// `GMST - ERA` under the long-term precession, arcseconds, at `jd_tt`: the
+/// accumulated precession in right ascension that turns the Earth rotation angle into
+/// mean sidereal time. Clamped to its fitted domain (2100 BC to AD 3100).
+pub fn ltp_gmst_minus_era_arcsec(jd_tt: f64) -> f64 {
+    let tc = centuries_since_j2000(jd_tt).clamp(LTP_GMST_DOMAIN.0, LTP_GMST_DOMAIN.1);
+    let x = (2.0 * tc - (LTP_GMST_DOMAIN.0 + LTP_GMST_DOMAIN.1))
+        / (LTP_GMST_DOMAIN.1 - LTP_GMST_DOMAIN.0);
+    // Clenshaw.
+    let (mut b1, mut b2) = (0.0, 0.0);
+    for &c in LTP_GMST_CHEBYSHEV_ARCSEC.iter().skip(1).rev() {
+        let b0 = 2.0 * x * b1 - b2 + c;
+        b2 = b1;
+        b1 = b0;
+    }
+    x * b1 - b2 + LTP_GMST_CHEBYSHEV_ARCSEC[0]
 }
 
 /// True obliquity = mean obliquity + nutation in obliquity, radians.
@@ -330,7 +570,7 @@ pub fn fukushima_williams_2006(jd_tt: f64) -> FukushimaWilliams {
                 -0.000_000_014_8,
             ],
         ) * ARCSEC,
-        eps_a_rad: mean_obliquity_rad(jd_tt),
+        eps_a_rad: mean_obliquity_2006_rad(jd_tt),
     }
 }
 
@@ -369,19 +609,32 @@ fn rot_z(psi: f64, m: &mut Mat3) {
 }
 
 /// Rotation taking an ICRS/GCRS direction to the **true equator and equinox of date**:
-/// frame bias, IAU 2006 precession and IAU 2000B nutation in one matrix.
+/// frame bias, precession and IAU 2000B nutation in one matrix.
 ///
-/// This is `eraFw2m(gamb, phib, psib + dpsi, epsa + deps)`, i.e.
-/// `R1(-eps) R3(-psi) R1(phi) R3(gamma)`.
+/// Inside the validated tier this is IAU 2006, `eraFw2m(gamb, phib, psib + dpsi,
+/// epsa + deps)`, i.e. `R1(-eps) R3(-psi) R1(phi) R3(gamma)`. Outside it the precession
+/// is the long-term model ([`ltpb_matrix`], bias included) and the nutation matrix is
+/// applied on top of it, `N = R1(-(eps_A + deps)) R3(-dpsi) R1(eps_A)` with the
+/// long-term mean obliquity. The two agree to 7 mas at 1550 and 15 mas at 2650, which
+/// is the only step at the tier edges.
 pub fn bias_precession_nutation_matrix(jd_tt: f64) -> Mat3 {
-    let fw = fukushima_williams_2006(jd_tt);
     let nut = nutation_2000b_p03(jd_tt);
-    let mut m: Mat3 = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
-    rot_z(fw.gamma_bar_rad, &mut m);
-    rot_x(fw.phi_bar_rad, &mut m);
-    rot_z(-(fw.psi_bar_rad + nut.dpsi_rad), &mut m);
-    rot_x(-(fw.eps_a_rad + nut.deps_rad), &mut m);
-    m
+    if crate::tiers::validated_model_at_tt(jd_tt) {
+        let fw = fukushima_williams_2006(jd_tt);
+        let mut m: Mat3 = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]];
+        rot_z(fw.gamma_bar_rad, &mut m);
+        rot_x(fw.phi_bar_rad, &mut m);
+        rot_z(-(fw.psi_bar_rad + nut.dpsi_rad), &mut m);
+        rot_x(-(fw.eps_a_rad + nut.deps_rad), &mut m);
+        m
+    } else {
+        let eps_a = ltp_mean_obliquity_rad(jd_tt);
+        let mut m = ltpb_matrix(julian_epoch(jd_tt));
+        rot_x(eps_a, &mut m);
+        rot_z(-nut.dpsi_rad, &mut m);
+        rot_x(-(eps_a + nut.deps_rad), &mut m);
+        m
+    }
 }
 
 /// Equation of the equinoxes: GAST - GMST, radians.
@@ -556,6 +809,94 @@ pub fn proper_motion_from_j2000(
         p[1] + years * (mu_ra * e_ra[1] + mu_dec * e_dec[1]),
         p[2] + years * (mu_ra * e_ra[2] + mu_dec * e_dec[2]),
     ])
+}
+
+/// Kilometres per astronomical unit (IAU 2012, exact).
+const AU_KM: f64 = 149_597_870.700;
+/// Speed of light, km/s.
+const C_KM_S: f64 = 299_792.458;
+/// Seconds per Julian year.
+const JULIAN_YEAR_S: f64 = 365.25 * 86_400.0;
+
+/// Barycentric (ICRS) unit vector of a star `years` Julian years after the epoch of
+/// its catalogue place, by **rigorous rectilinear space motion**: the star moves in a
+/// straight line at constant velocity in space, so its proper motion changes as it
+/// approaches or recedes (the perspective acceleration a radial velocity produces).
+///
+/// This is the model of Skyfield's `Star` (and of ERFA's `eraStarpv`/`eraPmsafe`):
+/// distance `1 / sin(parallax)` au (1 Gpc for a parallax that is zero or negative),
+/// tangential velocity `mu / parallax` au per year and radial velocity in au per year,
+/// all three scaled by the Doppler factor `1 / (1 - v_r / c)` for the change in light
+/// travel time. With `rv_km_s = 0` it is [`proper_motion_from_j2000`]'s direction to
+/// about 1e-6". The perspective term reaches 0.6" for Rigil Kentaurus by 2060, 26" by
+/// 2650 and 15' by 2000 BC (the accuracy audit), under 0.01" for the other stars inside
+/// 1990-2060.
+pub fn space_motion(
+    ra_deg: f64,
+    dec_deg: f64,
+    pm_ra_cosdec_mas_yr: f64,
+    pm_dec_mas_yr: f64,
+    parallax_mas: f64,
+    rv_km_s: f64,
+    years: f64,
+) -> [f64; 3] {
+    let plx = if parallax_mas > 0.0 {
+        parallax_mas
+    } else {
+        1.0e-6
+    };
+    let dist_au = 1.0 / (plx * MAS).sin();
+    let (sa, ca) = (ra_deg * DEG).sin_cos();
+    let (sd, cd) = (dec_deg * DEG).sin_cos();
+    let k = 1.0 / (1.0 - rv_km_s / C_KM_S);
+    let pmr = pm_ra_cosdec_mas_yr / plx * k;
+    let pmd = pm_dec_mas_yr / plx * k;
+    let rvl = rv_km_s * JULIAN_YEAR_S / AU_KM * k;
+    let pos = [dist_au * cd * ca, dist_au * cd * sa, dist_au * sd];
+    let vel = [
+        -pmr * sa - pmd * sd * ca + rvl * cd * ca,
+        pmr * ca - pmd * sd * sa + rvl * cd * sa,
+        pmd * cd + rvl * sd,
+    ];
+    normalize([
+        pos[0] + years * vel[0],
+        pos[1] + years * vel[1],
+        pos[2] + years * vel[2],
+    ])
+}
+
+/// Move a unit vector by `(north, east)` radians in its own tangent plane (the local
+/// directions of increasing declination and right ascension), renormalised. For the
+/// small offsets of a binary orbit (arcseconds to a quarter of a degree) the second-order
+/// error is under 1e-4 of the offset.
+pub fn tangent_offset(p: [f64; 3], north_rad: f64, east_rad: f64) -> [f64; 3] {
+    let (ra, dec) = {
+        let r = dot(p, p).sqrt();
+        (p[1].atan2(p[0]), (p[2] / r).clamp(-1.0, 1.0).asin())
+    };
+    let (sa, ca) = ra.sin_cos();
+    let (sd, cd) = dec.sin_cos();
+    let e_ra = [-sa, ca, 0.0];
+    let e_dec = [-sd * ca, -sd * sa, cd];
+    normalize([
+        p[0] + north_rad * e_dec[0] + east_rad * e_ra[0],
+        p[1] + north_rad * e_dec[1] + east_rad * e_ra[1],
+        p[2] + north_rad * e_dec[2] + east_rad * e_ra[2],
+    ])
+}
+
+/// Apparent right ascension and declination of date, degrees, from a barycentric
+/// (ICRS) direction: the chain of [`apparent_radec_of_date`] after its proper-motion
+/// step (bias-precession-nutation, annual parallax, solar light deflection, annual
+/// aberration).
+pub fn apparent_radec_from_barycentric(p: [f64; 3], parallax_mas: f64, jd_tt: f64) -> (f64, f64) {
+    let m = bias_precession_nutation_matrix(jd_tt);
+    let p = apply(&m, p);
+    let earth = earth_state_of_date(jd_tt);
+    let p = apply_annual_parallax(p, parallax_mas, earth.pos_au);
+    let p = apply_solar_light_deflection(p, earth.pos_au);
+    let p = apply_annual_aberration(p, earth.vel_c);
+    radec_from_vector(p)
 }
 
 /// Annual parallax: shift a barycentric direction to a geocentric one.

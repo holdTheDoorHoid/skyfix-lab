@@ -29,7 +29,7 @@
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
-use skyfix_core::time::{legacy_fixture_instant, parse_utc};
+use skyfix_core::time::{jd_tt, parse_utc};
 use skyfix_core::units::norm_180;
 use skyfix_ephemeris::AstroProvider;
 use skyfix_ephemeris::planets::{
@@ -62,6 +62,9 @@ struct Case {
     utc: String,
     #[serde(default)]
     jd_utc: Option<f64>,
+    /// TT of the instant (SkyFix Lab's own Delta T): checked against the clock's.
+    #[serde(default)]
+    jd_tt: Option<f64>,
     #[serde(default)]
     dut1_s: Option<f64>,
     #[serde(default)]
@@ -210,11 +213,17 @@ fn compare(planet: Planet, text: &str, label: &str) -> Result<Report, String> {
                 case.utc
             ));
         }
-        // timescales agent: the fixture took TT = UTC + 69.184 s and UT1 = UTC after 2035;
-        // the clock is UT there now (CONVENTIONS 15.2). Evaluate the fixture's own TT and
-        // UT1 (identical up to 2035) until the fixture is regenerated on the new scale.
-        let (jd, shift) = legacy_fixture_instant(jd);
-        let plain = PlanetProvider::with_dut1_s(plain.dut1_s() + shift);
+        // The fixture is on the app's clock (CONVENTIONS 15.2) with SkyFix Lab's own Delta T,
+        // so its TT is the provider's: Delta T is not part of the comparison.
+        if let Some(tt) = case.jd_tt
+            && (jd_tt(jd) - tt).abs() * 86_400.0 > 1e-3
+        {
+            return Err(format!(
+                "{label} {}: the fixture's TT is {:.4} s from the clock's",
+                case.utc,
+                (jd_tt(jd) - tt) * 86_400.0
+            ));
+        }
         let p = plain
             .position(planet, jd)
             .map_err(|e| format!("{label} {}: {e}", case.utc))?;
@@ -269,7 +278,7 @@ fn compare(planet: Planet, text: &str, label: &str) -> Result<Report, String> {
             }
         }
         if let Some(dut1) = case.dut1_s {
-            let w = PlanetProvider::with_dut1_s(dut1 + shift)
+            let w = PlanetProvider::with_dut1_s(dut1)
                 .position(planet, jd)
                 .map_err(|e| format!("{label} {}: {e}", case.utc))?;
             let d = norm_180(w.gha_deg - b.gha_deg) * 60.0;

@@ -2,7 +2,7 @@ TIME
 Instant      -0584-05-28T12:00:00 UT (Julian) (JD 1507900.000000 on the app's clock)
 Wire         -0584-05-22T12:00:00.000Z (proleptic Gregorian, as JSON carries it)
 Clock        UT, Universal Time (UT1): outside the UTC years 1972-2035
-Tier         outside
+Tier         labelled
 Delta-T      18213.2 s (5 h 03 min 33 s), standard uncertainty 3 min: Stephenson,
              Morrison & Hohenkerk 2016, 2020 revision (TT - UT1)
 TT - clock   18213.2 s (5 h 03 min 33 s)

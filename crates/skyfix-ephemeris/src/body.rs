@@ -15,6 +15,7 @@ use crate::moon::MoonProvider;
 use crate::planets::PlanetProvider;
 use crate::stars::StarProvider;
 use crate::sun::SunProvider;
+use crate::tiers::{CoverageTier, TierPolicy};
 use crate::{AstroProvider, Coverage, EphemerisError, catalog};
 
 /// Kilometres per astronomical unit (IAU 2012, exact).
@@ -214,12 +215,26 @@ impl BodyEphemeris for StarProvider {
 ///
 /// This is what the explorer, the event finder and the almanac use. The navigation
 /// path keeps using whichever [`AstroProvider`] the caller composes.
+///
+/// Like every provider it answers the validated tier only unless it is built
+/// [`Sky::with_policy`]`(TierPolicy::WithLabelled)`, which the explorer's display path
+/// does (CONVENTIONS 15.1).
 #[derive(Debug, Clone)]
 pub struct Sky {
     sun: SunProvider,
     moon: MoonProvider,
     planets: PlanetProvider,
     stars: StarProvider,
+}
+
+/// One provider group's coverage with its tiers (EXPLORER_API "explorer_coverage() —
+/// tiers"): [`Coverage`] describes the validated tier, as it always has; `tiers` lists
+/// the validated tier and, for a sky built with [`TierPolicy::WithLabelled`], the
+/// labelled one.
+#[derive(Debug, Clone, PartialEq)]
+pub struct TieredCoverage {
+    pub coverage: Coverage,
+    pub tiers: Vec<CoverageTier>,
 }
 
 impl Default for Sky {
@@ -245,6 +260,23 @@ impl Sky {
         }
     }
 
+    /// The same sky answering the tiers `policy` allows: [`TierPolicy::WithLabelled`]
+    /// for display (2000 BC to AD 3000), the default [`TierPolicy::ValidatedOnly`]
+    /// wherever a number feeds a sight, a fix or a plan.
+    pub fn with_policy(self, policy: TierPolicy) -> Self {
+        Sky {
+            sun: self.sun.with_policy(policy),
+            moon: self.moon.with_policy(policy),
+            planets: self.planets.with_policy(policy),
+            stars: self.stars.with_policy(policy),
+        }
+    }
+
+    /// The tiers this sky answers.
+    pub fn policy(&self) -> TierPolicy {
+        self.sun.policy()
+    }
+
     /// Every body this sky knows: Sun, Moon, the planets, then the stars in catalogue
     /// order.
     pub fn bodies(&self) -> Vec<&'static str> {
@@ -264,7 +296,8 @@ impl Sky {
         }
     }
 
-    /// One coverage record per provider, in the order Sun, Moon, planets, stars.
+    /// One coverage record per provider, in the order Sun, Moon, planets, stars. Each
+    /// describes the validated tier; [`Sky::tiered_coverage_groups`] adds the tiers.
     pub fn coverage_groups(&self) -> Vec<Coverage> {
         vec![
             self.sun.coverage(),
@@ -272,6 +305,21 @@ impl Sky {
             self.planets.coverage(),
             self.stars.coverage(),
         ]
+    }
+
+    /// [`Sky::coverage_groups`] with each provider's tiers under this sky's policy.
+    pub fn tiered_coverage_groups(&self) -> Vec<TieredCoverage> {
+        let tiers = [
+            self.sun.tiers(),
+            self.moon.tiers(),
+            self.planets.tiers(),
+            self.stars.tiers(),
+        ];
+        self.coverage_groups()
+            .into_iter()
+            .zip(tiers)
+            .map(|(coverage, tiers)| TieredCoverage { coverage, tiers })
+            .collect()
     }
 
     fn unknown(body: &str) -> EphemerisError {
@@ -289,9 +337,10 @@ impl AstroProvider for Sky {
     /// [`Sky::coverage_groups`] for the per-provider truth.
     fn coverage(&self) -> Coverage {
         let groups = self.coverage_groups();
+        let policy = self.policy();
         Coverage {
-            start_utc: crate::stars::COVERAGE_START_UTC.to_string(),
-            end_utc: crate::stars::COVERAGE_END_UTC.to_string(),
+            start_utc: policy.start_utc().to_string(),
+            end_utc: policy.end_utc().to_string(),
             bodies: self.bodies().into_iter().map(str::to_string).collect(),
             notes: groups
                 .iter()
@@ -367,6 +416,37 @@ mod tests {
         let km = sun.distance_km.unwrap();
         assert!((1.47e8..1.53e8).contains(&km), "{km}");
         assert!((-26.8..-26.7).contains(&sun.magnitude.unwrap()));
+    }
+
+    #[test]
+    fn a_labelled_sky_answers_2000_bc_and_a_default_one_refuses_it() {
+        use crate::tiers::{JD_LABELLED_START, Tier};
+        let jd = JD_LABELLED_START + 100.0;
+        let plain = Sky::new();
+        let wide = Sky::new().with_policy(TierPolicy::WithLabelled);
+        assert_eq!(wide.policy(), TierPolicy::WithLabelled);
+        for body in ["Sun", "Moon", "Saturn", "Sirius"] {
+            assert!(matches!(
+                plain.apparent_state(body, jd),
+                Err(EphemerisError::OutOfCoverage { .. })
+            ));
+            let st = wide.apparent_state(body, jd).unwrap();
+            assert!(st.dec_deg.abs() <= 90.0, "{body}");
+        }
+        let groups = wide.tiered_coverage_groups();
+        assert_eq!(groups.len(), 4);
+        for g in &groups {
+            assert_eq!(g.tiers.len(), 2);
+            assert_eq!(g.tiers[0].tier, Tier::Validated);
+            assert_eq!(g.tiers[1].tier, Tier::Labelled);
+            assert!(g.tiers[1].accuracy_arcmin >= g.tiers[0].accuracy_arcmin);
+        }
+        assert!(
+            plain
+                .tiered_coverage_groups()
+                .iter()
+                .all(|g| g.tiers.len() == 1)
+        );
     }
 
     #[test]

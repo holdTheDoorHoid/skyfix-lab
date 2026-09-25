@@ -206,7 +206,7 @@ pub enum Command {
                 "The UT date, YYYY-MM-DD (years outside 0000-9999 with a sign: -0584-05-28), \
                  Julian before 1582-10-15 unless --calendar says otherwise, inside the \
                  ephemeris coverage: {}",
-                crate::commands::explorer::wire::coverage_dates()
+                crate::commands::explorer::wire::validated_span()
             )
         )]
         date: String,

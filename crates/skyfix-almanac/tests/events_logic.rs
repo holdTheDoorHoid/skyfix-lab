@@ -684,22 +684,24 @@ fn bodies_the_provider_cannot_answer_for_are_errors_not_guesses() {
     assert!(d.errors.iter().all(|e| e.message.contains("refused")));
     let eph = Sky::new();
 
-    // The star catalogue stops one second before the Sun does.
-    let t0 = civil_to_jd(2060, 12, 31) + 0.5;
+    // deeptime agent: the star catalogue used to stop one second before the Sun did;
+    // every provider now ends the validated tier at the same instant, 2650-01-22T00:00Z,
+    // so a window reaching exactly that edge has both.
+    let t0 = civil_to_jd(2650, 1, 21);
     let d = day_events(
         &eph,
         &s,
         t0,
-        civil_to_jd(2061, 1, 1),
+        civil_to_jd(2650, 1, 22),
         &["Sun", "Vega"],
         &std_opts(),
     )
     .unwrap();
-    assert_eq!(d.bodies.len(), 1);
-    assert_eq!(d.errors[0].body, "Vega");
+    assert_eq!(d.bodies.len(), 2, "{:?}", d.errors);
+    assert!(d.errors.is_empty());
 
     // Without the Sun there are no phases: the call fails.
-    let t0 = civil_to_jd(1989, 12, 31);
+    let t0 = civil_to_jd(1549, 12, 31);
     match day_events(&eph, &s, t0, t0 + 1.0, &["Vega"], &std_opts()) {
         Err(AlmanacError::Unavailable { body, .. }) => assert_eq!(body, "Sun"),
         other => panic!("{other:?}"),

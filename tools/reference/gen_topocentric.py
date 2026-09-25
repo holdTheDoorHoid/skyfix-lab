@@ -12,6 +12,14 @@ is from a full topocentric computation. For stars the gap must be a fraction of
 an arcsecond (diurnal aberration only); for the Sun it must be the horizontal
 parallax, which is exactly the correction CONVENTIONS section 5 step 5 applies.
 If either is not true, the project's spherical model is wrong somewhere.
+
+    tools/reference/.venv/bin/python -m tools.reference.gen_topocentric \
+        [--window 2026-10-01..2026-10-02] [--kernel de421]
+
+The default window is the demo day, 2026-10-01; a wider window takes the six hours on
+five days spread evenly across it. Instants are on the app's clock with SkyFix Lab's
+own Delta T (`common.load_timescale`); outside the validated tier the frame of date is
+the app's long-term one (`common.use_app_frame`).
 """
 
 from __future__ import annotations
@@ -25,13 +33,29 @@ EPOCH_HOURS = [0, 4, 8, 12, 16, 20]
 ALTITUDE_GATE_DEG = -1.0
 
 
+DEFAULT_WINDOW = "2026-10-01..2026-10-02"
+
+
+def days():
+    """The days whose six hours are sampled: 2026-10-01, or five across a wider window."""
+    if c.RUN.window_text == DEFAULT_WINDOW:
+        return [(2026, 10, 1)]
+    j0, j1 = c.RUN.window
+    n = 5 if j1 - j0 > 5 else 1
+    out = []
+    for k in range(n):
+        y, m, d, _h = c.gregorian_from_jd(j0 + (k + 0.5) * (j1 - j0) / n)
+        out.append((y, m, d))
+    return out
+
+
 def epochs(ts):
-    return [ts.utc(2026, 10, 1, h, 0, 0) for h in EPOCH_HOURS]
+    return [ts.utc(y, m, d, h, 0, 0) for (y, m, d) in days() for h in EPOCH_HOURS]
 
 
 def build():
     ts = c.load_timescale()
-    eph = c.load_ephemeris()
+    eph = c.run_ephemeris()
     earth, sun = eph["earth"], eph["sun"]
     df = c.load_hipparcos_frame()
     stars, _rows, problems = c.build_stars(df)
@@ -224,8 +248,11 @@ def build():
                 },
             },
             refraction=c.SKYFIELD_REFRACTION_NOTES,
+            timescale=c.project_timescale_facts(),
             extra={
-                "ephemeris": c.file_facts(c.EPHEMERIS_FILE, c.EPHEMERIS_URL),
+                "run": c.RUN.facts(),
+                "frame_of_date": c.app_frame_facts(),
+                "ephemeris": c.run_kernel_facts(),
                 "catalogue": c.file_facts(c.HIPPARCOS_FILE, c.HIPPARCOS_URL),
                 "observers": [
                     c.Inline(
@@ -239,7 +266,8 @@ def build():
                     for n, la, lo, el in c.OBSERVERS
                 ],
                 "epochs_utc": [
-                    "2026-10-01T%02d:00:00Z" % h for h in EPOCH_HOURS
+                    "%s-%02d-%02dT%02d:00:00Z" % (c.iso_utc(c.jd_from_gregorian(y, 1, 1))[:-16], m, d, h)
+                    for (y, m, d) in days() for h in EPOCH_HOURS
                 ],
                 "altitude_gate_deg": c.deg(ALTITUDE_GATE_DEG),
                 "observer_epoch_count": len(cases),
@@ -287,7 +315,8 @@ def build():
     return doc
 
 
-def main():
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], DEFAULT_WINDOW, "de421")
     doc = build()
     c.write_json(os.path.join(c.FIX_REFERENCE, "topocentric_altaz.json"), doc)
 

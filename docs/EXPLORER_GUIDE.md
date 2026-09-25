@@ -251,11 +251,121 @@ What you would actually see, looking up: a **Dome** (the whole sky at once, zeni
 middle) or a **Panorama** (drag to turn toward any compass point, scroll to zoom), with
 roughly 9,000 stars sized by brightness and tinted by colour, the 88 constellation
 figures, the planets, the Moon with its correct phase, and the sky's own colour following
-the Sun. A **South up** switch flips the dome for the southern hemisphere. The star field
-is for display only — see [Third-party sources](THIRD_PARTY.md), "Star field and
-constellations" — and never affects a fix.
+the Sun. A **South up** switch flips the dome for the southern hemisphere. **Zoom the dome**
+with the mouse wheel, a pinch, the **+** and **−** buttons or keys, and drag to move around
+a zoomed chart; fainter stars get their names and fainter deep-sky objects appear as you
+zoom in, and **Whole sky** (or the 0 key) goes back. Everything on
+this view is for looking and finding — see [Third-party sources](THIRD_PARTY.md), "Star
+field and constellations" and "Deep sky" — and none of it ever affects a fix.
 
 ![The Sky dome at night over Philadelphia: stars, constellation figures, the ecliptic, and the Sun's position well below the horizon.](design/sky-night-philadelphia-dome.png)
+
+**In a dark sky** the view also shows:
+
+- **The Milky Way**, as a soft glow behind the stars: its brighter star clouds and its
+  darker lanes follow NASA's COBE maps of the galaxy's light. It fades out as the sky
+  brightens — in twilight, under a bright town sky — just as the real one does.
+- **Deep-sky objects**: the 110 Messier objects and about a hundred of the brightest others
+  (NGC and IC objects, the Hyades, the Magellanic Clouds), each labelled ("M31",
+  "NGC 869") and drawn with the usual atlas mark, sized by how big the object looks:
+
+  | mark | kind |
+  |---|---|
+  | ellipse | galaxy |
+  | dotted circle | open star cluster |
+  | circle with a cross | globular star cluster |
+  | square | nebula (bright gas or dust, or a supernova's remains) |
+  | circle with four spikes | planetary nebula |
+  | dotted circle in a square | star cluster in a nebula |
+  | diamond | star cloud, double star or asterism |
+
+  How many are drawn follows the sky and the chart: on a laptop's whole-sky chart, those a
+  pair of binoculars shows; zoomed in (the panorama narrowed), telescope objects too; on a
+  phone's small chart, only the showpieces.
+- **Meteor radiants**, while a shower is active: the point its meteors seem to come from,
+  with the shower's name and how many meteors an hour to expect at best tonight (an
+  estimate for your sky; meteors appear all over the sky, not only near the radiant).
+- **Comets and asteroids you add** (below).
+
+**Click anything** — a star, a planet, a deep-sky object, a radiant — for a card: what it
+is, where it is now (height, bearing, and its right ascension and declination, the sky's
+own coordinates), when it rises if it is below the horizon, and, for a deep-sky object, its
+size, the **best time tonight** to see it and **what shows it** (the naked eye, binoculars,
+a small telescope, or only a camera). These are estimates for the sky you set under
+**Layers**, with the Moon's light taken into account, and the card says so. **Tonight's
+ranking** lists the best-placed deep-sky objects of the night; choose one to see it on the
+chart. Escape, or the card's ×, closes it.
+
+**Find** (the magnifier on the left) takes any name or designation: "Vega", "alpha Lyrae",
+"HR 7001", "M31", "NGC 224", "Andromeda", "Orion", "Perseids", "Jupiter". The first match
+is shown on the chart — ringed on the dome, turned to in the panorama — with its card. The
+search box at the top of the side panel finds the same things under **Sky objects**, below
+the places, and opens this view on the one you choose.
+
+**Show in Sky** elsewhere — on the **Tonight** page (a planet, a deep-sky object, a meteor
+shower's radiant, the Milky Way's core), on the side panel's Selected card (the Milky Way
+planner), and from the side panel's search — opens this view on it: the dome zooms in
+three times if it showed the whole sky and centres on it, the panorama turns to face it,
+and its card opens; from Tonight, at the moment it is best seen. Tonight's and the Moon
+card's **See it up close** open the Moon's close-up the same way. **Whole sky** (or 0)
+goes back to the whole dome.
+
+**See it up close.** The card of the Moon or a planet has **See it up close** (so does a
+second click on the selected Moon or planet, and the Moon card in the side panel):
+
+- **The Moon**: its phase, its seas, and the craters, mountains and valleys along the
+  shadow line, where the low Sun shows their relief best (the side panel's list is ringed).
+  The Moon rocks a little as it orbits (libration): the dashed lines are its equator and
+  central meridian, and how far they sit from the middle of the disc shows which edge is
+  tipped toward you.
+- **Jupiter**: its four large moons on a line, named, with any moon crossing Jupiter's face,
+  hidden behind it or in its shadow, and the moons' shadows on its clouds.
+- **Saturn**: its rings at their true tilt and size, the near side of the rings passing in
+  front of the globe.
+- **Mercury, Venus, Mars, Uranus, Neptune**: their phase and size.
+
+Turn the picture **as seen** from here (the zenith up), **north up** (the sky as the eye and
+binoculars show it), or **south up** (an astronomical telescope), and **Mirrored** for a
+telescope with a star diagonal.
+
+**Field of view** (the circle with a star) draws how much of the sky a naked eye (about
+50°), binoculars (7×50: 7.1°; 10×50: 6.5°), a small telescope (about 1°) or a camera takes
+in: for a camera, type the lens's focal length and choose the sensor ("Camera 50 mm ·
+40° × 27°", held level). It sits round the selected object and follows it, or in the
+middle of the view. The fields are typical figures: the one printed on your binoculars or
+eyepiece is the one to trust.
+
+**Layers** (top right) switches the figures, names, boundaries, the Milky Way, deep-sky
+objects, meteor radiants and added bodies on and off, and the lines: the height-and-bearing
+grid, the **right ascension and declination grid** (hours along the celestial equator,
+declinations up the meridian), the meridian, the celestial equator and the ecliptic. Under
+**How dark is your sky**:
+
+- **Automatic** — a dark site, where only twilight hides the stars (the view as it always
+  was);
+- **Bortle class** — Bortle's nine classes, from 1 (an excellent dark site, stars to about
+  magnitude 7.8 overhead) to 9 (an inner-city sky, about 4);
+- **Faintest star** — the faintest star you can see overhead, if you know it.
+
+The line underneath says what the view draws down to now, overhead and 20° up.
+**Dimmer toward the horizon** fades stars, deep-sky objects and the Milky Way low in the
+sky, where their light crosses much more air (about a magnitude at 10° up). The deep-sky
+card, tonight's ranking and the meteor rates use the same sky.
+
+**Comets and asteroids.** In **Layers**, **Add from orbital elements…** takes lines copied
+from the Minor Planet Center (its MPCORB and comet formats) or elements typed as JSON
+(**Example** fills in Ceres). They are drawn with their names, followed as time moves, and
+described by their card, with the credit "Source: Minor Planet Center" where it applies.
+Their places follow the orbit alone, without the planets' pull, so they drift from the real
+body as the elements age (the card warns past 30 days); good for finding one, not for
+timing it. They are kept for this visit only.
+
+**Tonight's star sights**: while the side panel shows its list of tonight's bodies to
+shoot, the Sky view rings them with a dashed circle, so you can find them before twilight.
+
+**Save the sky as a picture** (the arrow into a tray) saves the chart as it is on screen —
+its layers, its theme, night vision included — with a caption: the place, the time, what
+the view shows, and the site's line. It stays on your device.
 
 ### Tonight
 
@@ -539,29 +649,99 @@ Moon stands 0.5″ lower) as well as your height of eye (which sets the dip).
 
 ### Events
 
-Eclipses, Moon phases, equinoxes and solstices, and the planets' big moments, as lists
-you can click.
+What happens in the sky and when, as lists you can click. Five tabs:
 
-- **Eclipses** — every solar and lunar eclipse of the next (or last) ten years, with a
-  switch for "seen from here". Pick one to read, in plain words, what you would see from
+- **Eclipses** — every solar and lunar eclipse of the next (or last) ten, hundred or
+  thousand years, with a switch for "seen from here"; a long list fills in as it is found
+  and shows its rows a page at a time. Pick one to read, in plain words, what you would see from
   your place: whether you are inside the path of totality, when it starts and ends, how
   much of the Sun is covered, and how high it stands. **Show on the map** draws the path
   of totality (or annularity), its central line and the limits of the partial eclipse;
   **Go there** moves your place and time to the point of greatest eclipse. Solar eclipse
-  cards carry an eye-safety note.
-- **Moon phases** for the coming months, with links to any eclipse they bring.
-- **Seasons** — the equinoxes and solstices, worded for your hemisphere.
-- **Planets** — oppositions, conjunctions with the Sun (and the rare transits of Mercury
-  and Venus across it), greatest elongations of Mercury and Venus, and closest approaches.
+  cards carry an eye-safety note. The times are for a smooth Moon unless the **Lunar limb**
+  data pack is on your device (2.2 MB; offered once, the first time you open a solar eclipse
+  seen from your place, and in Settings → Data packs): then the card's times are
+  corrected for the mountains and valleys at the Moon's edge and marked **limb-corrected**,
+  with how far each moved — a second or a few, more at the edge of the path — and when and
+  where on the Sun's edge **Baily's beads**, the last and first sunlight through the
+  Moon's valleys, should show. The beads are approximate, and the list keeps the smooth
+  Moon's times.
+- **Moon** — three lists.
+  - **Phases** for the coming months, with links to any eclipse they bring.
+  - **Perigee and supermoons**: the Moon at its closest and farthest on each orbit, every
+    full Moon with how much larger or smaller than average it looks, the supermoons and
+    micromoons, and the year's largest and smallest full Moon. A supermoon here is a new or
+    full Moon at least 90% of the way from apogee to perigee (Nolle's rule): about a third
+    of them are, so stricter lists elsewhere are shorter.
+  - **Occultations**: the bright stars (to magnitude 3.5) and the planets the Moon passes
+    in front of as seen from your place — when each disappears and reappears, at which edge
+    of the Moon (a star winks out at once at the dark edge, the easiest to time), how high
+    the Moon stands and whether the sky is dark. Grazes, where a star runs along the Moon's
+    edge and may blink among its mountains, and near misses are marked. Pick one to see the
+    Moon drawn as you will see it, with the points of its edge where the star goes in and
+    comes out, and the times to the second. **Also not seen from here** adds those that
+    happen with the Moon below your horizon and those seen only elsewhere on Earth, with the
+    part of the Earth that sees them. Times are for the Moon's mean edge: its mountains move a
+    contact by seconds, and by up to a minute near its poles.
+- **Planets** — five lists.
+  - **Highlights**: oppositions, conjunctions with the Sun, greatest elongations of Mercury
+    and Venus, and closest approaches.
+  - **Close approaches**: planets passing each other, the Moon passing the planets and the
+    bright stars on its path, and planets passing those stars, within 5°: how close, which
+    way, whether they are far enough from the Sun to be seen, and when they are best seen
+    from your place (both up and the sky dark). A pass marked **Hidden from some places** is
+    an occultation for part of the Earth.
+  - **Retrograde**: when each planet seems to stop against the stars and turn back (a
+    station), and when it turns forward again, with a timeline of the year's retrograde loops
+    and the ones under way.
+  - **Transits**: Mercury and Venus crossing the Sun's face in the next (or last) hundred
+    years. Pick one for its path across the Sun, drawn as the Sun appears with north up, the
+    contact times at your place with the Sun's height at each, and the eye-safety note.
+  - **Jupiter's moons**: the transits, shadows, eclipses and disappearances of Io, Europa,
+    Ganymede and Callisto, night by night for a week, with Jupiter's rising and setting and
+    the hours of darkness, and for each event whether you can see it from your place
+    (Jupiter at least 5° up, the Sun at least 6° down) and why not when you cannot.
+- **Meteors** — the year's meteor showers as a calendar: when each is active and peaks, its
+  zenithal hourly rate (ZHR, the rate under a perfect sky with the radiant overhead), how
+  bright the Moon is at the peak, and the rate to expect at your place on the peak night,
+  with the hour it is best; above the list, what the night of the time shown offers. Choose
+  how dark your sky is, from a dark site to a city. The rates are estimates from a simple
+  model and say so: real showers vary from year to year.
+- **Seasons** — the equinoxes and solstices, worded for your hemisphere, and the Earth's
+  perihelion and aphelion (closest to and farthest from the Sun, about 3% apart: the
+  seasons come from the tilt of the Earth's axis, not from the distance).
 
-Clicking any event moves the explorer's time to it. The eclipse list agrees with NASA's
-eclipse canon for every eclipse of 1990–2060 (see [Accuracy and limitations](ACCURACY.md),
-"Eclipses" and "Planet events"). From a terminal, `skyfix events`, `skyfix phases` and
-`skyfix seasons` give the day's events, the Moon's phases and the seasons;
-`skyfix eclipses` lists the eclipses and what your place sees of each, `skyfix eclipse`
-gives one eclipse's contacts from your place and its path (as GeoJSON for any map tool),
-and `skyfix planet-events` the planets' oppositions, conjunctions, elongations and
-closest approaches (see [Command line](CLI.md)).
+Clicking any event moves the explorer's time to it and selects the body concerned.
+
+**Saving events.** Every list has a **Save** menu. **Add to a calendar** makes a calendar
+file (`.ics`, the iCalendar standard every calendar program imports) of the events listed,
+each with a sentence saying what it is, and for times that hold only at your place, the place
+— unless you untick **Name the place in the files**. **Save as a table** makes a CSV file
+for a spreadsheet, every row with its time in UTC (or UT) beside your local time. The small
+calendar button beside each event saves that one alone. Where your device's share sheet
+takes calendar files, **Share to a calendar…** hands the file to it. The files are made in
+the page; nothing is sent anywhere. Saving an event again, from any place, replaces its
+entry in your calendar rather than adding a second one. A calendar file cannot hold a date
+before AD 1.
+
+**Far dates.** The lists say which years the engine covers now, and a list that reaches its
+edge says where it stops and, when the site offers one, has a button for the data pack that
+extends it. Far from the present the Earth's rotation is known only roughly, so a clock time
+then carries its uncertainty (the ± chip, see [Moving through time](#moving-through-time))
+and the list says why. Lists that take the engine a while — a year of close approaches is
+about a second — fill in as they are found, with a progress line, and wait while you drag
+the time bar.
+
+The eclipse list agrees with NASA's eclipse canon for every eclipse of 1990–2060;
+occultation contacts agree with Skyfield's within 1.4 s at the mean limb, transit contacts
+with NASA's within 5 s, close approaches within 5 minutes and perigees within 11 s; the
+"seen elsewhere" rule for occultations is checked against the engine's own local search
+(see [Accuracy and limitations](ACCURACY.md), "Eclipses", "Planet events", "Moon in detail",
+"Planet detail" and "Events view"). From a terminal, `skyfix events`, `skyfix phases` and `skyfix seasons` give the day's events, the
+Moon's phases and the seasons; `skyfix eclipses` lists the eclipses and what your place sees
+of each, `skyfix eclipse` gives one eclipse's contacts from your place and its path (as
+GeoJSON for any map tool), and `skyfix planet-events` the planets' oppositions, conjunctions,
+elongations and closest approaches (see [Command line](CLI.md)).
 
 ![The Events view: the total solar eclipse of 8 April 2024 as seen from Dallas, with its timeline and contact times.](design/events-eclipse-light.png)
 

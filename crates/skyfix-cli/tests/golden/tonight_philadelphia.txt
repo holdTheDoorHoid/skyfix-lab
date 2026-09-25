@@ -33,7 +33,7 @@ Deep sky, best first
   Mel 20 Alpha Persei Cluster  open cluster  1.2  04:12 at +81 03.7, 0 00.0 N         8.2  eye          65.8
   M45 Pleiades                 open cluster  1.6  04:32 at +74 15.2, 180 00.0 S       6.4  eye          65.7
   M38 Starfish Cluster         open cluster  6.4  05:20 at +78 40.6, 106 50.2 ESE     5.3  binoculars   60.5
-  M36 Pinwheel Cluster         open cluster  6.0  05:20 at +76 30.5, 110 36.7 ESE     5.0  binoculars   59.9
+  M36 Pinwheel Cluster         open cluster  6.0  05:20 at +76 30.5, 110 36.6 ESE     5.0  binoculars   59.9
   M37                          open cluster  5.6  05:20 at +72 49.5, 109 25.9 ESE     4.7  binoculars   48.8
 
 Milky Way  The Milky Way's core stays below 20° in the dark hours (the core at its best

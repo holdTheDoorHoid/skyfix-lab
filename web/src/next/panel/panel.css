@@ -913,3 +913,15 @@
   outline: var(--focus-width) solid var(--focus);
   outline-offset: -4px;
 }
+
+/* --- sky2 agent: the "Sky objects" group of the place search (panel/search.ts) ---------- */
+
+.sf-search__group {
+  padding: 8px 10px 3px;
+  color: var(--chrome-ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  cursor: default;
+}

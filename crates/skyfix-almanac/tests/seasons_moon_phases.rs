@@ -134,8 +134,9 @@ fn the_phase_finder_finds_every_quarter_once_on_the_synthetic_moon() {
 
 #[test]
 fn seasons_and_phases_refuse_what_they_cannot_answer() {
-    assert!(seasons(&Sky::new(), 1989).is_err());
-    assert!(seasons(&Sky::new(), 2061).is_err());
+    // The validated tier, 1550-01-01 to 2650-01-22 (deeptime agent).
+    assert!(seasons(&Sky::new(), 1549).is_err());
+    assert!(seasons(&Sky::new(), 2651).is_err());
     let e = moon_phases(
         &Sky::new(),
         civil_to_jd(2026, 1, 1),

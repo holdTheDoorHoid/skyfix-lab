@@ -180,7 +180,7 @@ fn the_listing_text_has_one_row_per_eclipse_and_says_what_dallas_sees() {
             "  2024-04-08-solar  total      2024-04-08T18:17:20Z   1.0566        -  +0.3431    139",
         )
         .expect_stdout(
-            "  2025-03-14-lunar  total      2025-03-14T06:58:46Z   1.1784   2.2595  +0.3484    123",
+            "  2025-03-14-lunar  total      2025-03-14T06:58:47Z   1.1784   2.2595  +0.3484    123",
         )
         .expect_stdout_flat("here: total for 3 min 51 s, with the Sun up throughout")
         .expect_stdout_flat("here: no eclipse: the Moon's shadow misses this place")
@@ -236,11 +236,15 @@ fn eclipse_windows_are_checked_and_clipped_to_the_coverage() {
 /// The acceptance case: the total eclipse of 2024-04-08 from Dallas (32.78 N, 96.80 W).
 /// The printed contacts are the library's to the second, and totality is 3 min 51 s.
 ///
-/// At these coordinates the library puts second contact at 18:40:43.33 and third at
-/// 18:44:33.94, so the report prints 18:40:43 to 18:44:34. The brief's "18:40:42" is the
-/// web UI's Dallas (its gazetteer's 32.7767 N, 96.797 W, where the library gives
-/// 18:40:42.98) read to the whole second below; the test pins the printed values to the
-/// library's within 1 s and to the brief's within 1.5 s, and says so rather than hide it.
+/// At these coordinates the library puts second contact at 18:40:43.73 and third at
+/// 18:44:34.42, so the report prints 18:40:44 to 18:44:34. The brief's "18:40:42" is the
+/// web UI's Dallas (its gazetteer's 32.7767 N, 96.797 W) read to the whole second below
+/// from the library of the time, whose Moon (ELP 2000-82B) was up to 0.9" from DE440.
+/// With ELP/MPP02 (deeptime agent) the library gives Skyfield's Dallas (that place, 150 m
+/// up) 18:40:43.48 and 18:44:34.79, and Skyfield + DE440s gives 18:40:43.25 and
+/// 18:44:34.71 (eclipses_skyfield.json, dallas_tx). The test pins the printed values to
+/// the library's within 1 s and to the brief's within 2.5 s, and says so rather than
+/// hide it.
 #[test]
 fn dallas_sees_3_min_51_s_of_totality_the_library_to_the_second() {
     let mut args = vec!["eclipse", "2024-04-08-solar"];
@@ -275,7 +279,7 @@ fn dallas_sees_3_min_51_s_of_totality_the_library_to_the_second() {
         .find(|l| l.starts_with("Totality   "))
         .expect("a totality line");
     let parts: Vec<&str> = line.split_whitespace().collect();
-    // "Totality 2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, 3 min 51 s"
+    // "Totality 2024-04-08T18:40:44Z to 2024-04-08T18:44:34Z, 3 min 51 s"
     let (p2, p3) = (jd(parts[1]), jd(parts[3].trim_end_matches(',')));
     for (printed, lib, brief, what) in [
         (p2, c2, "2024-04-08T18:40:42Z", "second contact"),
@@ -287,17 +291,17 @@ fn dallas_sees_3_min_51_s_of_totality_the_library_to_the_second() {
             "{what}: printed {from_library} s from the library"
         );
         let from_brief = (printed - jd(brief)).abs() * 86_400.0;
-        assert!(from_brief <= 1.5, "{what}: {from_brief} s from the brief");
+        assert!(from_brief <= 2.5, "{what}: {from_brief} s from the brief");
     }
     assert!(line.ends_with("3 min 51 s"), "{line}");
     assert!((l.central_duration_s.expect("a central phase") - 231.0).abs() < 1.0);
     text.expect_stdout("TOTAL SOLAR ECLIPSE  2024-04-08-solar")
-        .expect_stdout("Totality   2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, 3 min 51 s")
+        .expect_stdout("Totality   2024-04-08T18:40:44Z to 2024-04-08T18:44:34Z, 3 min 51 s")
         .expect_stdout("Here       total: inside the path of totality")
         .expect_stdout("Maximum    2024-04-08T18:42:39Z: magnitude 1.015, 100% of the Sun's area")
-        .expect_stdout("  2024-04-08T18:40:43Z  c2   totality begins")
+        .expect_stdout("  2024-04-08T18:40:44Z  c2   totality begins")
         .expect_stdout("  2024-04-08T18:44:34Z  c3   totality ends")
-        .expect_stdout_flat("Only during totality itself, here from 2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, is it safe to look with the naked eye");
+        .expect_stdout_flat("Only during totality itself, here from 2024-04-08T18:40:44Z to 2024-04-08T18:44:34Z, is it safe to look with the naked eye");
 }
 
 #[test]
@@ -375,7 +379,8 @@ fn a_lunar_eclipse_reads_its_contacts_and_the_moons_height() {
     .expect_stdout("TOTAL LUNAR ECLIPSE  2025-03-14-lunar")
     .expect_stdout("Totality   1 h 05 min 24 s (u2 to u3")
     .expect_stdout("Here       partly seen: the Moon sets at 2025-03-14T06:22:57Z during it")
-    .expect_stdout("  2025-03-14T03:57:28Z  p1   penumbral eclipse begins  +21 13.1")
+    // Skyfield + DE440s: p1 at 03:57:28.6 (eclipses_skyfield.json).
+    .expect_stdout("  2025-03-14T03:57:29Z  p1   penumbral eclipse begins  +21 13.1")
     .expect_stdout("  2025-03-14T06:22:57Z       moonset")
     .expect_stdout("Moon down");
     // Without an observer the contacts are listed once, as the same instants everywhere.
@@ -414,7 +419,7 @@ fn every_solar_eclipse_carries_an_eye_safety_line_fitted_to_the_place() {
         "-109.3497",
     ])
     .expect_code(0)
-    .expect_stdout("Annularity 2024-10-02T19:04:20Z to 2024-10-02T19:10:18Z, 5 min 58 s")
+    .expect_stdout("Annularity 2024-10-02T19:04:21Z to 2024-10-02T19:10:19Z, 5 min 58 s")
     .expect_stdout_flat("An annular eclipse is never safe to look at with the naked eye");
     // Honolulu, 2017: the Sun rises eclipsed and the eclipse is partial there.
     run(&[
@@ -477,7 +482,7 @@ fn a_sunset_during_totality_leaves_the_part_before_it_seen_and_safe() {
         "-17.0",
     ])
     .expect_code(0)
-    .expect_stdout_flat("1 min 35 s, with the Sun below the horizon throughout")
+    .expect_stdout_flat("1 min 34 s, with the Sun below the horizon throughout")
     .expect_stdout_flat("Most seen at sunset 2024-04-08T19:48:21Z")
     .expect_stdout_flat("Totality comes with the Sun below the horizon here");
 }
