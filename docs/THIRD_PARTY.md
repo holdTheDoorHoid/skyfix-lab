@@ -2123,3 +2123,37 @@ its own, the direction to a point picked on the map, is a published method.
   retrieved 2026-09-25. Seven published numbers (facts), typed into
   `web/test/next/photo-tools.test.ts`; nothing else is copied.
 
+
+## Expansion programme — the almanac's tables and three-day pages (almanac2 agent, Q7, 2026-09-25)
+
+Owner: almanac2 agent (`crates/skyfix-almanac/src/tables/`, `opening.rs`,
+`crates/skyfix-wasm/src/almanac_tables.rs`, `web/src/next/almanac/`,
+`tools/reference/gen_almanac_tables.py`). **No third-party data is added to the site or
+the core.** The tables are formulas (CONVENTIONS 13.9.1) evaluated on the project's own
+ephemeris; the layouts follow the printed Nautical Almanac's, which are facts of
+arrangement; no text or figure of any almanac is reproduced.
+
+#### Development-time references
+
+- **The American Practical Navigator (Bowditch), NGA Pub. No. 9, 2019 edition, volume 1,
+  chapter 19 "Sight Reduction"**, sections 1906-1912 and figure 1912c (the Nautical
+  Almanac 2016's Polaris page, LHA Aries 120°-239°, with its illustration). **What is
+  used:** the numbers the worked examples read from the printed increments, altitude
+  correction, Moon and Polaris tables, and the 516 entries (a0, a1, a2, azimuth) of the
+  figure's Polaris page, typed with the book's rounding into
+  `fixtures/reference/almanac_tables_published.json` (test data only). **URL:**
+  <https://msi.nga.mil/Publications/APN>; read from the copy at
+  <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2019-%20Sight%20Reductions.pdf>
+  (SHA-256 `74dba460…53544dc1f`). **Retrieved:** 2026-09-25.
+- **The same, 2024 edition, volume 2, chapter 6 "Sextant Altitude Corrections"**, sections
+  604-625: the worked examples' readings of the Nautical Almanac 2024's tables A2, A3, A4
+  and the Moon's, and of the book's own Tables 27 and 28 (temperature and pressure).
+  Typed into the same fixture. Read from
+  <https://thenauticalalmanac.com/2024_Bowditch-_American_Practical_Navigator/Volume_2/09_Volume_2_Calculations_For_Navigation/Chapter_6_Sextant_Altitude_Corrections.pdf>
+  (SHA-256 `181261d8…faa2e9`). **Retrieved:** 2026-09-25.
+- **Licence (both):** works of the U.S. Government (National Geospatial-Intelligence
+  Agency), not subject to copyright in the United States (17 U.S.C. 105). No credit is
+  required; cited as the source of the test values.
+- **The independent computation** (`tools/reference/gen_almanac_tables.py`) uses only the
+  development-time inputs already listed under "Reference data (development-time only)":
+  Skyfield 1.55 (MIT) and JPL DE440s. It adds no source.

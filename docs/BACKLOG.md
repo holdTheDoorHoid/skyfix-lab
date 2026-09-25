@@ -192,3 +192,17 @@ This file is the single list; the completion report links here.
 | Alignment dates across a daylight-saving change | known limit | `alignment_days` lays a year on one fixed UTC offset (the one at the time shown); the list writes each day in the real zone, so only the grouping into runs of an event within an hour of local midnight could differ |
 | Offering the tides pack from the Place section | decided against | the line appears only when the pack is on the device; offering it everywhere would put a US-only download in front of every visitor, and knowing that a place is near a US station needs the pack itself |
 
+
+## Expansion programme Q7 — the almanac's tables, three-day pages, any year (almanac2 agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Three-date openings as the printed almanac lays them out | completed | `skyfix_almanac::opening`, `almanac_opening`; the view's **Three dates** mode (the default); grouped from 1 January in the display calendar, across the 1582 reform; A4 and US Letter, one sheet a page (`ui-check.mjs`) |
+| Increments and Corrections, Altitude Correction Tables (Sun, stars and planets, dip, the Moon's two parts, non-standard conditions, Venus and Mars), Polaris, Arc to Time | completed | `skyfix_almanac::tables`, six exports in `crates/skyfix-wasm/src/almanac_tables.rs`; each printable with a how-to sentence and a worked example; `docs/ACCURACY.md`, "Almanac tables and three-day pages" |
+| Any year in the Almanac | completed | the date entry reads years as the time bar does (`parseYear`), Julian before 1582-10-15 through the shared calendar; the ± chip on labelled-tier pages; the anachronism note before 1767; `pages::UtDate` now takes expanded years, so `skyfix almanac --date=-0584-05-22` parses too (with `=`: a leading minus after a space reads as an option; the rest of "CLI polish for far dates" above stands) |
+| Star charts beside the 57-star list | unstarted (optional in the brief) | a small chart of each star among the constellation figures, from `skyfix-starfield` |
+| The daily pages' first note | stale, not mine | `pages::NOTES[0]` still says "UT is UTC with DUT1 = 0 (CONVENTIONS 6)"; CONVENTIONS 15.2 now defines the pages' UT outside 1972-2035. `crates/skyfix-cli/tests/almanac.rs` pins the sentence, so the almanac and CLI owners change them together |
+| The almanac on the labelled tier | waiting (deeptime) | `almanac.rs` and `almanac_tables.rs` use `Sky::new()`; once the deeptime tiers land they should use the labelled-tier policy (`MERGE (deeptime)` note in `almanac_tables.rs`), since an almanac is for display, never a sight |
+| A faster opening | unstarted | an opening is three full daily pages (0.2 s native, several times that in WebAssembly on a loaded machine), computed once the time settles. Its outer two dates' twilight tables are never shown and their second moonrise column repeats the next date's; skipping them in `pages.rs` would save about a third |
+| The printed almanac's own refraction and Moon radius | decided against | the tables follow this project's chain (CONVENTIONS 5), so a navigator using them gets what a reduction gets; the printed book's differ by 0.1′ in 10 of 46 published values (ACCURACY) |
+| The zone letters of the non-standard conditions chart | by decision | this project's zones (13 of equal air density, CONVENTIONS 13.9.1); the printed chart's own lines are not published as numbers, so a letter can differ from the book's while the exact correction for a temperature and pressure does not |

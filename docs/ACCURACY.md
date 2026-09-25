@@ -2579,3 +2579,94 @@ model and its own one-sigma uncertainty, and there is none before 1900 or after 
 predicted sextant reading is offered only for the bodies and years sights are offered for,
 and assumes the standard 10 °C and 1010 hPa for refraction.
 
+
+## Almanac tables and three-day pages (almanac2 agent, expansion programme Q7)
+
+Owner: almanac2 agent (`crates/skyfix-almanac/src/tables/`, `opening.rs`; definitions
+CONVENTIONS 13.9.1). Display and teaching only: sight reduction runs the correction chain
+itself and never reads these tables.
+
+### Against an independent computation
+
+`tools/reference/gen_almanac_tables.py` computes the tables from CONVENTIONS 13.9.1 alone,
+in Python: exact fractions for the increments, v or d and arc to time, a root-finder for
+every critical boundary, closed forms for dip and parallax, Skyfield (DE440s) for Polaris'
+apparent places and the planets' parallax. It writes `fixtures/reference/almanac_tables.json`;
+`crates/skyfix-almanac/tests/almanac_tables_reference.rs` compares:
+
+- **6 274 printed values identical**: seven pages of increments (minutes 0, 1, 18, 27, 44,
+  58 and 59: every second of the Sun and planets, Aries and the Moon, and all 181 v or d
+  corrections), all of arc to time, the five critical tables (the Sun in both halves of
+  the year, stars and planets, dip in metres and in feet: every boundary and value), the
+  0°–10° table (109 rows), the non-standard conditions (26 altitudes by 13 zones) and both
+  parts of the Moon's table (18 columns).
+- **Polaris**: 1 546 of 1 548 printed values identical for 2016 (the other two differ by
+  0.1) and 1 548 of 1 548 for 2026; the adopted mean position within
+  0.01′ of SHA and 0.01″ of Dec of Skyfield's.
+- **Venus and Mars, 2024**: the daily horizontal parallax within 0.00001′ of Skyfield's,
+  the same runs of dates and the same corrections.
+
+### Against the published tables
+
+Bowditch reproduces the printed Nautical Almanac's tables in its worked examples (NGA
+Pub. No. 9, 2019, vol. 1 chapter 19, and 2024, vol. 2 chapter 6; public domain), typed
+into `fixtures/reference/almanac_tables_published.json`. Test `the_published_examples`:
+**36 of 46 values identical, the other 10 within 0.1′**. Every increment, v or d
+correction, arc-to-time entry, dip (10 heights) and Venus and Mars correction is identical.
+The ten that differ, all by 0.1′, are where the printed almanac's own models differ from
+this project's chain (CONVENTIONS 5), which the tables follow so that they give the Ho a
+reduction gives:
+
+| entry | here | printed | why |
+|---|---|---|---|
+| stars, Ha 27° 48.1′ (Miaplacidus) | −1.9 | −1.8 | refraction formula (Bennett here) |
+| 0°–10°: Sun Oct.–Mar. lower limb 6° 29.7′; Apr.–Sept. 1° 19.7′; stars 4° 02.1′ | +8.3, −5.9, −11.7 | +8.4, −5.8, −11.6 | refraction formula |
+| temperature and pressure, Ha 1° 19.7′ | +1.6 | +1.5 | one exact correction here; two separate tables (T, then P) printed |
+| Moon, upper part at 3° 50′, 18° 00′, 66° 40′, 2° 30′ | 56.2, 62.6, 33.2, 52.3 | 56.1, 62.5, 33.1, 52.2 | refraction, and the printed table's smaller Moon radius |
+| Moon, U at HP 59.6′ (2° 30′) | 4.9 | 5.0 | as above |
+
+The zone of 88 °F and 982 hPa is M in both, and its correction at 6° 29.7′ (+0.8′) is
+identical. Bowditch's three 2024 zone cases (their zones are not stated) give +1.8, +0.3 and
+−1.2 here against +2.1, +0.4 and −1.3 printed: the zones are this project's own
+(CONVENTIONS 13.9.1), so a letter can differ; the exact correction for a stated
+temperature and pressure does not depend on them.
+
+**The 2016 Polaris page** (Bowditch 2019 Figure 1912c, LHA Aries 120°–239°; test
+`the_printed_2016_polaris_page`): every a1 (156) and every azimuth (84) identical; a0 42 of
+132 and a2 45 of 144 identical, because the printed page adopted a different mean position
+(SHA 316° 47′, Dec N 89° 20.0′, recovered from its a0 column: no other position reproduces
+all 132 entries) from the one defined here (the mean of 73 apparent places, SHA
+316° 48.9′, Dec N 89° 19.9′). That moves value between a0 and a2 only: **a0 + a2 agrees
+with the printed sum within 0.1′ in all 1 584 combinations** of row and month, and both
+worked latitudes (§1912 and the figure's illustration) agree within 0.1′.
+
+### The tables' own approximations
+
+- **Critical tables** (unit tests in `tables/altitude.rs` and `tables/mod.rs`): looked up
+  as a navigator looks them up, every whole minute of apparent altitude from 10° 01′ to 90°
+  gets exactly the correctly rounded correction (stars and planets, both limbs of the Sun),
+  and an argument equal to a boundary takes the value above it.
+- **The Moon's two parts** (`tables/moon.rs`, `the_parts_add_up_to_the_chain`): upper
+  part plus L (or U − 30′) is within **0.23′** of the exact chain at every row and every
+  HP row, the rounding of the two parts included; the rest is the lower part being taken at
+  its column's middle altitude, as the printed table takes it.
+- **Polaris' formula** (`tables/polaris.rs`): its own error, reported for each year as
+  `formula_error_arcmin`, is 0.007′ in 2016 and grows as the cube of the polar distance;
+  above 0.1′ (before about 1800, after about 2450) the page carries a warning. The 2016
+  illustration's latitude by the table is 0.05′ from the rigorous one (the test holds it
+  within 0.1′).
+
+### Speed
+
+Native (release, x86-64, CPU time on a shared machine at load average 25–34): an opening
+(three daily pages) 0.20 s, one daily page 0.07 s, Venus and Mars for a year 0.08 s, the
+Polaris tables 2 ms, the altitude tables 4 ms. In WebAssembly under Node 24 on the same
+loaded machine an opening took 0.8–1.4 s; the view computes it only once the time has
+settled (300 ms, at most every 4 s while it keeps moving), never during a drag of the time
+bar. Increments, arc to time and the altitude tables are cheap and cached per argument.
+
+### Reproduce
+
+`SOURCE_DATE_EPOCH=1790380800 tools/reference/.venv/bin/python -m
+tools.reference.gen_almanac_tables` (about a minute), then `cargo test -p skyfix-almanac
+--release --test almanac_tables_reference -- --nocapture`, which prints every figure above.

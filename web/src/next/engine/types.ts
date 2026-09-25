@@ -4307,15 +4307,15 @@ export interface AltitudeTables {
   notes: string[];
 }
 
-export interface CivilDay {
+export interface AlmanacCivilDay {
   year: number;
   month: number;
   day: number;
 }
 
 export interface ParallaxPeriod {
-  from: CivilDay;
-  to: CivilDay;
+  from: AlmanacCivilDay;
+  to: AlmanacCivilDay;
   from_jd_utc: number;
   to_jd_utc: number;
   /** The parallax the corrections use, to 0.1′. */

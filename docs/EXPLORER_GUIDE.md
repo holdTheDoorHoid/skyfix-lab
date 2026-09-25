@@ -329,13 +329,46 @@ anywhere.
 
 ### Almanac
 
-Daily pages laid out the way a printed nautical almanac's are: GHA and declination for
-Aries, the Sun, the Moon and the four navigational planets at every hour, the 57
-navigational stars plus Polaris, meridian passages, and the rise/set/twilight table across
-31 standard latitudes. Step a day at a time or jump to **Today**; **Print** produces a
-clean printable page. This is the same computation as `skyfix almanac` on the command
-line ([Command line](CLI.md)) and is normative in
-[Accuracy and limitations](ACCURACY.md), "Almanac pages".
+The printed Nautical Almanac, computed for any date the explorer covers and laid out the
+way the book lays it out. Five tabs:
+
+- **Daily pages.** **Three dates** shows an *opening* of the printed almanac: two facing
+  pages covering three days (7, 8 and 9 March; the book groups each year in threes from
+  1 January). The left page has GHA and declination for Aries and the four navigational
+  planets at every hour of the three days, the 57 navigational stars plus Polaris, and
+  the planets' SHA; the right page the Sun and the Moon every hour (with the Moon's v, d
+  and HP), twilight, sunrise and sunset for the middle day and moonrise and moonset for
+  four days across 31 standard latitudes, and the equation of time, meridian passages and
+  the Moon's age and phase for each day. **One date** shows a single day on two pages,
+  larger on screen. The row of the explorer's current hour is marked. The date box takes
+  any year: type `1066`, or `585` with **BC** chosen (or `585 BC`, `−584`); dates before
+  15 October 1582 are in the Julian calendar, as in the time bar, and the calendar box
+  can force either calendar. Before 1767, the year of the first Nautical Almanac, the page
+  says it shows what the book *would* have printed. On estimated years the ± chip beside
+  the heading gives the uncertainty of every clock time on the page.
+- **Increments.** Increments and Corrections, two minutes to a page as printed: what to
+  add to the hour's GHA for the minutes and seconds after it (Sun and planets, Aries, the
+  Moon), and the v and d corrections. **Look up** takes a time such as `58:27` and a v or
+  d and gives the numbers a navigator would read.
+- **Altitude corrections.** The book's inside-cover tables: the Sun (October–March and
+  April–September), stars and planets, and dip for 10° to 90°; the table for 0° to 10°;
+  the extra correction for unusual temperature and pressure with its zone chart (type a
+  temperature and pressure for your zone and the exact corrections); Venus and Mars for
+  the year shown; and the Moon's two-part table.
+- **Polaris.** The Pole Star tables for the year shown: a0, a1, a2 and Polaris' bearing.
+  **Look up** takes LHA Aries, your latitude and the month and adds the three terms:
+  latitude = observed altitude − 1° + a0 + a1 + a2.
+- **Arc to time.** Degrees and minutes of arc as hours, minutes and seconds.
+
+Every table has a sentence on how to use it and a worked example, most of them the
+examples in *The American Practical Navigator* (Bowditch). **Print** prints the tab's
+pages black on white, one page to a sheet, on A4 or US Letter, whatever the theme; on the
+Increments tab **Print all 30 pages** prints the whole table. The tables are computed with
+the project's own corrections, so a navigator using them gets what Navigate gets; where
+the printed book's own formulas differ, an entry can differ from the book's by 0.1′
+([Accuracy and limitations](ACCURACY.md), "Almanac pages" and "Almanac tables and
+three-day pages"). The daily pages are the same computation as `skyfix almanac` on the
+command line ([Command line](CLI.md)).
 
 ![A daily almanac page: GHA and declination for Aries, the four navigational planets and every navigational star, at every hour of the day.](design/almanac-screen.png)
 

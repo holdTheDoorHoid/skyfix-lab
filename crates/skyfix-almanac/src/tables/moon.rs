@@ -200,6 +200,9 @@ mod tests {
                 }
             }
         }
+        println!(
+            "the Moon's two-part table against the exact chain at its rows: worst {worst:.3}'"
+        );
         assert!(worst < 0.25, "two-part table off by {worst}'");
     }
 

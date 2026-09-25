@@ -520,9 +520,9 @@ pub fn altitude_tables(conditions: Option<Conditions>) -> Result<AltitudeTables,
         notes: vec![
             "Refraction: Bennett (1982) at 1010 hPa and 10 °C, the model this project's own \
              sight reductions use (CONVENTIONS 5). The printed Nautical Almanac's refraction \
-             is a slightly different model: its corrections can differ from these by 0.1′ \
-             above 5°, and near the horizon by up to 0.7′, less than refraction there varies \
-             from day to day."
+             is a slightly different model, so an entry here can differ from the printed one \
+             by 0.1′ (the published examples checked differ by at most that), less than \
+             refraction near the horizon varies from day to day."
                 .to_string(),
             "Sun: mean parallax 8.794″; semidiameter 16.15′ October–March and 15.9′ \
              April–September, as in the printed tables (within 0.15′ of the day's)."

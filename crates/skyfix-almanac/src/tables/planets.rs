@@ -5,9 +5,13 @@
 //! in its tabulated position). Venus's horizontal parallax runs from 0.08′ to 0.55′ and
 //! Mars's from 0.06′ to 0.43′ as their distances change, so the printed table gives the
 //! correction for date ranges. Here a range is a run of days on which the planet's
-//! parallax at 0h UT rounds to the same 0.1′, and its corrections are that rounded
-//! parallax times `cos Ha`, as a critical table in whole degrees of apparent altitude.
-//! (For Jupiter and Saturn the parallax is under 0.04′ and there is no table.)
+//! parallax at 0h UT rounds to the same 0.1′, and its corrections are the parallax in
+//! altitude for that rounded `HP`, `asin(sin HP cos Ha)` (the chain's step 5 at the
+//! apparent altitude; at the airless altitude it differs by under 0.001′), as a critical
+//! table in whole degrees of apparent altitude. An exact tie rounds as the rigorous value
+//! falls: for `HP` 0.1′ at 60°, `HP cos Ha` is 0.05′ but the arcsine is a hair under it,
+//! so 60° takes 0.0′. (For Jupiter and Saturn the parallax is under 0.04′ and there is no
+//! table.)
 
 use serde::{Deserialize, Serialize};
 use skyfix_core::calendar::{Calendar, civil_from_jdn, jdn_from_civil};
