@@ -1078,9 +1078,19 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  max-width: 100%;
   color: var(--stage-ink-2);
   font-size: var(--text-sm);
   white-space: nowrap;
+}
+
+/* A long choice (a station's name) shrinks with the card instead of running past it. */
+.sfc-control > select {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
 }
 
 .sfc-control .sf-input {
