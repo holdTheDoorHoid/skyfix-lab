@@ -242,7 +242,7 @@ low-altitude term above.
   same frame.
 - **The Sun is the VSOP87A Earth** (the planets' own Earth, with the corrections fitted to
   DE440 and DE441), reversed, with light-time and relativistic vector aberration; the
-  planets are VSOP87A likewise; the Moon is ELP/MPP02 (§15.1, ACCURACY §20).
+  planets are VSOP87A likewise; the Moon is ELP/MPP02 (§15.1, ACCURACY §21).
 - **Stars move rigorously**: rectilinear space motion from the Hipparcos epoch J1991.25
   with each star's radial velocity (perspective acceleration included; SIMBAD values).
   **Rigil Kentaurus is alpha Centauri A**, the body the Nautical Almanac tabulates, and
@@ -250,7 +250,7 @@ low-altitude term above.
   2021): the barycentre moves on a straight line with A's catalogue proper motion less
   A's orbital velocity at J1991.25, so at that epoch the model is the catalogue. The
   Almanac and USNO's celnav extrapolate A's 1991 motion in a straight line instead; the
-  two differ by 5.8" in 2026 and 17" in 2060 (ACCURACY §20, "Rigil Kentaurus"). A sextant
+  two differ by 5.8" in 2026 and 17" in 2060 (ACCURACY §21, "Rigil Kentaurus"). A sextant
   sees the A+B light centre, about 2" from A in 2026; that is not modelled.
 
 ## 8. Solver (skyfix-core `solver`)
@@ -514,6 +514,18 @@ runs one way only, and `crates/skyfix-starfield/tests/crate_boundary.rs` still k
   Julian dates) for the interface to format in the displayed zone (13.8); the engine
   never formats a local time.
 
+**The Sky view's limit and extinction (sky2 agent, expansion programme Q3).** The faintest
+magnitude the Sky view draws at the zenith is the twilight curve of the Sun's altitude
+(6.5 in full darkness: the automatic setting, a dark site), or in the Bortle and naked-eye
+settings the brighter of that and the site's own limit (`conditions.nelm`, as the engine
+resolves it). Away from the zenith a star, a deep-sky object or the Milky Way is dimmed by
+the extinction relative to the zenith, `extinction_mag(h) − extinction_mag(90°)` =
+`k (X − 1)` from the engine's table, at the apparent altitude drawn. The deep-sky limit is
+the zenith limit plus a reach that follows the chart's scale (1.5 mag on a laptop's
+whole-sky chart). The engine's estimates on the view (best time, instrument, meteor rates,
+the ranking) are asked with the same sky (`sky/conditions.ts` `skyConditions`; automatic =
+`{nelm: 6.5}`), so the chart and its cards agree.
+
 ### 13.7 Accuracy targets and validation
 
 Reference: Skyfield with JPL DE440s (DE421 as a cross-check), DUT1 = 0 columns as in
@@ -544,7 +556,7 @@ catalogue's formal 1-sigma at the
 tier's edges; Rigil Kentaurus's barycentric motion apart). In the **labelled tier** the
 figures are measured and published but carry no target (display only, no sights): Sun
 0.02, Moon 0.05, Mercury 0.02, Venus 0.06, Mars 0.15, Jupiter 0.25, Saturn 0.7, Uranus 0.2,
-Neptune 0.06, stars 0.2. `docs/ACCURACY.md` section 20 has the table per half-century and
+Neptune 0.06, stars 0.2. `docs/ACCURACY.md` section 21 has the table per half-century and
 per century they come from, and `crates/skyfix-ephemeris/tests/deeptime_reference.rs`
 asserts every case against them.
 
@@ -1335,3 +1347,73 @@ every eclipse quantity (section 13). Without the pack every result is the mean l
 - **Not modelled**: refraction (as everywhere in the eclipse engine), the Earth's terrain
   beyond the observer's own height, the Sun's limb darkening (a contact is geometric), and
   ground beyond the ring's ±12° (a slice that runs off it sets `ring_truncated`).
+
+### 15.8 Calendar files, tables and the Events view's own rules (events2 agent, wave 2)
+
+Normative for every view that saves events (`web/src/next/export/ics.ts` writes the files;
+the Events view builds its entries in `web/src/next/events/items.ts`).
+
+- **Calendar files** are RFC 5545 iCalendar: `VERSION:2.0`, `PRODID:-//SkyFix Lab//Events//EN`,
+  `CALSCALE:GREGORIAN`, `METHOD:PUBLISH`, the list's name in `X-WR-CALNAME`; CRLF line ends;
+  lines folded at 75 octets without splitting a UTF-8 character; TEXT escaped (`\\`, `\;`,
+  `\,`, `\n`). Each event has `UID`, `DTSTAMP` (when the file was made), `DTSTART`, an
+  optional `DTEND`, `SUMMARY` (plain words, the astronomer's term in brackets), `DESCRIPTION`,
+  and `TRANSP:TRANSPARENT` (an event in the sky never makes a person look busy).
+- **Times** are the app's clock written in UTC form (`20261026T041200Z`), rounded to the
+  second. Outside 1972-2035 the clock is UT (15.2), which a calendar reads as UTC: the
+  description says so, and gives the ±ΔT uncertainty (15.6) when it exceeds 30 s. An instant
+  has no `DTEND` (RFC 5545 3.6.1: it ends when it starts); an event that lasts (an eclipse
+  seen from the place, an occultation, a transit, a Galilean phenomenon) has `DTEND` after
+  `DTSTART`. Only years 1 to 9999 fit (`date-fullyear = 4DIGIT`, Gregorian); an event outside
+  them is left out of a file and its calendar button says why.
+- **UIDs** name the event wherever it is computed: `<kind>-<bodies>-<UTC date>@skyfix-lab.events`
+  (`occultation-regulus-2026-10-07`), or the engine's own id (`eclipse-2024-04-08-solar`,
+  `transit-2032-11-13-mercury`). They never contain the place, so saving the same event again,
+  from any place, updates the entry. The place (`LOCATION`, `GEO` to 4 decimals, and the
+  description's "Times for …") is written only for times that hold at the place, and only
+  when the person leaves "Name the place in the files" ticked.
+- **Tables** (CSV) follow the Charts view's format (`web/src/next/export/csv.ts`): a byte-order
+  mark, `# ` lines saying what the file is, where (when named) and on which clock, one header
+  row, then per event `Instant` (ISO 8601 to the second, the wire's form: expanded years
+  outside 0000-9999), `Scale` (`UTC` or `UT`), the local date and time and the zone's name,
+  the kind, the event, the end, the uncertainty (`±12 min`, or empty), the body, the
+  sentence, then each kind's own columns.
+- **Occultations seen elsewhere on Earth**: a pass of the Moon whose geocentric least
+  separation `sep` from a body satisfies `sin(sep) < sin(HP) + sin(SD☾)` (plus the body's
+  semidiameter for a planet), HP and SD☾ geocentric at that instant; seen from the north (south)
+  of the half of the Earth facing the Moon when the Moon passes north (south) of the body, from
+  the middle when `sep ≤ SD☾`. A sorting rule, labelled "roughly", validated in ACCURACY
+  ("Events view").
+- **Jupiter's moons seen from here**: Jupiter's apparent altitude at least 5°, the Sun at
+  least 6° below the horizon, Jupiter at least 15° from the Sun, at the phenomenon's start or
+  end, that moment `observable`. A night is local noon to local noon in the display zone.
+- **Background searches** (`web/src/next/events/search.ts`): one engine call per piece between
+  frames (eclipses ten years a piece, so the list can reach a millennium); no piece while a pointer is pressed on the page or within 300 ms of a time change;
+  one piece per 250 ms while the time plays; the lists hold still during fast playback (15.6)
+  and catch up once it stops. Results are kept per window and per place for the page's
+  lifetime.
+- **The lunar limb on the eclipse card** (15.7): only a solar eclipse seen from the place
+  asks for it. Without the pack the card says **Mean limb** with the engine's note and a
+  "Not saved on this device" line with Get; the pack is offered once a page session
+  (`ctx.packs.ensure`, which remembers Not now). With it the card's contacts, durations,
+  summary and timeline are the corrected ones, marked **Limb-corrected** (the time column
+  "limb-corrected", each contact's shift, "near a graze: less certain" above 8 s per
+  arcsecond), and the beads are headed "approximate", their places as a clock face on the
+  Sun's edge with 12 toward the zenith (the occultation card's). The list, its Save menu and
+  its calendar files keep the mean limb; the card's own calendar entry says when its times
+  are corrected.
+- **Opening the Events view from another view** (`web/src/next/events/link.ts`, re-exported by
+  `events/view.ts`): `showEvents(store, target, ref)`, `target` a tab or a list
+  (`eclipses`, `moon/phases|apsides|occultations`,
+  `planets/events|conjunctions|retrograde|transits|jupiter`, `meteors`, `seasons`;
+  `eventsTargetFor(kind)` names the list for a kind of event), `ref` `{ jd, body, id }`, each
+  optional. It sets the explorer's time to `jd` and selects `body`, opens the view, and posts
+  the request on the explorer's channel `eventsRequests(store)` (the pattern of Tonight's
+  `skyTargets`), which the view answers when it mounts or at once: the tab and list, the
+  list built from `jd` and running forward so the event heads it, and the card of `id` (an
+  eclipse, occultation, transit or meteor shower) opened, its row brought into view once the
+  list settles unless the person has touched, scrolled or typed meanwhile. Ids are the
+  lists' own, which are their calendar UIDs; `eventIds` builds them without loading the view.
+- **Cards beside a list** open level with their row (the card column is padded down to it),
+  so a row picked far down a long list never opens its card out of sight; on a narrow stage
+  the card goes under its row.

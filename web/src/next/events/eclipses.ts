@@ -14,9 +14,12 @@ import { h } from '../../dom.js';
 import { disposer, observerKey } from '../component.js';
 import {
   isEclipseEngine,
+  isLimbEngine,
+  type PackService,
+  type SolarEclipseLimb,
+  type SolarEclipseLocal,
   type Eclipse,
   type EclipseEngine,
-  type EclipseList,
   type EclipseLocal,
   type EclipseLocalEvent,
   type LunarEclipse,
@@ -40,13 +43,24 @@ import {
 } from '../shell/format.js';
 import { displayZone, engineObserver, type AngleFormat, type ExplorerState } from '../state.js';
 import { jdFromIso, roundToMinute, UTC_ZONE, zoneShortName, type Zone } from '../time.js';
+import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { button, readout, segmented, switchRow } from '../theme/primitives.js';
-import { errorText, watchAll, type TabComponent, type TabEnv } from './env.js';
+import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { formatBytes } from '../packs/manifest.js';
+import { clockPosition } from './moon-model.js';
+import { errorText, watchAll, type EclipseYears, type TabComponent, type TabEnv } from './env.js';
+import { addToCalendarButton, exportMenu } from './export-ui.js';
+import { fileWords, utcDate } from './items.js';
+import { coverageKey, coverageSpan } from './listtab.js';
+import { alignCard } from './rows.js';
+import { progressText, type SearchState } from './search.js';
+import { eclipseItem } from './sky-model.js';
 import { clearEclipse, eclipseOnMap, lunarOverlays, showEclipse, solarOverlays } from './mapping.js';
 import {
+  beadWords,
   centralPhase,
-  ECLIPSE_HORIZON_DAYS,
+  correctionWords,
   eclipsesAround,
   eclipseTitle,
   eclipseTypeWords,
@@ -61,7 +75,9 @@ import {
   neededSpan,
   seenHere,
   solarSummary,
-  SpanCache,
+  paddedSpan,
+  withLimb,
+  YEAR_DAYS,
   type Direction,
   type EclipseKindFilter,
   type Words,
@@ -69,12 +85,19 @@ import {
 
 /** Background work per slice, milliseconds (one `eclipse_local` is 3-5 ms in WebAssembly). */
 const SLICE_MS = 12;
+/** The eclipse search's piece: ten years (about 0.1 s of WebAssembly). */
+const ECLIPSE_CHUNK_DAYS = 10 * YEAR_DAYS;
+/** Rows drawn at a time. */
+const ROWS_PER_PAGE = 120;
 /** Below this width the card opens inside the list, under its row. */
 const INLINE_CARD_PX = 820;
 
-/** An eclipse by id: `2024-04-08-solar` names the UTC date of greatest eclipse. */
+/**
+ * An eclipse by id: `2024-04-08-solar` names the UTC date of greatest eclipse; outside the
+ * years 0000-9999 the date has an ISO expanded year (`-0584-05-28-lunar`, the wire's form).
+ */
 export function eclipseIdDate(id: string): number | null {
-  const m = /^(\d{4}-\d{2}-\d{2})-(solar|lunar)$/.exec(id);
+  const m = /^([+-]\d{4,6}-\d{2}-\d{2}|\d{4}-\d{2}-\d{2})-(solar|lunar)$/.exec(id);
   return m ? jdFromIso(`${m[1]}T00:00:00Z`) : null;
 }
 
@@ -122,12 +145,13 @@ function isUtc(zone: Zone): boolean {
   return zone.kind === 'fixed' && zone.offsetMs === 0;
 }
 
-/** `Mon 8 Apr 2024, 13:17 CDT (18:17 UTC)`; the UTC date too when it differs. */
+/** `Mon 8 Apr 2024, 13:17 CDT (18:17 UTC)`; the UTC date too when it differs; UT outside 1972-2035. */
 function whenWithUtc(jd: number, zone: Zone): string {
   const r = roundToMinute(jd);
-  if (isUtc(zone)) return `${dateMedium(r, UTC_ZONE)}, ${eventTime(r, UTC_ZONE)} UTC`;
+  const clock = scaleLabel(r);
+  if (isUtc(zone)) return `${dateMedium(r, UTC_ZONE)}, ${eventTime(r, UTC_ZONE)} ${clock}`;
   const sameDay = dateMedium(r, zone) === dateMedium(r, UTC_ZONE);
-  return `${dateMedium(r, zone)}, ${eventTime(r, zone)} ${zoneShortName(r, zone)} (${sameDay ? '' : `${dateShort(r, UTC_ZONE)} `}${eventTime(r, UTC_ZONE)} UTC)`;
+  return `${dateMedium(r, zone)}, ${eventTime(r, zone)} ${zoneShortName(r, zone)} (${sameDay ? '' : `${dateShort(r, UTC_ZONE)} `}${eventTime(r, UTC_ZONE)} ${clock})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -266,16 +290,24 @@ function contactsTable(
   local: EclipseLocal,
   st: Settings,
   jump: (jd: number) => void,
+  engine: TabEnv['ctx']['engine'],
+  limb: SolarEclipseLimb | null = null,
 ): HTMLElement {
   const body = bodyOf(e);
   const central = local.kind === 'solar' ? centralPhase(local) : null;
   const max = eventOf(local, 'max');
   const ref = max?.jd_utc ?? e.greatest.jd_utc;
+  const chips = local.events.length ? chipsIn(engine, local.events[0]!.jd_utc, local.events[local.events.length - 1]!.jd_utc) : false;
   const rows = local.events.map((ev) => {
     const n = localEventName(ev.kind, central);
     const extra: string[] = [];
     if (ev.magnitude !== null) extra.push(`magnitude ${formatEclipseMagnitude(ev.magnitude)}`);
     if (ev.obscuration !== null) extra.push(`${formatPercent(ev.obscuration)} of the Sun covered`);
+    const corrected = limb?.loaded ? (limb.contacts.find((c) => c.kind === ev.kind) ?? null) : null;
+    if (corrected) {
+      extra.push(`limb-corrected: ${correctionWords(corrected)}`);
+      if (corrected.seconds_per_arcsec > 8) extra.push('near a graze: less certain');
+    }
     const day = otherDay(ev.jd_utc, ref, st.zone);
     const time = h(
       'button',
@@ -300,7 +332,13 @@ function contactsTable(
         n.term ? h('span', { class: 'sfe-ev__term', 'data-term': '' }, n.term) : null,
         extra.length ? h('span', { class: 'sfe-ev__extra' }, extra.join(' · ')) : null,
       ),
-      h('td', {}, time, h('span', { class: 'sfe-utc' }, `${clockSeconds(ev.jd_utc, UTC_ZONE)} UTC`)),
+      h(
+        'td',
+        {},
+        time,
+        uncertaintyChip(rowTimeInfo(engine, ev.jd_utc, chips)),
+        h('span', { class: 'sfe-utc' }, `${clockSeconds(ev.jd_utc, UTC_ZONE)} ${scaleLabel(ev.jd_utc)}`),
+      ),
       h('td', { class: 'sf-num-r' }, alt, ev.visible ? null : h('span', { class: 'sfe-below' }, 'below the horizon')),
       h('td', {}, h('abbr', { title: compassWords(ev.az_deg) }, compassPoint(ev.az_deg))),
     );
@@ -319,7 +357,7 @@ function contactsTable(
           'tr',
           {},
           h('th', { scope: 'col' }, 'What happens'),
-          h('th', { scope: 'col' }, `Time (${zoneShortName(ref, st.zone)})`),
+          h('th', { scope: 'col' }, `Time (${zoneShortName(ref, st.zone)}${limb?.loaded ? ', limb-corrected' : ''})`),
           h('th', { scope: 'col', class: 'sf-num-r' }, `${body}’s height`),
           h('th', { scope: 'col' }, 'Direction'),
         ),
@@ -391,7 +429,25 @@ function globalLine(e: Eclipse, st: Settings): HTMLElement {
   return h('p', { class: 'sfe-global' }, parts.join(' '));
 }
 
-function card(e: Eclipse, local: EclipseLocal | null, localError: string | null, st: Settings, env: TabEnv): CardParts {
+/** What the card knows of the lunar limb (EXPLORER_API "Expansion programme P12"). */
+interface LimbView {
+  /** The engine's block: corrected (`loaded`) or the mean limb's note; null without it. */
+  block: SolarEclipseLimb | null;
+  /** The mean-limb circumstances, to say what the limb changed. */
+  mean: SolarEclipseLocal | null;
+}
+
+const LIMB_PACK = 'lunar-limb';
+const LIMB_REASON =
+  'The times of this eclipse are for a smooth Moon; its mountains and valleys move second and third contact by a few seconds and make Baily’s beads.';
+/**
+ * The card offers the pack once a page session: an answer other than Get (or a site that
+ * does not offer it) is remembered here as the pack service remembers "Not now", so a
+ * second card neither asks again nor flashes "answer the card" while the service says no.
+ */
+let limbAnswered = false;
+
+function card(e: Eclipse, local: EclipseLocal | null, localError: string | null, st: Settings, env: TabEnv, limbView: LimbView | null = null): CardParts {
   const body = bodyOf(e);
   const jumpHere = (jd: number): void => env.jump(jd, { body });
   const title = h('h3', { class: 'sfe-card__title', id: `sfe-card-${e.id}` }, dateLong(roundToMinute(e.greatest.jd_utc), st.zone));
@@ -413,17 +469,38 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
         : lunarSummary(e as LunarEclipse, local as LunarEclipseLocal, w);
     parts.push(h('h4', { class: 'sfe-card__sub' }, `Seen from ${st.place}`));
     parts.push(h('div', { class: 'sfe-summary' }, ...sentences.map((t) => h('p', {}, t))));
+    const limbNote = limbLine(limbView);
+    if (limbNote) parts.push(limbNote);
     parts.push(readoutsFor(e, local, st));
     tl = timeline(e, local, st.zone);
     if (tl && local.events.length) {
       parts.push(h('h4', { class: 'sfe-card__sub' }, 'Timeline'));
       parts.push(tl.el);
-      parts.push(contactsTable(e, local, st, jumpHere));
+      parts.push(contactsTable(e, local, st, jumpHere, env.ctx.engine, limbView?.block ?? null));
+      const beads = limbView?.block?.loaded ? limbView.block.beads : [];
+      if (beads.length && local.kind === 'solar') {
+        const central = centralPhase(local) ?? 'total';
+        parts.push(h('h4', { class: 'sfe-card__sub' }, 'Baily’s beads, approximate'));
+        parts.push(
+          h(
+            'div',
+            { class: 'sfe-summary sfe-beads' },
+            ...beadWords(beads, (jd) => clockSeconds(jd, st.zone), clockPosition, central).map((t) => h('p', {}, t)),
+            h(
+              'p',
+              { class: 'sfe-note' },
+              'Approximate: from the Moon’s mapped terrain at 1.9 km, the valleys at least 0.1″ deep, within 15 s of the contact. The o’clock positions read the Sun’s edge as a clock face, 12 toward the point overhead.',
+            ),
+          ),
+        );
+      }
+      const unc = listUncertaintySentence(env.ctx.engine, local.events.map((ev) => ev.jd_utc));
       parts.push(
         h(
           'p',
           { class: 'sfe-note' },
-          'Times to the second as computed. The Earth’s rotation is not perfectly predictable (Delta-T), so a future contact may come a few seconds earlier or later.',
+          unc ||
+            'Times to the second as computed. The Earth’s rotation is not perfectly predictable (Delta-T), so a future contact may come a few seconds earlier or later.',
         ),
       );
     }
@@ -484,6 +561,18 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
   };
   renderActions();
   parts.push(actions);
+  const limbCorrected = limbView?.block?.loaded === true;
+  const add = addToCalendarButton(
+    env.ctx,
+    env.ui,
+    () => {
+      const item = eclipseItem(e, local, fileWords(env.ctx.store.get()));
+      // The card's times are the corrected ones; the list's Save menu keeps the smooth Moon's.
+      return limbCorrected ? { ...item, sentence: `${item.sentence} Times corrected for the Moon’s mountains and valleys (Lunar limb pack).` } : item;
+    },
+    `${eclipseTitle(e)}, ${dateMedium(roundToMinute(e.greatest.jd_utc), st.zone)}`,
+  );
+  parts.push(h('div', { class: 'sfe-actions sfe-actions--add' }, add, h('span', { class: 'sfe-note' }, 'Add to a calendar')));
   if (e.kind === 'solar') {
     parts.push(
       h(
@@ -503,6 +592,79 @@ function card(e: Eclipse, local: EclipseLocal | null, localError: string | null,
   return { el, setNow: (jd) => tl?.setNow(jd) };
 }
 
+/**
+ * One or two sentences on the Moon's edge under the summary: the times are corrected for its
+ * mountains (and what that changed here), or they are the smooth Moon's, with the pack offered.
+ */
+function limbLine(view: LimbView | null): HTMLElement | null {
+  const block = view?.block ?? null;
+  if (!block) return null;
+  const el = h('div', { class: 'sfe-limb' });
+  if (block.loaded) {
+    const parts: string[] = [];
+    const mean = view?.mean ?? null;
+    const words = (t: string | null | undefined): string =>
+      t === 'total' ? 'total' : t === 'annular' ? 'annular' : t === 'partial' ? 'partial' : 'not eclipsed';
+    if (mean && block.local_type && block.local_type !== mean.local_type) {
+      parts.push(`With the Moon’s mountains and valleys the eclipse here is ${words(block.local_type)}; the smooth Moon of the list makes it ${words(mean.local_type)}.`);
+    }
+    if (block.central_duration_correction_s !== null && Math.abs(block.central_duration_correction_s) >= 0.5) {
+      parts.push(
+        `The Moon’s edge makes the central phase ${Math.abs(block.central_duration_correction_s).toFixed(1)} s ${block.central_duration_correction_s < 0 ? 'shorter' : 'longer'} than the smooth Moon’s.`,
+      );
+    }
+    if (block.interrupted) parts.push('Sunlight returns through a valley during the central phase: a graze.');
+    el.append(
+      h('span', { class: 'sfe-badge sfe-badge--accent' }, 'Limb-corrected'),
+      h('p', {}, [...parts, block.note].join(' ')),
+    );
+    return el;
+  }
+  // The badge says "Mean limb"; the engine's note starts with it too.
+  const note = block.note.replace(/^Mean limb:\s*/, '');
+  el.append(
+    h('span', { class: 'sfe-badge sfe-badge--muted' }, 'Mean limb'),
+    h('p', {}, note.charAt(0).toUpperCase() + note.slice(1)),
+    h('p', { class: 'sfe-packline', 'data-pack': LIMB_PACK }),
+  );
+  return el;
+}
+
+/**
+ * The card's line about the pack, redrawn on every change the pack service reports (the
+ * tides tab's pattern): while the one prompt is up, where to answer it; then the "not saved
+ * on this device" state with a Get button, the download's progress, or what went wrong.
+ */
+function fillLimbPack(line: HTMLElement, packs: PackService, asking: boolean): void {
+  const state = packs.status().find((p) => p.name === LIMB_PACK) ?? null;
+  const progress = state?.progress ?? null;
+  if (progress) {
+    const pct = Math.round((100 * progress.received) / Math.max(1, progress.total));
+    line.replaceChildren(h('span', { role: 'status' }, `Downloading the ${state!.label} pack… ${pct} %`));
+    return;
+  }
+  if (asking) {
+    line.replaceChildren('Answer the card at the bottom of the view to get it.');
+    return;
+  }
+  if (!state || !state.offered || !state.supported || state.loaded) {
+    line.replaceChildren();
+    return;
+  }
+  const get = button({
+    label: state.error ? 'Try again' : `Get the pack (${formatBytes(state.bytes)})`,
+    variant: 'secondary',
+    size: 'sm',
+    class: 'sfe-getpack',
+    tip: state.description,
+    onClick: () => {
+      get.setAttribute('disabled', '');
+      void packs.get(LIMB_PACK).catch(() => false);
+    },
+  });
+  line.replaceChildren(h('strong', {}, 'Not saved on this device. '), ...(state.error ? [`${state.error} `] : []), get);
+}
+
 /** Put the eclipse on the map, then switch to the map view (which fits it). */
 function showOnMap(e: Eclipse, env: TabEnv): void {
   const engine = env.ctx.engine;
@@ -512,8 +674,8 @@ function showOnMap(e: Eclipse, env: TabEnv): void {
     const path = engine.eclipsePath(e.id);
     specs =
       path.kind === 'solar'
-        ? solarOverlays(path, { greatest: `Greatest eclipse ${eventTime(e.greatest.jd_utc, UTC_ZONE)} UTC` })
-        : lunarOverlays(path, { overhead: `Moon overhead ${eventTime(e.greatest.jd_utc, UTC_ZONE)} UTC` });
+        ? solarOverlays(path, { greatest: `Greatest eclipse ${eventTime(e.greatest.jd_utc, UTC_ZONE)} ${scaleLabel(e.greatest.jd_utc)}` })
+        : lunarOverlays(path, { overhead: `Moon overhead ${eventTime(e.greatest.jd_utc, UTC_ZONE)} ${scaleLabel(e.greatest.jd_utc)}` });
   } catch (error) {
     env.ctx.notices.push('error', `The eclipse could not be drawn: ${errorText(error)}`, { key: 'events-map' });
     return;
@@ -570,10 +732,21 @@ export const eclipsesTab: TabComponent = (host, env) => {
     size: 'sm',
     value: u0.eclipseDirection,
     options: [
-      { value: 'upcoming', label: 'Upcoming', tip: 'The next ten years from the explorer’s time' },
-      { value: 'past', label: 'Past', tip: 'The last ten years before the explorer’s time' },
+      { value: 'upcoming', label: 'Upcoming', tip: 'From the explorer’s time on' },
+      { value: 'past', label: 'Past', tip: 'Before the explorer’s time' },
     ],
     onChange: (v) => ui.patch({ eclipseDirection: v }),
+  });
+  const reach = segmented<'10' | '100' | '1000'>({
+    label: 'How far',
+    size: 'sm',
+    value: String(u0.eclipseYears) as '10' | '100' | '1000',
+    options: [
+      { value: '10', label: '10 years' },
+      { value: '100', label: '100', tip: 'A century: searched ten years at a time, as the list fills in' },
+      { value: '1000', label: '1000', tip: 'A millennium, where the engine covers it: a few seconds, searched ten years at a time' },
+    ],
+    onChange: (v) => ui.patch({ eclipseYears: Number(v) as EclipseYears }),
   });
   const kind = segmented<EclipseKindFilter>({
     label: 'Kind of eclipse',
@@ -596,15 +769,45 @@ export const eclipsesTab: TabComponent = (host, env) => {
   const status = h('p', { class: 'sfe-status', role: 'status', 'aria-live': 'polite' });
   const list = h('div', { class: 'sfe-list' });
   const aside = h('div', { class: 'sfe-cardcol' });
+  const listCol = h('div', { class: 'sfe-listcol' }, status, list);
+  // The file holds the eclipses listed, with what the place sees of each when it is known.
+  const save = exportMenu(ctx, ui, {
+    title: () => `Eclipses, ${ui.get().eclipseDirection === 'upcoming' ? 'next' : 'last'} ${ui.get().eclipseYears} years`,
+    fileParts: () => ['eclipses', `${ui.get().eclipseDirection === 'upcoming' ? 'next' : 'last'}-${ui.get().eclipseYears}-years`, utcDate(ui.get().anchor)],
+    items: (w) =>
+      visibleRows().map((e) => {
+        const r = localOf(e.id);
+        return eclipseItem(e, r && 'ok' in r ? r.ok : null, w);
+      }),
+    local: true,
+  });
+  d.add(() => save.destroy());
   root.append(
-    h('div', { class: 'sfe-controls' }, direction.el, kind.el, seen),
-    h('div', { class: 'sfe-split' }, h('div', { class: 'sfe-listcol' }, status, list), aside),
+    h('div', { class: 'sfe-controls' }, direction.el, reach.el, kind.el, seen, save.el),
+    h('div', { class: 'sfe-split' }, listCol, aside),
   );
 
   // --- Data --------------------------------------------------------------------------------
-  const caches: Record<Direction, SpanCache<EclipseList>> = {
-    upcoming: new SpanCache((s) => engine.eclipses(s.start, s.end), 120),
-    past: new SpanCache((s) => engine.eclipses(s.start, s.end), 120),
+  // Ten years a piece (about 0.1 s of WebAssembly), between frames, kept per window: a
+  // millennium is a hundred pieces and fills in as it goes (search.ts).
+  let subscribed: object | null = null;
+  let stopSub: (() => void) | null = null;
+  d.add(() => stopSub?.());
+  const eclipseSearch = () => {
+    const search = env.shared.search<Eclipse>('eclipses', coverageKey(env), (pace) => ({
+      chunkDays: ECLIPSE_CHUNK_DAYS,
+      compute: (span) => engine.eclipses(span.start, span.end).eclipses,
+      key: (e) => e.id,
+      time: (e) => e.greatest.jd_utc,
+      pace,
+      coverage: () => coverageSpan(env),
+    }));
+    if (search !== subscribed) {
+      stopSub?.();
+      subscribed = search;
+      stopSub = search.subscribe(() => ctx.scheduler.schedule(refresh));
+    }
+    return search;
   };
   const locals = new Map<string, LocalResult>();
   let localsFor = '';
@@ -661,7 +864,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
       while (pending.length && performance.now() - t0 < SLICE_MS) computeLocal(pending.shift()!);
       paint();
       if (pending.length) timer = setTimeout(slice, 0);
-      else root.dataset.local = 'done';
+      else if (searchState?.done !== false) root.dataset.local = 'done';
     };
     root.dataset.local = 'pending';
     timer = setTimeout(slice, 0);
@@ -671,6 +874,10 @@ export const eclipsesTab: TabComponent = (host, env) => {
   let shown: Eclipse[] = [];
   let truncated = false;
   let listError: string | null = null;
+  let searchState: SearchState<Eclipse> | null = null;
+  /** Rows drawn: a page at a time, so a millennium's list stays quick. */
+  let limit = ROWS_PER_PAGE;
+  let limitFor = '';
   const rows = new Map<string, Row>();
   let builtKey = '';
   let st: Settings = settingsOf(ctx.store.get());
@@ -720,8 +927,9 @@ export const eclipsesTab: TabComponent = (host, env) => {
   };
 
   const buildList = (): void => {
-    const items = visibleRows();
-    const key = [ui.get().eclipseDirection, ui.get().seenOnly, JSON.stringify(st.zone), ...items.map((e) => e.id)].join('|');
+    const all = visibleRows();
+    const items = all.slice(0, limit);
+    const key = [ui.get().eclipseDirection, ui.get().seenOnly, JSON.stringify(st.zone), limit, all.length, ...items.map((e) => e.id)].join('|');
     if (key === builtKey) return;
     builtKey = key;
     rows.clear();
@@ -729,7 +937,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
     let year = '';
     let ol: HTMLOListElement | null = null;
     for (const e of items) {
-      const y = dateMedium(roundToMinute(e.greatest.jd_utc), st.zone).slice(-4);
+      const y = dateMedium(roundToMinute(e.greatest.jd_utc), st.zone).replace(/^\S+ \S+ \S+ /, '');
       if (y !== year || !ol) {
         year = y;
         ol = h('ol', { class: 'sfe-rows', 'aria-label': `Eclipses of ${y}` });
@@ -740,13 +948,25 @@ export const eclipsesTab: TabComponent = (host, env) => {
       ol.append(row.item);
     }
     const notes: HTMLElement[] = [];
+    if (all.length > items.length) {
+      const more = h(
+        'button',
+        { type: 'button', class: 'sf-btn sf-btn--secondary sf-btn--sm sfe-more' },
+        all.length - items.length <= ROWS_PER_PAGE ? `Show the other ${all.length - items.length}` : `Show ${ROWS_PER_PAGE} more of ${all.length - items.length}`,
+      );
+      more.addEventListener('click', () => {
+        limit += ROWS_PER_PAGE;
+        paint();
+      });
+      notes.push(more);
+    }
     if (listError) notes.push(h('p', { class: 'sfe-message', role: 'alert' }, listError));
-    else if (!shown.length) {
+    else if (!shown.length && searchState?.done !== false) {
       notes.push(
         h(
           'p',
           { class: 'sfe-message' },
-          'No eclipses in these years. Eclipses are computed for 1990 to 2060: move the explorer’s time inside that span.',
+          `No eclipses in these years. ${coveredSentence(ctx.engine, 'Eclipses')}: move the explorer’s time inside that span.`,
         ),
       );
     } else if (!items.length && !pending.length) {
@@ -754,8 +974,12 @@ export const eclipsesTab: TabComponent = (host, env) => {
         h('p', { class: 'sfe-message' }, `None of these eclipses can be seen from ${st.place}. Turn off “Seen from here” to list them all.`),
       );
     }
-    if (truncated && shown.length) {
-      notes.push(h('p', { class: 'sfe-note' }, 'Eclipses are computed for 1990 to 2060; the list stops there.'));
+    const cal = calendarNote(items.map((e) => e.greatest.jd_utc).slice(0, 1).concat(items.map((e) => e.greatest.jd_utc).slice(-1)), st.zone);
+    if (cal) notes.push(h('p', { class: 'sfe-note' }, cal));
+    if (truncated) {
+      const a = ui.get().anchor;
+      const days = ui.get().eclipseYears * YEAR_DAYS;
+      notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + days : a - days));
     }
     list.replaceChildren(...groups, ...notes);
     placeCard();
@@ -794,13 +1018,24 @@ export const eclipsesTab: TabComponent = (host, env) => {
       const under = !inProgress(e, now);
       if (row.now.hidden !== under) row.now.hidden = under;
     }
-    const span = ui.get().eclipseDirection === 'upcoming' ? 'in the next ten years' : 'in the last ten years';
+    const years = ui.get().eclipseYears;
+    const sp = searchState?.span ?? null;
+    const span =
+      truncated && sp
+        ? `from ${yearText(wireYear(sp.start))} to ${yearText(wireYear(sp.end))} (the years computed)`
+        : ui.get().eclipseDirection === 'upcoming'
+          ? `in the next ${years} years`
+          : `in the last ${years} years`;
     const text =
-      listError || !shown.length
+      listError
         ? ''
-        : known < shown.length
-          ? `${shown.length} eclipses ${span}. Checking which can be seen from ${st.place}…`
-          : `${shown.length} eclipses ${span}; ${seenCount} can be seen from ${st.place}.`;
+        : searchState && !searchState.done
+          ? `${progressText(searchState, 'Searching')}${shown.length ? ` · ${shown.length} eclipses so far` : ''}`
+          : !shown.length
+            ? ''
+            : known < shown.length
+              ? `${shown.length} eclipses ${span}. Checking which can be seen from ${st.place}…`
+              : `${shown.length} eclipses ${span}; ${seenCount} can be seen from ${st.place}.`;
     if (status.textContent !== text) status.textContent = text;
   };
 
@@ -808,15 +1043,19 @@ export const eclipsesTab: TabComponent = (host, env) => {
   let cardParts: CardParts | null = null;
   let cardEl: HTMLElement | null = null;
   let cardKey = '';
+  /** Whether the card on screen was built with the lunar-limb pack loaded. */
+  let cardLimb = false;
   const renderCard = (): void => {
     const id = ui.get().selected;
     const e = id ? (shown.find((x) => x.id === id) ?? findEclipse(id)) : null;
-    const key = [id ?? '', localsFor, JSON.stringify(st), eclipseOnMap(mapServiceFor(ctx)) === id].join('|');
+    const limbLoaded = limbIsLoaded();
+    const key = [id ?? '', localsFor, JSON.stringify(st), eclipseOnMap(mapServiceFor(ctx)) === id, limbLoaded].join('|');
     if (key === cardKey && cardEl) {
       placeCard();
       return;
     }
     cardKey = key;
+    cardLimb = limbLoaded;
     cardEl?.remove();
     if (!e) {
       cardParts = null;
@@ -831,12 +1070,63 @@ export const eclipsesTab: TabComponent = (host, env) => {
       );
     } else {
       const r = localOf(e.id) ?? computeLocal(e.id);
-      cardParts = card(e, 'ok' in r ? r.ok : null, 'error' in r ? r.error : null, st, env);
+      const mean = 'ok' in r ? r.ok : null;
+      const view = mean && mean.kind === 'solar' && seenHere(mean) ? limbViewFor(e, mean) : null;
+      const shown = view?.block?.loaded && mean?.kind === 'solar' ? (withLimb({ ...mean, limb: view.block }) ?? mean) : mean;
+      cardParts = card(e, shown, 'error' in r ? r.error : null, st, env, view);
       cardEl = cardParts.el;
       cardParts.setNow(ctx.store.get().time.jd_utc);
+      const line = cardEl.querySelector<HTMLElement>('.sfe-packline');
+      if (line) fillLimbPack(line, ctx.packs, limbAsking);
     }
     placeCard();
   };
+
+  // --- The lunar limb: corrected contacts with the lunar-limb pack (EXPLORER_API P12) -------
+  const limbEngine = isLimbEngine(engine) ? engine : null;
+  const limbIsLoaded = (): boolean => (limbEngine ? limbEngine.lunarLimbInfo() !== null : false);
+  let limbAsking = false;
+  let alive = true;
+  d.add(() => {
+    alive = false;
+  });
+  /** The pack service changed: rebuild the card once the pack is in, else redraw its pack line. */
+  const refreshLimb = (): void => {
+    if (!alive || !cardEl) return;
+    if (limbIsLoaded() !== cardLimb) {
+      ctx.scheduler.schedule(renderCard);
+      return;
+    }
+    const line = cardEl.querySelector<HTMLElement>('.sfe-packline');
+    if (line) fillLimbPack(line, ctx.packs, limbAsking);
+  };
+  /** One prompt a page session (the service shows it, and remembers "Not now"). */
+  const askForLimb = (): void => {
+    if (limbAsking || limbAnswered || limbIsLoaded()) return;
+    limbAsking = true;
+    void ctx.packs
+      .ensure(LIMB_PACK, LIMB_REASON)
+      .catch(() => false)
+      .then((ok) => {
+        limbAsking = false;
+        if (!ok) limbAnswered = true;
+        refreshLimb();
+      });
+  };
+  /** The limb's block for a solar eclipse seen here (null from a core without the limb). */
+  const limbViewFor = (e: Eclipse, mean: SolarEclipseLocal): LimbView | null => {
+    if (!limbEngine) return null;
+    let block: SolarEclipseLimb | null = null;
+    try {
+      const withBlock = engine.eclipseLocal(e.id, observer, { limb: true });
+      block = withBlock.kind === 'solar' ? (withBlock.limb ?? null) : null;
+    } catch {
+      return null;
+    }
+    if (block && !block.loaded) askForLimb();
+    return { block, mean };
+  };
+  d.add(ctx.packs.subscribe(refreshLimb));
 
   /** Beside the list on a wide stage; under the selected row on a narrow one. */
   const placeCard = (): void => {
@@ -847,6 +1137,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
     const target = inline ? row.item : aside;
     if (cardEl.parentElement !== target) target.append(cardEl);
     if (aside.hidden !== narrow) aside.hidden = narrow;
+    alignCard(aside, listCol, cardEl.classList.contains('sfe-card--empty') ? null : (row?.item ?? null), narrow);
   };
 
   // Layout: the card moves under its row when the stage is narrow.
@@ -863,24 +1154,12 @@ export const eclipsesTab: TabComponent = (host, env) => {
   }
 
   // --- Wiring --------------------------------------------------------------------------------
-  d.add(
-    watchAll(
-      env,
-      (s, u) =>
-        [
-          u.anchor,
-          u.eclipseDirection,
-          u.eclipseKind,
-          u.seenOnly,
-          s.observer.lat_deg,
-          s.observer.lon_deg,
-          s.observer.height_m,
-          s.observer.label,
-          s.observer.zone,
-          s.settings.timeDisplay,
-          s.settings.angleFormat,
-        ] as const,
-      ([anchor, dir, k]) => {
+  const refresh = (): void => {
+    const u = ui.get();
+    update(u.anchor, u.eclipseDirection, u.eclipseKind);
+  };
+  d.add(() => ctx.scheduler.cancel(refresh));
+  const update = (anchor: number, dir: Direction, k: EclipseKindFilter): void => {
         const s = ctx.store.get();
         const nextSettings = settingsOf(s);
         if (JSON.stringify(nextSettings) !== JSON.stringify(st)) builtKey = '';
@@ -893,19 +1172,30 @@ export const eclipsesTab: TabComponent = (host, env) => {
           builtKey = '';
           stopJob();
         }
+        const years = ui.get().eclipseYears;
+        const horizon = years * YEAR_DAYS;
+        const lk = [dir, years, k, ui.get().seenOnly].join('|');
+        if (lk !== limitFor) {
+          limitFor = lk;
+          limit = ROWS_PER_PAGE;
+        }
         try {
-          const all = caches[dir].get(neededSpan(anchor, dir, ECLIPSE_HORIZON_DAYS, 1));
-          shown = eclipsesAround(all.eclipses, anchor, dir, k);
-          truncated = all.truncated;
-          listError = null;
-          ctx.notices.dismissKey('events-eclipses');
+          searchState = eclipseSearch().get(paddedSpan(neededSpan(anchor, dir, horizon, 1), 120), dir === 'upcoming' ? 'forward' : 'backward');
+          shown = eclipsesAround(searchState.items, anchor, dir, k, horizon);
+          truncated = searchState.truncated && searchState.done;
+          listError = searchState.error ? `Eclipses could not be listed: ${searchState.error}` : null;
+          if (listError) ctx.notices.push('error', listError, { key: 'events-eclipses' });
+          else ctx.notices.dismissKey('events-eclipses');
         } catch (error) {
+          searchState = null;
           shown = [];
           truncated = false;
           listError = `Eclipses could not be listed: ${errorText(error)}`;
           ctx.notices.push('error', listError, { key: 'events-eclipses' });
         }
+        root.dataset.search = searchState?.done === false ? 'searching' : 'done';
         direction.set(dir);
+        reach.set(String(years) as '10' | '100' | '1000');
         kind.set(k);
         const checked = String(ui.get().seenOnly);
         if (seen.getAttribute('aria-checked') !== checked) seen.setAttribute('aria-checked', checked);
@@ -914,8 +1204,28 @@ export const eclipsesTab: TabComponent = (host, env) => {
         if (missing.join() !== pending.join()) startJob(missing);
         paint();
         renderCard();
-        if (!pending.length && root.dataset.local !== 'done') root.dataset.local = 'done';
-      },
+        if (!pending.length && searchState?.done !== false && root.dataset.local !== 'done') root.dataset.local = 'done';
+        if (searchState?.done === false) root.dataset.local = 'pending';
+  };
+  d.add(
+    watchAll(
+      env,
+      (s, u) =>
+        [
+          u.anchor,
+          u.eclipseDirection,
+          u.eclipseYears,
+          u.eclipseKind,
+          u.seenOnly,
+          s.observer.lat_deg,
+          s.observer.lon_deg,
+          s.observer.height_m,
+          s.observer.label,
+          s.observer.zone,
+          s.settings.timeDisplay,
+          s.settings.angleFormat,
+        ] as const,
+      ([anchor, dir, , k]) => update(anchor, dir, k),
     ),
   );
   d.add(

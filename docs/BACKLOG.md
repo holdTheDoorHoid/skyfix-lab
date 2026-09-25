@@ -205,6 +205,25 @@ This file is the single list; the completion report links here.
 | A smaller pack | unstarted | 1.66 MB gzipped; 10 m quanta would save about 0.4 MB gzipped (at most 5 m, 0.003", of rounding), a ±10° ring about a sixth |
 | Command line | unstarted | No `skyfix eclipse --limb` yet (cli3) |
 
+## Expansion programme Q3 — the Sky view's astronomy layers (sky2 agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Search, deep-sky objects, the Milky Way, the RA/Dec grid, fields of view, the sky's darkness and extinction, meteor radiants, the "Up close" insets, added comets and asteroids, tonight's sights ringed, save as a picture | completed | `web/src/next/sky/**`; the panel search's "Sky objects" group (`panel/search.ts`); `docs/ACCURACY.md` section 20; ui-check group `sky2` |
+| Aiming the Sky view from the Selected card (photo's two `// sky2:` hooks) | completed | "Show in Sky" marks the engine's galactic centre (`showInSky` with a `point`) at the best moment; "See it up close" opens the Moon's close-up with the card's features ringed (`openUpClose(ctx, 'Moon', { features })`). The photo section's row "Aiming the Sky view" above can be closed |
+| Dome zoom (pinch and wheel on the dome) | completed | wheel, pinch, + and −, drag to pan, 0 or Whole sky to return; up to 12×; the labels adapt (names and deep-sky objects fainter as the chart grows) |
+| Comets and asteroids kept across visits | unstarted | kept for the page session only, like the Sky view's own settings; keeping them would add a stored key (state.ts privacy rules: only settings and layers are stored today), a decision for the owner |
+| Galaxies at their position angles | unstarted | the deep-sky catalogue has no position angles; the ellipses are drawn level. Adding a PA column (from the same Wikidata/SIMBAD cross-check) would orient them |
+| The Moon's light on the Sky view's star limit | unstarted | the cards' estimates include it (the engine's Krisciunas & Schaefer model at each object); the chart's limit is the sky's zenith limit alone. A per-direction limit would need the engine's moonlight model per texel or per star |
+| Saturn's shadows, Jupiter's markings | known limit | the close-ups leave out the globe's shadow on the rings and the rings' on the globe, and draw Jupiter's belts where they usually are (the Great Red Spot is not tracked, ACCURACY 17) |
+| The Moon close-up's maria | known limit | ellipses of each mare's size from the gazetteer, not outlines; a public-domain albedo map would need a source and a size decision |
+| The Milky Way and refraction | known limit | the raster is not refracted (0.6° at most, on the horizon, under one texel) |
+| Tonight's sights rings | design note | the ring marks the next twilight's bodies where they are at the time shown, which can be hours before the twilight |
+| The Sky view in fast playback | completed | faster than 8 days a second (`fastPlayback`) the view keeps its star places and deep-sky objects, pauses the selected body's path, the showers and tonight's estimates, and remakes the Milky Way at most ten times a second; all of it is redrawn when time slows. The Sky part of "Views with their own per-day work during fast playback" above can be closed |
+| The 10 ms draw budget on a quiet machine with a GPU | unstarted | measured on the shared machine only (ACCURACY 20): the layers add 0.5–1.5 ms to a frame; headless Chrome's median draw with every layer is 8.7–9.6 ms, its 95th percentile 17.5–23 ms (the Milky Way's raster frames). A browser with a GPU on a quiet machine (`dev-sky.html?bench=600`, the pane visible) would settle the tail |
+| "Show in Sky" and "See it up close" from Tonight (the `skyTargets` channel) | completed | the channel moved to `sky/sky-link.ts` (Tonight imports it from there) and gained `take()`; the Sky view takes a target once the time has stopped gliding, centres the dome on it at 3× if it showed the whole sky (`SHOW_ZOOM`; the Selected card's and the panel search's requests do the same), opens its card, and opens the Moon's, Jupiter's or Saturn's close-up for `inset`; a direction (the Milky Way's core) is turned back into a J2000 place at that moment (`sky/targets.ts`). The Tonight section's row "Show in Sky centring the Sky view…" can be closed |
+| One "how dark is your sky" for Tonight and the Sky view | open (planner) | the Sky view's is a stored setting (`settings.skyQuality`, `skyBortle`, `skyNelm` in `state.ts`); Tonight's "Your sky" Bortle selector is kept per page. Tonight could read and write `settings.skyBortle` so the two agree |
+
 ## Expansion programme Q7 — the almanac's tables, three-day pages, any year (almanac2 agent, 2026-09-25)
 
 | item | status | notes |
@@ -247,11 +266,32 @@ This file is the single list; the completion report links here.
 | The sky's darkness (Bortle class) kept between visits | open | kept while the page is open (per explorer); a setting in `state.ts` would keep it, shared with the Sky view's magnitude limit when sky2 adds one |
 | Tides beyond the night | open | the card lists the high and low water from an hour before sunset to an hour after sunrise; "next high and low" after the explorer's time is the Place section's tides line (photo) |
 
+## Expansion programme Q4 — Events: more event kinds, local occultations and transits, calendar export (events2 agent, wave 2)
+
+| item | status | notes |
+|---|---|---|
+| Moon: perigee and apogee, supermoons and micromoons, the year's largest and smallest full Moon | completed | `web/src/next/events/apsides.ts`, `moon-model.ts`; `EXPLORER_GUIDE.md` "Events" |
+| Occultations seen from here (times, limb, cusp, the Moon's height, the sky, grazes, near misses, the Moon drawn with the contacts), with the Moon below the horizon, and seen elsewhere on Earth | completed | `events/occultations.ts`; the "elsewhere" rule is CONVENTIONS 15.8 and is checked against the engine's own local search (`docs/ACCURACY.md`, "Events view") |
+| Planets: close approaches with the best view from the place, retrograde loops with a timeline, transits with local circumstances and the path drawn, Jupiter's moons night by night | completed | `events/{conjunctions,retrograde,transits,jupiter}.ts`, `planet-model.ts` |
+| Meteor showers: the year as a calendar, ZHR, the Moon at each peak, the rate here on the peak night, tonight's rates | completed | `events/showers.ts`, `sky-model.ts`; rates labelled as the deepsky model's estimates |
+| The Earth's perihelion and aphelion beside the seasons | completed | `events/lists.ts` (Seasons tab) |
+| Calendar files (RFC 5545) for every list and every event, Web Share where the device takes files, CSV tables | completed | `web/src/next/export/ics.ts` (shared), `events/export-ui.ts`, `items.ts`; CONVENTIONS 15.8 |
+| Deep time in the Events view: the coverage in words, the data pack's Get button under a list cut short, the ±ΔT chip and the clock's scale (UTC or UT) beside times, the lists holding still during fast playback | completed | `events/deeptime.ts` over `web/src/next/time/`; the `events/` entries in the time-ui table above ("1990 to 2060", literal "UTC") are done in this package |
+| Long searches in pieces between frames, waiting while a pointer is pressed or the time moves | completed | `events/search.ts`, `shared.ts`; a Web Worker with its own WebAssembly instance would take the pieces off the main thread entirely (the engine and its loaded packs would have to be mirrored there): not done |
+| Eclipse ids for dates before year 0 | engine (eclipse agent / deeptime) | `skyfix_almanac::eclipses::date_of` takes the first 10 characters of `format_utc`, so an eclipse in an expanded year gets a cut id (`-0584-05-2-solar`) that `by_id` refuses: its local circumstances and path fail. The interface already reads expanded-year ids (`eclipseIdDate`) |
+| Transit and occultation maps (where on Earth an occultation or a grazing transit is seen) | unstarted | the Events view says roughly which part of the Earth sees an occultation elsewhere; a map layer would need the shadow's track (a search of the local engine over a grid, or the Besselian treatment of occultations) |
+| A meteor shower's rate at the place for any night, not only the peak night | unstarted | `meteor_showers` gives the peak night; `tonight` gives the night of the time shown; a per-night rate curve for a shower would need a call per night (about 40 ms natively) |
+| Sharing calendar files | known | browsers' Web Share takes only some file types; where `canShare` refuses a calendar file, only the download is offered (phones usually open a downloaded `.ics` in the calendar) |
+| `web/scripts/ui-check.mjs` header | tidy (planner) | the union merge of charts2 and time-ui left a duplicated line ("than on a real screen);") and two `ONLY=` usage lines in the header comment |
+| The lunar limb in the eclipse card: corrected contacts, "Limb-corrected" or "Mean limb", the pack offered once, approximate Baily's beads | completed | `events/eclipses.ts` (`limbLine`, `fillLimbPack`), `model.ts` (`withLimb`, `correctionWords`, `beadWords`); CONVENTIONS 15.8. The list rows and the list's calendar files keep the mean limb (60-75 ms an eclipse in WebAssembly), so a row can say 3 min 51 s where the card says 3 min 48 s; the card says by how much and why |
+| The limb drawn on the eclipse card (the profile with the Sun's disc at second and third contact) | unstarted | `block.profile` is at maximum eclipse only; a drawing near the contacts needs `lunar_limb_profile` at their instants and an exaggerated height scale, which wants a design pass |
+| Opening Events on a list at an event from another view | completed (the Events side) | `showEvents(store, target, { jd, body, id })` and the channel `eventsRequests(store)` in `events/link.ts` (CONVENTIONS 15.8; `events-link.test.ts`, and the ids checked against the lists on the real engine). Tonight's "Coming up" still opens Events with the time and body only: its click can become `showEvents(store, eventsTargetFor(i.kind) ?? 'eclipses', { jd: i.jd, body: i.body, id: i.ref })`, with `ref` added to its eclipse, occultation, transit and shower items from `eventIds` (tonight agent's files) |
+
 ## Expansion programme — deep time (deeptime agent)
 
 | item | status | notes |
 |---|---|---|
-| Coverage tiers in the core: validated 1550–2650, labelled 2000 BC–AD 3000 | completed | `skyfix_ephemeris::tiers`, `explorer_coverage` tiers, `tier_at` (`crates/skyfix-wasm/src/coverage.rs`); both tiers in the core module, so the planned `deep-time` pack was not built (EXPLORER_API "coverage tiers as built"); the historical table in `docs/ACCURACY.md` section 20 |
+| Coverage tiers in the core: validated 1550–2650, labelled 2000 BC–AD 3000 | completed | `skyfix_ephemeris::tiers`, `explorer_coverage` tiers, `tier_at` (`crates/skyfix-wasm/src/coverage.rs`); both tiers in the core module, so the planned `deep-time` pack was not built (EXPLORER_API "coverage tiers as built"); the historical table in `docs/ACCURACY.md` section 21 |
 | Series: VSOP87A with fitted corrections, ELP/MPP02 with refitted secular terms, long-term precession, full nutation arguments | completed | one compact file, `series.bin` (127 958 bytes); validated tier Sun 0.01″, Moon 0.36″, planets 0.04″ (Mercury) to 0.91″ (Uranus) against DE440 |
 | Stars: radial velocities; Rigil Kentaurus on alpha Cen A's orbit | completed | the Almanac's Rigil Kentaurus is A; USNO extrapolates A in a straight line (5.8″ from the orbit in 2026) |
 | Other engines on the labelled tier | unstarted | The almanac pages, eclipses (1990–2060 against NASA's canon), planet events, the Moon in detail, deep sky and sailings keep the validated tier or their own range; each opens with one line (`.with_policy(TierPolicy::WithLabelled)`) once its owner has checked its own numbers there (the eclipse canon covers 2000 BC to AD 3000) |

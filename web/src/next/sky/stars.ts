@@ -74,6 +74,8 @@ export interface StarRenderData {
   /** For each non-empty (size, colour) group, in draw order: [magBin, colourBin, start, end) into `order`. */
   groups: Int32Array;
   groupCount: number;
+  /** Each star's colour bin (`colourBin(bv)`), for grouping stars by dimmed magnitude each frame. */
+  cbin: Uint8Array;
   /** 1 for the 58 navigational stars. */
   isNav: Uint8Array;
   /** Proper names (the 58 use the Nautical Almanac spelling). */
@@ -91,9 +93,11 @@ export interface StarRenderData {
 export function buildStarRenderData(cat: StarfieldCatalog): StarRenderData {
   const n = cat.count;
   const bins = new Int32Array(n);
+  const cbin = new Uint8Array(n);
   for (let i = 0; i < n; i += 1) {
+    cbin[i] = colourBin(cat.bv[i]!);
     // Faint first so bright stars are drawn over faint ones.
-    bins[i] = (MAG_BINS - 1 - magBin(cat.vmag[i]!)) * COLOUR_BINS + colourBin(cat.bv[i]!);
+    bins[i] = (MAG_BINS - 1 - magBin(cat.vmag[i]!)) * COLOUR_BINS + cbin[i]!;
   }
   const order = Int32Array.from({ length: n }, (_, i) => i).sort((a, b) => bins[a]! - bins[b]! || a - b);
   const groups: number[] = [];
@@ -133,6 +137,7 @@ export function buildStarRenderData(cat: StarfieldCatalog): StarRenderData {
     order,
     groups: Int32Array.from(groups),
     groupCount: groups.length / 4,
+    cbin,
     isNav,
     nameOf,
     named,

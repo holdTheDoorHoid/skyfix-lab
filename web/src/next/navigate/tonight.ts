@@ -32,6 +32,7 @@ import { btn, errorText, kids, para } from './ui.js';
 import { sightTierAt } from './tier.js';
 import { workingFor } from './working.js';
 import { workingsTable } from './workings.js';
+import { ringWhileShown } from '../sky/highlight.js'; // sky2 agent: tonight's bodies ringed in the Sky view
 
 export interface TonightOptions {
   /** Compact list for the side panel (default) or the full plan (Navigate's Plan tab). */
@@ -237,6 +238,9 @@ export function tonightSights(options: TonightOptions = {}): Component {
     let lastRun = 0;
     let firstPending = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    // sky2 agent: while the side panel shows this list, the Sky view rings the next twilight's bodies.
+    const ring = compact ? ringWhileShown(ctx, host, 'tonight-sights') : null;
+    d.add(() => ring?.destroy());
     const compute = (): void => {
       timer = null;
       lastRun = Date.now();
@@ -251,6 +255,7 @@ export function tonightSights(options: TonightOptions = {}): Component {
       }
       try {
         const plan = nav.planSights(inputs.observer, inputs.jdStart, inputs.jdStart + PLAN_SPAN_DAYS, inputs.instrument);
+        ring?.set(plan.windows[0]?.sights.map((b) => b.body) ?? []); // sky2 agent
         renderPlan(body, plan, ctx, {
           compact,
           label: inputs.label,
@@ -264,6 +269,7 @@ export function tonightSights(options: TonightOptions = {}): Component {
           },
         });
       } catch (error) {
+        ring?.set([]); // sky2 agent
         body.replaceChildren(para(`No plan: ${errorText(error)}`, 'sfn-note'));
       }
     };

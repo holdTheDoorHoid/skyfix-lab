@@ -10,6 +10,8 @@ import type {
   EclipseLocal,
   EclipseLocalEvent,
   EclipseLocalEventKind,
+  LimbBead,
+  LimbContact,
   LunarEclipse,
   LunarEclipseLocal,
   PhaseEvent,
@@ -682,4 +684,98 @@ export function nextAfter<T extends { jd_utc: number }>(list: readonly T[], jd: 
   let best: T | null = null;
   for (const e of list) if (e.jd_utc >= jd && (!best || e.jd_utc < best.jd_utc)) best = e;
   return best;
+}
+
+// ---------------------------------------------------------------------------
+// The lunar limb (events2 agent; EXPLORER_API "Expansion programme P12")
+// ---------------------------------------------------------------------------
+
+/**
+ * A solar eclipse's local circumstances with its contacts corrected for the mountains and
+ * valleys at the Moon's edge (`eclipseLocal(…, { limb: true })` with the lunar-limb pack):
+ * the four contacts replaced by the limb's (added where the real Moon gains a central
+ * phase the smooth one misses, removed where light gets through a valley throughout), the
+ * durations and the local type the limb's. The maximum, sunrise and sunset stay as they
+ * are. Null when there is no corrected block (no pack, or not a solar eclipse).
+ */
+export function withLimb(local: EclipseLocal): SolarEclipseLocal | null {
+  if (local.kind !== 'solar' || !local.limb?.loaded) return null;
+  const limb = local.limb;
+  const kept = local.events.filter((ev) => !['c1', 'c2', 'c3', 'c4'].includes(ev.kind));
+  const contacts: EclipseLocalEvent[] = limb.contacts.map((c) => ({
+    kind: c.kind,
+    jd_utc: c.jd_utc,
+    utc: c.utc,
+    alt_deg: c.alt_deg,
+    az_deg: c.az_deg,
+    visible: c.visible,
+    position_angle_deg: c.position_angle_deg,
+    vertex_angle_deg: c.vertex_angle_deg,
+    magnitude: null,
+    obscuration: null,
+  }));
+  const events = [...kept, ...contacts].sort((a, b) => a.jd_utc - b.jd_utc);
+  return {
+    ...local,
+    events,
+    local_type: limb.local_type ?? local.local_type,
+    duration_s: limb.duration_s ?? local.duration_s,
+    central_duration_s: limb.central_duration_s,
+  };
+}
+
+/** How a limb-corrected contact differs from the smooth Moon's, in words: `1.4 s later`. */
+export function correctionWords(c: Pick<LimbContact, 'correction_s' | 'mean_jd_utc'>): string {
+  if (c.mean_jd_utc === null || c.correction_s === null) return 'the smooth Moon has no such contact here';
+  const s = Math.abs(c.correction_s);
+  if (s < 0.05) return 'as the smooth Moon';
+  return `${s.toFixed(1)} s ${c.correction_s > 0 ? 'later' : 'earlier'} than the smooth Moon’s`;
+}
+
+/** The beads in a sentence per contact: how many, over how long, and where on the Sun's edge. */
+export function beadWords(
+  beads: readonly LimbBead[],
+  time: (jd: number) => string,
+  clock: (vertexDeg: number) => number,
+  central: 'total' | 'annular' = 'total',
+): string[] {
+  const out: string[] = [];
+  for (const contact of ['c2', 'c3'] as const) {
+    const mine = beads.filter((b) => b.contact === contact).sort((a, b) => a.jd_utc - b.jd_utc);
+    if (!mine.length) continue;
+    // The shortest arc of the Sun's edge holding every bead, read clockwise on the clock face
+    // (the vertex angle grows anticlockwise from the top).
+    const angles = mine.map((b) => ((b.vertex_angle_deg % 360) + 360) % 360).sort((a, b) => a - b);
+    let from = angles[0]!;
+    let to = angles[angles.length - 1]!;
+    let gap = 360 - (to - from);
+    for (let i = 1; i < angles.length; i += 1) {
+      if (angles[i]! - angles[i - 1]! > gap) {
+        gap = angles[i]! - angles[i - 1]!;
+        from = angles[i]!;
+        to = angles[i - 1]!;
+      }
+    }
+    const first = clock(to);
+    const last = clock(from);
+    const where = first === last ? `${first} o’clock` : `${first} to ${last} o’clock`;
+    const start = time(mine[0]!.jd_utc);
+    const end = time(mine[mine.length - 1]!.jd_utc);
+    const span = start === end ? `at ${start}` : `from ${start} to ${end}`;
+    const n = `${mine.length} bead${mine.length === 1 ? '' : 's'}`;
+    if (central === 'annular') {
+      out.push(
+        contact === 'c2'
+          ? `${n} of sunlight in the Moon’s valleys join into the ring ${span}, near ${where} on the Sun’s edge.`
+          : `The ring breaks into ${n} ${span}, near ${where}.`,
+      );
+    } else {
+      out.push(
+        contact === 'c2'
+          ? `${n} of sunlight in the Moon’s valleys go out ${span}, as totality begins, near ${where} on the Sun’s edge.`
+          : `${n} come on ${span}, as totality ends, near ${where}.`,
+      );
+    }
+  }
+  return out;
 }

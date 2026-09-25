@@ -3162,7 +3162,7 @@ was to keep both tiers in the core if the module stayed inside its budget: the t
 series file is 127 958 bytes (99 276 gzipped), smaller than the three one-tier JSON
 files it replaced (477 494 bytes), and the module ends smaller than before: 2 781 402
 bytes raw and 1 238 604 gzipped, against main's 3 124 878 and 1 284 157 at f2a1a07
-(ACCURACY.md section 20). The packs mechanism is unchanged and serves `tides-us` (and later
+(ACCURACY.md section 21). The packs mechanism is unchanged and serves `tides-us` (and later
 `lunar-limb`); no `deep-time` producer is registered, so `packs_loaded` never lists it.
 
 ### `explorer_coverage()` — as built
@@ -3186,7 +3186,7 @@ The shape of "`explorer_coverage()` — tiers" above, with these values:
 - `start_utc`/`end_utc` are the labelled tier's ends (every group answers them);
   `accuracy_arcmin` and `validated` keep describing the validated tier, as before.
 - Published figures per group and tier (arcminutes, worst of GHA and Dec, from the
-  historical table, ACCURACY.md section 20):
+  historical table, ACCURACY.md section 21):
 
   | group | validated 1550–2650 | labelled 2000 BC–AD 3000 |
   |---|---|---|

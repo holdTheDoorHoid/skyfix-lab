@@ -98,7 +98,7 @@ VALIDATED_BUDGET_ARCSEC = {"Earth": 0.01, "Mercury": 0.1, "Venus": 0.2}
 #: Looser budgets for the labelled tier (display only, no target; CONVENTIONS 15.1): the
 #: Earth 0.3" and each planet 5", which there is under VSOP87's own error for Mars to
 #: Uranus and far under what Delta T's uncertainty moves the sky by (an hour at 2000 BC).
-#: They keep the core module inside its download budget (ACCURACY 20, "Size").
+#: They keep the core module inside its download budget (ACCURACY 21, "Size").
 LABELLED_BUDGET_ARCSEC = {"Earth": 0.3}
 LABELLED_PLANET_BUDGET_ARCSEC = 5.0
 #: ELP/MPP02 amplitude thresholds for longitude and latitude (arcsec) and distance

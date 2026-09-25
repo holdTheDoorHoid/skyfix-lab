@@ -319,6 +319,19 @@ export interface Layers {
   equator: boolean;
   /** Sky: the local meridian. */
   meridian: boolean;
+  // --- sky2 agent (expansion Q3): the Sky view's astronomy layers ---
+  /** Sky: deep-sky objects (Messier and bright NGC/IC objects), symbols by type, labelled. */
+  deepSky: boolean;
+  /** Sky: the Milky Way's glow (isophotes from COBE/DIRBE), behind the stars. */
+  milkyWay: boolean;
+  /** Sky: right ascension and declination grid. */
+  raDecGrid: boolean;
+  /** Sky: the radiants of meteor showers active at the time shown. */
+  meteorRadiants: boolean;
+  /** Sky: comets and asteroids added from orbital elements. */
+  customBodies: boolean;
+  /** Sky: stars and deep-sky objects dim toward the horizon (atmospheric extinction). */
+  extinction: boolean;
 }
 
 /**
@@ -365,7 +378,22 @@ export interface Settings {
   calendar: CalendarMode;
   /** How years are written: `era` 585 BC (the default), `astronomical` −584, `iso` -0584. */
   yearStyle: YearStyle;
+  // --- sky2 agent (expansion Q3): how dark the observer's sky is ---
+  /**
+   * The Sky view's faintest magnitude: `auto` follows the Sun alone (a dark site, as
+   * before); `bortle` and `nelm` also limit it by the site's light pollution, through the
+   * deep-sky engine's conditions (EXPLORER_API "deep sky", `conditions_json`). The same
+   * sky is used for the deep-sky and meteor estimates (`sky/conditions.ts`).
+   */
+  skyQuality: SkyQuality;
+  /** Bortle class 1 (darkest) to 9 (inner city), used when `skyQuality` is `bortle`. */
+  skyBortle: number;
+  /** Naked-eye limiting magnitude at the zenith, 1 to 8, used when `skyQuality` is `nelm`. */
+  skyNelm: number;
 }
+
+/** How the Sky view limits the stars it draws (sky2 agent). */
+export type SkyQuality = 'auto' | 'bortle' | 'nelm';
 
 export interface ExplorerState {
   observer: ObserverState;
@@ -410,6 +438,13 @@ export const DEFAULT_LAYERS: Layers = {
   ecliptic: false,
   equator: false,
   meridian: false,
+  // --- sky2 agent ---
+  deepSky: true,
+  milkyWay: true,
+  raDecGrid: false,
+  meteorRadiants: true,
+  customBodies: true,
+  extinction: true,
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -424,6 +459,10 @@ export const DEFAULT_SETTINGS: Settings = {
   index_correction_arcmin: 0,
   calendar: 'historical',
   yearStyle: 'era',
+  // --- sky2 agent ---
+  skyQuality: 'auto',
+  skyBortle: 5,
+  skyNelm: 6,
 };
 
 export function defaultState(nowMs: number = Date.now()): ExplorerState {
@@ -504,6 +543,7 @@ const UNITS: readonly Units[] = ['metric', 'nautical', 'imperial'];
 const HORIZONS: readonly HorizonOption[] = ['standard', 'dip'];
 const CALENDARS: readonly CalendarMode[] = ['historical', 'iso'];
 const YEAR_STYLES: readonly YearStyle[] = ['era', 'astronomical', 'iso'];
+const SKY_QUALITIES: readonly SkyQuality[] = ['auto', 'bortle', 'nelm']; // sky2 agent
 
 function pick<T extends string>(value: unknown, allowed: readonly T[], fallback: T): T {
   return allowed.includes(value as T) ? (value as T) : fallback;
@@ -531,6 +571,10 @@ export function sanitizeSettings(raw: unknown): Settings {
     index_correction_arcmin: finiteIn(r.index_correction_arcmin, -60, 60, d.index_correction_arcmin),
     calendar: pick(r.calendar, CALENDARS, d.calendar),
     yearStyle: pick(r.yearStyle, YEAR_STYLES, d.yearStyle),
+    // --- sky2 agent ---
+    skyQuality: pick(r.skyQuality, SKY_QUALITIES, d.skyQuality),
+    skyBortle: Number.isInteger(r.skyBortle) ? finiteIn(r.skyBortle, 1, 9, d.skyBortle) : d.skyBortle,
+    skyNelm: finiteIn(r.skyNelm, 1, 8, d.skyNelm),
   };
 }
 

@@ -405,3 +405,32 @@ export function limitingMagnitude(sunAltDeg: number): number {
   }
   return knots[knots.length - 1]![1];
 }
+
+// ---------------------------------------------------------------------------
+// When a fixed direction rises (sky2 agent)
+// ---------------------------------------------------------------------------
+
+/** The Earth's rotation against the stars, degrees of sidereal angle per day of UTC. */
+export const SIDEREAL_DEG_PER_DAY = 360.98564736629;
+
+/**
+ * The next time a fixed direction of date (a star, a deep-sky object, a radiant: RA and
+ * Dec in degrees) rises through the geometric altitude `h0Deg` (−34′: the apparent
+ * horizon with standard refraction, CONVENTIONS 13.3), `dtDays` from now, given the local
+ * sidereal angle now (the engine's `sidereal` plus the east longitude). `'always'` when it
+ * never sets there, `'never'` when it never rises. The same geometry the view draws with
+ * (a fixed direction: stars' proper motion and the radiant's drift over a day are left
+ * out, a few arcseconds and a few seconds of time).
+ */
+export function nextRise(raDeg: number, decDeg: number, latDeg: number, lstDeg: number, h0Deg = -34 / 60): { dtDays: number } | 'always' | 'never' {
+  const phi = latDeg * DEG;
+  const dec = decDeg * DEG;
+  const cosH = (Math.sin(h0Deg * DEG) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec));
+  if (!Number.isFinite(cosH)) return 'never';
+  if (cosH < -1) return 'always';
+  if (cosH > 1) return 'never';
+  const h0 = Math.acos(cosH) * RAD; // hour angle at rising is −h0
+  const ha = norm360(lstDeg - raDeg); // hour angle now
+  const toGo = norm360(-h0 - ha);
+  return { dtDays: toGo / SIDEREAL_DEG_PER_DAY };
+}
