@@ -2749,8 +2749,11 @@ with the mock engine through the same contract):
   with a station within 100 NM, 3 777 of them, gets the offer), generous by at most a cell's
   width (203 of the 3 980 offers, 5 %, went to places whose nearest station is 100 to 144 NM
   away). Once the pack is loaded the stations themselves decide.
-- **Speed.** In Chrome (`web/scripts/ui-check.mjs`, group 8) the page draws its first stage
-  in about 50 ms after the engines answer (budget 300 ms); the engines' own time for the
-  night's core is reported (about 115 ms in headless Chrome on a shared machine; `tonight`
-  alone 65 ms in Node). A time change inside the night costs the view about nothing per
-  frame (the median frame's work is the same with About mounted instead, 1.5-1.9 ms).
+- **Speed.** In Chrome (`web/scripts/ui-check.mjs`, group 9, `ONLY=tonight`) the page draws
+  its first stage 12 to 54 ms after the engines answer (six runs; budget 300 ms); the
+  engines' own time for the night's core is reported, not judged (75 to 390 ms in headless
+  Chrome on a shared, loaded machine; `tonight` alone 65 ms in Node). The deep-sky
+  catalogue's descriptions and the constellations' names come in the second stage (on a
+  first visit they cost the first draw 260 ms). A time change inside the night costs the
+  view about nothing per frame (the median frame's work is the same with About mounted
+  instead, 1.5-1.9 ms).
