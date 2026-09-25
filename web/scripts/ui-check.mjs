@@ -1307,6 +1307,86 @@ async function main() {
       }
     }
 
+
+    // 15. Far dates (polish2): every view and its tabs at 28 May 585 BC in Philadelphia and
+    // 21 June 2999 in Tromsø (the midnight sun), on a laptop in the dark theme and on a phone
+    // in the night theme. The clock there is UT, both dates are estimates (the labelled
+    // tier), and the notices stay up: what a visitor reads must still be right.
+    if (ONLY.has('far')) {
+      summary.far = [];
+      const FAR = [
+        ['585 BC', 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York&t=-0584-05-22T12:00:00Z&body=Moon'],
+        ['AD 2999', 'v=1&lat=69.6492&lon=18.9553&place=Troms%C3%B8&tz=Europe%2FOslo&t=2999-06-21T21:30:00Z&body=Moon'],
+      ];
+      // Words a visitor must not read at a UT date: a clock time or a label in UTC, and an
+      // engine's raw message (its function name, a Julian date, an RFC 3339 instant).
+      const FAR_WORDS = String.raw`(() => {
+        const text = [document.querySelector('.sf-timebar'), document.querySelector('#sf-panel'), document.querySelector('.sf-stage')].map((e) => e?.innerText ?? '').join('\n');
+        const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+        const utc = location.hash.includes('view=learn') ? [] : lines.filter((l) => /\b\d{1,2}:\d{2}(?::\d{2})?\s*UTC\b|\(UTC[,)]|\bin UTC\b|hover for UTC|UTC[−+-]\d/.test(l));
+        const raw = lines.filter((l) => /jd_utc|starfield_|almanac_(?:opening|day):|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z|outside the ephemeris coverage \(/.test(l));
+        const vw = innerWidth, vh = innerHeight;
+        const visible = (el) => { const r = el.getBoundingClientRect(); return r.width >= 1 && r.height >= 1 && r.right > 0 && r.bottom > 0 && r.left < vw && r.top < vh && (!el.checkVisibility || el.checkVisibility({ visibilityProperty: true })); };
+        const nameOf = (el) => (el.getAttribute('aria-label') || (el.getAttribute('aria-labelledby') || '').split(' ').map((id) => document.getElementById(id)?.textContent ?? '').join(' ') || el.textContent || el.getAttribute('title') || '').trim();
+        const unnamed = [...document.querySelectorAll('button, [role=button], a[href], [role=tab], select, input:not([type=hidden])')].filter((el) => visible(el) && !nameOf(el) && !(el.labels && el.labels.length)).map((el) => el.tagName.toLowerCase() + '.' + String(el.className).split(' ')[0]);
+        return JSON.stringify({ utc: utc.slice(0, 4), raw: raw.slice(0, 4), unnamed: unnamed.slice(0, 4) });
+      })()`;
+      const tabsOf = (strip) => `(() => { const ls = [...document.querySelectorAll('.sf-stage__view [role=tablist]')].filter((t) => t.offsetParent !== null); return ls[${strip}] ? [...ls[${strip}].querySelectorAll('[role=tab]')].map((t) => t.textContent.trim()) : []; })()`;
+      const clickTab = (strip, i) => `(() => { const ls = [...document.querySelectorAll('.sf-stage__view [role=tablist]')].filter((t) => t.offsetParent !== null); ls[${strip}]?.querySelectorAll('[role=tab]')[${i}]?.click(); return true; })()`;
+      const settle = async () => {
+        await sleep(900);
+        await waitFor(`!document.querySelector('.sf-stage__view [aria-busy=true], .sf-stage__view [data-computing]')`, 12000);
+        await sleep(300);
+      };
+      for (const [size, theme] of [['desktop', 'dark'], ['phone', 'night']]) {
+        const [w, h, mobile] = DIMS[size];
+        await viewport(w, h, mobile);
+        for (const [when, hash] of FAR) {
+          for (const view of FAR_VIEWS) {
+            messages.length = 0;
+            await open(`${hash}&view=${view}`, { theme });
+            const found = { layout: [], words: [], unnamed: [], light: [] };
+            const look = async (where) => {
+              const L = JSON.parse(await evaluate(LAYOUT));
+              if (L.hscroll || L.overlaps.length || L.clipped.length || (mobile && L.underSheet > 0)) found.layout.push(`${where}: ${[...L.overlaps, ...L.clipped, L.hscroll ? 'sideways scroll' : '', mobile && L.underSheet > 0 ? `${L.underSheet}px under the sheet` : ''].filter(Boolean).join('; ')}`);
+              const W = JSON.parse(await evaluate(FAR_WORDS));
+              if (W.utc.length || W.raw.length) found.words.push(`${where}: ${[...W.utc, ...W.raw].join(' | ')}`);
+              if (W.unnamed.length) found.unnamed.push(`${where}: ${W.unnamed.join(', ')}`);
+              if (theme === 'night') {
+                const n = lightNotRed(decodePng(await shot(`far-${size}-${theme}-${when.replace(' ', '')}-${view}-${where.replace(/\W+/g, '_').slice(0, 24)}`)));
+                if (n.count >= 50) found.light.push(`${where}: ${n.count} px, worst ${JSON.stringify(n.worst)}`);
+              }
+            };
+            await look(view);
+            const top = JSON.parse(JSON.stringify(await evaluate(tabsOf(0))));
+            for (let i = 0; i < top.length; i++) {
+              await evaluate(clickTab(0, i));
+              await settle();
+              await look(`${view}/${top[i]}`);
+              const sub = await evaluate(tabsOf(1));
+              for (let j = 1; j < sub.length; j++) {
+                await evaluate(clickTab(1, j));
+                await settle();
+                await look(`${view}/${top[i]}/${sub[j]}`);
+              }
+            }
+            const tag = `far ${when}, ${view}, ${theme}, ${size}`;
+            const noise = messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+            check(`${tag}: no sideways scroll, overlap or cut-off text`, !found.layout.length, found.layout.slice(0, 3).join(' || '));
+            check(`${tag}: no literal UTC at a UT date and no raw engine message`, !found.words.length, found.words.slice(0, 3).join(' || '));
+            check(`${tag}: every control has a name`, !found.unnamed.length, found.unnamed.slice(0, 3).join(' || '));
+            if (theme === 'night') check(`${tag}: no blue, green or white light`, !found.light.length, found.light.slice(0, 2).join(' || '));
+            check(`${tag}: console clean`, noise.length === 0, noise.slice(0, 3).join(' | '));
+            summary.far.push({ when, view, size, theme, ...found, messages: noise });
+          }
+          // The Selected card (the Moon): its rise, highest and set carry the ± chip.
+          await open(`${hash}&view=about`, { theme });
+          const chips = JSON.parse(await evaluate(`JSON.stringify([...document.querySelectorAll('.sf-evcard')].filter((c) => !c.classList.contains('sf-evcard--none')).map((c) => { const k = c.querySelector('.sf-dt-chip'); return k && !k.hidden ? k.textContent.trim() : ''; }))`));
+          check(`far ${when}, ${size}: the Selected card's times carry the ± chip`, chips.length > 0 && chips.every((t) => /^±/.test(t)), JSON.stringify(chips));
+        }
+      }
+      await viewport(1440, 900, false);
+    }
   } finally {
     page.close();
     server.close();
