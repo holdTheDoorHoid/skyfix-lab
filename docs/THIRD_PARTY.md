@@ -1443,3 +1443,166 @@ terms-of-use could be retrieved from USNO's own site on any retrieval date recor
 This is a standing, accepted risk rather than a settled fact — confirm with USNO before
 redistributing any `usno_*.json` fixture outside the project, exactly as first recorded
 under "US Naval Observatory API" above.
+
+## Expansion programme — deep sky (deepsky agent, 2026-09-24)
+
+Owner: deepsky agent (`tools/starfield/{deepsky_fetch,dso,showers,milkyway,wgsn}.py`,
+`tools/starfield/{dso_objects,showers_table}.txt`, `crates/skyfix-starfield/data/{dso.txt,
+showers.txt,milkyway.bin,names_wgsn.txt,deepsky_manifest.json}`,
+`fixtures/reference/{dso_positions,showers_reference}.json`). Everything here is
+**display-only** (CONVENTIONS 13.6) and ships in the core module (32 KB of embedded data).
+
+**Nothing below needs on-screen credit.** The shipped values are CC0 (Wikidata), U.S.
+Government works (NASA HEASARC tables, NASA COBE/DIRBE maps) or facts compiled by this
+project (object selection, types, sizes, names and descriptions; the shower table; star
+names). The acknowledgements asked for as a courtesy are made here, in the documentation.
+The raw downloads are git-ignored (`tools/starfield/data/deepsky/`, with
+`provenance.json`: URL, query, retrieval time, size, SHA-256);
+`python3 -m tools.starfield.deepsky_fetch` repeats them, and `deepsky_manifest.json`
+records every input's hash and every check the builds made.
+
+#### Deep-sky objects: our selection, Wikidata's positions (`data/dso.txt`)
+
+- **Ours** (MIT OR Apache-2.0, like the rest of the project): the selection (all 110
+  Messier objects and 103 others by the rule written at the top of
+  `tools/starfield/dso_objects.txt`), the types, the common names as facts, the one-line
+  descriptions (written for this project; 29 left to the engine's "Open cluster in
+  Cassiopeia" pattern), 57 sizes and 20 magnitudes written in where the sources below
+  give none or the wrong kind. No Caldwell list, SEDS page, OpenNGC (CC BY-SA), SAC
+  database, NGC 2000.0 or Wikipedia table was used (data audit §8).
+- **Wikidata** (<https://query.wikidata.org/sparql>), three SPARQL queries kept in
+  `tools/starfield/deepsky_fetch.py` (the 110 items with a Messier code; the NGC/IC
+  codes of the list; six items without one, such as the Magellanic Clouds), retrieved
+  2026-09-25T03:29:32Z to 03:29:33Z (105 884, 61 192 and 6 577 bytes; SHA-256
+  `34a330a7…`, `d2f9771b…`, `8f08928d…`, full values in `provenance.json`). Used: right
+  ascension (P6257), declination (P6258) and apparent magnitude (P1215) with its band.
+  **Licence: CC0** (<https://www.wikidata.org/wiki/Wikidata:Licensing>: structured data
+  in the main namespace is CC0). Processing (`tools/starfield/dso.py`): positions to
+  10⁻⁴°; where an item carries two positions, the one nearer SIMBAD's (listed per object
+  in the manifest); magnitudes only when Wikidata's is an integrated V.
+- **NASA HEASARC, `globclust`** ("Milky Way Globular Clusters Catalog (December 2010
+  Version)", Harris 1996, 2010 edition): integrated V of the 43 globular clusters.
+  HEASARC TAP (<https://heasarc.gsfc.nasa.gov/xamin/vo/tap/sync>), ADQL `SELECT name,
+  alt_name, ra, dec, vmag FROM globclust ORDER BY name`, retrieved 2026-09-25T03:33:38Z,
+  8 578 bytes, SHA-256 `b4e4ecbb8f9193663e71cf3003bb24e93bf03a6790b29e58feafa0c21e815bf8`.
+  **Licence evidence:** data.gov lists the table
+  (<https://catalog.data.gov/dataset/milky-way-globular-clusters-catalog-december-2010-version>);
+  its harvest record
+  (<https://catalog.data.gov/harvest_record/02f2cc06-eb8f-4c28-9e41-ac6ee1802510/raw>,
+  checked 2026-09-25, 3 040 bytes, SHA-256
+  `97981f1ff1db01d096d816e8d2106f77849a3fe8276a474020bf1fd67f07aa2c`) reads
+  `"identifier": "ivo://nasa.heasarc/globclust"`, `"accessLevel": "public"`,
+  `"license": "https://www.usa.gov/government-works"`, publisher HEASARC.
+- **NASA HEASARC, `rc3`** ("Third Reference Catalog of Bright Galaxies", de Vaucouleurs
+  et al. 1991): V_T for 61 galaxies, and B_T less the median B−V (0.81) of those for five
+  without a colour. ADQL `SELECT name, alt_name_1, alt_name_2, pgc_name, ra, dec, bt_mag,
+  bv_color_tot, log_d25, log_r25 FROM rc3 WHERE bt_mag < 12.5 ORDER BY name`, retrieved
+  2026-09-25T03:33:40Z, 91 475 bytes, SHA-256
+  `3cba0768ccba83b694ebfa34054f8bde91d4843680ae2232ff63d21b57d39bb0`. **Licence
+  evidence:** <https://catalog.data.gov/dataset/third-reference-catalog-of-bright-galaxies>,
+  harvest record
+  <https://catalog.data.gov/harvest_record/026023ce-dca4-4906-8ef3-6a768eded064/raw>
+  (checked 2026-09-25, 1 889 bytes, SHA-256
+  `95800277f4ace6dfbd226b68f54f63ed84f00571328e104ffb3185fe28c4f29c`):
+  `"identifier": "ivo://nasa.heasarc/rc3"`, `"accessLevel": "public"`,
+  `"license": "https://www.usa.gov/government-works"`. The same caveats as for BSC5P
+  above apply (USAGov's note on works outside the United States; the values are
+  measurements in any case). *This product uses data from NASA's High Energy
+  Astrophysics Science Archive Research Center (HEASARC).*
+- **SIMBAD** (CDS, Strasbourg), TAP <https://simbad.u-strasbg.fr/simbad/sim-tap/sync>
+  (query in `provenance.json`), retrieved 2026-09-25T03:26:56Z, 25 201 bytes, SHA-256
+  `1774b51702fc2f2920462b0247b8f187c18b01a98a540da483e1af89d7d07dce`: the independent
+  position check, and the apparent sizes of 156 objects, rounded by us (dimension facts),
+  and one magnitude (IC 418). A handful of measurements re-keyed and rounded, as the
+  data audit (§8) allows with a documentation line: *This research has made use of the
+  SIMBAD database, operated at CDS, Strasbourg, France.*
+- **Corwin (2004), NGC/IC positions** (VizieR VII/239A, table `icpos`),
+  <https://vizier.cds.unistra.fr/viz-bin/asu-tsv?-source=VII%2F239A%2Ficpos&-out.max=unlimited&-out=Cat%2CNGC%2FIC%2Cn_NGC%2FIC%2CRAJ2000%2CDEJ2000%2CqPos%2CN%2Ce_RAJ2000%2Ce_DEJ2000>,
+  retrieved 2026-09-25T03:27:00Z, 1 053 860 bytes, SHA-256
+  `ea0845ccdbdb6f5566dc332b17a90329e56ea8b7caec233eb9584a319a7a5466`. **Development-time
+  only**: the second reference for positions. Its values for our 203 NGC/IC objects sit in
+  the committed test fixture `fixtures/reference/dso_positions.json` beside SIMBAD's; none
+  ships in the module. No licence is stated (measurement facts); *this research has made
+  use of the VizieR catalogue access tool, CDS, Strasbourg, France.*
+
+#### Meteor showers: our own table (`data/showers.txt`, 32 showers)
+
+**Compiled from IAU MDC and IMO published values.** `tools/starfield/showers_table.txt`
+holds this project's own row per shower (IAU number, code, name, activity as J2000 solar
+longitude, radiant and drift, V∞, r, ZHR, a variable flag, parent body), chosen from the
+two sources below and checked against both by `tools/starfield/showers.py` (tolerances
+and the three recorded disagreements in the manifest). Neither source's table, layout or
+prose is copied; the values are facts.
+
+- **IAU Meteor Data Center**, established showers
+  (<https://www.ta3.sk/IAUC22DB/MDC2022/Etc/streamestablisheddata2026.txt>), retrieved
+  2026-09-25T03:22:36Z, 426 134 bytes, SHA-256
+  `61c2be3ff17e0d3e5db54512b8d164e0343e484261f7861a8c29ae1a356e7344`. No licence stated;
+  its header asks users to cite Jenniskens, P. et al. (2020), *Planet. Space Sci.* 182,
+  104821, and Jopek, T.J. & Kaňuchová, Z. (2017), *Planet. Space Sci.* 143, 3, which is done
+  here.
+- **International Meteor Organization, Meteor Shower Calendars** (editor J. Rendtel),
+  Table 5 ("Working list of visual meteor showers"): 2027,
+  <https://www.imo.net/ShCal27s.pdf>, retrieved 2026-09-25T03:22:36Z, 837 985 bytes,
+  SHA-256 `9e6b9a1609fb89ebb8571756b15670b2ccf22e64ed22ae999ff604705d773eec`; 2026, from the
+  Internet Archive's copy of <https://imo.net/files/meteor-shower/cal2026.pdf> (the IMO
+  site is being rebuilt), <http://web.archive.org/web/20260308033848id_/https://imo.net/files/meteor-shower/cal2026.pdf>,
+  retrieved 2026-09-25T03:22:37Z, 988 146 bytes, SHA-256
+  `fde5388889ebda9fe13436d793da5e9935ae46b99edf20e0b19f7fe32ce1ed9f`. The PDFs carry no
+  licence statement, so their text and layout are the IMO's; only numbers are used: in our
+  table, and the calendars' dates in the test fixture
+  `fixtures/reference/showers_reference.json`. Read at development time with
+  `pdftotext -layout` (Poppler).
+
+#### The Milky Way outline: our own isophotes from COBE/DIRBE (`data/milkyway.bin`)
+
+- **NASA COBE/DIRBE Zodi-Subtracted Mission Average maps**, from NASA's Legacy Archive
+  for Microwave Background Data Analysis (LAMBDA,
+  <https://lambda.gsfc.nasa.gov/product/cobe/dirbe_zsma_data_get.html>): band 1A, 1.25 µm
+  (<https://lambda.gsfc.nasa.gov/data/cobe/dirbe/zsma/DIRBE_BAND1A_ZSMA.FITS>, retrieved
+  2026-09-25T03:22:45Z, 6 701 760 bytes, SHA-256
+  `5686cf768467fa595aea2e1fad9cfc1b0231d5c5736073fde05333bfcd895a76`), band 8, 100 µm
+  (`…/DIRBE_BAND08_ZSMA.FITS`, 03:22:48Z, 6 701 760 bytes,
+  `907a62a76f1347141affd2124af27c071ead27a0629689b578a3d0a1c1943eaa`), and the pixel
+  coordinates, <https://lambda.gsfc.nasa.gov/data/cobe/dirbe/ancil/skyinfo/DIRBE_SKYMAP_INFO.FITS>
+  (03:22:53Z, 12 620 160 bytes,
+  `391a2f839e67c8b074c1666eeb29928c7dcfcaab5b12a10be1dedae75bb67cc4`). **Basis:** NASA
+  mission data, a U.S. Government work; LAMBDA asks for an acknowledgement in
+  publications: *This product uses COBE/DIRBE data from NASA's Legacy Archive for
+  Microwave Background Data Analysis (LAMBDA).*
+- **Processing** (`tools/starfield/milkyway.py`, numpy only): pixels to galactic
+  coordinates (checked against the file's own to 0.0006°) on a 0.5° grid; single stars
+  masked (4 robust σ above a 3.5° box's median; 18 444 pixels); both maps smoothed with a
+  1.5° Gaussian; the starlight dimmed by a dust screen, `exp(−0.5 (τ_V − τ_J))`,
+  `A_V = 0.05 mag per MJy/sr` of 100 µm emission (Schlegel, Finkbeiner & Davis 1998),
+  `τ_J = 0.28 τ_V`, τ_V capped at 30; the Magellanic Clouds masked; four contour levels
+  (0.32, 0.50, 0.80, 1.30 MJy/sr; the faintest on the undimmed map) by oriented marching
+  squares; to J2000; Douglas–Peucker on the sphere to 0.2°; rings under 3° dropped.
+  Result: 24 rings, 856 points, 3 236 bytes (format in `milkyway.rs`). The isophotes are
+  this project's own work. Not used: d3-celestial's `mw.json` (its upstream source is
+  gone), Gaia maps (CC BY-SA), and any panorama (data audit §12).
+
+#### Star names: IAU WGSN (`data/names_wgsn.txt`)
+
+**Star names: IAU WGSN.** The IAU Working Group on Star Names' catalogue as kept current
+at <https://exopla.net/star-names/modern-iau-star-names/> (retrieved
+2026-09-25T03:22:42Z, 661 844 bytes, SHA-256
+`8a5be8fb41a408f745782fbc52d2f5e43cd2210de84460a529d5b4e4ea628008`; 641 names), checked
+against the 2022 text edition <https://www.pas.rochester.edu/~emamajek/WGSN/IAU-CSN.txt>
+(71 800 bytes, SHA-256 `84fac0c90f1b19abc491c2793469e0caa7b003ad1bc93a790ca41147010d0eb0`).
+A name and the star it belongs to are facts, so no credit is needed on screen; the
+IAU-CSN header releases IAU products under Creative Commons Attribution and asks users to
+cite the IAU version, which this line does. Used: the name, the HR number (the join to the
+display catalogue) and the HIP number (for search). `tools/starfield/wgsn.py` accepts a
+join only when the position or the designation agrees, keeps the star field's own 252
+names (the Almanac's spellings), and writes the 220 names it adds with the HIP numbers of
+all 458 joined stars (`hr|hip|name`, 7 169 bytes).
+
+#### Models (published formulas; no code copied)
+
+Air mass: Pickering, K.A. (2002), *DIO* 12, 3. Sky brightness and naked-eye limiting
+magnitude: Schaefer, B.E. (1990), *PASP* 102, 212. Moonlight: Krisciunas, K. & Schaefer,
+B.E. (1991), *PASP* 103, 1033. Sky classes: Bortle, J.E. (2001), *Sky & Telescope*,
+February, 126 (the limiting-magnitude range of each class, a fact). Meteor rates: the
+standard ZHR conversion (IMO). Each is written from the publication's equations and
+checked by hand evaluation (`docs/ACCURACY.md`, "Deep sky").

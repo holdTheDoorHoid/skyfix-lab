@@ -1142,3 +1142,259 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+## Expansion programme — deep sky (`deepsky.rs`, deepsky agent)
+
+Rust: `crates/skyfix-wasm/src/deepsky.rs` (a `native` layer, tested natively, and the
+exports) over `skyfix_starfield::{dso, showers, milkyway, names, search, extinction,
+tonight, observe}`. TypeScript: `DeepSkyEngine` in `web/src/next/engine/types.ts` (search
+"Expansion programme — deep sky"), implemented by `WasmEngine`, the mock
+(`engine/mock/deepsky.ts`, illustrative: 24 objects, 7 showers, two bands for the Milky
+Way) and forwarded by `memoEngine`; views check `isDeepSkyEngine(engine)`. The exports are
+optional: a package built before them still loads, and a call then throws
+"`<export>`: … Rebuild it with: npm run wasm".
+
+**Display only** (CONVENTIONS 13.6): nothing here reaches `reduce`, `solve`, the planner or
+an accuracy claim. Rankings, meteor rates, limiting magnitudes and the instrument guide are
+**estimates from the stated rules below**, and the wire says so (`notes`, `rate_model`,
+`model`).
+
+**Names against the brief's sketch.** The module's exports share one flat namespace, so
+the generic names are prefixed by subject, as `starfield_*`, `planet_events` and
+`eclipse_path` are; the static table is its own call, as `starfield_catalog` is beside
+`starfield_apparent`; the sky's conditions are an argument wherever they change a number.
+
+| brief | export | `DeepSkyEngine` |
+|---|---|---|
+| — (added) | `dso_catalog()` | `dsoCatalog()` |
+| `dso_list(observer, jd, options)` | `dso_list(observer_json, jd_utc, options_json)` | `dsoList(observer \| null, jd, options?)` |
+| `dso_visibility(id, observer, night)` | `dso_visibility(id, observer_json, jd_utc, conditions_json)` | `dsoVisibility(id, observer, jd, conditions?)` |
+| `showers(year, observer?)` | `meteor_showers(year, observer_json, conditions_json)` | `meteorShowers(year, observer?, conditions?)` |
+| `milky_way_outline()` | `milky_way_outline()` | `milkyWayOutline()` |
+| `search(query, observer?, jd?)` | `sky_search(query, observer_json, jd_utc?, limit?)` | `skySearch(query, observer?, jd?, limit?)` |
+| `tonight(observer, jd)` | `tonight(observer_json, jd_utc, options_json)` | `tonight(observer, jd, options?)` |
+| `extinction(...)` | `extinction_table(conditions_json)` | `extinction(conditions?)` |
+
+### Common arguments
+
+- `observer_json`: the common observer. Where it is optional, `""`, `"null"` or
+  `"undefined"` mean none (the TypeScript wrapper sends `""`).
+- `conditions_json`: the observer's sky, `{"bortle": 1..9, "nelm": 1..8, "k": 0.2..0.4}`,
+  every field optional, `""` for all defaults. `nelm` (naked-eye limiting magnitude at the
+  zenith) wins over `bortle`; with neither, Bortle 5. `k` is the V extinction coefficient in
+  magnitudes per air mass (default 0.25). Unknown fields and out-of-range values throw
+  (`"conditions: …"`). Results echo the resolved sky as `conditions: {bortle, nelm, k,
+  sky_brightness_mpsas, source: "nelm" | "bortle" | "default"}`; a Bortle class stands for
+  the middle of its naked-eye range (1: 7.8, 2: 7.3, 3: 6.8, 4: 6.3, 5: 5.8, 6: 5.3,
+  7: 4.8, 8: 4.3, 9: 4.0).
+- Instants out are `{jd_utc, utc}`. A *sighting* is `{jd_utc, utc, alt_deg, az_deg,
+  direction}`: apparent (refracted) altitude, azimuth, and a 16-point compass word
+  (`"NNE"`).
+- **The night** (`NightSummary`, shared by `dso_visibility`, `meteor_showers` with an
+  observer, and `tonight`): the 24 hours from local mean noon to local mean noon at the
+  observer's longitude. A time belongs to the night starting at the local mean noon at or
+  before it, or to the next one once the Sun has risen that morning (asked at 10:00, the
+  coming night; at 02:00, the current one). `darkness` is the **observing window**: the Sun
+  below −18° (`kind: "night"`), or where it never gets there the darkest stretch
+  (`"astronomical_twilight"`: below −12°; `"nautical_twilight"`: below −6°); `null` when the
+  Sun never goes below −6°. "In darkness" below always means inside that window. `sun`
+  holds the night's set, dusks, dawns and rise, `moon` its rise, set, the phase at the
+  window's middle (`illuminated_fraction`, `phase_angle_deg`, `phase` in eight words,
+  `waxing`) and `up_hours`/`down_hours` of the window. Events are the events crate's
+  (CONVENTIONS 13.3).
+
+### `dso_catalog() -> DsoCatalog`
+
+Called once (the wrapper caches it). `{objects: Dso[], source}`, 213 objects in a fixed
+order (indices are stable for a build): the 110 Messier objects, then 103 others chosen by
+a stated rule (open clusters V ≤ 5.0, globulars V ≤ 7.5, galaxies V ≤ 9.5 and the
+Magellanic Clouds, planetary nebulae V ≤ 9.5, named emission or reflection nebulae and
+supernova remnants at least 30′ across, and the Hyades, α Persei Cluster, Coma Star
+Cluster and Coathanger).
+
+```ts
+{ id: "M31",                 // stable: M1..M110, NGC869, IC2602, Mel25, Mel20, Mel111, Cr399, LMC, SMC
+  label: "M31",              // as printed: "NGC 869"
+  name: "Andromeda Galaxy" | null,
+  type: "spiral_galaxy",     // open_cluster, globular_cluster, cluster_with_nebula, planetary_nebula,
+                             // emission_nebula, reflection_nebula, supernova_remnant, spiral_galaxy,
+                             // elliptical_galaxy, lenticular_galaxy, irregular_galaxy, double_star,
+                             // asterism, star_cloud
+  category: "galaxy",        // cluster | nebula | galaxy | other: what the Sky view draws
+  constellation: "And",      // IAU abbreviation: the constellation the J2000 place lies in
+  ra_j2000_deg, dec_j2000_deg,   // ICRS
+  magnitude: 3.4 | null,     // integrated V; null for 12 nebulae without a meaningful one
+  major_arcmin, minor_arcmin,    // rounded apparent size (display)
+  description: "…",          // one line in our own words
+  cross_ids: ["NGC 224"] }
+```
+
+### `dso_list(observer_json, jd_utc, options_json) -> DsoPositions`
+
+Every object (or those `options_json` keeps) at one instant, as parallel typed arrays:
+`{jd_utc, index: Int32Array, ra_deg, dec_deg: Float64Array, alt_deg, az_deg,
+alt_apparent_deg: Float64Array | null}`. `index` points into `dso_catalog().objects`.
+RA/Dec are **apparent geocentric of date in degrees**, the frame of `sky_state` and of
+`starfield_apparent` (which is in radians). With an observer, the topocentric geometric
+altitude, the azimuth and the apparent (refracted) altitude as in CONVENTIONS 13.2; without
+one the three are `null`. `options_json`: `{"kinds": ["galaxy", "open_cluster", …]
+(categories or types; empty keeps all), "max_magnitude": 8.0 (objects without a magnitude
+are kept), "above_horizon": true (apparent altitude above 0; ignored without an
+observer)}`; unknown fields throw. About 0.1 ms natively.
+
+### `dso_visibility(id, observer_json, jd_utc, conditions_json) -> DsoVisibility`
+
+One object through the night `jd_utc` belongs to. `id` matches the id or any cross
+identification, ignoring case and spaces (`"m 31"`, `"NGC 224"`); an unknown id throws.
+
+```ts
+{ object: Dso, night: NightSummary, conditions,
+  visibility: {
+    best: Sighting | null,     // highest point in the observing window
+    transit: Sighting | null,  // upper transit inside the night, dark or not
+    hours_above_20: number,    // hours of the window with the apparent altitude ≥ 20°
+    moon: { moon_alt_deg, separation_deg, brightening_mag } | null,   // at `best`
+    limiting_mag: number | null,   // at the object at `best`: NELM − k (X − 1), less what the Moon's light takes
+    instrument: "eye" | "binoculars" | "telescope" | "camera" | null },
+  track: { jd_utc: number[], alt_deg: number[] } }   // apparent altitude every 10 min, noon to noon (145)
+```
+
+**The instrument guide** (a rule of thumb, stated so it can be argued with): an object
+"looks like" a point of magnitude `m = V + 0.75 log10(max(size′, 1))`. Against the
+limiting magnitude `LM` at the object: the eye if `m ≤ LM − 0.5`; 10×50 binoculars if
+`m ≤ LM + 3`; a 100 mm telescope if `m ≤ LM + 5`; otherwise, or without a magnitude, a
+camera. The Moon's light is Krisciunas & Schaefer (1991): it brightens the sky at the
+object by `brightening_mag`, and the limiting magnitude drops by what Schaefer's (1990)
+relation gives for that brighter sky. Extinction is Pickering's air mass (below). About
+5 ms natively.
+
+### `meteor_showers(year, observer_json, conditions_json) -> ShowerYear`
+
+Every shower of this project's 32-shower table whose peak falls in `year` (UTC calendar
+year; a whole number), in order of peak:
+
+```ts
+{ year, source, rate_model,
+  showers: [{ shower: MeteorShower,
+              peak, start, end,            // instants; start and end may fall in the adjacent year
+              moon_illuminated_fraction,   // geocentric, at the peak
+              at_site: ShowerNight | null }],
+  errors: [{ code, message }] }            // a shower that could not be computed (coverage)
+```
+
+`MeteorShower`: `{iau, code, name, lambda_start_deg, lambda_peak_deg, lambda_end_deg,
+ra_deg, dec_deg, dra_deg, ddec_deg, v_inf_kms, r, zhr, variable, parent}`. Activity is
+stored as **solar longitude** λ☉ (the Sun's apparent geocentric longitude on the mean
+ecliptic and equinox of J2000), so every year's instants come from this project's Sun
+(CONVENTIONS 13.6 addition); the radiant is J2000 at the peak and drifts by `dra_deg`,
+`ddec_deg` per degree of λ☉.
+
+With an observer, `at_site` is the night starting at the local mean noon before the peak
+(its local midnight is nearest the peak), `null` when the shower is not active in its
+observing window. `ShowerNight`: `{code, name, lambda_deg, zhr, days_from_peak,
+radiant_ra_deg, radiant_dec_deg, best: Sighting | null, expected_rate_per_hour,
+limiting_mag, hours_radiant_above_20, variable, reason}`, where `lambda_deg` and `zhr` are
+at the middle of the window, `best` is the moment of the highest expected rate, and
+`reason` is one sentence without clock times. **Rate model (an estimate):** the ZHR falls
+off exponentially from the peak to `min(2, ZHR/2)` at the activity limits; the expected
+rate is `ZHR × sin(radiant altitude) × r^(LM − 6.5)`, `LM` the zenith limiting magnitude
+with the Moon's light. Throws only when no shower can be computed. About 35 ms natively
+without an observer, 0.2 s with one (32 nights).
+
+### `milky_way_outline() -> MilkyWayOutline`
+
+Called once (cached). `{levels: number[], rings: {level, ra_deg: Float64Array, dec_deg:
+Float64Array}[], source}`: this project's own isophotes from NASA COBE/DIRBE, four levels
+(`levels` are the thresholds in DIRBE 1.25 µm MJy/sr: level 0, the faintest glow, on the
+map before the dust weighting, so it outlines the whole band; levels 1 to 3 after it, so
+the dark lanes and star clouds show), 24 rings, ICRS (J2000) degrees, RA `[0, 360)`.
+Every ring is **closed** (the last point repeats the first, as the constellation
+boundaries do) and **oriented**: for consecutive points `a`, `b` as unit vectors the
+brighter side is the one `a × b` points to. Rings of one level may nest (a darker hole
+inside a brighter region); filling each level by the even-odd rule, or by the
+orientation, gives the same region, and drawing the levels in order stacks them. Draw
+them with the boundary machinery: rotate with `starfield_frame_matrix` into the frame of
+date, and handle RA jumps across 0°/360° when projecting. The rings were simplified on the
+sphere to 0.2°, so consecutive points can be up to 14° apart along a nearly straight
+stretch: each step is a great-circle arc, to be interpolated where the projection would
+otherwise cut the corner. 856 points in all (3.2 KB embedded).
+
+### `sky_search(query, observer_json, jd_utc?, limit?) -> SearchResult`
+
+`{query, hits: SearchHit[]}`, best first; `limit` defaults to 20 and is clamped to 1–100.
+
+```ts
+{ kind: "star" | "deep_sky" | "constellation" | "sun" | "moon" | "planet" | "shower",
+  id: "HR 2491" | "M31" | "CMa" | "Mars" | "PER",
+  label: "Sirius",            // a star's name, else its designation, else "HR n"
+  detail: "α CMa · HR 2491 · HIP 32349 · V −1.46",
+  magnitude: number | null,
+  index: number | null,       // stars: index into starfield_catalog()
+  ra_deg, dec_deg: number | null,        // with jd_utc: apparent geocentric of date
+  alt_deg, az_deg, alt_apparent_deg: number | null, above_horizon: boolean | null,  // with an observer
+  score: number }             // 100 exact, 80 prefix, 60 words, 40 contains
+```
+
+Matching folds case, accents, Greek letters (α and "alpha"), superscripts and
+punctuation; a key scores 100 when it equals the query with spaces ignored ("alpha1 cen" is
+"α¹ Cen", "alnair" is "Al Na'ir"), 80 when it starts with it, 60 when every query word
+starts a word of the key (less one per key word left over), 40 when it contains it (three
+letters or more). Ties go to the Sun, Moon and planets, then names, then designations,
+then brightness. Keys: star names (the star field's own and the IAU WGSN's), Bayer and
+Flamsteed designations with the abbreviation or the genitive ("alpha cma", "alf cma",
+"alpha canis majoris", "61 cygni"), `HR n` and, where known, `HIP n`; the objects' ids,
+catalogue numbers and names; constellation names, abbreviations and genitives; shower
+names, codes and "… radiant". Positions: a shower hit is its radiant of date; a
+constellation hit its label point. An observer without `jd_utc` throws; a body the
+ephemeris cannot give at that time is returned without a position. About 2.5 ms natively.
+
+### `tonight(observer_json, jd_utc, options_json) -> Tonight`
+
+What the night `jd_utc` belongs to offers. `options_json`: the conditions fields plus
+`"limit"`, the number of deep-sky objects (default 12, clamped to 1–60).
+
+```ts
+{ night: NightSummary, conditions,
+  planets: [{ body, magnitude, best, up_from, up_until, hours_up, reason }],
+  deep_sky: [{ id, label, name, type, category, constellation, magnitude,
+               best: Sighting, hours_above_20, moon, instrument, score, reason }],
+  showers: ShowerNight[],
+  milky_way_core: { best: Sighting | null, hours_above_20, reason },
+  summary: string, notes: string[], errors: string[] }
+```
+
+- **Planets**: all seven, Mercury to Neptune, sampled every 10 minutes while the Sun is
+  below −6°: the highest point (`best`, `null` when the planet is not up then), the first
+  and last moment 10° up, the hours up, and a reason that says which.
+- **Deep sky**: every object that spends some of the observing window above 20°, scored
+  `100 × base × sin(best altitude) × (0.5 + 0.5 min(1, hours above 20° / 4)) ×
+  10^(−0.2 × moon brightening) × 1.2 if it has a common name`, `base` = 1.0 eye, 0.8
+  binoculars, 0.5 telescope, 0.35 camera (the instrument guide above); the best `limit`.
+- **Showers** active in the window, listed when the expected rate reaches 0.5 an hour or
+  the shower is variable.
+- **The Milky Way's core** (Sagittarius A*): its best moment and hours above 20° in
+  darkness.
+- **`summary`**: plain sentences in which times are tokens `{jd:2461308.517173}` (a UTC
+  Julian date, six decimals) for the interface to replace in its own zone and format
+  (`formatSummaryTimes(summary, format)` in types.ts). `errors` lists bodies the ephemeris
+  could not give; `notes` names the models.
+
+About 20 ms natively (`tests/deepsky_timing.rs`, budget 50 ms).
+
+### `extinction_table(conditions_json) -> ExtinctionTable`
+
+`{conditions, alt_deg, airmass, extinction_mag, limiting_mag: Float64Array, model}`, one
+row per degree of apparent altitude, 0 to 90 (91 rows). Air mass
+`X = 1 / sin(h + 244 / (165 + 47 h^1.1))` (Pickering 2002; 38.7 at the horizon);
+`extinction_mag = k X`; `limiting_mag = NELM − k (X − 1)` (extinction only: light domes
+and the sky's own brightening toward the horizon are not modelled). The zenith sky
+brightness `sky_brightness_mpsas` comes from NELM by Schaefer's (1990) relation,
+`NELM = 7.93 − 5 log10(10^(4.316 − B/5) + 1)`, capped at 22.0 mag/arcsec². For the Sky
+view's magnitude cut and the rankings.
+
+### Additive change to `starfield_catalog()`
+
+`names` grows from 252 to **472** entries: the IAU WGSN names of 220 more catalogue stars
+(joined by HR number, checked by position or designation). The star field's 252 names are
+unchanged, including the Almanac spellings (Navi, not the WGSN's Tiansi; Al Na'ir). Still
+sorted by `index`; no name is used twice.

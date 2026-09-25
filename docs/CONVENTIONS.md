@@ -395,6 +395,35 @@ planner's navigation candidates or any accuracy claim. Enforced by crate boundar
 body's constellation: `skyfix-wasm` (the `sky_state` export) and `skyfix-cli` (the
 constellation column of `skyfix sky`).
 
+**Deep sky (deepsky agent, expansion programme, 2026-09-24).** The deep-sky object table,
+the meteor-shower table, the Milky Way outline, the IAU WGSN star names and every model
+built on them (extinction, limiting magnitude, moonlight, the instrument guide, meteor
+rates, the "tonight" ranking) are display-only too, and live in `skyfix-starfield`
+(`dso`, `showers`, `milkyway`, `names`, `search`, `extinction`, `tonight`, `observe`).
+For the Sun, Moon and planets they use the engine, so `skyfix-starfield` now depends on
+`skyfix-almanac` (events and body sampling) as well as `skyfix-ephemeris`; the dependency
+runs one way only, and `crates/skyfix-starfield/tests/crate_boundary.rs` still keeps
+`skyfix-starfield` out of every navigation crate. Definitions they share:
+
+- **Places**: a deep-sky object or a meteor radiant is carried from ICRS to the apparent
+  place of date by the star chain of section 7 (without proper motion or parallax), and
+  to altitude and azimuth as in 13.2.
+- **The night**: local mean noon to local mean noon at the observer's longitude; a time
+  belongs to the night starting at the local mean noon at or before it, or to the next
+  once the Sun has risen that morning. Its **observing window** is the Sun below −18°, or
+  where it never gets there the darkest stretch (below −12°, else below −6°); none when
+  the Sun stays above −6°. Events are those of 13.3.
+- **Solar longitude** λ☉ (meteor showers): the Sun's apparent geocentric ecliptic
+  longitude referred to the mean ecliptic and equinox of J2000.0 (its apparent direction
+  of date rotated back to ICRS, then onto the J2000 ecliptic, obliquity 84 381.406″),
+  the convention of the IAU Meteor Data Center and the IMO.
+- **Estimates are labelled**: meteor rates, limiting magnitudes, the instrument guide and
+  the rankings follow stated rules (EXPLORER_API.md, "Expansion programme — deep sky")
+  and say so on the wire; none is an accuracy claim.
+- **Times in sentences**: the `tonight` summary carries times as tokens `{jd:…}` (UTC
+  Julian dates) for the interface to format in the displayed zone (13.8); the engine
+  never formats a local time.
+
 ### 13.7 Accuracy targets and validation
 
 Reference: Skyfield with JPL DE440s (DE421 as a cross-check), DUT1 = 0 columns as in
