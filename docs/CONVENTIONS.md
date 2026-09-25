@@ -189,7 +189,7 @@ low-altitude term above.
   through June 2027; later ones unknown and taken as none) and `jd_utc + Delta-T / 86400`
   on the UT scale (`skyfix_core::deltat`); `jd_ut1 = jd_utc + dut1 / 86400` with DUT1
   from `dut1_s(jd_utc, user)`: the user's value, else the **IERS history** (1973-01-02 to
-  2027-09-21, IERS Bulletin A's prediction after 2026-09-24), else 0 with a standard
+  2027-09-28, IERS Bulletin A's prediction after 2026-09-24), else 0 with a standard
   uncertainty of 0.9 s on the UTC scale, and 0 by definition on the UT scale. A provider
   holds one DUT1 (`with_dut1_s`); the explorer, the eclipse engine and the navigation
   paths build theirs with `dut1_s` at the instant they compute. With the history the
@@ -722,25 +722,24 @@ subsections they own and say so in their reports.
   **UT (≈ UT1) outside** that span (`time::scale_at`). TT − UTC = 32.184 s + ΔAT inside;
   TT − UT = ΔT(model) outside. UT1 = UTC + DUT1 inside; UT1 = UT outside. At the two
   boundaries TT − clock jumps by the model's DUT1 of that moment (−0.04 s at 1972-01-01,
-  +1.6 s at 2036-01-01): `clock_from_tt` maps a TT instant in a gap to the boundary and
+  +1.5 s at 2036-01-01): `clock_from_tt` maps a TT instant in a gap to the boundary and
   one in an overlap to its UTC reading.
 - **ΔT model** (`skyfix_core::deltat`, the chain of Skyfield 1.55's `build_delta_t` on this
-  project's own IERS table): the IERS values 1973-01-02 to 2027-09-21 (32.184 s + ΔAT −
-  DUT1, the weekly table below); Stephenson, Morrison & Hohenkerk 2016 splines in their
+  project's own IERS table): the IERS values 1973-01-02 to 2027-09-28 (32.184 s + ΔAT −
+  DUT1, the weekly table below, from IERS finals2000A.all of 2026-09-25); Stephenson, Morrison & Hohenkerk 2016 splines in their
   2020 revision (Table S15.2020) from −720 to the table, the last segment's linear term
   adjusted to meet its first value; the long-term parabola −320 + 32.5 ((y − 1825)/100)² s
   beyond both. **Joins** (Skyfield's rule): a cubic Hermite segment from the parabola's
   value and slope at −1520 to the splines' at −720, and one from the table's last value
   and last-year slope (× 366/365) to the parabola's value and slope at 2800 (the first
   whole century 800 years on); the parabola alone before −1520 and after 2800. The
-  1962-1972 IERS values are not in the table (they were not on disk): the splines stand
-  there. Sources: `iers` (observed, to 2026-09-24), `prediction` (after it, to 2800),
+  1962-1972 IERS values are not in the table (finals2000A.all starts in 1973): the
+  splines stand there. Sources: `iers` (observed, to 2026-09-24), `prediction` (after it, to 2800),
   `smh2016`, `parabola`. ΔT is a function of TT; UT → TT is solved as Skyfield's
   `ut1_jd` (two evaluations).
 - **Its standard uncertainty**: 0.001 s where observed (the weekly table's interpolation,
-  at most 1.9 ms); over 2026-01-24..2026-09-17, where the table is Skyfield's January
-  2026 prediction corrected to the September observations, a Brownian bridge scaled to
-  the 0.105 s correction; after the last observation the larger of IERS Bulletin A's
+  at most 1.9 ms; the IERS formal errors are at most 1.5 ms before 1985 and 0.06 ms
+  since 1990); after the last observation the larger of IERS Bulletin A's
   `0.00025 n^0.75` s (n days) and Huber's (2000) `365.25 N sqrt((N Q/3)(1 + N/M))/1000` s
   (N years since 2026-09-24, Q = 0.058 ms²/yr, M = 2500 yr, as NASA's "Uncertainty in
   ΔT" page states it): 10 s in 2060, 32 s in 2100, 15 min in 2650, 30 min in 3000; on the
@@ -751,7 +750,7 @@ subsections they own and say so in their reports.
   (explorer-wide `set_dut1`, a session's `clock.dut1_s`, the CLI's `--dut1`; standard
   uncertainty 0.05 s, the time signal's 0.1 s code), else the IERS history (weekly
   samples in units of 0.1 ms, linear in UT1 − TAI so leap seconds do not smear;
-  1973-01-02 to 2027-09-21, observed to 2026-09-24), else 0 with σ = 0.9 s (`assumed`),
+  1973-01-02 to 2027-09-28, observed to 2026-09-24), else 0 with σ = 0.9 s (`assumed`),
   shown as ±0.23′ of longitude. On the UT scale DUT1 is 0 by definition (`model`) and a
   user value does not apply: the clock is UT1 there. Never assumed silently after 2035.
 - **The almanac page's argument is UT1**, as in the printed Nautical Almanac (a navigator

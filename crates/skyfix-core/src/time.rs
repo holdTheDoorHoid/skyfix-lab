@@ -304,7 +304,7 @@ pub fn jd_tt(jd_utc: f64) -> f64 {
 }
 
 /// The clock instant of a TT instant: the inverse of [`tt_from_clock`]. Where the clock
-/// changes scale TT - clock jumps (by -0.04 s at 1972-01-01 and +1.6 s at 2036-01-01,
+/// changes scale TT - clock jumps (by -0.04 s at 1972-01-01 and +1.5 s at 2036-01-01,
 /// the model's DUT1 there): a TT instant in such a gap maps to the boundary, one in an
 /// overlap to its UTC reading.
 pub fn clock_from_tt(jd_tt_v: f64) -> f64 {
@@ -387,7 +387,7 @@ pub fn centuries_since_j2000(jd: f64) -> f64 {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Dut1Source {
-    /// The IERS table (1973-01-02 to 2027-09-21; Bulletin A's prediction after
+    /// The IERS table (1973-01-02 to 2027-09-28; Bulletin A's prediction after
     /// 2026-09-24).
     Iers,
     /// Given by the user (`set_dut1`, a session's `clock.dut1_s`, the CLI's `--dut1`).
@@ -534,10 +534,15 @@ pub fn time_info(jd_utc: f64, user_dut1: Option<f64>) -> Result<TimeInfo, Skyfix
              longitude)."
                 .to_string(),
         ),
-        Dut1Source::Iers if jd_utc > deltat::iers_table_span().2 + 1.0 => notes.push(format!(
-            "UT1 - UTC is IERS Bulletin A's prediction of {}.",
-            deltat::EOP_RETRIEVED
-        )),
+        Dut1Source::Iers if jd_utc > deltat::iers_table_span().2 + 1.0 => {
+            // A bulletin is issued on its last observed day.
+            let issued = CivilDateTime::from_jd(deltat::iers_table_span().2, Calendar::Gregorian)
+                .map(|c| c.date_string())
+                .unwrap_or_default();
+            notes.push(format!(
+                "UT1 - UTC is IERS Bulletin A's prediction of {issued}."
+            ));
+        }
         _ => {}
     }
     if dt.sigma_s > 30.0 {

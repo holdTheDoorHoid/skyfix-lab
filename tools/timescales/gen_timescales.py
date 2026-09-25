@@ -15,8 +15,18 @@ Outputs
 ``fixtures/reference/timescales.json``
     ``skyfix.reference/1`` fixture for ``crates/skyfix-core/tests/timescales_reference.rs``.
 
-Inputs (all on disk; nothing is downloaded)
--------------------------------------------
+Inputs
+------
+``sources/finals2000A.all`` (git-ignored) or ``sources/finals2000A-ut1-2026-09-25.txt``
+    IERS Rapid Service/Prediction Center (U.S. Naval Observatory), ``finals2000A.all``:
+    daily UT1 - UTC (IERS Bulletin A, column 59-68, flag in column 58: ``I`` observed,
+    ``P`` predicted) from 1973-01-02, retrieved 2026-09-25 from
+    https://maia.usno.navy.mil/ser7/finals2000A.all (3 768 836 bytes, sha256
+    cc80680e...; observed to 2026-09-24, predicted to 2027-10-02: IERS Bulletin A of
+    2026-09-24). The file is re-issued every week and old copies are not kept upstream,
+    so the columns used are committed as the extract (MJD, flag, UT1 - UTC, verbatim):
+    when the full file is present it is parsed and the extract rewritten from it;
+    otherwise the extract is read. Either way the outputs are the same.
 ``sources/Table-S15.2020.txt``
     Morrison, Stephenson, Hohenkerk & Zawilski 2021 (Addendum 2020 to Stephenson,
     Morrison & Hohenkerk 2016): 58 cubic segments giving Delta-T for -720.0..2019.0.
@@ -26,37 +36,28 @@ Inputs (all on disk; nothing is downloaded)
     The same authors' Delta-T with error estimates, -2000..+2500.
     figshare doi:10.6084/m9.figshare.30111661, CC BY 4.0.
 ``sources/iers-bulletin-a-2026-09-24.txt``
-    IERS Bulletin A Vol. XXXIX No. 039 (IERS Rapid Service/Prediction Center, USNO):
-    observed UT1 - UTC for 2026-09-18..24 and daily predictions to 2027-09-24.
+    IERS Bulletin A Vol. XXXIX No. 039 (USNO), the text of the bulletin the finals file
+    carries: the source of the prediction-error formula ``0.00025 (MJD - MJD0)^0.75`` s,
+    and a cross-check of the finals values (observed week and predictions).
     U.S. Government work, "approved for public release: distribution unlimited".
-Skyfield 1.55 ``skyfield/data/iers.npz``
-    Daily Delta-T 1973-01-02..2027-01-23 built by Skyfield from IERS ``finals2000A.all``
-    (Bulletin A rapid values, then a year of predictions). The file carries no
-    observed/predicted flag; its last date minus Bulletin A's one-year prediction span
-    puts the last observed value at about 2026-01-23 (``BUNDLE_LAST_OBSERVED_MJD``).
 
-The merged UT1 - UTC series
----------------------------
-1. 1973-01-02 .. 2026-01-23: Skyfield's bundle (observed).
-2. 2026-01-24 .. 2026-09-17: the bundle's January-2026 predictions, which by 2026-09-18
-   had drifted 0.105 s from the observed value, corrected by a cubic Hermite term that is
-   zero (value and slope) on 2026-01-23 and meets the observed value and slope of
-   Bulletin A on 2026-09-18. Standard uncertainty: a Brownian bridge pinned at both ends,
-   ``sqrt(0.001^2 + M^2 s (1 - s))`` with ``M`` the 0.105 s miss.
-3. 2026-09-18 .. 2026-09-24: Bulletin A observed.
-4. 2026-09-25 .. 2027-09-24: Bulletin A predictions (sigma: the bulletin's own
-   ``0.00025 (MJD - 61307)^0.75`` s, or Huber's random walk when larger).
+Compared with, never used for the table: Skyfield 1.55's bundled ``iers.npz`` (daily
+Delta-T to 2027-01-23, built from an earlier finals2000A.all; it matches this one to
+0.05 ms through 2026-01-16 and is a January-2026 prediction after that).
 
-Sampled every 7 days from MJD 41684 (1973-01-02) and stored as i16 in units of 0.1 ms.
+The table
+---------
+UT1 - UTC at 0h UTC every 7 days from MJD 41684 (1973-01-02), as i16 in units of 0.1 ms,
+observed (``I``) to the last observed day and the bulletin's prediction after it.
 Interpolation is linear in UT1 - TAI, which has no leap-second steps. Weekly sampling
 costs at most 1.9 ms (0.5 ms rms) against the daily values; the 0.1 ms unit adds at most
-0.05 ms. (Hundredths of a second, as first planned, would add up to 5 ms for the same
-6 KB.)
+0.05 ms. The file's own formal errors are at most 1.5 ms (1973-1984) and 0.06 ms after
+1990. Standard uncertainty: 0.001 s to the last observed day; after it the larger of
+the bulletin's ``0.00025 n^0.75`` s (n days) and Huber's random walk.
 
-Refreshing: a current ``finals2000A.all`` (maia.usno.navy.mil/ser7, parsed with
-``skyfield.data.iers.parse_x_y_dut1_from_finals_all``) or EOP 20 C04 would replace
-sources 1-3 with observed values to the build date and remove the corrected span.
-Fetching them needs the owner's approval, so this generator uses what is on disk.
+Refreshing: download a current finals2000A.all to ``sources/`` (the owner's approval
+first), set ``FINALS_RETRIEVED``, run this script, review, commit the extract, the two
+outputs and the new numbers in docs/ACCURACY.md section 14.
 """
 
 from __future__ import annotations
@@ -72,6 +73,7 @@ import sys
 import numpy as np
 import skyfield
 from skyfield.api import load
+from skyfield.data import iers
 from skyfield.timelib import Timescale, julian_day, compute_calendar_date
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -80,14 +82,17 @@ SOURCES = os.path.join(HERE, "sources")
 S15_PATH = os.path.join(SOURCES, "Table-S15.2020.txt")
 DT4500_PATH = os.path.join(SOURCES, "Table-DT-lod4500yrs.2020.txt")
 BULA_PATH = os.path.join(SOURCES, "iers-bulletin-a-2026-09-24.txt")
+FINALS_PATH = os.path.join(SOURCES, "finals2000A.all")
+FINALS_URL = "https://maia.usno.navy.mil/ser7/finals2000A.all"
+FINALS_RETRIEVED = "2026-09-25"
+EXTRACT_PATH = os.path.join(SOURCES, "finals2000A-ut1-%s.txt" % FINALS_RETRIEVED)
 OUT_RUST = os.path.join(REPO, "crates", "skyfix-core", "src", "deltat", "data.rs")
 OUT_FIXTURE = os.path.join(REPO, "fixtures", "reference", "timescales.json")
 
-RETRIEVED = "2026-09-24"
+RETRIEVED = FINALS_RETRIEVED
 MJD0 = 2_400_000.5
-FIRST_MJD = 41_684  # 1973-01-02, the first day of Skyfield's IERS table
+FIRST_MJD = 41_684  # 1973-01-02, the first day of finals2000A.all
 STEP_DAYS = 7
-BUNDLE_LAST_OBSERVED_MJD = 61_063  # 2026-01-23 (see the module docstring)
 UNIT_S = 1e-4  # the i16 table is in units of 0.1 ms
 SIGMA_OBSERVED_S = 0.001  # weekly sampling: max 1.9 ms, rms 0.5 ms
 SPLINE_SIGMA_FLOOR_S = 0.11  # measured rms of the S15 spline against IERS, 1973-2019
@@ -163,7 +168,8 @@ def parse_bulletin_a(path: str):
 
 
 def skyfield_bundle():
-    """Skyfield's builtin daily table as ``(mjd_utc, dut1_s)`` and its leap-second table."""
+    """Skyfield's builtin daily table as ``(mjd_utc, dut1_s)`` and its leap-second table
+    (compared with, never used for the table)."""
     d = np.load(os.path.join(os.path.dirname(skyfield.__file__), "data", "iers.npz"))
     tt = d["tt_jd_minus_arange"] + np.arange(len(d["tt_jd_minus_arange"]))
     dt = d["delta_t_1e7"] * 1e-7
@@ -181,6 +187,84 @@ def skyfield_bundle():
     return mjd, dut1, leap_dates, leap_offsets
 
 
+def parse_finals(path: str):
+    """Rows ``(mjd, flag, ut1_utc_text)`` of finals2000A.all with a Bulletin A UT1 - UTC
+    value (columns 8-15, 58, 59-68), the text kept verbatim."""
+    rows = []
+    for line in open(path, encoding="ascii"):
+        flag, value = line[57:58], line[58:68].strip()
+        if flag not in ("I", "P") or not value:
+            continue
+        mjd = float(line[7:15])
+        assert mjd == int(mjd), line
+        float(value)
+        rows.append((int(mjd), flag, value))
+    return rows
+
+
+def write_extract(rows, finals_bytes: int, finals_sha: str) -> None:
+    head = [
+        "# UT1 - UTC from IERS finals2000A.all (IERS Rapid Service/Prediction Center, U.S. Naval",
+        "# Observatory; U.S. Government work, IERS data are open with citation customary).",
+        "# Source: %s, retrieved %s, %d bytes," % (FINALS_URL, FINALS_RETRIEVED, finals_bytes),
+        "# sha256 %s." % finals_sha,
+        "# Written by tools/timescales/gen_timescales.py: every row with a Bulletin A UT1 - UTC value,",
+        "# columns 8-15 (MJD, UTC), 58 (I observed, P predicted) and 59-68 (UT1 - UTC, seconds),",
+        "# the values verbatim. Columns: MJD FLAG UT1-UTC",
+    ]
+    body = ["%d %s %s" % r for r in rows]
+    text = "\n".join(head + body) + "\n"
+    old = open(EXTRACT_PATH, encoding="ascii").read() if os.path.exists(EXTRACT_PATH) else None
+    if old != text:
+        with open(EXTRACT_PATH, "w", encoding="ascii") as f:
+            f.write(text)
+        print("wrote", EXTRACT_PATH)
+
+
+def read_extract():
+    rows, meta = [], {}
+    for line in open(EXTRACT_PATH, encoding="ascii"):
+        if line.startswith("#"):
+            m = re.search(r"retrieved (\S+), (\d+) bytes", line)
+            if m:
+                meta["retrieved"], meta["bytes"] = m.group(1), int(m.group(2))
+            m = re.search(r"sha256 ([0-9a-f]{64})", line)
+            if m:
+                meta["sha256"] = m.group(1)
+            continue
+        mjd, flag, value = line.split()
+        rows.append((int(mjd), flag, value))
+    return rows, meta
+
+
+def load_series():
+    """The daily UT1 - UTC series: from finals2000A.all when present (rewriting the
+    extract), else from the committed extract."""
+    if os.path.exists(FINALS_PATH):
+        rows = parse_finals(FINALS_PATH)
+        meta = {"retrieved": FINALS_RETRIEVED, "bytes": os.path.getsize(FINALS_PATH), "sha256": sha256(FINALS_PATH)}
+        write_extract(rows, meta["bytes"], meta["sha256"])
+        assert read_extract()[0] == rows
+    else:
+        rows, meta = read_extract()
+    days = np.array([r[0] for r in rows])
+    flags = np.array([r[1] for r in rows])
+    dut1 = np.array([float(r[2]) for r in rows])
+    assert days[0] == FIRST_MJD and (np.diff(days) == 1).all(), "the series must be daily from 1973-01-02"
+    observed = days[flags == "I"]
+    assert (flags[: len(observed)] == "I").all() and (flags[len(observed):] == "P").all(), "I rows, then P rows"
+    meta["last_observed_mjd"] = int(observed[-1])
+    meta["last_predicted_mjd"] = int(days[-1])
+    return days, flags, dut1, meta
+
+
+def skyfield_from_finals(days, dut1) -> Timescale:
+    """Skyfield's own timescale from the same daily series (``skyfield.data.iers``, as
+    ``load.timescale(builtin=False)`` builds it from a finals2000A.all)."""
+    tt, delta_t, leap_dates, leap_offsets = iers.build_timescale_arrays(days.astype(float), dut1)
+    return Timescale((tt, delta_t), leap_dates, leap_offsets)
+
+
 # ---------------------------------------------------------------------------
 # Leap seconds (must equal skyfix_core::time::LEAP_SECONDS)
 # ---------------------------------------------------------------------------
@@ -193,56 +277,8 @@ def tai_minus_utc(mjd: float, leap_dates, leap_offsets) -> float:
 
 
 # ---------------------------------------------------------------------------
-# The merged daily UT1 - UTC series and the weekly table
+# The weekly table
 # ---------------------------------------------------------------------------
-
-
-def hermite(t, y0, d0, y1, d1, width):
-    """Cubic with value/slope (per unit x) ``y0, d0`` at t=0 and ``y1, d1`` at t=1."""
-    h00 = 2 * t**3 - 3 * t**2 + 1
-    h10 = t**3 - 2 * t**2 + t
-    h01 = -2 * t**3 + 3 * t**2
-    h11 = t**3 - t**2
-    return h00 * y0 + h10 * width * d0 + h01 * y1 + h11 * width * d1
-
-
-def merged_series(bundle, bula):
-    mjd_b, dut1_b, leap_dates, leap_offsets = bundle
-    by_mjd = dict(zip(mjd_b.tolist(), dut1_b.tolist()))
-    t0 = BUNDLE_LAST_OBSERVED_MJD
-    t1 = min(bula["observed"])
-    last_obs = bula["last_observed_mjd"]
-    obs = {m: v for m, (v, _e) in bula["observed"].items()}
-    # UT1 - TAI of both sources (no leap second between 2026-01 and 2027-09).
-    for m in range(t0, max(bula["predicted"]) + 1):
-        assert tai_minus_utc(m, leap_dates, leap_offsets) == 37.0
-    pred_t1 = by_mjd[t1]
-    miss = obs[t1] - pred_t1
-    slope_obs = (obs[last_obs] - obs[t1]) / (last_obs - t1)
-    slope_pred = (by_mjd[last_obs] - by_mjd[t1]) / (last_obs - t1)
-    series = {}
-    for m in range(FIRST_MJD, t0 + 1):
-        series[m] = by_mjd[m]
-    width = t1 - t0
-    for m in range(t0 + 1, t1):
-        s = (m - t0) / width
-        series[m] = by_mjd[m] + hermite(s, 0.0, 0.0, miss, slope_obs - slope_pred, width)
-    for m, v in obs.items():
-        series[m] = v
-    for m, v in bula["predicted"].items():
-        series[m] = v
-    days = np.array(sorted(series))
-    assert (np.diff(days) == 1).all()
-    values = np.array([series[m] for m in days])
-    info = {
-        "gap_first_mjd": t0 + 1,
-        "gap_last_mjd": t1 - 1,
-        "gap_miss_s": miss,
-        "bundle_pred_minus_obs_at_t1_s": -miss,
-        "slope_obs_s_per_day": slope_obs,
-        "slope_pred_s_per_day": slope_pred,
-    }
-    return days, values, info
 
 
 def weekly_table(days, dut1, leap_dates, leap_offsets):
@@ -317,9 +353,9 @@ def write_rust(s15, knots, mjd_w, q, meta):
     w("//!   (doi:10.6084/m9.figshare.30111661, CC BY 4.0), sha256 %s: the change points" % meta["sha_dt4500"][:16])
     w("//!   over -720..2019, linearly interpolated between them.")
     w("//! - `DUT1_E4`: UT1 - UTC at 0h UTC every %d days from MJD %d, in units of 0.1 ms, from" % (STEP_DAYS, FIRST_MJD))
-    w("//!   IERS Bulletin A data: finals2000A as bundled by Skyfield 1.55 (observed to MJD %d)," % BUNDLE_LAST_OBSERVED_MJD)
-    w("//!   a corrected prediction over MJD %d..%d, and %s" % (meta["gap_first_mjd"], meta["gap_last_mjd"], meta["bula_issue"]))
-    w("//!   (observed to MJD %d, predicted to MJD %d). Weekly sampling: max %.2f ms, rms %.2f ms." % (meta["last_observed_mjd"], meta["last_predicted_mjd"], meta["interp_max_ms"], meta["interp_rms_ms"]))
+    w("//!   IERS finals2000A.all (Bulletin A), retrieved %s, sha256 %s: observed to" % (meta["finals_retrieved"], meta["finals_sha"][:16]))
+    w("//!   MJD %d, then %s's prediction (to MJD %d)." % (meta["last_observed_mjd"], meta["bula_issue"], meta["last_predicted_mjd"]))
+    w("//!   Weekly sampling: max %.2f ms, rms %.2f ms." % (meta["interp_max_ms"], meta["interp_rms_ms"]))
     w("")
     w("/// Rows `[K_i, K_{i+1}, a0, a1, a2, a3]`: Delta-T = a0 + a1 t + a2 t^2 + a3 t^3 seconds,")
     w("/// t = (Y - K_i) / (K_{i+1} - K_i), for Y (Julian epoch, TT) in `[K_i, K_{i+1})`.")
@@ -340,18 +376,11 @@ def write_rust(s15, knots, mjd_w, q, meta):
     w("pub(super) const EOP_FIRST_MJD: i32 = %d;" % FIRST_MJD)
     w("/// Days between samples.")
     w("pub(super) const EOP_STEP_DAYS: i32 = %d;" % STEP_DAYS)
-    w("/// Last day of the observed values in Skyfield 1.55's bundle (2026-01-23, inferred).")
-    w("pub(super) const EOP_BUNDLE_LAST_OBSERVED_MJD: i32 = %d;" % BUNDLE_LAST_OBSERVED_MJD)
-    w("/// First day of IERS Bulletin A's observed week (2026-09-18).")
-    w("pub(super) const EOP_BULLETIN_FIRST_OBSERVED_MJD: i32 = %d;" % meta["first_bula_observed_mjd"])
-    w("/// Last observed day of the table: the build date's Bulletin A (2026-09-24). Later")
-    w("/// samples are the bulletin's predictions.")
+    w("/// Last observed day of the table (flag `I`); later samples are the bulletin's")
+    w("/// predictions (flag `P`).")
     w("pub(super) const EOP_LAST_OBSERVED_MJD: i32 = %d;" % meta["last_observed_mjd"])
-    w("/// How far the bundle's January-2026 prediction had drifted by 2026-09-18, seconds:")
-    w("/// the scale of the corrected span's uncertainty.")
-    w("pub(super) const EOP_GAP_MISS_S: f64 = %s;" % rust_float(round(abs(meta["gap_miss_s"]), 6)))
-    w("/// Date of the sources (the build date).")
-    w("pub const EOP_RETRIEVED: &str = \"%s\";" % RETRIEVED)
+    w("/// Date the IERS data were retrieved.")
+    w("pub const EOP_RETRIEVED: &str = \"%s\";" % meta["finals_retrieved"])
     w("")
     w("/// UT1 - UTC at 0h UTC on MJD `EOP_FIRST_MJD + EOP_STEP_DAYS * i`, units of 0.1 ms.")
     w("#[rustfmt::skip]")
@@ -394,33 +423,63 @@ def main(argv=None) -> int:
     mine = np.array([[r[0] for r in s15], [r[1] for r in s15], [r[5] for r in s15], [r[4] for r in s15], [r[3] for r in s15], [r[2] for r in s15]])
     assert np.array_equal(mine, sk15), "Table-S15.2020.txt differs from Skyfield's bundled copy"
     dt4500 = parse_dt4500(DT4500_PATH)
-    bula = parse_bulletin_a(BULA_PATH)
-    assert bula["tai_utc"] == 37.0
-    bundle = skyfield_bundle()
-    mjd_b, dut1_b, leap_dates, leap_offsets = bundle
-    days, dut1, gap = merged_series(bundle, bula)
-    mjd_w, q, err_max, err_rms = weekly_table(days, dut1, leap_dates, leap_offsets)
-    assert err_max < 0.0025, err_max
     knots = sigma_knots(dt4500)
 
+    days, flags, dut1, fin = load_series()
+    last_obs = fin["last_observed_mjd"]
+    by_mjd = dict(zip(days.tolist(), dut1.tolist()))
+    mjd_b, dut1_b, leap_dates, leap_offsets = skyfield_bundle()
+
+    # Leap seconds: the jumps in the finals series are exactly skyfix_core's table.
+    jumps = days[1:][np.diff(dut1) > 0.9]
+    ours = [d for d in leap_dates - MJD0 if d > FIRST_MJD]
+    assert list(jumps) == ours, (jumps, ours)
+
+    # Cross-check: the bulletin text of 2026-09-24 against the finals values.
+    bula = parse_bulletin_a(BULA_PATH)
+    assert bula["tai_utc"] == 37.0
+    bula_obs_diff = max(abs(v - by_mjd[m]) for m, (v, _e) in bula["observed"].items())
+    assert bula_obs_diff < 0.002, bula_obs_diff  # later revisions of the rapid values are small
+    same_issue = bula["last_observed_mjd"] == last_obs
+    bula_pred_diff = None
+    if same_issue:
+        bula_pred_diff = max(abs(v - by_mjd[m]) for m, v in bula["predicted"].items())
+        assert bula_pred_diff < 1e-5, bula_pred_diff  # the bulletin prints 5 decimals
+
+    # Skyfield's bundle against the finals values: where it is observed and unrevised.
+    b = dict(zip(mjd_b.tolist(), dut1_b.tolist()))
+    common = [m for m in mjd_b.tolist() if m in by_mjd]
+    agree_to = FIRST_MJD
+    for m in common:
+        if abs(b[m] - by_mjd[m]) > 1e-4:
+            break
+        agree_to = m
+    bundle_cmp = {
+        "agrees_within_0.1_ms_to_mjd": agree_to,
+        "max_diff_to_there_s": max(abs(b[m] - by_mjd[m]) for m in common if m <= agree_to),
+        "bundle_minus_finals_s": {str(m): round(b[m] - by_mjd[m], 7) for m in (61063, 61100, 61200, 61300, 61307, 61400, int(mjd_b[-1])) if m in by_mjd},
+    }
+
+    mjd_w, q, err_max, err_rms = weekly_table(days, dut1, leap_dates, leap_offsets)
+    assert err_max < 0.0025, err_max
+    table_last_mjd = int(mjd_w[-1])
+
     ts_ours = our_timescale(mjd_w, q, leap_dates, leap_offsets)
+    ts_fin = skyfield_from_finals(days, dut1)
     ts_sky = load.timescale(builtin=True)
 
     meta = {
         "generated": RETRIEVED,
         "sha_s15": sha256(S15_PATH),
         "sha_dt4500": sha256(DT4500_PATH),
-        "bula_issue": "IERS Bulletin A of " + bula["issue"],
-        "gap_first_mjd": gap["gap_first_mjd"],
-        "gap_last_mjd": gap["gap_last_mjd"],
-        "gap_miss_s": gap["gap_miss_s"],
-        "first_bula_observed_mjd": min(bula["observed"]),
-        "last_observed_mjd": bula["last_observed_mjd"],
-        "last_predicted_mjd": max(bula["predicted"]),
+        "bula_issue": "IERS Bulletin A of " + bula["issue"] if same_issue else "the IERS Bulletin A of MJD %d" % last_obs,
+        "finals_retrieved": fin["retrieved"],
+        "finals_sha": fin["sha256"],
+        "last_observed_mjd": last_obs,
+        "last_predicted_mjd": fin["last_predicted_mjd"],
         "interp_max_ms": err_max * 1e3,
         "interp_rms_ms": err_rms * 1e3,
     }
-    table_last_mjd = int(mjd_w[-1])
 
     # ---- fixture cases -------------------------------------------------------------
     def tt_of_mjd_utc(m):
@@ -432,14 +491,18 @@ def main(argv=None) -> int:
     delta_t_cases = []
 
     def add_dt(jd_tt, band):
-        ours = float(ts_ours.delta_t_function(jd_tt))
-        sky = float(ts_sky.delta_t_function(jd_tt))
-        delta_t_cases.append({"jd_tt": jd_tt, "band": band, "delta_t_s": round(ours, 9), "skyfield_builtin_s": round(sky, 9)})
+        delta_t_cases.append({
+            "jd_tt": jd_tt,
+            "band": band,
+            "delta_t_s": round(float(ts_ours.delta_t_function(jd_tt)), 9),
+            "skyfield_finals_s": round(float(ts_fin.delta_t_function(jd_tt)), 9),
+            "skyfield_builtin_s": round(float(ts_sky.delta_t_function(jd_tt)), 9),
+        })
 
-    for m in range(FIRST_MJD + 3, BUNDLE_LAST_OBSERVED_MJD + 1, 43):
+    for m in range(FIRST_MJD + 3, last_obs + 1, 43):
         add_dt(tt_of_mjd_utc(m) + 0.37, "iers_observed")
-    for m in range(BUNDLE_LAST_OBSERVED_MJD + 1, table_last_mjd, 11):
-        add_dt(tt_of_mjd_utc(m) + 0.61, "iers_2026_on")
+    for m in range(last_obs + 1, table_last_mjd, 11):
+        add_dt(tt_of_mjd_utc(m) + 0.61, "iers_predicted")
     for y in np.arange(-2000.0, -720.0, 13.1):
         add_dt(jd_tt_of_year(float(y)), "parabola_and_join")
     for y in np.arange(-720.0, 1973.0, 7.3):
@@ -456,13 +519,11 @@ def main(argv=None) -> int:
         ut1_cases.append({"jd_ut1": jd_ut1, "jd_tt": float(t.tt), "delta_t_s": float(t.delta_t)})
 
     dut1_cases = []
-    for m in list(range(FIRST_MJD, table_last_mjd + 1, 61)) + [41684, 42048, 42049, 57753, 57754, 57755, 61300, 61301, 61304, 61307, 61400, 61669]:
-        dut1_cases.append({"mjd_utc": m, "dut1_s": round(float(dut1[m - FIRST_MJD]), 7)})
+    for m in list(range(FIRST_MJD, table_last_mjd + 1, 61)) + [41684, 42048, 42049, 57753, 57754, 57755, 61063, 61181, 61300, 61301, 61304, 61307, 61308, 61400, table_last_mjd]:
+        dut1_cases.append({"mjd_utc": m, "flag": str(flags[m - FIRST_MJD]), "dut1_s": round(float(dut1[m - FIRST_MJD]), 7)})
     bula_observed = [{"mjd_utc": m, "dut1_s": v, "sigma_s": e} for m, (v, e) in sorted(bula["observed"].items())]
 
     sigma_cases = []
-    t0, t1 = BUNDLE_LAST_OBSERVED_MJD, min(bula["observed"])
-    last_obs = bula["last_observed_mjd"]
     sigma_knot_years = np.array([k[0] for k in knots])
     sigma_knot_values = np.array([k[1] for k in knots])
     table_start_year = (tt_of_mjd_utc(FIRST_MJD) - 1721045.0) / 365.25
@@ -474,11 +535,8 @@ def main(argv=None) -> int:
             if y >= -720.0:
                 return max(float(np.interp(y, sigma_knot_years, sigma_knot_values)), SPLINE_SIGMA_FLOOR_S)
             return max(sigma_knot_values[0], huber_sigma_s(-500.0 - y))
-        if mjd <= t0 or t1 <= mjd <= last_obs:
+        if mjd <= last_obs:
             return SIGMA_OBSERVED_S
-        if mjd < t1:
-            s = (mjd - t0) / (t1 - t0)
-            return math.sqrt(SIGMA_OBSERVED_S**2 + gap["gap_miss_s"] ** 2 * s * (1.0 - s))
         n = mjd - last_obs
         return max(SIGMA_OBSERVED_S, 0.00025 * n**0.75, huber_sigma_s(n / 365.25))
 
@@ -505,8 +563,10 @@ def main(argv=None) -> int:
             "generated_utc": RETRIEVED + "T00:00:00Z",
             "never_a_runtime_dependency": "Development-time reference. CONVENTIONS section 11: never regenerate a fixture from Rust output.",
             "description": "Delta-T, UT1 and calendar reference values for skyfix_core::{deltat, time, calendar}.",
-            "model": "delta_t_s: Skyfield 1.55's build_delta_t (the Table-S15.2020 splines, the long-term parabola -320 + 32.5 ((y - 1825)/100)^2 s and its 800-year joins) run on SkyFix's weekly IERS table interpolated to whole days. skyfield_builtin_s: Skyfield 1.55's own timescale (its bundled table ends 2027-01-23 and is a prediction after about 2026-01-23).",
+            "model": "delta_t_s: Skyfield 1.55's build_delta_t (the Table-S15.2020 splines, the long-term parabola -320 + 32.5 ((y - 1825)/100)^2 s and its 800-year joins) run on SkyFix's weekly IERS table interpolated to whole days. skyfield_finals_s: Skyfield 1.55's own timescale built from the same finals2000A.all, daily (skyfield.data.iers.build_timescale_arrays). skyfield_builtin_s: Skyfield 1.55's shipped timescale (its bundled table ends 2027-01-23 and is a prediction after 2026-01-23).",
             "sources": [
+                {"file": "tools/timescales/sources/finals2000A.all (git-ignored)", "url": FINALS_URL, "retrieved": fin["retrieved"], "bytes": fin["bytes"], "sha256": fin["sha256"]},
+                {"file": os.path.relpath(EXTRACT_PATH, REPO), "sha256": sha256(EXTRACT_PATH)},
                 {"file": "tools/timescales/sources/Table-S15.2020.txt", "sha256": meta["sha_s15"], "doi": "10.6084/m9.figshare.29920388"},
                 {"file": "tools/timescales/sources/Table-DT-lod4500yrs.2020.txt", "sha256": meta["sha_dt4500"], "doi": "10.6084/m9.figshare.30111661"},
                 {"file": "tools/timescales/sources/iers-bulletin-a-2026-09-24.txt", "sha256": sha256(BULA_PATH), "issue": bula["issue"]},
@@ -516,14 +576,16 @@ def main(argv=None) -> int:
                 "first_mjd": FIRST_MJD, "step_days": STEP_DAYS, "last_mjd": table_last_mjd,
                 "unit_s": UNIT_S, "samples": int(len(q)),
                 "interp_max_s": err_max, "interp_rms_s": err_rms,
-                "bundle_last_observed_mjd": BUNDLE_LAST_OBSERVED_MJD,
-                "gap": gap,
-                "bulletin_a_last_observed_mjd": bula["last_observed_mjd"],
-                "bulletin_a_last_predicted_mjd": max(bula["predicted"]),
+                "last_observed_mjd": last_obs,
+                "last_predicted_mjd": fin["last_predicted_mjd"],
+                "bulletin_a_text_observed_max_diff_s": bula_obs_diff,
+                "bulletin_a_text_predicted_max_diff_s": bula_pred_diff,
+                "skyfield_bundle": bundle_cmp,
             },
             "tolerances": {
                 "delta_t_vs_python_model_s": 1e-6,
-                "delta_t_vs_skyfield_iers_observed_s": 0.01,
+                "delta_t_vs_skyfield_finals_s": 0.01,
+                "delta_t_vs_skyfield_builtin_observed_s": 0.01,
                 "delta_t_vs_skyfield_smh2016_s": 1.0,
                 "dut1_vs_daily_s": 0.0025,
                 "ut1_to_tt_s": 1e-6,
@@ -533,7 +595,6 @@ def main(argv=None) -> int:
                 "iers_observed_s": SIGMA_OBSERVED_S,
                 "smh2016": "max(SMH's published error, linearly interpolated between its change points, 0.11 s: the measured rms of the S15 spline against IERS over 1973-2019)",
                 "before_-720": "max(180 s, Huber(N)) with N = -500 - year (NASA's calibration year for dates before 500 BC)",
-                "corrected_span": "sqrt(0.001^2 + M^2 s (1 - s)), M the 0.105 s miss, s the fraction of the span",
                 "after_last_observation": "max(0.001 s, 0.00025 n^0.75 s (IERS Bulletin A), Huber(n / 365.25)) with n days since the last observed value",
                 "huber": "sigma = 365.25 N sqrt((N Q / 3)(1 + N / M)) / 1000 s, Q = 0.058 ms^2/yr, M = 2500 yr (Huber 2000, as quoted on NASA's Delta-T uncertainty page)",
             },
@@ -550,9 +611,11 @@ def main(argv=None) -> int:
     os.makedirs(os.path.dirname(OUT_FIXTURE), exist_ok=True)
     with open(OUT_FIXTURE, "w", encoding="utf-8") as f:
         f.write(dump_compact(fixture))
-    print("wrote", OUT_RUST, "(%d samples, %.1f KB as i16)" % (len(q), len(q) * 2 / 1024))
+    print("wrote", OUT_RUST, "(%d samples to MJD %d, %.1f KB as i16)" % (len(q), table_last_mjd, len(q) * 2 / 1024))
     print("wrote", OUT_FIXTURE, "(%d delta_t cases)" % len(delta_t_cases))
-    print("gap miss %.4f s; interp max %.2f ms rms %.2f ms" % (gap["gap_miss_s"], err_max * 1e3, err_rms * 1e3))
+    print("finals: observed to MJD %d, predicted to %d; interp max %.2f ms rms %.2f ms" % (last_obs, fin["last_predicted_mjd"], err_max * 1e3, err_rms * 1e3))
+    print("bulletin text vs finals: observed %.4f ms, predicted %s" % (bula_obs_diff * 1e3, "%.4f ms" % (bula_pred_diff * 1e3) if bula_pred_diff is not None else "n/a"))
+    print("skyfield bundle agrees within 0.1 ms to MJD %d (max %.3f ms); then %s" % (agree_to, bundle_cmp["max_diff_to_there_s"] * 1e3, bundle_cmp["bundle_minus_finals_s"]))
     return 0
 
 

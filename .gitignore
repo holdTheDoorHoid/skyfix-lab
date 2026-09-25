@@ -25,3 +25,8 @@ docs/design/local/
 
 # The assembled Pages site (web/scripts/pages-site.sh), for local checks.
 /site/
+
+# timescales agent: the full IERS finals2000A.all (3.7 MB, re-issued weekly upstream).
+# The columns used are committed as tools/timescales/sources/finals2000A-ut1-<date>.txt;
+# docs/THIRD_PARTY.md, "Time scales", records the file's URL, size and SHA-256.
+tools/timescales/sources/finals2000A.all

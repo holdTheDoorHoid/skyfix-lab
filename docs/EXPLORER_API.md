@@ -1702,7 +1702,7 @@ the interface may call it every frame). Throws for a non-finite `jd_utc`.
   splines back to 1000, 90 s at year 0, 180 s at −720, an hour at −2000.
 - `dut1_source`: `iers` (the table; past 2026-09-24 its values are Bulletin A's
   prediction, with the growing `dut1_sigma_s`), `user` (`set_dut1`, σ 0.05 s), `assumed`
-  (UTC scale, no value: 0 ± 0.9 s; 1972, and 2027-09-22 to 2035), `model` (UT scale).
+  (UTC scale, no value: 0 ± 0.9 s; 1972, and 2027-09-29 to 2035), `model` (UT scale).
 - `tier`: until the deeptime agent's `coverage::tier_at` is merged (one line, marked
   `MERGE` in `timescale.rs`), `validated` inside the providers' coverage and `outside`
   elsewhere; the mock does the same over its 1990-2060.
