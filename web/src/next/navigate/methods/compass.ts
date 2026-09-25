@@ -63,7 +63,7 @@ export function variationBlock(field0: MagneticField, where: string, format: Ret
   return h(
     'div',
     { class: 'sfn-variation' },
-    h('p', { class: 'sfn-variation__value' }, h('span', { class: 'sfn-variation__big sfn-num' }, f.variation_text), h('span', { class: 'sfn-term' }, ' · variation (declination)')),
+    h('p', { class: 'sfn-variation__value' }, h('span', { class: 'sfn-variation__big sfn-num' }, f.variation_text), h('span', { class: 'sfn-term' }, ' · variation')),
     para(f.sentence, 'sfn-plain'),
     ...kids(zone0),
     facts([
@@ -174,8 +174,8 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
   });
   const kind = selectInput<CompassKind>(
     [
-      { value: 'magnetic', label: 'Magnetic compass (variation + deviation)' },
-      { value: 'gyro', label: 'Gyrocompass (gyro error only)' },
+      { value: 'magnetic', label: 'Magnetic (variation and deviation)' },
+      { value: 'gyro', label: 'Gyrocompass (gyro error)' },
     ],
     form().compass,
   );

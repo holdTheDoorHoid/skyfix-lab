@@ -179,16 +179,21 @@ export function plottingSvg(input: PlottingInput): SVGSVGElement {
   // Lines of position, their azimuth lines and intercepts.
   const layer = s('g', { 'clip-path': `url(#${clipId})` });
   const far = 3 * S;
-  lops.forEach((l, i) => {
+  lops.forEach((l) => {
     const tip = { x: Math.sin(l.znDeg * D) * Math.max(Math.abs(l.aNm), S * 0.25), y: Math.cos(l.znDeg * D) * Math.max(Math.abs(l.aNm), S * 0.25) };
     layer.append(s('line', { x1: n2(cx), y1: n2(cy), x2: n2(X(tip)), y2: n2(Y(tip)), class: 'sfn-ps__azimuth' }));
     layer.append(s('circle', { cx: n2(X(l.foot)), cy: n2(Y(l.foot)), r: 2.6, class: 'sfn-ps__foot' }));
     const p1 = { x: l.foot.x - far * l.along.x, y: l.foot.y - far * l.along.y };
     const p2 = { x: l.foot.x + far * l.along.x, y: l.foot.y + far * l.along.y };
     layer.append(s('line', { x1: n2(X(p1)), y1: n2(Y(p1)), x2: n2(X(p2)), y2: n2(Y(p2)), class: 'sfn-ps__lop' }));
-    // The label on the line, well inside the frame (alternate ends, so neighbours part).
-    const t0 = 0.6 * Math.sqrt(Math.max(S * S - l.aNm * l.aNm, 0)) * (i % 2 === 0 ? 1 : -1);
-    const lp = { x: l.foot.x + t0 * l.along.x, y: l.foot.y + t0 * l.along.y };
+    // The label where the line meets a circle near the frame, on the end away from the fix
+    // (lines of position crowd there): the foot is at right angles to the line, so the
+    // circle of radius r is met at t = ±√(r² − |foot|²).
+    const rLab = 0.8 * S;
+    const reach = Math.sqrt(Math.max(rLab * rLab - l.aNm * l.aNm, 0));
+    const ends = [reach, -reach].map((tt) => ({ x: l.foot.x + tt * l.along.x, y: l.foot.y + tt * l.along.y }));
+    const away = fix ?? { x: 0, y: 0 };
+    const lp = Math.hypot(ends[0]!.x - away.x, ends[0]!.y - away.y) >= Math.hypot(ends[1]!.x - away.x, ends[1]!.y - away.y) ? ends[0]! : ends[1]!;
     const label = s('text', { x: n2(X(lp)), y: n2(Y(lp) - 4), class: 'sfn-ps__label', 'text-anchor': 'middle' });
     label.textContent = `${l.body} ${utcInputText(l.utc).slice(11, 16)}`;
     layer.append(label);
