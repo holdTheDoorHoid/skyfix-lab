@@ -1667,6 +1667,11 @@ no precache, no runtime copy) and never deletes the page's packs cache (`isStale
   revision against the manifest, calls `loadPack`, and only then saves the file. A failure
   is shown in words with **Try again**. Not now, Stop, Esc, × and closing after a failure
   are all remembered for the page session. Concurrent calls share one prompt.
+- **polish2: `ensure(name, reason, { asked: true })`** is for a caller whose own button
+  already asked, and stated the size (Tonight's tides card: "Get tide predictions (US
+  stations, 0.3 MB)"). No prompt is shown: the download starts at once with its progress card
+  and **Stop**, and an earlier Not now of this page session is forgotten. Without `asked`,
+  nothing changes.
 - **`remove(name)`** deletes the saved copy; a loaded pack stays in the engine (there is no
   unloading) until the page is reloaded, and Settings says so.
 - After every load the explorer's memoised engine forgets its results
@@ -1676,6 +1681,9 @@ no precache, no runtime copy) and never deletes the page's packs cache (`isStale
   engine now answers. `ctx.packs.subscribe` hears every change (progress included).
 - Developer harnesses pass `NO_PACKS`; the mock engine lists `deep-time`, `tides-us` and
   `lunar-limb` and accepts any bytes (`engine/mock/packs.ts`).
+- **polish2:** there is no `deep-time` pack: both coverage tiers are in the core. The mock
+  lists only the packs that `PRODUCERS` (`crates/skyfix-wasm/src/packs.rs`) makes,
+  `tides-us` and `lunar-limb`, and a test holds the two lists equal (`shell-fixes.test.ts`).
 
 ### Time scales, Delta-T and calendars (timescales agent)
 
@@ -3028,7 +3036,7 @@ once the time has settled.
  "moon_rows": [{"lat_deg": 72, "label": "N 72",
                 "moonrise": [TableTime × 4], "moonset": [TableTime × 4]}, …31],
  "planet_sha_00h": [{"body": "Venus", "sha_deg": 32.869128, "printed": {"gha": "32 52.1"}}, …4],
- "notes": ["UT is UTC with DUT1 = 0 …", …, "Three dates per opening, grouped from January 1 …"],
+ "notes": ["UT is UT1, as in the printed almanac: enter the tables with UTC + DUT1 …", …, "Three dates per opening, grouped from January 1 …"],
  "errors": []}
 ```
 
@@ -3044,6 +3052,15 @@ outside the coverage (`… is outside the ephemeris coverage (… to …)`).
 **Additive change to `almanac_day(date)`:** it now also accepts expanded years
 (`-0584-05-22`, `+12026-01-01`) wherever the providers answer; `AlmanacDay.date` is written
 the same way. Four-digit dates are unchanged.
+
+**polish2 (after the deeptime merge), additive:** `almanac_day`, `almanac_opening` and
+`almanac_planet_corrections` answer the labelled tier too, 2001 BC to AD 3000. The pages are
+for display and never a sight, and the interface marks them as estimates with the ±ΔT
+chip. They use the explorer's display sky (`almanac_tables::native::sky()`, which is
+`Sky::new().with_policy(TierPolicy::WithLabelled)`), and outside it they throw as before.
+The "1990-01-01 to 2060-12-31" in `almanac_day` above predates both tiers.
+`almanac_polaris` keeps the validated tier (1550 to 2650), because the a0, a1, a2 method
+needs Polaris near the pole.
 
 ### `almanac_increments(minute) -> IncrementsMinute`
 

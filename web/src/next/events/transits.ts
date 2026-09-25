@@ -23,6 +23,7 @@ import { listTab, observerOf } from './listtab.js';
 import { formatDuration, type Direction } from './model.js';
 import { transitEventName, transitHere, transitItem, transitPosition, transitSummary } from './planet-model.js';
 import type { Badge } from './rows.js';
+import { listCoverage } from './deeptime.js';
 
 /** A century of transits. */
 export const TRANSIT_HORIZON_DAYS = 100 * 365.25;
@@ -37,6 +38,7 @@ export const transitsTab: TabComponent = (host, env) => {
     className: 'sfe-transits',
     unavailable: pd ? null : 'This build of the numerical core has no transit search. Rebuild it with: npm run wasm --prefix web',
     what: 'Transits of Mercury and Venus',
+    coverage: () => (pd ? listCoverage(ctx.engine, 'transits', (t) => pd.transits(t, t + 1 / 24)) : null),
     search: {
       name: 'transits',
       key: (s) => observerOf(s).key,

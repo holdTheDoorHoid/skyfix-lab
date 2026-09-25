@@ -1718,11 +1718,14 @@ export interface PackState extends PackStatus {
 export interface PackService {
   /**
    * Makes sure a pack is loaded: at once when it is loaded or saved, otherwise after one
-   * prompt that starts with `reason` (a sentence: "Positions before 1550 need the Deep time
+   * prompt that starts with `reason` (a sentence: "Tide predictions need the US tides
    * pack.") and gives the size. False when declined (remembered for the page session), when
-   * offline without a saved copy, or when the site does not offer it.
+   * offline without a saved copy, or when the site does not offer it. polish2: with `asked`
+   * the caller's own button (which states the size) was the question: no second one is
+   * put, the download starts at once with its progress card, and an earlier "Not now" of
+   * this session does not stand in the way.
    */
-  ensure(name: string, reason: string): Promise<boolean>;
+  ensure(name: string, reason: string, options?: { asked?: boolean }): Promise<boolean>;
   /** Every pack the site offers, and any other saved or loaded one. */
   status(): PackState[];
   /** Deletes the saved copy (a loaded pack stays in use until the page is reloaded). */

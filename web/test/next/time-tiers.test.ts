@@ -1,6 +1,6 @@
 /**
  * The clock's scale (UTC or UT), local mean time before 1850, coverage tiers and their
- * sentences, the Deep time pack a date needs, and the ±ΔT chip's rules (time/scale.ts,
+ * sentences, the pack a date would need, and the ±ΔT chip's rules (time/scale.ts,
  * time/tier.ts, time/chip.ts; CONVENTIONS 15.1-15.3). Held to the mock engine and, when a
  * package is built, to the real engine's `time_info`.
  */
@@ -30,6 +30,8 @@ import {
   packForDate,
   packReason,
   providedYears,
+  rangeOfError,
+  rangeWords,
   sightsOffered,
   sightsOnlyText,
   tierAt,
@@ -179,6 +181,19 @@ describe('tierAt', () => {
   });
 });
 
+// polish2: display engines that answer only the validated tier refuse a far date with their
+// own words; the page says the years instead of the raw message.
+describe('an engine’s range error in plain words', () => {
+  it('reads the span from the star field’s and the ephemeris’ messages', () => {
+    expect(rangeWords("starfield_apparent: jd_utc 1507900 is outside the star field's range 1550-01-01T00:00:00Z .. 2650-01-22T00:00:00Z")).toBe('1550 to 2650');
+    expect(rangeWords('almanac_opening: -0584-05-21 is outside the ephemeris coverage (1550-01-01T00:00:00.000Z to 2650-01-22T00:00:00.000Z)')).toBe('1550 to 2650');
+    expect(rangeWords('outside the coverage -2000-01-01T00:00:00Z .. 3000-12-31T23:59:59Z')).toBe('2001 BC to AD 3000');
+    expect(rangeOfError("jd_utc 1 is outside the star field's range 1550-01-01T00:00:00Z .. 2650-01-22T00:00:00Z")).toEqual({ start: 2_287_185.5, end: 2_688_973.5 });
+    expect(rangeWords('the observer is malformed')).toBeNull();
+    expect(rangeWords('1550-01-01T00:00:00Z .. 2650-01-22T00:00:00Z without the word')).toBeNull();
+  });
+});
+
 describe('what the page says in each tier', () => {
   const tiered = engineWith({
     start_utc: '-2000-01-01T00:00:00Z',
@@ -192,31 +207,49 @@ describe('what the page says in each tier', () => {
     expect(tierNotice(tiered, TODAY)).toBeNull();
   });
 
-  it('a historical or far-future estimate in the labelled tier, naming the pack', () => {
+  it('a historical or far-future estimate in the labelled tier', () => {
     const past = tierNotice(tiered, Y1066)!;
     expect(past).toMatchObject({ level: 'caution', persistent: true, side: 'before' });
-    expect(past.text).toMatch(/^Historical estimate: before 1550 the positions from the Deep time pack are estimates/);
+    // Both tiers are in the core: the engine keeps no registry here, so no pack is named.
+    expect(past.text).toMatch(/^Historical estimate: before 1550 the positions are estimates/);
     const future = tierNotice(tiered, Y2800)!;
     expect(future.side).toBe('after');
-    expect(future.text).toMatch(/^Far-future estimate: after 2650/);
+    expect(future.text).toMatch(/^Far-future estimate: after 2650 the positions are estimates/);
+  });
+
+  // polish2: `packs_loaded` lists every loaded pack; only one that supplies positions is named.
+  it('names a loaded pack only when it supplies the positions', () => {
+    const status = (name: string, label: string, provides: string[]) => ({ name, label, provides, loaded: true, version: 'v', description: '', bytes: 1 });
+    const withRegistry = (loaded: string[], registry: ReturnType<typeof status>[]) =>
+      engineWith(
+        { start_utc: '-2000-01-01T00:00:00Z', end_utc: '3000-12-31T23:59:59Z', validated_start_utc: '1550-01-01T00:00:00Z', validated_end_utc: '2650-01-22T00:00:00Z', packs_loaded: loaded },
+        { packs: () => registry, loadPack: () => ({}) },
+      );
+    const tides = withRegistry(['tides-us', 'lunar-limb'], [status('tides-us', 'US tides', ['tides:us']), status('lunar-limb', 'Lunar limb', ['eclipses:lunar-limb'])]);
+    expect(tierNotice(tides, Y1066)!.text).toMatch(/^Historical estimate: before 1550 the positions are estimates/);
+    expect(tierNotice(tides, Y1066)!.text).not.toMatch(/tides|limb/i);
+    const far = withRegistry(['far-ephemeris', 'tides-us'], [status('far-ephemeris', 'Far ephemeris', ['ephemeris:-2000..3000']), status('tides-us', 'US tides', ['tides:us'])]);
+    expect(tierNotice(far, Y1066)!.text).toMatch(/^Historical estimate: before 1550 the positions from the Far ephemeris pack are estimates/);
   });
 
   it('the real bounds outside, and the pack that would extend them', () => {
     const core = engineWith({ start_utc: '1990-01-01T00:00:00Z', end_utc: '2060-12-31T23:59:59Z' });
-    const n = tierNotice(core, Y1066, { dateText: 'Sat 14 Oct 1066', pack: { label: 'Deep time' } })!;
+    const n = tierNotice(core, Y1066, { dateText: 'Sat 14 Oct 1066', pack: { label: 'Far ephemeris' } })!;
     expect(n.persistent).toBe(false);
     expect(n.text).toBe(
-      'Sat 14 Oct 1066 is outside the years the SkyFix Lab core covers (1 January 1990 to 31 December 2060, Gregorian calendar), so nothing can be computed for it. Choose a date in that range, or press Now. The Deep time pack extends this: get it in Settings → Data packs.',
+      'Sat 14 Oct 1066 is outside the years the SkyFix Lab core covers (1 January 1990 to 31 December 2060, Gregorian calendar), so nothing can be computed for it. Choose a date in that range, or press Now. The Far ephemeris pack extends this: get it in Settings → Data packs.',
     );
     expect(tierNotice(tiered, Y2500BC)!.text).toMatch(/\(1 January 2001 BC to 31 December 3000/);
   });
 });
 
-describe('the Deep time pack a date needs', () => {
+// A pack that would extend the years: none ships since the deeptime merge (both tiers are in
+// the core), so these use a made-up one; the mechanism stays for a future pack.
+describe('the pack a date needs', () => {
   const pack = (over: Partial<PackState>): PackState => ({
-    name: 'deep-time',
+    name: 'far-ephemeris',
     version: '',
-    label: 'Deep time',
+    label: 'Far ephemeris',
     description: 'Positions from 2000 BC to AD 3000',
     bytes: 0,
     provides: ['ephemeris:-2000..3000'],
@@ -240,20 +273,22 @@ describe('the Deep time pack a date needs', () => {
   });
 
   it('finds a pack that is not loaded and covers the year', () => {
-    expect(packForDate(service([pack({})]), Y1066)?.name).toBe('deep-time');
+    expect(packForDate(service([pack({})]), Y1066)?.name).toBe('far-ephemeris');
     expect(packForDate(service([pack({})]), Y2500BC)).toBeNull();
     expect(packForDate(service([pack({ loaded: true })]), Y1066)).toBeNull();
     expect(packForDate(service([pack({ supported: false })]), Y1066)).toBeNull();
     expect(packForDate(service([pack({ offered: false })]), Y1066)).toBeNull();
-    expect(packForDate(service([pack({ offered: false, saved: true })]), Y1066)?.name).toBe('deep-time');
+    expect(packForDate(service([pack({ offered: false, saved: true })]), Y1066)?.name).toBe('far-ephemeris');
     expect(packForDate(service([pack({ name: 'tides-us', provides: ['tides:us'] })]), Y1066)).toBeNull();
     expect(packForDate(null, Y1066)).toBeNull();
   });
 
-  it('says why in one sentence', () => {
+  it('says why in one sentence, from the coverage and the pack’s own span', () => {
     const core = engineWith({ start_utc: '1990-01-01T00:00:00Z', end_utc: '2060-12-31T23:59:59Z' });
-    expect(packReason(Y1066, core)).toBe('Positions before 1550 need the Deep time pack, which extends the explorer back to 2000 BC.');
-    expect(packReason(Y2800, core)).toBe('Positions after 2650 need the Deep time pack, which extends the explorer to AD 3000.');
+    expect(packReason(Y1066, core, pack({}))).toBe('Positions before AD 1990 need the Far ephemeris pack, which extends the explorer back to 2001 BC.');
+    expect(packReason(Y2800, core, pack({}))).toBe('Positions after AD 2060 need the Far ephemeris pack, which extends the explorer to AD 3000.');
+    // A pack whose span does not hold the year says only what it is.
+    expect(packReason(Y2500BC, core, pack({}))).toBe('Positions before AD 1990 need the Far ephemeris pack.');
   });
 });
 

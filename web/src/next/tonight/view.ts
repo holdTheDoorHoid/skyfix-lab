@@ -32,7 +32,6 @@ import { badge, button, iconButton } from '../theme/primitives.js';
 import { limbFromUp } from '../charts/disc.js';
 import {
   chooseNight,
-  DEFAULT_SKY,
   stepNightTime,
   loadCore,
   loadDetail,
@@ -43,7 +42,6 @@ import {
   type NightCore,
   type NightDetail,
   type NightQuery,
-  type SkyChoice,
 } from './data.js';
 import { COMING_SOURCES, groupByDay, mergeComing, type ComingItem, type ComingResult } from './coming.js';
 import { clock, clockPlain, dayTitle, type Fmt } from './format.js';
@@ -69,13 +67,16 @@ import { chipNeeded, timeInfoForSpan, uncertaintyChip, type ChipInfo } from '../
 import { formatCivilDate } from '../time/format.js';
 import { scaleLabel } from '../time/scale.js';
 import { UTC_ZONE, zoneShortName } from '../time.js';
+import { eventsTargetFor, showEvents } from '../events/link.js';
+import { skyConditions } from '../sky/conditions.js';
+import { skyChoiceSelect } from '../sky/sky-choice.js';
+import { rangeWords } from '../time/tier.js';
 
 // -------------------------------------------------------------------------------------
 // The view's own memory (per explorer, while the page lives)
 // -------------------------------------------------------------------------------------
 
 interface Remembered {
-  sky: SkyChoice;
   /** Deep-sky objects shown (8, then more). */
   shown: number;
   /** The list of the night's moments is open (open at first on a wide screen). */
@@ -94,7 +95,7 @@ const memory = new WeakMap<ExplorerStore, Remembered>();
 function remembered(store: ExplorerStore): Remembered {
   let m = memory.get(store);
   if (!m) {
-    m = { sky: { ...DEFAULT_SKY }, shown: DSO_FIRST, moments: null, pin: null };
+    m = { shown: DSO_FIRST, moments: null, pin: null };
     memory.set(store, m);
   }
   return m;
@@ -103,17 +104,6 @@ function remembered(store: ExplorerStore): Remembered {
 /** Deep-sky objects listed at first, and added by each "Show more". */
 export const DSO_FIRST = 8;
 
-const BORTLE: readonly { value: number; label: string }[] = [
-  { value: 1, label: '1 · Excellent dark site' },
-  { value: 2, label: '2 · Truly dark site' },
-  { value: 3, label: '3 · Rural sky' },
-  { value: 4, label: '4 · Rural and suburban edge' },
-  { value: 5, label: '5 · Suburban sky' },
-  { value: 6, label: '6 · Bright suburban sky' },
-  { value: 7, label: '7 · Suburban and urban edge' },
-  { value: 8, label: '8 · City sky' },
-  { value: 9, label: '9 · Inner-city sky' },
-];
 
 /** How long the time must be still before a new night's numbers are worked out, ms. */
 export const SETTLE_MS = 200;
@@ -214,17 +204,11 @@ const view: Component = (host, ctx) => {
   const photoCard = card('photo', 'Photography', 'sun');
   const notesEl = h('footer', { class: 'sft-foot' });
 
-  // The sky's darkness, for the deep-sky ranking and the meteor rates.
-  const bortle = h(
-    'select',
-    { class: 'sft-select', 'aria-label': 'How dark your sky is (Bortle class)', title: 'How dark your sky is: the Bortle scale, 1 the darkest' },
-    ...BORTLE.map((b) => h('option', { value: String(b.value), selected: b.value === mem.sky.bortle }, b.label)),
-  );
-  bortle.addEventListener('change', () => {
-    mem.sky = { bortle: Number(bortle.value) };
-    request(true);
-  });
-  deepCard.aside.append(h('label', { class: 'sft-sky' }, h('span', {}, 'Your sky'), bortle));
+  // The sky's darkness, for the deep-sky ranking and the meteor rates: the stored setting the
+  // Sky view and the Events view share (sky/sky-choice.ts; a change redraws the night through
+  // the watch below, whose key holds the query's conditions).
+  const skyChoice = skyChoiceSelect(store, { class: 'sft-select', label: 'How dark your sky is (Bortle class)' });
+  deepCard.aside.append(h('label', { class: 'sft-sky' }, h('span', {}, 'Your sky'), skyChoice.el));
 
   // Two columns on a wide page, each stacking its cards; one column (the brief's order) on a narrow one.
   const grid = h(
@@ -459,7 +443,7 @@ const view: Component = (host, ctx) => {
         : para(dark ? 'No object from the list climbs 20° while the sky is dark here tonight.' : 'The sky does not get dark enough tonight for faint objects.'),
       more ? h('div', { class: 'sft-actions' }, more) : null,
       para(
-        `Ranked for a sky showing stars to magnitude ${c.nelm.toFixed(1)} overhead (Bortle ${c.bortle ?? '—'}), with the Moon’s light and each object’s height: an estimate by stated rules, not a promise. Objects with a name get a small boost.`,
+        `Ranked for a sky showing stars to magnitude ${c.nelm.toFixed(1)} overhead${c.bortle !== null && c.bortle !== undefined ? ` (Bortle ${c.bortle})` : ''}, with the Moon’s light and each object’s height: an estimate by stated rules, not a promise. Objects with a name get a small boost. Your sky is the one Settings and the Sky view use.`,
         'sft-p sft-muted sft-small',
       ),
     );
@@ -619,7 +603,7 @@ const view: Component = (host, ctx) => {
     if (!comingDone) notes.push(para('Looking two weeks ahead…', 'sft-p sft-muted'));
     else if (!items.length) notes.push(para('Nothing notable in the next two weeks beyond the Moon’s phases.', 'sft-p sft-muted'));
     if (comingMissing.length) notes.push(para(`Not in this build of the engine: ${comingMissing.join(', ')}.`, 'sft-p sft-muted sft-small'));
-    for (const e of comingErrors) notes.push(para(`Could not work out ${e}.`, 'sft-p sft-muted sft-small'));
+    for (const e of comingErrors) notes.push(para(e, 'sft-p sft-muted sft-small'));
     fill(body, items.length ? list : '', ...notes);
   };
 
@@ -632,12 +616,13 @@ const view: Component = (host, ctx) => {
       icon('chevron-right', { class: 'sft-row__go' }),
     );
     // The time carries the night's ± uncertainty in its text when time-ui's rule asks for it (`clock`).
+    // Events opens on the list of the item's kind at its moment, with its card when it has
+    // one (events/link.ts `showEvents`; polish2, list item 41: it opened whatever tab Events
+    // remembered).
     open.addEventListener('click', () => {
       store.batch(() => {
         pinAt(i.jd);
-        setTime(store, i.jd);
-        if (i.body) store.patch({ selection: { body: i.body } });
-        store.patch({ view: 'events' });
+        showEvents(store, eventsTargetFor(i.kind) ?? 'eclipses', { jd: i.jd, body: i.body, id: i.ref ?? null });
       });
     });
     return h('li', { class: i.seen ? 'sft-coming__item' : 'sft-coming__item is-unseen' }, open);
@@ -654,7 +639,7 @@ const view: Component = (host, ctx) => {
     tidesCard.el.hidden = false;
     if (t.kind === 'loading') {
       const text = tideAsking
-        ? 'Getting the tides pack: the card at the bottom of the view asks before anything is downloaded, and shows its progress.'
+        ? 'Getting the tides pack: the card at the bottom of the view shows its progress.'
         : 'Loading the tides pack saved on this device…';
       return void fill(body, para(text, 'sft-p sft-muted'));
     }
@@ -669,7 +654,7 @@ const view: Component = (host, ctx) => {
         size: 'sm',
         variant: 'secondary',
         tip: 'Downloaded once and saved on this device; nothing about you is sent',
-        onClick: () => getTides(t.declined),
+        onClick: () => getTides(),
       });
       fill(
         body,
@@ -814,7 +799,9 @@ const view: Component = (host, ctx) => {
       try {
         coming!.set(source.id, source.run(ctx, q, f));
       } catch (error) {
-        comingErrors.push(`${source.label}: ${error instanceof Error ? error.message : String(error)}`);
+        const text = error instanceof Error ? error.message : String(error);
+        const years = rangeWords(text);
+        comingErrors.push(years ? `${source.label.charAt(0).toUpperCase()}${source.label.slice(1)}: worked out only for ${years}.` : `Could not work out ${source.label}: ${text}.`);
       }
     }
     later(() => runComing(gen, q, f, index + 1));
@@ -858,7 +845,7 @@ const view: Component = (host, ctx) => {
     drawTides(s, fmtOf(s));
   };
 
-  const getTides = (declined: boolean): void => {
+  const getTides = (): void => {
     tidePending = true;
     tideAsking = true;
     refreshTides();
@@ -869,8 +856,10 @@ const view: Component = (host, ctx) => {
       refreshTides();
       tidesCard.body.querySelector<HTMLElement>('button, .sft-time')?.focus();
     };
-    // Declined once this session: the service will not ask again, so this is the explicit Get.
-    void (declined ? ctx.packs.get(TIDES_PACK) : ctx.packs.ensure(TIDES_PACK, TIDES_REASON)).then(done, () => done(false));
+    // The card's button (which states the size) is the question: the download starts at once,
+    // with its progress card, and no second prompt (polish2, list item 40); an explicit Get
+    // overrides this session's "Not now".
+    void ctx.packs.ensure(TIDES_PACK, TIDES_REASON, { asked: true }).then(done, () => done(false));
   };
 
   /** Work out the night now (generation-guarded; the later stages each in their own task). */
@@ -883,7 +872,7 @@ const view: Component = (host, ctx) => {
     root.dataset.coming = 'pending';
     status.textContent = '';
     if (n === null) {
-      core = { q: nightQuery(s, localNoon(s), mem.sky), covered: false, day: null, tonight: null, sunHours: null, galactic: null, missing: [], errors: [] };
+      core = { q: nightQuery(s, localNoon(s), skyConditions(s.settings)), covered: false, day: null, tonight: null, sunHours: null, galactic: null, missing: [], errors: [] };
       detail = null;
       coming = new Map();
       comingDone = true;
@@ -891,7 +880,7 @@ const view: Component = (host, ctx) => {
       drawAll();
       return;
     }
-    const q = nightQuery(s, n, mem.sky);
+    const q = nightQuery(s, n, skyConditions(s.settings));
     shownKey = queryKey(q);
     const t0 = performance.now();
     core = loadCore(ctx, q);
@@ -973,12 +962,14 @@ const view: Component = (host, ctx) => {
     request(true);
   };
 
-  /** The best moment, then the photo agent's Milky Way planner on the Selected card (the panel shown first). */
+  /**
+   * The best moment, then the photo agent's Milky Way planner on the Selected card, which
+   * brings the panel into view itself (panel/reveal.ts: a hidden panel opens, a phone's
+   * sheet rises).
+   */
   const planPhoto = (jd: number): void => {
     pinAt(jd);
     setTime(store, jd);
-    const app = document.querySelector<HTMLElement>('.sf-app');
-    if (app?.dataset.panel === 'closed') document.querySelector<HTMLElement>('.sf-panel-toggle')?.click();
     openMilkyWayPlanner(ctx);
   };
 
@@ -1001,11 +992,15 @@ const view: Component = (host, ctx) => {
           s.settings.horizon,
           s.settings.height_of_eye_m,
           s.settings.navigatorTerms,
+          s.settings.skyQuality,
+          s.settings.skyBortle,
+          s.settings.skyNelm,
         ] as const,
       () => {
         const s = store.get();
+        skyChoice.sync(s);
         const n = nightOf(s);
-        const key = n === null ? `outside|${s.observer.lat_deg}|${s.observer.lon_deg}` : queryKey(nightQuery(s, n, mem.sky));
+        const key = n === null ? `outside|${s.observer.lat_deg}|${s.observer.lon_deg}` : queryKey(nightQuery(s, n, skyConditions(s.settings)));
         if (key !== shownKey) {
           request(false);
         } else {

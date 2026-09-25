@@ -16,6 +16,7 @@ import { utcDate } from './items.js';
 import { listTab } from './listtab.js';
 import { YEAR_DAYS, type Direction } from './model.js';
 import { PLANET_ORDER, retrogradeAt, retrogradePeriods, stationId, stationItem, type RetrogradePeriod } from './planet-model.js';
+import { listCoverage } from './deeptime.js';
 
 const words = (d: Direction): string => (d === 'upcoming' ? 'in the next 12 months' : 'in the last 12 months');
 
@@ -34,6 +35,7 @@ export const retrogradeTab: TabComponent = (host, env) => {
     className: 'sfe-retro',
     unavailable: pd ? null : 'This build of the numerical core has no station search. Rebuild it with: npm run wasm --prefix web',
     what: 'Stations',
+    coverage: () => (pd ? listCoverage(ctx.engine, 'stations', (t) => pd.stations(t, t + 1 / 24)) : null),
     search: {
       name: 'stations',
       key: () => '',

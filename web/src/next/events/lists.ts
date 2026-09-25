@@ -29,7 +29,7 @@ import { roundToMinute, UTC_ZONE, wallClock, type Zone } from '../time.js';
 import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph, phaseDisc } from '../theme/glyphs.js';
 import { segmented } from '../theme/primitives.js';
-import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText, type OwnSpan } from './deeptime.js';
 import { errorText, watchAll, type TabComponent } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { utcDate, type EventItem } from './items.js';
@@ -574,10 +574,13 @@ export const planetsTab: TabComponent = (host, env) => {
     }
     let rowsData: PlanetRow[];
     let truncated = false;
+    // The planets' events engine keeps its own span (1990-2060), narrower than the explorer's.
+    let own: OwnSpan | null = null;
     const need = neededSpan(anchor, dir, PLANET_HORIZON_DAYS, 12);
     try {
       const all = caches[dir].get(need);
       truncated = all.truncated;
+      own = { start_utc: all.coverage_start_utc, end_utc: all.coverage_end_utc };
       rowsData = planetRows(all.events, anchor, dir);
       ctx.notices.dismissKey('events-planets');
     } catch (error) {
@@ -618,8 +621,8 @@ export const planetsTab: TabComponent = (host, env) => {
         return { row, el };
       });
       const notes: HTMLElement[] = [];
-      if (!items.length) notes.push(message(`No planet events in these months: ${coveredSentence(ctx.engine, 'Planet events')}.`));
-      if (truncated && items.length) notes.push(truncatedNote(ctx, 'Planet events', dir === 'upcoming' ? need.end : need.start));
+      if (!items.length) notes.push(message(`No planet events in these months: ${coveredSentence(ctx.engine, 'Planet events', own)}.`));
+      if (truncated && items.length) notes.push(truncatedNote(ctx, 'Planet events', dir === 'upcoming' ? need.end : need.start, own));
       const unc = chips ? listUncertaintySentence(ctx.engine, rowsData.map((r) => r.event.jd_utc)) : '';
       if (unc) notes.push(h('p', { class: 'sfe-note sfe-note--dt' }, unc));
       const cal = calendarNote(rowsData.map((r) => r.event.jd_utc).slice(0, 1).concat(rowsData.map((r) => r.event.jd_utc).slice(-1)), zone);

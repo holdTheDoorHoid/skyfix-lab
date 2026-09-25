@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { OVERLAY_PREFIX as EVENTS_PREFIX } from '../../src/next/events/mapping.js';
 import { drawnGroups, idsOfGroup, MAP_LAYER_OPTIONS, OVERLAY_OWNERS } from '../../src/next/map/controls.js';
 import { OVERLAY_PREFIX as NAVIGATE_PREFIX } from '../../src/next/navigate/overlays.js';
+import { ROUTE_PREFIX } from '../../src/next/navigate/passage/overlay.js';
 import { SKY_LAYER_OPTIONS } from '../../src/next/sky/view.js';
 import { DEFAULT_LAYERS, type Layers } from '../../src/next/state.js';
 
@@ -53,7 +54,17 @@ describe('other views’ drawings on the map', () => {
   });
 
   it('knows every view that publishes overlays', () => {
-    expect(OVERLAY_OWNERS.map((o) => o.prefix)).toEqual(expect.arrayContaining([NAVIGATE_PREFIX, 'events-', 'learn-']));
+    expect(OVERLAY_OWNERS.map((o) => o.prefix)).toEqual(expect.arrayContaining([NAVIGATE_PREFIX, 'events-', 'learn-', 'photo-', ROUTE_PREFIX, 'charts-']));
     expect(EVENTS_PREFIX.startsWith('events-')).toBe(true);
+  });
+
+  // polish2: the passage's route and the tide station from Charts were "Other drawings".
+  it('names the passage and the tide station', () => {
+    const groups = drawnGroups([`${ROUTE_PREFIX}route-gc`, `${ROUTE_PREFIX}waypoints`, 'charts-tide-station']);
+    expect(groups.map((g) => [g.prefix, g.count])).toEqual([
+      [ROUTE_PREFIX, 2],
+      ['charts-', 1],
+    ]);
+    expect(groups.some((g) => g.label === 'Other drawings')).toBe(false);
   });
 });

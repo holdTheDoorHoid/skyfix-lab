@@ -8,6 +8,7 @@ import type { FixResult, Observation, ReducedSight, Session } from '../../../typ
 import { isTimeEngine, type ExplorerEngine } from '../../engine/types.js';
 import { timeInfoAt } from '../../time/chip.js';
 import { angleFormat, kindOf, type NavCtx } from '../context.js';
+import { settledReductions } from '../reductions.js';
 import { plottingSheet } from './plotting.js';
 import { openPrintPreview } from './preview.js';
 import { worksheetSheet, type WorksheetInput } from './worksheet.js';
@@ -64,8 +65,12 @@ export function openSightWorksheet(nc: NavCtx, obs: Observation, sight: ReducedS
   openPrintPreview(`Worksheet: ${sight.body}, ${sight.id}`, [worksheetSheet(inputFor(nc, session, obs, sight))]);
 }
 
-/** The plotting sheet and a worksheet for every sight of a fix. */
-export function openFixPrintables(nc: NavCtx, session: Session, result: FixResult | null): void {
+/**
+ * The plotting sheet and a worksheet for every sight of a fix, once the sights' reductions
+ * have caught up with the fix (polish2: `settledReductions`).
+ */
+export async function openFixPrintables(nc: NavCtx, session: Session, result: FixResult | null): Promise<void> {
+  await settledReductions(nc.reductions, session);
   const pairs = reducedOf(nc, session.observations);
   const fix = result && result.kind === 'unique' ? result.fix.position : null;
   const pages = [

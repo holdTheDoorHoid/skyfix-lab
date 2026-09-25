@@ -23,6 +23,7 @@ import { parseNumber, parseOptionalNumber, parsePosition, type Parsed } from './
 import { shoreDistanceField } from './shore.js';
 import { horizonFromSelect, horizonOptions, horizonSummary, horizonText, ROLE_TEXT } from './text.js';
 import { btn, field, onChange, para, parsedField, selectInput, textInput, type ParsedField } from './ui.js';
+import { validatedYears } from '../time/tier.js';
 
 export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
   const d = disposer();
@@ -162,7 +163,8 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
   mode.addEventListener('change', () => store.patch({ mode: mode.value as 'auto' | 'supplied' }));
   const modeField = field('Body directions come from', mode, {
     term: 'ephemeris mode, auto or supplied',
-    help: 'The built-in almanac covers the Sun, the Moon, Venus, Mars, Jupiter, Saturn and the 58 navigational stars, 1990–2060. A GHA and declination typed into a sight always win and the workings say so. “Only typed values” isolates the solver from the astronomy.',
+    // The years from the engine (polish2, list item 51): sights are offered in the validated tier.
+    help: `The built-in almanac covers the Sun, the Moon, Venus, Mars, Jupiter, Saturn and the 58 navigational stars, ${validatedYears(nc.ctx).from} to ${validatedYears(nc.ctx).to} for sights. A GHA and declination typed into a sight always win and the workings say so. “Only typed values” isolates the solver from the astronomy.`,
   });
 
   const group = (title: string, ...children: (HTMLElement | null)[]) =>

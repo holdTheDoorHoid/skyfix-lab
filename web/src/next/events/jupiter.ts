@@ -26,6 +26,7 @@ import { nextAfter } from './model.js';
 import { galileanId, galileanItem, galileanSeen, JUPITER_MIN_ELONGATION, type JupiterSky } from './planet-model.js';
 import { eventRow, searchStatus, type Badge, type Row } from './rows.js';
 import type { SearchState } from './search.js';
+import { rangeWords } from '../time/tier.js';
 
 /** How many nights the list shows. */
 export const NIGHTS = 7;
@@ -238,7 +239,8 @@ export const jupiterTab: TabComponent = (host, env) => {
       const cal = calendarNote([starts[0]!], zone);
       if (cal) noteEls.push(h('p', { class: 'sfe-note' }, cal));
       if (state.truncated && state.done) noteEls.push(truncatedNote(ctx, 'Jupiter’s moons', starts[starts.length - 1]!));
-      if (state.error) noteEls.push(h('p', { class: 'sfe-message', role: 'alert' }, `Jupiter’s moons could not be computed: ${state.error}`));
+      const years = state.error ? rangeWords(state.error) : null;
+      if (state.error) noteEls.push(h('p', { class: 'sfe-message', role: 'alert' }, years ? `Jupiter’s moons are worked out only for ${years}.` : `Jupiter’s moons could not be computed: ${state.error}`));
       notes.replaceChildren(...noteEls);
       save.refresh();
     }

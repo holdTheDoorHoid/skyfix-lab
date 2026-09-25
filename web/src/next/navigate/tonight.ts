@@ -80,7 +80,7 @@ function inputsFor(ctx: Ctx, from: 'place' | 'dr'): Inputs {
     }
   }
   return {
-    observer: { lat_deg: s.observer.lat_deg, lon_deg: s.observer.lon_deg, height_of_eye_m: s.settings.height_of_eye_m },
+    observer: { lat_deg: s.observer.lat_deg, lon_deg: s.observer.lon_deg, height_of_eye_m: s.settings.height_of_eye_m, pressure_hpa: s.settings.pressure_hpa, temperature_c: s.settings.temperature_c },
     instrument: { index_correction_arcmin: s.settings.index_correction_arcmin, horizon: 'sea' },
     jdStart: s.time.jd_utc,
     label: s.observer.label || 'the place on the map',

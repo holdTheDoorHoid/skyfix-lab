@@ -8,7 +8,7 @@
 import './about.css';
 import { h } from '../../dom.js';
 import type { Component } from '../component.js';
-import { installControl, manualLink, repositoryLink } from '../shell/links.js';
+import { installControl, manualLink, repositoryLink, sourcesLink } from '../shell/links.js';
 import { hasTour, openTour } from '../shell/tour.js';
 import { button } from '../theme/primitives.js';
 import { coverageTable } from '../time/coverage-table.js';
@@ -68,7 +68,7 @@ const view: Component = (host, ctx) => {
         {},
         h('li', {}, manualLink(), ': how to use every view, how far each number can be trusted, the command-line tool, and where every piece of data comes from. Pages you have read stay readable offline.'),
         h('li', {}, repositoryLink(), ' (MIT or Apache-2.0): the Rust core that does every calculation, this page, and the command-line tool.'),
-        h('li', {}, 'Map data: Natural Earth (public domain). Stars: the Yale Bright Star Catalogue from NASA HEASARC. Fonts: Inter and JetBrains Mono (SIL Open Font License).'),
+        h('li', {}, 'Map data: Natural Earth (public domain). Stars: the Yale Bright Star Catalogue from NASA HEASARC. Fonts: Inter and JetBrains Mono (SIL Open Font License). ', sourcesLink(), ' in the manual.'),
       ),
       install.el,
     ),

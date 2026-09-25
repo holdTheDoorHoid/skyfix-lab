@@ -164,14 +164,14 @@ describe('the coverage table', () => {
     const rows = sigmaRows(new MockEngine({ syntheticStars: 0 }));
     expect(rows.map((r) => r.year)).toEqual([...SIGMA_YEARS]);
     const at = (y: number): number => rows.find((r) => r.year === y)!.sigmaS;
-    expect(at(-1999)).toBeGreaterThan(3000); // about an hour
+    expect(at(-2000)).toBeGreaterThan(3000); // about an hour, 2001 BC (the labelled tier's first year)
     expect(at(2026)).toBeLessThan(1);
     expect(at(3000)).toBeGreaterThan(1500); // about half an hour
     expect(sigmaRows({ coverage: () => coverage({}) } as unknown as ExplorerEngine)).toEqual([]);
   });
 });
 
-describe('the tier notice and the Deep time pack prompt', () => {
+describe('the tier notice and the pack prompt', () => {
   function setup(coverageOver: Partial<ExplorerCoverage>, packs: PackService = NO_PACKS) {
     const store = createExplorerStore({ storage: null, initial: { time: { live: false, jd_utc: jd('2026-09-24T12:00:00Z') } } });
     const frames = new FakeFrames();
@@ -212,13 +212,13 @@ describe('the tier notice and the Deep time pack prompt', () => {
       end_utc: '3000-12-31T23:59:59Z',
       validated_start_utc: '1550-01-01T00:00:00Z',
       validated_end_utc: '2650-01-22T00:00:00Z',
-      packs_loaded: ['deep-time'],
     });
     store.patch({ time: { jd_utc: jd('1066-10-20T12:00:00Z') } });
     flush();
     const n = notices.list().find((x) => x.key === TIER_NOTICE_KEY)!;
     expect(n.persistent).toBe(true);
-    expect(n.text).toMatch(/^Historical estimate: before 1550 the positions from the Deep time pack are estimates/);
+    // Both tiers are in the core (the deeptime merge): no pack is named.
+    expect(n.text).toMatch(/^Historical estimate: before 1550 the positions are estimates/);
     // Moving within the band changes nothing (no flicker, no re-reading aloud).
     const id = n.id;
     store.patch({ time: { jd_utc: jd('1100-01-01T12:00:00Z') } });
@@ -226,12 +226,14 @@ describe('the tier notice and the Deep time pack prompt', () => {
     expect(notices.list().find((x) => x.key === TIER_NOTICE_KEY)!.id).toBe(id);
   });
 
-  it('asks for the Deep time pack once per crossing when it would reach the date', () => {
+  // No pack extends the years today (both tiers are in the core); a made-up one keeps the
+  // mechanism tested for the day one does.
+  it('asks for a pack that extends the years once per crossing when it would reach the date', () => {
     const asked: string[] = [];
     const deep: PackState = {
-      name: 'deep-time',
+      name: 'far-ephemeris',
       version: '',
-      label: 'Deep time',
+      label: 'Far ephemeris',
       description: 'Positions from 2000 BC to AD 3000',
       bytes: 0,
       provides: ['ephemeris:-2000..3000'],
@@ -258,11 +260,11 @@ describe('the tier notice and the Deep time pack prompt', () => {
     flush();
     store.patch({ time: { jd_utc: jd('1067-10-20T12:00:00Z') } });
     flush();
-    expect(asked).toEqual(['deep-time: Positions before 1550 need the Deep time pack, which extends the explorer back to 2000 BC.']);
-    expect(notices.list()[0]!.text).toMatch(/The Deep time pack extends this: get it in Settings → Data packs\.$/);
+    expect(asked).toEqual(['far-ephemeris: Positions before AD 1990 need the Far ephemeris pack, which extends the explorer back to 2001 BC.']);
+    expect(notices.list()[0]!.text).toMatch(/The Far ephemeris pack extends this: get it in Settings → Data packs\.$/);
     store.patch({ time: { jd_utc: jd('2080-01-01T12:00:00Z') } });
     flush();
     expect(asked).toHaveLength(2);
-    expect(asked[1]).toMatch(/^deep-time: Positions after 2650 need the Deep time pack/);
+    expect(asked[1]).toMatch(/^far-ephemeris: Positions after AD 2060 need the Far ephemeris pack, which extends the explorer to AD 3000\.$/);
   });
 });

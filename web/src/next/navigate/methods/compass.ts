@@ -21,7 +21,7 @@ import {
   type SightLimb,
 } from '../../engine/types.js';
 import { segmented } from '../../theme/primitives.js';
-import { isoUtc, jdFromIso, jdNow } from '../../time.js';
+import { isoUtc, jdFromIso, jdNow, wallClock } from '../../time.js';
 import { uncertaintyChip } from '../../time/chip.js';
 import { compassPlace, compassRequest, compassUtc } from '../compass/request.js';
 import { deviationTableCard } from '../compass/table.js';
@@ -33,6 +33,7 @@ import { parseOptionalNumber, type Parsed } from '../parse.js';
 import { sightTierAt } from '../tier.js';
 import { btn, errorText, facts, field, kids, notice, para, parsedField, selectInput } from '../ui.js';
 import { autoRun, methodFrame, optionalUtcField } from './common.js';
+import { formatYear } from '../../time/format.js';
 
 const deg1 = (v: number): string => `${(Math.round(v * 10) / 10).toFixed(1)}°`;
 const bearing1 = (v: number): string => `${(((Math.round(v * 10) / 10) % 360) + 360) % 360 === 0 ? '000.0' : ((((Math.round(v * 10) / 10) % 360) + 360) % 360).toFixed(1).padStart(5, '0')}°`;
@@ -161,7 +162,7 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
   body.addEventListener('change', () => set({ body: body.value }));
   const bodyField = field('Body', body, { help: 'The Sun, the Moon, a planet or one of the 58 navigational stars.' });
 
-  const time = optionalUtcField(nc, 'When the bearing was taken (UTC)', 'the time on the time bar', () => form().utc, (v) => set({ utc: v }));
+  const time = optionalUtcField(nc, 'When the bearing was taken', 'the time on the time bar', () => form().utc, (v) => set({ utc: v }));
   const now = btn('Now', () => set({ utc: isoUtc(jdNow()).replace(/\.\d+Z$/, 'Z') }), { variant: 'outline', tip: 'This computer’s clock, now' });
   const bar = btn('Time bar', () => set({ utc: null }), { variant: 'ghost', tip: 'Follow the time bar' });
 
@@ -365,7 +366,10 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
           mf = engine.magneticField(place.lat_deg, place.lon_deg, place.height_m, jd);
           variationHost.replaceChildren(h('h3', {}, 'Magnetic variation here ', h('span', { class: 'sfn-term' }, '· declination')), variationBlock(mf, place.label, format));
         } catch (error) {
-          variationHost.replaceChildren(h('h3', {}, 'Magnetic variation here'), notice('error', errorText(error)));
+          // The model's "No magnetic variation for -583.6: …" with the year as the page
+          // writes years (585 BC; polish2), and as a plain caution, not an error.
+          const text = errorText(error).replace(/^(No magnetic variation for )-?\d+(?:\.\d+)?:/, (_m, lead: string) => `${lead}${formatYear(wallClock(jd, z).year)}:`);
+          variationHost.replaceChildren(h('h3', {}, 'Magnetic variation here'), notice(/^No magnetic variation for /.test(text) ? 'caution' : 'error', text));
         }
         if (!isCurrent()) return;
 

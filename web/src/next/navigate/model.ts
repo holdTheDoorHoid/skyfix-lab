@@ -245,6 +245,9 @@ export interface SessionSeed {
   position?: LatLon | null;
   heightOfEyeM?: number;
   indexCorrectionArcmin?: number;
+  /** The air from Settings → Sights (polish2); 1010 hPa and 10 °C otherwise. */
+  pressureHpa?: number;
+  temperatureC?: number;
 }
 
 /** A new, empty session: a real one (the person's own sights), sea horizon. */
@@ -254,8 +257,8 @@ export function emptySession(seed: SessionSeed = {}): Session {
     meta: { name: seed.name ?? 'My sights', notes: '', kind: 'real' },
     observer: {
       height_of_eye_m: seed.heightOfEyeM ?? 2,
-      pressure_hpa: 1010,
-      temperature_c: 10,
+      pressure_hpa: seed.pressureHpa ?? 1010,
+      temperature_c: seed.temperatureC ?? 10,
       assumed_position: seed.position ? { lat_deg: seed.position.lat_deg, lon_deg: seed.position.lon_deg } : null,
       assumed_position_role: { role: 'initializer' },
     },
@@ -563,7 +566,7 @@ export function runningRequestFor(w: Working): RunningFixRequest {
 export function lunarInputFor(w: Working, place: LatLon): { input: LunarDistanceInput } | { missing: string } {
   const f = w.lunar;
   if (f.distanceDeg === null) return { missing: 'Enter the measured distance between the Moon and the other body.' };
-  if (!f.watchUtc) return { missing: 'Enter the time your watch showed when you measured the distance (UTC).' };
+  if (!f.watchUtc) return { missing: 'Enter the time your watch showed when you measured the distance.' };
   const ap = w.session.observer.assumed_position ?? place;
   const altitude = (a: LunarAltitudeForm) =>
     a.deg === null ? null : { altitude_deg: a.deg, altitude_kind: a.kind, limb: a.limb, sigma_arcmin: 1 };

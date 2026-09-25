@@ -16,6 +16,7 @@ import { disposer, memoize, observerKey, watch, type Ctx } from '../component.js
 import { setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, type ExplorerState } from '../state.js';
 import { zoneLabel, type Zone } from '../time.js';
+import { addDaysToDate } from '../time/civil.js';
 import {
   clockAt,
   clockUtcFast,
@@ -69,6 +70,8 @@ import { jdAtWallHours, zoneKey } from './windows.js';
 import { yearInputFor, yearMemo, yearSkyMemo } from './year-chart.js';
 import { attachExport } from './export-menu.js';
 import type { YearSky } from './year-data.js';
+import { scaleLabel } from '../time/scale.js';
+import { formatYear } from '../time/format.js';
 
 const jobMemo = memoize(
   (ctx: Ctx, input: PlanetInput) => planetYearJob(ctx.engine, input, yearMemo(ctx, { observer: input.observer, zone: input.zone, year: input.year, options: input.options })),
@@ -237,7 +240,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
   function renderHeader(): void {
     const st = store.get();
     const input = inputFor(st);
-    c.title.replaceChildren(`Planets in the dark sky · ${input.year}`);
+    c.title.replaceChildren(`Planets in the dark sky · ${formatYear(input.year)}`);
     if (ctx.engine.kind === 'mock') c.title.append(mockBadge(ctx.engine.description));
     const place = st.observer.label || `${st.observer.lat_deg.toFixed(3)}°, ${st.observer.lon_deg.toFixed(3)}°`;
     c.subtitle.textContent = `${place} · when each planet is above the horizon while the Sun is more than 12° down · ${zoneLabel(st.time.jd_utc, input.zone)}`;
@@ -560,8 +563,9 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     const x = geom.xs(hover.index + 0.5);
     hoverLayer.style.display = '';
     hoverLayer.replaceChildren(s('line', { x1: round(x) + 0.5, x2: round(x) + 0.5, y1: geom.top - 4, y2: geom.bottom }));
-    const next = new Date(Date.UTC(nt.night.date.year, nt.night.date.month - 1, nt.night.date.day + 1));
-    const nextDate = { year: next.getUTCFullYear(), month: next.getUTCMonth() + 1, day: next.getUTCDate() };
+    // The next day in the display calendar (polish2: not `Date.UTC`, which reads the years
+    // 0-99 as 1900-1999 and knows only the Gregorian calendar).
+    const nextDate = addDaysToDate(nt.night.date, 1);
     const rows: Node[] = [];
     const dark = nt.darkWindow;
     rows.push(
@@ -646,7 +650,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       h(
         'span',
         { class: 'sfc-muted' },
-        'Dark means the Sun is more than 12° below the horizon; "up" means above the horizon, whether or not there is a clear view down to it. Click a night to go to it; hover for times in UTC.',
+        `Dark means the Sun is more than 12° below the horizon; "up" means above the horizon, whether or not there is a clear view down to it. Click a night to go to it; hover for times in ${scaleLabel(ctx.store.get().time.jd_utc)}.`,
       ),
     );
     const notes: Node[] = [];
@@ -672,7 +676,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       c.tableWrap.replaceChildren(h('p', { class: 'sfc-message' }, `Working out the planets night by night… ${Math.round(job.progress * 100)} %`));
       return;
     }
-    const summary = table(`When to look for each planet in ${data.input.year} (in the dark, from ${store.get().observer.label || 'this place'})`, [
+    const summary = table(`When to look for each planet in ${formatYear(data.input.year)} (in the dark, from ${store.get().observer.label || 'this place'})`, [
       'Planet',
       'Part of the night',
       'From the night of',
@@ -700,7 +704,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
       });
     }
 
-    const detail = table(`Night by night: when each planet is up in the dark (local times, ${zoneLabel(nights[0]!.night.jd_start, zone)}; UTC on hover)`, [
+    const detail = table(`Night by night: when each planet is up in the dark (local times, ${zoneLabel(nights[0]!.night.jd_start, zone)}; ${scaleLabel(nights[0]!.night.jd_start)} on hover)`, [
       'Night of',
       'Dark',
       ...data.input.planets,
@@ -710,7 +714,7 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     for (const nt of nights) {
       if (nt.night.date.month !== month) {
         month = nt.night.date.month;
-        detail.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 2 + data.input.planets.length }, `${MONTHS_LONG[month - 1]} ${nt.night.date.year}`)));
+        detail.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 2 + data.input.planets.length }, `${MONTHS_LONG[month - 1]} ${formatYear(nt.night.date.year)}`)));
       }
       const dark = nt.darkWindow;
       const cells: Node[] = [];

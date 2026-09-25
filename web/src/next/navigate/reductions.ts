@@ -22,6 +22,31 @@ export interface Reductions {
   pending: boolean;
 }
 
+/**
+ * The reductions once they are `session`'s and settled, or whatever there is after `ms`
+ * (polish2). A fix is solved separately from the per-sight reductions (which wait `delayMs`
+ * and run on their own), so right after the fix appears its sights may not be reduced yet:
+ * the printables asked then had a plotting sheet and no worksheets.
+ */
+export function settledReductions(store: Store<Reductions>, session: Session, ms = 5000): Promise<Reductions> {
+  const ready = (r: Reductions): boolean => !r.pending && r.session === session;
+  if (ready(store.get())) return Promise.resolve(store.get());
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      stop();
+      resolve(store.get());
+    };
+    const stop = store.subscribe((r) => {
+      if (ready(r)) finish();
+    });
+    const timer = setTimeout(finish, ms);
+  });
+}
+
 export function createReductions(working: WorkingStore, api: SkyfixApi, delayMs = 120): { store: Store<Reductions>; dispose(): void; now(): void } {
   const store = createStore<Reductions>({ byId: new Map(), session: null, mode: working.get().mode, error: null, pending: true });
   let seq = 0;

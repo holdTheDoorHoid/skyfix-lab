@@ -343,16 +343,15 @@ describe.skipIf(!hasPackage)('the built WebAssembly package (src/wasm-pkg)', () 
     expect(o.moon_days).toHaveLength(4);
     expect(o.moon_rows).toHaveLength(o.days[1]!.rise_set.rows.length);
     expect(o.planet_sha_00h.map((p) => p.body)).toEqual(['Venus', 'Mars', 'Jupiter', 'Saturn']);
-    // 1 March 1560 (Julian): the first date of its opening, when the engine reaches it
-    // (the Deep time pack); without it, a sentence about the coverage.
+    // 1 March 1560 (Julian): the first date of its opening. And 28 May 585 BC (Julian), in
+    // the labelled tier, which the almanac answers since the deeptime merge (polish2).
     const julianWire = shownDate(jdnFromCivil('julian', 1560, 3, 1), 'gregorian').wire;
-    try {
-      const j = engine.almanacOpening(julianWire);
-      expect(j.calendar).toBe('julian');
-      expect(j.dates.map((d) => d.day)).toEqual([1, 2, 3]);
-    } catch (error) {
-      expect(String(error)).toMatch(/coverage/);
-    }
+    const j = engine.almanacOpening(julianWire);
+    expect(j.calendar).toBe('julian');
+    expect(j.dates.map((d) => d.day)).toEqual([1, 2, 3]);
+    const thales = engine.almanacOpening(shownDate(jdnFromCivil('julian', -584, 5, 28), 'gregorian').wire);
+    expect(thales.calendar).toBe('julian');
+    expect(thales.days).toHaveLength(3);
     const polaris = engine.almanacPolaris(2016);
     expect(polaris.columns).toHaveLength(36);
     expect(polaris.columns.every((c) => c.a0.length === 11 && c.a1.length === 13 && c.a2.length === 12 && c.azimuth.length === 7)).toBe(true);

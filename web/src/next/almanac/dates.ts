@@ -2,7 +2,7 @@
  * Dates in any year for the Almanac view (almanac2 agent), over the shared time helpers of
  * `web/src/next/time/` (time-ui agent): the display calendar (Julian before 1582-10-15, or
  * proleptic Gregorian with the ISO setting), years as Settings writes them (585 BC, −584,
- * -0584), the ±ΔT chip, the tier sentences and the Deep time pack a date needs.
+ * -0584), the ±ΔT chip, the tier sentences and the pack a date would need (none ships today).
  *
  * The almanac adds only what is its own: a calendar it may be told to use instead of the
  * display calendar (`CalendarChoice`), the printed almanac's headings, and the note for

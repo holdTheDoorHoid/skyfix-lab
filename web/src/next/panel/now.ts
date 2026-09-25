@@ -8,7 +8,8 @@ import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import type { PhaseSegment, SkyPhase } from '../engine/types.js';
 import { aroundToday, dayOf, setAttr, setText, skySelected } from '../shell/derived.js';
-import { dateShort, eventTime, otherDay, relative } from '../shell/format.js';
+import { dateShort, eventTime as clockTime, otherDay, relative } from '../shell/format.js';
+import { timeInfoAt, uncertaintyText } from '../time/chip.js';
 import { PHASE_LABEL, PHASE_MEANING, skyFacts, type SkyFacts } from '../shell/sky.js';
 import { displayZone, eventOptions, shallowEqual } from '../state.js';
 import { icon, type IconName } from '../theme/icons.js';
@@ -23,20 +24,24 @@ const PHASE_ICON: Record<SkyPhase, IconName> = {
   night: 'moon',
 };
 
-/** "19:21–19:53", with the weekday when it is not the day shown. */
-function span(seg: PhaseSegment, ref: number, zone: Zone): string {
+/** "19:21–19:53", with the weekday when it is not the day shown, and `dt` (" ±3 min") after it. */
+function span(seg: PhaseSegment, ref: number, zone: Zone, dt = ''): string {
   const day = otherDay(seg.jd_start, ref, zone);
-  return `${day ? `${day} ` : ''}${eventTime(seg.jd_start, zone)}–${eventTime(seg.jd_end, zone)}`;
+  return `${day ? `${day} ` : ''}${clockTime(seg.jd_start, zone)}–${clockTime(seg.jd_end, zone)}${dt}`;
 }
 
-/** The sentence under the phase: what it means, and when star sights come. */
-export function meaning(f: SkyFacts, jd: number, zone: Zone): (string | Node)[] {
+/**
+ * The sentence under the phase: what it means, and when star sights come. `dt` is the
+ * uncertainty written after every time (" ±3 min", time-ui's rule; '' when none is needed).
+ */
+export function meaning(f: SkyFacts, jd: number, zone: Zone, dt = ''): (string | Node)[] {
   const strong = (text: string): Node => h('strong', {}, text);
+  const eventTime = (t: number, z: Zone): string => `${clockTime(t, z)}${dt}`;
   const nautical = f.nautical;
   switch (f.phase) {
     case 'day':
       if (!nautical) return ['The Sun is up: Sun sights are possible now. There is no nautical twilight in the next day or two here, so no star sights.'];
-      return ['The Sun is up: Sun sights are possible now. Stars stay hidden until ', strong(`nautical twilight, ${span(nautical, jd, zone)}`), ', the time for star sights.'];
+      return ['The Sun is up: Sun sights are possible now. Stars stay hidden until ', strong(`nautical twilight, ${span(nautical, jd, zone, dt)}`), ', the time for star sights.'];
     case 'civil':
       if (f.brightening && f.endsAt !== null) {
         return [`${PHASE_MEANING.civil} Sunrise at `, strong(eventTime(f.endsAt, zone)), ` (${relative(jd, f.endsAt)}).`];
@@ -52,10 +57,10 @@ export function meaning(f: SkyFacts, jd: number, zone: Zone): (string | Node)[] 
       if (f.brightening && nautical) {
         return [`${PHASE_MEANING.astronomical} Star sights begin with nautical twilight at `, strong(eventTime(nautical.jd_start, zone)), ` (${relative(jd, nautical.jd_start)}).`];
       }
-      return nautical ? [`${PHASE_MEANING.astronomical} Next star sights: `, strong(`nautical twilight, ${span(nautical, jd, zone)}`), '.'] : [PHASE_MEANING.astronomical];
+      return nautical ? [`${PHASE_MEANING.astronomical} Next star sights: `, strong(`nautical twilight, ${span(nautical, jd, zone, dt)}`), '.'] : [PHASE_MEANING.astronomical];
     case 'night':
       return nautical
-        ? [`${PHASE_MEANING.night} Sights need a horizon, so they wait for `, strong(`nautical twilight, ${span(nautical, jd, zone)}`), '.']
+        ? [`${PHASE_MEANING.night} Sights need a horizon, so they wait for `, strong(`nautical twilight, ${span(nautical, jd, zone, dt)}`), '.']
         : [`${PHASE_MEANING.night} Sights need a horizon.`];
   }
 }
@@ -97,7 +102,8 @@ export function nowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       chipIcon.replaceChildren(icon(PHASE_ICON[facts.phase]));
       lastIcon = facts.phase;
     }
-    const parts = meaning(facts, jd, zone);
+    // Far from today every clock time carries the Earth's rotation's uncertainty (polish2).
+    const parts = meaning(facts, jd, zone, uncertaintyText(timeInfoAt(ctx, jd)) ? ` ${uncertaintyText(timeInfoAt(ctx, jd))}` : '');
     const key = parts.map((p) => (typeof p === 'string' ? p : `<${p.textContent ?? ''}>`)).join('');
     if (text.dataset.key !== key) {
       text.dataset.key = key;

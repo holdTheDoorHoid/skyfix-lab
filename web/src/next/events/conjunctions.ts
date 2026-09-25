@@ -20,6 +20,7 @@ import { YEAR_DAYS, type Direction } from './model.js';
 import { moonPartner, occultedSomewhere } from './moon-model.js';
 import { conjunctionId, conjunctionItem, conjunctionSeen, type ViewDirection } from './planet-model.js';
 import type { Badge } from './rows.js';
+import { listCoverage } from './deeptime.js';
 
 const words = (d: Direction): string => (d === 'upcoming' ? 'in the next 12 months' : 'in the last 12 months');
 
@@ -122,6 +123,7 @@ export const conjunctionsTab: TabComponent = (host, env) => {
     className: 'sfe-conj',
     unavailable: pd ? null : 'This build of the numerical core has no conjunction search. Rebuild it with: npm run wasm --prefix web',
     what: 'Close approaches',
+    coverage: () => (pd ? listCoverage(ctx.engine, 'conjunctions', (t) => pd.conjunctions(t, t + 1 / 24)) : null),
     search: {
       name: 'conjunctions',
       key: (s) => observerOf(s).key,

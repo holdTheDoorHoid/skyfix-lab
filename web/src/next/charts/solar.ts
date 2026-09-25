@@ -35,6 +35,7 @@ import {
   type SolarInput,
 } from './sun-data.js';
 import { dateKey, localDateOf, wallHours, type LocalDay } from './windows.js';
+import { formatYear } from '../time/format.js';
 
 /** The person's panel, remembered for the page's lifetime; null follows the place (latitude tilt, facing the equator). */
 let chosen: { tilt: number; azimuth: number } | null = null;
@@ -90,7 +91,7 @@ export const solarChart: ChartComponent = (host, ctx, ui) => {
       if (!isSunToolsEngine(engine)) throw new NotAvailableError('The Sun charts');
       return computeSolarYear(engine, input);
     },
-    failureText: (error, input) => `The engine could not estimate ${input.year}’s sunlight: ${errorText(error)}`,
+    failureText: (error, input) => `The engine could not estimate ${formatYear(input.year)}’s sunlight: ${errorText(error)}`,
     setup(shell) {
       const { c } = shell;
       stepperNav(c.nav, 'Previous year', 'Next year', (dir) => stepTime(ctx.store, { unit: 'year', count: dir }));
@@ -146,11 +147,11 @@ export const solarChart: ChartComponent = (host, ctx, ui) => {
     header(shell) {
       const st = ctx.store.get();
       const p = shell.input.panel;
-      shell.c.title.replaceChildren(`Sunlight on a solar panel · ${shell.input.year}`);
+      shell.c.title.replaceChildren(`Sunlight on a solar panel · ${formatYear(shell.input.year)}`);
       if (st.settings.navigatorTerms) shell.c.title.append(h('span', { class: 'sfc-term', 'data-term': '' }, ' · clear-sky irradiance, plane of array'));
       shell.c.subtitle.textContent = `${placeName(st)} · panel tilted ${p.tilt}° facing ${compassPoint(p.azimuth)} (${p.azimuth}°)`;
       const label = shell.c.nav.querySelector('.sfc-nav-label');
-      if (label) label.textContent = String(shell.input.year);
+      if (label) label.textContent = formatYear(shell.input.year);
       const model = shell.data?.year.model;
       estimate.replaceChildren(
         h('strong', {}, 'Clear-sky estimate; clouds not modelled.'),
@@ -249,7 +250,7 @@ export const solarChart: ChartComponent = (host, ctx, ui) => {
     const tile = (value: string, unit: string, label: string, extra?: Node): HTMLElement =>
       h('div', { class: 'sfc-tile' }, h('div', { class: 'sfc-tile__value' }, h('strong', {}, value), h('span', {}, unit)), h('div', { class: 'sfc-tile__label' }, label), extra ?? null);
     const items: HTMLElement[] = [
-      tile(kwh(y.poa_kwh_m2), 'kWh/m²', `on the panel in ${y.year} (tilted ${p.tilt}°, facing ${compassPoint(p.azimuth)})`),
+      tile(kwh(y.poa_kwh_m2), 'kWh/m²', `on the panel in ${formatYear(y.year)} (tilted ${p.tilt}°, facing ${compassPoint(p.azimuth)})`),
       tile(kwh(y.ghi_kwh_m2), 'kWh/m²', 'on flat ground'),
     ];
     if (y.optimal) {
@@ -384,7 +385,7 @@ export const solarChart: ChartComponent = (host, ctx, ui) => {
     const y = data.year;
     const p = shell.input.panel;
     const parts = [
-      `On clear days a panel tilted ${p.tilt}° and facing ${compassPoint(p.azimuth)} would receive about ${kwh(y.poa_kwh_m2)} kWh per square metre in ${y.year}, against ${kwh(y.ghi_kwh_m2)} on flat ground.`,
+      `On clear days a panel tilted ${p.tilt}° and facing ${compassPoint(p.azimuth)} would receive about ${kwh(y.poa_kwh_m2)} kWh per square metre in ${formatYear(y.year)}, against ${kwh(y.ghi_kwh_m2)} on flat ground.`,
     ];
     if (y.optimal) parts.push(`The best tilt facing ${compassPoint(y.optimal.azimuth_deg)} is ${y.optimal.tilt_deg.toFixed(1)}° (${kwh(y.optimal.poa_kwh_m2)} kWh/m²).`);
     parts.push('Real years are cloudier: this is the ceiling, not a forecast.');

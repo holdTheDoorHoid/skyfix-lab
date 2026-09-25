@@ -1,7 +1,7 @@
 /**
  * Whether an instant is one Navigate offers sights for (CONVENTIONS 15.1): sights,
  * predicted readings and plans only in the **validated** tier, where the accuracy figures
- * hold; in the labelled tier (the Deep time pack's estimates before 1550 and after 2650) the
+ * hold; in the labelled tier (the core's estimates before 1550 and after 2650) the
  * view says why not, with the uncertainty of the Earth's rotation that makes it so; outside
  * the engine's coverage it says what the engine covers. OWNER: navigate2 agent.
  *

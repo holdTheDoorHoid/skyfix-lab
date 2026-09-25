@@ -27,6 +27,7 @@ import { yearSkyMemo } from './year-chart.js';
 import type { YearSky } from './year-data.js';
 import { dateKey, localDateOf, zoneKey } from './windows.js';
 import { dayOfYearOf } from './sun-data.js';
+import { formatYear } from '../time/format.js';
 
 /** The hour, remembered for the page's lifetime. */
 let chosenHour = MOON_YEAR_DEFAULT_HOUR;
@@ -60,7 +61,7 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     input: inputFor,
     key: (i) => [observerKey(i.observer), zoneKey(i.zone), i.year, i.hour].join('|'),
     compute: (input) => computeMoonYear(ctx.engine, input),
-    failureText: (error, input) => `The engine could not follow the Moon through ${input.year}: ${errorText(error)}`,
+    failureText: (error, input) => `The engine could not follow the Moon through ${formatYear(input.year)}: ${errorText(error)}`,
     setup(shell) {
       stepperNav(shell.c.nav, 'Previous year', 'Next year', (dir) => stepTime(ctx.store, { unit: 'year', count: dir }));
       fillHours(displayZone(ctx.store.get()));
@@ -81,13 +82,13 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     header(shell) {
       const st = ctx.store.get();
       const i = shell.input;
-      shell.c.title.replaceChildren(`The Moon through the year · ${i.year}`);
+      shell.c.title.replaceChildren(`The Moon through the year · ${formatYear(i.year)}`);
       if (st.settings.navigatorTerms) shell.c.title.append(h('span', { class: 'sfc-term', 'data-term': '' }, ' · altitude and azimuth at a fixed hour'));
       const jd = jdFromWallClock({ year: i.year, month: 1, day: 1, hour: i.hour }, i.zone);
       const clockName = i.zone.kind === 'iana' ? `${i.zone.zone}, with its daylight saving` : i.zone.name;
       shell.c.subtitle.textContent = `${placeName(st)} · the Moon at ${axisTime(jd, i.zone)} every day on the local clock (${clockName})`;
       const label = shell.c.nav.querySelector('.sfc-nav-label');
-      if (label) label.textContent = String(i.year);
+      if (label) label.textContent = formatYear(i.year);
       fillHours(i.zone);
       hourSelect.value = String(i.hour);
     },
@@ -294,7 +295,7 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     const st = ctx.store.get();
     const fmt = st.settings.angleFormat;
     const zone = data.input.zone;
-    const t = table(`The Moon every day of ${data.input.year} at the same hour (local times, ${zoneLabel(st.time.jd_utc, zone)}; negative heights below the horizon)`, [
+    const t = table(`The Moon every day of ${formatYear(data.input.year)} at the same hour (local times, ${zoneLabel(st.time.jd_utc, zone)}; negative heights below the horizon)`, [
       'Date',
       'Time',
       'Height above the horizon',
@@ -305,7 +306,7 @@ export const moonYearChart: ChartComponent = (host, ctx, ui) => {
     for (const d of data.days) {
       if (d.day.date.month !== month) {
         month = d.day.date.month;
-        t.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 4 }, `${MONTHS_LONG[month - 1]} ${d.day.date.year}`)));
+        t.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 4 }, `${MONTHS_LONG[month - 1]} ${formatYear(d.day.date.year)}`)));
       }
       t.body.append(
         h(

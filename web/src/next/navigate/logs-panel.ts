@@ -13,6 +13,7 @@ import { checkLogRow, LOG_LIMITS, logRows, withLogRow, withoutLogRow, type LogKi
 import { parseNumber, parseUtcInput } from './parse.js';
 import { LOG_TEXT } from './text.js';
 import { btn, field, para, textInput } from './ui.js';
+import { scaleLabel } from '../time/scale.js';
 
 /** A logged value in words: `−1.5′`, `+4.0 s`. */
 export function fmtLogValue(kind: LogKind, value: number): string {
@@ -35,7 +36,8 @@ export function logEditor(nc: NavCtx, kind: LogKind, track: (fn: () => void) => 
   const time = textInput({ placeholder: 'yyyy-mm-dd hh:mm:ss', size: 19 });
   const value = textInput({ inputmode: 'decimal', size: 7, placeholder: kind === 'index' ? '-1.2' : '+4' });
   const note = textInput({ placeholder: 'Optional', size: 14 });
-  const timeField = field('When (UTC)', time);
+  // The clock's word of the time bar's instant (UT outside 1972-2035; polish2).
+  const timeField = field(`When (${scaleLabel(nc.ctx.store.get().time.jd_utc)})`, time);
   const valueField = field(valueLabel, value, { help: kind === 'index' ? 'On the arc 1.5′ → −1.5.' : 'Watch slow by 4 s → +4.' });
   const noteField = field('Note', note);
   const now = btn('Now', () => {
@@ -101,7 +103,7 @@ export function logEditor(nc: NavCtx, kind: LogKind, track: (fn: () => void) => 
     empty.hidden = rows.length > 0;
     table.hidden = rows.length === 0;
     table.replaceChildren(
-      h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'When (UTC)'), h('th', { scope: 'col', class: 'sfn-num' }, kind === 'index' ? 'IC (added)' : 'Watch + (s)'), h('th', { scope: 'col' }, 'Note'), h('th', { scope: 'col' }, h('span', { class: 'sf-sr' }, 'Remove')))),
+      h('thead', {}, h('tr', {}, h('th', { scope: 'col' }, 'When'), h('th', { scope: 'col', class: 'sfn-num' }, kind === 'index' ? 'IC (added)' : 'Watch + (s)'), h('th', { scope: 'col' }, 'Note'), h('th', { scope: 'col' }, h('span', { class: 'sf-sr' }, 'Remove')))),
       h(
         'tbody',
         {},
@@ -109,7 +111,7 @@ export function logEditor(nc: NavCtx, kind: LogKind, track: (fn: () => void) => 
           h(
             'tr',
             {},
-            h('td', { class: 'sfn-num' }, utcInputText(r.utc)),
+            h('td', { class: 'sfn-num' }, utcText(r.utc)),
             h('td', { class: 'sfn-num' }, fmtLogValue(kind, r.value)),
             h('td', {}, r.note || '—'),
             h('td', {}, btn('', () => remove(r), { icon: 'close', variant: 'ghost', ariaLabel: `Remove the entry at ${utcText(r.utc)}` })),

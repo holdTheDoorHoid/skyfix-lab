@@ -392,6 +392,14 @@ the solver or the CLI `solve` command.
 `skyfix_core::types::Warning` is the single enum for machine-readable caveats. Add
 variants there, never ad-hoc strings, so the CLI, WASM adapter and UI show them the same way.
 
+(polish2, expansion programme.) The warnings are about a **sight**: something the solver
+or the reduction did with it. The compass method's caveats (`notes` in the compass error
+result, `skyfix_core::methods::compass`: a body below the horizon at the time given, how
+fast the bearing was changing, the time between the amplitude and the moment given, a
+shallow meeting with the horizon, no variation from the magnetic model, a variation still
+to give) are plain sentences, not `Warning` variants: they explain a bearing, which is
+never a sight (section 14.2), and are shown as the result gives them.
+
 ## 13. Explorer: bodies, topocentric display values, events and display-only data
 
 Wire formats are in `docs/EXPLORER_API.md`; the program plan is `docs/EXPLORER_PLAN.md`.
@@ -490,6 +498,11 @@ the meteor-shower table, the Milky Way outline, the IAU WGSN star names and ever
 built on them (extinction, limiting magnitude, moonlight, the instrument guide, meteor
 rates, the "tonight" ranking) are display-only too, and live in `skyfix-starfield`
 (`dso`, `showers`, `milkyway`, `names`, `search`, `extinction`, `tonight`, `observe`).
+(polish2: **which night** — `tonight(jd)` answers the night `jd` belongs to, the 24 hours
+from the local mean noon at or before it, or the next ones once the Sun has risen that
+morning (`Night::containing`). The Tonight view chooses its night itself, the next one from
+astronomical dawn (`web/src/next/tonight/night.ts`), and asks the engine with an instant
+inside that night (`nightProbe`), so the page shows one rule: its own.)
 For the Sun, Moon and planets they use the engine, so `skyfix-starfield` now depends on
 `skyfix-almanac` (events and body sampling) as well as `skyfix-ephemeris`; the dependency
 runs one way only, and `crates/skyfix-starfield/tests/crate_boundary.rs` still keeps
@@ -1284,6 +1297,11 @@ Normative for every view under `web/src/next/`; the helpers are in `web/src/next
   SkyFix Lab core covers (…)" with the real bounds; a view needing the Deep time pack calls
   `ctx.packs.ensure('deep-time', packReason(jd, ctx))` (`packForDate` says whether one would
   reach the date).
+  *polish2:* there is no Deep time pack, because both tiers are in the core. `packForDate`
+  returns a pack only when one in the site's registry provides positions for the date
+  (`provides: ephemeris:a..b`). `packReason(jd, source, pack)` words its prompt from the
+  engine's coverage and that pack's own years. The tier notice names a loaded pack only when
+  it provides positions (`ephemerisPackLabels`), never the tides or the lunar-limb pack.
 - **Playback** runs to ten years a second. Faster than eight days a second
   (`FAST_PLAYBACK_S`) the per-day events are not computed while time runs (`sunToday` and
   `aroundToday` return null) and are drawn as soon as it stops or slows; a view with its own
@@ -1417,3 +1435,36 @@ the Events view builds its entries in `web/src/next/events/items.ts`).
 - **Cards beside a list** open level with their row (the card column is padded down to it),
   so a row picked far down a long list never opens its card out of sight; on a narrow stage
   the card goes under its row.
+
+### 15.9 Shared settings and channels across views (polish2, expansion programme)
+
+The integration pass gave several views one shared setting or channel where each view had
+kept its own:
+
+- **How dark the sky is:** there is one setting, `settings.skyQuality` (`auto`, `bortle` or
+  `nelm`) with `skyBortle` and `skyNelm` (`state.ts`). Settings → Sky, the Sky view's Layers,
+  Tonight's "Your sky" and the Events view's meteor showers all read and write it through
+  `skyChoiceSelect` (`sky/sky-choice.ts`). The engine calls take `skyConditions(settings)`,
+  so the star limit, tonight's ranking and the meteor rates always assume the same sky. It is
+  remembered between visits like the other settings.
+- **The air:** `settings.pressure_hpa` (800–1100 hPa, default 1010) and
+  `settings.temperature_c` (−60 to 60 °C, default 10), set in Settings → Sights.
+  `engineObserver` passes them in every call that takes an observer, but only when they
+  differ from the defaults, so a default call's input is unchanged. The predicted sextant
+  reading, the sights Navigate plans for tonight and a new Navigate session all take them.
+- **Raising the panel:** `revealPanel(store, 'peek' | 'full')` (`panel/reveal.ts`) asks the
+  explorer's shell to bring the panel into view. On a phone it raises the bottom sheet from
+  its lowest position to peek, or from peek to full; on a laptop it opens a closed panel. A
+  view whose link opens something in the panel calls it (the Milky Way planner does).
+- **Notices:** the notice strip takes its own band at the top of the stage. It publishes its
+  height, plus 8 px, as `--stage-notice-inset`, and the view begins below it
+  (`.sf-stage__fill`), so a notice never covers a view's controls. On a phone every notice
+  starts folded to one line.
+- **A far date's limits in words:** an engine's refusal of an instant outside its years
+  ("… outside … <ISO> .. <ISO>") is shown through `rangeWords` (`time/tier.ts`) as "1550 to
+  2650". Each view says in one sentence what it cannot show and for which years; it never
+  shows the engine's raw message. A test scans the interface's source to hold the wording:
+  no fixed 1990/2060, no "(UTC)" beside a time that may be UT, no `Date.UTC`, and no Deep
+  time pack (`polish-strings.test.ts`).
+- **The time bar's rise, transit and set labels:** a label that would print over another is
+  hidden (`clashingLabels`, `timebar/ribbon.ts`). Its mark on the bar stays.

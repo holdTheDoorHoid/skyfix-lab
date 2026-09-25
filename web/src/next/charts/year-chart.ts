@@ -73,6 +73,8 @@ import {
 } from './year-data.js';
 import { phaseRank } from './day-data.js';
 import { attachExport } from './export-menu.js';
+import { scaleLabel } from '../time/scale.js';
+import { formatYear } from '../time/format.js';
 
 export const yearMemo = memoize(
   (ctx: Ctx, input: YearInput) => computeYear(ctx.engine, input),
@@ -221,10 +223,10 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
   function renderHeader(): void {
     const s2 = store.get();
     const input = inputFor(s2);
-    c.title.replaceChildren(`Sunrise, sunset and twilight · ${input.year}`);
+    c.title.replaceChildren(`Sunrise, sunset and twilight · ${formatYear(input.year)}`);
     if (ctx.engine.kind === 'mock') c.title.append(mockBadge(ctx.engine.description));
     const place = s2.observer.label || `${s2.observer.lat_deg.toFixed(3)}°, ${s2.observer.lon_deg.toFixed(3)}°`;
-    c.subtitle.textContent = `${place} · every day of ${input.year} on the local clock, ${zoneLabel(s2.time.jd_utc, input.zone)}`;
+    c.subtitle.textContent = `${place} · every day of ${formatYear(input.year)} on the local clock, ${zoneLabel(s2.time.jd_utc, input.zone)}`;
     nav.textContent = String(input.year);
   }
 
@@ -650,7 +652,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     c.caption.replaceChildren(
       summaryText(),
       ' ',
-      h('span', { class: 'sfc-muted' }, 'Each column is one day, midnight at the top. Click anywhere to go to that day and time; hover for UTC.'),
+      h('span', { class: 'sfc-muted' }, `Each column is one day, midnight at the top. Click anywhere to go to that day and time; hover for ${scaleLabel(ctx.store.get().time.jd_utc)}.`),
     );
     const notes: Node[] = [];
     for (const e of [...(data?.errors ?? []), ...(sky?.errors ?? [])]) notes.push(h('p', { class: 'sfc-note' }, e));
@@ -674,7 +676,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
       'astronomical_dusk',
     ];
     const main = table(
-      `Sunrise, sunset and twilight, ${data.input.year}, local times (${zoneLabel(data.days[0]!.day.jd_start + 0.5, zone)}); each time also in UTC on hover`,
+      `Sunrise, sunset and twilight, ${formatYear(data.input.year)}, local times (${zoneLabel(data.days[0]!.day.jd_start + 0.5, zone)}); each time also in ${scaleLabel(data.days[0]!.day.jd_start + 0.5)} on hover`,
       ['Date', 'Astronomical dawn', 'Nautical dawn', 'Civil dawn', 'Sunrise', 'Sunset', 'Civil dusk', 'Nautical dusk', 'Astronomical dusk', 'Day length'],
     );
     const currentIndex = dayIndexAt(data.days, store.get().time.jd_utc);
@@ -683,7 +685,7 @@ export const yearChart: ChartComponent = (host, ctx, ui) => {
     for (const day of data.days) {
       if (day.day.date.month !== month) {
         month = day.day.date.month;
-        rows.push(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 10 }, `${MONTHS_LONG[month - 1]} ${day.day.date.year}`)));
+        rows.push(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 10 }, `${MONTHS_LONG[month - 1]} ${formatYear(day.day.date.year)}`)));
       }
       const cells: Node[] = [];
       for (const kind of kinds) {

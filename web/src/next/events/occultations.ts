@@ -37,6 +37,7 @@ import {
   type ElsewhereOccultation,
 } from './moon-model.js';
 import type { Badge } from './rows.js';
+import { listCoverage } from './deeptime.js';
 
 /** Navigational stars the Moon can pass over: within its reach of the ecliptic (6.6°). */
 export const OCCULTABLE_STARS = ['Aldebaran', 'Regulus', 'Spica', 'Antares', 'Nunki', 'Elnath', 'Zubenelgenubi'] as const;
@@ -108,6 +109,7 @@ export const occultationsTab: TabComponent = (host, env) => {
     className: 'sfe-occ',
     unavailable: md ? null : 'This build of the numerical core has no occultation search. Rebuild it with: npm run wasm --prefix web',
     what: 'Occultations',
+    coverage: () => (md ? listCoverage(ctx.engine, 'occultations', (t) => md.occultations({ lat_deg: 0, lon_deg: 0 }, t, t + 1 / 24)) : null),
     search: {
       name: 'occultations',
       key: (s) => observerOf(s).key,

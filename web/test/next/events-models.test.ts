@@ -24,7 +24,7 @@ import type {
   ShowerNight,
   TimeInfo,
 } from '../../src/next/engine/types.js';
-import { calendarNote, chipsIn, coverageYears, coveredSentence, listUncertaintySentence, wireYear, yearText } from '../../src/next/events/deeptime.js';
+import { calendarNote, chipsIn, coverageYears, coveredSentence, listCoverage, listUncertaintySentence, ownSpanJd, wireYear, yearText } from '../../src/next/events/deeptime.js';
 import { eclipseIdDate } from '../../src/next/events/eclipses.js';
 import { beadWords, correctionWords, withLimb } from '../../src/next/events/model.js';
 import { csvComments, csvOfItems, screenWords, utcDate, type EventItem, type Words } from '../../src/next/events/items.js';
@@ -607,6 +607,29 @@ describe('deep time in the lists', () => {
     expect(yearText(-584)).toBe('585 BC');
     expect(wireYear(jdOf('2026-06-01T00:00:00Z'))).toBe(2026);
     expect(wireYear(1_507_900.5)).toBe(-584);
+  });
+
+  // polish2: after the deeptime merge the explorer covers 2000 BC to AD 3000 while the
+  // eclipse and planet-event engines keep 1990-2060 and the other lists the validated tier;
+  // each list says its own engine's years, learnt once from a result's coverage fields.
+  it('say the years their own engine answers, not the explorer’s', () => {
+    const wide = engineWith({ start_utc: '-2000-01-01T00:00:00Z', end_utc: '3000-12-31T23:59:59Z' }, () => 0.001);
+    const own = { start_utc: '1990-01-01T00:00:00Z', end_utc: '2060-12-31T23:59:59Z' };
+    expect(coveredSentence(wide, 'Eclipses', own)).toBe('Eclipses are computed for 1990 to 2060');
+    expect(coveredSentence(wide, 'Eclipses')).toBe('Eclipses are computed for 2001 BC to AD 3000');
+    let calls = 0;
+    const probe = (jd: number) => {
+      calls += 1;
+      expect(jd).toBe(2_451_545);
+      return { coverage_start_utc: '1550-01-01T00:00:00Z', coverage_end_utc: '2650-01-22T00:00:00Z' };
+    };
+    expect(listCoverage(wide, 'stations', probe)).toEqual({ start_utc: '1550-01-01T00:00:00Z', end_utc: '2650-01-22T00:00:00Z' });
+    expect(listCoverage(wide, 'stations', probe)).toEqual({ start_utc: '1550-01-01T00:00:00Z', end_utc: '2650-01-22T00:00:00Z' });
+    expect(calls).toBe(1);
+    expect(listCoverage(wide, 'broken', () => {
+      throw new Error('no');
+    })).toBeNull();
+    expect(ownSpanJd({ start_utc: '1550-01-01T00:00:00Z', end_utc: '2650-01-22T00:00:00Z' })).toEqual({ start: 2_287_185.5, end: 2_688_973.5 });
   });
 
   it('carry the ±ΔT uncertainty only where it counts, and say why', () => {

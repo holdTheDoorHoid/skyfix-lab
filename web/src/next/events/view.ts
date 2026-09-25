@@ -83,7 +83,6 @@ const DEFAULTS: Remembered = {
   jupiterSeenOnly: true,
   showerYear: null,
   shower: null,
-  skyDarkness: 5,
   namePlace: true,
 };
 

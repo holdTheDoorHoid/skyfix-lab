@@ -5,6 +5,8 @@
  * a pack loads, and the engines' pack methods (the WASM wrapper and the mock).
  */
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { createScheduler, memoEngine, redrawEverything, watch } from '../../src/next/component.js';
 import { MockPacks } from '../../src/next/engine/mock/packs.js';
@@ -262,9 +264,14 @@ describe('the engines and data packs', () => {
     expect(coverageCalls).toBe(2);
   });
 
-  it('the mock lists the planned packs and accepts anything', () => {
+  it('the mock lists the real registry’s packs and accepts anything', () => {
     const mock = new MockPacks();
-    expect(mock.packs().map((p) => p.name)).toEqual(['deep-time', 'tides-us', 'lunar-limb']);
+    expect(mock.packs().map((p) => p.name)).toEqual(['tides-us', 'lunar-limb']);
+    // polish2: the same names as the core's registry (PRODUCERS in skyfix-wasm's packs.rs), so
+    // the mock never offers a pack the real site cannot have (there is no deep-time pack).
+    const rust = readFileSync(resolve(import.meta.dirname, '../../../crates/skyfix-wasm/src/packs.rs'), 'utf8');
+    const producers = /pub const PRODUCERS: &\[Producer\] = &\[([\s\S]*?)\n\];/.exec(rust)?.[1] ?? '';
+    expect([...producers.matchAll(/name: "([^"]+)"/g)].map((m) => m[1])).toEqual(mock.packs().map((p) => p.name));
     expect(mock.packs().every((p) => !p.loaded)).toBe(true);
     expect(mock.loadPack('tides-us', new Uint8Array([9, 9, 9]))).toEqual({ name: 'tides-us', version: 'mock', bytes: 3, provides: ['tides:us'] });
     expect(mock.packs().find((p) => p.name === 'tides-us')).toMatchObject({ loaded: true, bytes: 3 });

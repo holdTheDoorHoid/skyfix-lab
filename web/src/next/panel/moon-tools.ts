@@ -38,6 +38,7 @@ import { openUpClose } from '../sky/requests.js'; // sky2 agent: the Moon's clos
 
 /** The mean distance the engine compares sizes with (EXPLORER_API `moon_apsides.definitions`). */
 export const MEAN_DISTANCE_KM = 384_400;
+import { rangeWords } from '../time/tier.js';
 
 /** Below this total libration (degrees) the Moon faces us squarely enough to say so. */
 const SQUARE_DEG = 0.75;
@@ -200,7 +201,10 @@ export function moonTools(ctx: Ctx): MoonTools {
 
   const fail = (what: string, error: unknown): void => {
     status.hidden = false;
-    setText(status, `${what}: not computed (${error instanceof Error ? error.message : String(error)}).`);
+    const text = error instanceof Error ? error.message : String(error);
+    // An engine that answers fewer years than the explorer, in plain words (polish2).
+    const years = rangeWords(text);
+    setText(status, years ? `${what}: worked out only for ${years}.` : `${what}: not computed (${text}).`);
   };
 
   const drawOrientation = (s: ExplorerState, jd: number): void => {

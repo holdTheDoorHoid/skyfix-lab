@@ -57,6 +57,8 @@ import {
 } from '../state.js';
 import { wallClock, formatWithUtc } from '../time.js';
 import { timeInfoAt, withUncertainty } from '../time/chip.js';
+import { rangeWords } from '../time/tier.js';
+import { covered } from '../shell/derived.js';
 import { DEG, limitingMagnitude, nextRise, RAD, refractionArcmin } from './astro.js';
 import { infoCard, type CardContent, type CardLine } from './card.js';
 import { BORTLE_WORDS, milkyWayVisibility, skyConditions, skyModel, zenithLimit, extinctionAt, type SkyModel } from './conditions.js';
@@ -310,6 +312,10 @@ function keyKind(key: string | null): string {
 /** Mount the Sky view. `sky` below is the same with the plain component signature. */
 export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   const { store, engine, notices, scheduler } = ctx;
+  /** A notice pushed only when its words change: the draw runs every frame (polish2). */
+  const noticeOnce = (level: 'info' | 'caution' | 'error', text: string, key: string): void => {
+    if (!notices.list().some((n) => n.key === key && n.text === text && n.level === level)) notices.push(level, text, { key });
+  };
   const view = settingsFor(ctx);
   const highlights = skyHighlights(ctx);
   const requests = skyRequests(ctx);
@@ -696,7 +702,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       notices.dismissKey('sky-path');
     } catch (error) {
       path = null;
-      notices.push('caution', `Path of ${body}: ${errorText(error)}`, { key: 'sky-path' });
+      noticeOnce('caution', `Path of ${body}: ${errorText(error)}`, 'sky-path');
     }
   }
 
@@ -913,7 +919,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       customMarks = [];
       customError = errorText(error);
     }
-    if (customError) notices.push('caution', `Comets and asteroids: ${customError}`, { key: 'sky-custom' });
+    if (customError) noticeOnce('caution', `Comets and asteroids: ${customError}`, 'sky-custom');
     else notices.dismissKey('sky-custom');
   }
 
@@ -1059,11 +1065,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       notices.dismissKey('sky-state');
     } catch (error) {
       sky = null;
-      notices.push(
-        'caution',
-        `Sun, Moon and planets are not available at this time (${errorText(error)}). Stars are still drawn; the sky is shown dark.`,
-        { key: 'sky-state' },
-      );
+      // Outside the covered years the shell's notice says nothing is computed: no second one.
+      if (!covered(ctx, displayJd)) notices.dismissKey('sky-state');
+      else noticeOnce('caution', `Sun, Moon and planets are not available at this time (${errorText(error)}). Stars are still drawn; the sky is shown dark.`, 'sky-state');
     }
     // A pinned target gives way when the shared selection changes.
     if (pinnedKey !== null && pinnedFor !== state.selection.body) {
@@ -1084,8 +1088,17 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
         deepSky: layers.deepSky || keyKind(pinnedKey) === 'd',
         frozen: fast,
       });
-      if (scene.error) notices.push('caution', `Star field: ${scene.error}`, { key: 'sky-stars' });
-      else notices.dismissKey('sky-stars');
+      if (scene.error) {
+        // In plain words when the star field refuses the date (it answers the validated
+        // tier only), and pushed once, not every frame (polish2).
+        const years = rangeWords(scene.error);
+        const text = years
+          ? `Stars are drawn only for ${years}; the Sun, the Moon and the planets are shown.`
+          : `Star field: ${scene.error}`;
+        const level = years ? 'info' : 'caution';
+        if (!covered(ctx, displayJd)) notices.dismissKey('sky-stars');
+        else noticeOnce(level, text, 'sky-stars');
+      } else notices.dismissKey('sky-stars');
     } catch (error) {
       notices.push('error', `Sky: ${errorText(error)}`, { key: 'sky-stars' });
     }

@@ -33,13 +33,9 @@ pub mod hours;
 pub mod solar;
 pub mod sunpath;
 
-// The event finder's bracketed root finder and minimiser (Brent 1973), compiled here from
-// the same file rather than copied: `events::roots` is private to `events`, which this
-// module does not own (and must not edit). Both instances are the identical, tested code.
-// When `events` makes it `pub(crate)`, this becomes `use crate::events::roots;`.
-#[allow(clippy::duplicate_mod, dead_code)]
-#[path = "../events/roots.rs"]
-pub(crate) mod roots;
+// The event finder's bracketed root finder and minimiser (Brent 1973), shared with the
+// event finder (polish2: `events::roots` is `pub(crate)`, so it is compiled once).
+pub(crate) use crate::events::roots;
 
 use serde::{Deserialize, Serialize};
 use skyfix_core::time::{civil_to_jd, format_utc, parse_utc};

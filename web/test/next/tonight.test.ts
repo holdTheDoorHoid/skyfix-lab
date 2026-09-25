@@ -15,7 +15,8 @@ import { TOUR_STEPS } from '../../src/next/shell/tour.js';
 import { hasTab, TABS, VIEW_META } from '../../src/next/shell/views.js';
 import { createExplorerStore, VIEW_IDS } from '../../src/next/state.js';
 import { jdFromIso, UTC_ZONE, type Zone } from '../../src/next/time.js';
-import { COMING_SOURCES, conjunctionTitle, mergeComing, yearsOf, type ComingResult } from '../../src/next/tonight/coming.js';
+import { COMING_SOURCES, conjunctionTitle, mergeComing, occultationItem, yearsOf, type ComingItem, type ComingResult } from '../../src/next/tonight/coming.js';
+import { eventIds, eventsRequests, eventsTargetFor, showEvents } from '../../src/next/events/link.js';
 import { chooseNight, darknessOf, loadCore, loadDetail, nightQuery, queryKey, stepNightTime, sunWindow, type NightCore } from '../../src/next/tonight/data.js';
 import { clock, clockRange, degrees, duration, percentLit, type Fmt } from '../../src/next/tonight/format.js';
 import {
@@ -485,6 +486,21 @@ describe('the fortnight ahead', () => {
       ['apsides', { items: [{ kind: 'apsis', jd: 10.2, title: 'The Moon at its closest (perigee)', detail: '', body: 'Moon', seen: true }], notes: [{ jd: 10, note: 'a supermoon' }] }],
     ]);
     expect(mergeComing(results).map((i) => i.title)).toEqual(['Full Moon: a supermoon', 'The Moon at its closest (perigee)']);
+  });
+
+  // polish2 (list item 41): a coming-up item opens Events on its own list, and its card.
+  it('opens Events on the list of each kind, with the card of an event that has one', () => {
+    const kinds: ComingItem['kind'][] = ['phase', 'apsis', 'eclipse', 'conjunction', 'occultation', 'shower', 'planet', 'station', 'season', 'earth', 'transit'];
+    for (const kind of kinds) expect(eventsTargetFor(kind), kind).not.toBeNull();
+    const o = occultationItem(
+      { body: 'Antares', kind: 'star', magnitude: 1.1, occulted: true, graze: false, visible: true, closest: { jd_utc: 2_461_310.25 }, disappearance: null, reappearance: null } as unknown as Parameters<typeof occultationItem>[0],
+      F,
+    );
+    expect(o.ref).toBe(eventIds.occultation('Antares', 2_461_310.25));
+    const store = createExplorerStore({ storage: null });
+    showEvents(store, eventsTargetFor(o.kind) ?? 'eclipses', { jd: o.jd, body: o.body, id: o.ref ?? null });
+    expect(store.get().view).toBe('events');
+    expect(eventsRequests(store).get()).toMatchObject({ tab: 'moon', sub: 'occultations', ref: { id: o.ref } });
   });
 
   it('writes a conjunction from the position angle', () => {

@@ -8,6 +8,7 @@ import { h } from '../../../dom.js';
 import type { Mounted } from '../../component.js';
 import type { RunningFixOutput } from '../../engine/types.js';
 import { jdFromIso } from '../../time.js';
+import { scaleLabel } from '../../time/scale.js';
 import { angleFormat, zone, type NavCtx } from '../context.js';
 import { fmtBearing, fmtInstant, fmtNm, fmtNum, fmtSigma, utcInputText, utcTimeText } from '../format.js';
 import { fixWaypoints } from '../gpx.js';
@@ -34,7 +35,9 @@ export function runningMethod(host: HTMLElement, nc: NavCtx): Mounted {
         const start = textInput({ value: leg.start_utc ? utcInputText(leg.start_utc) : '', placeholder: i === 0 ? 'at the first sight' : 'yyyy-mm-dd hh:mm:ss', size: 19 });
         const course = textInput({ value: String(leg.course_deg), inputmode: 'decimal', size: 5 });
         const speed = textInput({ value: String(leg.speed_kn), inputmode: 'decimal', size: 5 });
-        const fs = field(i === 0 ? 'Leg 1 starts (UTC)' : `Leg ${i + 1} starts (UTC)`, start, { help: i === 0 ? 'Empty: at the first sight.' : null });
+        // The clock's word of the leg's time, or of the time bar's (UT outside 1972-2035; polish2).
+        const word = scaleLabel((leg.start_utc ? jdFromIso(leg.start_utc) : null) ?? nc.ctx.store.get().time.jd_utc);
+        const fs = field(`Leg ${i + 1} starts (${word})`, start, { help: i === 0 ? 'Empty: at the first sight.' : null });
         const fc = field('Course (° true)', course);
         const fv = field('Speed (knots)', speed);
         start.addEventListener('change', () => {
@@ -69,8 +72,8 @@ export function runningMethod(host: HTMLElement, nc: NavCtx): Mounted {
   f.track(store.select((w) => w.running.legs, renderLegs));
   renderLegs();
 
-  const reference = optionalUtcField(nc, 'Fix for the moment (UTC)', 'the time of the last sight', () => store.get().running.referenceUtc, (v) => set({ referenceUtc: v }));
-  const end = optionalUtcField(nc, 'The run ends (UTC)', 'it goes on past the last sight', () => store.get().running.endUtc, (v) => set({ endUtc: v }));
+  const reference = optionalUtcField(nc, 'Fix for the moment', 'the time of the last sight', () => store.get().running.referenceUtc, (v) => set({ referenceUtc: v }));
+  const end = optionalUtcField(nc, 'The run ends', 'it goes on past the last sight', () => store.get().running.endUtc, (v) => set({ endUtc: v }));
   const speedSigma = numberField('Speed uncertainty (knots, 1 sigma)', { min: 0 }, () => store.get().running.speedSigmaKn, (v) => set({ speedSigmaKn: v }));
   const courseSigma = numberField('Course uncertainty (°, 1 sigma)', { min: 0 }, () => store.get().running.courseSigmaDeg, (v) => set({ courseSigmaDeg: v }));
   const walk = numberField('Random drift (NM per √hour)', { min: 0 }, () => store.get().running.walkNmPerSqrtHour, (v) => set({ walkNmPerSqrtHour: v }));

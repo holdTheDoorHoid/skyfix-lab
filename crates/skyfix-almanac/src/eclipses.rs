@@ -933,3 +933,19 @@ mod verify2_ids {
         assert!(e.by_id("2024-04-08-solar").is_ok());
     }
 }
+
+#[cfg(test)]
+mod coverage_tests {
+    use super::*;
+    use skyfix_core::time::parse_utc;
+
+    /// The span the engine searches is the one its constants name, so the Events view's
+    /// "Eclipses are computed for …" (read from `coverage_start_utc`) is the truth (polish2).
+    #[test]
+    fn the_coverage_constants_are_the_searched_span() {
+        let a = parse_utc(COVERAGE_START_UTC).unwrap();
+        let b = parse_utc(COVERAGE_END_UTC).unwrap();
+        assert!((coverage_start_jd() - a).abs() < 1e-9, "{a}");
+        assert!((coverage_end_jd() - b).abs() < 1e-9, "{b}");
+    }
+}

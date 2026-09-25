@@ -47,7 +47,8 @@
 //! Everything is generic over [`BodyEphemeris`], so the same code runs on the real
 //! [`skyfix_ephemeris::body::Sky`] and on the synthetic Moon of the test suite.
 
-mod roots;
+// Shared with `sun_tools` (polish2).
+pub(crate) mod roots;
 
 use serde::{Deserialize, Serialize};
 use skyfix_core::time::{civil_to_jd, format_utc, jd_tt};

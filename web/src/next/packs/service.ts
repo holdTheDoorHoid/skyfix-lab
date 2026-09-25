@@ -326,7 +326,7 @@ export function createPackService(options: PackServiceOptions): PackServiceImpl 
 
   const isLoaded = (name: string): boolean => loaded.has(name) || engineStatus().some((p) => p.name === name && p.loaded);
 
-  async function ensureUncached(name: string, reason: string): Promise<boolean> {
+  async function ensureUncached(name: string, reason: string, asked = false): Promise<boolean> {
     await readManifest();
     if (isLoaded(name)) {
       updateInBackground(name);
@@ -339,7 +339,8 @@ export function createPackService(options: PackServiceOptions): PackServiceImpl 
       updateInBackground(name);
       return true;
     }
-    if (declined.has(name)) return false;
+    if (declined.has(name) && !asked) return false;
+    declined.delete(name);
     const entry = offeredEntry(name);
     if (!entry) {
       warn(`${name}: the site does not offer this pack${manifestFailed ? ' (its list of packs could not be read)' : ''}`);
@@ -358,7 +359,8 @@ export function createPackService(options: PackServiceOptions): PackServiceImpl 
       offline: !isOnline(),
     });
     try {
-      let answer = await handle.answer;
+      // The caller's own button was the question (`asked`): straight to the download.
+      let answer = asked ? 'get' : await handle.answer;
       for (;;) {
         if (answer !== 'get') {
           declined.add(name);
@@ -423,10 +425,10 @@ export function createPackService(options: PackServiceOptions): PackServiceImpl 
       }
     },
 
-    ensure(name, reason) {
+    ensure(name, reason, opts = {}) {
       const pending = inflight.get(name);
       if (pending) return pending;
-      const run = ensureUncached(name, reason)
+      const run = ensureUncached(name, reason, opts.asked === true)
         .catch((error: unknown) => {
           warn(`${name}: ${message(error)}`, error);
           return false;

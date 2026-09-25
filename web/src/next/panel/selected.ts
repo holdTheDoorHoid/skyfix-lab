@@ -37,7 +37,7 @@ import { bodyGlyph, moonPhaseName, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { kv, popover, section, swatch } from '../theme/primitives.js';
 import { UTC_ZONE, formatHours, wallClock, zoneShortName, type Zone } from '../time.js';
-import { scaleLabel, sightsOffered, sightsOnlyText } from '../time/index.js';
+import { scaleLabel, setUncertaintyChip, sightsOffered, sightsOnlyText, timeInfoAt, uncertaintyChip, type ChipInfo } from '../time/index.js';
 import { alignmentTool } from './alignment.js';
 import { distanceWords, moonTools } from './moon-tools.js';
 import { coordRow, lightTableView, magneticLine, milkyWayTool, Motion, outsideWords, Settler } from './photo.js';
@@ -65,6 +65,8 @@ interface Card {
   day: HTMLElement;
   utc: HTMLElement;
   where: HTMLElement;
+  /** The ±ΔT chip under the time, hidden unless the time carries an uncertainty (polish2). */
+  dt: HTMLElement;
 }
 
 function card(kind: 'rise' | 'transit' | 'set'): Card {
@@ -73,20 +75,24 @@ function card(kind: 'rise' | 'transit' | 'set'): Card {
   const day = h('span', { class: 'sf-evcard__day' });
   const utc = h('div', { class: 'sf-evcard__utc sf-num' });
   const where = h('div', { class: 'sf-evcard__where sf-num' });
+  const dt = uncertaintyChip(null);
   const el = h(
     'div',
     { class: 'sf-evcard', 'data-kind': kind },
     h('div', { class: 'sf-evcard__head' }, icon(kind), title),
     h('div', { class: 'sf-evcard__time sf-num' }, time, day),
+    h('div', { class: 'sf-evcard__dt', hidden: true }, dt),
     utc,
     where,
   );
-  return { el, title, time, day, utc, where };
+  return { el, title, time, day, utc, where, dt };
 }
 
-function fillCard(c: Card, title: string, e: SkyEvent | null, jd: number, zone: Zone, place: Zone, where: string, tip: string, none: string): void {
+function fillCard(c: Card, title: string, e: SkyEvent | null, jd: number, zone: Zone, place: Zone, where: string, tip: string, none: string, dt: ChipInfo | null = null): void {
   setText(c.title, title);
   setText(c.time, e ? eventTime(e.jd_utc, zone) : '—');
+  setUncertaintyChip(c.dt, e ? dt : null);
+  (c.dt.parentElement as HTMLElement).hidden = c.dt.hidden;
   setText(c.day, e ? otherDay(e.jd_utc, jd, zone) : '');
   // The second clock: UTC (UT outside 1972-2035, time-ui's scaleLabel), or the place's own
   // when UTC is already the first. Its day is named when it differs (Tokyo's 05:31 is 20:31
@@ -444,7 +450,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     let p: PredictedSight;
     try {
       p = nav.predictSextant(
-        { lat_deg: s.observer.lat_deg, lon_deg: s.observer.lon_deg, height_of_eye_m: s.settings.height_of_eye_m },
+        { lat_deg: s.observer.lat_deg, lon_deg: s.observer.lon_deg, height_of_eye_m: s.settings.height_of_eye_m, pressure_hpa: s.settings.pressure_hpa, temperature_c: s.settings.temperature_c },
         { index_correction_arcmin: s.settings.index_correction_arcmin, horizon: 'sea' },
         b.body,
         limb,
@@ -550,6 +556,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       passage.rise ? `${bearing3(passage.rise.az_deg)} ${compassPoint(passage.rise.az_deg)}` : '',
       `Where the ${name} rises: its direction along the horizon`,
       alwaysUp ? 'Stays up' : alwaysDown ? 'Does not rise' : '—',
+      passage.rise ? timeInfoAt(ctx, passage.rise.jd_utc) : null,
     );
     fillCard(
       cards.transit,
@@ -561,6 +568,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       passage.transit ? `${formatAngle(transitHeight(passage.transit), f, 'coarse')} ${compassPoint(passage.transit.az_deg)}` : '',
       name === 'Sun' ? 'Highest in the sky, on the meridian: local noon, the moment for a noon sight' : `Highest in the sky, on the meridian (the ${name}’s transit)`,
       '—',
+      passage.transit ? timeInfoAt(ctx, passage.transit.jd_utc) : null,
     );
     fillCard(
       cards.set,
@@ -572,6 +580,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       passage.set ? `${bearing3(passage.set.az_deg)} ${compassPoint(passage.set.az_deg)}` : '',
       `Where the ${name} sets: its direction along the horizon`,
       alwaysUp ? 'Stays up' : alwaysDown ? 'Does not rise' : '—',
+      passage.set ? timeInfoAt(ctx, passage.set.jd_utc) : null,
     );
 
     // Extras
