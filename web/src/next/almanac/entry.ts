@@ -1,12 +1,15 @@
 /**
  * The Almanac view's date entry (almanac2 agent): a year of any size with its era, the
  * month, the day and the calendar, replacing `<input type="date">` (proleptic Gregorian,
- * years 1-9999 only in most browsers). Changing a field commits the date; the calendar
- * label beside it says which calendar the date is in.
+ * years 1-9999 only in most browsers). The year is read by the shared `parseYear`, as the
+ * time bar's year field reads it: `585 BC`, `−584`, `-0584` or a bare number in the era
+ * beside it. Changing a field commits the date; the calendar label beside it (the shared
+ * `calendarName`) says which calendar the date is in.
  */
 
 import { h } from '../../dom.js';
-import type { CalendarKind } from '../engine/types.js';
+import { segmented } from '../theme/primitives.js';
+import { eraOfYear, parseYear } from '../time/index.js';
 import { calendarLabel, MONTHS, type CalendarChoice, type DateEntryValue, type ShownDate } from './dates.js';
 
 export interface DateEntry {
@@ -31,20 +34,25 @@ export function dateEntry(options: {
   const id = (k: string): string => `alm-entry-${entryCounter}-${k}`;
   const year = h('input', {
     id: id('year'),
-    class: 'sf-input alm-year',
-    type: 'number',
+    class: 'sf-input sf-num alm-year',
+    type: 'text',
     inputmode: 'numeric',
-    min: 1,
-    max: 99999,
-    step: 1,
+    autocomplete: 'off',
+    spellcheck: 'false',
     'aria-label': 'Year',
+    'data-tip': 'Any year: 1066, 585 BC, AD 79, or astronomical −584 (ISO 8601 -0584). A bare number takes the era beside it; Up and Down step it.',
   });
-  const era = h(
-    'select',
-    { id: id('era'), class: 'sf-input alm-era', 'aria-label': 'Era' },
-    h('option', { value: 'AD' }, 'AD'),
-    h('option', { value: 'BC' }, 'BC'),
-  );
+  const era = segmented<'BC' | 'AD'>({
+    label: 'Era',
+    value: 'AD',
+    size: 'sm',
+    class: 'alm-era',
+    options: [
+      { value: 'BC', label: 'BC', tip: 'Before Christ: 585 BC is the astronomers’ year −584 (there is no year 0 in BC and AD)' },
+      { value: 'AD', label: 'AD', tip: 'Anno Domini: the years after 1 BC' },
+    ],
+    onChange: () => submit(),
+  });
   const month = h(
     'select',
     { id: id('month'), class: 'sf-input alm-month', 'aria-label': 'Month' },
@@ -66,9 +74,9 @@ export function dateEntry(options: {
       id: id('cal'),
       class: 'sf-input alm-calsel',
       'aria-label': 'Calendar',
-      title: 'Auto: the Julian calendar before 15 October 1582, the Gregorian from then',
+      title: 'Display calendar: as Settings shows dates (the Julian calendar before 15 October 1582, the Gregorian from then, unless Settings asks for ISO 8601)',
     },
-    h('option', { value: 'auto' }, 'Auto calendar'),
+    h('option', { value: 'auto' }, 'Display calendar'),
     h('option', { value: 'julian' }, 'Julian'),
     h('option', { value: 'gregorian' }, 'Gregorian'),
   );
@@ -79,33 +87,46 @@ export function dateEntry(options: {
     'div',
     { class: 'alm-entry', role: 'group', 'aria-label': 'UT date' },
     h('label', { class: 'alm-date-label', for: id('year') }, 'UT date'),
-    h('span', { class: 'alm-entry-fields' }, year, era, month, day),
+    h('span', { class: 'alm-entry-fields' }, year, era.el, month, day),
     cal,
     tag,
     err,
   );
 
   const read = (): DateEntryValue => ({
-    eraYear: Number(year.value),
-    era: era.value === 'BC' ? 'BC' : 'AD',
+    yearText: year.value,
+    era: era.value(),
     month: Number(month.value),
     day: Number(day.value),
   });
-  const submit = (): void => options.onSubmit(read(), cal.value as CalendarChoice);
+  function submit(): void {
+    options.onSubmit(read(), cal.value as CalendarChoice);
+  }
   const onKey = (event: KeyboardEvent): void => {
     if (event.key === 'Enter') submit();
+  };
+  // Up and Down step the typed year, as a number field does (and as the time bar's does).
+  const onYearKey = (event: KeyboardEvent): void => {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    const y = parseYear(year.value, era.value());
+    if (y === null) return;
+    event.preventDefault();
+    const next = eraOfYear(y + (event.key === 'ArrowUp' ? 1 : -1));
+    year.value = String(next.eraYear);
+    era.set(next.era);
   };
   for (const control of [year, day]) {
     control.addEventListener('change', submit);
     control.addEventListener('keydown', onKey);
   }
-  for (const control of [era, month]) control.addEventListener('change', submit);
+  year.addEventListener('keydown', onYearKey);
+  month.addEventListener('change', submit);
   const onCal = (): void => options.onCalendar(cal.value as CalendarChoice);
   cal.addEventListener('change', onCal);
 
-  const setTag = (c: CalendarKind): void => {
-    tag.textContent = calendarLabel(c);
-    tag.className = `alm-cal alm-cal--${c}`;
+  const setTag = (date: ShownDate): void => {
+    tag.textContent = calendarLabel(date);
+    tag.className = `alm-cal alm-cal--${date.calendar}`;
   };
 
   return {
@@ -114,12 +135,12 @@ export function dateEntry(options: {
       const typing = el.contains(document.activeElement) && document.activeElement !== cal;
       if (!typing) {
         year.value = String(date.era_year);
-        era.value = date.era;
+        era.set(date.era);
         month.value = String(date.month);
         day.value = String(date.day);
       }
       cal.value = choice;
-      setTag(date.calendar);
+      setTag(date);
     },
     calendar: () => cal.value as CalendarChoice,
     error(text) {
@@ -131,7 +152,8 @@ export function dateEntry(options: {
         control.removeEventListener('change', submit);
         control.removeEventListener('keydown', onKey);
       }
-      for (const control of [era, month]) control.removeEventListener('change', submit);
+      year.removeEventListener('keydown', onYearKey);
+      month.removeEventListener('change', submit);
       cal.removeEventListener('change', onCal);
     },
   };

@@ -1,48 +1,42 @@
 /**
- * Dates in any year for the Almanac view (almanac2 agent): the date entry (year with its
- * era, month, day, calendar), conversion between the explorer's instant and the wire's
- * proleptic Gregorian date, page headings in the display calendar, and the uncertainty
- * chip and notes of far dates.
+ * Dates in any year for the Almanac view (almanac2 agent), over the shared time helpers of
+ * `web/src/next/time/` (time-ui agent): the display calendar (Julian before 1582-10-15, or
+ * proleptic Gregorian with the ISO setting), years as Settings writes them (585 BC, −584,
+ * -0584), the ±ΔT chip, the tier sentences and the Deep time pack a date needs.
  *
- * Julian dates and years BC go through the engine's `calendarConvert` and `timeInfo`
- * (EXPLORER_API "Time scales, Delta-T and calendars"), never `Date`/`Intl`, which are
- * proleptic Gregorian only and map years 0-99 to the 1900s. MERGE (time-ui): when the
- * shared helpers of `web/src/next/time/` land (the calendar formatter, `tierAt`, the ±ΔT
- * chip), the functions below marked MERGE delegate to them.
+ * The almanac adds only what is its own: a calendar it may be told to use instead of the
+ * display calendar (`CalendarChoice`), the printed almanac's headings, and the note for
+ * dates before the first Nautical Almanac.
  */
 
-import { h } from '../../dom.js';
+import type { AlmanacOpeningDay, CalendarKind, TimeInfo } from '../engine/types.js';
+import type { Ctx } from '../component.js';
 import {
-  isTimeEngine,
-  type AlmanacOpeningDay,
-  type CalendarKind,
-  type TimeInfo,
-} from '../engine/types.js';
-import { chip } from '../theme/primitives.js';
-import { utDateOf } from './layout.js';
+  calendarMode,
+  calendarName,
+  calendarOfJdn,
+  civilFromJdn,
+  daysInMonthOf,
+  eraOfYear,
+  formatYear,
+  isGapDate,
+  isoDateKey,
+  isValidDate,
+  jdnFromDate,
+  MONTHS_LONG,
+  parseYear,
+  tierNotice,
+  timeInfoAt as sharedTimeInfoAt,
+  uncertaintyChip,
+} from '../time/index.js';
 
-/** The calendar the view shows: auto is Julian before 1582-10-15 (CONVENTIONS 15.3). */
+/** The calendar the almanac shows: `auto` is the display calendar of Settings. */
 export type CalendarChoice = 'auto' | 'julian' | 'gregorian';
 
-/** JD of 1582-10-15 00:00, the first day of the Gregorian calendar. */
-export const GREGORIAN_START_JD = 2_299_160.5;
 /** The first Nautical Almanac was for 1767. */
 export const FIRST_ALMANAC_YEAR = 1767;
 
-export const MONTHS = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
+export const MONTHS: readonly string[] = MONTHS_LONG;
 
 const WEEKDAY_ABBR: Record<string, string> = {
   Sunday: 'SUN.',
@@ -65,67 +59,51 @@ export interface ShownDate {
   era: 'BC' | 'AD';
   /** The wire date: proleptic Gregorian `YYYY-MM-DD`, expanded outside 0000-9999. */
   wire: string;
+  /** The day number (JDN). */
+  jdn: number;
 }
 
-/** `2026`, `-0584`, `+12345`: an astronomical year as ISO 8601 writes it. */
-export function isoYear(year: number): string {
-  if (year >= 0 && year <= 9999) return String(year).padStart(4, '0');
-  return year < 0 ? `-${String(-year).padStart(4, '0')}` : `+${year}`;
+/** The day number (JDN) of the UT date containing `jd`. */
+export function jdnOf(jd: number): number {
+  return Math.floor(jd + 0.5);
 }
 
-export function wireDate(year: number, month: number, day: number): string {
-  return `${isoYear(year)}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+/** The calendar a day is shown in under `choice`. */
+export function calendarOfDay(jdn: number, choice: CalendarChoice): CalendarKind {
+  return choice === 'auto' ? calendarOfJdn(jdn) : choice;
 }
 
-/** The astronomical year of a year as people write it (585 BC is -584). */
-export function astronomicalYear(eraYear: number, era: 'BC' | 'AD'): number {
-  return era === 'BC' ? 1 - eraYear : eraYear;
-}
-
-/** The calendar of a date typed in `choice`: auto is Julian before 1582-10-05, Gregorian
- * after 1582-10-14, and neither in between (CONVENTIONS 15.3: refused unless named). */
-export function calendarOfEntry(year: number, month: number, day: number, choice: CalendarChoice): CalendarKind | null {
+/** The engine's grouping argument for `choice`: auto follows the display calendar. */
+export function engineCalendar(choice: CalendarChoice): '' | 'julian' | 'gregorian' {
   if (choice !== 'auto') return choice;
-  const key = year * 10000 + month * 100 + day;
-  if (key < 15821005) return 'julian';
-  if (key > 15821014) return 'gregorian';
-  return null;
+  return calendarMode() === 'iso' ? 'gregorian' : '';
 }
 
-/** The calendar an instant is shown in. */
-export function calendarOfJd(jd: number, choice: CalendarChoice): CalendarKind {
-  if (choice !== 'auto') return choice;
-  return jd < GREGORIAN_START_JD ? 'julian' : 'gregorian';
-}
-
-/**
- * The UT date containing `jd`, in the display calendar. MERGE (time-ui): the calendar
- * formatter. Without a time engine (an older core) the date is proleptic Gregorian.
- */
-export function shownDate(engine: unknown, jd: number, choice: CalendarChoice): ShownDate {
-  if (isTimeEngine(engine)) {
-    const conv = engine.calendarConvert({ jd_utc: Math.floor(jd - 0.5) + 0.5 });
-    const cal = calendarOfJd(jd, choice);
-    const c = cal === 'julian' ? conv.julian : conv.gregorian;
-    return {
-      calendar: cal,
-      year: c.year,
-      month: c.month,
-      day: c.day,
-      era_year: c.era_year,
-      era: c.era,
-      wire: wireDate(conv.gregorian.year, conv.gregorian.month, conv.gregorian.day),
-    };
-  }
-  const wire = utDateOf(jd);
-  const [y, m, d] = wire.split('-').map(Number) as [number, number, number];
-  return { calendar: 'gregorian', year: y, month: m, day: d, era_year: y >= 1 ? y : 1 - y, era: y >= 1 ? 'AD' : 'BC', wire };
+/** The UT date containing `jd`, in the calendar the almanac shows. */
+export function shownDate(jd: number, choice: CalendarChoice): ShownDate {
+  const jdn = jdnOf(jd);
+  const cal = calendarOfDay(jdn, choice);
+  const c = civilFromJdn(cal, jdn);
+  const { eraYear, era } = eraOfYear(c.year);
+  return {
+    calendar: cal,
+    year: c.year,
+    month: c.month,
+    day: c.day,
+    era_year: eraYear,
+    era,
+    wire: isoDateKey(civilFromJdn('gregorian', jdn)),
+    jdn,
+  };
 }
 
 /** A date typed in the entry. */
 export interface DateEntryValue {
-  /** The year as people write it, 1 or more. */
-  eraYear: number;
+  /**
+   * The year as typed: a bare number (in `era`), or with its own sign or era, which wins
+   * over the switch: `1066`, `585 BC`, `AD 79`, `−584`, `-0584`, `+12345` (`parseYear`).
+   */
+  yearText: string;
   era: 'BC' | 'AD';
   month: number;
   day: number;
@@ -133,55 +111,41 @@ export interface DateEntryValue {
 
 /**
  * The instant on the typed date at `dayFraction` (0-1) of the UT day, or a sentence saying
- * why there is none. MERGE (time-ui): the calendar formatter's parser.
+ * why there is none. `auto` reads the date in the display calendar, where 5-14 October
+ * 1582 are refused unless a calendar is chosen (CONVENTIONS 15.3).
  */
-export function entryToJd(
-  engine: unknown,
-  entry: DateEntryValue,
-  choice: CalendarChoice,
-  dayFraction: number,
-): { jd: number } | { error: string } {
-  if (!Number.isInteger(entry.eraYear) || entry.eraYear < 1) return { error: 'Type a year of 1 or more, with AD or BC.' };
-  if (!Number.isInteger(entry.day) || entry.day < 1 || entry.day > 31) return { error: 'Type a day of the month, 1 to 31.' };
-  const year = astronomicalYear(entry.eraYear, entry.era);
-  const cal = calendarOfEntry(year, entry.month, entry.day, choice);
-  if (cal === null) {
+export function entryToJd(entry: DateEntryValue, choice: CalendarChoice, dayFraction: number): { jd: number } | { error: string } {
+  const year = parseYear(entry.yearText, entry.era);
+  if (year === null) return { error: 'Type a year such as 1066, 585 BC or −584.' };
+  if (!Number.isInteger(entry.month) || entry.month < 1 || entry.month > 12) return { error: 'Choose a month.' };
+  const fields = { year, month: entry.month, day: entry.day, ...(choice === 'auto' ? {} : { calendar: choice }) };
+  if (choice === 'auto' && isGapDate(fields)) {
     return {
       error:
         '5 to 14 October 1582 are in neither calendar as used: the Julian calendar ended on 4 October 1582 and the Gregorian began on 15 October. Choose a calendar to use one of them anyway.',
     };
   }
-  if (!isTimeEngine(engine)) {
-    if (cal === 'julian' || year < 0 || year > 9999) {
-      return { error: 'This build of the numerical core cannot convert calendars. Rebuild it with: npm run wasm --prefix web' };
-    }
-    const t = new Date(0);
-    t.setUTCFullYear(year, entry.month - 1, entry.day);
-    if (t.getUTCMonth() !== entry.month - 1) return { error: `${MONTHS[entry.month - 1]} ${entry.eraYear} has no day ${entry.day}.` };
-    return { jd: t.getTime() / 86_400_000 + 2_440_587.5 + dayFraction };
+  if (!isValidDate(fields)) {
+    const cal = choice === 'auto' ? calendarOfDay(jdnFromDate({ ...fields, day: 1 }), 'auto') : choice;
+    const days = daysInMonthOf(cal, year, entry.month);
+    return { error: `${MONTHS[entry.month - 1]} ${formatYear(year)} has ${days} days (${cal === 'julian' ? 'Julian' : 'Gregorian'} calendar).` };
   }
-  try {
-    const conv = engine.calendarConvert({ civil: { calendar: cal, year, month: entry.month, day: entry.day } });
-    return { jd: conv.jd_utc + dayFraction };
-  } catch (error) {
-    const text = error instanceof Error ? error.message : String(error);
-    return { error: `That is not a date in the ${cal === 'julian' ? 'Julian' : 'Gregorian'} calendar (${text.replace(/^calendar_convert: /, '')}).` };
-  }
+  return { jd: jdnFromDate(fields) - 0.5 + dayFraction };
 }
 
-/** `585 BC` or `2026`. */
-export function yearText(eraYear: number, era: 'BC' | 'AD'): string {
-  return era === 'BC' ? `${eraYear} BC` : String(eraYear);
+/** A year as Settings writes it: `585 BC`, `−584`, `-0584`, `2026`. */
+export function yearText(year: number): string {
+  return formatYear(year);
 }
 
 /** `2016 MARCH 7, 8, 9 (MON., TUES., WED.)`, the printed almanac's opening heading. */
 export function openingHeading(dates: readonly AlmanacOpeningDay[]): string {
   const first = dates[0]!;
-  let text = `${yearText(first.era_year, first.era)} ${MONTHS[first.month - 1]!.toUpperCase()} ${first.day}`;
+  let text = `${yearText(first.year)} ${MONTHS[first.month - 1]!.toUpperCase()} ${first.day}`;
   for (let i = 1; i < dates.length; i += 1) {
     const d = dates[i]!;
     const prev = dates[i - 1]!;
-    if (d.year !== prev.year) text += `, ${yearText(d.era_year, d.era)} ${MONTHS[d.month - 1]!.toUpperCase()} ${d.day}`;
+    if (d.year !== prev.year) text += `, ${yearText(d.year)} ${MONTHS[d.month - 1]!.toUpperCase()} ${d.day}`;
     else if (d.month !== prev.month) text += `, ${MONTHS[d.month - 1]!.toUpperCase()} ${d.day}`;
     else text += `, ${d.day}`;
   }
@@ -190,12 +154,19 @@ export function openingHeading(dates: readonly AlmanacOpeningDay[]): string {
 
 /** `2026 SEPTEMBER 24 (THURSDAY)`, a one-day heading in the display calendar. */
 export function dayHeading(date: ShownDate, weekday: string): string {
-  return `${yearText(date.era_year, date.era)} ${MONTHS[date.month - 1]!.toUpperCase()} ${date.day} (${weekday.toUpperCase()})`;
+  return `${yearText(date.year)} ${MONTHS[date.month - 1]!.toUpperCase()} ${date.day} (${weekday.toUpperCase()})`;
 }
 
-/** `Julian calendar` / `Gregorian calendar`, for a label beside the date. */
-export function calendarLabel(cal: CalendarKind): string {
-  return cal === 'julian' ? 'Julian calendar' : 'Gregorian calendar';
+/**
+ * The calendar a shown date is in, in words (the shared `calendarName`): `Julian calendar`,
+ * `Gregorian calendar`, or `proleptic Gregorian calendar (ISO 8601)` for a Gregorian date
+ * before 1582-10-15, whether Settings or the almanac's own choice asked for it.
+ */
+export function calendarLabel(date: Pick<ShownDate, 'calendar' | 'year' | 'month' | 'day'>): string {
+  return calendarName(
+    { year: date.year, month: date.month, day: date.day, calendar: date.calendar },
+    date.calendar === 'gregorian' ? 'iso' : calendarMode(),
+  );
 }
 
 /** The sentence for dates before the first Nautical Almanac, or null. */
@@ -205,47 +176,23 @@ export function anachronismNote(year: number): string | null {
     : null;
 }
 
-/** ΔT's uncertainty as the chip writes it: `±40 s`, `±12 min`, `±2.1 h`. */
-export function sigmaText(seconds: number): string {
-  if (seconds < 90) return `±${Math.round(seconds)} s`;
-  if (seconds < 5400) return `±${Math.round(seconds / 60)} min`;
-  return `±${(seconds / 3600).toFixed(1)} h`;
-}
-
-/** The engine's time information for an instant, or null (an older core, or a failure). */
-export function timeInfoAt(engine: unknown, jd: number): TimeInfo | null {
-  if (!isTimeEngine(engine)) return null;
-  try {
-    return engine.timeInfo(jd);
-  } catch {
-    return null;
-  }
+/** The engine's time information for an instant (shared, remembered), or null. */
+export function timeInfoAt(ctx: Ctx, jd: number): TimeInfo | null {
+  return sharedTimeInfoAt(ctx, jd);
 }
 
 /**
- * The ±ΔT chip beside a page heading when the Earth's rotation at the date is uncertain by
- * more than 30 s (EXPANSION_PLAN 3; the wave-2 rule: never a labelled-tier time without
- * its chip). MERGE (time-ui): `uncertaintyChip(timeInfo)`.
+ * The ±ΔT chip beside a page heading (the shared `uncertaintyChip`): shown when the Earth's
+ * rotation is uncertain by more than 30 s, and always in the labelled tier. Null when it
+ * has nothing to show, so a heading does not carry an empty element.
  */
 export function deltaTChip(info: TimeInfo | null): HTMLElement | null {
-  if (!info || !(info.delta_t_sigma_s > 30)) return null;
-  const s = info.delta_t_sigma_s;
-  const gha = (s / 240).toFixed(s / 240 >= 10 ? 0 : 1);
-  return chip({
-    label: sigmaText(s),
-    class: 'alm-dt-chip',
-    tip: `The Earth's rotation at this date is known only to ${sigmaText(s)} (ΔT), so every time on these pages, and every GHA (by ${gha}°), carries that uncertainty; declinations and SHA do not.`,
-  });
+  const chip = uncertaintyChip(info);
+  return chip.hidden ? null : chip;
 }
 
-/** The labelled tier's sentence (historical or far-future estimate), or null. */
-export function tierNote(info: TimeInfo | null): string | null {
-  if (!info || info.tier !== 'labelled') return null;
-  const past = info.civil.year < 1550;
-  return `${past ? 'Historical' : 'Far-future'} estimate: outside 1550–2650 these pages come from the deep-time series, with the accuracy the About view tabulates, and every time and GHA carries the ΔT uncertainty shown beside the heading.`;
-}
-
-/** The small element that says which calendar a date is in. */
-export function calendarTag(cal: CalendarKind): HTMLElement {
-  return h('span', { class: `alm-cal alm-cal--${cal}` }, calendarLabel(cal));
+/** The tier's sentence (historical or far-future estimate) for the page's notes, or null. */
+export function tierNote(ctx: Ctx, jd: number): string | null {
+  const n = tierNotice(ctx, jd);
+  return n && n.persistent ? n.text : null;
 }

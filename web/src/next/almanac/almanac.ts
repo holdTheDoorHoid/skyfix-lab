@@ -29,7 +29,6 @@ import { disposer, watch, type Component, type Ctx, type Mounted } from '../comp
 import {
   isAlmanacEngine,
   isAlmanacTablesEngine,
-  type AlmanacCalendarChoice,
   type AlmanacEngine,
   type AlmanacTablesEngine,
   type AltitudeTables,
@@ -45,13 +44,15 @@ import { oneDayPages, openingPages, type HourRows, type RenderedPages } from './
 import {
   anachronismNote,
   deltaTChip,
+  engineCalendar,
   entryToJd,
   shownDate,
   tierNote,
   timeInfoAt,
+  yearText,
   type CalendarChoice,
-  type ShownDate,
 } from './dates.js';
+import { dayMonthYear, packForDate, packReason, tierAt, tierNotice } from '../time/index.js';
 import { dateEntry } from './entry.js';
 import { utHourOf } from './layout.js';
 import { altitudeSheets, arcSheet, incrementsSheet, polarisSheets } from './tables.js';
@@ -91,10 +92,6 @@ let lastIncrementsPage = 0;
 
 function errorText(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function calendarArg(choice: CalendarChoice): AlmanacCalendarChoice {
-  return choice === 'auto' ? '' : choice;
 }
 
 interface Env {
@@ -159,7 +156,7 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
       lastCalendar = choice;
       const jd = ctx.store.get().time.jd_utc;
       const fraction = jd + 0.5 - Math.floor(jd + 0.5);
-      const r = entryToJd(ctx.engine, value, choice, fraction);
+      const r = entryToJd(value, choice, fraction);
       if ('error' in r) {
         entry.error(r.error);
         return;
@@ -229,7 +226,7 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
     for (const tr of lit) tr.classList.remove('alm-now');
     lit = [];
     const jd = ctx.store.get().time.jd_utc;
-    const sd = shownDate(ctx.engine, jd, lastCalendar);
+    const sd = shownDate(jd, lastCalendar);
     const di = shownWire.indexOf(sd.wire);
     if (di < 0) return;
     const hour = utHourOf(jd);
@@ -245,12 +242,10 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
     highlight();
   };
 
-  const coverageHelp = async (sd: ShownDate, text: string): Promise<void> => {
-    if (!/coverage/i.test(text)) return;
-    const ok = await ctx.packs.ensure(
-      'deep-time',
-      `Almanac pages for ${sd.era === 'BC' ? `${sd.era_year} BC` : sd.era_year} need the deep-time data (positions from 2000 BC to AD 3000).`,
-    );
+  const coverageHelp = async (jd: number): Promise<void> => {
+    const pack = packForDate(ctx.packs, jd);
+    if (!pack) return;
+    const ok = await ctx.packs.ensure(pack.name, packReason(jd, ctx));
     if (ok) {
       shownWire = [];
       render.now();
@@ -259,19 +254,30 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
 
   const draw = (): void => {
     const jd = ctx.store.get().time.jd_utc;
-    const sd = shownDate(ctx.engine, jd, lastCalendar);
+    const sd = shownDate(jd, lastCalendar);
     entry.set(sd, lastCalendar);
     if (shownWire.includes(sd.wire) && shownMode === mode && shownCalendar === lastCalendar) {
       if (mode === 'opening') shownIndex = shownWire.indexOf(sd.wire);
       highlight();
       return;
     }
-    const info = timeInfoAt(ctx.engine, jd);
+    if (tierAt(ctx, jd) === 'outside') {
+      // Nothing to ask the engine: say so, and offer the Deep time pack when it covers the date.
+      const pack = packForDate(ctx.packs, jd);
+      const notice = tierNotice(ctx, jd, { dateText: dayMonthYear(sd), pack });
+      spread.replaceChildren(message(notice?.text ?? `No almanac page for ${yearText(sd.year)}.`));
+      shownWire = [];
+      shownMode = null;
+      status.textContent = '';
+      if (pack) void coverageHelp(jd);
+      return;
+    }
+    const info = timeInfoAt(ctx, jd);
     const chip = deltaTChip(info);
-    const extra = [anachronismNote(sd.year), tierNote(info)].filter((x): x is string => !!x);
+    const extra = [anachronismNote(sd.year), tierNote(ctx, jd)].filter((x): x is string => !!x);
     try {
       if (mode === 'opening' && env.tables) {
-        const o = env.tables.almanacOpening(sd.wire, calendarArg(lastCalendar));
+        const o = env.tables.almanacOpening(sd.wire, engineCalendar(lastCalendar));
         // The engine's notes already say it for an opening before 1767.
         show(openingPages(o, extra.filter((x) => !x.startsWith('The first Nautical')), chip, env.mock));
         shownWire = o.dates.map((x) => x.date);
@@ -296,7 +302,7 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
       spread.replaceChildren(message(text));
       shownWire = [];
       status.textContent = '';
-      void coverageHelp(sd, text);
+      void coverageHelp(jd);
     }
   };
   const render = settler(draw);
@@ -304,7 +310,7 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
 
   d.add(
     watch(ctx, (s) => s.time.jd_utc, (jd) => {
-      const sd = shownDate(ctx.engine, jd, lastCalendar);
+      const sd = shownDate(jd, lastCalendar);
       if (shownWire.includes(sd.wire) && shownMode === mode && shownCalendar === lastCalendar) {
         entry.set(sd, lastCalendar);
         if (mode === 'opening') shownIndex = shownWire.indexOf(sd.wire);
@@ -453,8 +459,8 @@ function arcminOf(printed: string): number {
 // ---------------------------------------------------------------------------
 
 function displayYear(env: Env): { year: number; label: string } {
-  const sd = shownDate(env.ctx.engine, env.ctx.store.get().time.jd_utc, lastCalendar);
-  return { year: sd.year, label: sd.era === 'BC' ? `${sd.era_year} BC` : String(sd.year) };
+  const sd = shownDate(env.ctx.store.get().time.jd_utc, lastCalendar);
+  return { year: sd.year, label: yearText(sd.year) };
 }
 
 function mountAltitude(panel: HTMLElement, env: Env): TabMounted {
@@ -498,7 +504,7 @@ function mountAltitude(panel: HTMLElement, env: Env): TabMounted {
     if (planetsYear !== year) {
       planetsYear = year;
       try {
-        planets = tables.almanacPlanetCorrections(year, calendarArg(lastCalendar));
+        planets = tables.almanacPlanetCorrections(year, engineCalendar(lastCalendar));
       } catch {
         planets = null;
       }
@@ -550,7 +556,7 @@ function mountAltitude(panel: HTMLElement, env: Env): TabMounted {
   d.add(
     watch(
       env.ctx,
-      (s) => shownDate(env.ctx.engine, s.time.jd_utc, lastCalendar).year,
+      (s) => shownDate(s.time.jd_utc, lastCalendar).year,
       (year) => {
         if (year !== planetsYear) settle.request();
       },
@@ -595,7 +601,7 @@ function mountPolaris(panel: HTMLElement, env: Env): TabMounted {
     const { year, label } = displayYear(env);
     if (year === shownYear && table) return;
     try {
-      table = tables.almanacPolaris(year, calendarArg(lastCalendar));
+      table = tables.almanacPolaris(year, engineCalendar(lastCalendar));
       shownYear = year;
       sheets.replaceChildren(...polarisSheets(table, env.mock));
       lookup();
@@ -609,7 +615,7 @@ function mountPolaris(panel: HTMLElement, env: Env): TabMounted {
   d.add(() => {
     for (const el of [lhaDeg, lhaMin, lat, month]) el.removeEventListener('change', lookup);
   });
-  month.value = String(shownDate(env.ctx.engine, env.ctx.store.get().time.jd_utc, lastCalendar).month);
+  month.value = String(shownDate(env.ctx.store.get().time.jd_utc, lastCalendar).month);
   panel.append(
     h(
       'div',
@@ -633,7 +639,7 @@ function mountPolaris(panel: HTMLElement, env: Env): TabMounted {
   d.add(
     watch(
       env.ctx,
-      (s) => shownDate(env.ctx.engine, s.time.jd_utc, lastCalendar).year,
+      (s) => shownDate(s.time.jd_utc, lastCalendar).year,
       () => settle.request(),
       { immediate: false },
     ),
