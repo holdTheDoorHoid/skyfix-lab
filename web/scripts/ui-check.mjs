@@ -506,6 +506,13 @@ async function main() {
       }
       await viewport(1440, 900, false);
 
+      // "Show on the map" marks the tide station and opens the map.
+      await open(`${MOMENT}&view=charts`);
+      await openChart('tides');
+      await evaluate(`[...document.querySelectorAll('.sfc-card--tides button')].find((b) => /Show on the map/.test(b.textContent))?.click(); true`);
+      const onMap = await waitFor(`/^Map/.test(document.title)`, 10000);
+      check('Tides: Show on the map opens the map with the station marked', onMap, await evaluate('document.title'));
+
       // The Save menu writes a real picture and a real CSV file (into a scratch folder).
       const downloads = join(scratch, 'downloads');
       mkdirSync(downloads, { recursive: true });

@@ -155,8 +155,10 @@ export const tidesChart: ChartComponent = (host, ctx, ui) => {
         const st = shell.data?.station;
         if (!st) return;
         const map = mapServiceFor(ctx);
+        // The map lists it under "Other drawings" until map/controls.ts OVERLAY_OWNERS names
+        // the `charts-` prefix (the map agent's file).
         map.addOverlay(
-          'tides-station',
+          'charts-tide-station',
           { type: 'FeatureCollection', features: [pointFeature({ lat_deg: st.lat_deg, lon_deg: st.lon_deg }, { label: `Tide station: ${st.name}` })] },
           { color: '--info', labelProperty: 'label', pointRadius: 6 },
         );

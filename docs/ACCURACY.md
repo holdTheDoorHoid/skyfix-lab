@@ -2289,7 +2289,25 @@ analemma's sky projection (stereographic, a picture only). The solar panel's ene
 engine's clear-sky estimate and is labelled as one everywhere, with the model's typical
 error (section 14); the tides are labelled "predicted, not observed" everywhere.
 
-Speed (Chrome, the explorer's own `data-compute` timings on the shared development machine,
-`node web/scripts/ui-check.mjs` with `ONLY=charts`): see the planner's report for the
-figures of the run; every year chart computes once per place, year and setting, after the
-time settles when it is dragged, and is kept for the page's lifetime.
+Speed: the developer page's bench (`web/src/next/charts/dev/screenshots.mjs bench`,
+headless Chrome, WebAssembly, the median of six warm runs after a cold first one). The
+shared machine was under a load average of about 40 on 8 cores, so the numbers are
+comparable with each other and with the existing Year chart in the same run, not in
+absolute terms:
+
+| chart (engine work) | warm median (first) |
+|---|---|
+| Year chart, for comparison (`day_events_batch`, 365 days) | 420 ms (657) |
+| Sun path (`sun_path`, `day_events`, `sky_state`) | 67 ms (77) |
+| Analemma (`analemma`, a year) | 188 ms (242) |
+| Sunrise bearings | shared with the Year chart: nothing more once it is drawn |
+| Equation of time (a year) | 141 ms (65) |
+| Solar panel (`solar_year` with the best-tilt search) | 273 ms (377) |
+| Moon through the year (`sample_bodies`, 365 exact samples) | 157 ms (126) |
+| Perigee and apogee of a month (`moon_apsides`) | 213 ms (305) |
+| Tides, a day / a week | 20 ms / 35 ms |
+
+Every year chart is at or under the Year chart's own cost (the solar panel at about 0.65 of
+it), computes once per place, year and setting, runs after the time settles while the time
+bar is dragged, and is kept for the page's lifetime; nothing heavier than a cursor moves per
+frame.
