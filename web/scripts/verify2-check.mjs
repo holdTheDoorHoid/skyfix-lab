@@ -14,6 +14,8 @@
  *             tier; everything else under 0.1 ms a frame. Run it on an unminified build
  *             (`npx vite build --minify false --outDir …`, then SITE=that directory), where
  *             the exports keep their names;
+ *   air       Settings → Air (1030 hPa, −10 °C) starts the Almanac's Table A4 form; at the
+ *             standard air the form is empty;
  *   exports   the Events calendar file read by a real iCalendar parser (Python `icalendar`), its
  *             table by Python's `csv`, the Sky picture and a chart's PNG opened by Pillow;
  *   packs     the tides pack's prompt answered Not now (nothing fetched, the prompt gone) and Get
@@ -74,7 +76,7 @@ const COUNT_CALLS = `(() => {
 })();`;
 /** Exports a view may call every frame during fast playback: the positions, the clock's chip and tier. */
 const PER_FRAME = new Set(['sky_state', 'time_info', 'tier_at', 'packs', 'tide_pack_info', 'explorer_coverage']);
-const ONLY = new Set((process.env.ONLY ?? 'chip,playback,exports,packs,tiers').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'chip,playback,air,exports,packs,tiers').split(','));
 const CLI = resolve(REPO, 'target/release/skyfix');
 const PY = process.env.VERIFY2_PY ?? join(REPO, 'tools/reference/.venv/bin/python');
 const PYLIB = process.env.VERIFY2_PYLIB ?? '';
@@ -310,14 +312,14 @@ async function main() {
   // Every call into the core counted by export: the glue's instance gets exports wrapped in
   // a counting proxy (window.__wasmCalls), before any page script runs.
   await send('Page.addScriptToEvaluateOnNewDocument', { source: COUNT_CALLS });
-  const summary = { chip: [], playback: {}, exports: {}, packs: {}, tiers: {} };
+  const summary = { chip: [], playback: {}, air: {}, exports: {}, packs: {}, tiers: {} };
   const viewport = (w, h, mobile) => send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: mobile ? 2 : 1, mobile });
-  const open = async (hash, { theme = 'dark' } = {}) => {
+  const open = async (hash, { theme = 'dark', settings = {} } = {}) => {
     await send('Page.navigate', { url: 'about:blank' });
     await sleep(100);
     await send('Page.navigate', { url: `${BASE}?setup` });
     await waitFor('document.readyState === "complete"');
-    await evaluate(`localStorage.clear(); localStorage.setItem('skyfix.explorer.prefs.v1', JSON.stringify({ settings: { theme: '${theme}' } })); localStorage.setItem('skyfix.explorer.tour.v1', 'done'); true`);
+    await evaluate(`localStorage.clear(); localStorage.setItem('skyfix.explorer.prefs.v1', JSON.stringify({ settings: ${JSON.stringify({ theme, ...settings })} })); localStorage.setItem('skyfix.explorer.tour.v1', 'done'); true`);
     await send('Page.navigate', { url: 'about:blank' });
     await sleep(100);
     await send('Page.navigate', { url: `${BASE}#${hash}` });
@@ -391,6 +393,23 @@ async function main() {
         const plans = slow.calls.plan_sights ?? 0;
         check(`${view}: at an hour a second tonight's sights are planned at most once in the 4 s profiled`, plans <= 1, `plan_sights ${plans} calls, ${slow.wasmByExport?.plan_sights ?? 0} ms`);
       }
+    }
+
+    // The air from Settings → Sights reaches the Almanac's Table A4 (the engine side is
+    // web/test/next/verify2-air.test.ts): the form starts from it when it is not standard.
+    if (ONLY.has('air')) {
+      const almanacAltitude = async (settings) => {
+        await open(`${PLACE}&t=2026-06-20T12:00:00Z&view=almanac`, { settings });
+        await evaluate(`[...document.querySelectorAll('.alm-tabs [role=tab]')].find((b) => /Altitude/.test(b.textContent))?.click(); true`);
+        await waitFor(`!!document.querySelector('.alm-result')?.textContent`, 20000);
+        await sleep(500);
+        return evaluate(`document.querySelector('.alm-result')?.textContent ?? ''`);
+      };
+      const standard = await almanacAltitude({});
+      check('the Almanac’s A4 form is empty at the standard air', /^Venus and Mars for/.test(standard), JSON.stringify(standard.slice(0, 90)));
+      const dense = await almanacAltitude({ pressure_hpa: 1030, temperature_c: -10 });
+      summary.air = { standard, dense };
+      check('the Almanac’s A4 form starts from Settings → Air (1030 hPa, −10 °C)', /^-10\.0 °C and 1030\.0 hPa: air density/.test(dense), JSON.stringify(dense.slice(0, 120)));
     }
 
     // Exports opened by real readers.

@@ -583,6 +583,15 @@ function mountAltitude(panel: HTMLElement, env: Env): TabMounted {
   );
   const settle = settler(draw);
   d.add(() => settle.cancel());
+  // The air from Settings → Sights starts the form when it is not the standard air, so Table
+  // A4's zone and exact corrections are for the air every other refraction on the page uses
+  // (verify2; the printed tables stay at the standard air, as the book's do).
+  const air = env.ctx.store.get().settings;
+  if (air.pressure_hpa !== 1010 || air.temperature_c !== 10) {
+    tIn.value = String(air.temperature_c);
+    pIn.value = String(air.pressure_hpa);
+    conditions = readConditions();
+  }
   draw();
   // Venus and Mars follow the year of the explorer's time.
   d.add(

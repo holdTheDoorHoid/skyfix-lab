@@ -569,6 +569,11 @@ position if you work the same sight both ways. The difference is the book's, and
 only star where the two disagree by more than a few hundredths of an arcminute. Neither
 models what a sextant sees, the combined light of A and B, about 2″ from A in 2026
 ([Accuracy and limitations](ACCURACY.md), "Rigil Kentaurus").
+
+When **Settings → Sights → Air** is not the standard 1010 hPa and 10 °C, the Altitude
+corrections tab starts its temperature and pressure from it, so the extra correction's zone
+and exact values are for the same air as the heights, the predicted reading and tonight's
+sights; the printed tables stay at the standard air, as the book's do.
 <!-- /verify2 -->
 
 ![A daily almanac page: GHA and declination for Aries, the four navigational planets and every navigational star, at every hour of the day.](design/almanac-screen.png)
