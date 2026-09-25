@@ -26,6 +26,7 @@ import { coverageKey, observerOf } from './listtab.js';
 import { nextAfter } from './model.js';
 import { eventRow, splitView, type Badge, type Row } from './rows.js';
 import { moonGlare, moonWords, nightWords, rateText, showerId, showerItem, tonightLine } from './sky-model.js';
+import { rangeWords } from '../time/tier.js';
 
 /** Showers this strong or variable get a bar in the year strip; the list has them all. */
 export const STRIP_MIN_ZHR = 10;
@@ -205,7 +206,19 @@ export const showersTab: TabComponent = (host, env) => {
         ol.append(r.row.el);
       }
       listHost.replaceChildren(...groups);
-      if (!rows.length) listHost.append(h('p', { class: 'sfe-message' }, cache.error ? `Meteor showers could not be computed for ${formatYear(year)}: ${cache.error}. ${coveredSentence(ctx.engine, 'Meteor showers')}.` : `No meteor showers in ${formatYear(year)}.`));
+      const years = cache.error ? rangeWords(cache.error) : null;
+      if (!rows.length)
+        listHost.append(
+          h(
+            'p',
+            { class: 'sfe-message' },
+            years
+              ? `No meteor showers for ${formatYear(year)}: they are worked out only for ${years}.`
+              : cache.error
+                ? `Meteor showers could not be computed for ${formatYear(year)}: ${cache.error}. ${coveredSentence(ctx.engine, 'Meteor showers')}.`
+                : `No meteor showers in ${formatYear(year)}.`,
+          ),
+        );
       strip.replaceChildren(yearStrip(showers, year, u.anchor));
       const cal = items.length ? calendarNote([items[0]!.start, items[items.length - 1]!.start], zone) : '';
       notes.replaceChildren(

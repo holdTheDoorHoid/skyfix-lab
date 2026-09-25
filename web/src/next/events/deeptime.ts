@@ -12,7 +12,7 @@
 import { h } from '../../dom.js';
 import type { Ctx } from '../component.js';
 import type { ExplorerEngine, TimeInfo } from '../engine/types.js';
-import { msFromJd, wallClock, type Zone } from '../time.js';
+import { jdFromIso, msFromJd, wallClock, type Zone } from '../time.js';
 import { calendarTag, calendarTip, chipNeeded, coverageBounds, formatYear, gregorianDateOfMs, packForDate, sigmaText, timeInfoAt } from '../time/index.js';
 
 /** The Gregorian (wire) year of a UTC Julian date, astronomical numbering (the engine's years). */
@@ -25,18 +25,67 @@ export function yearText(year: number): string {
   return formatYear(year);
 }
 
-/** `1990 to 2060`, `2000 BC to AD 3000`: the years the engine covers now. */
-export function coverageYears(engine: ExplorerEngine): string {
-  const c = coverageBounds(engine);
+/**
+ * The span a list's own engine answers, as its results state it (`coverage_start_utc`,
+ * `coverage_end_utc`): the eclipses and the planets' events keep 1990-2060, the conjunctions,
+ * stations, transits, occultations and apsides the validated tier, while the explorer covers
+ * 2000 BC to AD 3000 (polish2, after the deeptime merge).
+ */
+export interface OwnSpan {
+  start_utc: string;
+  end_utc: string;
+}
+
+const ownSpans = new WeakMap<object, Map<string, OwnSpan | null>>();
+
+/**
+ * A list engine's own span, learnt once per engine from a one-hour call at J2000 (inside
+ * every engine's span) that `probe` makes; null when the engine does not say.
+ */
+export function listCoverage(
+  engine: ExplorerEngine,
+  name: string,
+  probe: (jd: number) => { coverage_start_utc?: string; coverage_end_utc?: string } | null | undefined,
+): OwnSpan | null {
+  let map = ownSpans.get(engine);
+  if (!map) ownSpans.set(engine, (map = new Map()));
+  if (!map.has(name)) {
+    let span: OwnSpan | null = null;
+    try {
+      const r = probe(2_451_545.0);
+      span = r?.coverage_start_utc && r.coverage_end_utc ? { start_utc: r.coverage_start_utc, end_utc: r.coverage_end_utc } : null;
+    } catch {
+      span = null;
+    }
+    map.set(name, span);
+  }
+  return map.get(name) ?? null;
+}
+
+/** An own span as Julian dates, or null. */
+export function ownSpanJd(own: OwnSpan | null | undefined): { start: number; end: number } | null {
+  if (!own) return null;
+  const start = jdFromIso(own.start_utc);
+  const end = jdFromIso(own.end_utc);
+  return start !== null && end !== null && end > start ? { start, end } : null;
+}
+
+/** `1990 to 2060`, `2000 BC to AD 3000`: the years the engine covers now (or a list's own span). */
+export function coverageYears(engine: ExplorerEngine, own?: OwnSpan | null): string {
+  const o = ownSpanJd(own);
+  const c = o ?? coverageBounds(engine);
   if (!c) return 'the years this engine covers';
   const a = wireYear(c.start);
   const b = wireYear(c.end);
   return `${formatYear(a)} to ${formatYear(b, undefined, { era: a <= 0 ? 'always' : 'auto' })}`;
 }
 
-/** "Eclipses are computed for 1990 to 2060" and the like (`what` is plural), with the engine's own years. */
-export function coveredSentence(engine: ExplorerEngine, what: string): string {
-  return `${what} are computed for ${coverageYears(engine)}`;
+/**
+ * "Eclipses are computed for 1990 to 2060" and the like (`what` is plural), with the years the
+ * list's own engine answers when it says (`own`), else the explorer's.
+ */
+export function coveredSentence(engine: ExplorerEngine, what: string, own?: OwnSpan | null): string {
+  return `${what} are computed for ${coverageYears(engine, own)}`;
 }
 
 /**
@@ -88,9 +137,9 @@ export function calendarNote(jds: readonly number[], zone: Zone): string {
  * extend it, a Get button (the "not saved on this device" state of the packs brief).
  * `edge` is an instant beyond which the list could not go.
  */
-export function truncatedNote(ctx: Ctx, what: string, edge: number): HTMLElement {
+export function truncatedNote(ctx: Ctx, what: string, edge: number, own?: OwnSpan | null): HTMLElement {
   const note = h('div', { class: 'sfe-truncated' });
-  note.append(h('p', { class: 'sfe-note' }, `${coveredSentence(ctx.engine, what)}; the list stops there.`));
+  note.append(h('p', { class: 'sfe-note' }, `${coveredSentence(ctx.engine, what, own)}; the list stops there.`));
   const pack = packForDate(ctx.packs, edge);
   if (pack) {
     const size = pack.bytes > 0 ? ` (${(pack.bytes / 1e6).toFixed(pack.bytes >= 1e7 ? 0 : 1)} MB)` : '';

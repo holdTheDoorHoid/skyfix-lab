@@ -46,7 +46,7 @@ import { jdFromIso, roundToMinute, UTC_ZONE, zoneShortName, type Zone } from '..
 import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { button, readout, segmented, switchRow } from '../theme/primitives.js';
-import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, listCoverage, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
 import { formatBytes } from '../packs/manifest.js';
 import { clockPosition } from './moon-model.js';
 import { errorText, watchAll, type EclipseYears, type TabComponent, type TabEnv } from './env.js';
@@ -793,6 +793,8 @@ export const eclipsesTab: TabComponent = (host, env) => {
   let subscribed: object | null = null;
   let stopSub: (() => void) | null = null;
   d.add(() => stopSub?.());
+  /** The years the eclipse engine answers (its lists' `coverage_*_utc`). */
+  const eclipseSpan = () => listCoverage(ctx.engine, 'eclipses', (t) => engine.eclipses(t, t + 1 / 24));
   const eclipseSearch = () => {
     const search = env.shared.search<Eclipse>('eclipses', coverageKey(env), (pace) => ({
       chunkDays: ECLIPSE_CHUNK_DAYS,
@@ -800,7 +802,8 @@ export const eclipsesTab: TabComponent = (host, env) => {
       key: (e) => e.id,
       time: (e) => e.greatest.jd_utc,
       pace,
-      coverage: () => coverageSpan(env),
+      // The eclipse engine's own span (1990-2060), narrower than the explorer's (polish2).
+      coverage: () => coverageSpan(env, eclipseSpan()),
     }));
     if (search !== subscribed) {
       stopSub?.();
@@ -966,10 +969,10 @@ export const eclipsesTab: TabComponent = (host, env) => {
         h(
           'p',
           { class: 'sfe-message' },
-          `No eclipses in these years. ${coveredSentence(ctx.engine, 'Eclipses')}: move the explorer’s time inside that span.`,
+          `No eclipses in these years. ${coveredSentence(ctx.engine, 'Eclipses', eclipseSpan())}: move the explorer’s time inside that span.`,
         ),
       );
-    } else if (!items.length && !pending.length) {
+    } else if (!items.length && !pending.length && searchState?.done !== false) {
       notes.push(
         h('p', { class: 'sfe-message' }, `None of these eclipses can be seen from ${st.place}. Turn off “Seen from here” to list them all.`),
       );
@@ -979,7 +982,7 @@ export const eclipsesTab: TabComponent = (host, env) => {
     if (truncated) {
       const a = ui.get().anchor;
       const days = ui.get().eclipseYears * YEAR_DAYS;
-      notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + days : a - days));
+      notes.push(truncatedNote(ctx, 'Eclipses', ui.get().eclipseDirection === 'upcoming' ? a + days : a - days, eclipseSpan()));
     }
     list.replaceChildren(...groups, ...notes);
     placeCard();
