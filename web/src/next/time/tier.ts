@@ -230,6 +230,39 @@ function ephemerisPackLabels(source: EngineSource, loaded: readonly string[]): s
 }
 
 // ---------------------------------------------------------------------------------
+// An engine's refusal in plain words
+// ---------------------------------------------------------------------------------
+
+const ISO_INSTANT = String.raw`([+-]?\d{4,6}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?Z)`;
+const RANGE_IN_ERROR = new RegExp(`${ISO_INSTANT}\\s*(?:\\.\\.|to|–)\\s*${ISO_INSTANT}`);
+
+/**
+ * The span an engine's out-of-range error names ("jd_utc … is outside the star field's range
+ * 1550-01-01T00:00:00Z .. 2650-01-22T00:00:00Z", "… outside the ephemeris coverage
+ * (1550-01-01T00:00:00.000Z to 2650-01-22T00:00:00.000Z)"), or null for any other error.
+ * polish2: several display engines still answer only the validated tier after the deeptime
+ * merge (the star field, the deep-sky and planet-detail calls), and their raw messages were
+ * shown as they came.
+ */
+export function rangeOfError(message: string): { start: number; end: number } | null {
+  if (!/outside/i.test(message)) return null;
+  const m = RANGE_IN_ERROR.exec(message);
+  if (!m) return null;
+  const start = jdFromIso(m[1]!.replace(/\.\d+Z$/, 'Z'));
+  const end = jdFromIso(m[2]!.replace(/\.\d+Z$/, 'Z'));
+  return start !== null && end !== null && end > start ? { start, end } : null;
+}
+
+/** `1550 to 2650`: the years of an out-of-range error, in the year style; null for another error. */
+export function rangeWords(message: string): string | null {
+  const r = rangeOfError(message);
+  if (!r) return null;
+  const a = wireYear(r.start);
+  const b = wireYear(r.end);
+  return `${formatYear(a)} to ${formatYear(b, undefined, { era: a <= 0 ? 'always' : 'auto' })}`;
+}
+
+// ---------------------------------------------------------------------------------
 // A pack that would extend the years (none ships today: both tiers are in the core)
 // ---------------------------------------------------------------------------------
 

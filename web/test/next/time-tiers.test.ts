@@ -30,6 +30,8 @@ import {
   packForDate,
   packReason,
   providedYears,
+  rangeOfError,
+  rangeWords,
   sightsOffered,
   sightsOnlyText,
   tierAt,
@@ -176,6 +178,19 @@ describe('tierAt', () => {
     expect(sightsOnlyText(e)).toMatch(/^Sights are offered only between 1550 and 2650/);
     // Today's core reports no tiers: the contract's years are named.
     expect(sightsOnlyText(engineWith({ start_utc: '1990-01-01T00:00:00Z', end_utc: '2060-12-31T23:59:59Z' }))).toMatch(/between 1550 and 2650/);
+  });
+});
+
+// polish2: display engines that answer only the validated tier refuse a far date with their
+// own words; the page says the years instead of the raw message.
+describe('an engine’s range error in plain words', () => {
+  it('reads the span from the star field’s and the ephemeris’ messages', () => {
+    expect(rangeWords("starfield_apparent: jd_utc 1507900 is outside the star field's range 1550-01-01T00:00:00Z .. 2650-01-22T00:00:00Z")).toBe('1550 to 2650');
+    expect(rangeWords('almanac_opening: -0584-05-21 is outside the ephemeris coverage (1550-01-01T00:00:00.000Z to 2650-01-22T00:00:00.000Z)')).toBe('1550 to 2650');
+    expect(rangeWords('outside the coverage -2000-01-01T00:00:00Z .. 3000-12-31T23:59:59Z')).toBe('2001 BC to AD 3000');
+    expect(rangeOfError("jd_utc 1 is outside the star field's range 1550-01-01T00:00:00Z .. 2650-01-22T00:00:00Z")).toEqual({ start: 2_287_185.5, end: 2_688_973.5 });
+    expect(rangeWords('the observer is malformed')).toBeNull();
+    expect(rangeWords('1550-01-01T00:00:00Z .. 2650-01-22T00:00:00Z without the word')).toBeNull();
   });
 });
 

@@ -43,6 +43,7 @@ import {
 import { covered } from '../shell/derived.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { addCalendar } from '../time.js';
+import { rangeWords } from '../time/tier.js';
 import { darkRun, MINUTE, nightProbe, nightStartFor, type SunWindow } from './night.js';
 
 export function errorText(error: unknown): string {
@@ -50,12 +51,18 @@ export function errorText(error: unknown): string {
   return text.replace(/^[a-z_]+: /, '');
 }
 
-/** Run an engine call; a failure becomes a sentence in `errors` and `null`. */
+/**
+ * Run an engine call; a failure becomes a sentence in `errors` and `null`. An engine that
+ * answers fewer years than the explorer (the deep-sky and planet-detail calls keep the
+ * validated tier) is said in plain words, not its raw message (polish2).
+ */
 export function tryCall<T>(errors: string[], what: string, fn: () => T): T | null {
   try {
     return fn();
   } catch (error) {
-    errors.push(`${what}: ${errorText(error)}`);
+    const text = errorText(error);
+    const years = rangeWords(text);
+    errors.push(years ? `${what}: worked out only for ${years}.` : `${what}: ${text}`);
     return null;
   }
 }
