@@ -568,10 +568,12 @@ im = Image.open(sys.argv[1]); im.load(); print(im.format, im.size[0], im.size[1]
       check('packs: Not now closes the prompt and fetches nothing', asked && gone && n1 === n0, JSON.stringify({ asked, gone, fetched: n1 - n0 }));
       messages.length = 0;
       await open(`${PLACE}&t=2026-09-24T16:00:00Z&view=charts`);
-      await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
       await evaluate(`document.querySelector('.sfc-tabs [data-tab=tides]')?.click(); true`);
+      // The prompt is put once the site's list of packs has been read: the connection goes
+      // only then, as when a phone loses its signal with the question on screen.
       await waitFor(`!!${prompt}`, 15000);
-      await evaluate(`[...${prompt}.querySelectorAll('button')].find((b) => /^Get/.test(b.textContent.trim()))?.click(); true`);
+      await send('Network.emulateNetworkConditions', { offline: true, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
+      await evaluate(`[...(${prompt}?.querySelectorAll('button') ?? [])].find((b) => /^Get/.test(b.textContent.trim()))?.click(); true`);
       await sleep(3000);
       const off = JSON.parse(await evaluate(`JSON.stringify({ text: ${prompt}?.innerText ?? '', buttons: [...(${prompt}?.querySelectorAll('button') ?? [])].map((b) => b.textContent.trim()) })`));
       await send('Network.emulateNetworkConditions', { offline: false, latency: 0, downloadThroughput: -1, uploadThroughput: -1 });
