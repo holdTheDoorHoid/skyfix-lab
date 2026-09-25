@@ -67,8 +67,10 @@ fn apsides_match_skyfield_to_seconds_and_metres() {
          {worst_s:.1} s, worst distance {worst_km:.3} km"
     );
     assert!(n > 200);
-    assert!(worst_s < 120.0, "{worst_s} s");
-    assert!(worst_km < 10.0, "{worst_km} km");
+    // verify2: the brief's 2 min and 10 km let a TT/UTC mix-up (69 s) through; measured
+    // 23.9 s and 0.36 km on the two-tier Moon (11.2 s, 0.22 km on ELP 2000-82B).
+    assert!(worst_s < 45.0, "{worst_s} s");
+    assert!(worst_km < 1.0, "{worst_km} km");
 }
 
 #[test]
@@ -123,7 +125,11 @@ fn supermoons_micromoons_and_the_years_extremes_agree() {
          ({borderline} within 0.001 of one), largest and smallest of the year on all"
     );
     assert!(n > 250);
-    assert!(worst_km < 10.0 && worst_fraction < 0.002);
+    // verify2: 1 km and 1e-4 (measured 0.39 km, 0.00001), not 10 km and 0.002.
+    assert!(
+        worst_km < 1.0 && worst_fraction < 1e-4,
+        "{worst_km} km, {worst_fraction}"
+    );
 }
 
 #[test]
@@ -151,6 +157,8 @@ fn meeus_example_50a_apogee_of_october_1988() {
         "Meeus 50.a (apogee 1988-10-07): {vs_skyfield_s:+.1} s and {vs_skyfield_km:+.3} km \
          from Skyfield + DE440s; {vs_meeus_s:+.1} s from Meeus's chapter-50 series"
     );
-    assert!(vs_skyfield_s.abs() < 120.0 && vs_skyfield_km.abs() < 10.0);
-    assert!(vs_meeus_s.abs() < 120.0);
+    // verify2: 30 s and 1 km against Skyfield (measured +4.8 s, -0.15 km); Meeus's own
+    // chapter-50 series is good to about half a minute.
+    assert!(vs_skyfield_s.abs() < 30.0 && vs_skyfield_km.abs() < 1.0);
+    assert!(vs_meeus_s.abs() < 60.0);
 }

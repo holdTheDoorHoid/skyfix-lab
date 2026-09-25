@@ -283,13 +283,15 @@ fn polaris_and_the_planets_agree_with_skyfield() {
             list.len(),
             theirs.len()
         );
-        assert!(worst < 0.001, "{name}: {worst}");
-        if straddles == 0 {
-            assert_eq!(list.len(), theirs.len());
-            for (o, w) in list.iter().zip(theirs) {
-                assert_eq!(format!("{:.1}", o.hp_arcmin), s(&w["hp"]));
-                compare_critical(&o.table, &w["table"], name);
-            }
+        // verify2: 1e-4' (measured under 0.000005'; ACCURACY.md 0.00001'). With 0.001' a
+        // regression in HP created straddles, and the comparison below switched itself
+        // off; the fixture's year has none, so it now always runs.
+        assert!(worst < 1e-4, "{name}: {worst}");
+        assert_eq!(straddles, 0, "{name}: days whose HP rounds differently");
+        assert_eq!(list.len(), theirs.len());
+        for (o, w) in list.iter().zip(theirs) {
+            assert_eq!(format!("{:.1}", o.hp_arcmin), s(&w["hp"]));
+            compare_critical(&o.table, &w["table"], name);
         }
     }
 }
@@ -540,11 +542,29 @@ fn the_published_examples() {
         eprintln!("{line}");
     }
     // Everything formula-only is identical; the refraction model changes a few values.
-    assert!(
-        tally.same * 10 >= tally.total * 7,
-        "{} of {}",
-        tally.same,
-        tally.total
+    // verify2: pin exactly which (ACCURACY.md's table of ten, 36 of 46 identical) rather
+    // than "at least 70 %", so any other entry moving fails.
+    assert_eq!((tally.same, tally.total), (36, 46));
+    let differing: Vec<&str> = tally
+        .lines
+        .iter()
+        .filter(|l| l.contains('≠'))
+        .map(|l| l.trim_start().split("  ours").next().unwrap_or("").trim())
+        .collect();
+    assert_eq!(
+        differing,
+        [
+            "stars_planets 0 Ha 27 48.1",
+            "0-10 sun_oct_mar_lower Ha 6 29.7",
+            "0-10 sun_apr_sep_lower Ha 1 19.7",
+            "0-10 stars_planets Ha 4 02.1",
+            "T and P exact, Ha 1 19.7",
+            "Moon upper 3 50",
+            "Moon upper 18 00",
+            "Moon upper 66 40",
+            "Moon upper 2 30",
+            "Moon U",
+        ]
     );
 }
 

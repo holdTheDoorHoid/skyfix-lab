@@ -80,6 +80,10 @@ fn dates_agree_with_the_imo_calendars_within_a_day() {
             "{y}: {exact} of {n} peak dates exactly the IMO's; every date checked within {worst} day(s)"
         );
         assert!(n >= 30);
+        // verify2: ACCURACY.md claims every peak on the IMO's own date (32 of 32 in 2026
+        // and 2027); the per-date check above allows a day either side, so shifting every
+        // peak by a day passed.
+        assert_eq!(exact, n, "{y}: {exact} of {n} peaks on the IMO's date");
     }
 }
 

@@ -255,9 +255,11 @@ fn the_orientation_model_matches_de440_from_1550_to_2650() {
         worst_sun,
         worst_pa
     );
-    assert!(worst_earth < 0.05, "{worst_earth}");
-    assert!(worst_sun < 0.05, "{worst_sun}");
-    assert!(worst_pa < 0.05, "{worst_pa}");
+    // verify2: 0.01 deg (measured 0.0052-0.0061 deg). At 0.05 deg the model without
+    // the 78.7" figure-to-mean-pole tilt (0.027 deg off) passed.
+    assert!(worst_earth < 0.01, "{worst_earth}");
+    assert!(worst_sun < 0.01, "{worst_sun}");
+    assert!(worst_pa < 0.01, "{worst_pa}");
 }
 
 #[test]
@@ -319,8 +321,10 @@ fn the_whole_chain_matches_skyfield_for_observers() {
          {w_colong:.4} deg, axis position angle {w_pa:.4} deg, distance {w_km:.3} km, \
          semidiameter {w_sd:.5}'; largest diurnal libration seen {worst_diurnal:.3} deg"
     );
-    assert!(checked >= 250, "only {checked} cases inside the coverage");
-    assert!(w_obs < 0.05 && w_sun < 0.05 && w_pa < 0.05 && w_colong < 0.05);
+    // verify2: every case is inside the coverage (1990-2060 in 1550-2650), so none
+    // may drop out, and 0.01 deg as above.
+    assert_eq!(checked, cases.len(), "cases outside the coverage");
+    assert!(w_obs < 0.01 && w_sun < 0.01 && w_pa < 0.01 && w_colong < 0.01);
     assert!(w_km < 1.0 && w_sd < 0.001, "{w_km} km, {w_sd}'");
     assert!(
         worst_diurnal > 0.5,

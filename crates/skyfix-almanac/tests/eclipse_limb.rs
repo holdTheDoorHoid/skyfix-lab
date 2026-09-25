@@ -286,6 +286,11 @@ fn contacts_match_an_independent_implementation() {
             graze_abs < 0.15 && graze_corr < 0.15,
             "{graze_abs} {graze_corr}"
         );
+        // verify2: which contacts count as grazes is decided by the code under test
+        // (`seconds_per_arcsec`); pin the count ACCURACY.md states, so a sensitivity that
+        // classed every contact a graze (and loosened every tolerance) would fail.
+        let expected_grazes = if id.starts_with("2024") { 4 } else { 0 };
+        assert_eq!(n_graze, expected_grazes, "{id}: near-graze contacts");
     }
 }
 

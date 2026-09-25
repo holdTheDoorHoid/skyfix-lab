@@ -140,7 +140,8 @@ fn golden_and_blue_hours_are_exactly_where_the_sun_is_in_its_band() {
         "golden/blue hour: {windows_seen} windows at 10 place-days; crossings at their \
          threshold to {worst_threshold:.2e} deg"
     );
-    assert!(worst_threshold < 1e-4);
+    // verify2: ACCURACY.md claims 9e-7 deg; 1e-4 deg (0.36") was a hundred times that.
+    assert!(worst_threshold < 1e-5, "{worst_threshold:e}");
 }
 
 #[test]
