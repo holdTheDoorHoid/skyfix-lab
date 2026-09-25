@@ -218,7 +218,7 @@ export function createPackService(options: PackServiceOptions): PackServiceImpl 
     return stored;
   }
 
-  /** Put bytes into the engine; true when it took them. */
+  /** Put bytes into the engine; throws the engine's sentence when it refuses them. */
   function install(name: string, bytes: Uint8Array, rev: string): void {
     if (!engine) throw new Error('this build of the numerical core cannot load data packs');
     engine.loadPack(name, bytes);
@@ -357,33 +357,41 @@ export function createPackService(options: PackServiceOptions): PackServiceImpl 
       reason,
       offline: !isOnline(),
     });
-    let answer = await handle.answer;
-    for (;;) {
-      if (answer !== 'get') {
-        declined.add(name);
-        handle.close();
-        return false;
-      }
-      let stopped = false;
-      handle.downloading(() => {
-        stopped = true;
-        downloads.get(name)?.controller.abort();
-      });
-      try {
-        await download(entry, (received, total) => handle.progress(received, total));
-        handle.done(`The ${entry.label} pack is saved on this device.`);
-        return true;
-      } catch (error) {
-        if (stopped) {
+    try {
+      let answer = await handle.answer;
+      for (;;) {
+        if (answer !== 'get') {
           declined.add(name);
           handle.close();
           return false;
         }
-        const why = !isOnline() ? 'you are offline' : message(error);
-        errors.set(name, `Could not be downloaded: ${why}.`);
-        notify();
-        answer = await handle.failed(`The ${entry.label} pack could not be downloaded: ${why}.`);
+        let stopped = false;
+        handle.downloading(() => {
+          stopped = true;
+          downloads.get(name)?.controller.abort();
+        });
+        try {
+          await download(entry, (received, total) => handle.progress(received, total));
+        } catch (error) {
+          if (stopped) {
+            declined.add(name);
+            handle.close();
+            return false;
+          }
+          const why = !isOnline() ? 'you are offline' : message(error);
+          errors.set(name, `Could not be downloaded: ${why}.`);
+          notify();
+          answer = await handle.failed(`The ${entry.label} pack could not be downloaded: ${why}.`);
+          continue;
+        }
+        handle.done(`The ${entry.label} pack is saved on this device.`);
+        return true;
       }
+    } catch (error) {
+      // Never leave a prompt up (it would hold back the next one) when something unexpected
+      // went wrong around it.
+      handle.close();
+      throw error;
     }
   }
 
