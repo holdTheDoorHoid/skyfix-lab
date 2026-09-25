@@ -1032,3 +1032,123 @@ step's note says which entries it came from. Averaged sights are written on the 
 watch, and predicted readings and lunar distances use the logged index correction, so
 everything agrees. Older files, with no logs, load and reduce unchanged, byte for byte
 (`crates/skyfix-core/tests/error_logs.rs`).
+
+---
+
+## 14. In the Navigate view: how sections 9–13 are offered (expansion programme, navigate2)
+
+*navigate2 agent, 2026-09-25. Code: `web/src/next/navigate/` (the Compass and Passage tabs,
+`sights.ts`, `session-panel.ts`, `print/`, `starfinder/`, `passage/`, `compass/`); tests
+`web/test/next/navigate-{compass,passage,print,sightextras}.test.ts`, which run against the
+built core when there is one; browser checks `ONLY=navigate2 node web/scripts/ui-check.mjs`.
+These are interface notes: every number shown is the engine's, and where the interface does
+arithmetic of its own it is listed here with its test.*
+
+### 14.1 Compass (section 9)
+
+- **Where and when.** The session's assumed position (the DR) when it has one, else the map's
+  place (with its site elevation); the time typed in the tab, else the time bar's.
+- **Variation here** is `magnetic_field` at that place and time: the engine's sentence, its
+  model, one-sigma uncertainty and annual change, the zone (caution, blackout) and, outside
+  1900–2030, the model's own reason for giving none.
+- **A bearing** is `compass_error` with the tab's method (azimuth, or amplitude with its
+  horizon, limb and rising or setting; the session's height of eye, pressure and
+  temperature on the visible horizon), a chart's variation when typed, and the bearing's
+  sigma only when stated. Before a reading is typed the tab says where the body is and what a
+  compass with no deviation would read.
+- **The deviation table** logs a deviation against the ship's heading by that compass (from a
+  worked bearing, or typed from a swing). Between logged headings it interpolates linearly
+  round the circle and names the two headings. With five or more headings and no gap over
+  120° it fits the classic curve `A + B sin θ + C cos θ + D sin 2θ + E cos 2θ` by least
+  squares and shows its RMS misfit and a card every 15°. On a swing of the eight cardinal
+  and intercardinal headings the fitted A, D and E are exactly the textbook's approximate
+  coefficients (A the mean, D = (NE + SW − SE − NW)/4, E = (N + S − E − W)/4); B and C use all
+  eight headings where the textbook's (E − W)/2 and (N − S)/2 use two, so they agree exactly
+  when the swing follows the curve and differ by its departure from it (tested both ways).
+
+### 14.2 Passage (section 9, sailings)
+
+- **Each leg** is one `sailing` call between consecutive waypoints; the leg's kind decides
+  whether its great circle or its rhumb line (sphere, or WGS84 meridional parts) is shown,
+  sailed and drawn, and the other is reported as what the choice saves or costs. A great
+  circle carries its steering points every 5° of longitude with the rhumb course between
+  them (Bowditch), and its vertex when it lies on the leg. A leg the engine refuses (antipodal
+  ends, a rhumb line through a pole) is named with the engine's sentence; the rest still plan.
+- **Times** are at a steady speed from the departure (no current, leeway or stops), per leg
+  from its length as sailed. The dead-reckoning marks on the map and **DR now** are
+  `route_positions` on each leg (a great circle as a great circle on its initial course, which
+  is the great circle; a rhumb line on its course); at every leg's end they land on the
+  waypoint (tested, under 0.01 NM).
+- **Handing the passage to the running fix** (`passage/route.ts`, `runningFixLegs`). The
+  running fix steps its track leg by leg, each as a great circle on the leg's course
+  (`docs/MOTION.md` section 1), and a passage's great circle turns as it goes (53° over
+  Bowditch's section 1208 example), so a leg cannot go over as one course. Only the hours of
+  the sights go over (the earliest to the latest sight, or the fix's moment): each passage
+  leg in them is cut into pieces of at most 10 NM of run, the piece ends are the engine's
+  positions along the leg as sailed, and each piece goes on its chord's course (the first
+  from where the vessel is when the hours begin). Measured with the running fix's own dead
+  reckoning (`route_positions`, `great_circle`, which is `Track::advance`) over three-hour
+  runs on the section 1208 great circle and a rhumb line at 12 kn: **0.00–0.01 m** from the
+  passage on the great circle and **0.44 m** on the rhumb line (the chords' sagitta), where
+  one leg on the great circle's course at the start of the hours misses by **14.5 NM**.
+  Motion uncertainty is not stated by the handover; the running fix says so.
+- **GPX** is a GPX 1.1 `<rte>`: every waypoint with its time, and each great circle's
+  steering points between, with the course to steer.
+- **The map** draws the route through the overlay API (ids `passage-*`, which a fix's
+  overlays never replace): great circles solid, rhumb lines dashed, both labelled with their
+  length; waypoints and vertices named; the marks with their times; DR now. It is drawn from
+  the working session at page level, so it stays while other views are open. The map's
+  measuring tool offers **Add as a leg of the passage** (A and B on an empty route; B alone
+  when A is the route's end, within 0.5 NM; otherwise A then B).
+- **Where will I be?** is `dr_advance` from a typed position, the DR or the map's place,
+  with the result offered as the session's DR or as a waypoint (both undoable).
+
+### 14.3 The sight form (sections 10, 12, 13)
+
+- **The shoreline horizon** is offered in every horizon select with a distance field and a
+  sentence from Bowditch's Table 14 formula (the same as the core's): the dip short of the
+  horizon and the sea dip it replaces, or, beyond the sea horizon, that the waterline is
+  hidden and the sea dip applies. The workings then show the core's own step.
+- **What did I shoot?** sends `star_identify` the form's time and reading and the session's
+  DR, height of eye, pressure, temperature, DUT1, index correction or its log and the form's
+  horizon. The time is the watch time corrected as the core corrects a sight: the watch log's
+  value at the recorded time (linear between entries, held outside), else the known
+  correction (`logValueAt`, equal to the core's `clock_correction_from_log` to 1e-9 s,
+  tested). A magnetic or compass bearing gets the model's variation at the DR, named in the
+  result; a bearing tolerance of 5°, 10° or 20° is chosen from how the bearing was taken.
+- **The error logs** are edited as tables (add, remove, undo); an entry at an instant already
+  logged replaces it, entries are kept in time order, and an emptied log leaves the session
+  (so it is written as before). Each sight's workings show the value read and how.
+- **Predictions use the log too**: `instrumentJson` sends `index_error_log`, so tonight's
+  sights, the planner's predicted readings and the lunar distance use the logged index
+  correction as the sights' reduction does (tested against the single-value reading).
+- **DUT1.** Blank means automatic; the sentence under the field says what that is at the
+  session's first sight (or the time bar's date), from `time_info`: the IERS history, Bulletin
+  A's prediction with its sigma, 0 assumed ±0.9 s (up to 0.23′ of longitude), or UT itself,
+  where a typed value would not apply.
+- **The tier.** A sight whose time is outside the validated tier is not added; the form says
+  why (outside the engine's coverage, or in the labelled band with its ΔT uncertainty in time
+  and longitude), and the view says so when the time bar is there.
+
+### 14.4 Printables and the star finder (section 11)
+
+- **The worksheet** lists one sight's reduction in the six classic steps with the core's
+  figures: the watch time and correction; Hs, IC, dip (or the halving), Ha, refraction,
+  semidiameter, parallax, Ho; GHA and declination (a star's as GHA ♈ + SHA); the assumed
+  position, which is the DR itself, and LHA = GHA + longitude east; Hc and Zn; the intercept
+  toward or away. GHA ♈ is the explorer's `sidereal` brought to the session's UT1 (at
+  360.9856° a day), so GHA ♈ + SHA equals the core's GHA whatever DUT1 the session uses
+  (tested to 0.05″).
+- **The plotting sheet** is the plane of a universal plotting sheet centred on the DR: north
+  up, 1′ of latitude = 1 NM, meridians at cos φ; each intercept laid off along Zn or its
+  reciprocal and the line of position at right angles. Lines of position from sights taken at
+  one position all pass through it (tested); over the tens of miles a sheet spans the plane
+  departs from the sphere by far less than a pencil line. Lines are at their own times, not
+  advanced.
+- **The star finder** draws `star_finder_geometry` for the DR's latitude band and day
+  (apparent places): the base (the 58 stars, declination circles every 30°, the Aries index)
+  and the template turned anticlockwise through `rotation_sign × LHA ♈` (SVG `rotate(−θ)`),
+  following the time bar or turned by hand. Tested against the engine at 39.95° N and 33.9° S:
+  the drawn template's points are the engine's to 1e-5 of the radius, and with the template
+  set every star above the horizon lies under its own altitude and azimuth to 1e-5 of the
+  radius. Printed, the base and the template are two sheets of the same size.

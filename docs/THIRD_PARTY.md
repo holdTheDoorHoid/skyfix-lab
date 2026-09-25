@@ -2041,3 +2041,25 @@ B.E. (1991), *PASP* 103, 1033. Sky classes: Bortle, J.E. (2001), *Sky & Telescop
 February, 126 (the limiting-magnitude range of each class, a fact). Meteor rates: the
 standard ZHR conversion (IMO). Each is written from the publication's equations and
 checked by hand evaluation (`docs/ACCURACY.md`, "Deep sky").
+
+## Expansion programme — Navigate's tools (navigate2 agent, wave 2, 2026-09-25)
+
+No data is added: the Compass and Passage tabs, the sight form's extras, the printables and
+the star finder show the engines' numbers (their sources are recorded above, under the
+geomag and sailings agents).
+
+- **The deviation curve's approximate coefficients** (A to E, `web/src/next/navigate/compass/deviation.ts`):
+  the classic form of compass deviation, `A + B sin θ + C cos θ + D sin 2θ + E cos 2θ`, and
+  the textbook's averages over a swing, as the U.S. Navy and NGA compass-adjustment texts
+  give them (Bowditch's magnetic-compass chapter; NGA Pub. No. 226, *Handbook of Magnetic
+  Compass Adjustment*), works of the U.S. Government, not subject to copyright in the United
+  States (17 U.S.C. 105). Facts and formulas only; neither was fetched for this work, and the
+  tests check the formulas' algebra, not a printed example. Acknowledged here; no credit
+  required.
+- **The universal plotting sheet and the sight-reduction worksheet** follow the classic
+  layout navigators use (the steps of Bowditch's sight reduction, vol. 1 ch. 20); no text or
+  figure is reproduced.
+- **The star finder** draws the sailings agent's geometry (above: the 2102-D was consulted
+  for how the instrument is built and set; nothing from it is used).
+- **The device's height** (the Place editor's "From this device") is the browser's
+  Geolocation API reading, used in the page only and never sent or stored.

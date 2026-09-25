@@ -166,10 +166,10 @@ line ([Command line](CLI.md)) and is normative in
 Where you actually work out a position, the way the whole project is really about. Enter
 sights body-first — pick the body, which edge of the disc you brought to the horizon, the
 time, the sextant reading and how sure you are — and every correction (index error, dip,
-refraction, semidiameter, parallax) is worked out live beside it, never hidden. Seven
-methods, each explained in plain words as you open it:
+refraction, semidiameter, parallax) is worked out live beside it, never hidden. Nine
+tabs, each explained in plain words as you open it:
 
-| method | what it gives you |
+| tab | what it gives you |
 |---|---|
 | **Fix** | your position from several sights, by weighted least squares, with the honest 95 % ellipse, conditioning and every result kind (unique, ambiguous, underdetermined, failed) |
 | **Noon sight** | latitude from a body's highest point, and a weak longitude from when it happened |
@@ -177,7 +177,9 @@ methods, each explained in plain words as you open it:
 | **Running fix** | sights taken on the move, brought to one instant along your course and speed |
 | **Average a run** | several quick sights of one body turned into one good one |
 | **Lunar distance** | Greenwich time — and so longitude — from the angle between the Moon and another body, with no chronometer |
-| **Plan sights** | tonight's evening and morning twilight windows, which bodies to shoot and in what order, predicted readings included |
+| **Plan sights** | tonight's evening and morning twilight windows, which bodies to shoot and in what order, predicted readings included, and the **star finder** |
+| **Compass** | the magnetic variation here and today, and your compass's error from a bearing of the Sun, the Moon, a planet or a star, split into variation and deviation; a deviation table |
+| **Passage** | a route of waypoints sailed by great circle or rhumb line, with distances, courses and arrival times, drawn on the map; where you will be (dead reckoning) |
 
 The Fix's chart has a **Fit map** switch: it shades every nearby position by how well it
 fits your sights — darker is worse — with the 95 % and 3-sigma lines drawn on it and a
@@ -185,12 +187,63 @@ caption saying what the shading can and cannot show (a biased sextant or a wrong
 moves the whole picture without widening it). It is off to start; with it on, **Show on
 the map** takes those lines to the map too.
 
-The fix (and the circles of position behind it) draws directly on the Map view. Sessions
-save automatically **in this browser only** — nothing is kept until you enter a sight, and
-nothing is ever sent anywhere or written into the address bar — and you can import or
-export a session as JSON or CSV, or save a fix as a GPX waypoint. A handful of worked
-examples are built in if you want to see a method with real numbers before typing your
-own. This view now does everything the original workbench did, and more.
+**The session's settings** hold what stays the same from sight to sight. Leave **UT1 −
+UTC** blank and the view says what it uses instead: the IERS value for the date, a
+prediction, or 0 with its ±0.9 s (up to 0.23′ of longitude) where nothing is known; type
+your time signal's value to replace it. If your index error or your watch drifts, log them:
+the **index-error log** and the **watch log** take a value at each check, and every sight
+then uses the value at its own time (in between two checks, the straight line between
+them; outside the log, the nearest check held, never extrapolated), and its workings say
+which. The **horizon** can be a shoreline nearer than the sea horizon: give its distance and
+the dip of the sea short of the horizon is used (Bowditch's Table 14), with a sentence
+saying how much it is — and, when the shore is beyond the sea horizon and so hidden, that
+the ordinary dip applies.
+
+**What did I shoot?** Under the sight form, give a rough bearing (true, magnetic or by
+compass) and the time and reading you typed are enough to list the bodies that fit, closest
+first, with how far each is from your sight; **Use** puts one in the form.
+
+**Compass.** The variation (declination) comes from the WMM2025 or IGRF-14 model with its
+uncertainty and yearly change; before 1900 and after 2030 no model is good enough, and the
+view says so instead of guessing. Take the bearing of a body **by azimuth** (any time — note
+the time to the second) or **by amplitude** (as it rises or sets, on the visible or the
+celestial horizon), and the view gives "Compass error 14.4° W; variation 11.8° W; deviation
+2.6° W" with every figure behind it. Give the ship's heading and the deviation goes into the
+**deviation table**; with headings all round (a swing takes eight), the table fits the
+classic deviation curve (coefficients A to E) and prints a card every 15°.
+
+**Passage.** Type waypoints, add the DR or the map's place, or measure on the map and choose
+**Add as a leg of the passage**. Each leg is sailed by great circle (shortest, its course
+turning — with points every 5° of longitude to steer between) or by rhumb line (one course).
+With a speed and a departure time you get the time of every waypoint, the dead-reckoning
+position at the time bar's time (**DR now**, which can become your session's DR), marks every
+few hours on the map, and a GPX route. **Use in the running fix** hands the passage's legs,
+over the hours of your sights, to the running fix. **Where will I be?** works one leg of
+dead reckoning forward (or back) from any position.
+
+**Printing.** **Print worksheets and plotting sheet** in the Fix tab gives a universal
+plotting sheet centred on your DR, with each sight's intercept and line of position and the
+fix, and one worksheet per sight in the six classic steps (time, altitude, almanac, hour
+angle, computed altitude, intercept), with an empty column for your own figures; each sight's
+workings print its worksheet alone. The **star finder** in Plan sights is a 2102-D-style
+disc of the navigational stars with the altitude-azimuth template for your latitude laid over
+it, turned to LHA ♈ as the time bar moves; it prints on two sheets (the template on
+transparency). Everything prints black on white; on screen the night theme stays red.
+
+Sights are offered only between 1990 and 2060 today, the span the almanac is validated for
+(1550–2650 once the deep-time work is merged); outside it the sight form says why and does
+not add the sight.
+
+The fix (and the circles of position behind it) draws directly on the Map view, and so does
+a passage. Sessions save automatically **in this browser only** — nothing is kept until you
+enter something of your own, and nothing is ever sent anywhere or written into the address
+bar — and you can import or export a session as JSON or CSV, save a fix as a GPX waypoint or
+a passage as a GPX route. A handful of worked examples are built in if you want to see a
+method with real numbers before typing your own.
+
+**Settings → Sights** holds the index correction used by tonight's sights and by new
+sessions; the **Place** editor holds your site's elevation (it barely matters: at 1000 m the
+Moon stands 0.5″ lower) as well as your height of eye (which sets the dip).
 
 ![The Navigate view's Fix method: five star sights with their corrections, tonight's recommended bodies in the side panel, the solved position with its 95% ellipse, and the circles of position plotted on a chart.](design/navigate-fix-light.png)
 

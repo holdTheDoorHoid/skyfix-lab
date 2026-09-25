@@ -110,3 +110,13 @@ the four shading caps (180 vertices each), the terminator, circle and ring lines
 layers are on, ten ground-point markers and the dial's "now". `sample_bodies` and
 `day_events` run only when the local day, the observer, the selection or the zone change;
 the solstice paths once per year and place. Measured numbers are in the map agent's report.
+
+## Actions on a measurement (navigate2 agent, expansion programme)
+
+`measure.ts` keeps, per page (keyed by the store, like the map service), the actions other
+views offer on a measurement: `registerMeasureAction(ctx.store, { id, label, tip?, run(a, b) })`
+(same id replaces; returns the function that withdraws it) and `measureActions(ctx.store)`.
+Once both points are set, the measuring readout (`map-view.ts`, `syncMeasure`) shows one
+button per action and calls `run` with A and B. Navigate registers **Add as a leg of the
+passage** (`navigate/passage/page.ts`), installed by the side panel's star-sights slot, so it
+is there whether or not Navigate has been opened.

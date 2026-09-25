@@ -137,3 +137,20 @@ This file is the single list; the completion report links here.
 | Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
 | Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
 | Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |
+
+## Expansion programme — navigate2 (wave 2, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| DUT1 field: blank = automatic, with the source said; site elevation in the Place editor; the stored index correction in Settings → Sights; the index-error and watch logs edited as tables, the value used shown in each sight's workings | completed | `navigate/session-panel.ts`, `dut1.ts`, `logs*.ts`, `panel/place.ts`, `shell/settings.ts` |
+| Compass tab: variation, compass error by azimuth and amplitude, the deviation table and its A–E curve | completed | `navigate/methods/compass.ts`, `navigate/compass/` |
+| Passage tab: great-circle and rhumb-line legs, times, steering points, DR now, GPX route, "Use in the running fix", forward DR; the route on the map; the measuring tool's "Add as a leg" | completed | `navigate/methods/passage.ts`, `navigate/passage/`, `map/measure.ts` (registry), `map/map-view.ts` (readout buttons) |
+| Sight form: the shoreline horizon's distance; "What did I shoot?"; sights only in the validated tier | completed | `navigate/sights.ts`, `shore.ts`, `starid.ts`, `tier.ts` |
+| Printable worksheets and the plotting sheet; the star finder on screen and printed | completed | `navigate/print/`, `navigate/starfinder/` |
+| Predictions with the index-error log | completed | `instrumentJson` sends it (engine/wasm-nav.ts); the mock's `predictSextant` still uses the single value |
+| The time-ui helpers (tier chip, `tierAt`, the calendar formatter) in place of `navigate/tier.ts`'s lookups and `dateWords` | waiting on time-ui | marked `// time-ui:` in `tier.ts`, `session-panel.ts`, `sights.ts`, `methods/compass.ts` |
+| Composite sailing (a limiting latitude) in the Passage tab | unstarted | the engine has it (`limiting_latitude_deg`); the tab offers great circles and rhumb lines only |
+| The deviation table applied automatically (the Compass tab's and "What did I shoot?"'s compass bearings at the ship's heading) | unstarted | today the deviation is typed; the table's interpolated value could fill it |
+| A plotting sheet for the running fix (lines of position advanced to one time) | unstarted | the Fix tab's sheet draws each line at its own time and says so |
+| A printed passage plan (legs, courses, times, steering points) | unstarted | the table is on screen and in the GPX |
+| Importing a GPX route into the Passage tab | unstarted | export only |
