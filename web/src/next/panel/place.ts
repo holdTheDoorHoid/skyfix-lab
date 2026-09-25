@@ -7,6 +7,7 @@
 
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
+import { fastPlayback } from '../playback.js';
 import { formatZoneDescription, listTimeZones, parseLatLon, zoneDescription } from '../geo/index.js';
 import { setAttr, setText } from '../shell/derived.js';
 import { formatLat, formatLength, formatLon, lengthToMetres, metresToUnits } from '../shell/format.js';
@@ -110,7 +111,9 @@ export function placeSection(ctx: Ctx, place: PlaceService): { el: HTMLElement; 
     setText(elevValue, formatLength(o.height_m, s.settings.units));
   };
   d.add(
-    watch(ctx, (s) => [s.observer, s.settings.angleFormat, s.settings.units, s.settings.height_of_eye_m, Math.floor(s.time.jd_utc * 24)] as const, render, {
+    // The zone's name and offset follow the hour, except during fast playback (a new hour
+    // every frame; polish2, list item 18): they are drawn again when time slows.
+    watch(ctx, (s) => [s.observer, s.settings.angleFormat, s.settings.units, s.settings.height_of_eye_m, fastPlayback(s) ? -1 : Math.floor(s.time.jd_utc * 24)] as const, render, {
       equals: shallowEqual,
     }),
   );
