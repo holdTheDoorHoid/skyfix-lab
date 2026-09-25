@@ -2838,6 +2838,38 @@ contact mean −1.10 s (worst 1.72 s), all 19 within 2 s. The third-contact offs
 is a little smaller than the −1.35 s and −1.47 s above; the test's window for its mean
 (`eclipse_limb.rs`) is now −2.0 to −0.5 s.
 
+<!-- verify2 -->
+**Third contact re-derived independently (verify2, 2026-09-25): the offset is SVS's, not
+ours.** A third implementation, sharing only the pack's data: Skyfield 1.55 with DE440s,
+the Moon's orientation from NAIF's DE440 lunar kernels at the light's departure, the
+ring decoded from the pack by a separate Python reader (EXPLORER_API's format), every node
+projected gnomonically about the Moon's centre, the silhouette as the largest radius in
+each 1/16° of position angle, and second and third contact as the zeros of "the Moon's
+radius minus the Sun's farthest point" (total) or its negative (annular) over all position
+angles. Against the engine it agrees within **0.44 s** at every one of the 96 contacts
+away from grazes (means +0.10 to −0.15 s). Against SVS: 2024, second contact **+0.21 s**
+(sd 0.45), third **−1.07 s** (sd 0.49); 2023, **+0.05 s** (0.37) and **−1.19 s** (0.35). So
+SVS's central phase is 1.25-1.28 s longer, and almost all of it is at third contact, in the
+total and the annular eclipse alike.
+- **Not Delta T.** Moving the Earth's rotation by 1 s of Delta T (the site 15.04″ west)
+  moves second and third contact together, by 0.35-0.45 s, and the central phase by
+  0.15 s. NASA's eclipse site states Delta T = 74 s (2024) and 73.7 s (2023) for its
+  Besselian elements (the Canon's extrapolation); SVS's times with that Delta T would be
+  about 1.9 s *earlier* than ours at both contacts, and they are later. SVS item 5073 states
+  no Delta T; its mean time is 0.43-0.57 s later than ours, which is what whole seconds
+  taken at or after each event give, or a Delta T about a second smaller than the observed
+  69.2 s.
+- **Not the limb or a radius.** A finer limb (SVS's 60 m against LDEM_16's 1.9 km) has deeper
+  valleys and higher peaks, which would shorten both central phases; a smaller Sun or a
+  larger Moon lengthens totality but shortens annularity; SVS's are longer in both.
+- **What is left is SVS's definition:** "the 100 % points of coverage (normalized with
+  respect to the maximum coverage achieved)", to the whole second from umbra shapes at
+  one-second steps. Any threshold on coverage below one part in about 10⁵ of the Sun's
+  area, or a whole-second convention, lengthens the central phase at its ends; it cannot be
+  confirmed without SVS's code. The engine's contacts are the geometric ones, and three
+  implementations agree on them.
+<!-- /verify2 -->
+
 ## 20. The Sky view's astronomy layers (sky2 agent, expansion programme Q3)
 
 Display only (CONVENTIONS 13.6): nothing on the Sky view reaches a sight, and every
