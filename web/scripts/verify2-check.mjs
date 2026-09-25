@@ -312,7 +312,7 @@ async function main() {
   // Every call into the core counted by export: the glue's instance gets exports wrapped in
   // a counting proxy (window.__wasmCalls), before any page script runs.
   await send('Page.addScriptToEvaluateOnNewDocument', { source: COUNT_CALLS });
-  const summary = { chip: [], playback: {}, air: {}, exports: {}, packs: {}, tiers: {} };
+  const summary = { chip: [], playback: {}, air: {}, farlook: {}, exports: {}, packs: {}, tiers: {} };
   const viewport = (w, h, mobile) => send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: mobile ? 2 : 1, mobile });
   const open = async (hash, { theme = 'dark', settings = {} } = {}) => {
     await send('Page.navigate', { url: 'about:blank' });
@@ -410,6 +410,34 @@ async function main() {
       const dense = await almanacAltitude({ pressure_hpa: 1030, temperature_c: -10 });
       summary.air = { standard, dense };
       check('the Almanac’s A4 form starts from Settings → Air (1030 hPa, −10 °C)', /^-10\.0 °C and 1030\.0 hPa: air density/.test(dense), JSON.stringify(dense.slice(0, 120)));
+    }
+
+    // A far date (585 BC, the labelled tier): what each view shows where an engine answers
+    // only the validated years or 1990-2060 (screenshots and the page's words, for review).
+    if (ONLY.has('farlook')) {
+      const FAR = process.env.FAR_T ?? '-0584-05-28T12:00:00Z';
+      for (const view of (process.env.FAR_VIEWS ?? 'sky,tonight,events,map,charts,almanac,navigate,learn').split(',')) {
+        await open(`${PLACE}&t=${FAR}&view=${view}`);
+        await sleep(2500);
+        await shot(`far-${view}`);
+        const text = await evaluate(`document.querySelector('.sf-stage')?.innerText ?? document.body.innerText`);
+        const panel = await evaluate(`document.querySelector('.sf-panel')?.innerText ?? ''`);
+        const notices = await evaluate(`[...document.querySelectorAll('.sf-notice, [role=status], [role=alert]')].map((n) => n.textContent.trim()).filter(Boolean).join(' | ')`);
+        summary.farlook = summary.farlook ?? {};
+        summary.farlook[view] = { text: text.slice(0, 4000), panel: panel.slice(0, 3000), notices: notices.slice(0, 1500) };
+        console.log(`info  far ${view}: ${notices.slice(0, 300)}`);
+        // No silent blanks: where an engine answers fewer years, the view says which (the
+        // planner's list for 585 BC), and the Now section does not offer sights.
+        const all = `${text}\n${panel}\n${notices}`;
+        const says = (what, re) => check(`585 BC, ${view}: ${what}`, re.test(all), JSON.stringify((all.match(re) ?? [''])[0]).slice(0, 160));
+        says('the Now section says sights are offered only in the validated years', /The Sun is up[^]*?Sights are offered only between 1550 and 2650/);
+        if (view === 'sky') says('the star field says it is drawn only for 1550 to 2650', /Stars are drawn only for 1550 to 2650/);
+        if (view === 'tonight') {
+          says('planets, deep sky and showers say their years', /Planets, deep sky and meteor showers: worked out only for 1550 to 2650/);
+          check('585 BC, tonight: the Moon card’s distance is not denied by its note', !/The Moon’s distance: worked out only/.test(all) && /The Moon’s distance from here: worked out only/.test(all), '');
+        }
+        if (view === 'events') says('the eclipse list says the years it covers', /Eclipses are computed for 1990 to 2060/);
+      }
     }
 
     // Exports opened by real readers.

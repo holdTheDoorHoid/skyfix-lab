@@ -227,7 +227,9 @@ export function loadDetail(ctx: Pick<Ctx, 'engine'>, core: NightCore): NightDeta
   const sky = tryCall(errors, 'The Moon', () => engine.skyState(q.observer, mid, ['Moon']));
   detail.moon = sky?.bodies.find((b) => b.body === 'Moon') ?? null;
   if (isMoonDetailEngine(engine)) {
-    detail.orientation = tryCall(errors, 'The Moon’s distance', () => engine.moonOrientation(q.observer, mid));
+    // From here, and so its size: outside the years it answers, the card falls back on the
+    // distance from the Earth's centre, which the note must not seem to deny (verify2).
+    detail.orientation = tryCall(errors, 'The Moon’s distance from here', () => engine.moonOrientation(q.observer, mid));
     const near = (detail.phases ?? []).find((p) => (p.kind === 'full_moon' || p.kind === 'new_moon') && Math.abs(p.jd_utc - mid) <= 2);
     if (near) {
       const a = tryCall(errors, 'Supermoons', () => engine.moonApsides(near.jd_utc - 0.01, near.jd_utc + 0.01));
