@@ -137,3 +137,43 @@ This file is the single list; the completion report links here.
 | Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
 | Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
 | Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |
+
+## Expansion programme — planet detail (planetdetail agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Galilean moons, Saturn's rings, planet discs, transits of Mercury and Venus with local circumstances, conjunctions and stations, the Earth's apsides, comets and asteroids from supplied elements | completed (engine) | `skyfix_almanac::{satellites, rings, discs, transits, conjunctions, earth_apsides, orbits}`, exports in `crates/skyfix-wasm/src/planetdetail.rs`, `PlanetDetailEngine` in types.ts with the mock; `docs/ACCURACY.md` section 17. The eyepiece insets are wave 2 (Q3), the lists wave 2 (Q4) |
+| The Great Red Spot's longitude | unstarted, by decision | It drifts in System II by tens of degrees a year, irregularly, so no compiled value stays right; a value the person types in (from ALPO's or the BAA's current reports) would place it |
+| Galilean phenomena to seconds | unstarted | E5 puts them 23 s (Io) to 97 s (Ganymede) from JPL; a steady per-moon along-track correction fitted to jup365, or JPL's own satellite series in a pack, would bring them under 10 s |
+| Transit contacts as seen (black drop, irradiation) | unstarted | Contacts are geometric (the discs' tangencies); what an observer times differs by several seconds, and no published model is simple enough to be worth it |
+| Perturbed orbits for supplied elements | unstarted | Two-body only; a numerical integration with the planets would keep near-Earth objects and Jupiter-passing comets right for months after their epoch |
+| Core-module size | noted | The package adds 191 KB raw and 77 KB gzipped on main 3f4fe4e, taking the module to 2 997 407 / 1 231 646 bytes, 2.6 KB under the 3 MB raw budget (mostly code: E5, the searches, the MPC parser, the serialisation of eleven calls). `opt-level = "z"` (the polish agent's lever) or a lazily loaded second module would restore headroom |
+
+## Expansion programme Q5 — Charts: Sun, Tides, the Moon through the year, Save (charts2 agent)
+
+| item | status | notes |
+|---|---|---|
+| Sun tab: sun path (from above, along the horizon), analemma, sunrise and sunset bearings, equation of time and declination, solar panel (clear-sky estimate) | completed | `web/src/next/charts/{sun-path,analemma,sun-bearings,eot,solar}.ts` over the suntools engine; `EXPLORER_GUIDE.md` "Charts" |
+| Tides tab: nearest stations, day or week curve with the app's time, high and low water, datums, the pack's Get state, "Show on the map" | completed | `charts/tides.ts`; the cursor's readout is read off the curve (`docs/ACCURACY.md`, "Charts") |
+| Moon tab: the Moon at one hour through the year; perigee, apogee, supermoons and micromoons on the month grid | completed | `charts/moon-year.ts`, `moon-calendar.ts` |
+| Save menu on every chart: PNG with a caption strip (light colours), CSV of the Table view, print one chart per page, Web Share | completed | `web/src/next/export/{png,csv}.ts` (shared), `charts/export-menu.ts`, `charts/print.ts` |
+| Tier chips on chart tables and captions | waiting | `// time-ui:` comments mark the places (the chart shell's tables, the tides table); merged when time-ui's helpers land |
+| Sun path hour lines (the figure-8 of each clock hour through the year) | unstarted | the classic architect's diagram; needs the analemma at each hour (24 calls of about 10 ms natively), best computed once per place and year |
+| Tides map layer (stations on the map, the nearest highlighted) | unstarted | EXPANSION_PLAN names a map layer; this package only marks the chosen station ("Show on the map") |
+| Moon's rise and set bearings through the year | unstarted | `rise_set_azimuths` with `body: "Moon"` is ready (0.3 s natively a year); a panel beside the Moon through the year |
+| Print from the browser's own menu (Ctrl+P) | partial | Save → Print prints one chart; the browser's own print prints the whole app |
+
+## Expansion programme — deep time in the interface (time-ui agent, wave 2 Q1)
+
+| item | status | notes |
+|---|---|---|
+| Calendars, years, UT/UTC, LMT, tiers and the ±ΔT chip in the time bar, Settings and About | completed | `web/src/next/time/` (helpers every view uses: CONVENTIONS 15.6), `timebar/`, `playback.ts`; checks in `web/scripts/ui-check.mjs` (group `time`) |
+| Views that still write a literal "UTC" beside times that may be UT | unstarted (owners) | `events/`, `almanac/`, `navigate/`, `panel/selected.ts`, `panel/place.ts` (`formatOffset(…)` without the instant: "UTC−5:00:40" in 585 BC): use `scaleLabel(jd)` and `formatOffset(ms, jd)` |
+| The panel's zone reason before 1850 | unstarted (navigate2) | `panel/place.ts` says "From the place: America/New_York…" while the clock is local mean time; `lmtReason` and `zoneTooltip` give the words |
+| "1990–2060" and "1990 to 2060" in the interface | unstarted (owners) | `navigate/session-panel.ts:140`, `events/lists.ts:137, 263, 424, 425`, `events/eclipses.ts:749, 758`, `almanac/almanac.ts:557` (the date input's range), `panel/when.ts:82`; `tierNotice`, `sightsOnlyText` and `outsideCoverage` name the real bounds |
+| Navigate's sight-time field and expanded years | unstarted (navigate2) | `navigate/parse.ts` `UTC_PATTERN` takes four-digit years only; a `-0584-…` time gets a format error instead of "Sights are offered only between 1550 and 2650" |
+| The CLI's help text | unstarted (cli3) | `crates/skyfix-cli/src/cli.rs:193` says "from 1990-01-01 to 2060-12-31" |
+| Phone bottom sheet and the time bar's height | open | `panel/sheet.ts` measures the time bar only on window resize; the time bar now keeps one height on phones for every date, but a ResizeObserver there would make it robust |
+| Ctrl+Page Up / Page Down in tabbed browsers | known | Chrome and Firefox keep these keys for switching tabs; the calendar's ±100 and ±1000 buttons (and the grid's Ctrl+PgUp/PgDn, which the grid receives) do the same |
+| Phone Map outside the coverage: notices over the map's controls | unstarted (shell, map) | On a phone, a date outside the coverage shows two notices (the coverage one, and the Map's own "positions could not be computed" error), which cover the map's floating Layers button (ui-check's layout check, any date outside the years, e.g. 2080: it predates the deep-time work). The Map should not raise an error where `covered()`/`tierAt` already say nothing is computed, and the notice bar could leave the floating controls clear |
+| Views with their own per-day work during fast playback | open (owners) | above 8 days a second `sunToday`/`aroundToday` pause; the Map (`seasons` per year, `sampleBodies` per day), Sky (`sampleBodies` per day) and panel Place (`guessZone` each hour) views still work per frame; `fastPlayback(state)` is the switch |

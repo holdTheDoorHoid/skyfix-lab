@@ -14,6 +14,7 @@
 import { formatLatitude, formatLongitude, type CoordStyle } from '../geo/coords.js';
 import type { AngleFormat, HourCycle, Units } from '../state.js';
 import { formatTime, roundToMinute, roundToSecond, wallClock, type WallClock, type Zone } from '../time.js';
+import { dateLongText, dateMediumText, dateShortText } from '../time/format.js';
 
 export const MINUS = '−';
 /** Groups digits: 386 920 (a narrow no-break space). */
@@ -229,8 +230,6 @@ export function metresToUnits(m: number, units: Units): number {
 // ---------------------------------------------------------------------------------
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const DAYS_LONG = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const MONTHS_LONG = [
   'January',
   'February',
@@ -246,22 +245,23 @@ const MONTHS_LONG = [
   'December',
 ];
 
-/** `Thu 24 Sep` (day first: unambiguous everywhere). */
+/**
+ * `Thu 24 Sep` (day first: unambiguous everywhere). Dates are in the display calendar
+ * (Julian before 1582-10-15 unless Settings chose ISO) and years are written as Settings
+ * chose (`585 BC`): time/format.ts (time-ui agent).
+ */
 export function dateShort(jd: number, zone: Zone): string {
-  const w = wallClock(jd, zone);
-  return `${DAYS[w.weekday]} ${w.day} ${MONTHS[w.month - 1]}`;
+  return dateShortText(wallClock(jd, zone));
 }
 
-/** `Thu 24 Sep 2026`. */
+/** `Thu 24 Sep 2026`, `Wed 28 May 585 BC`. */
 export function dateMedium(jd: number, zone: Zone): string {
-  const w = wallClock(jd, zone);
-  return `${dateShort(jd, zone)} ${w.year}`;
+  return dateMediumText(wallClock(jd, zone));
 }
 
-/** `Thursday 24 September 2026`. */
+/** `Thursday 24 September 2026`, `Wednesday 28 May 585 BC`. */
 export function dateLong(jd: number, zone: Zone): string {
-  const w = wallClock(jd, zone);
-  return `${DAYS_LONG[w.weekday]} ${w.day} ${MONTHS_LONG[w.month - 1]} ${w.year}`;
+  return dateLongText(wallClock(jd, zone));
 }
 
 export function monthName(month: number): string {

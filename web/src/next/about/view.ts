@@ -10,28 +10,13 @@ import { h } from '../../dom.js';
 import type { Component } from '../component.js';
 import { installControl, manualLink, repositoryLink } from '../shell/links.js';
 import { hasTour, openTour } from '../shell/tour.js';
-import { badge, button } from '../theme/primitives.js';
+import { button } from '../theme/primitives.js';
+import { coverageTable } from '../time/coverage-table.js';
 
 const view: Component = (host, ctx) => {
   const { engine } = ctx;
-  let coverageRows: HTMLElement[] = [];
-  let span = '';
-  try {
-    const coverage = engine.coverage();
-    span = `${coverage.start_utc.slice(0, 10)} to ${coverage.end_utc.slice(0, 10)}`;
-    coverageRows = coverage.groups.map((g) =>
-      h(
-        'tr',
-        {},
-        h('th', { scope: 'row' }, g.name),
-        h('td', {}, g.provider),
-        h('td', { class: 'sf-num-r' }, g.accuracy_arcmin === null ? '—' : `${g.accuracy_arcmin}′`),
-        h('td', {}, g.validated ? badge('real', { text: 'Validated' }) : badge('soon', { text: 'Not validated' })),
-      ),
-    );
-  } catch (error) {
-    coverageRows = [h('tr', {}, h('td', { colspan: 4 }, `The engine did not say: ${error instanceof Error ? error.message : String(error)}`))];
-  }
+  // The coverage table with both tiers and the ΔT uncertainty by age (time-ui agent).
+  const coverage = coverageTable(ctx);
 
   const install = installControl();
   const el = h(
@@ -64,17 +49,8 @@ const view: Component = (host, ctx) => {
           ? 'Every position and time on these pages comes from the SkyFix Lab numerical core, written in Rust and running inside this page as WebAssembly. Nothing is fetched from a server to compute them.'
           : 'This page is running the MOCK engine, a stand-in used while the interface is built. Its numbers are illustrative only and come from low-precision formulas, not from the SkyFix Lab core.',
       ),
-      h('p', {}, `How closely each part has been checked against the reference ephemeris (JPL DE440s through Skyfield), over ${span || 'its coverage'}:`),
-      h(
-        'div',
-        { class: 'sf-about__table' },
-        h(
-          'table',
-          { class: 'sf-table' },
-          h('thead', {}, h('tr', {}, h('th', {}, 'Bodies'), h('th', {}, 'Source'), h('th', { class: 'sf-num-r' }, 'Within'), h('th', {}, 'Status'))),
-          h('tbody', {}, ...coverageRows),
-        ),
-      ),
+      h('p', {}, 'How closely each part has been checked against JPL’s reference ephemerides, and for which years:'),
+      coverage.el,
       h(
         'p',
         { class: 'sf-about__small' },
@@ -100,6 +76,7 @@ const view: Component = (host, ctx) => {
   host.replaceChildren(el);
   return {
     destroy: () => {
+      coverage.destroy();
       install.destroy();
       el.remove();
     },

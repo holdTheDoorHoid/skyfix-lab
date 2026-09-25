@@ -1,7 +1,9 @@
 /**
  * The time bar's 24-hour ribbon, drawn from plain data: the sky phases of the local day
- * (`day_events(...).phases`), hour ticks in the display zone, the selected body's rise,
- * transit and set, the wall clock's "now", and the handle. OWNER: shell-design agent.
+ * (`day_events(...).phases`), the golden and blue hours (`sun_hours`, a thin strip along
+ * the top of the bar), hour ticks in the display zone, the selected body's rise, transit
+ * and set, the wall clock's "now", and the handle. OWNER: time-ui agent (from the
+ * shell-design agent's first version).
  *
  * Positions are proportional to time inside `[jd_start, jd_end)`, so a 23- or 25-hour
  * day (a daylight-saving change) draws correctly as long as the hour list carries the
@@ -25,6 +27,15 @@ export interface RibbonMark {
   tip?: string;
 }
 
+/** Golden hour (the Sun from 6° up to 4° down) or blue hour (4° to 6° down): `sun_hours`. */
+export interface RibbonBand {
+  kind: 'golden' | 'blue';
+  jd_start: number;
+  jd_end: number;
+  /** Tooltip, e.g. "Golden hour 18:40–19:22 EDT: …". */
+  tip?: string;
+}
+
 export interface RibbonHour {
   jd: number;
   /** "0", "3", … in the display zone; empty for an unlabelled tick. */
@@ -36,6 +47,8 @@ export interface RibbonModel {
   /** Local midnight to local midnight in the display zone. */
   window: readonly [number, number];
   phases: readonly PhaseSegment[];
+  /** Golden and blue hours, drawn along the top edge of the bar (time-ui agent). */
+  bands?: readonly RibbonBand[];
   hours: readonly RibbonHour[];
   marks: readonly RibbonMark[];
   /** The instant shown. */
@@ -70,6 +83,12 @@ export interface Ribbon {
   setHandle(jd: number, valueText: string, bubbleText: string, glyph: 'sun' | 'moon'): void;
   /** Show the wall clock's "now" marker at `jd`, or hide it (null, or outside the day). */
   setNow(jd: number | null): void;
+  /**
+   * Move to another day without redrawing: for a bar whose contents are the same fractions
+   * of any day (while time runs fast: even hour ticks, no phases or marks). No layout is
+   * forced; the handle and the "now" marker are placed on the new day.
+   */
+  setWindow(window: readonly [number, number]): void;
   /** The day shown, `[jd_start, jd_end)`. */
   window(): readonly [number, number];
   /** The instant under a horizontal client coordinate (for pointer dragging). */
@@ -115,6 +134,8 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
   const frac = (jd: number): number => (jd - current.window[0]) / span();
 
   const fitLabels = (): void => {
+    // Reading the width forces a layout: only when there are phase names to fit.
+    if (!current.phases.length) return;
     const width = bar.clientWidth;
     if (!width) return;
     for (const seg of bar.querySelectorAll<HTMLElement>('.sf-ribbon__seg')) {
@@ -141,6 +162,16 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
           'data-width': String(x1 - x0),
           style: `left:${pct(x0)};width:${pct(x1 - x0)}`,
           'data-tip': m.phaseTip?.(p),
+        });
+      }),
+      ...(m.bands ?? []).map((band) => {
+        const x0 = frac(Math.max(band.jd_start, m.window[0]));
+        const x1 = frac(Math.min(band.jd_end, m.window[1]));
+        return h('div', {
+          class: 'sf-ribbon__band',
+          'data-kind': band.kind,
+          style: `left:${pct(x0)};width:${pct(x1 - x0)}`,
+          'data-tip': band.tip,
         });
       }),
       h(
@@ -203,6 +234,10 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
       const inside = jd !== null && jd >= current.window[0] && jd < current.window[1];
       nowEl.hidden = !inside;
       if (inside) nowEl.style.left = pct(frac(jd));
+    },
+    setWindow(window) {
+      current = { ...current, window };
+      api.setNow(current.nowJd ?? null);
     },
     window: () => current.window,
     jdAtClientX(clientX) {
