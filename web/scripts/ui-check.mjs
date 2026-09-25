@@ -526,6 +526,13 @@ async function photoChecks({ send, evaluate, waitFor, messages, open, shot, view
   await sleep(600);
   const picked = await evaluate(`[document.querySelector('.sf-photo-align input[id$="-az"]').value, document.querySelector('.sfm-pick')?.hidden, document.querySelector('.sf-photo-align .sf-photo__sub').textContent]`);
   check('photo: Pick on the map: a prompt, then the click sets the bearing, not the place', prompt && picked[0] !== '299' && /^\d+\.\d$/.test(picked[0]) && picked[1] === true && (await text('.sf-place__name')) === place0 && /^Picked on the map/.test(picked[2]), js({ prompt, picked, place0 }));
+  // "When is it at…?" by bearing: the times the Sun crosses 250° today.
+  await openDrawers(['.sf-when']);
+  await evaluate(`[...document.querySelectorAll('.sf-when .sf-seg__opt')].find((b) => b.dataset.value === 'bearing')?.click(); true`);
+  await typeInto('.sf-when input[id$="-az"]', '250');
+  const crossed = await waitFor(`document.querySelectorAll('.sf-when .sf-when__time').length > 0`, 10000);
+  const whenText = await evaluate(`[document.querySelector('.sf-when .sf-when__status')?.textContent, document.querySelector('.sf-when .sf-when__time')?.getAttribute('aria-label')]`);
+  check('photo: "When is it at…?" by bearing lists when the Sun crosses 250°', crossed && /^Sun on 250\.0° on /.test(whenText?.[0] ?? '') && /^Show \d\d:\d\d: Sun on 250\.0°, (climbing|sinking), /.test(whenText?.[1] ?? ''), js(whenText));
   check('photo: Sun card: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
 
   // --- Desktop, light: the Moon, then the night theme --------------------------------------------
@@ -534,8 +541,9 @@ async function photoChecks({ send, evaluate, waitFor, messages, open, shot, view
     messages.length = 0;
     await open(MOONLIT, { theme });
     await openDrawers(['.sf-photo-mw', '.sf-selected details.sf-details[data-term]']);
-    await waitFor(`document.querySelectorAll('.sf-photo-moon__feat').length > 0 && !document.querySelector('.sf-photo-mw [data-stale]')`, 10000);
-    await sleep(500);
+    // The planner draws when it opens; the details' reading in the card's next frame.
+    await waitFor(`document.querySelectorAll('.sf-photo-moon__feat').length > 0 && !document.querySelector('.sf-photo-mw [data-stale]') && /\\d/.test(document.querySelector('.sf-photo-predict .sf-kv__v')?.textContent ?? '')`, 20000);
+    await sleep(300);
     const moon = JSON.parse(
       await evaluate(`JSON.stringify({
         size: document.querySelector('.sf-photo-moon .sf-kv__v')?.textContent,
@@ -544,12 +552,14 @@ async function photoChecks({ send, evaluate, waitFor, messages, open, shot, view
         feats: document.querySelectorAll('.sf-photo-moon__feat').length,
         planner: document.querySelector('.sf-photo-mw .sf-photo__lines')?.textContent,
         predict: document.querySelector('.sf-photo-predict .sf-kv__v')?.textContent,
+        predictNote: document.querySelector('.sf-photo-predict .sf-photo__sub')?.textContent,
+        detailsOpen: document.querySelector('.sf-selected details.sf-details[data-term]')?.open,
       })`),
     );
     if (theme === 'light') {
       out.moon = moon;
       check('photo: Moon card: size, libration, perigee, features on the terminator', /^\d\d\.\d′$/.test(moon.size ?? '') && /^(Tipped to show|It faces us)/.test(moon.lib ?? '') && /^\w{3} \d+ \w{3} \d\d:\d\d$/.test(moon.perigee ?? '') && moon.feats > 0, js(moon));
-      check('photo: the Milky Way planner and the predicted sextant reading', /Milky Way’s core/.test(moon.planner ?? '') && /^\d+° \d\d\.\d′$/.test(moon.predict ?? ''), js({ planner: moon.planner?.slice(0, 80), predict: moon.predict }));
+      check('photo: the Milky Way planner and the predicted sextant reading', /Milky Way’s core/.test(moon.planner ?? '') && /^\d+° \d\d\.\d′$/.test(moon.predict ?? ''), js({ planner: moon.planner?.slice(0, 80), predict: moon.predict, note: moon.predictNote, open: moon.detailsOpen }));
     }
     await scrollPanelTo('.sf-moon', 8);
     await sleep(400);

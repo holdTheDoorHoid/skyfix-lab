@@ -319,6 +319,14 @@ describe('the Milky Way planner', () => {
     expect(m.arch).toBe('At its best the band arches from the north-north-east (030°) to the south-south-west (210°), highest (70°) toward the east-south-east.');
   });
 
+  it('says how much a Moon that is up the whole time matters', () => {
+    const thin = galacticNight(gresult([gwin('2026-07-15T02:00:00Z', '2026-07-15T03:00:00Z', true, 20, 0.08)]), NY, 'dm');
+    expect(thin.sentences[2]).toBe('The Moon (8 % lit) is up the whole time; a crescent this thin brightens the sky only a little.');
+    const bright = galacticNight(gresult([gwin('2026-07-15T02:00:00Z', '2026-07-15T03:00:00Z', true, 20, 0.9)]), NY, 'dm');
+    expect(bright.sentences[2]).toBe('The Moon (90 % lit) is up the whole time: its light will wash out the fainter parts.');
+    expect(bright.best?.moon_up).toBe(true);
+  });
+
   it('says so when the core never gets up in the dark', () => {
     const m = galacticNight(gresult([]), NY, 'dm');
     expect(m.best).toBeNull();

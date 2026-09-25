@@ -173,6 +173,14 @@ export class Settler {
   }
 }
 
+function reducedMotion(): boolean {
+  try {
+    return globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+  } catch {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------------
 // Uncertainty of a time: until the time-ui helpers land
 // ---------------------------------------------------------------------------------
@@ -554,7 +562,7 @@ export function bearingSourceText(v: BearingValue, here: LatLonDeg): string {
   if (!v.target || !sameSpot(v.from, here) || v.distance_m === null) return '';
   const d = v.distance_m;
   const dist = d < 1000 ? `${Math.round(d)} m` : d < 100_000 ? `${(d / 1000).toFixed(1)} km` : `${Math.round(d / 1000)} km`;
-  return `Picked on the map: the point is ${dist} away, on the ellipsoid’s shortest path.`;
+  return `Picked on the map: the point is ${dist} away.`;
 }
 
 // ---------------------------------------------------------------------------------
@@ -614,7 +622,12 @@ export function galacticNight(result: GalacticCentreWindows, zone: Zone, format:
   ];
   const lit = (f: number) => `${Math.round(f * 100)} % lit`;
   if (!moonFree.length) {
-    sentences.push(`The Moon (${lit(first.moon_illuminated_fraction)}) is up the whole time: its light will wash out the fainter parts.`);
+    const k = first.moon_illuminated_fraction;
+    sentences.push(
+      k < 0.25
+        ? `The Moon (${lit(k)}) is up the whole time; a crescent this thin brightens the sky only a little.`
+        : `The Moon (${lit(k)}) is up the whole time: its light will wash out the fainter parts.`,
+    );
   } else if (moonFree.length === windows.length) {
     sentences.push(first.moon_illuminated_fraction < 0.02 ? 'No Moon in the sky: the best kind of night.' : 'The Moon is down the whole time.');
   } else {
@@ -853,7 +866,7 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
   const openNow = (): void => {
     el.open = true;
     run();
-    el.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' });
+    el.scrollIntoView?.({ block: 'nearest', behavior: reducedMotion() ? 'auto' : 'smooth' });
     el.querySelector('summary')?.focus({ preventScroll: true });
   };
   planners.set(store, { open: openNow });
@@ -1133,7 +1146,7 @@ export function tidesLine(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     settler.request(key, moving, () => draw(store.get()), () => el.setAttribute('data-stale', ''));
   };
 
-  d.add(watch(ctx, (s) => [s.time.jd_utc, s.observer, s.settings, s.view] as const, render, { equals: shallowEqual }));
+  d.add(watch(ctx, (s) => [s.time.jd_utc, s.observer, s.settings] as const, render, { equals: shallowEqual }));
   d.add(
     ctx.packs.subscribe(() => {
       packVersion += 1;

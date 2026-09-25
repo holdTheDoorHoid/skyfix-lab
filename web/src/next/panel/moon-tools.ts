@@ -291,8 +291,8 @@ export function moonTools(ctx: Ctx): MoonTools {
     superNote.hidden = !note;
     setText(superNote, note ?? '');
     if (apsides) setAttr(superNote, 'data-tip', apsides.definitions.supermoon);
-    perigeeRow.dataset.jd = next.perigee ? String(next.perigee.jd_utc) : '';
-    apogeeRow.dataset.jd = next.apogee ? String(next.apogee.jd_utc) : '';
+    setAttr(perigeeRow, 'data-jd', next.perigee ? String(next.perigee.jd_utc) : '');
+    setAttr(apogeeRow, 'data-jd', next.apogee ? String(next.apogee.jd_utc) : '');
   };
 
   for (const row of [perigeeRow, apogeeRow]) {

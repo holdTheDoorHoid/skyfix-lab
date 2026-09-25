@@ -14,7 +14,15 @@
 
 import { h } from '../../dom.js';
 import type { Ctx } from '../component.js';
-import { isGeomagEngine, isSunToolsEngine, type AlignmentEvent, type AlignmentMatch, type AlignmentResult } from '../engine/types.js';
+import {
+  isGeomagEngine,
+  isSunToolsEngine,
+  type AlignmentEvent,
+  type AlignmentMatch,
+  type AlignmentRequest,
+  type AlignmentResult,
+  type Observer,
+} from '../engine/types.js';
 import { setTime } from '../playback.js';
 import { setText } from '../shell/derived.js';
 import { dateShort, eventTime, formatAngle } from '../shell/format.js';
@@ -276,7 +284,10 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
   const yearOf = (s: ExplorerState): number => wallClock(s.time.jd_utc, displayZone(s)).year + c.yearOffset;
 
   /** The request as the inputs stand, or a sentence saying what is wrong. */
-  const request = (s: ExplorerState, body: string): { req: Parameters<NonNullable<typeof sunEngine>['alignmentDays']>[1]; key: string } | string => {
+  const request = (
+    s: ExplorerState,
+    body: string,
+  ): { req: AlignmentRequest; obs: Observer; key: string } | string => {
     const az = bearing.get().azimuth;
     if (az === null) return 'Type a bearing (degrees from true north, 0 to 360, or a compass point such as WNW), or pick one on the map.';
     const tol = parseTolerance(tolInput.value);
@@ -291,9 +302,9 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
     }
     const zone = displayZone(s);
     const offset = wallClock(s.time.jd_utc, zone).offsetMs / 3_600_000;
-    const req = { body, year: yearOf(s), azimuth_deg: az, tolerance_deg: tol, event, utc_offset_hours: offset };
-    const o = engineObserver(s);
-    return { req, key: JSON.stringify([req, o]) };
+    const req: AlignmentRequest = { body, year: yearOf(s), azimuth_deg: az, tolerance_deg: tol, event, utc_offset_hours: offset };
+    const obs = engineObserver(s);
+    return { req, obs, key: JSON.stringify([req, obs]) };
   };
   const sunEngine = isSunToolsEngine(engine) ? engine : null;
 
@@ -348,7 +359,7 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
         let result: AlignmentResult | null = null;
         let error = '';
         try {
-          result = sunEngine.alignmentDays(engineObserver(st), r.req);
+          result = sunEngine.alignmentDays(r.obs, r.req);
         } catch (e) {
           error = e instanceof Error ? e.message : String(e);
         }
