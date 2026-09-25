@@ -1323,7 +1323,8 @@ async function main() {
       const FAR_WORDS = String.raw`(() => {
         const text = [document.querySelector('.sf-timebar'), document.querySelector('#sf-panel'), document.querySelector('.sf-stage')].map((e) => e?.innerText ?? '').join('\n');
         const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-        const utc = location.hash.includes('view=learn') ? [] : lines.filter((l) => /\b\d{1,2}:\d{2}(?::\d{2})?\s*UTC\b|\(UTC[,)]|\bin UTC\b|hover for UTC|UTC[−+-]\d/.test(l));
+        // Learn's simulator names the scale of its own scenario's time, not the time bar's.
+        const utc = document.querySelector('.sf-stage__view')?.dataset.view === 'learn' ? [] : lines.filter((l) => /\b\d{1,2}:\d{2}(?::\d{2})?\s*UTC\b|\(UTC[,)]|\bin UTC\b|hover for UTC|UTC[−+-]\d/.test(l));
         const raw = lines.filter((l) => /jd_utc|starfield_|almanac_(?:opening|day):|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z|outside the ephemeris coverage \(/.test(l));
         const vw = innerWidth, vh = innerHeight;
         const visible = (el) => { const r = el.getBoundingClientRect(); return r.width >= 1 && r.height >= 1 && r.right > 0 && r.bottom > 0 && r.left < vw && r.top < vh && (!el.checkVisibility || el.checkVisibility({ visibilityProperty: true })); };

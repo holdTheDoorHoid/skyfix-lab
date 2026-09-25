@@ -268,6 +268,14 @@
 /* The two pages side by side where both fit at their own width (what the view has, not
    the window: the sidebar takes part of it), one above the other otherwise; on a phone a
    page scrolls sideways inside itself. */
+/* polish2: the pages on screen fade while the next ones are worked out (almanac.ts). */
+@media screen {
+  .alm-spread[aria-busy='true'] {
+    opacity: 0.55;
+    transition: opacity var(--dur-fast, 120ms) ease-out;
+  }
+}
+
 .alm-spread {
   display: flex;
   flex-wrap: wrap;

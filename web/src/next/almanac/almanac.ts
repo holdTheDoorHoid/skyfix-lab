@@ -52,7 +52,7 @@ import {
   yearText,
   type CalendarChoice,
 } from './dates.js';
-import { dayMonthYear, packForDate, packReason, tierAt, tierNotice } from '../time/index.js';
+import { dayMonthYear, packForDate, packReason, rangeWords, tierAt, tierNotice } from '../time/index.js';
 import { dateEntry } from './entry.js';
 import { utHourOf } from './layout.js';
 import { altitudeSheets, arcSheet, incrementsSheet, polarisSheets } from './tables.js';
@@ -278,6 +278,26 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
       if (pack) void coverageHelp(jd);
       return;
     }
+    // polish2 (list item 28): an opening is three daily pages, 0.2 s natively and up to a few
+    // seconds in a busy browser; say so and let the page paint before the engine works (a
+    // newer request, or the tab closing, drops this one).
+    const mine = ++computeToken;
+    status.textContent = mode === 'opening' ? 'Working out the three dates’ pages…' : 'Working out the page…';
+    spread.setAttribute('aria-busy', 'true');
+    const go = (): void => {
+      if (mine !== computeToken) return;
+      spread.removeAttribute('aria-busy');
+      compute(jd, sd);
+    };
+    if (typeof requestAnimationFrame === 'function') requestAnimationFrame(() => setTimeout(go, 0));
+    else setTimeout(go, 0);
+  };
+  let computeToken = 0;
+  d.add(() => {
+    computeToken += 1;
+  });
+  const compute = (jd: number, sd: ReturnType<typeof shownDate>): void => {
+    status.textContent = '';
     const info = timeInfoAt(ctx, jd);
     const chip = deltaTChip(info);
     const extra = [anachronismNote(sd.year), tierNote(ctx, jd)].filter((x): x is string => !!x);
@@ -620,7 +640,16 @@ function mountPolaris(panel: HTMLElement, env: Env): TabMounted {
     } catch (error) {
       table = null;
       shownYear = null;
-      sheets.replaceChildren(message(`No Polaris tables for ${label}: ${errorText(error)}`));
+      // The tables are made only while Polaris is near the pole, the validated years (polish2).
+      const years = rangeWords(errorText(error));
+      sheets.replaceChildren(
+        message(
+          years
+            ? `No Polaris tables for ${label}: they are made only for ${years}, while Polaris stands near the pole (in AD 1000 it was 6° from it, and in 2000 BC Thuban was the pole star).`
+            : `No Polaris tables for ${label}: ${errorText(error)}`,
+          years ? 'status' : 'alert',
+        ),
+      );
       void offerPack(env, env.ctx.store.get().time.jd_utc, draw);
     }
   };
