@@ -165,7 +165,8 @@ fn embedded_series_still_matches_its_checkpoints() {
     let checks = std::fs::read_to_string(&path).unwrap();
     let c = skyfix_ephemeris::series::self_check(&checks).unwrap();
     assert!(c.checkpoints > 0);
-    assert!(c.vsop_au < 1e-12 && c.corrected_au < 1e-12, "{c:?}");
+    // Rounding only: up to about 3e-12 au at the labelled tier's far end (`self_check`).
+    assert!(c.vsop_au < 1e-11 && c.corrected_au < 1e-11, "{c:?}");
 }
 
 /// The provider must be able to run with no filesystem and no network — that is the

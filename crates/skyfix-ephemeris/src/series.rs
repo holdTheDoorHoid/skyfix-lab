@@ -13,7 +13,8 @@
 //!   J2000, argument TT. One Earth serves both the Sun and the planets. Every
 //!   `(body, coordinate, power)` group is sorted by amplitude and cut twice, for the
 //!   validated tier (1550-2650) and for the labelled tier (-2000..3000); the file stores
-//!   the longer cut and the validated count, so [`VsopCoordinate::value`] sums a prefix.
+//!   the longer cut and the validated count, so each tier sums a prefix
+//!   ([`VsopBody::position`]).
 //! - **Corrections to VSOP87A** fitted by this project to JPL DE440 (validated) and
 //!   DE441 (labelled): a small linear model per body of the heliocentric longitude,
 //!   latitude and relative radius ([`Corrections`]). VSOP87 was fitted to DE200 in
@@ -34,7 +35,9 @@
 //! they are `../data/series_checks.json`, which the tests read ([`self_check`]).
 //!
 //! Hot path: the decoded set lives in a `OnceLock`; after the first call every
-//! evaluation reads plain `Vec`s with no lock and no allocation.
+//! evaluation reads plain `Vec`s with no lock and no allocation. The VSOP87 terms are
+//! held by frequency, so `sin` and `cos` of each distinct `C T` are computed once per
+//! evaluation and shared by every coordinate and power of T that uses it.
 
 use std::sync::OnceLock;
 
@@ -70,68 +73,108 @@ type Mat3 = [[f64; 3]; 3];
 // VSOP87A
 // ---------------------------------------------------------------------------
 
+/// Most powers of T a VSOP87 group has (the file has 0..=5).
+const MAX_POWERS: usize = 6;
+/// Leading terms kept per `(coordinate, power 0 or 1)` for [`VsopBody::leading_position_velocity`].
+pub const MAX_LEADING_TERMS: usize = 32;
+
+/// One stored term `A cos(B + C T)` as `A cos B` and `A sin B`, and the accumulator it
+/// adds to: `slot = coordinate * MAX_POWERS + power`.
+#[derive(Debug, Clone, Copy)]
+struct Entry {
+    a_cos_b: f64,
+    a_sin_b: f64,
+    slot: u8,
+}
+
+/// The entries that share one frequency `C` (radians per thousand Julian years).
+#[derive(Debug, Clone, Copy)]
+struct FreqBlock {
+    c: f64,
+    start: u32,
+    end: u32,
+}
+
+/// A set of terms laid out by frequency: `cos(C T)` and `sin(C T)` are computed once per
+/// block and shared by every term, coordinate and power of T that uses that frequency.
+#[derive(Debug, Default)]
+struct TermSet {
+    blocks: Vec<FreqBlock>,
+    entries: Vec<Entry>,
+}
+
+impl TermSet {
+    /// Build from `(frequency index, entry)` pairs.
+    fn new(freq: &[f64], mut items: Vec<(usize, Entry)>) -> TermSet {
+        items.sort_by_key(|(k, e)| (*k, e.slot));
+        let mut set = TermSet::default();
+        for (k, e) in items {
+            if set.blocks.last().map(|b| b.c.to_bits()) != Some(freq[k].to_bits()) {
+                let at = set.entries.len() as u32;
+                set.blocks.push(FreqBlock {
+                    c: freq[k],
+                    start: at,
+                    end: at,
+                });
+            }
+            set.entries.push(e);
+            set.blocks.last_mut().expect("a block was pushed").end += 1;
+        }
+        set
+    }
+
+    /// Add `sum A cos(B + C t)` into `acc[slot]`.
+    fn add_values(&self, t: f64, acc: &mut [f64; 3 * MAX_POWERS]) {
+        for b in &self.blocks {
+            let (sin, cos) = (b.c * t).sin_cos();
+            for e in &self.entries[b.start as usize..b.end as usize] {
+                acc[usize::from(e.slot)] += e.a_cos_b * cos - e.a_sin_b * sin;
+            }
+        }
+    }
+
+    /// As [`TermSet::add_values`], and `sum d/dt A cos(B + C t)` into `rate[slot]`.
+    fn add_values_and_rates(
+        &self,
+        t: f64,
+        acc: &mut [f64; 3 * MAX_POWERS],
+        rate: &mut [f64; 3 * MAX_POWERS],
+    ) {
+        for b in &self.blocks {
+            let (sin, cos) = (b.c * t).sin_cos();
+            for e in &self.entries[b.start as usize..b.end as usize] {
+                let slot = usize::from(e.slot);
+                acc[slot] += e.a_cos_b * cos - e.a_sin_b * sin;
+                rate[slot] -= b.c * (e.a_sin_b * cos + e.a_cos_b * sin);
+            }
+        }
+    }
+}
+
+/// One coordinate's group sizes, for [`VsopCoordinate::counts`].
 #[derive(Debug, Clone, Copy)]
 struct Group {
-    start: usize,
     n_valid: usize,
     n_total: usize,
 }
 
-impl Group {
-    fn len(&self, full: bool) -> usize {
-        if full { self.n_total } else { self.n_valid }
-    }
-}
-
-/// One coordinate of one body: every stored `[A, B, C]` for `A cos(B + C T)`, and the
-/// per-power groups (index = power of T).
+/// One coordinate of one body: how many terms each power of T stores (all tiers) and
+/// how many the validated tier uses, and the leading terms of powers 0 and 1 as
+/// `[A, B, C]` for the light-time estimate.
 #[derive(Debug)]
 pub struct VsopCoordinate {
-    terms: Vec<[f64; 3]>,
     groups: Vec<Group>,
+    leading: [Vec<[f64; 3]>; 2],
 }
 
 impl VsopCoordinate {
-    /// Value at `t` (thousands of Julian years of TT): the validated prefix of every
-    /// group, or all stored terms when `full` (the labelled tier).
-    pub fn value(&self, t: f64, full: bool) -> f64 {
-        let mut total = 0.0;
-        for g in self.groups.iter().rev() {
-            let mut s = 0.0;
-            for term in &self.terms[g.start..g.start + g.len(full)] {
-                s += term[0] * (term[1] + term[2] * t).cos();
-            }
-            total = total * t + s;
-        }
-        total
-    }
-
-    /// Value and derivative per thousand Julian years.
-    pub fn value_and_rate(&self, t: f64, full: bool) -> (f64, f64) {
-        // X = sum_n t^n S_n(t): Horner for the value (p), for the derivative of the
-        // polynomial with S_n held fixed (q), and for sum_n t^n S_n'(t) (r).
-        let (mut p, mut q, mut r) = (0.0, 0.0, 0.0);
-        for g in self.groups.iter().rev() {
-            let (mut s, mut ds) = (0.0, 0.0);
-            for term in &self.terms[g.start..g.start + g.len(full)] {
-                let (sin, cos) = (term[1] + term[2] * t).sin_cos();
-                s += term[0] * cos;
-                ds -= term[0] * term[2] * sin;
-            }
-            q = q * t + p;
-            p = p * t + s;
-            r = r * t + ds;
-        }
-        (p, q + r)
-    }
-
     /// Value and rate from the leading `k` terms of the `T^0` and `T^1` groups only:
     /// good to about 1e-3 au, enough to estimate a light-time.
-    pub fn leading_value_and_rate(&self, t: f64, k: usize) -> (f64, f64) {
+    fn leading_value_and_rate(&self, t: f64, k: usize) -> (f64, f64) {
         let (mut p, mut q, mut r) = (0.0, 0.0, 0.0);
-        for g in self.groups.iter().take(2).rev() {
+        for terms in self.leading.iter().rev() {
             let (mut s, mut ds) = (0.0, 0.0);
-            for term in &self.terms[g.start..g.start + g.n_total.min(k)] {
+            for term in &terms[..terms.len().min(k)] {
                 let (sin, cos) = (term[1] + term[2] * t).sin_cos();
                 s += term[0] * cos;
                 ds -= term[0] * term[2] * sin;
@@ -152,35 +195,70 @@ impl VsopCoordinate {
     }
 }
 
-/// The three coordinates of one VSOP87A body.
+/// The three coordinates of one VSOP87A body. Every `(coordinate, power)` group is
+/// sorted by amplitude and each tier sums a prefix of it; the terms are held by
+/// frequency: `validated` is the validated tier's prefix, `labelled` the rest of what
+/// the file stores, which the labelled tier adds.
 #[derive(Debug)]
 pub struct VsopBody {
     pub xyz: [VsopCoordinate; 3],
+    validated: TermSet,
+    labelled: TermSet,
+}
+
+/// `sum_n t^n S_n` per coordinate (Horner), from the per-slot sums.
+fn horner(acc: &[f64; 3 * MAX_POWERS], t: f64) -> [f64; 3] {
+    let mut out = [0.0; 3];
+    for (c, v) in out.iter_mut().enumerate() {
+        for n in (0..MAX_POWERS).rev() {
+            *v = *v * t + acc[c * MAX_POWERS + n];
+        }
+    }
+    out
 }
 
 impl VsopBody {
-    /// Heliocentric position, au, VSOP87A ecliptic axes, **uncorrected**.
+    fn sums(&self, t: f64, full: bool) -> [f64; 3 * MAX_POWERS] {
+        let mut acc = [0.0; 3 * MAX_POWERS];
+        self.validated.add_values(t, &mut acc);
+        if full {
+            self.labelled.add_values(t, &mut acc);
+        }
+        acc
+    }
+
+    /// Heliocentric position, au, VSOP87A ecliptic axes, **uncorrected**: the
+    /// validated prefix of every group, or all stored terms when `full` (the labelled
+    /// tier).
     pub fn position(&self, t: f64, full: bool) -> [f64; 3] {
-        [
-            self.xyz[0].value(t, full),
-            self.xyz[1].value(t, full),
-            self.xyz[2].value(t, full),
-        ]
+        horner(&self.sums(t, full), t)
     }
 
     /// Heliocentric position (au) and velocity (au per day), uncorrected.
     pub fn position_velocity(&self, t: f64, full: bool) -> ([f64; 3], [f64; 3]) {
-        let (x, dx) = self.xyz[0].value_and_rate(t, full);
-        let (y, dy) = self.xyz[1].value_and_rate(t, full);
-        let (z, dz) = self.xyz[2].value_and_rate(t, full);
-        (
-            [x, y, z],
-            [dx / DAYS_PER_TJY, dy / DAYS_PER_TJY, dz / DAYS_PER_TJY],
-        )
+        let (mut acc, mut rate) = ([0.0; 3 * MAX_POWERS], [0.0; 3 * MAX_POWERS]);
+        self.validated.add_values_and_rates(t, &mut acc, &mut rate);
+        if full {
+            self.labelled.add_values_and_rates(t, &mut acc, &mut rate);
+        }
+        // X = sum_n t^n S_n(t): Horner for the value (p), for the derivative of the
+        // polynomial with S_n held fixed (q), and for sum_n t^n S_n'(t) (r).
+        let (mut x, mut v) = ([0.0; 3], [0.0; 3]);
+        for c in 0..3 {
+            let (mut p, mut q, mut r) = (0.0, 0.0, 0.0);
+            for n in (0..MAX_POWERS).rev() {
+                q = q * t + p;
+                p = p * t + acc[c * MAX_POWERS + n];
+                r = r * t + rate[c * MAX_POWERS + n];
+            }
+            x[c] = p;
+            v[c] = (q + r) / DAYS_PER_TJY;
+        }
+        (x, v)
     }
 
-    /// [`VsopCoordinate::leading_value_and_rate`] for all three coordinates, au and au
-    /// per day.
+    /// Position (au) and velocity (au per day) from the leading `k` terms of each
+    /// coordinate's `T^0` and `T^1` groups (at most [`MAX_LEADING_TERMS`]).
     pub fn leading_position_velocity(&self, t: f64, k: usize) -> ([f64; 3], [f64; 3]) {
         let (x, dx) = self.xyz[0].leading_value_and_rate(t, k);
         let (y, dy) = self.xyz[1].leading_value_and_rate(t, k);
@@ -212,15 +290,16 @@ fn read_vsop(bytes: &[u8]) -> Result<Vec<VsopBody>, String> {
         for _ in 0..n_freq {
             freq.push(r.f64()?);
         }
+        let (mut validated, mut labelled) = (Vec::new(), Vec::new());
         let mut coords = Vec::with_capacity(3);
-        for _ in 0..3 {
+        for coord in 0..3 {
             let n_powers = usize::from(r.u8()?);
-            if n_powers > 6 {
+            if n_powers > MAX_POWERS {
                 return Err(format!("VSOP section: {n_powers} powers of T"));
             }
-            let mut terms = Vec::new();
             let mut groups = Vec::with_capacity(n_powers);
-            for _ in 0..n_powers {
+            let mut leading: [Vec<[f64; 3]>; 2] = [Vec::new(), Vec::new()];
+            for power in 0..n_powers {
                 let n_total = r.count(6)?;
                 let n_valid = r.u32()? as usize;
                 let n_wide = r.u32()? as usize;
@@ -232,7 +311,6 @@ fn read_vsop(bytes: &[u8]) -> Result<Vec<VsopBody>, String> {
                          {n_fine} fine"
                     ));
                 }
-                let start = terms.len();
                 for i in 0..n_total {
                     let (a, b) = if i < n_wide {
                         (r.f64()?, r.f64()?)
@@ -247,20 +325,33 @@ fn read_vsop(bytes: &[u8]) -> Result<Vec<VsopBody>, String> {
                     let c = *freq
                         .get(k)
                         .ok_or_else(|| format!("VSOP section: frequency index {k} of {n_freq}"))?;
-                    terms.push([a, b, c]);
+                    if let (Some(lead), true) = (leading.get_mut(power), i < MAX_LEADING_TERMS) {
+                        lead.push([a, b, c]);
+                    }
+                    let (sin_b, cos_b) = b.sin_cos();
+                    let entry = Entry {
+                        a_cos_b: a * cos_b,
+                        a_sin_b: a * sin_b,
+                        slot: (coord * MAX_POWERS + power) as u8,
+                    };
+                    if i < n_valid {
+                        validated.push((k, entry));
+                    } else {
+                        labelled.push((k, entry));
+                    }
                 }
-                groups.push(Group {
-                    start,
-                    n_valid,
-                    n_total,
-                });
+                groups.push(Group { n_valid, n_total });
             }
-            coords.push(VsopCoordinate { terms, groups });
+            coords.push(VsopCoordinate { groups, leading });
         }
         let [x, y, z]: [VsopCoordinate; 3] = coords
             .try_into()
             .map_err(|_| "VSOP section: three coordinates".to_string())?;
-        bodies[idx] = Some(VsopBody { xyz: [x, y, z] });
+        bodies[idx] = Some(VsopBody {
+            xyz: [x, y, z],
+            validated: TermSet::new(&freq, validated),
+            labelled: TermSet::new(&freq, labelled),
+        });
     }
     r.finish()?;
     bodies
@@ -880,6 +971,18 @@ impl SeriesSet {
         let raw = self.vsop[body].position(vsop_time(jd_tt), full);
         self.corrections.apply(body, jd_tt, raw)
     }
+
+    /// [`SeriesSet::heliocentric_ecliptic`] and the series' velocity (au per day,
+    /// without the corrections' own slow rate, 1e-8 of it) from one evaluation.
+    pub fn heliocentric_ecliptic_state(
+        &self,
+        body: usize,
+        jd_tt: f64,
+        full: bool,
+    ) -> ([f64; 3], [f64; 3]) {
+        let (raw, v) = self.vsop[body].position_velocity(vsop_time(jd_tt), full);
+        (self.corrections.apply(body, jd_tt, raw), v)
+    }
 }
 
 /// Decode a series payload (the bytes inside the container).
@@ -943,8 +1046,11 @@ pub struct SelfCheck {
 /// Re-evaluate the embedded series at the checkpoints the generator computed from the
 /// same stored numbers (`checks_json`, the text of `data/series_checks.json`, which
 /// must name this file's checksum). Differences are arithmetic only (summation order,
-/// and the rounding of arguments that reach millions of radians far from J2000): about
-/// 2e-14 au and 1e-6 arcsec. Anything larger means the file or the decoder is wrong.
+/// and the rounding of arguments that reach millions of radians far from J2000): the
+/// VSOP87 sums round `C T` before the phase is added, one rounding of Venus's 36 000
+/// radians at 1500 BC being 7e-12 rad, so up to about 3e-12 au there (half a metre),
+/// and 1e-6 arcsec for the Moon. Anything larger means the file or the decoder is
+/// wrong.
 pub fn self_check(checks_json: &str) -> Result<SelfCheck, EphemerisError> {
     let s = series()?;
     let checks: Checks = serde_json::from_str(checks_json)
@@ -1010,8 +1116,9 @@ mod tests {
         assert_eq!(s.meta.schema, SERIES_SCHEMA);
         let c = self_check(CHECKS).unwrap();
         assert!(c.checkpoints >= 16, "{c:?}");
-        assert!(c.vsop_au < 1e-12, "{c:?}");
-        assert!(c.corrected_au < 1e-12, "{c:?}");
+        // 2.6e-12 au at worst (Venus at 1500 BC; see `self_check`).
+        assert!(c.vsop_au < 1e-11, "{c:?}");
+        assert!(c.corrected_au < 1e-11, "{c:?}");
         // At 1500 BC the arguments reach 3e6 radians, where one f64 rounding of the
         // argument is 3e-10 rad, 7e-6" on the 22 640" equation of the centre: the
         // generator (numpy, direct polynomials) and this evaluator (reduced angles and

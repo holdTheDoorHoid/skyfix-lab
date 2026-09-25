@@ -81,7 +81,9 @@
 //! "Historical accuracy", has the tables. What is left is VSOP87's own error after
 //! the corrections (under 1" everywhere in the validated tier; beyond VSOP87's stated
 //! span for Jupiter and Saturn before about AD 0) plus the truncation (1" at a
-//! planet's closest approach, by construction).
+//! planet's closest approach, by construction; in the validated tier 0.1" for Mercury,
+//! 0.2" for Venus and 0.01" of the Sun's direction for the Earth, which the transits,
+//! planet discs and the Earth's apsides need).
 //!
 //! # Tiers
 //!
@@ -247,9 +249,7 @@ fn earth_frame(s: &SeriesSet, jd_tt: f64) -> EarthFrame {
 /// The Earth's corrected heliocentric position (au) and velocity (au/day),
 /// equatorial J2000 axes.
 fn earth_state(s: &SeriesSet, jd_tt: f64) -> ([f64; 3], [f64; 3]) {
-    let full = full_series(jd_tt);
-    let (_, v) = s.vsop[EARTH].position_velocity(vsop_time(jd_tt), full);
-    let e = s.heliocentric_ecliptic(EARTH, jd_tt, full);
+    let (e, v) = s.heliocentric_ecliptic_state(EARTH, jd_tt, full_series(jd_tt));
     (to_equator(e), to_equator(v))
 }
 
@@ -639,8 +639,8 @@ impl Default for PlanetProvider {
 /// against `fixtures/reference/deeptime_planets.json` (Skyfield + DE440, every
 /// half-century of 1550-2650). Both assert every epoch against these numbers.
 pub const ACCURACY_BY_PLANET_ARCMIN: [(Planet, f64); 7] = [
-    (Planet::Mercury, 0.02),
-    (Planet::Venus, 0.02),
+    (Planet::Mercury, 0.005),
+    (Planet::Venus, 0.005),
     (Planet::Mars, 0.02),
     (Planet::Jupiter, 0.02),
     (Planet::Saturn, 0.02),

@@ -539,7 +539,8 @@ A provider that misses its target is shipped only with `validated: false` in
 
 The targets above hold over the whole **validated tier** (1550-2650), where the published
 per-provider figures are (arcminutes, worst of GHA and Dec): Sun 0.01, Moon 0.02, each
-planet 0.02 (Uranus 0.03), stars 0.03 (model plus the catalogue's formal 1-sigma at the
+planet 0.02 (Mercury and Venus 0.005, Uranus 0.03), stars 0.03 (model plus the
+catalogue's formal 1-sigma at the
 tier's edges; Rigil Kentaurus's barycentric motion apart). In the **labelled tier** the
 figures are measured and published but carry no target (display only, no sights): Sun
 0.02, Moon 0.05, Mercury 0.02, Venus 0.05, Mars 0.1, Jupiter 0.25, Saturn 0.7, Uranus 0.2,

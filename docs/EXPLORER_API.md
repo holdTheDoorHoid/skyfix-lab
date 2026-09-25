@@ -2966,7 +2966,7 @@ the body.
 
 **Both tiers ship in the core module; there is no `deep-time` pack.** The planner's rule
 was to keep both tiers in the core if the module stayed inside its budget: the two-tier
-series file is 151 625 bytes (115 932 gzipped), smaller than the three one-tier JSON
+series file is 162 507 bytes (125 716 gzipped), smaller than the three one-tier JSON
 files it replaced (477 494 bytes), and the module ends smaller than before (ACCURACY.md
 section 20). The packs mechanism is unchanged and serves `tides-us` (and later
 `lunar-limb`); no `deep-time` producer is registered, so `packs_loaded` never lists it.
