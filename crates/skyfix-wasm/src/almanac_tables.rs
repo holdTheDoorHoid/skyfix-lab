@@ -22,13 +22,14 @@ pub mod native {
     };
     use skyfix_core::calendar::Calendar;
     use skyfix_ephemeris::body::Sky;
+    use skyfix_ephemeris::tiers::TierPolicy;
 
-    /// The provider of the almanac pages and tables. MERGE (deeptime): once the tiers
-    /// land this becomes `Sky::new().with_policy(TierPolicy::WithLabelled)`, like the
-    /// explorer's display sky: an almanac is for display, never a sight, so it answers
-    /// the labelled tier too (and `almanac.rs` should do the same).
+    /// The provider of the almanac pages and tables: the explorer's display sky, answering
+    /// the labelled tier too (2000 BC to AD 3000; polish2, after the deeptime merge): an
+    /// almanac is for display, never a sight, and the interface puts the ±ΔT chip and the
+    /// estimate's note on a labelled page. DUT1 = 0: the pages' argument is UT1.
     pub fn sky() -> Sky {
-        Sky::new()
+        Sky::new().with_policy(TierPolicy::WithLabelled)
     }
 
     /// `""` or `"auto"`: the display calendar (Julian before 1582-10-15); else
@@ -93,7 +94,10 @@ pub mod native {
 
     pub fn polaris(year: f64, calendar: &str) -> Result<PolarisTable, String> {
         let y = parse_year(year)?;
-        polaris_table(&sky(), y, year_calendar(y, calendar)?).map_err(|e| e.to_string())
+        // The validated tier only: the a0, a1, a2 method holds while Polaris is near the pole
+        // (2.9 degrees from it in 1550, 0.45 in 2100); in 1000 it was 6 degrees off and by
+        // 2000 BC Thuban was the pole star, so the labelled tier gets no Polaris tables.
+        polaris_table(&Sky::new(), y, year_calendar(y, calendar)?).map_err(|e| e.to_string())
     }
 }
 
@@ -218,11 +222,20 @@ mod tests {
 
     #[test]
     fn years_outside_the_ephemeris_are_refused_or_reported() {
+        // Polaris: the validated tier only (the method needs the star near the pole).
         let e = polaris(1000.0, "").unwrap_err();
         assert!(e.contains("Polaris"), "{e}");
+        // Venus and Mars: the display sky's labelled tier (polish2), in the Julian calendar.
         let pl = planets(1000.0, "").unwrap();
         assert_eq!(pl.calendar, skyfix_core::calendar::Calendar::Julian);
-        assert!(!pl.errors.is_empty());
-        assert!(pl.venus.is_empty() && pl.mars.is_empty());
+        assert!(
+            !pl.venus.is_empty() && !pl.mars.is_empty(),
+            "{:?}",
+            pl.errors
+        );
+        // Beyond the labelled tier nothing is computed, and the table says why.
+        let far = planets(-2500.0, "").unwrap();
+        assert!(!far.errors.is_empty());
+        assert!(far.venus.is_empty() && far.mars.is_empty());
     }
 }
