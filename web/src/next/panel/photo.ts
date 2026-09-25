@@ -368,6 +368,7 @@ export function lightTableView(ctx: Ctx): LightTableView {
       setText(note, span ? `Golden and blue hour: not computed (${error}).` : 'Golden and blue hour: this day is outside the years the core covers.');
       return;
     }
+    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
     const model = lightTable(hours, zone, deltaTNote(ctx, s.time.jd_utc));
     body.replaceChildren(
       ...model.rows.map((r) =>
@@ -770,6 +771,7 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
       setText(arch, '');
       return;
     }
+    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
     const model = galacticNight(result, zone, s.settings.angleFormat, deltaTNote(ctx, a));
     status.replaceChildren(
       h('p', { class: 'sf-photo__head' }, `The night of ${dateShort(a, zone)}`),
@@ -815,6 +817,7 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
       return;
     }
     const nights = bestNights(result, a);
+    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
     const dt = deltaTNote(ctx, a);
     setText(
       monthStatus,

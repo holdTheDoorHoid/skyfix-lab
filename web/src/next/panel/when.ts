@@ -179,6 +179,7 @@ export function whenTool(ctx: Ctx): WhenTool {
         ? `${body} is never at ${at} on ${day}.`
         : `${body} at ${at} on ${day}: ${found.length === 1 ? 'once' : `${found.length} times`}. Press a time to show it.`,
     );
+    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
     const dt = deltaTNote(ctx, s.time.jd_utc);
     list.replaceChildren(
       ...found.map((c) => {
@@ -228,6 +229,7 @@ export function whenTool(ctx: Ctx): WhenTool {
         ? `${body} does not pass ${on} ${compassPoint(az)} above the horizon on ${day}.`
         : `${body} on ${on} on ${day}: ${found.length === 1 ? 'once' : `${found.length} times`}. Press a time to show it.`,
     );
+    // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
     const dt = deltaTNote(ctx, s.time.jd_utc);
     const f = s.settings.angleFormat;
     list.replaceChildren(

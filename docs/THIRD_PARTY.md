@@ -2041,3 +2041,27 @@ B.E. (1991), *PASP* 103, 1033. Sky classes: Bortle, J.E. (2001), *Sky & Telescop
 February, 126 (the limiting-magnitude range of each class, a fact). Meteor rates: the
 standard ZHR conversion (IMO). Each is written from the publication's equations and
 checked by hand evaluation (`docs/ACCURACY.md`, "Deep sky").
+
+## Expansion programme — the Selected card's tools (photo agent, Q8, 2026-09-25)
+
+Owner: photo agent (`web/src/next/panel/{photo,moon-tools,alignment,when,sun-tools,selected}.ts`,
+`web/src/next/map/pick.ts`). **No third-party data is added to the site.** Every number the
+card shows comes from the engines, whose sources are listed above; the one computation of
+its own, the direction to a point picked on the map, is a published method.
+
+| Item | What is used | Basis |
+|---|---|---|
+| T. Vincenty, "Direct and inverse solutions of geodesics on the ellipsoid with application of nested equations", *Survey Review* 23 (176), 88-93 (1975) | the inverse formula (`panel/sun-tools.ts`, `geodesicInverse`), written from its published equations | a method; cited, no code copied |
+
+#### Development-time references
+
+- **The Geocentric Datum of Australia Technical Manual's worked example of Vincenty's
+  inverse formula** (Intergovernmental Committee on Surveying and Mapping, chapter 4):
+  Flinders Peak (−37° 57′ 03.72030″, 144° 25′ 29.52440″) to Buninyong (−37° 39′ 10.15610″,
+  143° 55′ 35.38390″), 54 972.271 m, azimuths 306° 52′ 05.37″ and 127° 10′ 25.07″. Read
+  from the sample data Geoscience Australia keeps at the end of its own implementation,
+  <https://github.com/GeoscienceAustralia/Wind_multipliers/blob/master/utilities/vincenty.py>
+  (which cites the manual's former address, `http://www.anzlic.org.au/icsm/gdatum/chapter4.html`),
+  retrieved 2026-09-25. Seven published numbers (facts), typed into
+  `web/test/next/photo-tools.test.ts`; nothing else is copied.
+

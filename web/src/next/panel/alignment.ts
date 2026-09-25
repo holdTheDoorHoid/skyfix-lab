@@ -374,6 +374,7 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
         }
         shownKey = r.key;
         const zone = displayZone(st);
+        // time-ui: the ±ΔT chip after these times (deltaTNote stands in).
         const model = alignmentRows(result, zone, st.settings.angleFormat, deltaTNote(ctx, st.time.jd_utc));
         setText(status, model.summary);
         list.replaceChildren(
