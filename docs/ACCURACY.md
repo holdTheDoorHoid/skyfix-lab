@@ -1403,7 +1403,7 @@ each.
 ## 14. Time scales: Delta-T, UT1 and calendars
 
 Model and definitions: CONVENTIONS 15.2-15.3 and `skyfix_core::{time, deltat, calendar}`
-(timescales agent, 2026-09-24). Tests: `crates/skyfix-core/tests/timescales_reference.rs`
+(timescales agent, 2026-09-24; UT1 − UTC from IERS `finals2000A.all` of 2026-09-25). Tests: `crates/skyfix-core/tests/timescales_reference.rs`
 against `fixtures/reference/timescales.json` (`tools/timescales/gen_timescales.py`,
 Skyfield 1.55), the unit tests of those modules, and `web/test/next/timescale.test.ts`.
 
@@ -1415,14 +1415,24 @@ TT = UT + ΔT from the model below, and inside it UT1 = UTC + DUT1 from the IERS
 
 ### Delta-T against Skyfield (targets from the brief)
 
+Three references, all Skyfield 1.55: its `build_delta_t` run on this project's weekly table
+(the Python twin), its timescale built from the same `finals2000A.all` at daily resolution
+(`skyfield.data.iers`, as `load.timescale(builtin=False)` does), and its shipped timescale,
+whose bundled table is an earlier `finals2000A.all` (it matches this one to 0.05 ms
+through 2026-01-16 and is Skyfield's own January-2026 prediction after that).
+
 | span | compared with | worst difference | target |
 |---|---|---|---|
-| −2000 to 3000, 1 090 epochs | Skyfield's own `build_delta_t` run on this project's IERS table (the Python twin of the Rust model) | **5 × 10⁻¹⁰ s** | 1 µs |
-| 1973-01-02 to 2026-01-23, IERS observed | Skyfield 1.55's shipped timescale | **1.5 ms** (the weekly table's interpolation) | 0.01 s |
-| −720 to 1972, the SMH 2016 splines (2020 revision) | the same | **0** (identical tables; 2 × 10⁻⁵ s in 1971-1973 from the adjusted last segment) | 1 s |
-| −2000 to −720 and after 2800, the parabola and the left join | the same | **0** | equal |
-| 2026-01-23 to 2027-09-21 | the same, whose table there is a January-2026 prediction | 0.31 s | by design: the IERS Bulletin A of 2026-09-24 found that prediction 0.105 s off by September |
-| 2027 to 2800, the join to the parabola | the same | 17.7 s at 2280 (5 s in 2060) | by design, inside the standard uncertainty there (220 s at 2280, 10 s in 2060): the join starts from fresher data and its last-year slope |
+| −2000 to 3000, 1 075 epochs | the Python twin | **5 × 10⁻¹⁰ s** | 1 µs |
+| 1973-01-02 to 2026-09-24, IERS observed | Skyfield from the same `finals2000A.all` | **1.5 ms** (the weekly table's interpolation) | 0.01 s |
+| 2026-09-25 to 2027-09-28, IERS Bulletin A's prediction | the same | **1.2 ms** | 0.01 s |
+| 1973-01-02 to 2026-01-16, where the bundle is observed | Skyfield's shipped timescale | **1.5 ms** | 0.01 s |
+| −720 to 1972, the SMH 2016 splines (2020 revision) | both | **0** (identical tables; under 10⁻⁴ s in 1971-1973 from the adjusted last segment) | 1 s |
+| −2000 to −720 and after 2800, the parabola and the left join | both | **0** | equal |
+| 2026-01-17 to 2026-09-24 | Skyfield's shipped timescale, whose table is its January prediction there | 0.10 s | none: the bundle's own prediction error (0.4 ms by 01-23, 5.6 ms by 02-28, 0.11 s by 09-24) |
+| 2026-09-25 to 2027-09-28 | the same | 0.31 s (2027.4) | none: two predictions eight months apart |
+| 2027-09-28 to 2800, the join to the parabola | Skyfield from the same file | 0.21 s at 2290 | inside σ (230 s there): the joins start six days apart (ours at the last weekly sample) |
+| the same | Skyfield's shipped timescale | 16 s at 2280 (5 s in 2060) | inside σ (220 s at 2280, 10 s in 2060): its join starts from its January prediction |
 
 UT → TT inverts ΔT(TT) exactly as Skyfield's `ut1_jd` does; the round trip is exact to
 10⁻⁵ s over −2000..3000. Reference fixtures built with `tools/timescales/skyfield_timescale.py`
@@ -1440,15 +1450,15 @@ share this ΔT to 5 × 10⁻¹⁰ s, so ΔT never counts as ephemeris error in t
 | 1600 | 109 s | 15 s | the same |
 | 1900 | −2.0 s | 0.11 s | the splines' measured rms against IERS 1973-2019 (their published 0.05 s is the observations' error; the spline itself is off by up to 0.27 s) |
 | 1990-2026 | IERS | 0.001 s | the weekly table (at most 1.9 ms, 0.5 ms rms) |
-| 2030 | 69.7 s | 0.30 s | Huber from 2026-09-24 (Bulletin A's own formula for the first 112 days) |
-| 2060 | 79.0 s | 9.8 s | the same |
-| 2100 | 105 s | 32 s | the same |
+| 2030 | 69.6 s | 0.30 s | Huber from 2026-09-24 (Bulletin A's own formula for the first 112 days) |
+| 2060 | 78.7 s | 9.8 s | the same |
+| 2100 | 104.5 s | 32 s | the same |
 | 2650 | 31 min | 15 min | the same |
 | 3000 | 69 min | 30 min | the same |
 
 The future curve is a model, not a forecast: Stephenson, Morrison & Hohenkerk's own
 extrapolation gives 70 ± 6 s for 2050 and 80 ± 10 s for 2100, Skyfield's 97 s for 2100,
-Espenak & Meeus's 204 s. All lie inside this model's 2100 band (105 ± 32 s) but for
+Espenak & Meeus's 204 s. All lie inside this model's 2100 band (104.5 ± 32 s) but for
 Espenak & Meeus. The data audit suggested SMH's own errors until 2500 (±10 s in 2100);
 they describe SMH's extrapolated curve, which already misses 2026 by 1.3 s, not this one,
 and would jump to Huber's 570 s at 2500, so Huber is used throughout the future. For the
@@ -1456,22 +1466,29 @@ display, a σ above 30 s is shown beside every time ("±m min"); 15″ of longit
 
 ### UT1 − UTC: the IERS history
 
+The table is IERS `finals2000A.all` of 2026-09-25 (observed, flag `I`, to 2026-09-24;
+IERS Bulletin A of 2026-09-24's prediction, flag `P`, to 2027-10-02), sampled weekly.
+
 | check | result |
 |---|---|
-| weekly samples (i16, 0.1 ms) against the daily series they come from, 340 dates 1973-2027 | worst **1.6 ms**; interpolation linear in UT1 − TAI, so leap seconds do not smear (the 2016-12-31 step is +1 s to 2 ms) |
-| against IERS Bulletin A of 2026-09-24, its seven observed days | within 2 ms |
-| 2026-01-24 to 2026-09-17 (the prediction corrected to the observations) | σ from a Brownian bridge scaled to the 0.105 s correction: up to 0.052 s mid-span |
-| Bulletin A's predictions to 2027-09-21 | σ = max(0.00025 n^0.75 s, Huber): 3 ms after 30 days, 0.05 s after a year |
+| weekly samples (i16, 0.1 ms) against the daily series they come from, 343 dates 1973-2027 | worst **1.6 ms**; interpolation linear in UT1 − TAI, so leap seconds do not smear (the 2016-12-31 step is +1 s to 2 ms) |
+| the IERS formal errors of the observed values | at most 1.5 ms (1973-1984), 0.27 ms (1985-1989), 0.06 ms since 1990: σ = 1 ms stands |
+| the text of IERS Bulletin A of 2026-09-24 | its observed week to 0.4 µs, its year of predictions to 5 µs (its printed rounding) |
+| the leap seconds implied by the file's +1 s steps | exactly the 25 of `skyfix_core::time` from 1974 on |
+| Bulletin A's predictions to 2027-09-28 | σ = max(0.00025 n^0.75 s, Huber): 3 ms after 30 days, 0.05 s after a year |
 
 With the history the DUT1 term of a GHA is 1 ms (0.015″) up to 2026-09-24 and a few
 hundredths of a second in the predicted year, against up to 0.9 s (0.23′) before. After
-2027-09-21 and in 1972 it is unknown again (0 ± 0.9 s) unless the navigator enters the
+2027-09-28 and in 1972 it is unknown again (0 ± 0.9 s) unless the navigator enters the
 time signal's value. The section 4 row "DUT1 (UT1 − UTC) assumed zero" is superseded by
 this (the moonshape agent owns that row).
 
-The weekly table uses 1973-2026 observations as bundled in Skyfield 1.55 and IERS Bulletin
-A of 2026-09-24; nothing was downloaded. A current `finals2000A.all` or EOP 20 C04 would
-remove the corrected span and add 1962-1972; `gen_timescales.py` says how.
+Before this refresh (the first version of this section) the table was Skyfield 1.55's
+bundle to 2026-01-23 and Bulletin A's observed week, with the bundle's January prediction
+corrected to meet both between them. Against the observations now in hand that corrected
+span was off by at most 20 ms (11 ms rms), inside the standard uncertainty it claimed
+(0.052 s at mid-span) on every day; the refresh changed no CLI golden and no other test.
+1962-1972 is still missing (`finals2000A.all` starts in 1973; IERS EOP 20 C04 would fill it).
 
 ### What changed in the other checks
 
@@ -1480,7 +1497,7 @@ remove the corrected span and add 1962-1972; `gen_timescales.py` says how.
   (2024-04-08: ΔT 69.201 s, not 69.184; greatest eclipse 0.00007° of longitude; one
   moonset now rounds to :55 not :56).
 - **The Moon, planet, topocentric and almanac-page fixtures** were generated with TT = UTC
-  + 69.184 s and UT1 = UTC after 2035; the clock is UT there now, with TT 1.6 s later in
+  + 69.184 s and UT1 = UTC after 2035; the clock is UT there now, with TT 1.5 s later in
   2036 and 10 s later by 2060 (the Moon up to 6″). Those tests evaluate the fixture's own TT and UT1
   (`time::legacy_fixture_instant`): every residual they print is unchanged to the last
   digit. The four almanac pages after 2035 are left out until `almanac_days.json` is
@@ -1509,7 +1526,9 @@ binary search of the leap-second table); on the UT scale two ΔT evaluations.
 ### Reproduce
 
 - `tools/reference/.venv/bin/python tools/timescales/gen_timescales.py` rebuilds
-  `crates/skyfix-core/src/deltat/data.rs` and `fixtures/reference/timescales.json`.
+  `crates/skyfix-core/src/deltat/data.rs` and `fixtures/reference/timescales.json`,
+  byte-identical, from the committed sources (the full `finals2000A.all` is not needed:
+  `tools/timescales/sources/finals2000A-ut1-2026-09-25.txt` holds the columns used).
 - `tools/reference/.venv/bin/python tools/timescales/skyfield_timescale.py` checks the
   Python twin against the fixture.
 - `cargo test --release -p skyfix-core --test timescales_reference -- --nocapture` prints
