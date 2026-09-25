@@ -2265,6 +2265,256 @@ base commit 28131c5 (2.06 MB / 849 KB before, 2.15 MB / 885 KB with tides).
 - The data and fixtures: `tools/tides/README.md` (NOAA's API, about 4 800 requests,
   cached).
 
+## 17. Planet detail
+
+Owner: planetdetail agent (expansion programme P9). Engines:
+`skyfix_almanac::{discs, rings, satellites, transits, conjunctions, earth_apsides,
+orbits}` (definitions: CONVENTIONS 13.12; wire format: EXPLORER_API.md, "Expansion
+programme — planet detail"). Every reference below is independent of the Rust code: JPL
+Horizons, JPL's satellite ephemeris, NASA's transit catalogues and tables, USNO, Meeus's
+worked examples and tables, and Skyfield 1.55 with JPL DE440/DE440s, all fetched and
+computed by `tools/reference/gen_planetdetail.py` into
+`fixtures/reference/planetdetail_*.json`. Everything here follows the planet provider's
+apparent places (section 2, "Planets"): where a residual grows for Uranus and Neptune, it
+is that provider's 2-3″, not the new code.
+
+For the at-a-glance table: *Planet detail (discs and rings vs Horizons; Galilean moons vs
+JPL; transits vs NASA and Skyfield; conjunctions and stations vs Skyfield, 1990-2060):
+sub-points within 0.0005°, moons within 0.33″, transit contacts within 4.4 s of Skyfield
+and within NASA's minute, 3 223 conjunctions and 2 300 stations one for one (stations
+within 96 s) — targets 1″ (moons), 1 min (transits), 5 min (conjunctions, stations).*
+
+### Discs and Saturn's rings against JPL Horizons
+
+`tests/planetdetail_discs.rs`, 26 epochs per planet inside the coverage (33 for Saturn,
+with its ring-plane crossings), Horizons' observer quantities for the Earth's centre.
+Horizons evaluates a planet's rotation when the light left the sub-Earth point (the
+light-time instant plus `R / c`); the engine does the same (without it Jupiter's
+longitudes are 8.7″ off).
+
+| quantity | Mercury-Mars | Jupiter, Saturn | Uranus, Neptune | test tolerance |
+|---|---|---|---|---|
+| sub-Earth longitude and latitude | 0.00003° | 0.00009° | **0.00047°** | 0.0003° / 0.001° |
+| sub-solar longitude and latitude | 0.00006° | 0.00009° | 0.00045° | same |
+| pole position angle | 0.00006° | 0.00005° | **0.0026°** (Uranus) | 0.001° / 0.005° |
+| equatorial diameter | 1.1e-6 | 6e-7 | 4.1e-6 (relative) | 1e-5 |
+| illuminated fraction | 0.0096 % | 0.0004 % | 0.0001 % | 0.015 % |
+| defect of illumination | 0.0019″ (Venus) | 0.0002″ | 0.0001″ | 0.005″ |
+| phase angle | 0.0089° | 0.0076° | 0.0068° | 0.012° |
+
+Uranus and Neptune inherit the planet provider's 2.1″ and 2.7″ (a 2″ error in the planet's
+direction moves the sub-Earth point by 0.0006°); Uranus's pole position angle is the
+largest in 2028, near its solstice, when its north pole is 8° from the line of sight
+(0.27″ from the disc's centre) and a small error in direction swings the angle. The
+phase angle differs systematically by up to 0.009° because Horizons' Sun-target-observer
+angle and ours treat aberration differently; illumination and defect follow it.
+
+Saturn's rings (`saturns_rings_match_horizons`): `B` within **0.00003°**, `B′` within
+**0.00002°**, `P` within **0.00005°** (tolerances 0.0003° and 0.001°). Meeus's example 45.a
+(1992 Dec 16) is reproduced within 0.004° in `B`, `B′` and `ΔU` and 0.026° in `P` (his ring
+pole is the 1980s', ours the IAU 2015; Horizons sides with ours), and his axes 35.87″ and
+10.15″ exactly once his outer radius (136 117 km, NSSDCA's 136 780) is used.
+
+Jupiter's central meridians (`jupiters_central_meridians_reproduce_meeus_example_43a`):
+Meeus's example 43.a gives `DE` = −2.48° and `P` = 24.80°, ours −2.482° and 24.797°; his
+System I and II values (268.06°, 72.74°) are for the illuminated disc and ours plus his
+phase correction (0.43°) give 268.07° and 72.69°. System III is Horizons' (above).
+
+Saturn's magnitude: `magnitude` is the explorer's (Mallama & Hilton 2018, as the planet
+provider), `magnitude_aa1984` the 1984 Astronomical Almanac formula (Meeus 41) for
+comparison with printed almanacs. Over 1990-2060 (every 10 days) the explorer's minus the
+1984 formula runs from −0.13 to +0.07.
+
+### Galilean moons against JPL's satellite ephemeris
+
+`tests/planetdetail_galilean.rs` against Skyfield with excerpts of JPL's `jup365.bsp` on
+DE440 (target 1″).
+
+| moon | offset from Jupiter, worst (15 instants, 1995-2058) | phenomena, worst (2026) | edges |
+|---|---|---|---|
+| Io | **0.096″** | **23 s** | 183 |
+| Europa | **0.237″** | **46 s** | 88 |
+| Ganymede | **0.270″** | **97 s** | 45 |
+| Callisto | **0.323″** | **68 s** | 20 |
+
+The phenomena are every start and end of the moons' transits, shadow transits,
+occultations and eclipses in two 20-day windows of 2026 (January, around opposition, and
+April): **all 336 found one for one**, none extra. Jupiter's pole position angle agrees
+within 0.00003°, its apparent radius within 9e-6, the Earth's jovicentric latitude within
+0.00003°, and every flag (in transit, occulted, eclipsed, shadow on the disc) at every
+instant except within 3 % of a limb. The times are E5's own error along each orbit: a
+moon's 0.1-0.3″ is 20 s to 1.5 min at the speed it crosses a limb, and Ganymede runs 70-97 s
+early throughout 2026 (a steady offset, not noise). Tolerances in the test: 45 s, 60 s,
+120 s, 120 s.
+
+### Transits of Mercury and Venus
+
+`tests/planetdetail_transits.rs`.
+
+- **Against Skyfield + DE440s with the same definitions** (the Sun's 959.63″ at 1 au,
+  IAU radii): the 12 transits of 1990-2060, 60 contacts, worst **4.4 s** (contact II of
+  Mercury's near-grazing transit of 1999, where the timing is ill-conditioned; **0.049″**
+  as a separation error); least separations within **0.041″**.
+- **Against NASA's catalogues** (Espenak): the same 12 transits, none missing or extra.
+  Contacts within 82 s, **53 s** after removing the difference between NASA's
+  extrapolated ΔT and ours (the catalogue prints UT to the minute, so up to 30 s is its
+  rounding); durations within 40 s; least separations within 0.08″ (target 1 min).
+- **NASA's 2004 and 2012 contacts to the second**: within **5.1 s**, position angles
+  within 0.43° (NASA's Venus is slightly larger than the IAU radius).
+- **Local circumstances**, NASA's city tables (13 cities in 2004, 11 in 2012): 101
+  contacts within **5.7 s**, the Sun's altitude within 0.52° of the tables' whole
+  degrees (target 30 s).
+
+### Conjunctions and stations
+
+`tests/planetdetail_conjunctions.rs` against Skyfield + DE440s: every local minimum of the
+apparent separation under 6° of the 21 planet pairs and 28 planet-star pairs over
+1990-2060 and of the Moon with the planets and the four stars over 2020-2030, and every
+station of Mercury to Neptune in both coordinates over 1990-2060. Closest approaches with
+either body within 1° of the Sun are left out on both sides: Skyfield applies the formula
+for light passing the Sun to a body behind it, where it diverges (3″ for Uranus on
+2028-05-30, a spurious minimum against Aldebaran).
+
+- **3 223 closest approaches matched one for one, none missing or extra.** Timing within
+  **295 s** (target 5 min), separations within 0.00043° (1.5″, Mercury-Neptune) and the
+  position angle within 2.3″ sideways, each inside the two bodies' own accuracy (the Moon
+  1.2″, Mercury to Mars 0.3″, Jupiter and Saturn 0.6″, Uranus 2.1″, Neptune 2.7″, stars
+  0.1″). 24 slow pairs are more than 5 minutes out, all explained by those accuracies: a
+  pair closing at 160″ a day (Jupiter and Uranus in 2038) moves its minimum by 18 minutes
+  for Uranus's 2″, so the test converts such a difference into position along the track
+  (worst 2.2″, Neptune-Aldebaran in 2060, 27 minutes).
+- **2 300 stations matched one for one**: Mercury within **4.6 s**, Venus 13 s, Mars 18 s,
+  Jupiter 13 s, Saturn 17 s, Uranus 48 s, Neptune **96 s** (target 5 min). A planet near
+  a station barely moves, so its position error becomes time: 96 s is Neptune's 2.7″.
+- The interpolants (Chebyshev fits of each body's ICRS direction, precession-nutation
+  put back exactly at every evaluation) follow the providers within 1e-5″ in position and
+  6e-5″/day in the longitude's rate (`fits_follow_the_providers`); they are why a year's
+  search is fast.
+
+### The Earth's perihelion and aphelion
+
+`tests/planetdetail_apsides.rs` (target 10 min): against Skyfield + DE440s (149 events,
+1990-2060) within **1.06 min** and 2.3e-8 au; against USNO's seasons tables (142 events,
+to the minute) within **1.6 min**; against Meeus's table 38.C (40 events, 1991-2010,
+from the complete VSOP87) within **0.51 min** and 4.8e-7 au. The Earth's centre, not the
+Earth-Moon barycentre, as USNO and Meeus give it, from the Sun provider's series: the
+minimum is flat (740 km a day squared), so a 1e-8 au wobble moves it by a minute, and the
+planet provider's more deeply truncated Earth put it up to 5 minutes out.
+
+### User-supplied orbits
+
+`tests/planetdetail_orbits.rs` against Skyfield's `mpc` module (the same two-body model):
+six minor planets (Ceres, Vesta, Eros, Icarus, Apophis, Bennu) and six comets (2P, 12P,
+29P, C/2023 A3, C/2024 G3 with e = 1.000009, C/1995 O1) at the epoch −60, 0, +30 and +200
+days: **48 positions within 0.058″** on the sky and 2.3e-7 in distance (target 1′). This
+checks the parser and the propagator, not the physics: unperturbed elements drift from the
+real orbit within weeks to months (more for near-Earth objects and comets passing
+Jupiter), which is why every result past 30 days from its epoch carries a warning
+(`stale_elements_are_flagged`). The MPC's packed numbers, designations and dates are read
+as its documentation's own examples say (unit tests in `orbits.rs`).
+
+### Speed
+
+Release build, x86-64, the shared 8-core machine, thread CPU time: `galilean_moons`,
+`saturn_rings`, `planet_disc` and one custom body under a millisecond; a month of Galilean
+phenomena 85 ms (at a load average of 25); transits of 1990-2060 0.24 s (0.31 s with an observer); a year of
+conjunctions with the default bodies **216 ms** at a load average of 4 (251 ms with an
+observer; target 300 ms, `a_years_search_is_fast`, which fails with the load named when
+the machine is busy: 372 ms at a load of 30); a year of stations about 150 ms; the
+Earth's apsides for a year 18 ms. Most of it is the providers (a planet 40 µs, the Moon
+42 µs, the Sun 23 µs).
+
+### Size
+
+The package adds **191 KB raw and 77 KB gzipped** to the core module (`npm run wasm`),
+measured by building with and without `skyfix_wasm::planetdetail` on main as of 3f4fe4e
+(2 806 595 / 1 154 399 bytes without, **2 997 407 / 1 231 646 with**: inside the revised
+budget of 3 MB / 1.25 MB, with 2.6 KB of raw headroom). It is code: E5, the searches, the
+MPC parser and the serialisation of eleven calls. The fits and Brent's searches are
+compiled once each through `dyn` calls rather than once per closure (18.8 KB raw, 8.2 KB
+gzipped saved; each call costs an ephemeris evaluation, so the dynamic dispatch is free);
+on the base commit 28131c5 the package measured 214 KB / 87 KB before that.
+
+### Reproduce
+
+- `tools/reference/.venv/bin/python -m tools.reference.gen_planetdetail --part all`
+  regenerates the six fixtures (`--part horizons|galilean|transits|conjunctions|apsides|
+  orbits` for one; Horizons, NASA, USNO, the MPC and NAIF need the network; the jup365
+  excerpts are cached in `tools/reference/data/planetdetail/`; the conjunctions take about
+  nine minutes).
+- `cargo test --release -p skyfix-almanac --test planetdetail_discs --test
+  planetdetail_galilean --test planetdetail_transits --test planetdetail_conjunctions
+  --test planetdetail_apsides --test planetdetail_orbits -- --include-ignored --nocapture`
+  prints every number above (the 1990-2060 conjunction and station runs and the timing
+  are `--ignored` in the default run, which covers 2024-2026 and 2019-2030).
+
+## Charts: what the Sun, Tides and Moon charts compute themselves (charts2 agent, expansion programme Q5)
+
+Every number on the Sun, Tides and Moon charts is an engine's (sections 9, 14, 16 and "Moon in
+detail"): `sun_path`, `analemma`, `rise_set_azimuths`, `equation_of_time`, `solar_day`,
+`solar_year`, `day_events`, `sky_state`, `sample_bodies`, `moon_apsides`, `tide_predict`,
+`tide_extremes` and `tide_stations_near`. The charts compute only these on top of them,
+checked against the engine in `web/test/next/charts-real-engine.test.ts` (runs when the
+WebAssembly package and the `tides-us` pack are built; `--reporter=verbose` prints the
+figures) and with the mock engine in `charts-sun.test.ts` and `charts-tides-moon.test.ts`:
+
+| what the chart does | against | worst |
+|---|---|---|
+| the tide height under the moving cursor, read off the 6-minute predicted curve (the cubic through the four nearest samples) instead of calling `tide_now` every frame | `tide_now` at 97 instants of a day and 157 of a week, at Anchorage (9455920, range about 9 m), Boston and San Francisco, 2026-09-24 | **0.02 mm** (Anchorage), under 0.01 mm elsewhere |
+| the rate of rise under the cursor, the same cubic's slope | `tide_now`'s rate | **0.09 cm/h** (Anchorage) |
+| the Moon at one hour through the year: `sample_bodies`, one exact sample a day, in two or three runs a year (a clock change starts a run) | `sky_state` at the same instants (Philadelphia, 21:00, 2026) | **0.72″**: a run takes the Earth's rotation (DUT1) at its middle (EXPLORER_API `set_dut1`); displayed to 0.1′ |
+| the sun path's whole hours on the local clock | the engine's own samples (identical values) | exact |
+| sunrise and sunset bearings through the year, drawn from the Year chart's shared `day_events_batch` (one computation for both charts) | `rise_set_azimuths` for the same year, event by event (Philadelphia, 2026) | **0.014 s, 0.005″**: the year-long call takes one DUT1 for the year, the batch each day's |
+
+Drawn but never shown as a number: the sun path's crossing of the horizon between two
+10-minute samples (linear; the rise and set shown are the event finder's), and the
+analemma's sky projection (stereographic, a picture only). The solar panel's energy is the
+engine's clear-sky estimate and is labelled as one everywhere, with the model's typical
+error (section 14); the tides are labelled "predicted, not observed" everywhere.
+
+Speed: the developer page's bench (`web/src/next/charts/dev/screenshots.mjs bench`,
+headless Chrome, WebAssembly, the median of six warm runs after a cold first one). The
+shared machine was under a load average of about 40 on 8 cores, so the numbers are
+comparable with each other and with the existing Year chart in the same run, not in
+absolute terms:
+
+| chart (engine work) | warm median (first) |
+|---|---|
+| Year chart, for comparison (`day_events_batch`, 365 days) | 420 ms (657) |
+| Sun path (`sun_path`, `day_events`, `sky_state`) | 67 ms (77) |
+| Analemma (`analemma`, a year) | 188 ms (242) |
+| Sunrise bearings | shared with the Year chart: nothing more once it is drawn |
+| Equation of time (a year) | 141 ms (65) |
+| Solar panel (`solar_year` with the best-tilt search) | 273 ms (377) |
+| Moon through the year (`sample_bodies`, 365 exact samples) | 157 ms (126) |
+| Perigee and apogee of a month (`moon_apsides`) | 213 ms (305) |
+| Tides, a day / a week | 20 ms / 35 ms |
+
+Every year chart is at or under the Year chart's own cost (the solar panel at about 0.65 of
+it), computes once per place, year and setting, runs after the time settles while the time
+bar is dragged, and is kept for the page's lifetime; nothing heavier than a cursor moves per
+frame.
+
+## Interface: calendars, the clock's scale and the ΔT chip (time-ui agent, wave 2)
+
+The explorer's own calendar arithmetic (`web/src/next/time/civil.ts`, used by every date on
+screen) is exact integer arithmetic, held to the engine rather than to JavaScript's `Date`:
+
+- `web/test/next/time-civil.test.ts`: the Julian and Gregorian day numbers of the built
+  package's `calendar_convert` agree on 1 821 days over −2000..3000 (every 1 009th day, the
+  seven days around the 1582 reform, 29 February of 1 BC and of 1600, 28 May 585 BC; both
+  ways, both calendars); every
+  day of 2000 BC to AD 3000 round-trips in both calendars; JavaScript's proleptic Gregorian
+  `Date` agrees on every 97th day of the years 0-9999; the mock engine's calendars agree on
+  every 211th day. The years −584, 0, 99, 1066 and 12345 go wall clock → wire string → back
+  unchanged (the `Date.UTC` traps of the accuracy audit).
+- `web/test/next/time-tiers.test.ts`: the clock's scale (UTC 1972-2035, UT outside) and the
+  display calendar agree with the built package's `time_info` at 231 instants over
+  −2000..3000 and at the four instants either side of the scale's boundaries.
+
+What the chip shows is the engine's `time_info.delta_t_sigma_s` (section 14 above), rounded
+for reading (±s below 90 s, ±min below an hour, ±h above); it is not a new estimate.
+
 ## Navigate's expansion tools (navigate2, 2026-09-25)
 
 Owner: navigate2 agent (expansion programme, wave 2). The Compass and Passage tabs, the

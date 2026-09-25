@@ -2,8 +2,9 @@
  * The settings popover: theme, how times, angles and units are shown, navigator terms,
  * the horizon used for rise and set, and the data packs saved on this device. Changes apply
  * at once and are remembered on this device (settings only; never the place). OWNER:
- * shell-design agent; the 12/24-hour clock and Data packs: packs agent; the Sights
- * section's index correction: navigate2 agent.
+ * shell-design agent; the 12/24-hour clock and Data packs: packs agent; the calendar and
+ * the way years are written (Times / Calendar): time-ui agent; the Sights section's index
+ * correction: navigate2 agent.
  */
 
 import { h } from '../../dom.js';
@@ -11,6 +12,8 @@ import { disposer, watch, type Ctx } from '../component.js';
 import { packsSettings } from '../packs/settings-section.js';
 import { lengthToMetres, metresToUnits } from './format.js';
 import { shallowEqual, type AngleFormat, type HorizonOption, type HourCycle, type Theme, type TimeDisplay, type Units } from '../state.js';
+import type { CalendarMode } from '../time/civil.js';
+import type { YearStyle } from '../time/format.js';
 import { segmented, switchRow, type Segmented } from '../theme/primitives.js';
 
 export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; destroy(): void } {
@@ -50,6 +53,36 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
       { value: 'h12', label: '12-hour', tip: '6:40 PM. UTC stays on the 24-hour clock.' },
     ],
     onChange: (v) => set('hourCycle', v),
+  });
+  // --- Times / Calendar (time-ui agent, CONVENTIONS 15.3) ---
+  const calendarSeg = segmented<CalendarMode>({
+    label: 'Calendar',
+    value: s0.calendar,
+    size: 'sm',
+    options: [
+      {
+        value: 'historical',
+        label: 'Julian to 1582',
+        tip: 'Dates before 15 October 1582 in the Julian calendar, as people then wrote them (the default)',
+      },
+      {
+        value: 'iso',
+        label: 'Gregorian (ISO)',
+        tip: 'The Gregorian calendar carried back before 1582 (proleptic), as ISO 8601 and many astronomy tables date it',
+      },
+    ],
+    onChange: (v) => set('calendar', v),
+  });
+  const yearsSeg = segmented<YearStyle>({
+    label: 'Years',
+    value: s0.yearStyle,
+    size: 'sm',
+    options: [
+      { value: 'era', label: '585 BC', tip: 'BC and AD, as historians write them (there is no year 0)' },
+      { value: 'astronomical', label: '−584', tip: 'Astronomical numbering: year 0 is 1 BC, −584 is 585 BC' },
+      { value: 'iso', label: '-0584', tip: 'ISO 8601 expanded years, as the site’s links and files write them' },
+    ],
+    onChange: (v) => set('yearStyle', v),
   });
   const angles = segmented<AngleFormat>({
     label: 'Angles',
@@ -115,6 +148,8 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
     row('Theme', theme.el),
     row('Times', times.el),
     row('Clock', cycle.el),
+    row('Calendar', calendarSeg.el),
+    row('Years', yearsSeg.el),
     row('Angles', angles.el),
     row('Units', units.el),
     terms,
@@ -141,6 +176,8 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
     [theme as Segmented<string>, (s) => s.theme],
     [times as Segmented<string>, (s) => s.timeDisplay],
     [cycle as Segmented<string>, (s) => s.hourCycle],
+    [calendarSeg as Segmented<string>, (s) => s.calendar],
+    [yearsSeg as Segmented<string>, (s) => s.yearStyle],
     [angles as Segmented<string>, (s) => s.angleFormat],
     [units as Segmented<string>, (s) => s.units],
     [horizon as Segmented<string>, (s) => s.horizon],

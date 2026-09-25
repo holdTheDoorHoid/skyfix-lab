@@ -18,3 +18,15 @@ pub mod apsides;
 pub mod libration;
 pub mod lunar_features;
 pub mod occultations;
+
+// Planet detail (expansion programme P9, planetdetail agent): discs, rings, the
+// Galilean moons, transits of Mercury and Venus, conjunctions and stations, the Earth's
+// apsides and user-supplied orbits. CONVENTIONS 13.12.
+pub mod conjunctions;
+pub mod discs;
+pub mod earth_apsides;
+pub mod orbits;
+pub(crate) mod planet_geometry;
+pub mod rings;
+pub mod satellites;
+pub mod transits;

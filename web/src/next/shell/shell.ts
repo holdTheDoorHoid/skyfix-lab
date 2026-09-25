@@ -19,11 +19,9 @@ import { panel } from '../panel/panel.js';
 import { bottomSheet } from '../panel/sheet.js';
 import { iconButton, installTooltips } from '../theme/primitives.js';
 import { timebar } from '../timebar/timebar.js';
-import { displayZone } from '../state.js';
-import { UTC_ZONE } from '../time.js';
+import { startTimeServices } from '../time/services.js';
 import { appbar } from './appbar.js';
-import { coverageSpan, covered } from './derived.js';
-import { dateMedium, setHourCycle } from './format.js';
+import { setHourCycle } from './format.js';
 import { noticeBar } from './noticebar.js';
 import { startPlaceService } from './place.js';
 import { startRouter } from './router.js';
@@ -39,6 +37,10 @@ export const shell: Component = (host, ctx) => {
   // on every change before the next frame draws (every `watch` then draws again).
   setHourCycle(store.get().settings.hourCycle);
   d.add(store.select((s) => s.settings.hourCycle, setHourCycle));
+  // Deep time (time-ui agent): the calendar and year style kept in step the same way, the
+  // tier notice (outside the years the core covers, or a historical / far-future estimate)
+  // and the Deep time pack when a date needs it (time/services.ts).
+  d.add(startTimeServices(ctx));
   const place = startPlaceService(store, ctx.notices);
   d.add(place.destroy);
 
@@ -98,26 +100,6 @@ export const shell: Component = (host, ctx) => {
       app.dataset.live = live ? 'on' : 'off';
     }),
   );
-
-  // Outside the years the core covers nothing is computed; say so once, in plain words.
-  const span = coverageSpan(ctx);
-  if (span) {
-    d.add(
-      watch(ctx, (s) => covered(ctx, s.time.jd_utc), (inside) => {
-        if (inside) {
-          ctx.notices.dismissKey('coverage');
-          return;
-        }
-        const s = store.get();
-        const zone = displayZone(s);
-        ctx.notices.push(
-          'caution',
-          `${dateMedium(s.time.jd_utc, zone)} is outside the years the SkyFix Lab core covers (${dateMedium(span[0], UTC_ZONE)} to ${dateMedium(span[1], UTC_ZONE)}), so nothing can be computed for it. Choose a date in that range, or press Now.`,
-          { key: 'coverage' },
-        );
-      }),
-    );
-  }
 
   return {
     destroy() {
