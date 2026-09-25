@@ -108,9 +108,42 @@ pub struct Instrument {
     pub index_correction_arcmin: f64,
     #[serde(default)]
     pub horizon: HorizonMode,
+    /// Index-error log (sailings agent; CONVENTIONS section 10): when it has entries, a
+    /// sight's index correction is interpolated from it at the sight's time instead of
+    /// `index_correction_arcmin`. Absent in older files; not written when empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub index_error_log: Vec<IndexErrorLogEntry>,
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+/// One measurement of the index correction (CONVENTIONS section 10): signed, added,
+/// arcminutes, the same sign convention as `index_correction_arcmin` (section 5).
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct IndexErrorLogEntry {
+    /// When it was measured, RFC 3339 UTC.
+    pub utc: String,
+    pub ic_arcmin: f64,
+    #[serde(default)]
+    pub note: String,
+}
+
+/// One comparison of the watch with a time signal (CONVENTIONS section 10): the
+/// correction ADDED to the watch's reading, seconds, as `clock.correction_s`.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct WatchLogEntry {
+    /// When the comparison was made, RFC 3339 UTC (the watch's reading will do: the
+    /// difference moves the interpolated value by the rate times the error, microseconds).
+    pub utc: String,
+    pub correction_s: f64,
+    #[serde(default)]
+    pub note: String,
+}
+
+/// The horizon a sextant altitude was measured from (CONVENTIONS section 5, step 2).
+///
+/// Serialised as a string for the modes without parameters (`"sea"`, ...) and as
+/// `{"shore": {"distance_nm": 1.2}}` for a shoreline nearer than the sea horizon (not
+/// `Eq`: it carries a distance).
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum HorizonMode {
     /// Natural sea horizon: dip applies.
@@ -120,9 +153,13 @@ pub enum HorizonMode {
     ArtificialReflected,
     /// Electronic local vertical (inclinometer / camera attitude): no dip.
     ElectronicVertical,
+    /// The waterline of a shore (or any object afloat) `distance_nm` away, nearer than
+    /// the sea horizon: the dip short of the horizon applies (Bowditch vol. 2 Table 14;
+    /// CONVENTIONS section 5). Beyond the sea horizon the sea dip applies, with a warning.
+    Shore { distance_nm: f64 },
 }
 
-#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
 pub struct Clock {
     /// 1-sigma uncertainty of the recorded UTC, seconds. Propagated, never estimated.
     #[serde(default)]
@@ -137,6 +174,12 @@ pub struct Clock {
     /// written without it.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub dut1_s: Option<f64>,
+    /// Watch log (sailings agent; CONVENTIONS section 10): when it has entries, a sight's
+    /// chronometer correction is interpolated from it at the sight's recorded time
+    /// instead of `correction_s`. Absent in older files; not written when empty. (The
+    /// struct is no longer `Copy` because of it.)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub watch_log: Vec<WatchLogEntry>,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
@@ -267,6 +310,53 @@ pub struct ReducedSight {
     /// includes it. Added by the expansion programme.
     #[serde(default)]
     pub earth_shape_arcmin: Option<f64>,
+    /// Present when the index correction came from `instrument.index_error_log`: the
+    /// value used (arcminutes) and how it was obtained. Absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index_correction_from_log: Option<LoggedValue>,
+    /// Present when the chronometer correction came from `clock.watch_log`: the value
+    /// used (seconds) and how it was obtained. Absent otherwise.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub clock_correction_from_log: Option<LoggedValue>,
+}
+
+/// How a value was read from an error log at a sight's time (CONVENTIONS section 10).
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum LogMethod {
+    /// Linear between the entries either side.
+    Interpolated,
+    /// The sight is at an entry's instant.
+    AtEntry,
+    /// The log has one entry; it holds at every time.
+    OnlyEntry,
+    /// Before the first entry: its value held, not extrapolated.
+    HeldBeforeFirst,
+    /// After the last entry: its value held, not extrapolated.
+    HeldAfterLast,
+}
+
+/// One entry of an error log as used.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LogPoint {
+    pub utc: String,
+    pub value: f64,
+}
+
+/// A value read from an error log at a sight's time.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct LoggedValue {
+    /// Arcminutes for the index-error log, seconds for the watch log.
+    pub value: f64,
+    pub method: LogMethod,
+    /// The entry at or before the sight (the held one when outside the log).
+    pub from: Option<LogPoint>,
+    /// The entry after the sight, when interpolating.
+    pub to: Option<LogPoint>,
+    /// Hours outside the log's span (0 inside it).
+    pub hours_outside: f64,
+    /// One sentence: which value, from which entries.
+    pub note: String,
 }
 
 /// Solver input, radians. Built by `reduce`; never deserialised from user JSON.
@@ -642,6 +732,27 @@ pub enum Warning {
         id: String,
         latitude_deg: f64,
         azimuth_deg: f64,
+    },
+    // --- sailings agent (expansion programme): dip short, error logs -------------
+    /// A `shore` horizon farther than the sea horizon: the waterline is hidden below the
+    /// sea horizon, so the sea dip was applied instead of the dip short of the horizon.
+    ShoreBeyondSeaHorizon {
+        id: String,
+        distance_nm: f64,
+        /// Distance of the sea horizon for this height of eye, NM (where Bowditch's dip
+        /// short of the horizon is least, and equals the sea dip).
+        sea_horizon_nm: f64,
+    },
+    /// A sight outside the time span of an error log (`instrument.index_error_log` or
+    /// `clock.watch_log`): the nearest entry's value was held, not extrapolated.
+    ErrorLogOutsideSpan {
+        id: String,
+        /// `"index_error_log"` or `"watch_log"`.
+        log: String,
+        /// The value used: arcminutes for the index error log, seconds for the watch log.
+        held_value: f64,
+        /// How far outside the span the sight is, hours.
+        hours_outside: f64,
     },
 }
 

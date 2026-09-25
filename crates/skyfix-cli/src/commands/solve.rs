@@ -570,6 +570,7 @@ mod tests {
                 uncertainty_s: clock_s,
                 correction_s: 0.0,
                 dut1_s: None,
+                watch_log: Vec::new(),
             },
             observations: Vec::new(),
         }

@@ -91,7 +91,8 @@ export function sightObserverJson(o: SightObserver): string {
 
 /** An instrument document; `{}` means every default (0′ index correction, sea horizon). */
 export function instrumentJson(i: SightInstrument | undefined): string {
-  const out: Record<string, number | string> = {};
+  // A shore horizon is an object: `{"shore": {"distance_nm": d}}`.
+  const out: Record<string, number | string | object> = {};
   if (i?.name !== undefined) out.name = i.name;
   if (i?.index_correction_arcmin !== undefined) out.index_correction_arcmin = i.index_correction_arcmin;
   if (i?.horizon !== undefined) out.horizon = i.horizon;

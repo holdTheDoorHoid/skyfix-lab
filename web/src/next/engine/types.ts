@@ -643,7 +643,8 @@ export interface SightObserver {
   dut1_s?: number | null;
 }
 
-export type SightHorizon = 'sea' | 'artificial_reflected' | 'electronic_vertical';
+/** Any horizon the core's chain takes, a shore horizon included (sailings agent). */
+export type SightHorizon = import('../../types.js').HorizonMode;
 export type SightLimb = 'center' | 'lower' | 'upper';
 export type SightAltitudeKind = 'sextant_hs' | 'apparent_ha' | 'observed_ho';
 
@@ -2431,4 +2432,354 @@ export interface SolarEclipsePath {
 }
 export interface LunarEclipsePath {
   delta_t_sigma_s?: number;
+}
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — sailings, dead reckoning, star identification, star finder
+// (sailings agent, 2026-09-24). Rust: crates/skyfix-core/src/sailings/,
+// crates/skyfix-core/src/methods/{starid,starfinder}.rs, crates/skyfix-wasm/src/sailings.rs.
+// Wire format: docs/EXPLORER_API.md, "Expansion programme — sailings"; methods:
+// docs/NAVIGATION_METHODS.md sections 9-11. Behind `isSailingsEngine`.
+// ---------------------------------------------------------------------------------
+
+/** The figure Mercator sailing's meridional parts are computed on (default `sphere`). */
+export type MeridionalParts = 'sphere' | 'wgs84';
+/** How a leg of constant course is run (default `rhumb`). */
+export type DrMethod = 'rhumb' | 'mid_latitude' | 'great_circle';
+/** Waypoints every so many NM, or on every whole multiple of so many degrees of longitude. */
+export type WaypointSpacing = { every_nm: number } | { every_deg_lon: number };
+
+export interface PassageRequest {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  waypoints?: WaypointSpacing | null;
+  /** Composite sailing: north positive (47 keeps the track south of 47° N). */
+  limiting_latitude_deg?: number | null;
+  meridional_parts?: MeridionalParts;
+  speed_kn?: number | null;
+  departure_utc?: string | null;
+}
+
+export interface SailingVertex {
+  lat_deg: number;
+  lon_deg: number;
+  /** Along the track from the departure; negative when behind it. */
+  distance_from_start_nm: number;
+  on_route: boolean;
+}
+
+export interface SailingWaypoint {
+  index: number;
+  lat_deg: number;
+  lon_deg: number;
+  /** Along the great circle (or composite track). */
+  distance_from_start_nm: number;
+  track_course_deg: number;
+  /** The rhumb line to the next waypoint; null at the destination. */
+  leg_course_deg: number | null;
+  leg_distance_nm: number | null;
+  /** Rhumb-line legs sailed to here. */
+  sailed_nm: number;
+  eta_utc: string | null;
+  eta_jd_utc: number | null;
+}
+
+export interface SailingArrival {
+  hours: number;
+  utc: string | null;
+  jd_utc: number | null;
+}
+
+export interface GreatCircleReport {
+  distance_nm: number;
+  distance_km: number;
+  distance_deg: number;
+  initial_course_deg: number | null;
+  final_course_deg: number | null;
+  vertex: SailingVertex | null;
+  highest_latitude_deg: number;
+  equator_crossing: LatLonDeg | null;
+  waypoints: SailingWaypoint[];
+  waypoint_route_nm: number;
+  /** For drawing, at most 60 NM apart. */
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+}
+
+export interface RhumbReport {
+  course_deg: number | null;
+  distance_nm: number;
+  distance_km: number;
+  dlat_arcmin: number;
+  dlo_arcmin: number;
+  departure_nm: number;
+  /** Null when an end is at a pole. */
+  meridional_difference_arcmin: number | null;
+  meridional_parts: MeridionalParts;
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+}
+
+export interface MidLatitudeReport {
+  course_deg: number | null;
+  distance_nm: number;
+  mean_latitude_deg: number;
+  dlat_arcmin: number;
+  dlo_arcmin: number;
+  departure_nm: number;
+  arrival: SailingArrival | null;
+}
+
+export interface CompositeLegReport {
+  kind: 'great_circle' | 'parallel';
+  from: LatLonDeg;
+  to: LatLonDeg;
+  distance_nm: number;
+  initial_course_deg: number | null;
+  final_course_deg: number | null;
+}
+
+export interface CompositeReport {
+  limiting_latitude_deg: number;
+  /** False when the great circle stays within the limit (then it is the track). */
+  applies: boolean;
+  distance_nm: number;
+  distance_km: number;
+  extra_distance_nm: number;
+  legs: CompositeLegReport[];
+  waypoints: SailingWaypoint[];
+  waypoint_route_nm: number;
+  track: LatLonDeg[];
+  arrival: SailingArrival | null;
+  note: string;
+}
+
+export interface PassageReport {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  great_circle: GreatCircleReport;
+  rhumb_line: RhumbReport;
+  /** Null across the equator. */
+  mid_latitude: MidLatitudeReport | null;
+  composite: CompositeReport | null;
+  great_circle_saving_nm: number;
+  speed_kn: number | null;
+  departure_utc: string | null;
+  notes: string[];
+}
+
+export interface DrRequest {
+  from: LatLonDeg;
+  course_deg: number;
+  speed_kn: number;
+  /** Negative: where the vessel was that long before. */
+  hours: number;
+  method?: DrMethod;
+  meridional_parts?: MeridionalParts;
+  start_utc?: string | null;
+}
+
+export interface DrReport {
+  from: LatLonDeg;
+  to: LatLonDeg;
+  course_deg: number;
+  speed_kn: number;
+  hours: number;
+  distance_nm: number;
+  method: DrMethod;
+  meridional_parts: MeridionalParts;
+  /** The course on arrival: turns along a great circle, constant on a rhumb line. */
+  final_course_deg: number;
+  arrival_utc: string | null;
+  arrival_jd_utc: number | null;
+}
+
+/** The running fix's leg shape (`RunningFixLeg`): a route's legs go to `runningFix` as they are. */
+export interface RouteLeg {
+  start_utc?: string | null;
+  course_deg: number;
+  speed_kn: number;
+}
+
+export interface RouteRequest {
+  start: LatLonDeg;
+  start_utc: string;
+  legs: RouteLeg[];
+  end_utc?: string | null;
+  method?: DrMethod;
+  meridional_parts?: MeridionalParts;
+  times_utc?: string[];
+  /** Needs `end_utc`. */
+  step_minutes?: number | null;
+}
+
+export type RouteStatus = 'before_start' | 'waiting' | 'under_way' | 'after_end';
+
+export interface RoutePoint {
+  utc: string;
+  jd_utc: number;
+  lat_deg: number;
+  lon_deg: number;
+  leg: number | null;
+  status: RouteStatus;
+  distance_run_nm: number;
+}
+
+export interface RouteLegReport {
+  index: number;
+  start_utc: string;
+  start_jd_utc: number;
+  end_utc: string | null;
+  end_jd_utc: number | null;
+  from: LatLonDeg;
+  to: LatLonDeg | null;
+  course_deg: number;
+  speed_kn: number;
+  distance_nm: number | null;
+}
+
+export interface RouteMadeGood {
+  course_deg: number | null;
+  distance_nm: number;
+  hours: number;
+  speed_kn: number | null;
+}
+
+export interface RouteReport {
+  method: DrMethod;
+  meridional_parts: MeridionalParts;
+  legs: RouteLegReport[];
+  points: RoutePoint[];
+  made_good: RouteMadeGood | null;
+  notes: string[];
+}
+
+export type BearingKind = 'true' | 'magnetic' | 'compass';
+
+export interface StarIdRequest {
+  /** RFC 3339 UTC, already corrected for the watch. */
+  utc: string;
+  observer: SightObserver;
+  instrument?: SightInstrument & { index_error_log?: import('../../types.js').IndexErrorLogEntry[] };
+  altitude_deg: number;
+  altitude_kind?: SightAltitudeKind;
+  bearing_deg: number;
+  bearing_kind?: BearingKind;
+  /** Degrees, east positive. */
+  variation_deg?: number | null;
+  deviation_deg?: number | null;
+  /** Default 2. */
+  altitude_tolerance_deg?: number;
+  /** Default 5. */
+  bearing_tolerance_deg?: number;
+}
+
+export type StarIdCandidateKind = 'star' | 'planet' | 'moon';
+
+export interface StarIdMatch {
+  rank: number;
+  body: string;
+  kind: StarIdCandidateKind;
+  navigational: boolean;
+  /** Airless topocentric altitude at the DR (the Moon's parallax removed). */
+  altitude_deg: number;
+  azimuth_deg: number;
+  /** Observed minus the body's. */
+  delta_altitude_deg: number;
+  delta_bearing_deg: number;
+  separation_deg: number;
+  score: number;
+  within_tolerance: boolean;
+  magnitude: number | null;
+  bright_enough: boolean | null;
+}
+
+export interface StarIdResult {
+  utc: string;
+  jd_utc: number;
+  observed_altitude_deg: number;
+  observed_bearing_deg: number;
+  corrections: SightCorrectionBreakdown;
+  altitude_tolerance_deg: number;
+  bearing_tolerance_deg: number;
+  sun_altitude_deg: number;
+  sky: SkyPhase;
+  limiting_magnitude: number;
+  candidates: StarIdMatch[];
+  best: string | null;
+  ambiguous: boolean;
+  message: string;
+  source: string;
+  warnings: SightWarning[];
+  notes: string[];
+}
+
+export type StarFinderSide = 'north' | 'south';
+export type StarFinderPoint = [number, number];
+
+export interface StarFinderStar {
+  name: string;
+  sha_deg: number;
+  dec_deg: number;
+  magnitude: number;
+  north: StarFinderPoint;
+  south: StarFinderPoint;
+}
+
+export interface AriesTick {
+  lha_aries_deg: number;
+  north: StarFinderPoint;
+  south: StarFinderPoint;
+  kind: 'label' | 'major' | 'minor';
+}
+
+export interface StarFinderLine {
+  value_deg: number;
+  points: StarFinderPoint[];
+}
+
+export interface StarFinderTemplate {
+  latitude_deg: number;
+  side: StarFinderSide;
+  zenith: StarFinderPoint;
+  horizon: StarFinderPoint[];
+  altitude_circles: StarFinderLine[];
+  azimuth_lines: StarFinderLine[];
+}
+
+/** Unit-disc coordinates, x right, y up, the base seen from outside the sphere. */
+export interface StarFinderGeometry {
+  requested_latitude_deg: number;
+  template_latitude_deg: number;
+  side: StarFinderSide;
+  /** Rotate the template anticlockwise by rotation_sign × LHA ♈ degrees. */
+  rotation_sign: number;
+  equator_radius: number;
+  epoch: string;
+  stars: StarFinderStar[];
+  aries_index: AriesTick[];
+  template: StarFinderTemplate;
+  notes: string[];
+}
+
+/** Sailings, dead reckoning, routes, star identification and the star finder. */
+export interface SailingsEngine {
+  sailing(request: PassageRequest): PassageReport;
+  drAdvance(request: DrRequest): DrReport;
+  routePositions(request: RouteRequest): RouteReport;
+  starIdentify(request: StarIdRequest): StarIdResult;
+  /** `latBand`: any latitude, snapped to its template (5° to 85°, signed); `jdUtc` plots apparent places of that date. */
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry;
+}
+
+export function isSailingsEngine(engine: unknown): engine is SailingsEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<SailingsEngine>;
+  return (
+    typeof e.sailing === 'function' &&
+    typeof e.drAdvance === 'function' &&
+    typeof e.routePositions === 'function' &&
+    typeof e.starIdentify === 'function' &&
+    typeof e.starFinderGeometry === 'function'
+  );
 }

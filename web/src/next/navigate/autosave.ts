@@ -16,13 +16,14 @@ import type {
   AltitudeKind,
   AssumedPositionRole,
   GeocentricDirection,
-  HorizonMode,
+  IndexErrorLogEntry,
   Limb,
   Observation,
   Session,
   SessionKind,
+  WatchLogEntry,
 } from '../../types.js';
-import { SESSION_SCHEMA } from '../../types.js';
+import { asHorizon, SESSION_SCHEMA } from '../../types.js';
 import type { BodyBearing, EphemerisMode, NoonCurvature, SightLimb, SingleAltitudeMode } from '../engine/types.js';
 import type { MethodId } from './text.js';
 import { METHODS } from './text.js';
@@ -57,7 +58,19 @@ const strOrNull = (x: unknown): string | null => (typeof x === 'string' && x ? x
 
 const KINDS: readonly AltitudeKind[] = ['sextant_hs', 'apparent_ha', 'observed_ho'];
 const LIMBS: readonly Limb[] = ['center', 'lower', 'upper'];
-const HORIZONS: readonly HorizonMode[] = ['sea', 'artificial_reflected', 'electronic_vertical'];
+
+/** An error log's entries that are usable (a time and a finite value); absent when none are. */
+function logEntries<K extends 'ic_arcmin' | 'correction_s'>(x: unknown, key: K): Array<{ utc: string; note: string } & Record<K, number>> {
+  if (!Array.isArray(x)) return [];
+  const out: Array<{ utc: string; note: string } & Record<K, number>> = [];
+  for (const e of x) {
+    if (!isRec(e) || typeof e.utc !== 'string') continue;
+    const v = numOrNull(e[key]);
+    if (v === null) continue;
+    out.push({ utc: e.utc, note: str(e.note, ''), [key]: v } as { utc: string; note: string } & Record<K, number>);
+  }
+  return out;
+}
 
 function position(x: unknown): { lat_deg: number; lon_deg: number } | null {
   if (!isRec(x)) return null;
@@ -92,7 +105,7 @@ function observation(x: unknown): Observation | null {
     altitude_kind: pick(x.altitude_kind, KINDS, 'sextant_hs'),
     sigma_arcmin: sigma,
     limb: pick(x.limb, LIMBS, 'center'),
-    horizon: x.horizon === null || x.horizon === undefined ? null : pick(x.horizon, HORIZONS, 'sea'),
+    horizon: x.horizon === null || x.horizon === undefined ? null : (asHorizon(x.horizon) ?? 'sea'),
     geocentric: direction(x.geocentric),
     notes: str(x.notes, ''),
   };
@@ -138,13 +151,21 @@ export function sanitizeSession(raw: unknown): Session | null {
     instrument: {
       name: str(instrument.name, ''),
       index_correction_arcmin: num(instrument.index_correction_arcmin, 0),
-      horizon: pick(instrument.horizon, HORIZONS, 'sea'),
+      horizon: asHorizon(instrument.horizon) ?? 'sea',
+      ...((): { index_error_log?: IndexErrorLogEntry[] } => {
+        const log = logEntries(instrument.index_error_log, 'ic_arcmin');
+        return log.length > 0 ? { index_error_log: log } : {};
+      })(),
     },
     clock: {
       uncertainty_s: Math.max(0, num(clock.uncertainty_s, 0)),
       correction_s: num(clock.correction_s, 0),
       // UT1 − UTC (expansion programme): kept when it is a number, else automatic.
       ...(typeof clock.dut1_s === 'number' && Number.isFinite(clock.dut1_s) ? { dut1_s: clock.dut1_s } : {}),
+      ...((): { watch_log?: WatchLogEntry[] } => {
+        const log = logEntries(clock.watch_log, 'correction_s');
+        return log.length > 0 ? { watch_log: log } : {};
+      })(),
     },
     observations,
   };

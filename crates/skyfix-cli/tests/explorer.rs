@@ -913,6 +913,9 @@ fn predict_json_is_the_library_prediction_and_reduces_back_to_hc() {
     let utc = "2026-10-01T03:00:00Z";
     let run = skyfix([
         "predict",
+        // The library comparison below builds its providers with DUT1 = 0.
+        "--dut1",
+        "0",
         "--lat",
         PHL_LAT,
         "--lon",
@@ -944,6 +947,7 @@ fn predict_json_is_the_library_prediction_and_reduces_back_to_hc() {
             name: String::new(),
             index_correction_arcmin: -2.0,
             horizon: skyfix_core::types::HorizonMode::Sea,
+            index_error_log: Vec::new(),
         },
         "Moon",
         Limb::Lower,
@@ -1072,6 +1076,9 @@ fn lunar_reads_standard_input_and_refuses_a_foreign_document() {
 fn plan_sights_json_is_the_library_plan() {
     let run = skyfix([
         "plan-sights",
+        // The library comparison below builds its providers with DUT1 = 0.
+        "--dut1",
+        "0",
         "--lat",
         PHL_LAT,
         "--lon",

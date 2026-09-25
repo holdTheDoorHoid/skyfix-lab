@@ -24,6 +24,19 @@ import * as T from './mock/timescale.js';
 import { createMockMisfit } from './mock-misfit.js';
 import { MockPacks } from './mock/packs.js';
 import type { MisfitEngine, PackEngine, PackInfo, PackStatus } from './types.js';
+import { createMockSailings } from './mock-sailings.js';
+import type {
+  DrReport,
+  DrRequest,
+  PassageReport,
+  PassageRequest,
+  RouteReport,
+  RouteRequest,
+  SailingsEngine,
+  StarFinderGeometry,
+  StarIdRequest,
+  StarIdResult,
+} from './types.js';
 import {
   buildStarfield,
   mockConstellationAt,
@@ -230,7 +243,7 @@ function inCoverage(jd: number): boolean {
   return jd >= COVERAGE_START && jd <= COVERAGE_END;
 }
 
-export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine {
+export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine, SailingsEngine {
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
   /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
@@ -253,6 +266,29 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine, Ti
 
   loadPack(name: string, bytes: Uint8Array): PackInfo {
     return this.packRegistry.loadPack(name, bytes);
+  }
+
+  /** Sailings, DR, routes, star identification, star finder (mock-sailings.ts): illustrative. */
+  private readonly sailings: SailingsEngine = createMockSailings((o, jd) => this.skyState(o, jd, 'all'));
+
+  sailing(request: PassageRequest): PassageReport {
+    return this.sailings.sailing(request);
+  }
+
+  drAdvance(request: DrRequest): DrReport {
+    return this.sailings.drAdvance(request);
+  }
+
+  routePositions(request: RouteRequest): RouteReport {
+    return this.sailings.routePositions(request);
+  }
+
+  starIdentify(request: StarIdRequest): StarIdResult {
+    return this.sailings.starIdentify(request);
+  }
+
+  starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry {
+    return this.sailings.starFinderGeometry(latBand, jdUtc);
   }
 
   constructor(options: MockEngineOptions = {}) {

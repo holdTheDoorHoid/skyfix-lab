@@ -92,3 +92,15 @@ This file is the single list; the completion report links here.
 | Regenerate the Moon, planet, topocentric and almanac-page fixtures on the CONVENTIONS 15.2 scale | unstarted | Generated with TT = UTC + 69.184 s after 2035; their tests evaluate the fixtures' own TT and UT1 through `time::legacy_fixture_instant` and leave out the four almanac pages after 2035. Regenerate with `tools/timescales/skyfield_timescale.py`, then drop the shim (deeptime agent's generators) |
 | Almanac page exactly at UT1 hours | considered | The page keeps DUT1 = 0 so each row's instant is its UT1, as printed; TT is then off by DUT1 (≤ 0.5″ of the Moon). Exact would need `pages.rs` to evaluate at UTC = hour − DUT1 |
 | CLI polish for far dates | unstarted | The eclipse text prints ΔT without its σ; `--format geojson` lacks `delta_t_sigma_s`; `skyfix almanac --date` takes four-digit years only (its parser is `pages::UtDate`); table headers still say "UTC" where rows now say "UT" (cli3) |
+
+## Expansion programme — sailings agent (wave 1, 2026-09-24)
+
+| item | status | notes |
+|---|---|---|
+| Sailings: great-circle, rhumb-line (sphere or WGS84 meridional parts), mid-latitude, plane, traverse, parallel and composite sailing; waypoints; ETA | completed (engine) | `skyfix_core::sailings`, WASM `sailing`; every Bowditch 2019 ch. 12 worked example reproduces (`docs/NAVIGATION_METHODS.md` section 9.9); the Navigate → Passage tab and the map drawing are wave 2 (navigate2) |
+| Forward dead reckoning and routes (legs in the running fix's shape) | completed (engine) | `dr_advance`, `route_positions`; a great-circle route equals the running fix's DR to 1 mm; feeding a drawn DR track into the running fix is navigate2's |
+| Dip short of the horizon (`shore` horizon) | completed (engine) | Bowditch Table 14 to 0.046′; the TS types, CSV, autosave, the classic and Navigate horizon selects keep a shore horizon, but no form can yet *set* its distance (navigate2: a distance field beside the horizon select) |
+| Star identification from altitude and bearing | completed (engine) | `star_identify`; 58/58 stars recovered; the UI is navigate2's. Variation is not looked up: it is the caller's (the geomag agent's WMM value can be passed as `variation_deg`) |
+| Star finder (2102-D equivalent) geometry | completed (engine) | `star_finder_geometry`; drawing it is almanac2's or navigate2's |
+| Index-error and watch logs | completed (engine) | session schema, interpolation, the reduced sight's record; the Navigate view's `instrumentJson` (web/src/next/engine/wasm-nav.ts) still sends only the single index correction to `predict_sextant` and `plan_sights`, so a UI with a log must pass the log too (navigate2); no form edits the logs yet |
+| Command line for the sailings exports | unstarted | cli3 (wave 2) |

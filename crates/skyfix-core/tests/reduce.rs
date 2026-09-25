@@ -34,6 +34,7 @@ fn session(observations: Vec<Observation>) -> Session {
             name: "test".to_string(),
             index_correction_arcmin: -2.0,
             horizon: HorizonMode::Sea,
+            index_error_log: Vec::new(),
         },
         clock: Default::default(),
         observations,
