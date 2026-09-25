@@ -107,7 +107,8 @@ copy covers is in About), and the time bar says what changes as you go back or f
 - **Outside the checked years** a message says so: dates the core does not cover show
   nothing, with the years it does cover; years only estimated (with the optional Deep time
   data pack) say *Historical estimate* or *Far-future estimate*, and sights are offered only
-  in the checked years.
+  in the checked years. Messages take their own strip above the view, never covering its
+  buttons; on a phone each is folded to its first line, and its arrow shows the rest.
 
 **Keyboard shortcuts**, usable anywhere on the page (they are also listed under the
 **?** Help button in the top bar):
@@ -413,8 +414,10 @@ and "The night of" otherwise.
   more at a time, each with its type, brightness, constellation, best time and height,
   what to see it with (naked eye, binoculars, a small telescope, a camera), a line about
   it and how much the Moon washes it out. **Your sky** sets how dark your sky is, from a
-  dark site (Bortle 1) to a city centre (Bortle 9), and the ranking follows; it is kept
-  while the page is open. **Show in Sky** opens the Sky view at the object's best moment.
+  dark site (Bortle 1) to a city centre (Bortle 9), and the ranking follows. It is the same
+  setting as Settings → Sky, the Sky view's **How dark is your sky** and the meteor
+  showers' in Events, and it is remembered on your device. **Show in Sky** opens the Sky
+  view at the object's best moment.
 - **Meteor showers** active tonight: the rate you might see under your sky (an estimate:
   the shower's ZHR, cut by the radiant's height and by the faint meteors your sky and the
   Moon hide), the best time, where the radiant is, and whether the Moon is up then.
@@ -704,9 +707,10 @@ What happens in the sky and when, as lists you can click. Five tabs:
 - **Meteors** — the year's meteor showers as a calendar: when each is active and peaks, its
   zenithal hourly rate (ZHR, the rate under a perfect sky with the radiant overhead), how
   bright the Moon is at the peak, and the rate to expect at your place on the peak night,
-  with the hour it is best; above the list, what the night of the time shown offers. Choose
-  how dark your sky is, from a dark site to a city. The rates are estimates from a simple
-  model and say so: real showers vary from year to year.
+  with the hour it is best; above the list, what the night of the time shown offers.
+  **Your sky** chooses how dark your sky is, from a dark site to a city: the same setting as
+  Tonight's and the Sky view's. The rates are estimates from a simple model and say so: real
+  showers vary from year to year.
 - **Seasons** — the equinoxes and solstices, worded for your hemisphere, and the Earth's
   perihelion and aphelion (closest to and farthest from the Sun, about 3% apart: the
   seasons come from the tilt of the Earth's axis, not from the distance).
@@ -787,9 +791,16 @@ the Gregorian calendar carried back, as ISO 8601 has it) and how **years** are w
 written (`26° 02.3′`, `26° 02′ 17″`, or `26.038°`); units (metric, nautical, or
 imperial); whether rise and set are figured for a sea-level horizon or dipped for your own
 height of eye; and a **Navigator's terms** switch that shows the navigator's word beside
-the plain one everywhere on the page ("Height above horizon · altitude"). All of these are
-remembered on your own device. Your chosen place never is. **Data packs**, at the bottom,
-lists the optional data this site offers (see [Working offline](#working-offline)).
+the plain one everywhere on the page ("Height above horizon · altitude"). Under **Sights**,
+beside the height of eye and the index correction, **Air** takes the air pressure and
+temperature (1010 hPa and 10 °C unless you change them): they scale the bending of light
+near the horizon in every height the page shows, the predicted sextant reading, tonight's
+sights and a new Navigate session. Under **Sky**, **Your sky** says how dark your sky is
+(automatic, meaning a dark site, or one of Bortle's nine classes): the Sky view draws the
+stars you could see, and Tonight's ranking and the meteor rates assume the same sky. All of
+these are remembered on your own device. Your chosen place never is. **Data packs**, at the
+bottom, lists the optional data this site offers, its size, where the page uses it, and a
+**Get** or **Remove** button (see [Working offline](#working-offline)).
 
 ## Sharing a link
 
