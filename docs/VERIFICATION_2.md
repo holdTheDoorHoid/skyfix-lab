@@ -18,7 +18,7 @@ Every question the planner asked is answered in section 2. Twenty-eight findings
 21 fixed on this branch, each with a test that fails on the old code or a browser check, and
 7 left for the planner: the web tests in CI, which clock times the ± chip belongs to, two
 licence decisions and three documentation items. The interface pass ran on this branch merged
-with polish2: polish2's 1 146 browser checks (UICHECK-FINAL), the verifier's own 75
+with polish2: polish2's 1 146 browser checks (UICHECK-FINAL), the verifier's own 79
 (`web/scripts/verify2-check.mjs`), 105 web test files (1 611 tests), the Rust workspace
 (1 548 tests, 14 ignored), clippy, fmt, the wasm32 build and the typecheck, all passing.
 
@@ -112,9 +112,9 @@ Canon's −25.858″/cy²; σ as NASA's "Uncertainty in ΔT" page gives it),
 - Between −720 and 1600 the engine's σ is SMH 2016's published error, three times smaller
   than Morrison & Stephenson (2004)'s that the Canon used, and the two curves differ by up
   to 186 s (AD 1200, 12 of SMH's σ): a revision in the literature, not an error here. But
-  the ±15 s of AD 1000-1600 is SMH's formal error, and below 30 s the interface shows no
-  chip; a reader comparing with NASA's eclipse pages for those centuries will find
-  differences of one to three minutes.
+  the ±15 s of AD 1000-1600 is SMH's formal error (the chip shows "±15 s" until 1550 and
+  nothing in the validated years after, under its 30 s); a reader comparing with NASA's
+  eclipse pages for those centuries will find differences of one to three minutes.
 - Before −720 the value is the long-term parabola (as Skyfield's), not SMH 2020's own
   table (46 000 ± 1 000 s at −2000): 1 228 s apart, inside the σ shown (3 732 s, larger than
   that table's).
@@ -125,12 +125,12 @@ Canon's −25.858″/cy²; σ as NASA's "Uncertainty in ΔT" page gives it),
   −25.85″/cy². The pairing still holds because the engine's Moon is refitted to
   DE440/DE441; a Δṅ of 0.03″/cy² is 43 s of Delta T at 2000 BC (1 % of σ) and 2.5 s at AD
   1000. Corrected in ACCURACY 21 and THIRD_PARTY.
-- **The ± chip** shows the engine's σ, re-checked on the merged build (verify2-check, chip group,
-against `skyfix time-info`): ±1 h at 2001 BC (σ 3 729.9 s), ±2 min at 501 BC (149.9 s), ±15 s
-at AD 1000 (15.0 s, shown because the date is in the labelled tier), none at 1600 (15.0 s,
-validated, under the 30 s the chip waits for) or in 2026, ±30 min at AD 2999 (1 815.7 s).
-Every labelled date carries it. Which clock times should carry it is another matter
-(section 8, V18).
+- **The ± chip** shows the engine's σ, re-checked on the merged build (verify2-check, chip
+  group, against `skyfix time-info`): ±1 h at 2001 BC (σ 3 729.9 s), ±2 min at 501 BC
+  (149.9 s), ±15 s at AD 1000 (15.0 s, shown because the date is in the labelled tier), none
+  at 1600 (15.0 s, validated, under the 30 s the chip waits for) or in 2026, ±30 min at
+  AD 2999 (1 815.7 s). Every labelled date carries it. Which clock times should carry it is
+  another matter (section 8, V18).
 
 ### 2.4 Playback at 10 years a second
 
@@ -184,8 +184,8 @@ the same at any speed. Now at most one plan in five seconds while time plays (2b
 (`setDut1`; `loadPack`) clears the caches: `setDut1` by the prefix rule, pack loads through
 `main.ts`'s `onLoaded` (packs go into the unwrapped engine, then `invalidate()`), and the
 charts' developer harness likewise. No view mutates the engine any other way. Two latent
-faults, fixed in the interface pass: the wrapper's own `loadPack` does not clear the caches
-although the comment beside the prefix rule says it does (the rule skips names already on
+faults: the wrapper's own `loadPack` did not clear the caches
+although the comment beside the prefix rule said it did (the rule skips names already on
 the wrapper), so a future caller of `ctx.engine.loadPack` would read stale answers; and the
 pass-through key is `JSON.stringify` of the arguments, which writes NaN, Infinity and
 −Infinity as `null`, so `f(NaN)` could be served `f(null)`'s cached answer instead of the
@@ -317,7 +317,7 @@ behaviour is the page's).
 | V16 | high | On-screen credits the programme forbids: "Source: Minor Planet Center" on the example (whose values were the MPC's) and on every pasted MPC body; the deep-sky card's Source section; "Shower table: …"; the gazetteer under the Moon close-up; the Bright Star Catalogue in the saved picture; "Map data: Natural Earth"; About's credits line | `sky/custom.ts`, `layers-menu.ts`, `sky/view.ts`, `upclose.ts`, `events/showers.ts`, `map/controls.ts`, `about/view.ts` | the licence audit (section 10) | fixed be7670e (the example now JPL SBDB's), a9c85c8 (a source scan) |
 | V17 | medium | The typefaces' SIL OFL text did not ship with the fonts (the woff2 files keep the copyright and a licence URL, not the licence) | `web/public/`, `vite.config.ts` | name tables read with fontTools | fixed 40dcb18 |
 | V18 | medium | The ± chip at far dates marks rise, set, transit and twilight times with the whole Delta T uncertainty, which moves them by under a second (Sun) or a few seconds (Moon); positions at the time shown (the Moon's, 1.4′ at 585 BC, 34′ at 2000 BC) carry none | CONVENTIONS 15.1-15.2; every chip | Skyfield, DE441 (section 8) | left for the planner (a rule to change, not a line) |
-| V19 | low | Far-date words: the Now section said "Sun sights are possible now" at 585 BC; Tonight's Moon note denied the distance its card showed; Jupiter's close-up printed the engine's message (ISO dates and a Julian day) | `panel/now.ts`, `tonight/data.ts`, `sky/upclose.ts` | the farlook group | fixed aeb6575, 95c5ca2 |
+| V19 | low | Far-date words: the Selected card said "Offered for sights: its positions are validated to 0.03′" at 585 BC and showed bare dashes for a planet's size and constellation; the Now section said "Sun sights are possible now"; Tonight's Moon note denied the distance its card showed; Jupiter's close-up printed the engine's message (ISO dates and a Julian day) | `panel/selected.ts`, `panel/now.ts`, `tonight/data.ts`, `sky/upclose.ts` | the farlook group | fixed aeb6575, 95c5ca2, 9f890c0 |
 | V20 | low | A planet's occultation times are its centre's; the sentence gave the disc's crossing for the disappearance only and did not say so | `events/moon-model.ts` | Skyfield: the engine's crossing times to 0.1 s | fixed 0e7d377 |
 | V21 | low | Settings → Air reached every refraction but the Almanac's Table A4 form | `almanac/almanac.ts` | the air group; engine side 0.944′ / 0.915′ / −0.943′ | fixed 0de4cd5 |
 | V22 | low | `memoEngine`: its own `loadPack` kept the caches; NaN, ±Infinity and null shared a key | `web/src/next/component.ts` | 2.5 | fixed f86ca4b (latent) |
@@ -442,7 +442,7 @@ Chrome driven over the DevTools protocol (never the shared browser pane).
   585 BC and AD 2999. The run during the pass: 1 145 of 1 146; the one failure was the
   verifier's own rebuild of `web/dist` while the run read it (404s on one chart's console).
   The final run on the final build: UICHECK-FINAL.
-- **verify2-check** (this branch, `web/scripts/verify2-check.mjs`, 75 checks, all passing on
+- **verify2-check** (this branch, `web/scripts/verify2-check.mjs`, 79 checks, all passing on
   the final build): the ± chip beside the clock at six dates against `skyfix time-info`
   (section 2.3); fast playback's calls on eight views (2.4); Settings → Air in the Almanac's
   Table A4 form; every view at 585 BC and AD 2999 with every folded tool open, no engine
@@ -480,11 +480,15 @@ view with every folded tool open) and in the code:
   585 BC, the star field and Tonight's planets at far dates would each need its engine
   widened (the navigational stars, and the planets' places, rising and setting, already
   answer the labelled tier through `sky_state` and `day_events`).
-- **Fixed:** the one engine message shown as it came (Jupiter's close-up: ISO dates and a
-  Julian day), the Now section's "Sun sights are possible now" at 585 BC (it now adds the
-  tier's own sentence), Tonight's note denying the Moon distance its card showed, the Jupiter
-  close-up's "within 3.0″ of JPL" where no JPL ephemeris of the moons reaches, and a planet
-  occultation's times that did not say they are the planet's centre (V1, V19, V20).
+- **Fixed:** the Selected card's "Offered for sights: its positions are validated to 0.03′"
+  at 585 BC (the body's group, whatever the date; it now says "Not offered for sights at this
+  date" with the tier's sentence) and its bare dashes for a planet's size and constellation
+  (now "only for 1550 to 2650"); the one engine message shown as it came (Jupiter's
+  close-up: ISO dates and a Julian day); the Now section's "Sun sights are possible now" at
+  585 BC (it now adds the tier's own sentence); Tonight's note denying the Moon distance its
+  card showed; the Jupiter close-up's "within 3.0″ of JPL" where no JPL ephemeris of the
+  moons reaches; and a planet occultation's times that did not say they are the planet's
+  centre (V1, V19, V20).
 - **Left for the planner: which clock times the ± chip belongs to (V18).** At a far date the
   clock is UT1, the Earth's own rotation, and Delta T = TT − UT1 is what is uncertain. An
   instant defined in TT (a Moon phase, a solstice, a conjunction, an eclipse's greatest
