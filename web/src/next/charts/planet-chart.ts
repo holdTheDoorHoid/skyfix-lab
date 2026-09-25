@@ -16,6 +16,7 @@ import { disposer, memoize, observerKey, watch, type Ctx } from '../component.js
 import { setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, type ExplorerState } from '../state.js';
 import { zoneLabel, type Zone } from '../time.js';
+import { addDaysToDate } from '../time/civil.js';
 import {
   clockAt,
   clockUtcFast,
@@ -560,8 +561,9 @@ export const planetChart: ChartComponent = (host, ctx, ui) => {
     const x = geom.xs(hover.index + 0.5);
     hoverLayer.style.display = '';
     hoverLayer.replaceChildren(s('line', { x1: round(x) + 0.5, x2: round(x) + 0.5, y1: geom.top - 4, y2: geom.bottom }));
-    const next = new Date(Date.UTC(nt.night.date.year, nt.night.date.month - 1, nt.night.date.day + 1));
-    const nextDate = { year: next.getUTCFullYear(), month: next.getUTCMonth() + 1, day: next.getUTCDate() };
+    // The next day in the display calendar (polish2: not `Date.UTC`, which reads the years
+    // 0-99 as 1900-1999 and knows only the Gregorian calendar).
+    const nextDate = addDaysToDate(nt.night.date, 1);
     const rows: Node[] = [];
     const dark = nt.darkWindow;
     rows.push(
