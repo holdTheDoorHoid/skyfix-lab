@@ -43,9 +43,9 @@ lto = "thin"
 codegen-units = 1
 
 # WASM: smaller binary, still fast enough for a 2-3 parameter solver. `npm run wasm` builds
-# the module at opt-level "z" (polish2, 2026-09-25: 8 % smaller raw and 7 % gzipped than "s",
-# with sky_state, the star field and the Sky view's draw within their budgets either way;
-# docs/ACCURACY.md, "Module size and speed").
+# the module at opt-level "z" (polish2, 2026-09-25: 8 % smaller raw and 7 % gzipped than "s";
+# sky_state and the star field stay far inside their budgets, and the Sky view's draw is the
+# same as with "s" within the shared machine's noise; docs/ACCURACY.md section 22).
 [profile.wasm-release]
 inherits = "release"
 opt-level = "z"
