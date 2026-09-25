@@ -111,6 +111,14 @@ pub const PRODUCERS: &[Producer] = &[
         provides: &["tides:us"],
         install: crate::tides::install_tides_us,
     },
+    // eclipselimb agent: the lunar limb profile (EXPLORER_API "Expansion programme P12").
+    Producer {
+        name: "lunar-limb",
+        label: "Lunar limb",
+        description: "The mountains and valleys at the Moon's edge, for eclipse contact times and Baily's beads",
+        provides: &["eclipses:lunar-limb"],
+        install: crate::limb::install_lunar_limb,
+    },
     // ---- producer entries end ----
 ];
 

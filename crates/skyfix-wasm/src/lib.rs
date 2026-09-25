@@ -48,6 +48,8 @@ pub mod deepsky;
 // --- end deepsky ---
 // Expansion programme (tides agent): tide predictions from the optional tides-us pack.
 pub mod tides;
+// Expansion programme P12 (eclipselimb agent): the lunar limb from the optional lunar-limb pack.
+pub mod limb;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
