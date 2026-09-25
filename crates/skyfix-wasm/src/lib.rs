@@ -27,6 +27,8 @@
 pub mod almanac;
 pub mod eclipses;
 pub mod explorer;
+// Expansion programme (geomag agent): magnetic field and compass error.
+pub mod geomag;
 pub mod misfit;
 pub mod nav;
 pub mod navsky;

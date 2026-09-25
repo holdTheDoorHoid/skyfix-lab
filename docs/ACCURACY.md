@@ -36,6 +36,9 @@ reproduce each row are in the numbered section named.
 | Planet events: oppositions, conjunctions, greatest elongations, closest approaches (vs Skyfield + DE440s, all 2266 of 1990-2060; list vs NASA SKYCAL) | every event matched one for one; conjunctions and oppositions within 55 s (Neptune's slow motion), elongations and closest approaches within 68 s; the 12 transits are NASA's | 1 min / 10 min | 13 |
 | Navigation methods: noon sight, Polaris, averaging, running fix (noise-free vs Skyfield truth; Bowditch's worked examples) | within 0.0001–0.0013′ of truth; running fix within 0.4–36 m; Bowditch reproduced to 0.02–0.19′ | — (numerical regression) | 3, "Navigation methods" |
 | Navigation methods: seeded-coverage of the stated sigma | 93.8–96.0 % (Polaris very near the pole with a poor DR: 89.8 %, a documented limit, `polaris_near_pole`) | ≈95 % | 3, "Navigation methods" |
+| Magnetic variation, WMM2025 (vs NOAA NCEI's 100 official test values, the technical report's Table 6 and numerical example) | declination and inclination within half their 0.01° printing (worst 0.005°); X, Y, Z within 0.0007 nT; the numerical example to 1e-6 nT | 0.01° | 14 |
+| Magnetic variation, IGRF-14, 1900–2030 (vs IAGA's 12 test values; the BGS calculator at 25 points; NOAA's Geomag 7.0 sample) | IAGA within their 0.01 nT printing; BGS declination and inclination within 0.0005° (their printing), intensities 0.5 nT | 0.1° | 14 |
+| Compass error by azimuth and amplitude (vs Bowditch ch. 15; vs the engine's own azimuth) | Bowditch's five examples within 0.013–0.066° (its tables print 0.1°); the azimuth equals `sky_state`'s to 0.00001° (Venus 0.006°: centre of light) | 0.1° / 0.01° | 14 |
 
 ## 1. What accuracy means here
 
@@ -1399,3 +1402,102 @@ each.
   about five minutes).
 - `cargo test --release -p skyfix-almanac --test planet_events -- --include-ignored
   --nocapture` prints the numbers for 2019-2026 and 1990-2060.
+
+## 14. Magnetic variation and compass error
+
+Owner: geomag agent (expansion programme). The models are `crates/skyfix-geomag`
+(CONVENTIONS 14.1), the method `crates/skyfix-core/src/methods/compass.rs`
+(CONVENTIONS 14.2, NAVIGATION_METHODS 9), the exports `crates/skyfix-wasm/src/geomag.rs`.
+
+**Two different accuracies.** The numbers below say how exactly SkyFix evaluates the
+published models: to a millionth of a degree. How well the models describe the real field
+is a different, much larger number, and it is the one the interface shows beside every
+variation (`uncertainty.declination_deg`): for WMM2025, NCEI's error model, 0.29° where
+the horizontal field is strongest, about 0.36° at Philadelphia, growing like `5417/H`
+toward the magnetic poles (2.7° at H = 2000 nT, the edge of the blackout zone); for
+IGRF-14, Beggan (2022)'s 0.39° global standard deviation for 1980-2020, widened for less
+certain eras (×1.49 in 1945). Local magnetic anomalies of a few degrees are common over
+small areas and are in no global model.
+
+### WMM2025 against its official test values
+
+`crates/skyfix-geomag/tests/wmm2025_official.rs`, against
+`fixtures/reference/geomag_wmm2025.json` (NOAA NCEI's `WMM2025_TestValues.txt` and the
+technical report's tables; `tools/geomag/gen_fixtures.py`):
+
+| quantity | 100 official test values (2025.0-2029.5, 0-98 km) | Table 6 (12 rows) |
+|---|---|---|
+| declination, as printed (0.01°) | **0.0050°** | 0.0046° |
+| inclination, as printed (0.01°) | **0.0050°** | 0.0050° |
+| declination from the file's own X, Y (6 decimals) | 1.4e-6° | — |
+| X (north) | 7.2e-4 nT | 0.048 nT (printed 0.1) |
+| Y (east), Z (down) | 5.0e-7 nT, 2.2e-6 nT | 0.044, 0.049 nT |
+| H, F | 7.0e-4, 4.3e-4 nT | 0.050, 0.045 nT |
+| rates of X, Y, Z, H, F | ≤ 1.5e-6 nT/yr | ≤ 0.050 nT/yr |
+| rates of D, I | 5.0e-7 °/yr | 0.0049 °/yr |
+
+The X differences, and only they (Z moves by `sin psi` of them), are the file's: its X′
+carries noise of about 1e-8 of the field, while its Y′ and Z′, and the report's
+high-precision numerical example (Tables 3a-3b, reproduced step by step to 1e-6 nT,
+`src/reference_tests.rs`), agree with SkyFix to a few micro-nT; SkyFix's Legendre
+derivatives satisfy the exact identity to 1e-12. The WMM's licence to use its name asks
+for 0.1 nT and 0.1 nT/yr. At the report's dip poles (Table 4, 2025.0) the horizontal
+field is under 30 nT, as the rounding of their positions to 0.01° allows.
+
+### IGRF-14 against IAGA, BGS and NOAA
+
+`crates/skyfix-geomag/tests/igrf14_reference.rs` and `src/reference_tests.rs`, against
+`fixtures/reference/geomag_igrf14.json`:
+
+- **IAGA's own test values** (the twelve cases of its `pyIGRF14` package, geocentric, one
+  every 15 years from 1900 and at 2010-2030): every X, Y, Z within 0.0099 nT; the package
+  prints to 0.01 nT, rounding before 2010 and cutting off from 2010 (17529.4899 is printed
+  17529.48).
+- **The British Geological Survey's IGRF-14 calculator** at 25 points from 1900 to
+  2029-12-31: London, Philadelphia, Cape Town, Tokyo, Buenos Aires, Anchorage, Reykjavik,
+  Honolulu, Singapore, Svalbard, McMurdo, Mumbai, Moscow, Lima, Nairobi at 1.7 km (during the
+  1995-2000 change of degree), Nova Scotia, New Zealand, the Canadian Arctic (H 3500 nT),
+  the Gulf of Mexico, the Southern Ocean, Paris, Mauritius, the mid-Atlantic at 10 km in
+  2027 (forecast) and 85° N in 2029. Worst **declination 0.0005°, inclination 0.0005°**
+  (the service prints 0.001°), intensities 0.50 nT (printed 1 nT), rates 0.05 nT/yr and
+  0.05′/yr (printed 0.1). The brief's target is 0.1°. The service reads a date as its
+  middle (it reports 2030-01-01 as 2030.001), so each case is compared at 12:00 UTC.
+  NOAA's own calculator answers only with a registered key and was not used.
+- **NOAA's Geomag 7.0 sample output** at 2015 (+1/365), where IGRF-13 and IGRF-14 share the
+  definitive 2015 field: declination within 0.48′ (printed to 1′), inclination 0.25′,
+  intensities 0.04 nT (printed 0.1).
+- The coefficient tables are the published files, number for number
+  (`models::tests::the_tables_are_the_published_files`).
+- The automatic switch from IGRF-14 to WMM2025 at 2025.0 moves the declination by at most
+  0.014° at four mid-latitude cities, a twentieth of either model's uncertainty.
+
+### Compass error
+
+`crates/skyfix-core/tests/compass_reference.rs` and `crates/skyfix-wasm/src/geomag.rs`:
+Bowditch's five worked examples of chapter 15 (1501 Sun's azimuth 123.187° against the
+book's 123.2°; 1502 Polaris through the engine 359.250° against the Almanac table's
+359.2°; 1504 amplitude 32.666° against 32.6°; 1505 Table 23's correction +1.219° against
++1.2° and the gyro error 0.633° E against 0.6° E; 1506 99.133° against 99.1°), all within
+the 0.1° its tables print; the azimuth method equals the explorer's topocentric `az_deg`
+to 0.00001° for the Sun, the Moon, Jupiter and three stars at 16 place-dates (Venus
+0.006°, by design: its centre of light); amplitude bearings equal the topocentric azimuth
+at the crossing to 0.0000° (Sun) and 0.003° (Moon). The full table is in
+`docs/NAVIGATION_METHODS.md` section 9.4.
+
+### Speed and size
+
+Release build, x86-64, on the shared 8-core machine: 9-12 µs for one full `field` (with
+rates, uncertainty and notes); a 1-degree global grid of declination (65 341 points) in
+71 ms, 1.1 µs a point. The
+coefficients add about 11 KB to the binary (integer tables; the IGRF-14 epochs before 2000
+are whole nanotesla and fit in 16 bits).
+
+### Reproduce
+
+```console
+python3 -m tools.geomag.gen_fixtures            # the two fixtures (BGS needs the network)
+python3 -m tools.geomag.gen_coeffs              # crates/skyfix-geomag/src/coeffs.rs
+cargo test -p skyfix-geomag -- --nocapture
+cargo test -p skyfix-core --test compass_reference -- --nocapture
+cargo test -p skyfix-wasm geomag -- --nocapture
+```

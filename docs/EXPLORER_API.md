@@ -1142,3 +1142,147 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+## Expansion programme — magnetic field and compass error (`geomag.rs`, geomag agent)
+
+Normative definitions: CONVENTIONS 14.1-14.2 and `docs/NAVIGATION_METHODS.md` section 9.
+The Rust is `skyfix_geomag` (the models) and `skyfix_core::methods::compass` (the method);
+the exports are `crates/skyfix-wasm/src/geomag.rs`. TypeScript: `GeomagEngine`, behind
+`isGeomagEngine`, in `web/src/next/engine/types.ts` (search "Expansion programme —
+magnetic field"). All three exports are optional: a build without them has no
+`magneticField`, and the UI checks with the guard.
+
+### `magnetic_field(lat_deg, lon_deg, height_m, jd_utc, model?) -> MagneticField`
+
+The Earth's main field at a WGS84 point (`height_m` above the ellipsoid, as an observer's)
+and instant. `model` is optional: `"auto"` (default: WMM2025 from 2025.0 to 2030.0,
+IGRF-14 from 1900.0 up to 2025.0), `"wmm2025"` or `"igrf14"`. Philadelphia, 24 September
+2026:
+
+```json
+{"available": true, "jd_utc": 2461308.0, "utc": "2026-09-24T12:00:00.000Z",
+ "model": "WMM2025", "decimal_year": 2026.7301,
+ "lat_deg": 39.9526, "lon_deg": -75.1652, "height_m": 12.0,
+ "declination_deg": -11.8053, "inclination_deg": 65.1704,
+ "horizontal_nt": 21219.2, "north_nt": 20770.4, "east_nt": -4341.2, "down_nt": 45860.4,
+ "total_nt": 50531.5,
+ "annual_change": {"declination_deg_per_year": 0.0267, "inclination_deg_per_year": -0.1039,
+                   "horizontal_nt_per_year": 36.0, "north_nt_per_year": 37.3,
+                   "east_nt_per_year": 2.3, "down_nt_per_year": -140.4,
+                   "total_nt_per_year": -112.3},
+ "uncertainty": {"declination_deg": 0.364, "inclination_deg": 0.2, "horizontal_nt": 133.0,
+                 "north_nt": 137.0, "east_nt": 89.0, "down_nt": 141.0, "total_nt": 138.0,
+                 "basis": "WMM2025 error model (NOAA NCEI): …"},
+ "zone": "normal", "forecast": true, "notes": [],
+ "variation_text": "11.8° W", "annual_change_text": "1.6′ E a year",
+ "sentence": "Variation 11.8° W ±0.4° (WMM2025), changing 1.6′ E a year."}
+```
+
+| field | meaning |
+|---|---|
+| `available` | `true` here; see below for `false` |
+| `model` | `"WMM2025"` or `"IGRF-14"` |
+| `decimal_year` | `Y + (jd - JD(Y-01-01T00:00)) / days in Y` (CONVENTIONS 14.1) |
+| `lon_deg` | normalised to (-180, 180] |
+| `declination_deg` | **magnetic variation**, true north to magnetic north, east positive |
+| `inclination_deg` | dip below the horizontal, down positive |
+| `north_nt`, `east_nt`, `down_nt` | X, Y, Z in the geodetic frame; `horizontal_nt` H, `total_nt` F |
+| `annual_change` | rate of each element per year (declination and inclination in degrees) |
+| `uncertainty` | one standard deviation of each element, with `basis` saying where the numbers come from: WMM2025's published error model (declination `sqrt(0.26² + (5417/H)²)` degrees, so it grows near the magnetic poles), or for IGRF-14 Beggan (2022)'s figures widened for the model's own error in that era (CONVENTIONS 14.1) |
+| `zone` | `"normal"`, `"caution"` (H < 6000 nT: compass accuracy may be degraded) or `"blackout"` (H < 2000 nT: compass unreliable, the variation can be wrong by tens of degrees), WMM2025 technical report 1.8 |
+| `forecast` | the date is after 2025.0: the value extrapolates a forecast rate of change (always for WMM2025; IGRF-14 after 2025.0) |
+| `notes` | plain sentences: the zone, a less certain era (IGRF-14 before 1965), a forecast |
+| `variation_text`, `annual_change_text`, `sentence` | the words to show beside the numbers |
+
+A date or height no model covers is **not an error**; the answer says why and carries no
+field values (the UI shows the reason and no variation):
+
+```json
+{"available": false, "jd_utc": 2396758.5, "utc": "1850-01-01T00:00:00.000Z",
+ "decimal_year": 1850.0, "lat_deg": 39.9526, "lon_deg": -75.1652, "height_m": 12.0,
+ "reason": "No magnetic variation for 1850.0: the models start in 1900 (IGRF-14), and the field's earlier changes are not known well enough to show one."}
+```
+
+Before 1900.0 and after 2030.0 there is never a value (the brief's rule: variation is not
+predictable for deep time and is not shown there); `"wmm2025"` outside 2025.0-2030.0 is
+unavailable too; heights outside -1 km to 850 km are unavailable. Malformed input throws a
+string: a non-finite number, a latitude beyond ±90, an unknown `model`.
+
+### `magnetic_grid(jd_utc, lat_min, lat_max, n_lat, lon_min, lon_max, n_lon, height_m) -> MagneticGrid | null`
+
+Declination and horizontal intensity on an evenly spaced grid, for isogonic lines and the
+blackout zone on the map (the auto model). `n_lat` rows from `lat_min` to `lat_max`,
+`n_lon` columns from `lon_min` to `lon_max`, both ends included (a count of 1 gives the
+minimum only); at most 70 000 points. About 1 µs a point natively (a 1-degree global grid
+in 70 ms).
+
+```ts
+{ model: 'WMM2025' | 'IGRF-14', decimal_year: number,
+  lat_deg: Float64Array,          // n_lat
+  lon_deg: Float64Array,          // n_lon
+  declination_deg: Float64Array,  // n_lat * n_lon, row by row from lat_min, west to east
+  horizontal_nt: Float64Array }   // same layout; < 2000 blackout, < 6000 caution
+```
+
+`null` when no model covers the date. Throws a string for non-finite numbers, a latitude
+beyond ±90, `lat_max < lat_min`, `lon_max < lon_min` or too many points.
+
+### `compass_error(request_json) -> CompassError`
+
+Compass error by the azimuth of a body, or by its amplitude as it rises or sets, and for a
+magnetic compass its split into variation and deviation (CONVENTIONS 14.2). The Sun from
+Philadelphia, a magnetic compass reading 272.0°:
+
+```json
+{"method": "azimuth", "body": "Sun", "utc": "2026-09-24T21:40:00Z",
+ "observer": {"lat_deg": 39.9526, "lon_deg": -75.1652, "height_m": 12},
+ "compass_bearing_deg": 272.0, "compass": "magnetic"}
+```
+
+gives (abridged) `true_bearing_deg` 257.552, `compass_error_deg` −14.448,
+`variation.deg` −11.805 (WMM2025, `sigma_deg` 0.364), `deviation_deg` −2.642 and
+
+> Compass error 14.4° W; variation 11.8° W; deviation 2.6° W.
+
+Request fields (only `body`, a time, `observer` and `compass_bearing_deg` are required):
+
+| field | meaning |
+|---|---|
+| `method` | `"azimuth"` (default) or `"amplitude"` |
+| `body` | a body `auto` ephemeris mode can place: Sun, Moon, Venus, Mars, Jupiter, Saturn, the 58 stars (any case) |
+| `utc` or `jd_utc` | when the bearing was taken (one of them). For an amplitude, roughly: the crossing nearest it within 12 hours is used |
+| `observer` | `{lat_deg, lon_deg, height_m?}` (WGS84; height above the ellipsoid, default 0) |
+| `compass_bearing_deg` | what the compass read, [0, 360) |
+| `compass` | `"magnetic"` (default) or `"gyro"` (no variation; the sentence says "Gyro error") |
+| `variation_deg`, `variation_sigma_deg` | a chart's variation (east positive) and its sigma; `null` (default): the model's at the observer and the instant |
+| `magnetic_model` | which model fills a missing variation: `"auto"` (default), `"wmm2025"`, `"igrf14"` |
+| `bearing_sigma_deg` | 1-sigma of the compass reading, when the navigator states it |
+| `horizon` | amplitude: `"visible"` (default: the chosen limb on the sea horizon) or `"celestial"` (the centre at geocentric altitude 0) |
+| `height_of_eye_m` | amplitude on the visible horizon: for the dip (default 0) |
+| `limb` | amplitude on the visible horizon: `"center"` (default), `"lower"`, `"upper"` |
+| `event` | amplitude: `"rising"` or `"setting"`; `null` (default): from the body's side of the meridian at the given time |
+| `pressure_hpa`, `temperature_c` | refraction on the visible horizon (defaults 1010, 10) |
+
+Result:
+
+| field | meaning |
+|---|---|
+| `method`, `body` (canonical), `compass` | as requested |
+| `jd_utc`, `utc` | the instant of the true bearing: the bearing's (azimuth) or the horizon crossing's (amplitude) |
+| `true_bearing_deg` | azimuth: the topocentric azimuth of the centre on the WGS84 ellipsoid; amplitude: the exact bearing at the crossing |
+| `compass_bearing_deg` | as given |
+| `compass_error_deg`, `compass_error_text` | true minus compass, (-180, 180], east positive ("compass least, error east"); `"14.4° W"` |
+| `compass_error_sigma_deg` | the stated bearing sigma, else `null` |
+| `variation` | magnetic compass only: `{deg, sigma_deg, source: "WMM2025" \| "IGRF-14" \| "given", text, notes}`; `null` for a gyro, or when no model covers the date (a note says why) |
+| `deviation_deg`, `deviation_sigma_deg`, `deviation_text` | compass error minus variation, east positive; its sigma is the variation's combined with the bearing's when stated; `null` without a variation |
+| `sentence` | `"Compass error 14.4° W; variation 11.8° W; deviation 2.6° W."`, or `"Compass error 3.2° W."` without a variation, or `"Gyro error 0.8° W."` |
+| `explanation` | `"The Sun bore 257.6° true at 21:40:00 UTC, 13.3° high; the compass read 272.0°."` |
+| `azimuth` | azimuth only: `{gha_deg, dec_deg, altitude_deg, zn_spherical_deg, azimuth_rate_deg_per_min}` (`zn_spherical_deg` is CONVENTIONS 3's Zn, what the tables give; equal to `true_bearing_deg` within 0.001° for the Sun and the stars) |
+| `amplitude` | amplitude only: `{event, horizon, dec_deg, amplitude_deg (north positive; null if the body never reaches the celestial horizon), amplitude_text ("W 1.0° S"), celestial_bearing_deg, altitude_deg (geocentric, of the centre, when the bearing was taken), visible_horizon_correction_deg (visible minus celestial bearing; Bowditch's Table 23 correction is its negative, applied to the observed bearing), dip_arcmin, refraction_arcmin, semidiameter_arcmin, parallax_arcmin, bearing_per_altitude, minutes_from_given_time}` |
+| `direction_source` | the provider that placed the body |
+| `notes` | plain sentences: a body below the horizon, a fast-changing bearing, a crossing far from the given time, a shallow crossing at high latitude, the variation model's own notes |
+
+Throws a string for malformed JSON, a missing or double time, a non-finite number, a
+latitude beyond ±90, a compass bearing outside [0, 360), a negative height of eye, a sigma
+of 0 or less, an unknown body, a body the ephemeris cannot place at that time, or an
+amplitude when the body does not rise or set within 12 hours of the given time.

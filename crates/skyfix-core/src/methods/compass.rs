@@ -1,4 +1,4 @@
-//! Compass error by azimuth and by amplitude (CONVENTIONS 14.6;
+//! Compass error by azimuth and by amplitude (CONVENTIONS 14.2;
 //! `docs/NAVIGATION_METHODS.md` section 9). OWNER: geomag agent.
 //!
 //! A navigator checks a compass against the sky: the true bearing of a body is known from
@@ -249,7 +249,7 @@ pub struct CompassErrorResult {
 /// A variation from a model at an instant (`jd_utc`), or why there is none.
 pub type VariationModel<'a> = &'a dyn Fn(f64) -> Result<VariationUsed, String>;
 
-/// Find the compass error (CONVENTIONS 14.6). `variation_model` supplies the variation
+/// Find the compass error (CONVENTIONS 14.2). `variation_model` supplies the variation
 /// when the request gives none (for a magnetic compass).
 pub fn compass_error(
     req: &CompassRequest,

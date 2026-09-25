@@ -2,7 +2,7 @@
 //! dip (inclination), the field's intensities and their annual change, anywhere on or
 //! above the Earth from 1900 to 2030, each with the uncertainty the model's makers state.
 //!
-//! CONVENTIONS section 14.5 is normative for this crate; the wire format is
+//! CONVENTIONS section 14.1 is normative for this crate; the wire format is
 //! `docs/EXPLORER_API.md`, "Expansion programme — magnetic field and compass error".
 //!
 //! - **WMM2025** (NOAA NCEI and the British Geological Survey), 2025.0 to 2030.0: the
@@ -359,6 +359,75 @@ pub fn field(
     })
 }
 
+/// Declination and horizontal intensity on a latitude-longitude grid (for isogonic lines
+/// on a map): `declination_deg[i * lons.len() + j]` is at `lats_deg[i]`, `lons_deg[j]`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct Grid {
+    pub model: Model,
+    pub decimal_year: f64,
+    pub declination_deg: Vec<f64>,
+    pub horizontal_nt: Vec<f64>,
+}
+
+/// [`Grid`] of every latitude and longitude given, at one height and decimal year. The
+/// same numbers as [`field`], computed once per row of latitude (a 1-degree global grid
+/// is about 65 000 points).
+pub fn grid(
+    decimal_year: f64,
+    choice: ModelChoice,
+    lats_deg: &[f64],
+    lons_deg: &[f64],
+    height_m: f64,
+) -> Result<Grid, FieldError> {
+    if !decimal_year.is_finite() || !height_m.is_finite() {
+        return Err(FieldError::Invalid(
+            "decimal_year and height_m must be finite numbers".to_string(),
+        ));
+    }
+    if let Some(bad) = lats_deg
+        .iter()
+        .find(|v| !(v.is_finite() && (-90.0..=90.0).contains(*v)))
+    {
+        return Err(FieldError::Invalid(format!(
+            "grid latitude {bad} is not within [-90, 90]"
+        )));
+    }
+    if let Some(bad) = lons_deg.iter().find(|v| !v.is_finite()) {
+        return Err(FieldError::Invalid(format!(
+            "grid longitude {bad} is not a finite number"
+        )));
+    }
+    let model = select_model(decimal_year, choice)?;
+    if !(MIN_HEIGHT_M..=MAX_HEIGHT_M).contains(&height_m) {
+        return Err(FieldError::Unavailable(format!(
+            "The magnetic models are specified from 1 km below sea level to 850 km above the \
+             ellipsoid; {height_m} m is outside that."
+        )));
+    }
+    let gauss = match model {
+        Model::Wmm2025 => models::wmm2025_at(decimal_year),
+        Model::Igrf14 => models::igrf14_at(decimal_year),
+    };
+    let n = lats_deg.len() * lons_deg.len();
+    let mut declination_deg = Vec::with_capacity(n);
+    let mut horizontal_nt = Vec::with_capacity(n);
+    for &lat in lats_deg {
+        let row = sh::Row::geodetic(lat.to_radians(), height_m);
+        for &lon in lons_deg {
+            let (v, _) = row.synthesize(&gauss, normalize_lon(lon).to_radians(), false);
+            let [x, y, _] = row.rotate(v);
+            declination_deg.push(y.atan2(x).to_degrees());
+            horizontal_nt.push(x.hypot(y));
+        }
+    }
+    Ok(Grid {
+        model,
+        decimal_year,
+        declination_deg,
+        horizontal_nt,
+    })
+}
+
 /// [`field`] at a `jd_utc` instant (the explorer's clock; see [`decimal_year`]).
 pub fn field_at_jd(
     lat_deg: f64,
@@ -527,6 +596,31 @@ mod tests {
         assert!(matches!(
             field(0.0, 0.0, 0.0, 1850.0, ModelChoice::Auto),
             Err(FieldError::Unavailable(_))
+        ));
+    }
+
+    #[test]
+    fn the_grid_is_the_same_numbers_as_single_points() {
+        let lats = [-89.5, -45.0, 0.0, 33.3, 90.0];
+        let lons = [-180.0, -75.2, 0.0, 139.3, 179.9];
+        for t in [1911.3, 1997.2, 2027.8] {
+            let g = grid(t, ModelChoice::Auto, &lats, &lons, 250.0).unwrap();
+            for (i, &lat) in lats.iter().enumerate() {
+                for (j, &lon) in lons.iter().enumerate() {
+                    let f = field(lat, lon, 250.0, t, ModelChoice::Auto).unwrap();
+                    let k = i * lons.len() + j;
+                    assert!((g.declination_deg[k] - f.declination_deg).abs() < 1e-9);
+                    assert!((g.horizontal_nt[k] - f.horizontal_nt).abs() < 1e-7);
+                }
+            }
+        }
+        assert!(matches!(
+            grid(1890.0, ModelChoice::Auto, &lats, &lons, 0.0),
+            Err(FieldError::Unavailable(_))
+        ));
+        assert!(matches!(
+            grid(2026.0, ModelChoice::Auto, &[91.0], &lons, 0.0),
+            Err(FieldError::Invalid(_))
         ));
     }
 

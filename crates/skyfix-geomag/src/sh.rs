@@ -139,45 +139,108 @@ fn legendre(ct: f64, st: f64) -> (Table, Table) {
     (p, dp)
 }
 
-/// Geocentric `[X', Y', Z']` (nT) and their rates (nT/yr) at a point.
-pub(crate) fn synthesize(gauss: &Gauss, at: &Spherical) -> ([f64; 3], [f64; 3]) {
-    let ct = at.sin_lat;
-    let st = at.cos_lat;
-    let (p, dp) = legendre(ct, st);
-    let mut cos_ml = [0.0; N_MAX + 1];
-    let mut sin_ml = [0.0; N_MAX + 1];
-    for m in 0..=N_MAX {
-        let (s, c) = (m as f64 * at.lon_rad).sin_cos();
-        cos_ml[m] = c;
-        sin_ml[m] = s;
+/// Everything that depends on latitude and height only, so a row of a grid computes it
+/// once: the Legendre functions, the powers of `a/r` and the rotation to the ellipsoid.
+pub(crate) struct Row {
+    p: Table,
+    dp: Table,
+    /// `(a/r)^(n+2)` for `n = 0..=N_MAX`.
+    rn: [f64; N_MAX + 1],
+    /// `cos phi'`, never zero.
+    cos_lat: f64,
+    /// `psi = phi' - phi`, the geocentric minus the geodetic latitude.
+    sin_psi: f64,
+    cos_psi: f64,
+}
+
+impl Row {
+    /// A geodetic latitude (radians) and height above the ellipsoid (metres).
+    pub(crate) fn geodetic(lat_rad: f64, height_m: f64) -> Row {
+        let at = geodetic_to_spherical(lat_rad, 0.0, height_m);
+        Row::spherical(&at, at.lat_rad() - lat_rad)
     }
-    let ratio = REFERENCE_RADIUS_M / at.r_m;
-    let mut rn = ratio * ratio;
-    let mut v = [0.0; 3];
-    let mut v_dot = [0.0; 3];
-    for n in 1..=N_MAX {
-        rn *= ratio; // (a/r)^(n+2)
-        let n1 = (n + 1) as f64;
-        for m in 0..=n {
-            let (c, s) = (cos_ml[m], sin_ml[m]);
-            let mf = m as f64;
-            let (g, h) = (gauss.g[n][m], gauss.h[n][m]);
-            let (gd, hd) = (gauss.g_dot[n][m], gauss.h_dot[n][m]);
-            let a = g * c + h * s;
-            let b = g * s - h * c;
-            let ad = gd * c + hd * s;
-            let bd = gd * s - hd * c;
-            v[0] += rn * a * dp[n][m];
-            v[1] += rn * mf * b * p[n][m];
-            v[2] -= rn * n1 * a * p[n][m];
-            v_dot[0] += rn * ad * dp[n][m];
-            v_dot[1] += rn * mf * bd * p[n][m];
-            v_dot[2] -= rn * n1 * ad * p[n][m];
+
+    /// A geocentric point, with `psi` for the rotation (0: stay geocentric).
+    pub(crate) fn spherical(at: &Spherical, psi: f64) -> Row {
+        let (p, dp) = legendre(at.sin_lat, at.cos_lat);
+        let ratio = REFERENCE_RADIUS_M / at.r_m;
+        let mut rn = [0.0; N_MAX + 1];
+        let mut x = ratio * ratio;
+        for r in rn.iter_mut() {
+            *r = x;
+            x *= ratio;
+        }
+        let (sin_psi, cos_psi) = psi.sin_cos();
+        Row {
+            p,
+            dp,
+            rn,
+            cos_lat: at.cos_lat,
+            sin_psi,
+            cos_psi,
         }
     }
-    v[1] /= st;
-    v_dot[1] /= st;
-    (v, v_dot)
+
+    /// Geocentric `[X', Y', Z']` (nT) at east longitude `lon_rad`, and their rates (nT/yr)
+    /// when `rates` (zeros otherwise).
+    pub(crate) fn synthesize(
+        &self,
+        gauss: &Gauss,
+        lon_rad: f64,
+        rates: bool,
+    ) -> ([f64; 3], [f64; 3]) {
+        let (s1, c1) = lon_rad.sin_cos();
+        let mut cos_ml = [0.0; N_MAX + 1];
+        let mut sin_ml = [0.0; N_MAX + 1];
+        cos_ml[0] = 1.0;
+        for m in 1..=N_MAX {
+            cos_ml[m] = cos_ml[m - 1] * c1 - sin_ml[m - 1] * s1;
+            sin_ml[m] = sin_ml[m - 1] * c1 + cos_ml[m - 1] * s1;
+        }
+        let mut v = [0.0; 3];
+        let mut v_dot = [0.0; 3];
+        for n in 1..=N_MAX {
+            let rn = self.rn[n];
+            let n1 = (n + 1) as f64;
+            for m in 0..=n {
+                let (c, s) = (cos_ml[m], sin_ml[m]);
+                let mf = m as f64;
+                let (p, dp) = (self.p[n][m], self.dp[n][m]);
+                let (g, h) = (gauss.g[n][m], gauss.h[n][m]);
+                let a = g * c + h * s;
+                let b = g * s - h * c;
+                v[0] += rn * a * dp;
+                v[1] += rn * mf * b * p;
+                v[2] -= rn * n1 * a * p;
+                if rates {
+                    let (gd, hd) = (gauss.g_dot[n][m], gauss.h_dot[n][m]);
+                    let ad = gd * c + hd * s;
+                    let bd = gd * s - hd * c;
+                    v_dot[0] += rn * ad * dp;
+                    v_dot[1] += rn * mf * bd * p;
+                    v_dot[2] -= rn * n1 * ad * p;
+                }
+            }
+        }
+        v[1] /= self.cos_lat;
+        v_dot[1] /= self.cos_lat;
+        (v, v_dot)
+    }
+
+    /// A geocentric north-east-down vector turned into the ellipsoidal frame.
+    pub(crate) fn rotate(&self, v: [f64; 3]) -> [f64; 3] {
+        [
+            v[0] * self.cos_psi - v[2] * self.sin_psi,
+            v[1],
+            v[0] * self.sin_psi + v[2] * self.cos_psi,
+        ]
+    }
+}
+
+/// Geocentric `[X', Y', Z']` (nT) and their rates (nT/yr) at a point.
+#[cfg(test)]
+pub(crate) fn synthesize(gauss: &Gauss, at: &Spherical) -> ([f64; 3], [f64; 3]) {
+    Row::spherical(at, 0.0).synthesize(gauss, at.lon_rad, true)
 }
 
 /// Every element of the field and its annual rate, in the ellipsoidal frame.
@@ -201,17 +264,9 @@ pub(crate) struct Elements {
 
 /// The field at a geodetic point (report steps 1, 3, 4 and 5).
 pub(crate) fn elements(gauss: &Gauss, lat_rad: f64, lon_rad: f64, height_m: f64) -> Elements {
-    let at = geodetic_to_spherical(lat_rad, lon_rad, height_m);
-    let (v, v_dot) = synthesize(gauss, &at);
-    let psi = at.lat_rad() - lat_rad;
-    let (sp, cp) = psi.sin_cos();
-    let x = v[0] * cp - v[2] * sp;
-    let y = v[1];
-    let z = v[0] * sp + v[2] * cp;
-    let x_dot = v_dot[0] * cp - v_dot[2] * sp;
-    let y_dot = v_dot[1];
-    let z_dot = v_dot[0] * sp + v_dot[2] * cp;
-    from_components([x, y, z], [x_dot, y_dot, z_dot])
+    let row = Row::geodetic(lat_rad, height_m);
+    let (v, v_dot) = row.synthesize(gauss, lon_rad, true);
+    from_components(row.rotate(v), row.rotate(v_dot))
 }
 
 /// H, F, D, I and their rates from north, east, down components and rates.

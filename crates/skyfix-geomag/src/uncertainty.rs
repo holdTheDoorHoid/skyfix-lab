@@ -1,4 +1,4 @@
-//! The uncertainty returned with every value (CONVENTIONS 14.5), one standard deviation.
+//! The uncertainty returned with every value (CONVENTIONS 14.1), one standard deviation.
 //!
 //! - **WMM2025**: NOAA NCEI's published error model (WMM2025 technical report section 3.4;
 //!   <https://www.ncei.noaa.gov/products/world-magnetic-model/accuracy-limitations-magnetic-poles-error-model>):
@@ -18,7 +18,7 @@
 //!   forecast rate's typical 20 nT/yr error (`sqrt(10^2 + (20 dt)^2)`). `0.5 e` is the
 //!   per-horizontal-component share of a vector error (5 of 10 nT, the same warning).
 
-/// One standard deviation of each element (CONVENTIONS 14.5).
+/// One standard deviation of each element (CONVENTIONS 14.1).
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Uncertainty {
     /// Declination (variation), degrees.

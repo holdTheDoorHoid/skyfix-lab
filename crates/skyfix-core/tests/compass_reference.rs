@@ -1,4 +1,4 @@
-//! Compass error by azimuth and amplitude (CONVENTIONS 14.6) against Bowditch's worked
+//! Compass error by azimuth and amplitude (CONVENTIONS 14.2) against Bowditch's worked
 //! examples and against the engine's own geometry.
 //!
 //! Source of the examples: The American Practical Navigator (Bowditch), NGA Pub. No. 9,

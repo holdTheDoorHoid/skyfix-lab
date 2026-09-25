@@ -439,6 +439,7 @@ dependencies = [
  "skyfix-almanac",
  "skyfix-core",
  "skyfix-ephemeris",
+ "skyfix-geomag",
  "skyfix-motion",
  "skyfix-sim",
  "skyfix-starfield",

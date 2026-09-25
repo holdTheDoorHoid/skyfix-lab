@@ -22,21 +22,29 @@ const IGRF_ROWS: usize = 195;
 
 /// `(is_h, n, m)` of each row of the IGRF coefficient file, in file order: for n, for m,
 /// the g row, then the h row when m > 0.
-fn igrf_row_index() -> [(bool, usize, usize); IGRF_ROWS] {
+const IGRF_ROW_INDEX: [(bool, usize, usize); IGRF_ROWS] = {
     let mut out = [(false, 0, 0); IGRF_ROWS];
     let mut k = 0;
-    for n in 1..=N_MAX {
-        for m in 0..=n {
+    let mut n = 1;
+    while n <= N_MAX {
+        let mut m = 0;
+        while m <= n {
             out[k] = (false, n, m);
             k += 1;
             if m > 0 {
                 out[k] = (true, n, m);
                 k += 1;
             }
+            m += 1;
         }
+        n += 1;
     }
-    debug_assert_eq!(k, IGRF_ROWS);
+    assert!(k == IGRF_ROWS);
     out
+};
+
+fn igrf_row_index() -> &'static [(bool, usize, usize); IGRF_ROWS] {
+    &IGRF_ROW_INDEX
 }
 
 /// IGRF-14 coefficient of file row `row` at epoch index `k` (0 = 1900.0 ... 25 = 2025.0), nT.
