@@ -5,8 +5,8 @@ nutation. Independent of the project's tools/reference/ltp.py. The engine's own 
 fixes TT, so Delta-T is not part of any figure."""
 import sys, math, json, random
 import numpy as np
+from v2 import cli, ts, kernel, jd_to_iso, jd_from_greg  # first: it puts pyerfa on the path
 import erfa
-from v2 import cli, ts, kernel, jd_to_iso, jd_from_greg
 
 BODIES = {"Sun": "sun", "Moon": "moon", "Mercury": "mercury", "Venus": "venus", "Mars": "mars barycenter",
           "Jupiter": "jupiter barycenter", "Saturn": "saturn barycenter", "Uranus": "uranus barycenter",

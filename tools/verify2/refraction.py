@@ -41,6 +41,7 @@ def refraction_arcmin(app_alt_deg, T0=283.15, P0=1010.0, top=120000.0, N=400000)
     Rrad = np.trapezoid(f, u)
     return math.degrees(Rrad) * 60.0
 if __name__ == "__main__":
+    import v2  # noqa: F401 (puts pyerfa on the path)
     import erfa
     refa, refb = erfa.refco(1010.0, 10.0, 0.0, 0.574)
     print(" alt   ray-trace  ERFA A tanz+B tan^3z   Bennett")
