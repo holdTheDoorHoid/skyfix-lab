@@ -568,6 +568,70 @@ the rest of this file:
   great circle through the method's reference position; the running fix keeps
   `docs/MOTION.md`'s leg model.
 
+### 14.1 Magnetic variation (`skyfix_geomag`; expansion programme, geomag agent)
+
+- **Models.** WMM2025 (NOAA NCEI and BGS) from 2025.0 to 2030.0 and IGRF-14 (IAGA) from
+  1900.0 to 2030.0. The default (`auto`) is WMM2025 inside its span and IGRF-14 before it.
+  Outside 1900.0-2030.0 there is **no value, only a reason**: the field's past before 1900
+  and its future after 2030 are not known well enough, and a variation is never shown there.
+- **Evaluation** exactly as the WMM2025 technical report, section 1.2: geodetic to
+  geocentric on WGS84, Schmidt semi-normalised Legendre functions, reference radius
+  6 371 200 m, rotation into the ellipsoidal frame by `psi = phi' - phi`. IGRF-14 is linear
+  between its five-yearly models (its degree 11-13 terms grow from zero over 1995-2000) and
+  uses its predictive secular variation after 2025.0; the annual change is the slope of
+  that piecewise-linear model.
+- **Position**: WGS84 geodetic latitude, east longitude and height above the ellipsoid in
+  metres (an observer's `height_m`), from -1 km to 850 km. **Time**: the decimal year
+  `Y + (jd - JD(Y-01-01T00:00)) / (days in Y)` of the app's clock.
+- **Signs**: declination (**variation**) east positive, inclination (dip) down positive;
+  X north, Y east, Z down (geodetic); rates per year.
+- **Uncertainty**, one standard deviation, returned with every value with its basis:
+  WMM2025's published error model (X 137, Y 89, Z 141, H 133, F 138 nT, I 0.20°,
+  declination `sqrt(0.26² + (5417/H)²)`° with H in nT, capped at 180°); for IGRF-14, the
+  global standard deviations of Beggan (2022) for 1980-2020 (X 144, Y 136, Z 293, H 135,
+  F 178 nT, I 0.29°, declination in the same `5417/H` form, whose global mean 0.41° matches
+  the IGRF's 0.39°), multiplied by `sqrt(1 + (0.5 e / 136)²)` with `e` the model's own rms
+  vector error in that year from the IAGA health warning (100 nT before 1945, 300 falling to
+  100 nT over 1945-1960, 50 nT for 1965-1995, 5-10 nT after 2000, and a forecast error
+  growing 20 nT a year after 2025). The IGRF composition is this project's, stated as such.
+- **Zones** (WMM2025 technical report 1.8), for either model: **blackout** where the
+  horizontal intensity H < 2000 nT (a compass is unreliable; declination errors up to 180°),
+  **caution** where H < 6000 nT.
+- **Words**: "variation 11.8° W"; the annual change in arcminutes, "1.6′ E a year".
+
+### 14.2 Compass error (`skyfix_core::methods::compass`; expansion programme, geomag agent)
+
+`docs/NAVIGATION_METHODS.md` section 9 is normative for the method.
+
+- **Compass error** `CE = true bearing - compass bearing`, normalised to (-180°, 180°], east
+  positive ("compass least, error east; compass best, error west"). For a magnetic compass
+  `CE = variation + deviation`, so **deviation = CE - variation**, east positive. For a
+  gyrocompass the whole of CE is gyro error and there is no variation.
+- **True bearing by azimuth**: the topocentric azimuth of the body's centre at the instant of
+  the bearing, from its apparent geocentric GHA, declination and horizontal parallax, with the
+  observer on the WGS84 ellipsoid (the lunar clearing's geometry, section 1). This is an
+  exception to section 1 of the same kind as the explorer's display values (13.2): a bearing
+  is not a sight, and the value never enters sight reduction. Refraction is vertical and does
+  not move a bearing. Venus is its centre of light, as for sights (section 7).
+- **True bearing by amplitude**: on the **celestial horizon** the centre's geocentric altitude
+  is 0 and `sin A = sin dec / cos lat` (A north positive; bearing `90 - A` rising,
+  `270 + A` setting). On the **visible horizon** the chosen limb is on the sea horizon: its
+  apparent altitude is `-dip` (section 5 step 2), Bennett refraction is taken at that
+  slightly negative altitude (step 3; the formula is smooth there, and this is the only place
+  it is used below 0°), then the (topocentric) semidiameter and the rigorous parallax (steps
+  4-5) give the centre's geocentric altitude `h`, and the bearing is exact:
+  `cos Z = (sin dec - sin lat sin h) / (cos lat cos h)`. The difference from the
+  celestial-horizon bearing is Bowditch's Table 23 correction (with the opposite sign: the
+  table corrects the observed bearing). The instant is the crossing of `h` nearest the given
+  time (within 12 hours) on the direction source's own track, and `dec` is the declination
+  then.
+- **Variation**: a value the navigator gives (the chart's compass rose) wins; otherwise the
+  model's (14.1) at the observer and the instant. The deviation's sigma is the variation's,
+  combined in quadrature with the bearing's own when the navigator states it; an unstated
+  bearing sigma is never guessed.
+- Caveats are plain sentences in the result's `notes` (not section 12 warnings: the result is
+  not a sight reduction and carries no sight).
+
 ## 15. Deep time: coverage tiers, time scales and calendars (expansion programme, 2026-09-24)
 
 Normative for every crate. Decisions from `EXPANSION_PLAN.md` §4; agents refine the

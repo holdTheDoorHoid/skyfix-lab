@@ -1,0 +1,16 @@
+[package]
+name = "skyfix-geomag"
+description = "The Earth's main magnetic field for SkyFix Lab: WMM2025 and IGRF-14 (declination, inclination, intensities, annual change, stated uncertainty). Coefficients embedded; no I/O."
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+# Wire shapes only (the WASM adapter and the CLI serialise the same structs).
+serde = { workspace = true }
+
+[dev-dependencies]
+# Tests read the reference fixtures (fixtures/reference/geomag_*.json).
+serde_json = { workspace = true }

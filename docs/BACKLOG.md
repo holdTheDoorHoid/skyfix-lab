@@ -71,3 +71,14 @@ This file is the single list; the completion report links here.
 | Seconds omitted from a sight time | completed | The Navigate sight form takes `HH:MM` as `:00` and says "Seconds omitted: :00 assumed; each second is 0.25′ of longitude" (`web/src/next/navigate/parse.ts`) |
 | Error-budget rows for the dip anomaly and anomalous refraction | completed | `docs/ACCURACY.md` section 4, each pointing to the shared-bias estimate (`SolveOptions.estimate_shared_bias`, `skyfix solve --bias`) as the remedy for the part the sights share |
 | Simulated Moon sights | unstarted | `skyfix-sim` still generates altitudes on the sphere and its reverse chain knows no Moon semidiameter or parallax (`docs/NAVIGATION_SKY.md` section 6), so a simulated Moon sight would now carry the Earth-shape term as an error of up to 0.24′. The Skyfield fixtures remain the test material for Moon sights |
+
+## Expansion programme: magnetic variation and compass error (geomag agent, 2026-09-24)
+
+| item | status | notes |
+|---|---|---|
+| Magnetic variation anywhere, 1900-2030 (WMM2025, IGRF-14), with the model's uncertainty, zones and a grid for isogonic lines | completed (engine) | `crates/skyfix-geomag`, exports `magnetic_field`, `magnetic_grid` (`crates/skyfix-wasm/src/geomag.rs`); validated against NCEI's, IAGA's, BGS's and NOAA's values (`docs/ACCURACY.md` section 15). The interface (Selected card, Navigate → Compass, map layer) is wave 2 |
+| Compass error by azimuth and by amplitude, with variation and deviation | completed (engine) | `skyfix_core::methods::compass`, export `compass_error`; Bowditch ch. 15 reproduced (`docs/NAVIGATION_METHODS.md` section 9). CLI `skyfix variation` / `skyfix compass-error` left to the `cli3` agent |
+| A deviation card (swinging the compass) | unstarted | Collect compass errors on many headings into a deviation table and curve; each `compass_error` result is one heading's deviation already |
+| WMMHR2025 (degree 133, crustal field) | unstarted | NCEI recommends it where systems can take the coefficients; about 18 000 of them (a pack, not the core). WMM2025 meets the navigation specification, and its uncertainty is stated beside every value |
+| Grid variation for polar navigation (GV) | unstarted | Declination relative to a polar-stereographic grid north; only meaningful with a polar chart grid, which the map does not draw |
+| Magnetic variation before 1900 | not planned | No standard model reaches before 1900 with a stated uncertainty (historical field models such as gufm1 exist, with their own licences and far larger errors); the programme's rule is that variation is not shown for deep time |

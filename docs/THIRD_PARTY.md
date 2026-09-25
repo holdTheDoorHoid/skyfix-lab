@@ -42,6 +42,9 @@ a fact you expect is not where you thought, it has moved, not gone.
 | Service worker, web app manifest, icons | Offline reload and install; written for this project, no library copied | This project's own work | None |
 | OpenStreetMap standard tiles (optional street layer, off by default) | Online street map, only while switched on | ODbL 1.0 | **Yes — "© OpenStreetMap contributors", shown only while the layer is on** |
 | JPL DE421 / DE440s, Skyfield, the USNO API, NASA's eclipse canon, Bowditch | Development-time-only independent truth for every accuracy check in `docs/ACCURACY.md` | Various (US Government works, MIT, or public domain); **never shipped** | None (not in the runtime at all) |
+| World Magnetic Model WMM2025 (NOAA NCEI and BGS), 90 coefficient rows | Magnetic variation, dip and field 2025-2030; compass error | U.S. Government work, public domain ("not licensed or under copyright", NCEI) | None |
+| International Geomagnetic Reference Field IGRF-14 (IAGA), 195 coefficient rows × 27 columns | Magnetic variation 1900-2024 | **CC BY 4.0** (IAGA's Zenodo record); credited in this document — [see the licence note](#igrf-14-is-cc-by-40-credited-in-the-documentation) | None on screen; credited here |
+| WMM2025 official test values and technical report (NCEI), IAGA's pyIGRF14 test values, the BGS IGRF-14 calculator, NOAA's Geomag 7.0 sample output, Bowditch ch. 15 | Development-time checks of the magnetic models and the compass-error method | U.S. Government works; MIT (pyIGRF14); BGS web-service outputs as test data; **never shipped** | None |
 
 ## Runtime data
 
@@ -897,6 +900,68 @@ a zone border elsewhere (Mexico, Kazakhstan, DR Congo) takes the nearest town's 
 guess never looks at the date (a position's zone is today's, while the browser's Intl data
 supply each zone's historical rules for the date shown).
 
+### Magnetic field models
+
+Owner: geomag agent (expansion programme; `crates/skyfix-geomag`, `crates/skyfix-wasm/src/geomag.rs`,
+`tools/geomag/`). Added 2026-09-24. The two coefficient files are committed unchanged in
+`crates/skyfix-geomag/data/`; `tools/geomag/gen_coeffs.py` turns them into integer tables
+in `crates/skyfix-geomag/src/coeffs.rs` (about 11 KB in the binary, no value changed), and
+a test re-parses both files and compares every number.
+
+#### World Magnetic Model 2025 (WMM2025) — NOAA NCEI and the British Geological Survey
+
+- **What is used:** the 90 rows of Gauss coefficients and secular-variation coefficients of
+  `WMM2025.COF` (header `2025.0 WMM-2025 11/13/2024`, SHA-256
+  `dfa8597825af4e0b87ff4198a5b4fb661b3c49f4cd090cd0164e0259b075582f`), the model equations
+  of the technical report (section 1.2), its error model (section 3.4 and NCEI's
+  "Accuracy, Limitations, and Error Model" page: X 137, Y 89, Z 141, H 133, F 138 nT,
+  I 0.20°, D `sqrt(0.26² + (5417/H)²)`°) and its blackout and caution zones (section 1.8).
+- **URL:** <https://www.ncei.noaa.gov/products/world-magnetic-model> (coefficients:
+  <https://www.ncei.noaa.gov/sites/default/files/2024-12/WMM2025COF.zip>, SHA-256
+  `2e76569370d081f2cd7919490218bd094ca9afde347b198eff5621e0af460d03`; error model:
+  <https://www.ncei.noaa.gov/products/world-magnetic-model/accuracy-limitations-magnetic-poles-error-model>).
+- **Technical report:** Chulliat, A., W. Brown, M. Nair, N. Gomez Perez, L.-Y. Young,
+  C. Watson, N. Boneh, C. Beggan, B. Meyer and M. Paniccia, 2025. *The US/UK World Magnetic
+  Model for 2025-2030: Technical Report*, NCEI, NOAA. <https://doi.org/10.25923/prbc-s316>.
+- **Retrieved:** 2026-09-24. NCEI's news of January 2026 (the 2025 annual report) confirms
+  WMM2025 is current; no out-of-cycle release.
+- **Licence:** a U.S. Government work. The WMM page states that "The WMM source code is in
+  the public domain and not licensed or under copyright. The information and software may
+  be used freely by the public." The same page adds that, under 17 U.S.C. 403, a
+  copyrighted work consisting *predominantly* of U.S. Government material must say so;
+  SkyFix Lab is not predominantly that material, and this entry identifies what is.
+  Requested citation (kept here as a courtesy): "NOAA NCEI Geomagnetic Modeling Team;
+  British Geological Survey. 2024: World Magnetic Model 2025. NOAA National Centers for
+  Environmental Information. https://doi.org/10.25921/aqfd-sd83".
+- **On screen:** nothing required.
+
+#### International Geomagnetic Reference Field, 14th generation (IGRF-14) — IAGA
+
+- **What is used:** every coefficient of `igrf14coeffs.txt` (degree 13; main-field models
+  for 1900.0-2025.0 every five years and the 2025-2030 secular variation; SHA-256
+  `8f8d88403028fc4ee92c4f38d97b46e0a87e2cfc496045b43c9e26c1d6b0903c`, identical to the
+  Zenodo release's file), for dates from 1900 up to 2025.0; the uncertainty figures of
+  Beggan (2022), *Evidence-based uncertainty estimates for the International Geomagnetic
+  Reference Field*, Earth Planets Space 74, 17, <https://doi.org/10.1186/s40623-022-01572-y>,
+  as BGS tabulates them (<https://geomag.bgs.ac.uk/research/modelling/IGRF.html>), and the
+  era-by-era error estimates of IAGA's "IGRF Health Warning, Errors, and Limitations"
+  (F. J. Lowes, revised 2010, edited 2022,
+  <https://www.ncei.noaa.gov/products/international-geomagnetic-reference-field/health-warning>);
+  CONVENTIONS 14.1 says how they are combined.
+- **URL:** <https://www.ngdc.noaa.gov/IAGA/vmod/coeffs/igrf14coeffs.txt> (NOAA hosts it for
+  IAGA's Working Group V-MOD); the release record is International Association of
+  Geomagnetism and Aeronomy (2024), *IGRF-14*, Zenodo,
+  <https://doi.org/10.5281/zenodo.14012302>.
+- **Retrieved:** 2026-09-24.
+- **Licence:** **CC BY 4.0**, as the Zenodo record declares. Attribution, as the record asks
+  it to be cited: **"International Association of Geomagnetism and Aeronomy (2024), IGRF-14,
+  Zenodo, https://doi.org/10.5281/zenodo.14012302; described in Beggan et al.,
+  International geomagnetic reference field: the fourteenth generation, Earth Planets Space
+  78, 127 (2026), https://doi.org/10.1186/s40623-025-02360-0."** The coefficients were
+  converted to integers without changing any value (CC BY's "indicate if changes were
+  made": only the storage format changed). See the licence note below for why this is a
+  documentation credit and not an on-screen one.
+
 ## Development-time references
 
 Everything below is read only by the Python tools under `tools/reference/`, `tools/starfield/`
@@ -1331,6 +1396,29 @@ listed under "Reference data" above: the 2266 events of 1990-2060 with Skyfield'
 `almanac.oppositions_conjunctions`, `find_maxima` and `find_minima`, and whether each
 inferior conjunction is a transit.
 
+### Magnetic field and compass error (reference fixtures)
+
+Owner: geomag agent. `tools/geomag/gen_fixtures.py` (standard-library Python) writes
+`fixtures/reference/geomag_wmm2025.json` and `fixtures/reference/geomag_igrf14.json` from
+the sources below, checking each download against the SHA-256 recorded in the script and in
+the fixture; `fixtures/reference/bowditch_compass_examples.json` is typed from the book.
+Nothing here is shipped. Retrieved 2026-09-24.
+
+| source | what | licence basis |
+|---|---|---|
+| NOAA NCEI, `WMM2025_TestValues.txt` in `WMM2025COF.zip` (above) | the 100 official WMM2025 test values | U.S. Government work |
+| WMM2025 technical report (above), PDF <https://repository.library.noaa.gov/view/noaa/71569/noaa_71569_DS1.pdf>, SHA-256 `3bed06a4…0fc28` | Table 6 (12 test values) and Tables 3a-3b (the high-precision numerical example), typed; Table 4's dip poles in a test | U.S. Government work |
+| IAGA V-MOD's `pyIGRF14` package, <https://www.ngdc.noaa.gov/IAGA/vmod/pyIGRF14.zip>, SHA-256 `82202de7…352f2`: `tests/tests_igrf14.py` | the twelve IGRF-14 test values (geocentric X, Y, Z, 1900-2030); its SHC file was checked to hold exactly the numbers of `igrf14coeffs.txt` | MIT licence (© 2024 Ciarán Beggan); the numbers are model outputs used as test data |
+| British Geological Survey IGRF-14 calculator, JSON web service `https://geomag.bgs.ac.uk/web_service/GMModels/igrf/14/?latitude=…&longitude=…&altitude=…&date=…&format=json` (the calculator page invites HTTP GET requests) | declination, inclination, X, Y, Z, H, F and their rates at 25 points, 1900-2029; each response's SHA-256 is in the fixture | outputs of the IGRF-14 model (CC BY 4.0, above), recorded as test data only; BGS's site terms restrict commercial reuse of its *content*, which this project, a non-commercial open-source workbench that never ships the values, does not do — the same standing, accepted position as the USNO responses below |
+| NOAA's Geomag 7.0 (<https://www.ngdc.noaa.gov/IAGA/vmod/geomag70_linux.tar.gz>, SHA-256 `c65f65a4…f4709`): `sample_out_IGRF13.txt` | the two rows at 2015-01-01, where IGRF-13 and IGRF-14 are the same model | U.S. Government work ("The software code is in the public domain", NCEI); the executable in the archive was not run |
+| Bowditch, *The American Practical Navigator*, NGA Pub. No. 9, 2019 ed., vol. 1, ch. 15 "Azimuths and Amplitudes", sections 1501-1506 (<https://msi.nga.mil/Publications/APN>; read from the copy at <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2015-%20Azimuths%20And%20Amplitudes.pdf>, SHA-256 `1c045ae8…f7f407`) | the numbers of five worked examples, typed with the book's rounding; no text or figure reproduced | U.S. Government work, not subject to copyright in the United States (17 U.S.C. 105) |
+
+NOAA's own online calculator (`ngdc.noaa.gov/geomag-web`) answers only with a key issued on
+registration, so it was not used; the BGS calculator is the other official IGRF-14
+calculator NCEI's IGRF page names. The IGRF-14 paper itself (Earth Planets Space 78, 127)
+could not be fetched (the publisher's site challenges automated clients); it is cited from
+the Zenodo record, which is the release.
+
 ## Licence decisions
 
 Most of the sources above needed only a fact to be recorded — a URL, a retrieval date, a
@@ -1481,3 +1569,20 @@ where it is used and in CONVENTIONS 13.10.
   28 May and 12 July, full sun 29 May and 11 July; `https://www.amnh.org/research/hayden-planetarium/manhattanhenge`,
   retrieved 2026-09-24): four dates quoted as facts in `docs/ACCURACY.md` section 14 and
   in a test comment for comparison; nothing is copied.
+
+### IGRF-14 is CC BY 4.0: credited in the documentation
+
+**For the owner to confirm (geomag agent, 2026-09-24).** The programme's rule is credit-free
+data first, a documentation-only acknowledgement when nothing credit-free exists, and
+nothing that needs an on-screen credit or share-alike. For magnetic variation before 2025
+there is no credit-free equivalent of IGRF-14: WMM2025 (public domain) starts in 2025, and
+the older World Magnetic Models, also public domain, are five-year predictions that
+neither reach back to 1900 nor were revised with the later data the IGRF's definitive
+models use. IAGA publishes IGRF-14 under CC BY 4.0, which asks for attribution "in any
+reasonable manner based on the medium, means, and context" and allows it to be given by a
+link to a page carrying it; it requires no share-alike and no on-screen credit. The
+attribution above, in this document that the site links as its manual, is therefore taken
+as the reasonable manner for data compiled into the engine, as it is for VSOP87 and
+ELP 2000-82B. If the owner prefers the credit also in the explorer's About/Help, it is one
+line there; if the owner prefers no CC BY data at all, variation before 2025 has to go
+(the engine would answer 2025-2030 only).

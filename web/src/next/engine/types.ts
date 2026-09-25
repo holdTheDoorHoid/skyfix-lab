@@ -2134,3 +2134,231 @@ export function isSunToolsEngine(engine: unknown): engine is SunToolsEngine {
   const e = engine as Record<string, unknown>;
   return SUN_TOOLS_METHODS.every((m) => typeof e[m] === 'function');
 }
+
+// ---------------------------------------------------------------------------------
+// Expansion programme — magnetic field and compass error (geomag agent). Rust:
+// crates/skyfix-wasm/src/geomag.rs over skyfix_geomag (WMM2025, IGRF-14) and
+// skyfix_core::methods::compass. Wire format: EXPLORER_API.md, "Expansion programme —
+// magnetic field and compass error"; CONVENTIONS 14.1-14.2; NAVIGATION_METHODS §9.
+// ---------------------------------------------------------------------------------
+
+export type MagneticModelName = 'WMM2025' | 'IGRF-14';
+/** Which model answers: WMM2025 in 2025.0–2030.0 and IGRF-14 before (`auto`), or one of them. */
+export type MagneticModelChoice = 'auto' | 'wmm2025' | 'igrf14';
+/** By the horizontal intensity: `blackout` < 2000 nT (compass unreliable), `caution` < 6000 nT. */
+export type MagneticZone = 'normal' | 'caution' | 'blackout';
+
+/** Annual rate of change of each element. */
+export interface MagneticAnnualChange {
+  declination_deg_per_year: number;
+  inclination_deg_per_year: number;
+  horizontal_nt_per_year: number;
+  north_nt_per_year: number;
+  east_nt_per_year: number;
+  down_nt_per_year: number;
+  total_nt_per_year: number;
+}
+
+/** One standard deviation of each element, and where the numbers come from (CONVENTIONS 14.1). */
+export interface MagneticUncertainty {
+  declination_deg: number;
+  inclination_deg: number;
+  horizontal_nt: number;
+  north_nt: number;
+  east_nt: number;
+  down_nt: number;
+  total_nt: number;
+  basis: string;
+}
+
+/** `magnetic_field` when a model answers. */
+export interface MagneticFieldValue {
+  available: true;
+  jd_utc: number;
+  utc: string;
+  model: MagneticModelName;
+  decimal_year: number;
+  lat_deg: number;
+  /** Normalised to (−180, 180]. */
+  lon_deg: number;
+  height_m: number;
+  /** Magnetic variation: true north to magnetic north, east positive. */
+  declination_deg: number;
+  /** Dip below the horizontal, down positive. */
+  inclination_deg: number;
+  horizontal_nt: number;
+  /** X, Y, Z in the geodetic frame. */
+  north_nt: number;
+  east_nt: number;
+  down_nt: number;
+  total_nt: number;
+  annual_change: MagneticAnnualChange;
+  uncertainty: MagneticUncertainty;
+  zone: MagneticZone;
+  /** After 2025.0 the value extrapolates a forecast rate of change. */
+  forecast: boolean;
+  /** Plain sentences (zones, less certain eras, forecasts). */
+  notes: string[];
+  /** `11.8° W`. */
+  variation_text: string;
+  /** `1.6′ E a year`. */
+  annual_change_text: string;
+  /** `Variation 11.8° W ±0.4° (WMM2025), changing 1.6′ E a year.` */
+  sentence: string;
+}
+
+/** `magnetic_field` when no model covers the date (before 1900, after 2030) or height. */
+export interface MagneticFieldUnavailable {
+  available: false;
+  jd_utc: number;
+  utc: string;
+  decimal_year: number;
+  lat_deg: number;
+  lon_deg: number;
+  height_m: number;
+  reason: string;
+}
+
+export type MagneticField = MagneticFieldValue | MagneticFieldUnavailable;
+
+/** `magnetic_grid`: row by row from the first latitude, west to east. */
+export interface MagneticGrid {
+  model: MagneticModelName;
+  decimal_year: number;
+  lat_deg: Float64Array;
+  lon_deg: Float64Array;
+  declination_deg: Float64Array;
+  horizontal_nt: Float64Array;
+}
+
+export type CompassMethod = 'azimuth' | 'amplitude';
+export type CompassKind = 'magnetic' | 'gyro';
+export type AmplitudeHorizon = 'visible' | 'celestial';
+export type RiseSet = 'rising' | 'setting';
+
+/** `compass_error` request (EXPLORER_API.md). Give `utc` or `jd_utc`. */
+export interface CompassRequest {
+  method?: CompassMethod;
+  body: string;
+  utc?: string;
+  jd_utc?: number;
+  observer: { lat_deg: number; lon_deg: number; height_m?: number };
+  /** What the compass read, [0, 360). */
+  compass_bearing_deg: number;
+  compass?: CompassKind;
+  /** A chart's variation, east positive; null: the model's. */
+  variation_deg?: number | null;
+  variation_sigma_deg?: number | null;
+  bearing_sigma_deg?: number | null;
+  magnetic_model?: MagneticModelChoice;
+  horizon?: AmplitudeHorizon;
+  height_of_eye_m?: number;
+  limb?: SightLimb;
+  event?: RiseSet | null;
+  pressure_hpa?: number;
+  temperature_c?: number;
+}
+
+export interface CompassVariation {
+  /** East positive. */
+  deg: number;
+  sigma_deg: number | null;
+  source: MagneticModelName | 'given';
+  text: string;
+  notes: string[];
+}
+
+export interface CompassAzimuthDetails {
+  gha_deg: number;
+  dec_deg: number;
+  /** Topocentric geometric altitude of the centre. */
+  altitude_deg: number;
+  /** CONVENTIONS 3 Zn, what the sight-reduction tables give. */
+  zn_spherical_deg: number;
+  azimuth_rate_deg_per_min: number;
+}
+
+export interface CompassAmplitudeDetails {
+  event: RiseSet;
+  horizon: AmplitudeHorizon;
+  dec_deg: number;
+  /** On the celestial horizon, north positive; null when the body never reaches it. */
+  amplitude_deg: number | null;
+  /** `W 1.0° S`. */
+  amplitude_text: string | null;
+  celestial_bearing_deg: number | null;
+  /** Geocentric altitude of the centre when the bearing was taken. */
+  altitude_deg: number;
+  /** Visible minus celestial bearing; Bowditch's Table 23 correction is its negative. */
+  visible_horizon_correction_deg: number;
+  dip_arcmin: number;
+  refraction_arcmin: number;
+  semidiameter_arcmin: number;
+  parallax_arcmin: number;
+  /** Degrees of bearing per degree of misjudged altitude. */
+  bearing_per_altitude: number;
+  minutes_from_given_time: number;
+}
+
+/** `compass_error` result (EXPLORER_API.md; CONVENTIONS 14.2). */
+export interface CompassError {
+  method: CompassMethod;
+  body: string;
+  compass: CompassKind;
+  jd_utc: number;
+  utc: string;
+  true_bearing_deg: number;
+  compass_bearing_deg: number;
+  /** True minus compass, (−180, 180], east positive. */
+  compass_error_deg: number;
+  compass_error_text: string;
+  compass_error_sigma_deg: number | null;
+  variation: CompassVariation | null;
+  /** Compass error minus variation, east positive. */
+  deviation_deg: number | null;
+  deviation_sigma_deg: number | null;
+  deviation_text: string | null;
+  /** `Compass error 14.4° W; variation 11.8° W; deviation 2.6° W.` */
+  sentence: string;
+  explanation: string;
+  azimuth: CompassAzimuthDetails | null;
+  amplitude: CompassAmplitudeDetails | null;
+  direction_source: string;
+  notes: string[];
+}
+
+/** Magnetic variation and compass error (geomag agent). */
+export interface GeomagEngine {
+  /** Never throws for a date or height no model covers: `available: false` with the reason. */
+  magneticField(
+    latDeg: number,
+    lonDeg: number,
+    heightM: number,
+    jdUtc: number,
+    model?: MagneticModelChoice,
+  ): MagneticField;
+  /** Declination on a grid for isogonic lines (≤ 70 000 points); null when no model covers the date. */
+  magneticGrid(
+    jdUtc: number,
+    latMin: number,
+    latMax: number,
+    nLat: number,
+    lonMin: number,
+    lonMax: number,
+    nLon: number,
+    heightM?: number,
+  ): MagneticGrid | null;
+  /** Throws a string for malformed input or a body the engine cannot place. */
+  compassError(request: CompassRequest): CompassError;
+}
+
+/** True when `engine` has the magnetic field and compass error (the memoised engine forwards them). */
+export function isGeomagEngine(engine: unknown): engine is GeomagEngine {
+  if (typeof engine !== 'object' || engine === null) return false;
+  const e = engine as Partial<GeomagEngine>;
+  return (
+    typeof e.magneticField === 'function' &&
+    typeof e.magneticGrid === 'function' &&
+    typeof e.compassError === 'function'
+  );
+}

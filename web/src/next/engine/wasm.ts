@@ -57,6 +57,9 @@ import type {
   SunHours,
   SunPath,
 } from './types.js';
+// Expansion programme, geomag agent: magnetic field and compass error (wasm-geomag.ts).
+import type { CompassError, CompassRequest, MagneticField, MagneticGrid, MagneticModelChoice } from './types.js';
+import { wasmCompassError, wasmMagneticField, wasmMagneticGrid, type GeomagWasmExports } from './wasm-geomag.js';
 
 /** Exports the explorer cannot run without. */
 export const REQUIRED_EXPORTS = [
@@ -118,6 +121,10 @@ export interface ExplorerWasmExports {
   eclipse_path?(id: string): unknown;
   /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
   planet_events?(jdStart: number, jdEnd: number): unknown;
+  /** Expansion programme, magnetic field and compass error (wasm-geomag.ts); absent in older builds. */
+  magnetic_field?: GeomagWasmExports['magnetic_field'];
+  magnetic_grid?: GeomagWasmExports['magnetic_grid'];
+  compass_error?: GeomagWasmExports['compass_error'];
   version?(): string;
   // Expansion programme — sun tools (suntools agent; EXPLORER_API "Expansion programme —
   // sun tools"); absent in older builds.
@@ -468,6 +475,40 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
     return this.call('galactic_centre_windows', () =>
       fn.call(this.x, observerJson(observer), jdStart, jdEnd, options ? JSON.stringify(options) : ''),
     );
+  }
+
+  // --- Expansion programme: magnetic field and compass error (geomag agent) -----------
+  // `GeomagEngine` (types.ts), delegated to wasm-geomag.ts; each throws "rebuild" when this
+  // build of the core predates the export.
+
+  /** The field at a place and instant, or `available: false` with the reason (`magnetic_field`). */
+  magneticField(
+    latDeg: number,
+    lonDeg: number,
+    heightM: number,
+    jdUtc: number,
+    model?: MagneticModelChoice,
+  ): MagneticField {
+    return wasmMagneticField(this.x, latDeg, lonDeg, heightM, jdUtc, model);
+  }
+
+  /** Declination and horizontal intensity on a grid (`magnetic_grid`); null outside 1900–2030. */
+  magneticGrid(
+    jdUtc: number,
+    latMin: number,
+    latMax: number,
+    nLat: number,
+    lonMin: number,
+    lonMax: number,
+    nLon: number,
+    heightM = 0,
+  ): MagneticGrid | null {
+    return wasmMagneticGrid(this.x, jdUtc, latMin, latMax, nLat, lonMin, lonMax, nLon, heightM);
+  }
+
+  /** Compass error by azimuth or amplitude (`compass_error`). */
+  compassError(request: CompassRequest): CompassError {
+    return wasmCompassError(this.x, request);
   }
 }
 
