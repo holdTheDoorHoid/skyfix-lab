@@ -6,9 +6,9 @@
  * The page itself is checked in Chrome by web/scripts/ui-check.mjs.
  */
 import { describe, expect, it } from 'vitest';
-import { memoEngine } from '../../src/next/component.js';
+import { memoEngine, type Ctx } from '../../src/next/component.js';
 import { MockEngine } from '../../src/next/engine/mock.js';
-import type { DayEvents, ExplorerEngine, Observer, PhaseSegment, PlanetTonight, Tonight } from '../../src/next/engine/types.js';
+import type { DayEvents, DeepSkyEngine, ExplorerEngine, Observer, PhaseSegment, PlanetTonight, Tonight } from '../../src/next/engine/types.js';
 import { hashForView, viewFromHash } from '../../src/next/shell/router.js';
 import { registry } from '../../src/next/shell/registry.js';
 import { TOUR_STEPS } from '../../src/next/shell/tour.js';
@@ -63,7 +63,9 @@ const N24 = localNoonBefore(PHILLY.lon_deg, jd('2026-09-24T18:00:00Z'));
 const N25 = N24 + 1;
 
 const engine = memoEngine(new MockEngine({ syntheticStars: 0 }));
-const ctx = { engine };
+/** The same engine seen through the deep-sky contract (the memoised engine forwards it). */
+const deep = engine as unknown as DeepSkyEngine;
+const ctx: Pick<Ctx, 'engine'> = { engine };
 
 function state(iso: string) {
   const store = createExplorerStore({
@@ -131,9 +133,9 @@ describe('which night a moment belongs to', () => {
     const n = chooseNight(ctx, s)!;
     expect(n).toBeCloseTo(N25, 9);
     // The engine, asked at that moment, would still give the night that is ending…
-    expect(engine.tonight(PHILLY, between).night.start.jd_utc).toBeCloseTo(N24, 6);
+    expect(deep.tonight(PHILLY, between).night.start.jd_utc).toBeCloseTo(N24, 6);
     // …so the view asks just after the chosen night's noon.
-    expect(engine.tonight(PHILLY, nightProbe(n)).night.start.jd_utc).toBeCloseTo(N25, 6);
+    expect(deep.tonight(PHILLY, nightProbe(n)).night.start.jd_utc).toBeCloseTo(N25, 6);
   });
 
   it('names the night against the real one', () => {
@@ -167,7 +169,7 @@ describe('stretches of time', () => {
 // The cards against the engine
 // -------------------------------------------------------------------------------------
 
-function coreFor(n: number, eng: Pick<typeof ctx, 'engine'> = ctx): NightCore {
+function coreFor(n: number, eng: Pick<Ctx, 'engine'> = ctx): NightCore {
   const { s } = state('2026-09-24T23:30:00Z');
   return loadCore(eng, nightQuery(s, n, { bortle: 5 }));
 }
@@ -265,7 +267,7 @@ describe('the night’s numbers are the engine’s', () => {
   });
 
   it('ranks deep-sky objects as the engine did, with the catalogue’s words', () => {
-    const catalog = engine.dsoCatalog().objects;
+    const catalog = deep.dsoCatalog().objects;
     const rows = dsoRows(core, catalog, new Map([['And', 'Andromeda']]), F);
     expect(rows.map((r) => r.id)).toEqual(t.deep_sky.map((d) => d.id));
     rows.forEach((r, i) => {

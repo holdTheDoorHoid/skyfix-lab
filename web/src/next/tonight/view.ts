@@ -207,17 +207,12 @@ const view: Component = (host, ctx) => {
   });
   deepCard.aside.append(h('label', { class: 'sft-sky' }, h('span', {}, 'Your sky'), bortle));
 
+  // Two columns on a wide page, each stacking its cards; one column (the brief's order) on a narrow one.
   const grid = h(
     'div',
     { class: 'sft-grid' },
-    moonCard.el,
-    planetsCard.el,
-    deepCard.el,
-    showersCard.el,
-    milkyCard.el,
-    comingCard.el,
-    tidesCard.el,
-    photoCard.el,
+    h('div', { class: 'sft-col sft-col--a' }, moonCard.el, planetsCard.el, deepCard.el),
+    h('div', { class: 'sft-col sft-col--b' }, showersCard.el, milkyCard.el, comingCard.el, tidesCard.el, photoCard.el),
   );
   const inner = h('div', { class: 'sft-inner' }, header, tl.el, grid, notesEl);
   const root = h('article', { class: 'sft sf-on-stage', 'aria-labelledby': 'sft-title' }, inner);
@@ -806,6 +801,7 @@ const view: Component = (host, ctx) => {
     shownKey = queryKey(q);
     const t0 = performance.now();
     core = loadCore(ctx, q);
+    const t1 = performance.now();
     detail = null;
     coming = new Map();
     comingDone = false;
@@ -814,7 +810,9 @@ const view: Component = (host, ctx) => {
     realNight = realNightNow(s);
     drawAll();
     root.dataset.stage = 'core';
-    root.dataset.coreMs = String(Math.round(performance.now() - t0));
+    // What the engines took for the night's core, and what the page took to draw it (ui-check).
+    root.dataset.coreMs = String(Math.round(t1 - t0));
+    root.dataset.drawMs = String(Math.round(performance.now() - t1));
     later(() => {
       if (gen !== generation || !core) return;
       detail = loadDetail(ctx, core);
