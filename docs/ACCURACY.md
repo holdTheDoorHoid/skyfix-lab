@@ -2759,6 +2759,176 @@ measured levers; `opt-level = "z"` alone saves about 5 %).
   tools.limb.build` (bit-identical). The references: `tools/reference/.venv/bin/python -m
   tools.limb.reference svs skyfield` (about 20 minutes).
 
+## Almanac tables and three-day pages (almanac2 agent, expansion programme Q7)
+
+Owner: almanac2 agent (`crates/skyfix-almanac/src/tables/`, `opening.rs`; definitions
+CONVENTIONS 13.9.1). Display and teaching only: sight reduction runs the correction chain
+itself and never reads these tables.
+
+### Against an independent computation
+
+`tools/reference/gen_almanac_tables.py` computes the tables from CONVENTIONS 13.9.1 alone,
+in Python: exact fractions for the increments, v or d and arc to time, a root-finder for
+every critical boundary, closed forms for dip and parallax, Skyfield (DE440s) for Polaris'
+apparent places and the planets' parallax. It writes `fixtures/reference/almanac_tables.json`;
+`crates/skyfix-almanac/tests/almanac_tables_reference.rs` compares:
+
+- **6 274 printed values identical**: seven pages of increments (minutes 0, 1, 18, 27, 44,
+  58 and 59: every second of the Sun and planets, Aries and the Moon, and all 181 v or d
+  corrections), all of arc to time, the five critical tables (the Sun in both halves of
+  the year, stars and planets, dip in metres and in feet: every boundary and value), the
+  0°–10° table (109 rows), the non-standard conditions (26 altitudes by 13 zones) and both
+  parts of the Moon's table (18 columns).
+- **Polaris**: 1 546 of 1 548 printed values identical for 2016 (the other two differ by
+  0.1) and 1 548 of 1 548 for 2026; the adopted mean position within
+  0.01′ of SHA and 0.01″ of Dec of Skyfield's.
+- **Venus and Mars, 2024**: the daily horizontal parallax within 0.00001′ of Skyfield's,
+  the same runs of dates and the same corrections.
+
+### Against the published tables
+
+Bowditch reproduces the printed Nautical Almanac's tables in its worked examples (NGA
+Pub. No. 9, 2019, vol. 1 chapter 19, and 2024, vol. 2 chapter 6; public domain), typed
+into `fixtures/reference/almanac_tables_published.json`. Test `the_published_examples`:
+**36 of 46 values identical, the other 10 within 0.1′**. Every increment, v or d
+correction, arc-to-time entry, dip (10 heights) and Venus and Mars correction is identical.
+The ten that differ, all by 0.1′, are where the printed almanac's own models differ from
+this project's chain (CONVENTIONS 5), which the tables follow so that they give the Ho a
+reduction gives:
+
+| entry | here | printed | why |
+|---|---|---|---|
+| stars, Ha 27° 48.1′ (Miaplacidus) | −1.9 | −1.8 | refraction formula (Bennett here) |
+| 0°–10°: Sun Oct.–Mar. lower limb 6° 29.7′; Apr.–Sept. 1° 19.7′; stars 4° 02.1′ | +8.3, −5.9, −11.7 | +8.4, −5.8, −11.6 | refraction formula |
+| temperature and pressure, Ha 1° 19.7′ | +1.6 | +1.5 | one exact correction here; two separate tables (T, then P) printed |
+| Moon, upper part at 3° 50′, 18° 00′, 66° 40′, 2° 30′ | 56.2, 62.6, 33.2, 52.3 | 56.1, 62.5, 33.1, 52.2 | refraction, and the printed table's smaller Moon radius |
+| Moon, U at HP 59.6′ (2° 30′) | 4.9 | 5.0 | as above |
+
+The zone of 88 °F and 982 hPa is M in both, and its correction at 6° 29.7′ (+0.8′) is
+identical. Bowditch's three 2024 zone cases (their zones are not stated) give +1.8, +0.3 and
+−1.2 here against +2.1, +0.4 and −1.3 printed: the zones are this project's own
+(CONVENTIONS 13.9.1), so a letter can differ; the exact correction for a stated
+temperature and pressure does not depend on them.
+
+**The 2016 Polaris page** (Bowditch 2019 Figure 1912c, LHA Aries 120°–239°; test
+`the_printed_2016_polaris_page`): every a1 (156) and every azimuth (84) identical; a0 42 of
+132 and a2 45 of 144 identical, because the printed page adopted a different mean position
+(SHA 316° 47′, Dec N 89° 20.0′, recovered from its a0 column: with it the formula prints
+all 132 of the page's a0 entries) from the one defined here (the mean of 73 apparent places, SHA
+316° 48.9′, Dec N 89° 19.9′). That moves value between a0 and a2 only: **a0 + a2 agrees
+with the printed sum within 0.1′ in all 1 584 combinations** of row and month, and both
+worked latitudes (§1912 and the figure's illustration) agree within 0.1′.
+
+### The tables' own approximations
+
+- **Critical tables** (unit tests in `tables/altitude.rs` and `tables/mod.rs`): looked up
+  as a navigator looks them up, every whole minute of apparent altitude from 10° 01′ to 90°
+  gets exactly the correctly rounded correction (stars and planets, both limbs of the Sun),
+  and an argument equal to a boundary takes the value above it.
+- **The Moon's two parts** (`tables/moon.rs`, `the_parts_add_up_to_the_chain`): upper
+  part plus L (or U − 30′) is within **0.23′** of the exact chain at every row and every
+  HP row, the rounding of the two parts included; the rest is the lower part being taken at
+  its column's middle altitude, as the printed table takes it.
+- **Polaris' formula** (`tables/polaris.rs`): its own error, reported for each year as
+  `formula_error_arcmin`, is 0.007′ in 2016 and grows as the cube of the polar distance;
+  above 0.1′ (before about 1800, after about 2450) the page carries a warning. The 2016
+  illustration's latitude by the table is 0.05′ from the rigorous one (the test holds it
+  within 0.1′).
+
+### Speed
+
+Native (release, x86-64, CPU time on a shared machine at load average 25–34): an opening
+(three daily pages) 0.20 s, one daily page 0.07 s, Venus and Mars for a year 0.08 s, the
+Polaris tables 2 ms, the altitude tables 4 ms. In WebAssembly under Node 24 on the same
+loaded machine an opening took 0.8–1.4 s; the view computes it only once the time has
+settled (300 ms, at most every 4 s while it keeps moving), never during a drag of the time
+bar. Increments, arc to time and the altitude tables are cheap and cached per argument.
+
+### Reproduce
+
+`SOURCE_DATE_EPOCH=1790380800 tools/reference/.venv/bin/python -m
+tools.reference.gen_almanac_tables` (about a minute), then `cargo test -p skyfix-almanac
+--release --test almanac_tables_reference -- --nocapture`, which prints every figure above.
+## Navigate's expansion tools (navigate2, 2026-09-25)
+
+Owner: navigate2 agent (expansion programme, wave 2). The Compass and Passage tabs, the
+sight form's extras, the printables and the star finder show the engines' numbers (sections
+9–13 of `docs/NAVIGATION_METHODS.md`, which carry their own validation); these are the
+places where the interface does arithmetic of its own, each with its test in
+`web/test/next/` (the checks against the core run when the WASM package is built,
+`npm run wasm --prefix web`). Interface notes: `docs/NAVIGATION_METHODS.md` section 14.
+
+| claim | measured | test |
+|---|---|---|
+| The passage's legs handed to the running fix follow the passage under the running fix's own dead reckoning (`route_positions` `great_circle` = `Track::advance`), three-hour runs, Bowditch §1208's great circle and a rhumb line at 12 kn | 0.00–0.01 m (great circle), 0.44 m (rhumb line; the 10 NM chords' sagitta); < 5 m asserted. One leg on the course at the start of the hours instead: 14.48 NM | `navigate-passage.test.ts`, "hands the running fix legs…" (`SKYFIX_PRINT=1` prints the figures) |
+| The DR marks and DR now land on every waypoint at its time | < 0.01 NM | `navigate-passage.test.ts`, "reproduces Bowditch section 1208…" |
+| The passage's great circle is the engine's Bowditch §1208 | 3264.54 NM, 055.807°, vertex 48.6297° N | same |
+| The watch log read at a sight's time as the core reads it (the star identification's time) | equal to the core's `clock_correction_from_log` to 1e-6 s | `navigate-sightextras.test.ts`, "against the built core" |
+| A predicted reading with a one-entry index-error log equals one with that single correction | 1e-12° | same |
+| The star finder's drawn template is the engine's | 1e-5 of the radius at five points of the 10° circle, 39.95° N and 33.9° S | `navigate-print.test.ts`, "draws the template where the engine puts it…" |
+| With the template set to LHA ♈, every star above the horizon lies under its own altitude and azimuth (CONVENTIONS 3 at the template latitude) | 1e-5 of the radius, both hemispheres | same |
+| The worksheet's GHA ♈ brought to the session's UT1: GHA ♈ + SHA = the core's GHA, with DUT1 automatic, +0.6 s or −0.8 s | SHA the same to 0.05″ | `navigate-print.test.ts`, "GHA ♈ on the session’s UT1…" |
+| The plotting sheet's lines of position from sights taken at one position cross there | 1e-9 NM (plane geometry) | `navigate-print.test.ts`, "draws every line through the position…" |
+| The worksheet's printed figures close their own sums (Ho − Hc = a) | to its 0.01′ | `navigate-print.test.ts`, "the worksheet’s sums close" |
+| The deviation curve (A–E by least squares) recovers a curve exactly, and on a swing gives the textbook's A, D, E (and B, C when the swing follows the curve) | 1e-9° | `navigate-compass.test.ts` |
+| The Compass tab's request reproduces the documented Philadelphia bearing | compass error −14.448°, variation −11.805°, deviation −2.642°, the engine's sentence | `navigate-compass.test.ts`, "against the built core" |
+| The shoreline horizon's sentence: Bowditch Table 14 at 100 ft and 0.2 NM | 282.3′ (as printed) | `navigate-compass.test.ts`, "the shore horizon’s sentence" |
+| A sight's time typed in the display calendar lands on the wire's proleptic Gregorian date (time-ui's civil helpers): Julian 1550-03-01 is 1550-03-11, Julian 1582-10-04 is 1582-10-14, 585 BC May 28 is `-0584-05-22`, AD 79 Aug 24 is `0079-08-22`; the ten skipped dates are refused; typed text and the stored time round-trip | exact (whole days, the clock time as typed) | `navigate-sightextras.test.ts`, "dates typed in the display calendar" |
+
+**Labelled, not validated:** the plotting sheet is a plane (as on paper; over its span the
+sphere departs by far less than a pencil line), and its lines are at their own times; the
+deviation curve is an approximation of the ship, shown with its RMS misfit; the site
+elevation's sentence gives effects measured with the engine at one place and date (the Moon
+0.45″ lower at 1000 m, the 2024-04-08 eclipse contacts over Texas up to 0.67 s later, the
+field 25 nT weaker).
+
+Reproduce: `cd web && npx vitest run test/next/navigate-compass.test.ts
+test/next/navigate-passage.test.ts test/next/navigate-print.test.ts
+test/next/navigate-sightextras.test.ts`, and in a browser `npm run build --prefix web &&
+ONLY=navigate2 node web/scripts/ui-check.mjs`.
+
+## Interface: what the Tonight view works out itself (tonight agent, wave 2)
+
+Every number on the Tonight view is an engine's (the deep-sky engine's `tonight`, the
+events, sun-tools, Moon-detail, planet-detail, eclipse and tides exports), shown as it
+answers; the view makes no accuracy claim of its own. What it works out from those answers,
+and the tests that hold it (`web/test/next/tonight.test.ts`, `tonight-tides.test.ts`, run
+with the mock engine through the same contract):
+
+- **Which night.** Local mean noon is the engine's formula (`floor(jd + lon/360) − lon/360`,
+  17:00:40 UT at Philadelphia); the darkness is the engine's rule (the longest run of sky
+  phases at least as dark as night, then astronomical, then nautical twilight), and the
+  night switches at the end of that darkness after local mean midnight (else sunrise, else
+  midnight, else noon). Tested: the switch falls within a minute either side of
+  astronomical dawn; the engine asked at a moment between dawn and sunrise gives the ending
+  night while the view's probe gives the coming one; ◀ ▶ land in the neighbouring night
+  from every hour of two days and from just after a dawn.
+- **Stretches.** Moonless darkness is the engine's darkness less the Moon's rise-to-set
+  spans (its rise and set on the person's horizon, CONVENTIONS 13.3); the planets' "all
+  night", "in the evening", "in the morning" compare the engine's first and last moment 10°
+  up with the stretch of the Sun 6° down (20 minutes' grace). Tested: the moonless and
+  moon-up parts of the darkness add up to the darkness to 10⁻⁹ day; each phrase for
+  synthetic planets.
+- **Words and times.** Every time in the cards is the engine's instant on the display
+  clock, rounded to the minute; the tests compare each card's text with the engine's
+  instants, heights, hours and rates (darkness, rise and set, golden and blue hours, the
+  Milky Way's windows, the deep-sky ranking, meteor rates). Where time-ui's ΔT chip applies,
+  the same ± follows every time.
+- **The tides offer.** A place is offered the tides pack when a one-degree cell holding a
+  station lies within 100 NM, measured exactly on the sphere to the cell's nearest point:
+  never missing a station (4 000 places around random stations out to 150 NM: every one
+  with a station within 100 NM, 3 777 of them, gets the offer), generous by at most a cell's
+  width (203 of the 3 980 offers, 5 %, went to places whose nearest station is 100 to 144 NM
+  away). Once the pack is loaded the stations themselves decide.
+- **Speed.** In Chrome (`web/scripts/ui-check.mjs`, group 9, `ONLY=tonight`) the page draws
+  its first stage 12 to 54 ms after the engines answer (six runs; budget 300 ms); the
+  engines' own time for the night's core is reported, not judged (75 to 390 ms in headless
+  Chrome on a shared, loaded machine; `tonight` alone 65 ms in Node). The deep-sky
+  catalogue's descriptions and the constellations' names come in the second stage (on a
+  first visit they cost the first draw 260 ms). A time change inside the night costs the
+  view about nothing per frame (the median frame's work is the same with About mounted
+  instead, 1.5-1.9 ms).
+
 ## 20. Coverage tiers and historical accuracy (expansion programme, deeptime agent, 2026-09-25)
 
 The Sun, the Moon, the planets and the stars now answer two tiers (CONVENTIONS 15.1):

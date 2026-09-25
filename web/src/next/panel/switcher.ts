@@ -52,10 +52,12 @@ export function viewSwitcher(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     watch(ctx, (s) => s.view, (view) => {
       if (view === 'map' || view === 'globe') lastMap = view;
       const tab = VIEW_META[view].tab;
-      for (const b of buttons) {
+      // A view with no tab (About, opened from Help) leaves the first tab in the Tab order.
+      const none = !buttons.some((b) => b.dataset.view === tab);
+      for (const [i, b] of buttons.entries()) {
         const on = b.dataset.view === tab;
         setAttr(b, 'aria-current', on ? 'page' : null);
-        b.tabIndex = on ? 0 : -1;
+        b.tabIndex = on || (none && i === 0) ? 0 : -1;
       }
       buttons.find((b) => b.dataset.view === tab)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
     }),

@@ -148,7 +148,7 @@ export function lunarMethod(host: HTMLElement, nc: NavCtx): Mounted {
       if (!isCurrent()) return;
       f.setStatus('idle');
       const format = angleFormat(nc);
-      const z = zone(nc);
+      const z = zone(nc, r.jd_utc);
       const slow = r.utc_minus_estimate_s >= 0;
       const steps = h('table', { class: 'sf-table sfn-table' });
       steps.appendChild(h('thead', {}, h('tr', {}, ...['Step', 'Change', 'Distance after'].map((t) => h('th', { scope: 'col' }, t)))));

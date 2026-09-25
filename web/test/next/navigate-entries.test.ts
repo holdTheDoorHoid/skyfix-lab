@@ -18,8 +18,8 @@ describe('Navigate entry points for the shell', () => {
     expect(view).toBe(navigate);
   });
 
-  it('slots/star-sights.ts default-exports the compact tonight list', () => {
+  it('slots/star-sights.ts default-exports a component: the compact tonight list (navigate2: it also installs the passage’s page-level pieces)', () => {
     expect(typeof starSights).toBe('function');
-    expect(starSights).toBe(tonight);
+    expect(starSights.length).toBe(tonight.length);
   });
 });

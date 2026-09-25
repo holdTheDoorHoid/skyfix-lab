@@ -15,8 +15,10 @@ import { fmtAngle, fmtBearing, fmtInstant, fmtMagnitude, fmtMetres, fmtPosition,
 import { plannerOptionsFor, type PlannedSight, type PlannerForm, type Working } from '../model.js';
 import { parsePosition, type Parsed } from '../parse.js';
 import { PLANNER_DISCLOSURES } from '../text.js';
+import { sightTierAt } from '../tier.js';
 import { tonightSights } from '../tonight.js';
 import { btn, card, errorText, field, kids, notice, para, parsedField, selectInput } from '../ui.js';
+import { starFinderCard } from '../starfinder/card.js';
 import { autoRun, methodFrame, numberField, optionalUtcField } from './common.js';
 
 function metricsRow(label: string, m: PlanMetrics): HTMLElement {
@@ -41,6 +43,10 @@ function metricsRow(label: string, m: PlanMetrics): HTMLElement {
 export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
   const f = methodFrame(host, nc, 'plan');
   f.chart.el.hidden = true;
+  // navigate2 (expansion programme): the star finder, turned to LHA ♈ (starfinder/card.ts).
+  const finder = starFinderCard(nc);
+  host.append(finder.el);
+  f.track(() => finder.destroy());
   const store = nc.working.store;
   const set = (patch: Partial<PlannerForm>): void => store.patch({ planner: { ...store.get().planner, ...patch } });
 
@@ -113,7 +119,11 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
       try {
         const p = nc.nav.predictSextant(
           { lat_deg: plan.approximate_position.lat_deg, lon_deg: plan.approximate_position.lon_deg, height_of_eye_m: w.session.observer.height_of_eye_m, pressure_hpa: w.session.observer.pressure_hpa, temperature_c: w.session.observer.temperature_c, dut1_s: w.session.clock.dut1_s ?? null },
-          { index_correction_arcmin: w.session.instrument.index_correction_arcmin, horizon: w.session.instrument.horizon },
+          {
+            index_correction_arcmin: w.session.instrument.index_correction_arcmin,
+            horizon: w.session.instrument.horizon,
+            ...(w.session.instrument.index_error_log?.length ? { index_error_log: w.session.instrument.index_error_log } : {}),
+          },
           b.body,
           limb,
           jd,
@@ -134,6 +144,13 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
       objective.value = store.get().planner.objective;
       const w = store.get();
       const { position: p, utc: when, source } = inputs(w);
+      // navigate2: no plan outside the validated tier (tier.ts, time-ui's `tierAt` and `sightsOnlyText`).
+      const tier = sightTierAt(nc.ctx, jdFromIso(when) ?? nc.ctx.store.get().time.jd_utc);
+      if (!tier.offered) {
+        rankStatus.replaceChildren(notice('caution', tier.sentence ?? 'No sights for this date.'));
+        rankResults.replaceChildren();
+        return;
+      }
       rankStatus.replaceChildren(h('span', { class: 'sfn-busy' }, 'Ranking…'));
       let plan: Plan;
       try {
@@ -147,8 +164,8 @@ export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
       if (!isCurrent()) return;
       rankStatus.replaceChildren();
       const format = angleFormat(nc);
-      const z = zone(nc);
       const jd = jdFromIso(plan.utc);
+      const z = zone(nc, jd);
       const metrics = h('table', { class: 'sf-table sfn-table' });
       metrics.appendChild(h('thead', {}, h('tr', {}, ...['Stage', 'Sights', 'North / east 1 sigma', 'Ellipse axes 1 sigma', 'Condition number', 'Largest bearing gap'].map((t) => h('th', { scope: 'col' }, t)))));
       const tb = h('tbody', {}, metricsRow('Before (what you already have)', plan.baseline));

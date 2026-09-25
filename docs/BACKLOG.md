@@ -205,6 +205,48 @@ This file is the single list; the completion report links here.
 | A smaller pack | unstarted | 1.66 MB gzipped; 10 m quanta would save about 0.4 MB gzipped (at most 5 m, 0.003", of rounding), a ±10° ring about a sixth |
 | Command line | unstarted | No `skyfix eclipse --limb` yet (cli3) |
 
+## Expansion programme Q7 — the almanac's tables, three-day pages, any year (almanac2 agent, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| Three-date openings as the printed almanac lays them out | completed | `skyfix_almanac::opening`, `almanac_opening`; the view's **Three dates** mode (the default); grouped from 1 January in the display calendar, across the 1582 reform; A4 and US Letter, one sheet a page (`ui-check.mjs`) |
+| Increments and Corrections, Altitude Correction Tables (Sun, stars and planets, dip, the Moon's two parts, non-standard conditions, Venus and Mars), Polaris, Arc to Time | completed | `skyfix_almanac::tables`, six exports in `crates/skyfix-wasm/src/almanac_tables.rs`; each printable with a how-to sentence and a worked example; `docs/ACCURACY.md`, "Almanac tables and three-day pages" |
+| Any year in the Almanac | completed | the date entry reads years as the time bar does (`parseYear`), Julian before 1582-10-15 through the shared calendar; the ± chip on labelled-tier pages; the anachronism note before 1767; `pages::UtDate` now takes expanded years, so `skyfix almanac --date=-0584-05-22` parses too (with `=`: a leading minus after a space reads as an option; the rest of "CLI polish for far dates" above stands) |
+| Star charts beside the 57-star list | unstarted (optional in the brief) | a small chart of each star among the constellation figures, from `skyfix-starfield` |
+| The daily pages' first note | stale, not mine | `pages::NOTES[0]` still says "UT is UTC with DUT1 = 0 (CONVENTIONS 6)"; CONVENTIONS 15.2 now defines the pages' UT outside 1972-2035. `crates/skyfix-cli/tests/almanac.rs` pins the sentence, so the almanac and CLI owners change them together |
+| The almanac on the labelled tier | waiting (deeptime) | `almanac.rs` and `almanac_tables.rs` use `Sky::new()`; once the deeptime tiers land they should use the labelled-tier policy (`MERGE (deeptime)` note in `almanac_tables.rs`), since an almanac is for display, never a sight |
+| A faster opening | unstarted | an opening is three full daily pages (0.2 s native, several times that in WebAssembly on a loaded machine), computed once the time settles. Its outer two dates' twilight tables are never shown and their second moonrise column repeats the next date's; skipping them in `pages.rs` would save about a third |
+| The printed almanac's own refraction and Moon radius | decided against | the tables follow this project's chain (CONVENTIONS 5), so a navigator using them gets what a reduction gets; the printed book's differ by 0.1′ in 10 of 46 published values (ACCURACY) |
+| The zone letters of the non-standard conditions chart | by decision | this project's zones (13 of equal air density, CONVENTIONS 13.9.1); the printed chart's own lines are not published as numbers, so a letter can differ from the book's while the exact correction for a temperature and pressure does not |
+## Expansion programme — navigate2 (wave 2, 2026-09-25)
+
+| item | status | notes |
+|---|---|---|
+| DUT1 field: blank = automatic, with the source said; site elevation in the Place editor; the stored index correction in Settings → Sights; the index-error and watch logs edited as tables, the value used shown in each sight's workings | completed | `navigate/session-panel.ts`, `dut1.ts`, `logs*.ts`, `panel/place.ts`, `shell/settings.ts` |
+| Compass tab: variation, compass error by azimuth and amplitude, the deviation table and its A–E curve | completed | `navigate/methods/compass.ts`, `navigate/compass/` |
+| Passage tab: great-circle and rhumb-line legs, times, steering points, DR now, GPX route, "Use in the running fix", forward DR; the route on the map; the measuring tool's "Add as a leg" | completed | `navigate/methods/passage.ts`, `navigate/passage/`, `map/measure.ts` (registry), `map/map-view.ts` (readout buttons) |
+| Sight form: the shoreline horizon's distance; "What did I shoot?"; sights only in the validated tier | completed | `navigate/sights.ts`, `shore.ts`, `starid.ts`, `tier.ts` |
+| Printable worksheets and the plotting sheet; the star finder on screen and printed | completed | `navigate/print/`, `navigate/starfinder/` |
+| Predictions with the index-error log | completed | `instrumentJson` sends it (engine/wasm-nav.ts); the mock's `predictSextant` still uses the single value |
+| The time-ui helpers (tier chip, `tierAt`, the calendar formatter) in place of `navigate/tier.ts`'s lookups and `dateWords` | completed | `tierAt` and `sightsOnlyText` gate the sight form, Tonight's sights, the planner and the Compass tab; the ±ΔT chip beside the sight's time, each listed sight, the DUT1 sentence and the Compass tab's time; typed dates in the display calendar (Julian before 1582-10-15, any year's width); UTC or UT after each time (`scaleLabel`); the Place panel's offset and reason under local mean time |
+| The ±ΔT chip beside every time in the other Navigate tabs (running fix, noon, lunar, Polaris, average) | unstarted | their times are in the validated tier, where the chip shows only after about 2100; the view's caution line covers them meanwhile |
+| Composite sailing (a limiting latitude) in the Passage tab | unstarted | the engine has it (`limiting_latitude_deg`); the tab offers great circles and rhumb lines only |
+| The deviation table applied automatically (the Compass tab's and "What did I shoot?"'s compass bearings at the ship's heading) | unstarted | today the deviation is typed; the table's interpolated value could fill it |
+| A plotting sheet for the running fix (lines of position advanced to one time) | unstarted | the Fix tab's sheet draws each line at its own time and says so |
+| A printed passage plan (legs, courses, times, steering points) | unstarted | the table is on screen and in the GPX |
+| Importing a GPX route into the Passage tab | unstarted | export only |
+
+## Expansion programme — the Tonight view (tonight agent, wave 2 Q2)
+
+| item | status | notes |
+|---|---|---|
+| The Tonight tab (eight tabs; About in the Help menu and at `#about`), the night's rule, the summary, the night's timeline, Moon, planets, deep sky, meteor showers, Milky Way, the next 14 days, tides, photography, the one-page print | completed | `web/src/next/tonight/`; `EXPLORER_GUIDE.md` "Tonight"; ui-check group `tonight`; `docs/ACCURACY.md`, "Interface: what the Tonight view works out itself" |
+| "Show in Sky" centring the Sky view on an object, a radiant or the Milky Way's core, and the Moon, Jupiter and Saturn "up close" | waiting (sky2) | the view posts the target on `skyTargets(ctx)` (`tonight/sky-link.ts`: a per-explorer channel like `sky/highlight.ts`, set before the Sky view mounts); until the Sky view reads it, it opens at the object's best moment with the body ringed and selected |
+| "Plan a photo" opening the Milky Way planner on the Selected card | completed | the best moment, then `openMilkyWayPlanner(ctx)` (`panel/photo.ts`, photo agent); on a phone the planner opens inside the bottom sheet as the sheet stands (views cannot raise the sheet) |
+| "Coming up" opening Events on the right tab | waiting (events2) | an item sets the time, selects its body and opens Events, which shows its remembered tab; Events has no tab for conjunctions, occultations, apsides or meteor showers yet, and no way to be asked for one |
+| The sky's darkness (Bortle class) kept between visits | open | kept while the page is open (per explorer); a setting in `state.ts` would keep it, shared with the Sky view's magnitude limit when sky2 adds one |
+| Tides beyond the night | open | the card lists the high and low water from an hour before sunset to an hour after sunrise; "next high and low" after the explorer's time is the Place section's tides line (photo) |
+
 ## Expansion programme — deep time (deeptime agent)
 
 | item | status | notes |

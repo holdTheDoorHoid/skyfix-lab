@@ -92,7 +92,7 @@ export function polarisMethod(host: HTMLElement, nc: NavCtx): Mounted {
       if (!isCurrent()) return;
       f.setStatus('idle');
       const format = angleFormat(nc);
-      const z = zone(nc);
+      const z = zone(nc, r.reference_jd_utc);
       const perSight = h('table', { class: 'sf-table sfn-table' });
       perSight.appendChild(
         h('thead', {}, h('tr', {}, ...['Sight', 'Time', 'Observed · Ho', 'Bearing · Zn', 'Latitude', 'From the altitude', 'From the DR longitude', 'From the clock', 'Ho to latitude'].map((t) => h('th', { scope: 'col' }, t)))),

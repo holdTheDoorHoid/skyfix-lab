@@ -37,7 +37,7 @@ import { registerMapFonts } from './fonts.js';
 import { formatAngle, formatBearing } from './format.js';
 import { angularDistanceDeg, emptyCollection, graticuleFeatures, graticuleStep, wrapLon } from './geometry.js';
 import { GroundPoints } from './groundpoints.js';
-import { measureFeatures, measure as measureBetween, measureText } from './measure.js';
+import { measureActions, measureFeatures, measure as measureBetween, measureText } from './measure.js';
 import { OverlayDrawer } from './overlay-layers.js';
 import { PATH_STEP_MIN, dialEvents, passNote, passWindow } from './pass.js';
 import { serviceImpl } from './overlays.js';
@@ -339,6 +339,19 @@ function mountMap(host: HTMLElement, ctx: Ctx, options: MapViewOptions): Mounted
       const rh = el('p', 'sfm-readout__line');
       rh.textContent = t.rhumb;
       readoutText.append(title, gc, rh);
+      // navigate2 (expansion programme): actions other views offer on a measurement (measure.ts).
+      const actions = measureActions(store);
+      if (actions.length) {
+        const row = el('p', 'sfm-readout__actions');
+        for (const action of actions) {
+          const button = el('button', 'sf-btn sf-btn--outline sf-btn--sm', { type: 'button', ...(action.tip ? { 'data-tip': action.tip } : {}) });
+          button.textContent = action.label;
+          const [pa, pb] = [a, b];
+          button.addEventListener('click', () => action.run(pa, pb));
+          row.append(button);
+        }
+        readoutText.append(row);
+      }
     } else {
       title.textContent = a ? 'Now click the second point (B).' : 'Measuring: click the first point (A).';
       readoutText.append(title);

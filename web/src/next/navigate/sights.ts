@@ -14,13 +14,16 @@
 import type { ReduceEntry } from '../../api/adapter.js';
 import { h } from '../../dom.js';
 import type { AltitudeKind, HorizonMode, HorizonName, Limb, Observation, Warning } from '../../types.js';
-import { horizonName, WARNING_SEVERITY } from '../../types.js';
+import { horizonName, isShoreHorizon, WARNING_SEVERITY } from '../../types.js';
 import { disposer, type Mounted } from '../component.js';
 import type { SightBodyInfo, SightLimb } from '../engine/types.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { segmented, type Segmented } from '../theme/primitives.js';
-import { formatDate, isoUtc, jdFromIso, jdNow, zoneShortName } from '../time.js';
+import { isoUtc, jdFromIso, jdNow, wallClock, zoneShortName } from '../time.js';
+import { setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../time/chip.js';
+import { calendarName, calendarTag, formatCivilDate } from '../time/format.js';
+import { scaleLabel } from '../time/scale.js';
 import { angleFormat, hasDisc, kindOf, zone, type NavCtx } from './context.js';
 import {
   angleInputText,
@@ -33,11 +36,21 @@ import {
 } from './format.js';
 import { nextObservationId, patchSession, sortedByTime, withObservation, withoutObservation, type PlannedSight } from './model.js';
 import { parseAngle, parseNumber, parseUtcInput } from './parse.js';
-import { horizonFromSelect, horizonOptions, horizonText, KIND_TEXT, LIMB_TEXT } from './text.js';
+import { shoreDistanceField } from './shore.js';
+import { starIdPanel } from './starid.js';
+import { DEFAULT_SHORE_NM, horizonFromSelect, horizonOptions, horizonText, KIND_TEXT, LIMB_TEXT } from './text.js';
+import { rotationCaution, sightTierAt } from './tier.js';
 import { btn, card, checkbox, debounce, errorText, field, notice, para, selectInput, textInput, uid, warningList, type FieldParts } from './ui.js';
 import { sightWorkings } from './workings.js';
 
 const OTHER = '__other__';
+
+/** The clock part of a sight's time as the field shows it: `01:30:05` (any year's width). */
+function clockPart(utc: string): string {
+  const text = utcInputText(utc);
+  const i = text.lastIndexOf(' ');
+  return i >= 0 ? text.slice(i + 1) : text;
+}
 
 function bodyOptions(bodies: readonly SightBodyInfo[]) {
   const group = (k: SightBodyInfo['kind']) => (k === 'sun' || k === 'moon' ? 'Sun and Moon' : k === 'planet' ? 'Planets' : 'Stars (A–Z)');
@@ -111,7 +124,10 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   limbSeg.el.setAttribute('aria-labelledby', limbWrap.firstElementChild!.id);
 
   const timeInput = textInput({ placeholder: 'yyyy-mm-dd hh:mm:ss', inputmode: 'numeric', size: 20 });
-  const timeField = field('Time of the sight (UTC)', timeInput, { help: null });
+  // navigate2 (time-ui helpers): the ±ΔT chip beside the time, shown when the Earth's rotation
+  // then is uncertain by more than 30 s; the label's clock word follows the typed time.
+  const timeChip = uncertaintyChip(null);
+  const timeField = field('Time of the sight (UTC)', timeInput, { help: null, aside: timeChip });
   const nowBtn = btn('Now', () => setTime(isoUtc(jdNow())), { tip: 'The time on this computer’s clock, now', variant: 'outline' });
   const barBtn = btn('Time bar', () => setTime(isoUtc(nc.ctx.store.get().time.jd_utc)), { tip: 'The time shown on the explorer’s time bar', variant: 'ghost' });
   const timeRow = h('div', { class: 'sfn-entry__time' }, timeField.el, h('div', { class: 'sfn-entry__time-buttons' }, nowBtn, barBtn));
@@ -136,6 +152,13 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   };
   /** The horizon of the sight being edited: a shore horizon is kept as it is. */
   let editingHorizon: HorizonMode | null = null;
+  // navigate2: a shoreline nearer than the sea horizon needs its distance (dip short).
+  const instrumentShore = shoreDistanceField({
+    read: () => store.get().session.instrument.horizon,
+    heightOfEyeM: () => store.get().session.observer.height_of_eye_m,
+    commit: (hz) => store.patch({ session: patchSession(store.get().session, { instrument: { horizon: hz } }) }),
+  });
+  instrumentShore.el.classList.add('sfn-entry__shore');
   const instrument = h(
     'fieldset',
     { class: 'sfn-entry__instrument' },
@@ -143,6 +166,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     icField.el,
     hoeField.el,
     horizonField.el,
+    instrumentShore.el,
   );
 
   // Advanced
@@ -154,6 +178,17 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   const inheritOption = { value: 'inherit' as const, label: 'Same as the instrument' };
   const overrideSelect = selectInput<HorizonName | 'inherit'>([inheritOption, ...horizonOptions(null)], 'inherit');
   const overrideField = field('Horizon for this sight only', overrideSelect, { term: 'horizon override' });
+  // navigate2: this sight's own shoreline distance, when its horizon is a shore.
+  const overrideShore = shoreDistanceField({
+    read: () => (overrideSelect.value === 'shore' ? (isShoreHorizon(editingHorizon) ? editingHorizon : { shore: { distance_nm: DEFAULT_SHORE_NM } }) : null),
+    heightOfEyeM: () => store.get().session.observer.height_of_eye_m,
+    commit: (hz) => {
+      editingHorizon = hz;
+      overrideShore.refresh(true);
+      preview.run();
+    },
+    label: 'Distance to the waterline for this sight (NM)',
+  });
   const supplied = checkbox('Use my own almanac values for this sight', false, () => {
     suppliedBox.hidden = !supplied.input.checked;
     preview.run();
@@ -176,11 +211,34 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     { class: 'sfn-advanced' },
     h('summary', {}, 'Advanced: altitude kind, horizon for this sight, your own GHA and declination'),
     h('div', { class: 'sfn-grid-2' }, kindField.el, overrideField.el),
+    overrideShore.el,
     supplied.el,
     suppliedBox,
     h('div', { class: 'sfn-grid-2' }, notesField.el, idField.el),
   );
 
+  // navigate2: "What did I shoot?" (star identification) from the form's time and reading.
+  const starId = starIdPanel(
+    nc,
+    () => {
+      const utc = parseUtcInput(timeInput.value);
+      const kind = kindSelect.value as AltitudeKind;
+      const hs = exact(hsInput, parseAngle(hsInput.value, { ...hsRule(), what: 'The reading' }));
+      const horizon = overrideSelect.value === 'inherit' ? store.get().session.instrument.horizon : (horizonFromSelect(overrideSelect.value, editingHorizon) ?? store.get().session.instrument.horizon);
+      return { utc: utc.ok ? utc.value : null, altitudeDeg: hs.ok ? hs.value : null, altitudeKind: kind, horizon };
+    },
+    (body) => {
+      const known = nc.bodies.find((b) => b.body.toLowerCase() === body.toLowerCase());
+      bodySelect.value = known ? known.body : OTHER;
+      otherBody.value = known ? '' : body;
+      syncBodyUi();
+      preview.run();
+      bodySelect.focus({ preventScroll: true });
+    },
+  );
+  d.add(() => starId.destroy());
+  // navigate2: sights only in the validated tier (CONVENTIONS 15.1).
+  const tierBox = h('div', { class: 'sfn-entry__tier', 'aria-live': 'polite' });
   const previewBox = h('div', { class: 'sfn-entry__preview', 'aria-live': 'polite' });
   const submit = h('button', { type: 'submit', class: 'sf-btn sf-btn--primary' }, icon('plus'), h('span', { class: 'sf-btn__label' }, 'Add sight'));
   const cancel = btn('Cancel', () => resetForm(), { variant: 'ghost' });
@@ -188,6 +246,8 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   form.append(
     formTitle,
     h('div', { class: 'sfn-entry__grid' }, bodyRow, limbWrap, otherField.el, timeRow, h('div', { class: 'sfn-entry__reading' }, hsField.el, sigmaField.el)),
+    tierBox,
+    starId.el,
     instrument,
     advanced,
     h('div', { class: 'sfn-entry__preview-wrap' }, h('h4', {}, 'This sight, worked out'), previewBox),
@@ -216,17 +276,38 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     updateTimeHelp();
   }
 
+  /**
+   * navigate2: no sight outside the validated tier, and the form says why (tier.ts, on the
+   * shared `tierAt` and `sightsOnlyText`); inside it, a caution when the Earth's rotation then
+   * is uncertain by more than the chip's 30 s. The chip beside the time and the label's clock
+   * word (UTC in 1972-2035, UT outside: `scaleLabel`) follow the typed time.
+   */
+  function updateTier(jd: number | null): void {
+    const t0 = jd === null ? null : sightTierAt(nc.ctx, jd);
+    const blocked = t0 !== null && !t0.offered;
+    const caution = t0 ? rotationCaution(t0) : null;
+    tierBox.replaceChildren(...(blocked ? [notice('caution', t0!.sentence ?? 'No sights for this date.')] : caution ? [notice('caution', caution)] : []));
+    submit.disabled = blocked;
+    setUncertaintyChip(timeChip, t0?.info ?? null);
+    timeField.setLabel(`Time of the sight (${jd === null ? 'UTC' : scaleLabel(jd)})`);
+  }
+
   function updateTimeHelp(): void {
     const parsed = parseUtcInput(timeInput.value);
     if (!parsed.ok) {
+      updateTier(null);
       timeField.setHelp(timeInput.value.trim() ? null : 'Year-month-day hours:minutes:seconds, in UTC. “Now” fills in this computer’s clock.');
       return;
     }
     const jd = jdFromIso(parsed.value)!;
-    const z = zone(nc);
+    updateTier(jd);
+    const z = zone(nc, jd);
     // A time typed without seconds is taken, not refused, and the help says what that
     // assumed (parse.ts, SECONDS_OMITTED_WARNING).
-    timeField.setHelp(`= ${fmtZoneClock(jd, z)} on ${formatDate(jd, z)} (${z.kind === 'iana' ? z.zone : z.name})${parsed.warning ? `. ${parsed.warning}` : ''}`);
+    // The date in the display calendar (Julian before 1582-10-15), named when it is not the Gregorian.
+    const wall = wallClock(jd, z);
+    const calendar = calendarTag(wall) ? `, ${calendarName(wall)}` : '';
+    timeField.setHelp(`= ${fmtZoneClock(jd, z)} on ${formatCivilDate(jd, z, 'medium')}${z.kind === 'iana' ? ` (${z.zone})` : ''}${calendar}${parsed.warning ? `. ${parsed.warning}` : ''}`);
   }
 
   function hsRule(): { min: number; max: number } {
@@ -310,6 +391,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
       setHorizonOptions(overrideSelect, [inheritOption, ...horizonOptions(null)]);
       overrideSelect.value = 'inherit';
     }
+    overrideShore.refresh(true);
     if (everything) timeInput.value = '';
     hsField.setHelp('Degrees, a space, then minutes: 45 54.0 means 45° 54.0′.');
     showErrors(new Map());
@@ -336,6 +418,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     editingHorizon = obs.horizon;
     setHorizonOptions(overrideSelect, [inheritOption, ...horizonOptions(obs.horizon)]);
     overrideSelect.value = obs.horizon ? horizonName(obs.horizon) : 'inherit';
+    overrideShore.refresh(true);
     supplied.input.checked = obs.geocentric !== null;
     suppliedBox.hidden = obs.geocentric === null;
     for (const i of [ghaInput, decInput, sdInput, hpInput]) i.value = '';
@@ -414,16 +497,23 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     const r = parseAngle(hsInput.value, { ...hsRule(), what: 'The reading' });
     hsField.setError(r.ok ? null : r.error);
   });
+  overrideSelect.addEventListener('change', () => {
+    if (overrideSelect.value === 'shore' && !isShoreHorizon(editingHorizon)) editingHorizon = { shore: { distance_nm: DEFAULT_SHORE_NM } };
+    overrideShore.refresh(true);
+  });
   for (const el of [bodySelect, kindSelect, overrideSelect]) {
     el.addEventListener('change', () => {
       syncBodyUi();
       preview.run();
+      starId.run();
     });
   }
+  for (const el of [timeInput, hsInput]) el.addEventListener('input', () => starId.run());
   otherBody.addEventListener('input', syncBodyUi);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();
+    if (submit.disabled) return;
     const read = readForm(false);
     if ('errors' in read) {
       showErrors(read.errors);
@@ -475,6 +565,8 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     if (options.length !== horizonSelect.options.length) setHorizonOptions(horizonSelect, options);
     horizonSelect.value = horizonName(s.instrument.horizon);
     horizonField.setHelp(horizonText(s.instrument.horizon).explain);
+    instrumentShore.refresh();
+    overrideShore.refresh();
     const supplied = store.get().mode === 'supplied';
     modeLine.hidden = !supplied;
     modeLine.textContent = supplied
@@ -489,7 +581,6 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     planned.replaceChildren();
     planned.hidden = items.length === 0;
     if (!items.length) return;
-    const z = zone(nc);
     planned.append(
       h('h3', { class: 'sfn-planned__title' }, 'To shoot ', h('span', { class: 'sfn-muted' }, `· ${items.length} from the planner (predictions, not sights)`)),
       h(
@@ -506,7 +597,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
               { class: 'sfn-planned__text' },
               h('strong', {}, p.body),
               p.kind === 'moon' || p.kind === 'sun' ? ` (${LIMB_TEXT[p.limb].toLowerCase()})` : '',
-              h('span', { class: 'sfn-muted' }, ` · expect Hs ≈ ${fmtAngle(p.hs_deg, fmt())}, bearing ${fmtBearing(p.zn_deg)}${jd ? ` at ${fmtZoneClock(jd, z)}` : ''}`),
+              h('span', { class: 'sfn-muted' }, ` · expect Hs ≈ ${fmtAngle(p.hs_deg, fmt())}, bearing ${fmtBearing(p.zn_deg)}${jd ? ` at ${fmtZoneClock(jd, zone(nc, jd))}` : ''}`),
             ),
             btn('Enter reading', () => enterPlanned(p), { variant: 'outline', tip: `Open the form for ${p.body}` }),
             btn('', () => store.patch({ planned: store.get().planned.filter((x) => x !== p) }), {
@@ -540,7 +631,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     const entry: ReduceEntry | undefined = red.session === w.session ? red.byId.get(o.id) : undefined;
     const kind = kindOf(nc, o.body);
     const jd = jdFromIso(o.utc);
-    const z = zone(nc);
+    const z = zone(nc, jd);
     const f = fmt();
     const used = !w.excluded.includes(o.id);
     const useBox = h('input', { type: 'checkbox', checked: used, 'aria-label': `Use ${o.id} (${o.body}) in the fix` });
@@ -598,14 +689,30 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
           h('strong', {}, o.body || '(no body)'),
           h('span', { class: 'sfn-sight__id' }, o.id),
           jd
-            ? h('span', { class: 'sfn-sight__time' }, h('span', { class: 'sfn-num' }, `${utcInputText(o.utc).slice(11)} UTC`), h('span', { class: 'sfn-muted' }, ` ${fmtZoneClock(jd, z)}`))
+            ? h(
+                'span',
+                { class: 'sfn-sight__time' },
+                h('span', { class: 'sfn-num' }, `${clockPart(o.utc)} ${scaleLabel(jd)}`),
+                h('span', { class: 'sfn-muted' }, ` ${fmtZoneClock(jd, z)}`),
+                // navigate2: the ±ΔT chip (hidden unless the Earth's rotation then is uncertain by over 30 s).
+                ' ',
+                uncertaintyChip(timeInfoAt(nc.ctx, jd)),
+              )
             : h('span', { class: 'sfn-sight__rejected' }, o.utc || 'no time'),
         ),
         h('span', { class: 'sfn-sight__actions' }, toggle, edit, del),
       ),
       h('div', { class: 'sfn-sight__line' }, reading, ' ', outcome),
       expanded
-        ? h('div', { class: 'sfn-sight__details', id: detailsId }, entry?.status === 'ok' ? sightWorkings(entry.sight, f) : entry?.status === 'error' ? notice('error', entry.message) : para('Working it out…'))
+        ? h(
+            'div',
+            { class: 'sfn-sight__details', id: detailsId },
+            entry?.status === 'ok' ? sightWorkings(entry.sight, f) : entry?.status === 'error' ? notice('error', entry.message) : para('Working it out…'),
+            // navigate2: the worksheet of this sight, print-clean (print/worksheet.ts).
+            entry?.status === 'ok'
+              ? h('div', { class: 'sfn-export' }, btn('Print the worksheet', () => void import('./print/open.js').then((m) => m.openSightWorksheet(nc, o, entry.sight)), { variant: 'outline', icon: 'list', tip: 'This sight in the six classic steps, with a column for your own figures' }))
+              : null,
+          )
         : null,
     );
   }
@@ -646,7 +753,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
           'span',
           { class: 'sfn-sight__body' },
           h('strong', {}, `${first.body} · a run of ${run.length}`),
-          h('span', { class: 'sfn-sight__time sfn-num' }, `${utcInputText(first.utc).slice(11)}–${utcInputText(last.utc).slice(11)} UTC`),
+          h('span', { class: 'sfn-sight__time sfn-num' }, `${clockPart(first.utc)}–${clockPart(last.utc)} ${scaleLabel(jdFromIso(first.utc) ?? 0)}`),
         ),
         h('span', { class: 'sfn-sight__actions' }, toggle),
       ),
@@ -666,7 +773,6 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     const sights = sortedByTime(w.session.observations);
     count.textContent = ` ${sights.length}`;
     empty.hidden = sights.length > 0;
-    const z = zone(nc);
     const items: HTMLElement[] = [];
     let lastDate = '';
     for (let i = 0; i < sights.length; ) {
@@ -674,7 +780,8 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
       let j = i + 1;
       while (j < sights.length && sights[j]!.body.trim().toLowerCase() === o.body.trim().toLowerCase()) j += 1;
       const jd = jdFromIso(o.utc);
-      const date = jd !== null ? formatDate(jd, z) : '';
+      const z = zone(nc, jd);
+      const date = jd !== null ? formatCivilDate(jd, z, 'medium', { calendar: true }) : '';
       if (date && date !== lastDate) {
         items.push(h('li', { class: 'sfn-sight-date', 'aria-hidden': 'true' }, `${date} (${z.kind === 'iana' ? zoneShortName(jd!, z) : z.name})`));
         lastDate = date;
@@ -709,11 +816,12 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   d.add(store.select((w) => w.planned, renderPlanned));
   d.add(store.select((w) => [w.session.instrument, w.session.observer, w.mode] as const, syncInstrument, { equals: (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] }));
   d.add(store.select((w) => w.session, () => preview.run()));
-  d.add(nc.ctx.store.select((s) => [s.settings.angleFormat, s.settings.timeDisplay, s.observer.zone] as const, () => {
+  // The calendar and the way years are written (time-ui settings) change the dates shown too.
+  d.add(nc.ctx.store.select((s) => [s.settings.angleFormat, s.settings.timeDisplay, s.observer.zone, s.settings.calendar, s.settings.yearStyle] as const, () => {
     renderList();
     renderPlanned(store.get().planned);
     updateTimeHelp();
-  }, { equals: (a, b) => a[0] === b[0] && a[1] === b[1] && a[2] === b[2] }));
+  }, { equals: (a, b) => a.every((v, i) => v === b[i]) }));
 
   syncInstrument();
   renderPlanned(store.get().planned);

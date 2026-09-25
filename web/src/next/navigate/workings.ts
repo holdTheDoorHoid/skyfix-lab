@@ -7,12 +7,13 @@
  */
 
 import { h } from '../../dom.js';
-import type { CorrectionBreakdown, CorrectionKind, ReducedSight } from '../../types.js';
+import type { CorrectionBreakdown, CorrectionKind, LoggedValue, ReducedSight } from '../../types.js';
 import { CORRECTION_ORDER } from '../../types.js';
 import type { SightCorrectionBreakdown } from '../engine/types.js';
 import type { AngleFormat } from '../state.js';
-import { fmtAngle, fmtArcmin, fmtBearing, fmtNm, fmtSigma } from './format.js';
-import { KIND_TEXT, STEP_TEXT } from './text.js';
+import { isoUtc } from '../time.js';
+import { fmtAngle, fmtArcmin, fmtBearing, fmtNm, fmtSigma, utcText } from './format.js';
+import { KIND_TEXT, LOG_METHOD_TEXT, STEP_TEXT } from './text.js';
 import { facts, warningList } from './ui.js';
 
 /** The core's "not applicable: …" prefix is already said by the row's tag. */
@@ -87,6 +88,29 @@ export function workingsTable(breakdown: CorrectionBreakdown | SightCorrectionBr
   return h('div', { class: 'sfn-table-scroll' }, table);
 }
 
+/**
+ * A value the core read from an error log, in words (navigate2, expansion programme):
+ * `−1.50′, interpolated between 00:00 (−1.00′) and 02:00 (−2.00′)`, with how far outside
+ * the log a held value was.
+ */
+export function loggedValueText(v: LoggedValue, unit: '′' | 's'): string {
+  const fmt = (x: number): string => (unit === '′' ? fmtArcmin(x, 2) : `${x > 0 ? '+' : x < 0 ? '−' : ''}${Math.abs(x).toFixed(2)} s`);
+  const at = (p: { utc: string; value: number }): string => `${utcText(p.utc)} (${fmt(p.value)})`;
+  const how =
+    v.method === 'interpolated' && v.from && v.to
+      ? `interpolated between ${at(v.from)} and ${at(v.to)}`
+      : v.method === 'at_entry' && v.from
+        ? `the entry at ${at(v.from)}`
+        : v.method === 'only_entry'
+          ? 'the log’s only entry'
+          : v.method === 'held_before_first' && (v.from ?? v.to)
+            ? `the first entry, ${at((v.from ?? v.to)!)}, held: the sight is ${v.hours_outside.toFixed(1)} h before the log starts (not extrapolated)`
+            : v.method === 'held_after_last' && (v.from ?? v.to)
+              ? `the last entry, ${at((v.from ?? v.to)!)}, held: the sight is ${v.hours_outside.toFixed(1)} h after the log ends (not extrapolated)`
+              : LOG_METHOD_TEXT[v.method];
+  return `${fmt(v.value)}, ${how}`;
+}
+
 /** The full workings of one reduced sight: direction, the steps, the intercept, warnings. */
 export function sightWorkings(sight: ReducedSight, format: AngleFormat): HTMLElement {
   const warnings = [...sight.warnings, ...sight.corrections.warnings];
@@ -95,6 +119,9 @@ export function sightWorkings(sight: ReducedSight, format: AngleFormat): HTMLEle
     { class: 'sfn-sight__workings' },
     workingsTable(sight.corrections, format, `Correction workings for ${sight.id}`),
     facts([
+      // navigate2: the values the core took from the session's error logs.
+      sight.index_correction_from_log ? ['Index correction from the log', loggedValueText(sight.index_correction_from_log, '′')] : null,
+      sight.clock_correction_from_log ? ['Watch correction from the log', `${loggedValueText(sight.clock_correction_from_log, 's')}; the sight’s time became ${utcText(isoUtc(sight.jd_utc))}`] : null,
       [
         'Body direction',
         `GHA ${fmtAngle(sight.gha_deg, format)}, declination ${fmtAngle(sight.dec_deg, format)} (from ${sight.direction_source === 'supplied' ? 'the values in this sight' : sight.direction_source})`,
