@@ -70,7 +70,7 @@ export function ownSpanJd(own: OwnSpan | null | undefined): { start: number; end
   return start !== null && end !== null && end > start ? { start, end } : null;
 }
 
-/** `1990 to 2060`, `2000 BC to AD 3000`: the years the engine covers now (or a list's own span). */
+/** `1990 to 2060`, `2001 BC to AD 3000`: the years the engine covers now (or a list’s own span). */
 export function coverageYears(engine: ExplorerEngine, own?: OwnSpan | null): string {
   const o = ownSpanJd(own);
   const c = o ?? coverageBounds(engine);

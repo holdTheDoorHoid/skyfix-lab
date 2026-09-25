@@ -164,7 +164,7 @@ describe('the coverage table', () => {
     const rows = sigmaRows(new MockEngine({ syntheticStars: 0 }));
     expect(rows.map((r) => r.year)).toEqual([...SIGMA_YEARS]);
     const at = (y: number): number => rows.find((r) => r.year === y)!.sigmaS;
-    expect(at(-1999)).toBeGreaterThan(3000); // about an hour
+    expect(at(-2000)).toBeGreaterThan(3000); // about an hour, 2001 BC (the labelled tier's first year)
     expect(at(2026)).toBeLessThan(1);
     expect(at(3000)).toBeGreaterThan(1500); // about half an hour
     expect(sigmaRows({ coverage: () => coverage({}) } as unknown as ExplorerEngine)).toEqual([]);

@@ -21,8 +21,12 @@ import { formatYear } from './format.js';
 import { coverageBounds, engineOf, packForDate, tierAt, tierNotice, wireDateText, type EngineSource } from './tier.js';
 import { TIER_NOTICE_KEY } from './services.js';
 
-/** Years at which the ΔT uncertainty is listed (astronomical), from 2000 BC to AD 3000. */
-export const SIGMA_YEARS: readonly number[] = [-1999, -999, -499, 1, 500, 1000, 1500, 1700, 1900, 2026, 2100, 2200, 2500, 3000];
+/**
+ * Years at which the ΔT uncertainty is listed (astronomical), from the first year of the
+ * labelled tier, −2000 (2001 BC; polish2, list item 55: the table's first row said 2000 BC
+ * while the coverage starts a year earlier), to AD 3000.
+ */
+export const SIGMA_YEARS: readonly number[] = [-2000, -999, -499, 1, 500, 1000, 1500, 1700, 1900, 2026, 2100, 2200, 2500, 3000];
 
 export interface SigmaRow {
   year: number;
