@@ -83,6 +83,12 @@ export interface Ribbon {
   setHandle(jd: number, valueText: string, bubbleText: string, glyph: 'sun' | 'moon'): void;
   /** Show the wall clock's "now" marker at `jd`, or hide it (null, or outside the day). */
   setNow(jd: number | null): void;
+  /**
+   * Move to another day without redrawing: for a bar whose contents are the same fractions
+   * of any day (while time runs fast: even hour ticks, no phases or marks). No layout is
+   * forced; the handle and the "now" marker are placed on the new day.
+   */
+  setWindow(window: readonly [number, number]): void;
   /** The day shown, `[jd_start, jd_end)`. */
   window(): readonly [number, number];
   /** The instant under a horizontal client coordinate (for pointer dragging). */
@@ -128,6 +134,8 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
   const frac = (jd: number): number => (jd - current.window[0]) / span();
 
   const fitLabels = (): void => {
+    // Reading the width forces a layout: only when there are phase names to fit.
+    if (!current.phases.length) return;
     const width = bar.clientWidth;
     if (!width) return;
     for (const seg of bar.querySelectorAll<HTMLElement>('.sf-ribbon__seg')) {
@@ -226,6 +234,10 @@ export function createRibbon(model: RibbonModel, options: { label?: string } = {
       const inside = jd !== null && jd >= current.window[0] && jd < current.window[1];
       nowEl.hidden = !inside;
       if (inside) nowEl.style.left = pct(frac(jd));
+    },
+    setWindow(window) {
+      current = { ...current, window };
+      api.setNow(current.nowJd ?? null);
     },
     window: () => current.window,
     jdAtClientX(clientX) {

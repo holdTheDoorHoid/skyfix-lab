@@ -750,14 +750,42 @@ button.sf-tb-clock:hover {
   font-size: var(--text-xs);
 }
 
-/* Phones hide the year to save room, unless it is the news: before AD 1000 or after 9999. */
+/*
+ * Phones: the date on one line and the clock (in one row, with its chip) on the next, the
+ * same height for every date, since the bottom sheet measures the bar only when the window
+ * is resized. The year is hidden to save room unless it is the news: before AD 1000 or after
+ * 9999 (then the weekday gives way to it).
+ */
 @media (max-width: 767px) {
+  .sf-tb-when {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 0;
+    min-height: 58px;
+  }
+
   .sf-tb-date__label[data-far] .sf-tb-date__year {
     display: inline;
   }
 
+  .sf-tb-date__label[data-far] .sf-tb-date__wd {
+    display: none;
+  }
+
   .sf-tb-clockline {
     flex-direction: row;
-    align-items: flex-start;
+    align-items: center;
+    padding-left: 26px;
+  }
+
+  button.sf-tb-clock {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 6px;
+  }
+
+  .sf-tb-clock__local {
+    font-size: var(--text-md);
   }
 }

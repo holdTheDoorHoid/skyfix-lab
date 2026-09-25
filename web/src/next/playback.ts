@@ -56,6 +56,20 @@ export const PLAYBACK_SPEEDS: readonly { speed: number; label: string }[] = [
 
 export const MAX_SPEED = 10 * YEAR_S;
 
+/**
+ * Faster than this (simulated seconds per real second: 8 days) a new day comes every few
+ * frames, and the per-day events (rise, set, twilight: 5 to 40 ms each in WebAssembly) are
+ * not computed while time runs: the time bar draws the hours only and the panel's cards
+ * wait, and all of it is drawn in full as soon as time stops or slows (shell/derived.ts).
+ * A week a second stays below it, a month a second and faster are above it.
+ */
+export const FAST_PLAYBACK_S = 8 * 86_400;
+
+/** True while time runs faster than `FAST_PLAYBACK_S`. */
+export function fastPlayback(state: Pick<ExplorerState, 'time'>): boolean {
+  return state.time.playing && Math.abs(state.time.speed) > FAST_PLAYBACK_S;
+}
+
 // ---------------------------------------------------------------------------
 // Actions
 // ---------------------------------------------------------------------------

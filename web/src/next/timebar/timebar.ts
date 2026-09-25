@@ -14,9 +14,10 @@
  * tag before 1582-10-15, years as Settings writes them (585 BC), the zone is local mean
  * time before 1850 for a zone that follows the place, the second clock is UT outside
  * 1972-2035, and the chip shows how far the clock can be trusted when the Earth's rotation
- * is uncertain (time/chip.ts). Faster than two days a second, the day's events are not
- * computed while time runs (they cost 10-40 ms a day): the ribbon shows the hours only,
- * and the day is drawn in full as soon as time stops or slows.
+ * is uncertain (time/chip.ts). Faster than eight days a second the day's events are not
+ * computed while time runs (playback.ts `fastPlayback`: they cost 5-40 ms a day): the
+ * ribbon shows the hours only, and the day is drawn in full as soon as time stops or slows;
+ * the golden and blue hours wait above a day a second.
  */
 
 import './timebar.css';
@@ -24,16 +25,16 @@ import '../time/time.css';
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import { isSunToolsEngine, type SkyEvent, type SunLightWindow } from '../engine/types.js';
-import { MONTH_S, PLAYBACK_SPEEDS, YEAR_S, applyStepIn, goNow, setPlaying, setSpeed, setTime, stepTime, timeKeyAction, togglePlay } from '../playback.js';
+import { MONTH_S, PLAYBACK_SPEEDS, YEAR_S, applyStepIn, fastPlayback, goNow, setPlaying, setSpeed, setTime, stepTime, timeKeyAction, togglePlay } from '../playback.js';
 import { aroundToday, dayOf, setAttr, setText, sunToday } from '../shell/derived.js';
-import { bearing3, clock, clockParts, clockSeconds, compassPoint, dateLong, dateShort, endOfDay, eventTime, formatAngle, parseClock } from '../shell/format.js';
+import { bearing3, clock, clockParts, clockSeconds, compassPoint, dateLong, endOfDay, eventTime, formatAngle, parseClock } from '../shell/format.js';
 import { PHASE_LABEL, PHASE_MEANING, clipPhases, segmentAt } from '../shell/sky.js';
 import { displayZone, engineObserver, placeZone, shallowEqual, type ExplorerState } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { button, iconButton, menu, popover, segmented } from '../theme/primitives.js';
 import { UTC_ZONE, jdFromWallClock, jdNow, wallClock, zoneShortName, type Zone } from '../time.js';
 import { setUncertaintyChip, timeInfoAt, uncertaintyChip, type ChipInfo } from '../time/chip.js';
-import { calendarName, calendarTag, calendarTip, formatYear, yearForms } from '../time/format.js';
+import { calendarName, calendarTag, calendarTip, dayMonth, formatYear, WEEKDAYS_SHORT, yearForms } from '../time/format.js';
 import { scaleLabel } from '../time/scale.js';
 import { tierAt } from '../time/tier.js';
 import { zoneTooltip } from '../time/zones.js';
@@ -53,14 +54,11 @@ const SHORT_SPEED: Record<number, string> = {
   [10 * YEAR_S]: '10 yr/s',
 };
 
-/** Faster than this (simulated seconds per second) the day's events wait until time slows. */
-export const FAST_PLAYBACK_S = 2 * 86_400;
-
 const WORDS: Record<string, [string, string]> = { Sun: ['Sunrise', 'Sunset'], Moon: ['Moonrise', 'Moonset'] };
 
-/** True while time runs so fast that a new day comes every frame or two. */
-export function fastPlayback(s: ExplorerState): boolean {
-  return s.time.playing && Math.abs(s.time.speed) > FAST_PLAYBACK_S;
+/** The golden and blue hours (8 ms a day in WebAssembly) wait while time runs faster than a day a second. */
+export function bandsWait(s: ExplorerState): boolean {
+  return s.time.playing && Math.abs(s.time.speed) > 86_400;
 }
 
 /** Ticks on the hour, labelled every three hours, on the zone's clock (23 or 25 of them on a clock-change day). */
@@ -111,13 +109,15 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   // --- date and clock ------------------------------------------------------------------
   const prevDay = iconButton('chevron-left', 'One day earlier', { size: 'sm', tip: 'One day earlier (Alt+Left)' });
   const nextDay = iconButton('chevron-right', 'One day later', { size: 'sm', tip: 'One day later (Alt+Right)' });
+  // `Thu` `24 Sep` ` 2026`: the weekday in its own element, which phones drop to make room for a far year.
+  const weekdayText = h('span', { class: 'sf-tb-date__wd' });
   const dateText = h('span', {});
   const yearText = h('span', { class: 'sf-tb-date__year' });
   const dateButton = h(
     'button',
     { type: 'button', class: 'sf-tb-date__label', 'data-tip': 'Choose a date or a year (Page Up / Page Down: a month; Ctrl: a century)' },
     icon('calendar'),
-    h('span', {}, dateText, yearText),
+    h('span', {}, weekdayText, dateText, yearText),
   );
   // "Julian" before 15 October 1582 (or "ISO" for a proleptic Gregorian date): the calendar in use.
   const calTag = h('span', { class: 'sf-cal-tag sf-tb-date__cal', tabindex: 0, hidden: true });
@@ -159,6 +159,8 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   });
   let marks: RibbonMark[] = [];
   let phases = [] as RibbonModel['phases'];
+  /** The bar is drawn for fast playback: only its day moves until time slows. */
+  let fastDrawn = false;
 
   // --- transport ----------------------------------------------------------------------------
   const liveDot = h('span', { class: 'sf-live-dot', 'aria-hidden': 'true' });
@@ -187,14 +189,22 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     const jd = s.time.jd_utc;
     if (fastPlayback(s)) {
       // A new day every frame or two: draw the hours and the handle, and the day in full
-      // once time stops or slows (the watch below includes `fastPlayback`).
+      // once time stops or slows (the watch below includes `fastPlayback`). The bar's
+      // contents are the same fractions of every day, so after the first frame only the day
+      // moves (no DOM rebuilt, no layout forced).
+      if (fastDrawn) {
+        ribbon.setWindow([a, b]);
+        return;
+      }
       phases = [];
       marks = [];
       ribbon.update({ window: [a, b], phases, bands: [], hours: evenHourTicks(a, b), marks, jd, glyph: 'sun', valueText: valueText(s), bubbleText: bubbleText(s), nowJd: jdNow() });
       el.classList.remove('sf-timebar--nodata');
       el.classList.add('sf-timebar--fast');
+      fastDrawn = true;
       return;
     }
+    fastDrawn = false;
     el.classList.remove('sf-timebar--fast');
     const day = sunToday(ctx, s);
     phases = day ? clipPhases(day.phases, a, b) : [];
@@ -218,7 +228,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     ribbon.update({
       window: [a, b],
       phases,
-      bands: day ? goldenAndBlue(s, a, b, zone) : [],
+      bands: day && !bandsWait(s) ? goldenAndBlue(s, a, b, zone) : [],
       hours: hourTicks(a, b, zone),
       marks,
       jd,
@@ -269,7 +279,8 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     const w = wallClock(jd, zone);
     ribbon.setHandle(jd, valueText(s), bubbleText(s), glyphAt(jd));
     ribbon.setNow(jdNow());
-    setText(dateText, dateShort(jd, zone));
+    setText(weekdayText, `${WEEKDAYS_SHORT[w.weekday]} `);
+    setText(dateText, dayMonth(w));
     setText(yearText, ` ${formatYear(w.year)}`);
     // Beyond the years 1000-9999 phones keep the year beside the date (it is the news).
     setAttr(dateButton, 'data-far', w.year < 1000 || w.year > 9999 ? '' : null);
@@ -316,7 +327,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       ctx,
       (s) => {
         const [a, b] = dayOf(s);
-        return [a, b, s.observer, s.selection.body, s.settings.horizon, s.settings.height_of_eye_m, s.settings.timeDisplay, s.settings.angleFormat, fastPlayback(s)] as const;
+        return [a, b, s.observer, s.selection.body, s.settings.horizon, s.settings.height_of_eye_m, s.settings.timeDisplay, s.settings.angleFormat, fastPlayback(s), bandsWait(s)] as const;
       },
       renderDay,
       { equals: shallowEqual },

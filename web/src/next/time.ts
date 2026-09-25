@@ -541,6 +541,14 @@ const abbrevFormatters = new Map<string, Intl.DateTimeFormat[]>();
  */
 export function zoneAbbreviation(jd: number, zone: Zone): string | null {
   if (zone.kind === 'fixed') return isUtcZone(zone) ? scaleLabel(jd) : zone.name;
+  // Remembered per zone, offset and year (time-ui agent): the time bar asks several times a
+  // frame, and while time runs fast every frame is another quarter hour. Within a year a
+  // zone's offset names one abbreviation (the rare exception, a rename at an unchanged
+  // offset such as New York's EWT to EPT in August 1945, keeps the year's first).
+  const ms = msFromJd(jd);
+  const key = `${zone.zone}|${zoneOffsetMs(ms, zone)}|${Math.floor(ms / 31_556_952_000)}`;
+  const hit = abbrevCache.get(key);
+  if (hit !== undefined) return hit;
   let list = abbrevFormatters.get(zone.zone);
   if (!list) {
     list = ['en-US', 'en-GB'].map(
@@ -548,13 +556,21 @@ export function zoneAbbreviation(jd: number, zone: Zone): string | null {
     );
     abbrevFormatters.set(zone.zone, list);
   }
-  const date = new Date(msFromJd(jd));
+  const date = new Date(ms);
+  let found: string | null = null;
   for (const f of list) {
     const name = f.formatToParts(date).find((p) => p.type === 'timeZoneName')?.value ?? '';
-    if (/^[A-Z]{2,5}$/.test(name)) return name;
+    if (/^[A-Z]{2,5}$/.test(name)) {
+      found = name;
+      break;
+    }
   }
-  return null;
+  if (abbrevCache.size >= OFFSET_CACHE_MAX) abbrevCache.clear();
+  abbrevCache.set(key, found);
+  return found;
 }
+
+const abbrevCache = new Map<string, string | null>();
 
 /**
  * A human label for a zone at an instant: `America/New_York · EDT (UTC−4)`,

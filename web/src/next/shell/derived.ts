@@ -7,6 +7,7 @@
  */
 
 import type { Ctx } from '../component.js';
+import { fastPlayback } from '../playback.js';
 import type { BodyEvents, BodyState, DayEvents, ExplorerEngine, PhaseSegment, SkyEvent, SkyState } from '../engine/types.js';
 import { currentDayWindow, displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { jdFromIso, type Zone } from '../time.js';
@@ -126,8 +127,13 @@ export interface Day {
   sun: BodyEvents | null;
 }
 
-/** The Sun over the local day being shown: its sky phases and events. */
+/**
+ * The Sun over the local day being shown: its sky phases and events. Null while time runs
+ * faster than eight days a second (playback.ts `fastPlayback`): a new day every few frames
+ * would cost 5 ms a frame; views draw it in full once time stops or slows (time-ui agent).
+ */
 export function sunToday(ctx: Ctx, s: ExplorerState): Day | null {
+  if (fastPlayback(s)) return null;
   const window = dayOf(s);
   const span = clampToCoverage(ctx, window[0], window[1]);
   if (!span) return null;
@@ -141,9 +147,12 @@ export function sunToday(ctx: Ctx, s: ExplorerState): Day | null {
 /**
  * A body's events from the day before to the day after the one shown (with the Sun's
  * phases over the same span): enough to find the passage around now and the next
- * twilight. Cached per day, so dragging within a day costs nothing.
+ * twilight. Cached per day, so dragging within a day costs nothing. Null while time runs
+ * faster than eight days a second, as `sunToday`: 4 ms a day for the Sun, 20 ms for the
+ * Moon, with a new day every few frames.
  */
 export function aroundToday(ctx: Ctx, s: ExplorerState, body: string): DayEvents | null {
+  if (fastPlayback(s)) return null;
   const [a, b] = dayOf(s);
   if (!covered(ctx, s.time.jd_utc)) return null;
   const span = clampToCoverage(ctx, a - 1, b + 1);
