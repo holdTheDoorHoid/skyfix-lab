@@ -34,3 +34,28 @@ jobs:
           sudo unshare -n ./target/release/skyfix --help
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
+
+  web:
+    name: Web (typecheck and tests against the built core)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install wasm-pack
+        run: curl -sSf https://rustwasm.github.io/wasm-pack/installer/init.sh | sh
+      - name: Build the WASM core
+        run: npm run wasm --prefix web
+      - name: Install
+        run: npm ci --prefix web
+      - name: Typecheck
+        run: npm run typecheck --prefix web
+      - name: Tests (VERIFICATION_2 V13)
+        run: "cd web && npx vitest run --maxWorkers=2"
