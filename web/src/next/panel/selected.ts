@@ -557,7 +557,9 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     status.hidden = up;
     if (!up) setText(status, 'Below the horizon now.');
 
-    const placeChip = dtChip(ctx, jd, position(name), timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5));
+    // Not while time runs faster than eight days a second: the numbers are a blur then, and a
+    // view asks the engine only for what it draws (verify2); the chip returns as time slows.
+    const placeChip = fast ? null : dtChip(ctx, jd, position(name), timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5));
     place.set(placeChip);
     detailsPlace.set(placeChip);
     setText(altValue, formatAngle(b.alt_apparent_deg, f, 'coarse'));

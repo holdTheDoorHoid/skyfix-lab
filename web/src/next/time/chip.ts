@@ -30,8 +30,9 @@
  *   stars never.
  *
  * The rates are the engine's own: the body's apparent geocentric right ascension, declination
- * and GHA from `sky_state` an hour apart (`bodyRates`), asked only where a chip could show
- * (σ of 10 s or more for a time, a far date for a place) and remembered per body and hour.
+ * and GHA from `sky_state` half an hour either side of the middle of each quarter day
+ * (`bodyRates`), asked only where a chip could show (σ of 10 s or more for a time, a far date
+ * for a place) and remembered per body and quarter day.
  *
  * Rule for every view: every chip comes from `dtChip` (or `chipOf` with rates in hand), never
  * from σ directly; render it with `uncertaintyChip`, `setUncertaintyChip`, `uncertaintyText`
@@ -188,7 +189,7 @@ function tipFor(c: Omit<DtChip, 'tip' | 'text' | 'shown'>, text: string): string
       if (c.rate === null || c.body === null) {
         return `${known}. How much of it this time carries could not be worked out here, so it is shown whole.${band}`;
       }
-      return `${known}. A rising, setting or transit is set by the Earth’s turning, which the clock follows, so only ${bodyWords(c.body)}’s own motion across the sky (${shareText(c.rate)} of the sky’s turning) moves this time, by about ${text.slice(1)}.${band}`;
+      return `${known}. A time like this one (a rising, setting, transit or twilight) is set by the Earth’s turning, which the clock follows, so only ${bodyWords(c.body)}’s own motion across the sky (${shareText(c.rate)} of the sky’s turning) moves it, by about ${text.slice(1)}.${band}`;
     case 'position':
       return `At the time shown ${bodyWords(c.body ?? c.subject.body)}’s place among the stars is uncertain by ${text.slice(1)}: the Earth’s rotation at this date is known only to ±${sigma} ${DELTA_T}, and ${bodyWords(c.body ?? c.subject.body)} moves ${(c.rate ?? 0).toFixed(2)}″ across the sky for each second of it.${band}`;
   }
@@ -323,7 +324,13 @@ export function placeLine(words = 'At this date its place is known to'): { el: H
 
 /** Right ascension, declination and GHA do not depend on the place: any observer will do. */
 const ANY_PLACE = Object.freeze({ lat_deg: 0, lon_deg: 0 });
-const HOUR = 1 / 24;
+/**
+ * The rates are taken once per quarter of a day, at its middle: the Moon's changes by under
+ * 1 % in three hours (its speed by 2 % a day at most), far below the chip's rounding, and a
+ * night's times then ask the engine a few times instead of once an hour.
+ */
+const BUCKET_DAYS = 1 / 4;
+const HALF_HOUR = 1 / 48;
 const RATES_MAX = 256;
 
 interface Place {
@@ -360,11 +367,11 @@ export function ratesBetween(a: Place, b: Place, dt: number): BodyRates {
 }
 
 /**
- * A body's motion around `jd` from the engine's apparent geocentric places an hour apart (the
- * hour `jd` falls in, or the one before when the next is outside the coverage): remembered per
- * engine, body and hour, and forgotten when the engine's coverage changes. A star or any name
- * that is not the Sun, the Moon or a planet is fixed on the sky. Null when the engine cannot
- * place the body then.
+ * A body's motion around `jd` from the engine's apparent geocentric places half an hour either
+ * side of the middle of the quarter day `jd` falls in (one side only at the edge of the
+ * coverage): remembered per engine, body and quarter day, and forgotten when the engine's
+ * coverage changes. A star or any name that is not the Sun, the Moon or a planet is fixed on
+ * the sky. Null when the engine cannot place the body then.
  */
 export function bodyRates(source: EngineSource, body: string, jd: number): BodyRates | null {
   if (!isSolarSystem(body)) return FIXED;
@@ -378,18 +385,17 @@ export function bodyRates(source: EngineSource, body: string, jd: number): BodyR
   }
   let entry = rateCache.get(engine);
   if (!entry || entry.coverage !== coverage) rateCache.set(engine, (entry = { coverage, map: new Map() }));
-  const t0 = Math.floor(jd * 24) / 24;
-  const key = `${body}|${t0}`;
+  const q = Math.floor(jd / BUCKET_DAYS);
+  const key = `${body}|${q}`;
   if (entry.map.has(key)) return entry.map.get(key) ?? null;
-  const a = placeAt(engine, body, t0);
+  const mid = (q + 0.5) * BUCKET_DAYS;
+  const before = placeAt(engine, body, mid - HALF_HOUR);
+  const after = placeAt(engine, body, mid + HALF_HOUR);
   let rates: BodyRates | null = null;
-  if (a) {
-    const b = placeAt(engine, body, t0 + HOUR);
-    if (b) rates = ratesBetween(a, b, HOUR);
-    else {
-      const before = placeAt(engine, body, t0 - HOUR);
-      if (before) rates = ratesBetween(before, a, HOUR);
-    }
+  if (before && after) rates = ratesBetween(before, after, 2 * HALF_HOUR);
+  else if (before || after) {
+    const centre = placeAt(engine, body, mid);
+    if (centre) rates = before ? ratesBetween(before, centre, HALF_HOUR) : ratesBetween(centre, after!, HALF_HOUR);
   }
   if (entry.map.size >= RATES_MAX) entry.map.delete(entry.map.keys().next().value as string);
   entry.map.set(key, rates);

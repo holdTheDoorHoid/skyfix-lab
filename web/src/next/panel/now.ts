@@ -106,7 +106,8 @@ export function nowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     }
     // Far from today a time carries the part of the Earth's rotation's uncertainty that moves
     // it (polish2; chip2: twilight and sunrise are the Sun's turning, σ for the day).
-    const dt = uncertaintyText(dtChip(ctx, jd, turning('Sun'), timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5)));
+    // No times are written while time runs faster than eight days a second (no phases then).
+    const dt = around ? uncertaintyText(dtChip(ctx, jd, turning('Sun'), timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5))) : '';
     const parts = meaning(facts, jd, zone, dt ? ` ${dt}` : '');
     // "Sun sights are possible now" is the sky's word; outside the validated years the
     // explorer offers none, and says so here too (verify2).

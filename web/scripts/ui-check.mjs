@@ -1888,8 +1888,8 @@ function chipArcmin(a) {
 
 /**
  * What the page should show, from the built core itself (web/src/wasm-pkg): the day's σ from
- * `time_info`, and the Moon's angular speed from `sky_state` over the hour the instant falls in
- * (as time/chip.ts `bodyRates` takes it).
+ * `time_info`, and the bodies' angular speed from `sky_state` an hour apart around the middle of
+ * the quarter day the instant falls in (as time/chip.ts `bodyRates` takes it).
  */
 async function chipExpected(iso) {
   const pkg = resolve(REPO, 'web/src/wasm-pkg');
@@ -1903,12 +1903,12 @@ async function chipExpected(iso) {
   const m2 = mo + 12 * a - 3;
   const jd = d + Math.floor((153 * m2 + 2) / 5) + 365 * yy + Math.floor(yy / 4) - Math.floor(yy / 100) + Math.floor(yy / 400) - 32045 - 0.5 + (hh + mm / 60) / 24;
   const sigma = glue.time_info(Math.floor(jd - 0.5) + 0.5).delta_t_sigma_s;
-  /** Arcseconds a second of the body's angular speed, over the hour `jd` falls in. */
+  /** Arcseconds a second of the body's angular speed: half an hour either side of the middle of the quarter day `jd` falls in. */
   const speed = (body) => {
     const at = (t) => glue.sky_state(JSON.stringify({ lat_deg: 0, lon_deg: 0 }), t, JSON.stringify([body])).bodies[0];
-    const t0 = Math.floor(jd * 24) / 24;
-    const p = at(t0);
-    const q = at(t0 + 1 / 24);
+    const mid = (Math.floor(jd / 0.25) + 0.5) * 0.25;
+    const p = at(mid - 1 / 48);
+    const q = at(mid + 1 / 48);
     const ra = (((((q.ra_deg - p.ra_deg + 180) % 360) + 360) % 360) - 180) * 24;
     const dec = (q.dec_deg - p.dec_deg) * 24;
     const cosDec = Math.cos((((p.dec_deg + q.dec_deg) / 2) * Math.PI) / 180);

@@ -1222,11 +1222,13 @@ subsections they own and say so in their reports.
     tooltip, the charts' readouts, the Almanac's hourly columns): the body's angular speed
     among the stars × σ, in arcminutes, at a far date when it exceeds 0.1′. The Moon 1.5′
     at 585 BC (1.4′ at the verifier's σ of 150 s) and 34′ at 2000 BC; the Sun 0.1′ (none)
-    and 2.5′; the planets up to about 3′ at 2000 BC; stars never.
+    and 2.5′; the planets a few arcminutes at most at 2000 BC (Venus 2.4′ on 1 June); stars
+    never.
   - The rates are the engine's own: apparent geocentric RA, declination and GHA from
-    `sky_state` an hour apart (`bodyRates`), asked only where a chip could show (σ of 10 s
-    or more for a time, a far date for a place). Where the engine cannot place a body then,
-    a time set by its turning carries the whole σ.
+    `sky_state` half an hour either side of the middle of each quarter day (`bodyRates`;
+    within 1 % of the instant's rate), asked only where a chip could show (σ of 10 s or
+    more for a time, a far date for a place). Where the engine cannot place a body then, a
+    time set by its turning carries the whole σ.
   - A page whose columns differ (the Almanac) carries each chip on its column's head, none
     on the page's heading. A navigator's sight time is read as UT, so the uncertainty does
     not move a fix by itself: the fix inherits the bodies' places at that time (the Moon's

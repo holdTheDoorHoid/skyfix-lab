@@ -76,7 +76,7 @@ const sun = bodyRates(mock, 'Sun', Y2026)!;
 const moon = bodyRates(mock, 'Moon', Y2026)!;
 const rates = (r: Record<string, BodyRates | null>) => (body: string) => r[body] ?? null;
 
-describe('the bodies’ rates, from the engine’s places an hour apart', () => {
+describe('the bodies’ rates, from the engine’s places an hour apart at the middle of each quarter day', () => {
   it('the Sun about 1° a day in right ascension and 0.04″ a second; the Moon about 13° and 0.55″', () => {
     expect(sun.ra_deg_per_day).toBeGreaterThan(0.85);
     expect(sun.ra_deg_per_day).toBeLessThan(1.15);
@@ -152,7 +152,7 @@ describe('a time set by the Earth’s turning carries the body’s share of σ, 
     expect(at2000.value!).toBeLessThan(12);
     expect(at2000.text).toBe(sigmaText(sun.k * 3725.7));
     expect(at2000.body).toBe('Sun');
-    expect(at2000.tip).toMatch(/only the Sun’s own motion across the sky \(0\.\d\d % of the sky’s turning\) moves this time, by about \d+ s\. These years are an estimate/);
+    expect(at2000.tip).toMatch(/set by the Earth’s turning, which the clock follows, so only the Sun’s own motion across the sky \(0\.\d\d % of the sky’s turning\) moves it, by about \d+ s\. These years are an estimate/);
   });
 
   it('the Moon’s at 585 BC a few seconds, at 2000 BC about two minutes', () => {
@@ -188,7 +188,7 @@ describe('a time set by the Earth’s turning carries the body’s share of σ, 
     expect(c.tip).toMatch(/could not be worked out here, so it is shown whole/);
   });
 
-  it('asks for no rate while no body could reach a second (σ under 10 s), and remembers the hour', () => {
+  it('asks for no rate while no body could reach a second (σ under 10 s), and remembers the quarter day', () => {
     const quiet = farMock(1 / TURNING_K_BOUND - 0.01, 'validated');
     expect(dtChip(quiet.engine, Y2026, turning('Moon'))).toMatchObject({ shown: false, value: null });
     expect(quiet.calls()).toBe(0);
@@ -197,9 +197,11 @@ describe('a time set by the Earth’s turning carries the body’s share of σ, 
     const first = dtChip(far.engine, t, turning('Moon'))!;
     expect(first.shown).toBe(true);
     expect(far.calls()).toBe(2);
-    // The same hour again: from memory.
-    expect(dtChip(far.engine, t + 10 / 1440, turning('Moon'))!.value).toBe(first.value);
+    // The same quarter day again: from memory; the next one asks again.
+    expect(dtChip(far.engine, t + 60 / 1440, turning('Moon'))!.value).toBe(first.value); // 17:20, the same quarter (12-18 UT)
     expect(far.calls()).toBe(2);
+    dtChip(far.engine, t + 0.25, turning('Moon'));
+    expect(far.calls()).toBe(4);
     // The engine's own rates at that hour.
     expect(first.value!).toBeCloseTo(bodyRates(mock, 'Moon', t)!.k * 158.4, 9);
   });
@@ -281,7 +283,7 @@ describe.skipIf(!ready)('the real core at 585 BC and 2000 BC (VERIFICATION_2 §8
     engine = load.engine;
   });
 
-  /** The body's k and angular speed at `t`, from `sky_state` 10 minutes either side (not `bodyRates`' hour). */
+  /** The body's k and angular speed at `t` itself, from `sky_state` 10 minutes either side (not `bodyRates`' quarter day). */
   const independent = (body: string, t: number): { k: number; arcsecPerS: number } => {
     const h = 10 / 1440;
     const at = (x: number) => engine.skyState({ lat_deg: 0, lon_deg: 0 }, x, [body]).bodies[0]!;
@@ -312,8 +314,8 @@ describe.skipIf(!ready)('the real core at 585 BC and 2000 BC (VERIFICATION_2 §8
           const sigma = engine.timeInfo(e.jd_utc).delta_t_sigma_s;
           const chip = dtChip(engine, e.jd_utc, turning(b.body))!;
           const want = independent(b.body, e.jd_utc).k * sigma;
-          // The hour's rate against the instant's: well within a percent (and the display's second).
-          expect(Math.abs(chip.value! - want)).toBeLessThan(0.01 * want + 0.01);
+          // The quarter day's rate against the instant's: within 2 % (the display rounds to the second).
+          expect(Math.abs(chip.value! - want)).toBeLessThan(0.02 * want + 0.01);
           const [lo, hi] = b.body === 'Sun' ? c.sunTurn : c.moonTurn;
           expect(chip.value!).toBeGreaterThanOrEqual(lo);
           expect(chip.value!).toBeLessThanOrEqual(hi);

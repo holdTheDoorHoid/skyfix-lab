@@ -1506,7 +1506,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       return null;
     }
     const up = alt >= 0;
-    const place = canonical && SOLAR_SYSTEM.includes(canonical) ? dtChip(engine, displayJd, position(canonical), timeInfoAt(engine, Math.floor(displayJd - 0.5) + 0.5)) : null;
+    // Not while time runs faster than eight days a second (a blur; verify2's rule for engine calls).
+    const place =
+      canonical && SOLAR_SYSTEM.includes(canonical) && !fastPlayback(state) ? dtChip(engine, displayJd, position(canonical), timeInfoAt(engine, Math.floor(displayJd - 0.5) + 0.5)) : null;
     lines.push([heightWord, `${formatAngle(alt, fmt)}${up ? '' : ' (below the horizon)'}`]);
     lines.push([bearingWord, `${formatBearing(az, fmt)} ${compassPoint(az)}`]);
     if (mag !== null && Number.isFinite(mag)) lines.push([magWord, formatMagnitude(mag)]);
