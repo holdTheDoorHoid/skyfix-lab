@@ -31,6 +31,8 @@ pub mod misfit;
 pub mod nav;
 pub mod navsky;
 pub mod planet_events;
+// Expansion programme, sailings agent: sailings, DR, routes, star identification, star finder.
+pub mod sailings;
 pub mod starfield;
 
 use serde::{Deserialize, Serialize};
