@@ -37,6 +37,22 @@ import type {
   StarIdRequest,
   StarIdResult,
 } from './types.js';
+// Deep sky (deepsky agent).
+import { createMockDeepSky } from './mock/deepsky.js';
+import type {
+  DeepSkyEngine,
+  DsoCatalog,
+  DsoListOptions,
+  DsoPositions,
+  DsoVisibility,
+  ExtinctionTable,
+  MilkyWayOutline,
+  SearchResult,
+  ShowerYear,
+  SkyConditionsInput,
+  Tonight,
+  TonightOptions,
+} from './types.js';
 import {
   buildStarfield,
   mockConstellationAt,
@@ -253,7 +269,7 @@ function inCoverage(jd: number): boolean {
 }
 
 export class MockEngine
-  implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine, SailingsEngine, MoonDetailEngine
+  implements ExplorerEngine, AlmanacEngine, PackEngine, TimeEngine, SailingsEngine, MoonDetailEngine, DeepSkyEngine
 {
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
@@ -301,6 +317,8 @@ export class MockEngine
   starFinderGeometry(latBand: number, jdUtc?: number): StarFinderGeometry {
     return this.sailings.starFinderGeometry(latBand, jdUtc);
   }
+  /** Deep sky (mock/deepsky.ts): illustrative, like everything here. */
+  private readonly deep: DeepSkyEngine = createMockDeepSky(this);
 
   constructor(options: MockEngineOptions = {}) {
     this.validated = options.validated ?? false;
@@ -599,6 +617,42 @@ export class MockEngine
   // -------------------------------------------------------------------------
   // Almanac pages (illustrative; see mock/almanac.ts)
   // -------------------------------------------------------------------------
+
+  // -------------------------------------------------------------------------
+  // Deep sky (mock/deepsky.ts)
+  // -------------------------------------------------------------------------
+
+  dsoCatalog(): DsoCatalog {
+    return this.deep.dsoCatalog();
+  }
+
+  dsoList(observer: Observer | null, jdUtc: number, options?: DsoListOptions): DsoPositions {
+    return this.deep.dsoList(observer, jdUtc, options);
+  }
+
+  dsoVisibility(id: string, observer: Observer, jdUtc: number, conditions?: SkyConditionsInput): DsoVisibility {
+    return this.deep.dsoVisibility(id, observer, jdUtc, conditions);
+  }
+
+  meteorShowers(year: number, observer?: Observer | null, conditions?: SkyConditionsInput): ShowerYear {
+    return this.deep.meteorShowers(year, observer, conditions);
+  }
+
+  milkyWayOutline(): MilkyWayOutline {
+    return this.deep.milkyWayOutline();
+  }
+
+  skySearch(query: string, observer?: Observer | null, jdUtc?: number | null, limit?: number): SearchResult {
+    return this.deep.skySearch(query, observer, jdUtc, limit);
+  }
+
+  tonight(observer: Observer, jdUtc: number, options?: TonightOptions): Tonight {
+    return this.deep.tonight(observer, jdUtc, options);
+  }
+
+  extinction(conditions?: SkyConditionsInput): ExtinctionTable {
+    return this.deep.extinction(conditions);
+  }
 
   almanacDay(date: string): AlmanacDay {
     return mockAlmanacDay(this, date);

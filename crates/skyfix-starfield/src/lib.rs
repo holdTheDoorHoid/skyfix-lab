@@ -34,6 +34,18 @@ pub mod apparent;
 pub mod catalog;
 pub mod constellations;
 pub mod navigational;
+// --- deepsky agent (expansion programme, 2026-09-24): deep-sky objects, meteor
+// showers, the Milky Way, IAU star names, search, extinction and the "tonight"
+// ranking. EXPLORER_API.md, "Deep sky"; CONVENTIONS 13.6.
+pub mod dso;
+pub mod extinction;
+pub mod milkyway;
+pub mod names;
+pub mod observe;
+pub mod search;
+pub mod showers;
+pub mod tonight;
+// --- end deepsky ---
 
 use std::sync::OnceLock;
 
@@ -115,7 +127,9 @@ pub fn starfield() -> Result<&'static Starfield, StarfieldError> {
 }
 
 fn load() -> Result<Starfield, StarfieldError> {
-    let catalog = catalog::parse()?;
+    let mut catalog = catalog::parse()?;
+    // deepsky: the IAU WGSN names the star field's own list does not have.
+    names::extend(&mut catalog)?;
     let motion = apparent::Motion::new(&catalog);
     let regions = constellations::parse_regions()?;
     let constellations = constellations::parse_figures(&catalog)?;

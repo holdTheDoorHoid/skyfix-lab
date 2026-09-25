@@ -20,7 +20,12 @@ fn counts_match_the_build_manifest() {
         cat.bv.iter().filter(|b| b.is_nan()).count() as u64,
         counts["without_bv"].as_u64().unwrap()
     );
-    assert_eq!(cat.names.len() as u64, counts["names"].as_u64().unwrap());
+    // deepsky: the star field's own names plus the IAU WGSN names it did not have.
+    let deep: Value = serde_json::from_str(include_str!("../data/deepsky_manifest.json")).unwrap();
+    assert_eq!(
+        cat.names.len() as u64,
+        counts["names"].as_u64().unwrap() + deep["names"]["names_added"].as_u64().unwrap()
+    );
     assert_eq!(
         cat.designations.iter().filter(|d| !d.is_empty()).count() as u64,
         counts["with_designation"].as_u64().unwrap()
@@ -57,9 +62,19 @@ fn designations_and_names() {
     assert_eq!(cat.name_of(at(8425)), Some("Al Na'ir"));
     // B-V: Betelgeuse is red, Rigel blue-white.
     assert!(cat.bv[at(2061)] > 1.5 && cat.bv[at(1713)] < 0.0);
-    // Names go to the brighter stars.
+    // The star field's own names go to the brighter stars (the IAU WGSN names added by
+    // the deepsky package include fainter ones, all brighter than V 7).
+    let own: Vec<&str> = include_str!("../data/names.txt")
+        .lines()
+        .filter(|l| !l.starts_with('#') && !l.is_empty())
+        .map(|l| l.split_once('|').unwrap().1)
+        .collect();
     for (i, name) in &cat.names {
-        assert!(cat.vmag[*i] < 6.0, "{name} is V {}", cat.vmag[*i]);
+        if own.contains(&name.as_str()) {
+            assert!(cat.vmag[*i] < 6.0, "{name} is V {}", cat.vmag[*i]);
+        } else {
+            assert!(cat.vmag[*i] < 7.0, "{name} is V {}", cat.vmag[*i]);
+        }
     }
 }
 

@@ -209,8 +209,11 @@ describe('memoised engine', () => {
     };
     expect(typeof engine.sunHours).toBe('function');
     expect(engine.sunHours!(here, 1)).toBe('extra:{"lat_deg":39.95,"lon_deg":-75.17}:1');
-    // Not memoised: a second identical call runs again.
+    // Memoised like the named methods: a second identical call is answered from the cache,
+    // a different argument runs again.
     engine.sunHours!(here, 1);
+    expect(extraCalls).toBe(1);
+    engine.sunHours!(here, 2);
     expect(extraCalls).toBe(2);
     // Methods the wrapper names itself keep their memo.
     engine.skyState(here, 1, 'all');

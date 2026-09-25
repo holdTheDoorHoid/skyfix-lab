@@ -454,9 +454,36 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): M
   for (const name of methodNames(engine)) {
     if (name in out) continue;
     const fn = (engine as unknown as Record<string, unknown>)[name];
-    if (typeof fn === 'function') out[name] = (fn as (...args: unknown[]) => unknown).bind(engine);
+    if (typeof fn !== 'function') continue;
+    const call = fn as (...args: unknown[]) => unknown;
+    if (/^(set|load|install|remove|clear|reset)/.test(name)) {
+      // A mutation (`setDut1`, `loadPack`, …): pass it through, then forget every cached
+      // result, since any of them may now be stale.
+      out[name] = (...args: unknown[]): unknown => {
+        try {
+          return call.apply(engine, args);
+        } finally {
+          caches.clear();
+        }
+      };
+    } else {
+      // A query: memoised like the named methods, keyed by its arguments' JSON.
+      out[name] = (...args: unknown[]): unknown => cached(name, argsKey(args), capacity, () => call.apply(engine, args));
+    }
   }
   return memo;
+}
+
+/** A cache key for a pass-through call: the arguments as JSON (typed arrays by their bytes' length and a hash). */
+function argsKey(args: unknown[]): string {
+  return JSON.stringify(args, (_key, value: unknown) => {
+    if (value instanceof Uint8Array || value instanceof Float64Array || value instanceof Float32Array) {
+      let h = 0;
+      for (let i = 0; i < value.length; i += 1) h = (h * 31 + Number(value[i])) | 0;
+      return `${value.constructor.name}:${value.length}:${h}`;
+    }
+    return value;
+  });
 }
 
 /** Names of every function-valued property of `obj`, own or inherited (class methods live on the prototype). */

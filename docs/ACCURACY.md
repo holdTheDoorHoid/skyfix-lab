@@ -2008,3 +2008,148 @@ planets every 4 (Mercury), 8 (Venus) or 16 days (the rest), measured to 0.02°, 
   `tools/reference/data/`).
 - `cargo test -p skyfix-almanac --test moon_libration --test moon_apsides --test
   moon_occultations -- --nocapture` prints every number above.
+
+## Deep sky (display only; expansion programme, deepsky agent, 2026-09-24)
+
+Owner: deepsky agent (`crates/skyfix-starfield/src/{dso,showers,milkyway,names,search,
+extinction,tonight,observe}.rs`, wire format `docs/EXPLORER_API.md`, "Expansion programme —
+deep sky"). Everything here is display-only (CONVENTIONS 13.6): none of it is a direction
+for a sight or an accuracy claim for navigation. What can be checked against a reference is
+checked below; the rest (meteor rates, limiting magnitudes, the instrument guide, the
+rankings, the Milky Way picture) is a **labelled estimate** from stated rules, and the wire
+says so. Sources and licences: `docs/THIRD_PARTY.md`, "Expansion programme — deep sky".
+
+### Apparent places: the same chain as `sky_state`
+
+A deep-sky object, a meteor radiant and the galactic centre are carried to the apparent
+place of date and to altitude and azimuth by `observe::Frame` and `observe::SiteFrame`,
+which compute the per-instant quantities once. `tests/observe_matches_sky_state.rs` pushes
+the 58 navigational stars (with their proper motion and parallax) through the same code at
+4 sites and 3 instants: **696 of 696 altitudes and azimuths identical to `sky_state`'s**
+(difference 0.0″). So an object's place is as good as its catalogue position; the chain
+adds nothing measurable.
+
+### Deep-sky object positions against two references
+
+`tests/dso_reference.rs` re-checks the shipped table (`data/dso.txt`, 213 objects)
+against `fixtures/reference/dso_positions.json`, written by `tools/starfield/dso.py`
+from SIMBAD and Corwin's (2004) NGC/IC positions (VizieR VII/239A). Each object has a
+tolerance of `max(1′, 0.25 × major axis)`, `0.5 × major axis` for open clusters,
+asterisms, star clouds and nebulae 30′ or larger, whose centres are a matter of
+definition.
+
+| check | objects | median | 90 % | worst |
+|---|---|---|---|---|
+| table vs the adopted Wikidata value | 213 | — | — | < 0.01′ (rounding) |
+| vs SIMBAD | 213 | 0.003′ | 2.8′ | 77′ (the Hyades, 330′ across; tolerance 165′) |
+| vs Corwin (2004) | 203 (10 have none) | 0.035′ | 3.1′ | 58′ (IC 2118, the Witch Head, 180′ across) |
+| vs Corwin, well-centred objects (globulars, planetary nebulae, galaxies under 20′) | 108 | — | — | **0.37′** |
+
+Wikidata's positions are largely SIMBAD's (hence the 0.003′ median), so Corwin is the
+independent check. Where Wikidata held two positions for one object the build takes the
+one nearer SIMBAD (recorded per object in `data/deepsky_manifest.json`); one candidate,
+the Lobster Nebula (NGC 6357), was left out because Wikidata's position is 22′ from both
+references.
+
+**Magnitudes and sizes are labelled, not validated.** Wikidata's V is sometimes a
+nucleus or a planetary nebula's central star, so the build adopts integrated V from
+Harris's globular-cluster catalogue (43 objects), RC3's V_T for galaxies (61; five more
+from B_T less the median B−V of 0.81), Wikidata for 72, and authored visual magnitudes
+for all 19 planetary nebulae (IC 418's from SIMBAD) and one open cluster (NGC 2451); 12
+nebulae have none (`null`). Sizes are
+SIMBAD's rounded (156) or authored where SIMBAD gives a cluster's full extent (57).
+Integrated magnitudes of extended objects say little about how easy they are to see;
+the instrument guide's size term is there for that, and it is a rule of thumb.
+
+### Meteor-shower dates against the IMO calendars
+
+`tests/showers_reference.rs` computes every shower's start, peak and end from this
+project's Sun (the instant the J2000 solar longitude reaches the table's value, Newton's
+method to 0.01 s) and compares the UTC dates with Table 5 of the IMO's calendars
+(`fixtures/reference/showers_reference.json`):
+
+| year | peaks | starts and ends |
+|---|---|---|
+| 2026 | **32 of 32 on the IMO's date** | every one within 1 day (the acceptance) |
+| 2027 | 32 of 32 on the IMO's date | printed, not asserted: the 2027 calendar revised two limits, the η Lyrids' start (3 May ours, 5 May IMO) and the Phoenicids' (30 Nov ours, 20 Nov IMO) |
+
+The solar longitude itself: at the 2026 March equinox it is −0.366°, the precession since
+J2000, within 0.01° (`showers::tests::the_solar_longitude_is_zero_at_the_march_equinox`).
+Radiants are compiled values: `tools/starfield/showers.py` holds every peak radiant within
+2° of the IMO's (the κ Cygnids excepted, 5.1°: the IMO's own Table 6 and the MDC put the
+drifting radiant elsewhere on the peak date) and within 7.6° of the MDC's median radiant
+moved along its drift to our peak; the three places where the sources disagree are
+recorded in the manifest (the κ Cygnids' radiant, the Phoenicids' radiant and peak).
+
+**Rates are estimates**, not validated: the activity profile (exponential from the peak
+to `min(2, ZHR/2)` at the limits) is a rough shape, and `ZHR × sin(h) × r^(LM − 6.5)` is
+the standard conversion from a zenithal hourly rate. Real rates vary from year to year;
+showers the table flags `variable` can be far above or below their ZHR.
+
+### Extinction, limiting magnitude and moonlight: published models, checked by hand
+
+- Pickering's (2002) air mass: 1 at the zenith, 1.995 at 30°, 38.7 at the horizon,
+  monotonic (`extinction::tests::pickering_air_mass_…`).
+- Schaefer's (1990) NELM–sky-brightness relation: 21.0 mag/arcsec² gives 6.12 and 19.0
+  gives 4.77 by hand; the inverse round-trips; the sky is capped at 22.0 mag/arcsec².
+- Krisciunas & Schaefer (1991) moonlight: a full Moon 60° up, a target 30° away at 45°,
+  k = 0.172, a 21.587 mag/arcsec² zenith: **3 189 nL added to 103.0 nL, 3.76 mag**, the
+  value of a hand evaluation of their equations
+  (`moonlight_matches_a_hand_evaluation_of_the_published_equations`).
+- Bortle classes stand for the middle of each class's naked-eye range (Bortle 2001).
+
+These check the implementation, not the sky: a real sky's extinction coefficient,
+light domes and airglow vary, and the limiting magnitude is a person's, not a
+measurement. The Sky view and the rankings use them as guides.
+
+### The Milky Way outline
+
+A picture, not a measurement: four isophotes of NASA COBE/DIRBE's 1.25 µm starlight,
+weakened by the 100 µm dust so the dark lanes show, smoothed 1.5°, simplified on the
+sphere to 0.2° (processing in `docs/THIRD_PARTY.md`). The build checks its galactic
+coordinates against DIRBE's own pixel file (0.0006°). `milkyway::tests` hold the rings
+closed and within range, and the glow where it belongs: the faintest level covers Cygnus,
+the anticentre, Crux, Carina and the Sagittarius Star Cloud, and not the galactic poles,
+Leo or the (masked) Large Magellanic Cloud; south of the dust lane toward the centre
+(Baade's window) the glow reaches level 2. **Known limitation:** the dust screen darkens
+the whole plane where the 100 µm emission is strong, so low-dust windows on the plane,
+such as the Sagittarius Star Cloud (M24), come out darker in the brighter levels than the
+eye sees them; 1.25 µm is not the visual band either.
+
+### Star names
+
+`tools/starfield/wgsn.py` joins the IAU WGSN list (641 names, 459 with an HR designation)
+to the display catalogue by HR number and accepts a join only when the position (the live
+table's or the 2022 file's) or the designation agrees: **458 joined** (the 459th, the
+Blaze Star T CrB, is not in the display catalogue). **237 of the star field's 252 names
+agree** with the WGSN (Al Na'ir, the Almanac's spelling, only as a spelling of Alnair), one
+differs (Navi for γ Cas, which the WGSN calls Tiansi), and the other 14 are on stars the
+WGSN has not named; ours are kept in every case. **220 names are added** (`names::tests`,
+`tests/catalog.rs`).
+
+### Speed and size
+
+Release build, native, the fastest of repeated calls on the shared 8-core machine under a
+load of about 34 (`tests/deepsky_timing.rs`): `tonight` **14.8 ms** (budget 50 ms),
+`dso_list` 0.13 ms, `dso_visibility` 5.4 ms, `sky_search` 2.5 ms, `meteor_showers` 45 ms
+for a year, 181 ms with an observer (32 nights).
+
+The release WebAssembly module (`npm run wasm`) is **2 225 532 bytes raw, 922 137
+gzipped** (`gzip -9`), against 2 060 798 and 849 019 for `main` at 28131c5: **+164 734
+bytes raw (+161 KiB), +73 118 gzipped**, over the package's 80 KB budget and inside the
+module's limits (2.5 MB, 1 MB gzipped). Embedded data is 31 931 bytes (`dso.txt` 19 017,
+`names_wgsn.txt` 7 169, `milkyway.bin` 3 236, `showers.txt` 2 509); the rest is code,
+largest first: search, showers, `tonight`, the night and place machinery, the DSO calls,
+the adapter and the serialisation of the results.
+
+### Reproduce
+
+```
+python3 -m tools.starfield.deepsky_fetch                  # network: raw inputs (git-ignored)
+python3 -m tools.starfield.dso                            # table, fixture and checks
+python3 -m tools.starfield.showers                        # table, fixture and checks
+tools/reference/.venv/bin/python -m tools.starfield.milkyway
+python3 -m tools.starfield.wgsn
+cargo test -p skyfix-starfield -- --nocapture
+cargo test --release -p skyfix-starfield --test deepsky_timing -- --nocapture
+```

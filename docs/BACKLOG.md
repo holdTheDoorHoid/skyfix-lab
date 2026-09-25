@@ -115,3 +115,15 @@ This file is the single list; the completion report links here.
 | Perigee, apogee, supermoons, the year's largest and smallest full Moon | completed (engine) | `moon_apsides`, within 11 s and 0.22 km of DE440s; the Events list is wave 2 (Q4) |
 | Lunar occultations of bright stars and planets with local times | completed (engine), mean limb | `occultations`, within 1.4 s of Skyfield's geometry; the Events list and Selected card are wave 2 (Q4). Contacts are for the mean limb, labelled; correcting them (and deciding grazes) with the real limb profile waits on the lunar-limb pack (P12) |
 | Occultations of fainter stars and the Pleiades beyond Alcyone | available, not default | `max_magnitude` up to 6.5 (about 0.5 s a year natively); the default is 3.5 |
+
+## Expansion programme: deep sky (deepsky agent, 2026-09-24)
+
+| item | status | notes |
+|---|---|---|
+| Deep-sky objects (110 Messier + 103 by a stated rule), meteor showers (32, dates from our Sun), Milky Way outline (COBE/DIRBE isophotes), IAU WGSN star names (+220), search, extinction and limiting magnitude, the "tonight" ranking | completed (engine) | `skyfix-starfield` (`dso`, `showers`, `milkyway`, `names`, `search`, `extinction`, `tonight`, `observe`), exports in `crates/skyfix-wasm/src/deepsky.rs`, `DeepSkyEngine` in types.ts with the mock; display-only (CONVENTIONS 13.6); checks in `docs/ACCURACY.md`, "Deep sky". The views that show them belong to the Sky and Tonight packages |
+| Core-module size | partial | The package adds 164 734 bytes raw (73 118 gzipped) against an 80 KB budget; the module stays inside its 2.5 MB / 1 MB limits. About 32 KB is data, the rest code (search, showers, tonight, the night machinery, serialisation) |
+| Double stars tonight (a curated 50-100 pairs from the USNO Washington Double Star and Sixth Orbit catalogues) | unstarted | The brief's optional bonus. U.S. Government works; position angle and separation from ORB6 orbits |
+| `meteor_showers(year, observer)` speed | unstarted | 0.2 s natively (one night per shower, 32 nights); computing a shower's night only when the view asks for it would make the year view instant |
+| Milky Way outline: windows in the dust | unstarted | The 100 µm dust screen darkens the whole plane, so the Sagittarius Star Cloud (M24) and similar windows come out darker than the eye sees them; a visual-band dust model or hand-set windows would fix it |
+| Visibility from surface brightness | unstarted | The instrument guide uses integrated magnitude with a size term; a surface-brightness model (with the sky's brightness) would rank faint large galaxies and nebulae better |
+| CLI access to deep sky | unstarted | No `skyfix` subcommand yet (`tonight`, `showers`, `dso`); the engine calls are ready |
