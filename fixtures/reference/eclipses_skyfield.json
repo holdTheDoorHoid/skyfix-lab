@@ -2,12 +2,18 @@
   "generator": {
     "description": "Skyfield + JPL DE440s: solar-eclipse contacts at 22 sites (roots of the topocentric apparent Sun-Moon separation minus the sum, or the difference, of the semidiameters), lunar-eclipse contacts with the Moon's altitude at 3 sites each, and the latitudes where the umbral and penumbral limits of four eclipses cross chosen meridians.",
     "ephemeris": {
-      "file": "de440s.bsp",
-      "sha256": "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2",
-      "size_bytes": 32726016,
-      "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp"
+      "files": [
+        {
+          "file": "de440s.bsp",
+          "sha256": "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2",
+          "size_bytes": 32726016,
+          "url": "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/de440s.bsp"
+        }
+      ],
+      "kernel": "de440s",
+      "span": "1849-12-26 .. 2150-01-22"
     },
-    "generated_utc": "2026-09-24T00:00:00Z",
+    "generated_utc": "2026-09-25T04:00:00Z",
     "geometry": {
       "altitudes": "Skyfield altaz() without refraction: topocentric, geometric, centre.",
       "earth_equatorial_radius_km": 6378.137,
@@ -22,7 +28,12 @@
     },
     "never_a_runtime_dependency": "Development-time reference. CONVENTIONS section 11: never regenerate a fixture from Rust output.",
     "residual_rate": "residual_rate_arcsec_per_s is d/dt of (separation - radii sum or difference) at the contact: a time error dt at a contact is a separation residual rate * dt.",
-    "timescale": "load.timescale(delta_t=69.184): UT1 = UTC exactly (TAI - UTC = 37 s for every instant here), the CONVENTIONS section 6 assumption; jd_utc is UTC-based.",
+    "run": {
+      "kernel": "de440s",
+      "window": "1990..2060",
+      "window_is_default": true
+    },
+    "timescale": "the app's clock with UT1 = UTC on the UTC scale (common.load_timescale(dut1_zero=True); TT = UTC + 69.184 s for every instant from 2017), the CONVENTIONS section 6 assumption; jd_utc is the clock's.",
     "tolerances": {
       "contact_time_s": 5.0,
       "limit_latitude_deg": 0.01

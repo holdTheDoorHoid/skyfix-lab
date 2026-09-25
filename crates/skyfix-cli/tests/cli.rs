@@ -724,7 +724,7 @@ fn coverage_prints_each_providers_own_declaration() {
     assert!(run.stdout.contains("accuracy"), "{}", run.stdout);
     assert!(run.stdout.contains("arcmin"), "{}", run.stdout);
     assert!(
-        run.stdout.contains("1990-01-01T00:00:00Z"),
+        run.stdout.contains("1550-01-01T00:00:00Z"),
         "{}",
         run.stdout
     );
@@ -1375,14 +1375,15 @@ fn plan_refuses_a_position_it_cannot_parse() {
 
 #[test]
 fn plan_refuses_a_time_outside_provider_coverage() {
-    // 1850 is outside every provider's coverage, so there is no sky to rank and no Sun
-    // altitude to report. The request fails rather than inventing either.
+    // 1549 is outside every provider's coverage (the validated tier starts 1550), so
+    // there is no sky to rank and no Sun altitude to report. The request fails rather
+    // than inventing either.
     let run = skyfix([
         "plan",
         "--position",
         "39.9526,-75.1652",
         "--utc",
-        "1850-01-01T00:00:00Z",
+        "1549-01-01T00:00:00Z",
     ])
     .expect_code(1);
     assert!(

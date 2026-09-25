@@ -67,12 +67,9 @@ fn state_and_direction_agree_exactly() {
 
 #[test]
 fn out_of_coverage_is_refused_not_extrapolated() {
+    // The navigation default answers the validated tier only (CONVENTIONS 15.1).
     let p = PlanetProvider::new();
-    for t in [
-        "1989-12-31T23:59:59Z",
-        "2061-01-01T00:00:00Z",
-        "2100-01-01T00:00:00Z",
-    ] {
+    for t in ["1549-12-31T23:59:59Z", "2650-01-22T00:00:01Z"] {
         assert!(
             matches!(
                 p.apparent_state("Mars", jd(t)),
@@ -80,6 +77,27 @@ fn out_of_coverage_is_refused_not_extrapolated() {
             ),
             "{t}"
         );
+    }
+    for t in ["1550-01-01T00:00:00Z", "2650-01-22T00:00:00Z"] {
+        assert!(p.apparent_state("Mars", jd(t)).is_ok(), "{t}");
+    }
+    // The display path answers the labelled tier as well, and nothing beyond it.
+    let l = p.with_policy(skyfix_ephemeris::tiers::TierPolicy::WithLabelled);
+    for t in [
+        "1549-12-31T23:59:59Z",
+        "2650-01-22T00:00:01Z",
+        "2999-12-31T00:00:00Z",
+    ] {
+        assert!(l.apparent_state("Mars", jd(t)).is_ok(), "{t}");
+    }
+    for jd_utc in [
+        skyfix_ephemeris::tiers::JD_LABELLED_START - 1e-5,
+        skyfix_ephemeris::tiers::JD_LABELLED_END + 1e-5,
+    ] {
+        assert!(matches!(
+            l.apparent_state("Mars", jd_utc),
+            Err(EphemerisError::OutOfCoverage { .. })
+        ));
     }
 }
 

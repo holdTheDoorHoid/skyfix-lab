@@ -184,19 +184,11 @@ fn every_tabulated_quantity_is_within_the_printed_precision_of_skyfield() {
     let mut hidden_hours = 0;
     let days = doc["days"].as_array().unwrap();
     assert!(days.len() >= 12, "at least 12 dates");
-    let mut not_yet_on_the_new_scale = Vec::new();
     for day in days {
         let date = day["date"].as_str().unwrap();
-        // timescales agent: pages after 2035 were generated with TT = UTC + 69.184 s and
-        // UT1 = UTC; the clock is UT there now (CONVENTIONS 15.2), so the Moon moves by up
-        // to 0.1' against them. A page is tabulated at fixed clock hours and cannot be
-        // re-timed here: they return when almanac_days.json is regenerated on the new
-        // scale (tools/timescales/skyfield_timescale.py).
-        let jd0 = skyfix_core::time::parse_utc(&format!("{date}T00:00:00Z")).unwrap();
-        if skyfix_core::time::scale_at(jd0) == skyfix_core::time::ClockScale::Ut {
-            not_yet_on_the_new_scale.push(date);
-            continue;
-        }
+        // The fixture is on the app's clock (CONVENTIONS 15.2; deeptime agent regenerated
+        // it with tools/timescales/skyfield_timescale.py), so the pages after 2035, where
+        // the clock is UT, are compared like the others.
         let p = page(&sky, date);
         assert!(p.errors.is_empty(), "{date}: {:?}", p.errors);
         assert_eq!(p.hours.len(), 24);
@@ -594,8 +586,7 @@ fn every_tabulated_quantity_is_within_the_printed_precision_of_skyfield() {
     }
     // Regression guards far inside the targets: what the providers are documented to
     // reach (docs/ACCURACY.md sections 2, 7, 9 and the planets section).
-    println!("pages left out until regenerated on the UT scale: {not_yet_on_the_new_scale:?}");
-    assert!(not_yet_on_the_new_scale.len() <= 4);
+
     for (what, limit) in [
         ("GHA Aries", 0.001),
         ("Sun GHA", 0.01),

@@ -112,7 +112,7 @@ struct Report {
     ra: Worst,
     sd: Worst,
     hp: Worst,
-    /// Astronomical units, VSOP87D against the JPL kernel.
+    /// Astronomical units, the VSOP87A Earth against the JPL kernel.
     distance_au: Worst,
     failures: Vec<String>,
 }
@@ -268,7 +268,7 @@ fn sun_matches_the_reference_fixtures() {
         );
     }
     println!(
-        "  worst radius vector   {:.3e} au  at {}  (VSOP87D vs the JPL kernel)",
+        "  worst radius vector   {:.3e} au  at {}  (the VSOP87A Earth vs the JPL kernel)",
         r.distance_au.value, r.distance_au.at
     );
     println!(

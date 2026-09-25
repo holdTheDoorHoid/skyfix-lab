@@ -3154,3 +3154,94 @@ Additive; no export changed.
 - **Actions on the map's measurement** are a page-level registry in
   `web/src/next/map/measure.ts` (`registerMeasureAction`, `measureActions`), not an engine
   call; `web/src/next/map/README.md` describes it.
+
+## Expansion programme — coverage tiers as built (`coverage.rs`, deeptime agent, 2026-09-25)
+
+**Both tiers ship in the core module; there is no `deep-time` pack.** The planner's rule
+was to keep both tiers in the core if the module stayed inside its budget: the two-tier
+series file is 127 958 bytes (99 276 gzipped), smaller than the three one-tier JSON
+files it replaced (477 494 bytes), and the module ends smaller than before: 2 781 402
+bytes raw and 1 238 604 gzipped, against main's 3 124 878 and 1 284 157 at f2a1a07
+(ACCURACY.md section 21). The packs mechanism is unchanged and serves `tides-us` (and later
+`lunar-limb`); no `deep-time` producer is registered, so `packs_loaded` never lists it.
+
+### `explorer_coverage()` — as built
+
+The shape of "`explorer_coverage()` — tiers" above, with these values:
+
+```json
+{"start_utc": "-2000-01-01T00:00:00Z", "end_utc": "3000-12-31T23:59:59Z",
+ "validated_start_utc": "1550-01-01T00:00:00Z", "validated_end_utc": "2650-01-22T00:00:00Z",
+ "packs_loaded": [],
+ "groups": [{"name": "Moon", "provider": "skyfix-moon (ELP/MPP02, IAU 2006/2000B)",
+             "accuracy_arcmin": 0.02, "validated": true, "notes": "…", "bodies": ["Moon"],
+             "tiers": [{"tier": "validated", "start_utc": "1550-01-01T00:00:00Z",
+                        "end_utc": "2650-01-22T00:00:00Z", "accuracy_arcmin": 0.02},
+                       {"tier": "labelled", "start_utc": "-2000-01-01T00:00:00Z",
+                        "end_utc": "3000-12-31T23:59:59Z", "accuracy_arcmin": 0.05,
+                        "notes": "outside the validated tier: accuracy measured per century against JPL DE441 (docs/ACCURACY.md, \"Historical accuracy\"); every time shown carries the Delta T uncertainty; display only, not offered for sights"}]},
+            …]}
+```
+
+- `start_utc`/`end_utc` are the labelled tier's ends (every group answers them);
+  `accuracy_arcmin` and `validated` keep describing the validated tier, as before.
+- Published figures per group and tier (arcminutes, worst of GHA and Dec, from the
+  historical table, ACCURACY.md section 21):
+
+  | group | validated 1550–2650 | labelled 2000 BC–AD 3000 |
+  |---|---|---|
+  | Sun | 0.01 | 0.02 |
+  | Moon | 0.02 | 0.05 |
+  | Planets | 0.03 (group); per planet 0.02, Mercury and Venus 0.005, Uranus 0.03 | 0.7 (group); Mercury 0.02, Venus 0.06, Mars 0.15, Jupiter 0.25, Saturn 0.7, Uranus 0.2, Neptune 0.06 |
+  | Stars | 0.03 | 0.2 (the catalogue's own proper-motion errors; Rigil Kentaurus apart, see its notes) |
+
+- The Sun, Moon, planet and star groups report their own tiers
+  (`skyfix_ephemeris::AstroProvider::tiers`, `Sky::tiered_coverage_groups`).
+
+### `tier_at(jd_utc) -> "validated" | "labelled" | "outside"`
+
+A `#[wasm_bindgen]` export (`crate::coverage::tier_at`) and `WasmEngine.tierAt`: the tier
+of an instant on the app's clock, validated 1550-01-01T00:00:00Z ..= 2650-01-22T00:00:00Z,
+labelled -2000-01-01T00:00:00Z ..= 3000-12-31T23:59:59Z, otherwise (and for NaN)
+`outside`. `time_info().tier` is the same function (the timescales agent's fallback in
+`timescale.rs` now calls it). The mock engine answers `validated` over its own
+1990–2060 window and `outside` elsewhere, so a tier never promises a position the mock
+would refuse.
+
+### Which calls answer the labelled tier
+
+- **The explorer's display path** (`sky_state`, `sample_bodies`, `day_events`,
+  `day_events_batch`, `find_altitude`, `moon_phases`, `seasons`, `sidereal`) and the sun
+  tools, which share its sky (`suntools.rs`), answer 2000 BC to AD 3000
+  (`explorer::native::sky()` is built with `TierPolicy::WithLabelled`).
+- **Everything that feeds a sight, a fix or a plan** (sessions, reductions, the planner,
+  predicted readings, lunar distances) and the other engines (almanac pages, eclipses,
+  planet events, the Moon in detail, deep sky, sailings) keep the validated tier: their
+  providers are built with the default `TierPolicy::ValidatedOnly` and refuse the
+  labelled tier with `OutOfCoverage`, exactly as they refused dates outside 1990–2060
+  before. Their own ranges are unchanged where they had one (eclipses 1990–2060, planet
+  events 1990–2060). Opening an engine to the labelled tier is one line
+  (`.with_policy(TierPolicy::WithLabelled)`) and its owner's decision.
+- The star field (`starfield_apparent`, display only) answers the validated tier
+  (1550-01-01 to 2650-01-22; it was 1800–2200).
+
+### Series payload (`crates/skyfix-ephemeris/data/series.bin`)
+
+Not a pack but the same container: magic `SKYFIXPK`, format 1, name `series`, CRC-32 of
+the payload (`skyfix_ephemeris::pack`). The payload is `u32` section count, then per
+section a 4-byte ASCII tag, `u32` length and the bytes; little-endian throughout; schema
+`skyfix.series/2` (in `META`). Every count is checked against the bytes left, every
+float must be finite, and a file whose CRC, tags, counts or schema are wrong is refused
+with a sentence (a unit test cuts and flips the payload at a hundred places).
+
+| tag | contents |
+|---|---|
+| `META` | JSON: schema, generator, the tiers' spans, the VSOP87A and ELP/MPP02 sources with their SHA-256, the truncation rules, the secular corrections |
+| `VSOP` | `u8` body count (8: Earth, Mercury … Neptune), then per body `u8` index, `u16` n and n `f64` frequencies (the distinct C of its stored terms), and per coordinate (X, Y, Z) `u8` powers, per power `u32` total, `u32` validated, `u32` wide, `u32` fine, `f64` coarse scale, then the terms sorted by amplitude: wide `f64 A, f64 B, u16 k`; fine `f32 A, u32 B, u16 k`; coarse `u16 A, u16 B, u16 k` (B a fraction of a turn in 32 or 16 bits, a coarse A times the scale, k the index of C). The validated tier sums the first `validated` terms of each group, the labelled tier all of them |
+| `VCOR` | the corrections to VSOP87A: `f64` mean longitudes of Jupiter and Saturn (the great inequality), the validated band and the blend (days), then per body and tier the basis (`u8` × 5) and per component (longitude, latitude, log-radius) `u16` n and n `f32` coefficients |
+| `ELPK` | `u16` 76 and 76 `f64`: ELP/MPP02's constants with this project's secular corrections, and the rotation to the ICRS |
+| `ELPS` | `u16` 15 groups; per group `u8` kind (main or perturbation), coordinate, power, `u32` total, validated, wide, `f64` coarse scale, then the terms: main `i8 × 4` multipliers and `f64` (wide) or `f32` amplitude; perturbation `i8 × 13` multipliers and `f32 S, f32 C` (wide) or `u16` amplitude (× scale) and `u16` phase (fine turns) |
+
+`data/series_checks.json` (tests only, not embedded) holds the generator's checkpoints
+for the same CRC and its measurement per bin. `tools/reference/build_series.py` writes
+both; `make -C tools/reference series`.

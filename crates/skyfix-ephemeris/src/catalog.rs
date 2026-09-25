@@ -18,20 +18,32 @@
 //! This matters: the Hipparcos catalogue is published at J1991.25, and the difference
 //! is 32" for Rigil Kentaurus. A replacement file that ships Hipparcos-epoch positions
 //! without saying so would be wrong by that much.
+//!
+//! ## Space motion (expansion programme)
+//!
+//! Each entry also keeps the file's own epoch and position, its radial velocity
+//! (`rv_km_s`, SIMBAD's, absent means 0) and, for a star that orbits a companion, the
+//! orbit (`orbit`: Rigil Kentaurus, alpha Centauri A about the A-B barycentre).
+//! [`StarEntry::barycentric_direction`] propagates from the catalogue epoch by rigorous
+//! rectilinear space motion ([`crate::frames::space_motion`], the model of Skyfield's
+//! `Star` and ERFA's `eraStarpv`, perspective acceleration included) and, for an
+//! orbiting star, adds the primary's offset about the barycentre. The J2000 fields are
+//! that model at J2000, for display and for the older single-star functions.
 
 use std::sync::OnceLock;
 
 use serde::Deserialize;
 
 use crate::EphemerisError;
-use crate::frames::proper_motion_from_j2000;
 use skyfix_core::time::JD_J2000;
 use skyfix_core::units::norm_360;
 
 /// The embedded catalogue file. Path is relative to this source file.
 const CATALOG_JSON: &str = include_str!("../../../fixtures/reference/navigational_stars_hip.json");
 
-/// One catalogue star. Positions are ICRS at epoch J2000.0 (see the module docs).
+/// One catalogue star. The `*_j2000_*` positions are ICRS at epoch J2000.0 (see the
+/// module docs); the model itself runs from the catalogue epoch
+/// ([`StarEntry::barycentric_direction`]).
 #[derive(Debug, Clone, PartialEq)]
 pub struct StarEntry {
     /// Nautical Almanac spelling, e.g. `"Al Na'ir"`, `"Rigil Kentaurus"`.
@@ -39,11 +51,163 @@ pub struct StarEntry {
     pub hip: u32,
     pub ra_j2000_deg: f64,
     pub dec_j2000_deg: f64,
+    /// The catalogue's proper motion (for an orbiting star, the primary's instantaneous
+    /// one at the catalogue epoch, as published).
     pub pm_ra_cosdec_mas_per_year: f64,
     pub pm_dec_mas_per_year: f64,
     /// Annual parallax, milliarcseconds. Used for the (small) parallactic shift.
     pub parallax_mas: f64,
     pub magnitude: f64,
+    /// Radial velocity, km/s, positive receding (0 when the file has none).
+    pub rv_km_s: f64,
+    /// Catalogue epoch (TT Julian date) and the position there, degrees.
+    pub epoch_jd: f64,
+    pub ra_epoch_deg: f64,
+    pub dec_epoch_deg: f64,
+    /// For a star orbiting a companion, the orbit; `None` otherwise.
+    pub orbit: Option<BinaryOrbit>,
+    /// The proper motion the linear part of the model uses: the catalogue's, less the
+    /// primary's orbital velocity at the catalogue epoch for an orbiting star.
+    pub bary_pm_ra_cosdec_mas_per_year: f64,
+    pub bary_pm_dec_mas_per_year: f64,
+}
+
+/// A visual-binary orbit (elements of the secondary relative to the primary, the
+/// convention of the USNO Sixth Orbit Catalog) and the secondary's mass fraction, so the
+/// primary's offset from the barycentre is `-f_B` times the relative position.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+pub struct BinaryOrbit {
+    pub period_yr: f64,
+    pub semi_major_arcsec: f64,
+    pub inclination_deg: f64,
+    pub node_deg: f64,
+    pub periastron_epoch_yr: f64,
+    pub eccentricity: f64,
+    pub periastron_arg_deg: f64,
+    pub secondary_mass_fraction: f64,
+}
+
+impl BinaryOrbit {
+    /// Secondary relative to primary at Julian year `year`, `(north, east)` arcseconds
+    /// (Thiele-Innes constants; Kepler's equation by Newton to machine precision).
+    pub fn relative_offset_arcsec(&self, year: f64) -> [f64; 2] {
+        let e = self.eccentricity;
+        let m = std::f64::consts::TAU * (year - self.periastron_epoch_yr) / self.period_yr;
+        let m = m.rem_euclid(std::f64::consts::TAU);
+        let mut ea = if e < 0.8 { m } else { std::f64::consts::PI };
+        for _ in 0..60 {
+            let d = (ea - e * ea.sin() - m) / (1.0 - e * ea.cos());
+            ea -= d;
+            if d.abs() < 1e-15 {
+                break;
+            }
+        }
+        let x = ea.cos() - e;
+        let y = (1.0 - e * e).sqrt() * ea.sin();
+        let (si, ci) = self.inclination_deg.to_radians().sin_cos();
+        let _ = si;
+        let (so, co) = self.node_deg.to_radians().sin_cos();
+        let (sw, cw) = self.periastron_arg_deg.to_radians().sin_cos();
+        let a = self.semi_major_arcsec;
+        let ta = a * (cw * co - sw * so * ci);
+        let tb = a * (cw * so + sw * co * ci);
+        let tf = a * (-sw * co - cw * so * ci);
+        let tg = a * (-sw * so + cw * co * ci);
+        [ta * x + tf * y, tb * x + tg * y]
+    }
+
+    /// The primary about the barycentre, `(north, east)` arcseconds.
+    pub fn primary_offset_arcsec(&self, year: f64) -> [f64; 2] {
+        let r = self.relative_offset_arcsec(year);
+        [
+            -self.secondary_mass_fraction * r[0],
+            -self.secondary_mass_fraction * r[1],
+        ]
+    }
+
+    /// The primary's orbital velocity, `(north, east)` arcseconds per Julian year.
+    pub fn primary_velocity_arcsec_yr(&self, year: f64) -> [f64; 2] {
+        let h = 1e-3;
+        let (a, b) = (
+            self.primary_offset_arcsec(year - h),
+            self.primary_offset_arcsec(year + h),
+        );
+        [(b[0] - a[0]) / (2.0 * h), (b[1] - a[1]) / (2.0 * h)]
+    }
+
+    fn check(&self) -> Result<(), String> {
+        let ok = self.period_yr > 0.0
+            && self.semi_major_arcsec > 0.0
+            && (0.0..1.0).contains(&self.eccentricity)
+            && (0.0..=1.0).contains(&self.secondary_mass_fraction)
+            && [
+                self.inclination_deg,
+                self.node_deg,
+                self.periastron_arg_deg,
+                self.periastron_epoch_yr,
+            ]
+            .iter()
+            .all(|v| v.is_finite());
+        if ok {
+            Ok(())
+        } else {
+            Err("implausible orbit elements".to_string())
+        }
+    }
+}
+
+impl StarEntry {
+    /// Barycentric (ICRS) unit vector of the star at `jd_tt`: rigorous rectilinear space
+    /// motion from the catalogue epoch with the radial velocity, plus, for an orbiting
+    /// star, the primary's offset about the barycentre relative to its value at the
+    /// catalogue epoch, added in the tangent plane of the moving position.
+    pub fn barycentric_direction(&self, jd_tt: f64) -> [f64; 3] {
+        let years = (jd_tt - self.epoch_jd) / 365.25;
+        let p = crate::frames::space_motion(
+            self.ra_epoch_deg,
+            self.dec_epoch_deg,
+            self.bary_pm_ra_cosdec_mas_per_year,
+            self.bary_pm_dec_mas_per_year,
+            self.parallax_mas,
+            self.rv_km_s,
+            years,
+        );
+        match &self.orbit {
+            None => p,
+            Some(o) => {
+                let epoch_year = julian_year(self.epoch_jd);
+                let now = o.primary_offset_arcsec(julian_year(jd_tt));
+                let then = o.primary_offset_arcsec(epoch_year);
+                crate::frames::tangent_offset(
+                    p,
+                    (now[0] - then[0]) * skyfix_core::units::ARCSEC,
+                    (now[1] - then[1]) * skyfix_core::units::ARCSEC,
+                )
+            }
+        }
+    }
+}
+
+impl StarEntry {
+    /// How far an orbiting star is from the straight line its catalogue proper motion
+    /// draws (the line the Nautical Almanac and USNO's celnav extrapolate): `(north,
+    /// east)` arcseconds on the sky at `jd_tt`, zero at the catalogue epoch; `None` for
+    /// a star without an orbit. For Rigil Kentaurus: 5.8" in 2026, 17" in 2060.
+    pub fn orbit_departure_arcsec(&self, jd_tt: f64) -> Option<[f64; 2]> {
+        let o = self.orbit.as_ref()?;
+        let (epoch, year) = (julian_year(self.epoch_jd), julian_year(jd_tt));
+        let (now, then) = (
+            o.primary_offset_arcsec(year),
+            o.primary_offset_arcsec(epoch),
+        );
+        let v = o.primary_velocity_arcsec_yr(epoch);
+        let dt = year - epoch;
+        Some([now[0] - then[0] - v[0] * dt, now[1] - then[1] - v[1] * dt])
+    }
+}
+
+fn julian_year(jd: f64) -> f64 {
+    2000.0 + (jd - JD_J2000) / 365.25
 }
 
 /// What the catalogue file says about where its numbers came from. Surfaced verbatim
@@ -155,6 +319,10 @@ struct StarRecord {
     parallax_mas: f64,
     #[serde(default)]
     mag: f64,
+    #[serde(default)]
+    rv_km_s: f64,
+    #[serde(default)]
+    orbit: Option<BinaryOrbit>,
 }
 
 // ---------------------------------------------------------------------------
@@ -209,36 +377,58 @@ fn parse(json: &str) -> Result<(Vec<StarEntry>, Provenance), String> {
             || !r.pm_ra_cosdec_mas_yr.is_finite()
             || !r.pm_dec_mas_yr.is_finite()
             || !r.parallax_mas.is_finite()
+            || !r.rv_km_s.is_finite()
+            || r.rv_km_s.abs() > 1000.0
         {
             return Err(format!(
                 "navigational star catalogue: {} (HIP {}) has out-of-range or non-finite values",
                 r.name, r.hip
             ));
         }
-        let (ra, dec) = if years_to_j2000 == 0.0 {
-            (norm_360(r.ra_deg), r.dec_deg)
-        } else {
-            // `proper_motion_from_j2000` measures from J2000; feeding it a date
-            // `years_to_j2000` away from J2000 applies exactly that interval.
-            let v = proper_motion_from_j2000(
-                r.ra_deg,
-                r.dec_deg,
-                r.pm_ra_cosdec_mas_yr,
-                r.pm_dec_mas_yr,
-                JD_J2000 + years_to_j2000 * 365.25,
-            );
-            crate::frames::radec_from_vector(v)
+        if let Some(o) = &r.orbit {
+            o.check()
+                .map_err(|e| format!("navigational star catalogue: {}: {e}", r.name))?;
+        }
+        // The linear part of the model moves the barycentre: for an orbiting star, the
+        // catalogue's (instantaneous) proper motion less the primary's orbital velocity
+        // at the catalogue epoch, so the model reproduces the catalogue there.
+        let (bary_pm_ra, bary_pm_dec) = match &r.orbit {
+            None => (r.pm_ra_cosdec_mas_yr, r.pm_dec_mas_yr),
+            Some(o) => {
+                let v = o.primary_velocity_arcsec_yr(julian_year(epoch_jd));
+                (
+                    r.pm_ra_cosdec_mas_yr - v[1] * 1000.0,
+                    r.pm_dec_mas_yr - v[0] * 1000.0,
+                )
+            }
         };
-        stars.push(StarEntry {
+        let mut entry = StarEntry {
             name: r.name.clone(),
             hip: r.hip,
-            ra_j2000_deg: ra,
-            dec_j2000_deg: dec,
+            ra_j2000_deg: 0.0,
+            dec_j2000_deg: 0.0,
             pm_ra_cosdec_mas_per_year: r.pm_ra_cosdec_mas_yr,
             pm_dec_mas_per_year: r.pm_dec_mas_yr,
             parallax_mas: r.parallax_mas,
             magnitude: r.mag,
-        });
+            rv_km_s: r.rv_km_s,
+            epoch_jd,
+            ra_epoch_deg: norm_360(r.ra_deg),
+            dec_epoch_deg: r.dec_deg,
+            orbit: r.orbit,
+            bary_pm_ra_cosdec_mas_per_year: bary_pm_ra,
+            bary_pm_dec_mas_per_year: bary_pm_dec,
+        };
+        // The J2000 place is the same model at J2000 (the catalogue's own place when
+        // the file is already at J2000.0).
+        let (ra, dec) = if years_to_j2000 == 0.0 {
+            (norm_360(r.ra_deg), r.dec_deg)
+        } else {
+            crate::frames::radec_from_vector(entry.barycentric_direction(JD_J2000))
+        };
+        entry.ra_j2000_deg = ra;
+        entry.dec_j2000_deg = dec;
+        stars.push(entry);
     }
 
     let g = file.generator;
@@ -395,19 +585,20 @@ mod tests {
 
     #[test]
     fn a_j1991_25_file_is_propagated_to_j2000() {
-        // Rigil Kentaurus moves 3.71"/yr, so 8.75 years is about 32".
+        // Arcturus moves 2.28"/yr, so 8.75 years is about 20" (no orbit, a radial
+        // velocity of -5.2 km/s: a millionth of an arcsecond of perspective here).
         let at_1991 = r#"{
           "schema": "skyfix.reference/1",
           "generator": {"epoch": "J1991.25"},
-          "stars": [{"name": "Rigil Kentaurus", "hip": 71683,
-                     "ra_deg": 219.92041034, "dec_deg": -60.83514707,
-                     "pm_ra_cosdec_mas_yr": -3678.19, "pm_dec_mas_yr": 481.84,
-                     "parallax_mas": 742.12, "mag": -0.01}]
+          "stars": [{"name": "Arcturus", "hip": 69673,
+                     "ra_deg": 213.91811403, "dec_deg": 19.18726997,
+                     "pm_ra_cosdec_mas_yr": -1093.45, "pm_dec_mas_yr": -1999.4,
+                     "parallax_mas": 88.85, "mag": -0.05, "rv_km_s": -5.229}]
         }"#;
         let (stars, prov) = parse(at_1991).unwrap();
         assert_eq!(prov.epoch, "J1991.25");
         let s = &stars[0];
-        let embedded = find("Rigil Kentaurus").unwrap();
+        let embedded = find("Arcturus").unwrap();
         let d_ra =
             (s.ra_j2000_deg - embedded.ra_j2000_deg) * 3600.0 * s.dec_j2000_deg.to_radians().cos();
         let d_dec = (s.dec_j2000_deg - embedded.dec_j2000_deg) * 3600.0;
@@ -415,11 +606,72 @@ mod tests {
             d_ra.abs() < 0.01 && d_dec.abs() < 0.01,
             "propagated place differs from the embedded one by ({d_ra}\", {d_dec}\")"
         );
-        // And it really did move: the raw file value is 32" away from J2000.
-        let moved = (219.92041034 - s.ra_j2000_deg) * 3600.0 * s.dec_j2000_deg.to_radians().cos();
+        // And it really did move: the raw file value is 20" away from J2000.
+        let moved = ((213.91811403 - s.ra_j2000_deg) * s.dec_j2000_deg.to_radians().cos())
+            .hypot(19.18726997 - s.dec_j2000_deg)
+            * 3600.0;
         assert!(
-            moved.abs() > 25.0,
-            "expected ~32\" of motion, got {moved}\""
+            (19.0..21.0).contains(&moved),
+            "expected ~20\" of motion, got {moved}\""
+        );
+        // The model runs from the file's epoch with its radial velocity.
+        assert_eq!(s.rv_km_s, -5.229);
+        assert!((s.epoch_jd - (JD_J2000 - 8.75 * 365.25)).abs() < 1e-9);
+    }
+
+    #[test]
+    fn rigil_kentaurus_follows_its_orbit_and_is_the_catalogue_at_its_epoch() {
+        let s = find("Rigil Kentaurus").unwrap();
+        let o = s.orbit.expect("alpha Cen A carries its orbit");
+        // USNO's Sixth Orbit Catalog ephemeris (orb6ephem.txt) for alpha Cen AB:
+        // 2026.0 separation 9.294", 2029.0 10.329" (position angles are of date there).
+        for (year, rho) in [(2026.0, 9.294), (2029.0, 10.329)] {
+            let r = o.relative_offset_arcsec(year);
+            assert!((r[0].hypot(r[1]) - rho).abs() < 0.002, "{year}: {r:?}");
+        }
+        // At the catalogue epoch the model is the catalogue: the same place, and the
+        // same (instantaneous) proper motion.
+        let p0 = s.barycentric_direction(s.epoch_jd);
+        let (ra, dec) = crate::frames::radec_from_vector(p0);
+        assert!(((ra - s.ra_epoch_deg) * 3600.0).abs() < 1e-6);
+        assert!(((dec - s.dec_epoch_deg) * 3600.0).abs() < 1e-6);
+        let h = 36.525; // a tenth of a year
+        let (ra1, dec1) = crate::frames::radec_from_vector(s.barycentric_direction(s.epoch_jd + h));
+        let (ra0, dec0) = crate::frames::radec_from_vector(s.barycentric_direction(s.epoch_jd - h));
+        let pm_ra = (ra1 - ra0) * 3.6e6 * dec.to_radians().cos() / 0.2;
+        let pm_dec = (dec1 - dec0) * 3.6e6 / 0.2;
+        assert!((pm_ra - s.pm_ra_cosdec_mas_per_year).abs() < 1.0, "{pm_ra}");
+        assert!((pm_dec - s.pm_dec_mas_per_year).abs() < 1.0, "{pm_dec}");
+        // Away from it, A leaves the tangent line: 5.8" in 2026 (tools/reference/acen_orbit.py).
+        let jd_2026 = JD_J2000 + 26.0 * 365.25;
+        let linear = crate::frames::space_motion(
+            s.ra_epoch_deg,
+            s.dec_epoch_deg,
+            s.pm_ra_cosdec_mas_per_year,
+            s.pm_dec_mas_per_year,
+            s.parallax_mas,
+            s.rv_km_s,
+            (jd_2026 - s.epoch_jd) / 365.25,
+        );
+        let orbit = s.barycentric_direction(jd_2026);
+        let sep = {
+            let c = [
+                linear[1] * orbit[2] - linear[2] * orbit[1],
+                linear[2] * orbit[0] - linear[0] * orbit[2],
+                linear[0] * orbit[1] - linear[1] * orbit[0],
+            ];
+            (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]).sqrt() / skyfix_core::units::ARCSEC
+        };
+        assert!((sep - 5.78).abs() < 0.05, "{sep}\"");
+        // orbit_departure_arcsec says the same, and nothing for a star without an orbit.
+        let d = s.orbit_departure_arcsec(jd_2026).unwrap();
+        assert!((d[0].hypot(d[1]) - sep).abs() < 0.02, "{d:?} vs {sep}");
+        assert_eq!(s.orbit_departure_arcsec(s.epoch_jd), Some([0.0, 0.0]));
+        assert!(
+            find("Vega")
+                .unwrap()
+                .orbit_departure_arcsec(jd_2026)
+                .is_none()
         );
     }
 

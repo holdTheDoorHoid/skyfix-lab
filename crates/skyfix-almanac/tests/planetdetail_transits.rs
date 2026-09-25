@@ -84,12 +84,26 @@ fn file() -> File {
     serde_json::from_str(&read("fixtures/reference/planetdetail_transits.json")).unwrap()
 }
 
+/// Whether a transit's date lies inside its NASA catalogue's span (the fixture's
+/// description: Mercury 1601-2300 CE, Venus 2000 BCE-4000 CE). With the coverage at
+/// 1550-2650 (deeptime agent) the search also finds Mercury's transits of 1550-1600 and
+/// 2301-2650, which no catalogue here lists.
+fn in_catalogue_span(planet: &str, jd_utc: f64) -> bool {
+    use skyfix_core::time::civil_to_jd;
+    match planet {
+        "Mercury" => (civil_to_jd(1601, 1, 1)..civil_to_jd(2301, 1, 1)).contains(&jd_utc),
+        _ => true,
+    }
+}
+
 #[test]
 fn every_catalogued_transit_in_coverage_is_found_within_a_minute() {
     let (lo, hi) = planet_coverage();
     let f = file();
     let p = PlanetProvider::new();
-    let list = transits(&p, lo, hi, None).unwrap();
+    let mut list = transits(&p, lo, hi, None).unwrap();
+    list.transits
+        .retain(|t| in_catalogue_span(&t.planet, t.contacts_jd("greatest")));
     let rows: Vec<&CatalogueRow> = f
         .catalogue
         .iter()
@@ -112,6 +126,15 @@ fn every_catalogued_transit_in_coverage_is_found_within_a_minute() {
         Worst::default(),
         Worst::default(),
     );
+    // Two rows the catalogue prints with contact I equal to II and III equal to IV
+    // (Mercury 1891 May 10 and 2282 Nov 15, least separations 754" and 198": far from
+    // grazing, so the limb takes minutes to cross): their contacts are not compared
+    // (their greatest eclipse and least separation still are). They came into the
+    // coverage when it became 1550-2650 (deeptime agent).
+    let misprinted = |r: &CatalogueRow| {
+        r.c1_jd_ut.is_some() && (r.c1_jd_ut == r.c2_jd_ut || r.c3_jd_ut == r.c4_jd_ut)
+    };
+    assert_eq!(rows.iter().filter(|r| misprinted(r)).count(), 2);
     for r in rows {
         let t = list
             .transits
@@ -123,13 +146,19 @@ fn every_catalogued_transit_in_coverage_is_found_within_a_minute() {
         // Espenak's Delta-T after 2003 is an extrapolation made then; NASA's 2006
         // polynomial stands in for it, and the difference from our TT - UTC is allowed.
         let dt_allow = (r.nasa_polynomial_delta_t_s - t.tt_minus_utc_s).abs();
-        for (kind, want) in [
-            ("c1", r.c1_jd_ut),
-            ("c2", r.c2_jd_ut),
-            ("greatest", Some(r.greatest_jd_ut)),
-            ("c3", r.c3_jd_ut),
-            ("c4", r.c4_jd_ut),
-        ] {
+        let contacts = if misprinted(r) {
+            [("greatest", Some(r.greatest_jd_ut))].to_vec()
+        } else {
+            [
+                ("c1", r.c1_jd_ut),
+                ("c2", r.c2_jd_ut),
+                ("greatest", Some(r.greatest_jd_ut)),
+                ("c3", r.c3_jd_ut),
+                ("c4", r.c4_jd_ut),
+            ]
+            .to_vec()
+        };
+        for (kind, want) in contacts {
             match want {
                 Some(w) => {
                     let d = (t.contacts_jd(kind) - w) * 86_400.0;
@@ -146,7 +175,7 @@ fn every_catalogued_transit_in_coverage_is_found_within_a_minute() {
             }
         }
         // Durations do not depend on Delta-T: two roundings to the minute.
-        if let (Some(c1), Some(c4)) = (r.c1_jd_ut, r.c4_jd_ut) {
+        if let (Some(c1), Some(c4), false) = (r.c1_jd_ut, r.c4_jd_ut, misprinted(r)) {
             let ours = t.contacts_jd("c4") - t.contacts_jd("c1");
             dur.add((ours - (c4 - c1)) * 86_400.0, || {
                 format!("{} {}", r.planet, r.date)

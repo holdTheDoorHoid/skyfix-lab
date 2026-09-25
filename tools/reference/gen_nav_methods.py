@@ -28,6 +28,12 @@ Truth that the Rust methods must recover, computed here independently:
 Moving vessels in the noon and averaging cases follow the great circle through the
 reference position with the stated course there, which is the model those methods
 state (docs/NAVIGATION_METHODS.md, "Moving vessel").
+
+    tools/reference/.venv/bin/python -m tools.reference.gen_nav_methods \
+        [--window 1900..2100] [--kernel de421]
+
+`--window` keeps the cases whose first instant is inside it; `--kernel` names the
+ephemeris.
 """
 
 from __future__ import annotations
@@ -152,7 +158,7 @@ def offset_position(lat, lon, bearing_deg, dist_nm):
 class Sky:
     def __init__(self):
         self.ts = c.load_timescale()
-        self.eph = c.load_ephemeris(c.EPHEMERIS_FILE)
+        self.eph = c.run_ephemeris()  # --kernel, DE421 by default
         self.earth = self.eph["earth"]
         self.sun = self.eph["sun"]
         df = c.load_hipparcos_frame()
@@ -621,7 +627,23 @@ def running_fix_cases(sky):
 # ---------------------------------------------------------------------------
 
 
-def main():
+def _first_jd(case):
+    """The instant of a case: its own jd_utc, or its first sight's."""
+    if "jd_utc" in case:
+        return float(case["jd_utc"].v if hasattr(case["jd_utc"], "v") else case["jd_utc"])
+    s = case["sights"][0]
+    s = s.o if hasattr(s, "o") else s
+    v = s.get("jd_utc")
+    return float(v.v if hasattr(v, "v") else v)
+
+
+def _in_window(cases):
+    """--window keeps the cases whose (first) instant is inside it."""
+    return [k for k in cases if c.in_window(_first_jd(k.o if hasattr(k, "o") else k))]
+
+
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "1900..2100", "de421")
     sky = Sky()
     doc = {
         "schema": "skyfix.reference/1",
@@ -653,11 +675,12 @@ def main():
                 ),
             },
         ),
-        "noon": noon_cases(sky),
-        "polaris": polaris_cases(sky),
-        "averaging": averaging_cases(sky),
-        "running_fix": running_fix_cases(sky),
+        "noon": _in_window(noon_cases(sky)),
+        "polaris": _in_window(polaris_cases(sky)),
+        "averaging": _in_window(averaging_cases(sky)),
+        "running_fix": _in_window(running_fix_cases(sky)),
     }
+    doc["generator"]["run"] = c.RUN.facts()
     c.write_json(OUT, doc)
 
 

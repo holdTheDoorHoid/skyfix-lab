@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use skyfix_almanac::apsides::{ApsisKind, SyzygyKind, find_apsides, moon_apsides};
 use skyfix_core::time::{civil_to_jd, jd_tt};
 use skyfix_ephemeris::body::Sky;
-use skyfix_ephemeris::moon::{MoonProvider, elp82b_ecliptic_j2000_km};
+use skyfix_ephemeris::moon::{MoonProvider, elp_geocentric_icrs_km};
 
 fn fixture() -> serde_json::Value {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -128,12 +128,13 @@ fn supermoons_micromoons_and_the_years_extremes_agree() {
 
 #[test]
 fn meeus_example_50a_apogee_of_october_1988() {
-    // 1988 is outside this build's Moon coverage, so the search runs on the embedded
-    // lunar theory itself (the same series the provider evaluates).
+    // The search runs on the embedded lunar theory itself (the same series the provider
+    // evaluates; deeptime agent: ELP/MPP02, geocentric ICRS, whose distance is the same
+    // in any frame; 1988 is inside the provider's coverage now as well).
     let fx = fixture();
     let m = &fx["meeus_50a"];
     let dist = |jd_utc: f64| -> Result<f64, skyfix_almanac::sky::AlmanacError> {
-        let p = elp82b_ecliptic_j2000_km(jd_tt(jd_utc)).unwrap();
+        let p = elp_geocentric_icrs_km(jd_tt(jd_utc)).unwrap();
         Ok((p[0] * p[0] + p[1] * p[1] + p[2] * p[2]).sqrt())
     };
     let a = civil_to_jd(1988, 10, 1);

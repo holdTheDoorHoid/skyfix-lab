@@ -130,7 +130,7 @@ fn unknown_bodies_are_refused_by_name() {
 fn queries_outside_coverage_are_refused_with_the_range() {
     let p = StarProvider::new();
     let cov = p.coverage();
-    for outside in ["1989-12-31T23:00:00Z", "2061-01-01T00:00:01Z"] {
+    for outside in ["1549-12-31T23:00:00Z", "2650-01-22T00:00:01Z"] {
         match p.geocentric("Vega", jd(outside)) {
             Err(EphemerisError::OutOfCoverage { coverage, .. }) => {
                 assert!(
@@ -142,8 +142,8 @@ fn queries_outside_coverage_are_refused_with_the_range() {
         }
     }
     // The edges themselves are inside.
-    assert!(p.geocentric("Vega", jd("1990-01-01T00:00:00Z")).is_ok());
-    assert!(p.geocentric("Vega", jd("2060-12-31T23:59:59Z")).is_ok());
+    assert!(p.geocentric("Vega", jd("1550-01-01T00:00:00Z")).is_ok());
+    assert!(p.geocentric("Vega", jd("2650-01-22T00:00:00Z")).is_ok());
     // Verifier regression: a NaN instant compared false with both ends and came back
     // as Ok with a NaN GHA and declination; it is refused like the other providers do.
     for bad in [f64::NAN, f64::INFINITY, f64::NEG_INFINITY] {
@@ -267,8 +267,9 @@ fn supplying_dut1_moves_gha_and_nothing_else() {
 #[test]
 fn coverage_declares_its_models_and_its_provisional_data() {
     let cov = StarProvider::new().coverage();
-    assert_eq!(cov.start_utc, "1990-01-01T00:00:00Z");
-    assert_eq!(cov.end_utc, "2060-12-31T23:59:59Z");
+    // The validated tier (docs/CONVENTIONS.md 7); the labelled tier is opt-in.
+    assert_eq!(cov.start_utc, "1550-01-01T00:00:00Z");
+    assert_eq!(cov.end_utc, "2650-01-22T00:00:00Z");
     assert!(cov.accuracy_arcmin > 0.0 && cov.accuracy_arcmin <= 0.05);
     for expected in [
         "IAU 2006",

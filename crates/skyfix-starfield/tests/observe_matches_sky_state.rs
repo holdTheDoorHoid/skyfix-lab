@@ -2,11 +2,15 @@
 //! every deep-sky object, radiant and the galactic centre takes (`observe::Frame` for the
 //! apparent place, `observe::SiteFrame` for altitude and azimuth) is held to the
 //! explorer's own `sky_state` for all 58 navigational stars, pushed through it with their
-//! navigation-catalogue positions, proper motions and parallaxes, at several instants
-//! and sites from the equator to 78 degrees.
+//! navigation-catalogue places and parallaxes, at several instants and sites from the
+//! equator to 78 degrees. (deeptime agent: the catalogue's stars move by rigorous space
+//! motion with radial velocities, and Rigil Kentaurus on its orbit, which the frame's
+//! linear-from-J2000 proper motion is not meant to reproduce; so each star enters here at
+//! its barycentric place of the instant, with no proper motion, and the test isolates the
+//! frame chain as it always meant to.)
 
 use skyfix_almanac::sky::sky_state;
-use skyfix_core::time::civil_to_jd;
+use skyfix_core::time::{civil_to_jd, jd_tt};
 use skyfix_ephemeris::body::Sky;
 use skyfix_ephemeris::catalog::navigational_stars;
 use skyfix_ephemeris::topocentric::Site;
@@ -50,13 +54,10 @@ fn fixed_objects_follow_sky_state_to_a_microarcsecond() {
             let frame = Frame::at(jd).unwrap();
             for star in navigational_stars() {
                 let b = state.bodies.iter().find(|b| b.body == star.name).unwrap();
-                let (ra, dec) = frame.apparent_star(
-                    star.ra_j2000_deg,
-                    star.dec_j2000_deg,
-                    star.pm_ra_cosdec_mas_per_year,
-                    star.pm_dec_mas_per_year,
-                    star.parallax_mas,
+                let (ra0, dec0) = skyfix_ephemeris::frames::radec_from_vector(
+                    star.barycentric_direction(jd_tt(jd)),
                 );
+                let (ra, dec) = frame.apparent_star(ra0, dec0, 0.0, 0.0, star.parallax_mas);
                 let h = sf.horizontal(frame.gha_deg(ra), dec);
                 let d_alt = (h.alt_deg - b.alt_deg).abs() * 3600.0;
                 let d_az = ((h.az_deg - b.az_deg + 540.0).rem_euclid(360.0) - 180.0).abs()

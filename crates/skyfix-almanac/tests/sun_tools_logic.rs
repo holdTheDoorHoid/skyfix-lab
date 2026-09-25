@@ -300,8 +300,8 @@ fn the_default_band_keeps_only_crossings_above_the_horizon() {
         &sky,
         &site,
         SUN,
-        civil_to_jd(2070, 1, 1),
-        civil_to_jd(2070, 1, 2),
+        civil_to_jd(2651, 1, 1),
+        civil_to_jd(2651, 1, 2),
         90.0,
         &all,
     )
@@ -423,14 +423,14 @@ fn a_bearing_the_body_never_reaches_says_by_how_much() {
     for bad in [
         r#"{"year": 2026, "azimuth_deg": 90, "tolerance_deg": 0, "event": {"kind": "set"}}"#,
         r#"{"year": 2026, "azimuth_deg": 90, "event": {"kind": "set"}, "utc_offset_hours": 20}"#,
-        r#"{"year": 2126, "azimuth_deg": 90, "event": {"kind": "set"}}"#,
+        r#"{"year": 2651, "azimuth_deg": 90, "event": {"kind": "set"}}"#,
     ] {
         let req: AlignmentRequest = serde_json::from_str(bad).unwrap();
         assert!(alignment_days(&sky, &manhattan(), &req).is_err(), "{bad}");
     }
     // A year outside the coverage is refused about the body asked for.
     let late: AlignmentRequest = serde_json::from_str(
-        r#"{"body": "Moon", "year": 2126, "azimuth_deg": 90, "event": {"kind": "rise"}}"#,
+        r#"{"body": "Moon", "year": 2651, "azimuth_deg": 90, "event": {"kind": "rise"}}"#,
     )
     .unwrap();
     match alignment_days(&sky, &manhattan(), &late) {
@@ -594,20 +594,22 @@ fn rise_and_set_azimuths_through_the_year_are_the_days_events() {
     assert!(get("2026-06-21").always_above && get("2026-06-21").sets.is_empty());
     assert!(get("2026-12-21").always_below && get("2026-12-21").rises.is_empty());
     assert!(!get("2026-03-21").always_above && !get("2026-03-21").always_below);
-    // The last local year of the coverage is clipped, not refused.
+    // The last local year of the coverage is clipped, not refused (deeptime agent: the
+    // validated tier ends 2650-01-22T00:00Z, so at UTC-5 the local days 1 to 20 January
+    // are whole).
     let edge = rise_set_azimuths(
         &sky,
         &site,
         &RiseSetRequest {
             body: "Sun".into(),
-            year: 2060,
+            year: 2650,
             utc_offset_hours: Some(-5.0),
             options: None,
         },
     )
     .unwrap();
     assert!(
-        edge.truncated && edge.days.len() == 365,
+        edge.truncated && edge.days.len() == 20,
         "{}",
         edge.days.len()
     );
@@ -646,7 +648,8 @@ fn the_equation_of_time_series_is_the_almanac_pages_value() {
         assert!(d.starts_with(prefix), "{d} vs {prefix}");
     }
     assert!(equation_of_time(&sky, 2026, 24.0).is_err());
-    assert!(equation_of_time(&sky, 2100, 12.0).is_err());
+    // Past the validated tier (2650-01-22, deeptime agent).
+    assert!(equation_of_time(&sky, 2651, 12.0).is_err());
     let edge = equation_of_time(&sky, 2060, 23.99).unwrap();
     assert_eq!(edge.points.len(), 366);
 }

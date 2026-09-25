@@ -16,7 +16,7 @@
 //! Run with `-- --nocapture` to see the worst deviation of every quantity.
 
 use serde::Deserialize;
-use skyfix_core::time::{legacy_fixture_instant, parse_utc};
+use skyfix_core::time::{jd_tt, parse_utc};
 use skyfix_core::units::norm_180;
 use skyfix_ephemeris::AstroProvider;
 use skyfix_ephemeris::body::BodyEphemeris;
@@ -48,6 +48,10 @@ struct Tolerances {
 struct Case {
     utc: String,
     jd_utc: f64,
+    /// TT of the instant (tools/timescales/skyfield_timescale.py, SkyFix Lab's own
+    /// Delta T): the test checks the provider's clock gives the same TT.
+    #[serde(default)]
+    jd_tt: Option<f64>,
     dut1_s: f64,
     set: String,
     moon: Moon,
@@ -151,11 +155,17 @@ fn compare(text: &str, label: &str, provider: &MoonProvider) -> Result<Report, S
                 case.utc, case.jd_utc
             ));
         }
-        // timescales agent: the fixture took TT = UTC + 69.184 s and UT1 = UTC after 2035;
-        // the clock is UT there now (CONVENTIONS 15.2). Evaluate the fixture's own TT and
-        // UT1 (identical up to 2035) until the fixture is regenerated on the new scale.
-        let (jd, shift) = legacy_fixture_instant(jd);
-        let provider = &MoonProvider::with_dut1_s(provider.dut1_s() + shift);
+        // The fixture is on the app's clock (CONVENTIONS 15.2) with SkyFix Lab's own Delta T,
+        // so its TT is the provider's: Delta T is not part of the comparison.
+        if let Some(tt) = case.jd_tt
+            && (jd_tt(jd) - tt).abs() * 86_400.0 > 1e-3
+        {
+            return Err(format!(
+                "{label} case {}: the fixture's TT is {:.4} s from the clock's",
+                case.utc,
+                (jd_tt(jd) - tt) * 86_400.0
+            ));
+        }
         let st = provider
             .apparent_state("Moon", jd)
             .map_err(|e| format!("{label} case {}: {e}", case.utc))?;
@@ -224,7 +234,7 @@ fn compare(text: &str, label: &str, provider: &MoonProvider) -> Result<Report, S
         }
 
         if i % 10 == 0 {
-            let with = MoonProvider::with_dut1_s(case.dut1_s + shift)
+            let with = MoonProvider::with_dut1_s(case.dut1_s)
                 .position(jd)
                 .map_err(|e| format!("{label} case {}: {e}", case.utc))?;
             let d = norm_180(with.gha_deg - m.gha_deg) * 60.0;

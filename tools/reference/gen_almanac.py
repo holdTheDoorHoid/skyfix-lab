@@ -8,8 +8,9 @@ For each date in DATES this computes every quantity a daily page tabulates
 (crates/skyfix-almanac/src/pages.rs, CONVENTIONS 13.9), coded from the text of
 those definitions with Skyfield supplying the astronomy:
 
-* **Time**: UT1 = UTC (DUT1 = 0, CONVENTIONS 6) through gen_events'
-  `dut1_zero_timescale` (Delta-T = 32.184 s + TAI - UTC). Julian dates are jd_utc.
+* **Time**: the app's clock (CONVENTIONS 15.2: UTC 1972-2035, UT outside) with UT1 = UTC
+  on the UTC scale (DUT1 = 0, CONVENTIONS 6) and SkyFix Lab's own Delta T
+  (`common.load_timescale(dut1_zero=True)`). Julian dates are jd_utc, the clock's.
 * **Hourly** (00h to 24h, the 25th only for v and d): GHA Aries = GAST; apparent
   geocentric GHA = GAST - RA and Dec of date for the Sun, the Moon, Venus, Mars,
   Jupiter and Saturn (DE440s; Mars to Saturn are their system barycentres, as in
@@ -43,7 +44,11 @@ Navigation Data answers for a few whole hours, queried at each body's own ground
 point so that it is above the horizon, and one-day rise/set/twilight answers at the
 Greenwich meridian.
 
-    tools/reference/.venv/bin/python -m tools.reference.gen_almanac [--usno | --usno-only]
+    tools/reference/.venv/bin/python -m tools.reference.gen_almanac [--usno | --usno-only] \
+        [--window 1990..2060] [--kernel de440s]
+
+`--window` keeps the DATES inside it; `--kernel` names the ephemeris (outside the
+validated tier the frame of date is the app's long-term one, `common.use_app_frame`).
 """
 
 from __future__ import annotations
@@ -403,15 +408,16 @@ def build_day(ts, eph, stars, date):
 
 
 def build():
-    ts = ge.dut1_zero_timescale()
-    eph = c.load_ephemeris(c.EPHEMERIS_CROSSCHECK_FILE)
+    ts = c.load_timescale(dut1_zero=True)
+    eph = c.run_ephemeris()
     df = c.load_hipparcos_frame()
     stars, _rows, problems = c.build_stars(df)
     if problems:
         raise RuntimeError("star identity doubts: %s" % problems)
     days = []
     kinds = {}
-    for date in DATES:
+    dates = [d for d in DATES if c.in_window(civil_jd(*d))]
+    for date in dates:
         t0 = _time.time()
         day = build_day(ts, eph, stars, date)
         for row in day["rise_set"]:
@@ -430,7 +436,8 @@ def build():
             tool="tools/reference/gen_almanac.py",
             description=(
                 "Every quantity of a daily almanac page (CONVENTIONS 13.9) for %d dates "
-                "1990-2060 from Skyfield + DE440s, UT1 = UTC." % len(DATES)
+                "in %s from Skyfield + %s, UT1 = UTC on the UTC scale."
+                % (len(dates), c.RUN.window_text, c.kernel_label())
             ),
             tolerance_arcmin=c.Num(0.1, 1),
             tolerance_justification=(
@@ -439,12 +446,18 @@ def build():
                 "for the equation of time."
             ),
             frame_notes=c.GEOCENTRIC_FRAME_NOTES,
+            timescale=c.project_timescale_facts(),
             extra={
-                "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+                "run": c.RUN.facts(),
+                "frame_of_date": c.app_frame_facts(),
+                "ephemeris": c.run_kernel_facts(),
                 "catalogue": c.file_facts(c.HIPPARCOS_FILE, c.HIPPARCOS_URL),
+                "stars": ("Hipparcos with SIMBAD radial velocities and rigorous space motion; "
+                          "Rigil Kentaurus (alpha Cen A) on its ORB6 orbit (common.build_stars)"),
                 "time": (
-                    "UT1 = UTC (DUT1 = 0, CONVENTIONS 6): Delta-T = 32.184 s + (TAI - UTC). "
-                    "Julian dates are jd_utc (UTC calendar, 86 400 s per day)."
+                    "The app's clock (CONVENTIONS 15.2): UTC 1972-2035 with UT1 = UTC (DUT1 = 0, "
+                    "CONVENTIONS 6), UT (= UT1) outside, TT from SkyFix Lab's own Delta T. "
+                    "Julian dates are jd_utc, the clock's (86 400 s per day)."
                 ),
                 "hours": (
                     "25 rows, 00h to 24h of the date; the 25th (00h of the next date, "
@@ -468,7 +481,7 @@ def build():
                     "a test can recognise such a case."
                 ),
                 "latitudes": LATITUDES,
-                "dates": ["%04d-%02d-%02d" % dd for dd in DATES],
+                "dates": ["%04d-%02d-%02d" % dd for dd in dates],
             },
         ),
         "days": days,
@@ -489,8 +502,8 @@ USNO_ONEDAY = [(50.0, (2026, 9, 24)), (0.0, (2026, 9, 24)), (-40.0, (2026, 9, 24
 
 
 def build_usno():
-    ts = ge.dut1_zero_timescale()
-    eph = c.load_ephemeris(c.EPHEMERIS_CROSSCHECK_FILE)
+    ts = c.load_timescale(dut1_zero=True)
+    eph = c.run_ephemeris()
     celnav = []
     for y, m, d, h in USNO_INSTANTS:
         t = ts.utc(y, m, d, h)
@@ -562,6 +575,8 @@ def build_usno():
 
 
 def main_usno_only():
+    if c.RUN.kernel is None:
+        c.setup([], None, "1990..2060", "de440s")
     try:
         doc = build_usno()
     except (OSError, subprocess.CalledProcessError, KeyError, ValueError) as e:
@@ -576,7 +591,13 @@ def main_offline():
 
 
 def main(argv=None):
+    import argparse
+
     argv = sys.argv[1:] if argv is None else argv
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--usno", action="store_true", help="also query USNO (network)")
+    ap.add_argument("--usno-only", action="store_true", help="only query USNO (network)")
+    c.setup(argv, None, "1990..2060", "de440s", parser=ap)
     if "--usno-only" not in argv:
         t = _time.time()
         c.write_json(os.path.join(c.FIX_REFERENCE, OUT), build())

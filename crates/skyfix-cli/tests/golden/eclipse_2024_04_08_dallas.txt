@@ -1,5 +1,5 @@
 TOTAL SOLAR ECLIPSE  2024-04-08-solar
-Greatest   2024-04-08T18:17:20Z at 25 17.33' N, 104 08.78' W (25.288760, -104.146253),
+Greatest   2024-04-08T18:17:20Z at 25 17.32' N, 104 08.85' W (25.288639, -104.147515),
            the Sun at altitude +69 47.6, azimuth 149 23.3 there
 Magnitude  1.0566: the Moon's apparent diameter over the Sun's at greatest eclipse
 Gamma      +0.3431: the shadow's axis passes 0.3431 Earth radii north of the Earth's
@@ -10,29 +10,29 @@ Delta-T    69.201 s (TT - UT1), assumed by every place and local time here
 
 The shadow on the Earth
   p1  2024-04-08T15:42:14Z  the partial eclipse begins: the penumbra first touches the Earth
-  u1  2024-04-08T16:38:51Z  the central eclipse begins: the umbra first touches the Earth
-  u4  2024-04-08T19:55:36Z  the central eclipse ends: the umbra leaves the Earth
+  u1  2024-04-08T16:38:52Z  the central eclipse begins: the umbra first touches the Earth
+  u4  2024-04-08T19:55:37Z  the central eclipse ends: the umbra leaves the Earth
   p4  2024-04-08T20:52:21Z  the eclipse ends: the penumbra leaves the Earth
 
 SEEN FROM  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84 ellipsoid
 Here       total: inside the path of totality, with the Sun up from first contact to
            last
-Totality   2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, 3 min 51 s
+Totality   2024-04-08T18:40:44Z to 2024-04-08T18:44:34Z, 3 min 51 s
 Maximum    2024-04-08T18:42:39Z: magnitude 1.015, 100% of the Sun's area covered, Sun
-           alt +64 36.8, Az 188 00.5
+           alt +64 36.8, Az 188 00.7
 Eclipse    2024-04-08T17:23:19Z to 2024-04-08T20:02:41Z, 2 h 39 min 22 s from first
            contact to last
 
   UTC                   event                           Sun alt        Az     P     V
-  2024-04-08T17:23:19Z  c1   partial eclipse begins    +60 34.2  145 18.9   226   255
-  2024-04-08T18:40:43Z  c2   totality begins           +64 40.0  186 54.1    19    13
-  2024-04-08T18:42:39Z  max  greatest eclipse          +64 36.8  188 00.5     -     -
-  2024-04-08T18:44:34Z  c3   totality ends             +64 33.3  189 06.5   256   248
-  2024-04-08T20:02:41Z  c4   partial eclipse ends      +56 44.3  226 01.8    49    12
+  2024-04-08T17:23:19Z  c1   partial eclipse begins    +60 34.3  145 19.1   226   255
+  2024-04-08T18:40:44Z  c2   totality begins           +64 39.9  186 54.4    19    13
+  2024-04-08T18:42:39Z  max  greatest eclipse          +64 36.8  188 00.7     -     -
+  2024-04-08T18:44:34Z  c3   totality ends             +64 33.2  189 06.8   255   248
+  2024-04-08T20:02:41Z  c4   partial eclipse ends      +56 44.2  226 01.9    49    12
 
 Eye safety: never look at the Sun, even when it is mostly covered, without certified
 eclipse glasses (ISO 12312-2) or a pinhole projector. Only during totality itself, here
-from 2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, is it safe to look with the naked
+from 2024-04-08T18:40:44Z to 2024-04-08T18:44:34Z, is it safe to look with the naked
 eye; the glasses go back on as the first bright point reappears.
 
 Times are UTC to the nearest second; --format json carries the milliseconds, and --path

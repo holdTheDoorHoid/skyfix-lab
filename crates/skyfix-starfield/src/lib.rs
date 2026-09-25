@@ -68,19 +68,22 @@ pub const LICENCE: &str = "U.S. Government Work (public domain); the constellati
      figures are SkyFix Lab's own (MIT OR Apache-2.0); boundaries and star names are \
      facts.";
 
-/// First instant the star field answers for. The models are validated over 1990-2060
-/// (CONVENTIONS 13.7); this wider window is display-only headroom where precession,
-/// nutation and linear proper motion are still good to about an arcsecond.
-pub const RANGE_START_UTC: &str = "1800-01-01T00:00:00Z";
-/// Last instant the star field answers for.
-pub const RANGE_END_UTC: &str = "2200-12-31T23:59:59Z";
+/// First instant the star field answers for: the ephemeris's validated tier
+/// (CONVENTIONS 15.1, deeptime agent; it was 1800-2200). The frame is the providers'
+/// own at every date; the Bright Star Catalogue's linear proper motions stay within a
+/// few arcseconds of the rigorous space motion across the tier, far below a drawn
+/// star's size. Display only: the navigational stars' own places come from
+/// `skyfix-ephemeris`.
+pub const RANGE_START_UTC: &str = skyfix_ephemeris::tiers::VALIDATED_START_UTC;
+/// Last instant the star field answers for (the validated tier's end).
+pub const RANGE_END_UTC: &str = skyfix_ephemeris::tiers::VALIDATED_END_UTC;
 
 fn range_start_jd() -> f64 {
-    skyfix_core::time::civil_to_jd(1800, 1, 1)
+    skyfix_ephemeris::tiers::JD_VALIDATED_START
 }
 
 fn range_end_jd() -> f64 {
-    skyfix_core::time::civil_to_jd(2200, 12, 31) + 86_399.0 / 86_400.0
+    skyfix_ephemeris::tiers::JD_VALIDATED_END
 }
 
 /// Everything that can go wrong. Malformed input only: the embedded data is checked by

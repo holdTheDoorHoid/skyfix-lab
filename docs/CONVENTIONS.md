@@ -227,6 +227,31 @@ low-altitude term above.
 - A topocentric direction vector is never mixed with a geocentric corrected altitude.
   Camera/attitude code (module A) produces *topocentric apparent* directions and must
   convert through the horizon frame explicitly.
+- **The frame of date by tier** (deeptime agent, 2026-09-25; tiers in §15.1). Inside the
+  validated tier: IAU 2006 precession (Fukushima-Williams angles, P03) with the IERS 2010
+  frame bias, the IAU 2006 mean obliquity and GMST, and IAU 2000B nutation evaluated with
+  the full Simon et al. (1994) polynomial fundamental arguments (the linear ones drift by
+  29 mas across the tier). Outside it: the long-term precession of Vondrák, Capitaine &
+  Wallace (2011; ERFA `eraLtpb`, with the same frame bias), its mean obliquity (the angle
+  between its ecliptic and equator poles) and GMST = ERA − the equation of the origins
+  of its mean pole (the CIO locator integrated along the long-term pole plus IAU 2006's
+  nutation term of `s`, `tools/reference/ltp.py`, fitted by 13 Chebyshev terms); near
+  J2000 that reproduces the IAU 2006 GMST polynomial to 0.03 mas (2050) and 0.3 mas
+  (1900). Nutation as inside. The switch is by TT at the tier's dates and moves a position by 7 mas (1550) and
+  15 mas (2650). Every provider (Sun, Moon, planets, stars) and the star field use the
+  same frame.
+- **The Sun is the VSOP87A Earth** (the planets' own Earth, with the corrections fitted to
+  DE440 and DE441), reversed, with light-time and relativistic vector aberration; the
+  planets are VSOP87A likewise; the Moon is ELP/MPP02 (§15.1, ACCURACY §21).
+- **Stars move rigorously**: rectilinear space motion from the Hipparcos epoch J1991.25
+  with each star's radial velocity (perspective acceleration included; SIMBAD values).
+  **Rigil Kentaurus is alpha Centauri A**, the body the Nautical Almanac tabulates, and
+  follows A's orbit about the A-B barycentre (USNO Sixth Orbit Catalog, Akeson et al.
+  2021): the barycentre moves on a straight line with A's catalogue proper motion less
+  A's orbital velocity at J1991.25, so at that epoch the model is the catalogue. The
+  Almanac and USNO's celnav extrapolate A's 1991 motion in a straight line instead; the
+  two differ by 5.8" in 2026 and 17" in 2060 (ACCURACY §21, "Rigil Kentaurus"). A sextant
+  sees the A+B light centre, about 2" from A in 2026; that is not modelled.
 
 ## 8. Solver (skyfix-core `solver`)
 
@@ -504,7 +529,11 @@ the ranking) are asked with the same sky (`sky/conditions.ts` `skyConditions`; a
 ### 13.7 Accuracy targets and validation
 
 Reference: Skyfield with JPL DE440s (DE421 as a cross-check), DUT1 = 0 columns as in
-section 11, over 1990-2060.
+section 11, over 1990-2060; and, per tier (deeptime agent, 2026-09-25), Skyfield with JPL
+DE440 per half-century of the validated tier and DE441 per century of the labelled one
+(`fixtures/reference/deeptime_bodies.json`), every case at the fixture's own TT and UT1
+so that Delta T is not part of the comparison. Fixtures are built on the app's clock with
+SkyFix Lab's own Delta T (`tools/timescales/skyfield_timescale.py`, section 11).
 
 | quantity | target (worst case) |
 |---|---|
@@ -519,6 +548,17 @@ section 11, over 1990-2060.
 
 A provider that misses its target is shipped only with `validated: false` in
 `explorer_coverage` and is not offered for sights.
+
+The targets above hold over the whole **validated tier** (1550-2650), where the published
+per-provider figures are (arcminutes, worst of GHA and Dec): Sun 0.01, Moon 0.02, each
+planet 0.02 (Mercury and Venus 0.005, Uranus 0.03), stars 0.03 (model plus the
+catalogue's formal 1-sigma at the
+tier's edges; Rigil Kentaurus's barycentric motion apart). In the **labelled tier** the
+figures are measured and published but carry no target (display only, no sights): Sun
+0.02, Moon 0.05, Mercury 0.02, Venus 0.06, Mars 0.15, Jupiter 0.25, Saturn 0.7, Uranus 0.2,
+Neptune 0.06, stars 0.2. `docs/ACCURACY.md` section 21 has the table per half-century and
+per century they come from, and `crates/skyfix-ephemeris/tests/deeptime_reference.rs`
+asserts every case against them.
 
 ### 13.8 Displayed time
 
@@ -1056,6 +1096,14 @@ subsections they own and say so in their reports.
   is measured per century against DE441 and tabulated; every displayed time carries the ΔT
   uncertainty when it exceeds the display precision; no sights, no predicted readings, no
   planner (`outside_validated_tier`).
+- Refined by the deeptime agent (2026-09-25): **both tiers are in the core module**; the
+  `deep-time` pack was not needed (the two-tier series is smaller than the one-tier data
+  it replaced, EXPLORER_API "coverage tiers as built"). A provider built with `new()`
+  answers the validated tier only (`TierPolicy::ValidatedOnly`, what every sight, fix and
+  plan path uses); the explorer's display path builds `Sky::with_policy(
+  TierPolicy::WithLabelled)`. The tier of an instant is decided on the app's clock
+  (`skyfix_ephemeris::tiers::tier_at`); the model switches inside the providers (series
+  prefix, precession model, correction blend) are keyed on TT at the same dates.
 - **outside**: refused, with the same wording as today.
 
 ### 15.2 Time scales
@@ -1181,6 +1229,10 @@ installs wider series tables and the long-term precession; the `tides-us` pack i
 station constants; the `lunar-limb` pack installs a limb profile. `explorer_coverage()`
 reflects loaded packs. A pack is loaded per page session from the app's own cache; the
 core module never depends on one.
+
+Refined by the deeptime agent (2026-09-25): the `deep-time` pack above was not built. Both
+tiers ship in the core module (15.1), no `deep-time` producer is registered, and no pack is
+needed or offered for a date between 2000 BC and AD 3000.
 
 Refined by the packs agent (2026-09-24; the mechanism: EXPLORER_API "Packs — the mechanism
 as built"):

@@ -418,7 +418,10 @@ fn second_and_third_contact_against_nasa_svs() {
         // Moon or of the Sun can do (it would lengthen one and shorten the other).
         assert!(worst2 < 1.5, "{id} c2 {worst2}");
         assert!(worst3 < 3.5, "{id} c3 {worst3}");
-        assert!((-2.0..-1.0).contains(&mean3), "{id} c3 mean {mean3}");
+        // On the two-tier series (deeptime agent: ELP/MPP02 and the VSOP87A Earth, 0.13"
+        // from DE440 in 1990-2060 where ELP 2000-82B was 0.89") the mean moved from -1.4 s
+        // to -0.9 s; the window allows both.
+        assert!((-2.0..-0.5).contains(&mean3), "{id} c3 mean {mean3}");
         assert!(mean2.abs() < 0.6, "{id} c2 mean {mean2}");
         assert!(
             within2 as f64 >= 0.85 * n,

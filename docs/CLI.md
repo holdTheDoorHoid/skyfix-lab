@@ -865,10 +865,10 @@ MOON PHASES  2026-09-01T00:00:00Z to 2026-10-01T00:00:00Z
 ...
 $ skyfix seasons --year 2026
 SEASONS 2026
-  2026-03-20T14:45:56Z  March equinox
-  2026-06-21T08:24:29Z  June solstice
-  2026-09-23T00:05:12Z  September equinox
-  2026-12-21T20:50:13Z  December solstice
+  2026-03-20T14:45:57Z  March equinox
+  2026-06-21T08:24:30Z  June solstice
+  2026-09-23T00:05:13Z  September equinox
+  2026-12-21T20:50:14Z  December solstice
 ...
 ```
 
@@ -882,10 +882,10 @@ solstice falls on the 22nd:
 $ skyfix seasons --year 2026 --zone nautical --lon 151.21
 SEASONS 2026, shown in nautical ZD -10 (UTC+10:00)
   local                UTC                   season
-  2026-03-21 00:45:56  2026-03-20T14:45:56Z  March equinox
-  2026-06-21 18:24:29  2026-06-21T08:24:29Z  June solstice
-  2026-09-23 10:05:12  2026-09-23T00:05:12Z  September equinox
-  2026-12-22 06:50:13  2026-12-21T20:50:13Z  December solstice
+  2026-03-21 00:45:57  2026-03-20T14:45:57Z  March equinox
+  2026-06-21 18:24:30  2026-06-21T08:24:30Z  June solstice
+  2026-09-23 10:05:13  2026-09-23T00:05:13Z  September equinox
+  2026-12-22 06:50:14  2026-12-21T20:50:14Z  December solstice
 ...
 $ skyfix phases --from 2026-09-01 --to 2026-09-30 --zone -04:00
 MOON PHASES  2026-09-01T04:00:00Z to 2026-10-01T04:00:00Z, shown in UTC-04:00
@@ -923,13 +923,13 @@ ECLIPSES  2024-01-01T00:00:00Z to 2026-01-01T00:00:00Z, solar and lunar
 Observer  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84 ellipsoid
 
   id                type       greatest eclipse          mag  pen.mag    gamma  saros
-  2024-03-25-lunar  penumbral  2024-03-25T07:12:52Z  -0.1325   0.9556  +1.0609    113
+  2024-03-25-lunar  penumbral  2024-03-25T07:12:53Z  -0.1325   0.9556  +1.0609    113
       here: all of it seen, with the Moon up throughout; greatest eclipse
-      2024-03-25T07:12:52Z, Moon alt +54 20.0, Az 196 38.3
+      2024-03-25T07:12:53Z, Moon alt +54 20.0, Az 196 38.5
   2024-04-08-solar  total      2024-04-08T18:17:20Z   1.0566        -  +0.3431    139
       here: total for 3 min 51 s, with the Sun up throughout; maximum
       2024-04-08T18:42:39Z, magnitude 1.015 (100% of the Sun's area covered), Sun alt
-      +64 36.8, Az 188 00.5
+      +64 36.8, Az 188 00.7
 ...
   2025-03-29-solar  partial    2025-03-29T10:47:27Z   0.9376        -  +1.0405    149
       here: not seen: the Sun is below the horizon throughout; maximum
@@ -976,7 +976,7 @@ carries an eye-safety line, fitted to what the place sees.
 ```console
 $ skyfix eclipse 2024-04-08-solar --lat 32.78 --lon -96.80
 TOTAL SOLAR ECLIPSE  2024-04-08-solar
-Greatest   2024-04-08T18:17:20Z at 25 17.33' N, 104 08.78' W (25.288760, -104.146253),
+Greatest   2024-04-08T18:17:20Z at 25 17.32' N, 104 08.85' W (25.288639, -104.147515),
            the Sun at altitude +69 47.6, azimuth 149 23.3 there
 Magnitude  1.0566: the Moon's apparent diameter over the Sun's at greatest eclipse
 ...
@@ -985,22 +985,22 @@ Path       197.5 km wide at greatest eclipse, where totality lasts 4 min 28 s
 SEEN FROM  32 46.80' N, 096 48.00' W (32.780000, -96.800000), 0 m above the WGS84 ellipsoid
 Here       total: inside the path of totality, with the Sun up from first contact to
            last
-Totality   2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, 3 min 51 s
+Totality   2024-04-08T18:40:44Z to 2024-04-08T18:44:34Z, 3 min 51 s
 Maximum    2024-04-08T18:42:39Z: magnitude 1.015, 100% of the Sun's area covered, Sun
-           alt +64 36.8, Az 188 00.5
+           alt +64 36.8, Az 188 00.7
 Eclipse    2024-04-08T17:23:19Z to 2024-04-08T20:02:41Z, 2 h 39 min 22 s from first
            contact to last
 
   UTC                   event                           Sun alt        Az     P     V
-  2024-04-08T17:23:19Z  c1   partial eclipse begins    +60 34.2  145 18.9   226   255
-  2024-04-08T18:40:43Z  c2   totality begins           +64 40.0  186 54.1    19    13
-  2024-04-08T18:42:39Z  max  greatest eclipse          +64 36.8  188 00.5     -     -
-  2024-04-08T18:44:34Z  c3   totality ends             +64 33.3  189 06.5   256   248
-  2024-04-08T20:02:41Z  c4   partial eclipse ends      +56 44.3  226 01.8    49    12
+  2024-04-08T17:23:19Z  c1   partial eclipse begins    +60 34.3  145 19.1   226   255
+  2024-04-08T18:40:44Z  c2   totality begins           +64 39.9  186 54.4    19    13
+  2024-04-08T18:42:39Z  max  greatest eclipse          +64 36.8  188 00.7     -     -
+  2024-04-08T18:44:34Z  c3   totality ends             +64 33.2  189 06.8   255   248
+  2024-04-08T20:02:41Z  c4   partial eclipse ends      +56 44.2  226 01.9    49    12
 
 Eye safety: never look at the Sun, even when it is mostly covered, without certified
 eclipse glasses (ISO 12312-2) or a pinhole projector. Only during totality itself, here
-from 2024-04-08T18:40:43Z to 2024-04-08T18:44:34Z, is it safe to look with the naked
+from 2024-04-08T18:40:44Z to 2024-04-08T18:44:34Z, is it safe to look with the naked
 eye; the glasses go back on as the first bright point reappears.
 ...
 ```
@@ -1081,11 +1081,11 @@ Planets        Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune
 
   UTC                   planet   event                      elong.    mag  dist au  transit
   2026-01-06T16:36:01Z  Venus    superior conjunction       0 42.6  -3.91   1.7109        -
-  2026-01-09T08:05:48Z  Jupiter  closest approach         178 47.3  -2.68   4.2317        -
-  2026-01-09T11:41:13Z  Mars     conjunction                0 56.5   1.08   2.4034        -
-  2026-01-10T08:42:15Z  Jupiter  opposition               179 44.3  -2.68   4.2319        -
+  2026-01-09T08:05:46Z  Jupiter  closest approach         178 47.3  -2.68   4.2317        -
+  2026-01-09T11:41:16Z  Mars     conjunction                0 56.5   1.08   2.4034        -
+  2026-01-10T08:42:12Z  Jupiter  opposition               179 44.3  -2.68   4.2319        -
 ...
-  2026-08-15T06:31:36Z  Venus    greatest elongation east  45 53.5  -4.43   0.6860        -
+  2026-08-15T06:31:35Z  Venus    greatest elongation east  45 53.5  -4.43   0.6860        -
 ...
   2026-10-24T03:44:08Z  Venus    inferior conjunction       6 30.8  -4.19   0.2729       no
 ...
@@ -1135,14 +1135,14 @@ DR         39 46.76' N, 075 17.72' W (39.779322, -75.295321), sigma 10 NM, from 
 Sun, 21 sight(s): curve fit, curvature predicted; the Sun crossed the meridian SOUTH of
 the zenith
 
-Latitude   39 57.15' N (39.952583) sigma 0.11'
+Latitude   39 57.16' N (39.952600) sigma 0.11'
            The Sun crossed your meridian SOUTH of the zenith, so latitude = declination +
            zenith distance, counting north as positive: −0°16.3′ + 40°13.5′ = +39°57.2′
            (39°57.2′ N). Zenith distance = 90° − meridian altitude 49°46.5′.
 Meridian   altitude +49 46.5 (Ho of the centre at passage), declination S 0 16.3, zenith
            distance 40 13.5
 Passage    2026-09-23T16:52:58Z sigma 7.0 s
-Longitude  075 09.91' W (-75.165190) sigma 1.75' of longitude, 1.34 NM east-west (of
+Longitude  075 09.91' W (-75.165200) sigma 1.75' of longitude, 1.34 NM east-west (of
            which the clock 0.00')
            Near noon the Sun's height hardly changes: for about 5 minutes either side of
            the peak it is within 1′ of its highest. The time of the peak — and the
@@ -1282,7 +1282,7 @@ What the dead reckoning adds to each sight's sigma
   r2             0.00      0.0  290 29.8      0.50      0.00      0.50
 
 UNIQUE FIX
-Position     40.600001, -70.000005
+Position     40.600001, -70.000004
              40 36.00' N, 070 00.00' W
 Uncertainty  sigma north 1502.1 m (0.811 NM), sigma east 1077.5 m (0.582 NM)
 ...

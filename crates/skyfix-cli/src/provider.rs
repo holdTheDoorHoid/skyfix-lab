@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn the_auto_coverage_summary_is_the_intersection() {
         let s = coverage_summary(AUTO_PROVIDER_NAME).expect("auto is summarised");
-        assert!(s.contains("1990-01-01"), "{s}");
+        assert!(s.contains("1550-01-01"), "{s}");
         assert!(s.contains("every body"), "{s}");
         assert!(coverage_summary("nothing like this").is_none());
     }

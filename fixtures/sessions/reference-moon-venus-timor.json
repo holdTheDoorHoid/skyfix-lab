@@ -1,7 +1,7 @@
 {
   "clock": {
-    "dut1_s": 0,
     "correction_s": 0.000000,
+    "dut1_s": 0,
     "uncertainty_s": 0.000000
   },
   "instrument": {
@@ -16,7 +16,7 @@
   },
   "observations": [
     {
-      "altitude_deg": 40.3507822213,
+      "altitude_deg": 40.3507822395,
       "altitude_kind": "sextant_hs",
       "body": "Canopus",
       "horizon": null,
@@ -27,7 +27,7 @@
       "utc": "2026-11-26T19:52:00Z"
     },
     {
-      "altitude_deg": 26.5501166563,
+      "altitude_deg": 26.5501166648,
       "altitude_kind": "sextant_hs",
       "body": "Acrux",
       "horizon": null,

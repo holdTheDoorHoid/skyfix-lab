@@ -19,7 +19,7 @@
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
-use skyfix_core::time::{legacy_fixture_instant, parse_utc};
+use skyfix_core::time::{jd_tt, parse_utc};
 use skyfix_core::units::norm_180;
 use skyfix_ephemeris::body::{BodyEphemeris, BodyKind, Sky};
 use skyfix_ephemeris::topocentric::{Site, horizontal};
@@ -44,6 +44,9 @@ struct Generator {
 struct Case {
     utc: String,
     jd_utc: f64,
+    /// TT of the instant (SkyFix Lab's own Delta T): checked against the clock's.
+    #[serde(default)]
+    jd_tt: Option<f64>,
     site: FixtureSite,
     bodies: BTreeMap<String, Body>,
 }
@@ -119,15 +122,17 @@ fn compare(text: &str) -> Result<(BTreeMap<&'static str, Stats>, Vec<String>), S
         if (jd - case.jd_utc).abs() > 1e-6 {
             return Err(format!("{}: jd_utc does not match the timestamp", case.utc));
         }
-        // timescales agent: the fixture took TT = UTC + 69.184 s and UT1 = UTC after 2035;
-        // the clock is UT there now (CONVENTIONS 15.2). Evaluate the fixture's own TT and
-        // UT1 (identical up to 2035) until the fixture is regenerated on the new scale.
-        let (jd, shift) = legacy_fixture_instant(jd);
-        let sky = if shift == 0.0 {
-            sky.clone()
-        } else {
-            Sky::with_dut1_s(shift)
-        };
+        // The fixture is on the app's clock (CONVENTIONS 15.2) with SkyFix Lab's own Delta T
+        // and UT1 = UTC on the UTC scale, so its TT and UT1 are the provider's.
+        if let Some(tt) = case.jd_tt
+            && (jd_tt(jd) - tt).abs() * 86_400.0 > 1e-3
+        {
+            return Err(format!(
+                "{}: the fixture's TT is {:.4} s from the clock's",
+                case.utc,
+                (jd_tt(jd) - tt) * 86_400.0
+            ));
+        }
         let site = Site {
             lat_deg: case.site.lat_deg,
             lon_deg: case.site.lon_deg,

@@ -40,6 +40,8 @@ pub mod sailings;
 pub mod starfield;
 // Expansion programme, wave 1 (docs/EXPANSION_PLAN.md section 5): one module per agent.
 pub mod timescale;
+// Expansion programme (deeptime agent): coverage tiers, `explorer_coverage` and `tier_at`.
+pub mod coverage;
 // Expansion programme P8 (moondetail agent): the Moon in detail.
 pub mod moondetail;
 // --- deepsky agent (expansion programme, 2026-09-24): deep-sky objects, meteor

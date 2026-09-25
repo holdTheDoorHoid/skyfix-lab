@@ -61,6 +61,11 @@ fn positions_match_jup365() {
         Worst::default(),
         Worst::default(),
     ];
+    // The instants away from today (1650, 1850, 2150), inside the coverage since it
+    // became 1550-2650 (deeptime agent): E5's error along each orbit grows with the time
+    // from its epoch, so they are held to the brief's 1" target rather than the 0.5"
+    // the engine reports, and their line-of-sight depth to 4 000 km.
+    let mut worst_far = worst.clone();
     let (mut pa, mut radius, mut lat) = (Worst::default(), Worst::default(), Worst::default());
     let mut compared = 0;
     for inst in &f.positions {
@@ -68,6 +73,7 @@ fn positions_match_jup365() {
         if jd < lo || jd > hi {
             continue;
         }
+        let modern = (2_447_892.5..2_473_459.5).contains(&jd); // 1990-2060
         let m = galilean_moons(jd).unwrap();
         let at = || format!("jd_tt {}", inst.jd_tt);
         pa.add(
@@ -85,7 +91,12 @@ fn positions_match_jup365() {
             let de = got.offset_east_arcsec - want.east_arcsec;
             let dn = got.offset_north_arcsec - want.north_arcsec;
             let err = de.hypot(dn);
-            worst[k].add(err, || {
+            let w = if modern {
+                &mut worst[k]
+            } else {
+                &mut worst_far[k]
+            };
+            w.add(err, || {
                 format!(
                     "{} jd_tt {} (de {de:+.3}\", dn {dn:+.3}\")",
                     want.name, inst.jd_tt
@@ -95,8 +106,9 @@ fn positions_match_jup365() {
             let rj = inst.jupiter_radius_arcsec;
             assert!((got.x_rj - want.x_rj).abs() * rj < 1.5, "{got:?} {want:?}");
             assert!((got.y_rj - want.y_rj).abs() * rj < 1.5, "{got:?} {want:?}");
+            let depth_tol_km = if modern { 2_000.0 } else { 4_000.0 };
             assert!(
-                (got.z_rj * 71_492.0 - want.depth_km).abs() < 2_000.0,
+                (got.z_rj * 71_492.0 - want.depth_km).abs() < depth_tol_km,
                 "{got:?} {want:?}"
             );
             // States agree unless the moon is within a few seconds of a limb.
@@ -113,6 +125,9 @@ fn positions_match_jup365() {
     for w in &worst {
         println!("{w:?}");
     }
+    for w in &worst_far {
+        println!("away from today: {w:?}");
+    }
     println!("pole PA {pa:?}\nradius {radius:?}\nsub-Earth latitude {lat:?}");
     assert!(compared >= 60, "{compared}");
     for w in &worst {
@@ -120,6 +135,11 @@ fn positions_match_jup365() {
             w.value.abs() < skyfix_almanac::satellites::ACCURACY_ARCSEC,
             "{w:?}"
         );
+    }
+    // Measured 0.25" (Io, 1650), 0.09" (Europa, 1850), 0.89" (Ganymede, 1650) and
+    // 0.72" (Callisto, 1650).
+    for w in &worst_far {
+        assert!(w.count >= 3 && w.value.abs() < 1.0, "{w:?}");
     }
     assert!(
         pa.value.abs() < 0.001 && lat.value.abs() < 0.001,

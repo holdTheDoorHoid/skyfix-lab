@@ -140,7 +140,7 @@ fn constellation_object(c: &Constellation) -> Result<JsValue, JsValue> {
 
 /// Apparent geocentric places of date of every catalogue star, `[ra_rad, dec_rad, ...]`
 /// (length `2 * count`), the frame of `sky_state`. Throws for a non-finite time or one
-/// outside 1800-2200.
+/// outside 1550-01-01 to 2650-01-22 (the validated tier).
 #[wasm_bindgen]
 pub fn starfield_apparent(jd_utc: f64) -> Result<Float64Array, JsValue> {
     let v = apparent(jd_utc).map_err(js_err)?;

@@ -8,7 +8,7 @@ Vessel     course 045 at 10 kn over the ground
 Sun, 1 sight(s): one altitude, taken as the peak; the Sun crossed the meridian SOUTH of
 the zenith
 
-Latitude   39 48.79' N (39.813085) sigma 0.20'
+Latitude   39 48.78' N (39.813069) sigma 0.20'
            The Sun crossed your meridian SOUTH of the zenith, so latitude = declination +
            zenith distance, counting north as positive: −4°09.9′ + 43°58.6′ = +39°48.8′
            (39°48.8′ N). Zenith distance = 90° − meridian altitude 46°01.4′.
@@ -19,12 +19,12 @@ Longitude  none
            One altitude cannot time the peak: near noon the Sun hangs at almost the same
            height for minutes, so no longitude comes from this sight. It was taken as the
            meridian altitude (the highest the Sun rose), with the declination at the
-           meridian passage your DR longitude predicts (2016-03-09T15:08:34.222Z); only
+           meridian passage your DR longitude predicts (2016-03-09T15:08:34.221Z); only
            the latitude is measured.
 Curve      curvature 0.0369'/min^2 predicted; the meridian altitude itself changes
            -0.1015'/min, putting the peak 0.0699' above it
 DR check   the DR predicts passage at 2016-03-09T15:08:34Z (sigma not stated); answer
-           minus DR: latitude -0.27'
+           minus DR: latitude -0.28'
 Fit        chi2 0.0000 on 0 degree(s) of freedom
 
 Residuals (minutes from meridian passage)

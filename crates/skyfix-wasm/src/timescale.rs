@@ -73,29 +73,10 @@ pub mod native {
         pub notes: Vec<String>,
     }
 
-    /// The coverage tier of an instant.
-    ///
-    /// MERGE (planner): the deeptime agent's `crate::coverage::tier_at` knows the tiers
-    /// and the loaded packs; replace this body with a call to it. Until then: `validated`
-    /// inside the providers' own coverage (the intersection `explorer_coverage` reports),
-    /// `outside` elsewhere.
+    /// The coverage tier of an instant: `crate::coverage::native::tier_at` (deeptime
+    /// agent), `validated`, `labelled` or `outside`.
     pub fn tier_at(jd_utc: f64) -> &'static str {
-        thread_local! {
-            static BOUNDS: std::cell::OnceCell<Option<(f64, f64)>> = const { std::cell::OnceCell::new() };
-        }
-        let bounds = BOUNDS.with(|b| {
-            *b.get_or_init(|| {
-                let c = crate::explorer::native::explorer_coverage();
-                match (time::parse_utc(&c.start_utc), time::parse_utc(&c.end_utc)) {
-                    (Ok(a), Ok(b)) => Some((a, b)),
-                    _ => None,
-                }
-            })
-        });
-        match bounds {
-            Some((a, b)) if (a..=b).contains(&jd_utc) => "validated",
-            _ => "outside",
-        }
+        crate::coverage::native::tier_at(jd_utc)
     }
 
     /// Everything the interface needs to label `jd_utc` (EXPLORER_API.md, `time_info`).
@@ -233,7 +214,9 @@ mod tests {
         assert_eq!(v["civil"]["day"], 28);
         assert_eq!(v["civil"]["era_year"], 585);
         assert_eq!(v["civil"]["era"], "BC");
-        assert_eq!(v["tier"], "outside");
+        // deeptime agent: 585 BC is in the labelled tier (2000 BC to AD 3000).
+        assert_eq!(v["tier"], "labelled");
+        assert_eq!(json(&time_info(990_000.0).unwrap())["tier"], "outside");
         assert_eq!(v["delta_t_source"], "smh2016");
         let dt = v["delta_t_s"].as_f64().unwrap();
         assert!((18_000.0..18_500.0).contains(&dt), "{dt}");
