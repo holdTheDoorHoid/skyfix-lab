@@ -59,7 +59,8 @@ export interface UpCloseInput {
 export interface UpClosePanel {
   el: HTMLElement;
   body(): string | null;
-  open(body: string): void;
+  /** Open for a body; for the Moon, `features` are marked on the disc (the Selected card's list). */
+  open(body: string, options?: { features?: readonly string[] }): void;
   close(): void;
   update(input: UpCloseInput): void;
   /** The facts on show, as text (tests and screen readers). */
@@ -133,6 +134,7 @@ export function upClosePanel(ctx: Ctx, settings: UpCloseSettings, onClose: () =>
   });
 
   let body: string | null = null;
+  let marked: readonly string[] = [];
   let last: UpCloseInput | null = null;
   let drawnKey = '';
   let lastDraw = 0;
@@ -181,7 +183,7 @@ export function upClosePanel(ctx: Ctx, settings: UpCloseSettings, onClose: () =>
         }
         const f = frame(280, 280, input, o.parallactic_angle_deg);
         if (!f) return;
-        const result = drawMoonInset(f, o, features);
+        const result = drawMoonInset(f, o, features, { highlight: marked });
         title.textContent = 'The Moon up close';
         sub.textContent = `${pct(o.illuminated_fraction)} lit, ${o.waxing ? 'waxing' : 'waning'} · ${o.apparent_diameter_arcmin.toFixed(1)}′ across`;
         const sizeWords = `${o.apparent_diameter_arcmin.toFixed(1)}′, ${Math.abs(o.diameter_vs_mean_percent).toFixed(1)} % ${o.diameter_vs_mean_percent >= 0 ? 'larger' : 'smaller'} than at its mean distance`;
@@ -300,8 +302,9 @@ export function upClosePanel(ctx: Ctx, settings: UpCloseSettings, onClose: () =>
   return {
     el,
     body: () => body,
-    open(next) {
+    open(next, options = {}) {
       body = next;
+      marked = options.features ?? [];
       drawnKey = '';
       el.hidden = false;
       orientation.set(settings.orientation);
@@ -310,6 +313,7 @@ export function upClosePanel(ctx: Ctx, settings: UpCloseSettings, onClose: () =>
     },
     close() {
       body = null;
+      marked = [];
       el.hidden = true;
       if (timer) clearTimeout(timer);
       timer = null;

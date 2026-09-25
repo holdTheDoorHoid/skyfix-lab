@@ -98,6 +98,7 @@ import {
   constellationKey,
   customKey,
   deepSkyKey,
+  pointKey,
   radiantKey,
   SkyRenderer,
   starKey,
@@ -106,6 +107,7 @@ import {
   type Frame,
   type MilkyWayImage,
   type PathData,
+  type PointMark,
   type RadiantMark,
 } from './render.js';
 import { skyRequests, type SkyTarget } from './requests.js';
@@ -272,7 +274,7 @@ function reducedMotion(): boolean {
   }
 }
 
-/** A key's kind: `b` body, `s` star, `d` deep sky, `r` radiant, `c` added body, `k` constellation. */
+/** A key's kind: `b` body, `s` star, `d` deep sky, `r` radiant, `c` added body, `k` constellation, `p` a named direction. */
 function keyKind(key: string | null): string {
   return key ? key.slice(0, 1) : '';
 }
@@ -501,6 +503,9 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   let cardKey: string | null = null;
   /** A constellation the search found: its figure is drawn brighter. */
   let foundConstellation = -1;
+  /** A named direction another view asked for (`point`): its J2000 unit vector. */
+  let pointTarget: { label: string; ra2000: number; dec2000: number; j2000: Float64Array } | null = null;
+  let pointMark: PointMark | null = null;
   let lastFrame: Frame | null = null;
   let sky: SkyState | null = null;
   let path: PathData | null = null;
@@ -947,7 +952,21 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       if (az < 0) az += 2 * Math.PI;
       return { alt: ch.alt[c]!, az };
     }
+    if (k === 'p') return pointMark ? { alt: pointMark.alt, az: pointMark.az } : null;
     return null;
+  }
+
+  /** The named direction this frame: J2000 carried to the frame of date (the star field's matrix), then to the horizon. */
+  function updatePoint(): void {
+    if (!pointTarget || keyKind(pinnedKey) !== 'p') {
+      pointMark = null;
+      return;
+    }
+    const f = scene.frame;
+    const v = pointTarget.j2000;
+    const d = [0, 1, 2].map((i) => f[3 * i]! * v[0]! + f[3 * i + 1]! * v[1]! + f[3 * i + 2]! * v[2]!);
+    const { alt, az } = horizonOf(d);
+    pointMark = { key: pointKey, label: pointTarget.label, alt, az };
   }
 
   function fovNow(state: ExplorerState, p: DomeProjector | PanoramaProjector): FovOutline | null {
@@ -1049,6 +1068,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     if (!layers.milkyWay) mwTexels = 0;
     updateRadiants(state, fast);
     updateCustom(state);
+    updatePoint();
     if (!fast && (layers.meteorRadiants || cardKey !== null || rankingPopover.isOpen())) ensureTonight(state);
     const colours = skyColours(Number.isFinite(sunAlt) ? sunAlt : -90, pal);
     const frame: Frame = {
@@ -1073,6 +1093,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       custom: customMarks,
       fov: fovNow(state, projector),
       constellation: foundConstellation,
+      point: pointMark,
     };
     const t1 = performance.now();
     g2!.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1188,6 +1209,13 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       if (!m.drawn) continue;
       const d = Math.hypot(m.x - x, m.y - y);
       if (d <= 14) consider(m.key, d - 4);
+    }
+    if (pointMark) {
+      const at = renderer.locate(f, pointKey);
+      if (at && !Number.isNaN(at.x)) {
+        const d = Math.hypot(at.x - x, at.y - y);
+        if (d <= 14) consider(pointKey, d - 5);
+      }
     }
     if (f.dso) {
       const hit = f.dso.hit(x, y);
@@ -1353,6 +1381,24 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       if (!con || !d) return null;
       title = con.name;
       sub = `Constellation · ${con.abbr}`;
+      alt = d.alt * RAD;
+      az = d.az * RAD;
+    } else if (kind === 'p') {
+      const d = directionOf(key);
+      if (!pointTarget || !d) return null;
+      title = pointTarget.label;
+      let con: string | null = null;
+      const f = scene.frame;
+      const v = pointTarget.j2000;
+      const u = [0, 1, 2].map((i) => f[3 * i]! * v[0]! + f[3 * i + 1]! * v[1]! + f[3 * i + 2]! * v[2]!);
+      ra = ((Math.atan2(u[1]!, u[0]!) * RAD) % 360 + 360) % 360;
+      dec = Math.asin(Math.max(-1, Math.min(1, u[2]!))) * RAD;
+      try {
+        con = constellationName(engine.constellationAt(ra, dec, displayJd));
+      } catch {
+        con = null;
+      }
+      sub = con ? `In ${con}` : 'A direction on the sky';
       alt = d.alt * RAD;
       az = d.az * RAD;
     } else {
@@ -1550,6 +1596,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     } else if (kind === 'k') {
       symbol = () => kindSymbol('constellation');
       notes.push('Its figure is drawn brighter while this card is open.');
+    } else if (kind === 'p' && pointTarget && /galactic/i.test(pointTarget.label)) {
+      notes.push('The centre of our galaxy lies behind the dust of Sagittarius: what the eye and a camera see is the bright star clouds around it, the Milky Way’s core.');
     }
     return { key, title: d.title, sub: d.sub, lines, notes, actions, ...(source ? { source } : {}), ...(symbol ? { symbol } : {}) };
   }
@@ -1876,6 +1924,16 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
         key = customKey(b.name);
         break;
       }
+      case 'point': {
+        const ra = target.ra_j2000_deg;
+        const dec = target.dec_j2000_deg;
+        if (ra === undefined || dec === undefined || !Number.isFinite(ra) || !Number.isFinite(dec) || Math.abs(dec) > 90) break;
+        const c = Math.cos(dec * DEG);
+        pointTarget = { label: id || 'Here', ra2000: ra, dec2000: dec, j2000: Float64Array.of(c * Math.cos(ra * DEG), c * Math.sin(ra * DEG), Math.sin(dec * DEG)) };
+        pin(pointKey);
+        key = pointKey;
+        break;
+      }
       default:
     }
     if (!key) {
@@ -1912,10 +1970,10 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
   }
 
   // --- sky2: the close-up -----------------------------------------------------------------
-  function openUpClose(body: string): void {
+  function openUpClose(body: string, features: readonly string[] = []): void {
     if (!upCloseSupported(body)) return;
     if (!cardOpener) cardOpener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    upClose.open(body);
+    upClose.open(body, { features });
     root.dataset.upclose = body;
     requestDraw();
     requestAnimationFrame(() => upClose.el.querySelector<HTMLElement>('.sky-upclose__close')?.focus({ preventScroll: true }));
@@ -2126,7 +2184,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     scheduler.schedule(() => {
       if (destroyed) return;
       if (r.target) show(r.target, { face: r.face });
-      if (r.upClose) openUpClose(r.upClose);
+      if (r.upClose) openUpClose(r.upClose, r.features ?? []);
     });
   }
   cleanups.push(requests.subscribe(takeRequest));

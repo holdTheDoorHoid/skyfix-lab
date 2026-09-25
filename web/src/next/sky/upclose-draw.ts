@@ -131,7 +131,12 @@ export interface MoonInsetResult {
  * (dashed: the libration shows as their offset from the disc's centre), the Moon's own
  * north pole, and the named features near the terminator (the engine's `tonight` order).
  */
-export function drawMoonInset(f: InsetFrame, o: MoonOrientation, features: MoonFeatures | null, options: { maxLabels?: number } = {}): MoonInsetResult {
+export function drawMoonInset(
+  f: InsetFrame,
+  o: MoonOrientation,
+  features: MoonFeatures | null,
+  options: { maxLabels?: number; highlight?: readonly string[] } = {},
+): MoonInsetResult {
   const ctx = f.ctx;
   clear(f);
   const r = Math.min(f.width, f.height) / 2 - 26;
@@ -219,29 +224,44 @@ export function drawMoonInset(f: InsetFrame, o: MoonOrientation, features: MoonF
     ctx.stroke();
   }
   compassTicks(f, cx, cy, r);
-  // Features near the terminator, best first.
+  // Features near the terminator, best first; any the caller asked for first of all, ringed.
   const placer = new Placer();
   const labelled: string[] = [];
   if (features) {
     const byName = new Map(features.features.map((feat) => [feat.name, feat]));
-    const order = features.tonight.map((n) => byName.get(n)).filter((x): x is LunarFeatureState => Boolean(x));
+    const wanted = new Set((options.highlight ?? []).filter((n) => byName.get(n)?.disc.visible));
+    const order = [...wanted, ...features.tonight.filter((n) => !wanted.has(n))]
+      .map((n) => byName.get(n))
+      .filter((x): x is LunarFeatureState => Boolean(x));
     ctx.font = `600 10.5px ${p.fontUi}`;
-    const max = options.maxLabels ?? 8;
+    const max = Math.max(options.maxLabels ?? 8, wanted.size);
     for (const feat of order) {
       if (labelled.length >= max) break;
+      const marked = wanted.has(feat.name);
       const s = toScreen(f.basis, feat.disc.east, feat.disc.north);
       const x = cx + s.x * r;
       const y = cy + s.y * r;
       const text = feat.name;
       const w = ctx.measureText(text).width;
       const right = x <= cx;
-      const lx = right ? x + 6 : x - 6 - w;
-      if (!placer.place(lx - 1, y - 9, w + 2, 12)) continue;
+      let lx = right ? x + 7 : x - 7 - w;
+      if (!placer.place(lx - 1, y - 9, w + 2, 12)) {
+        if (!marked) continue;
+        lx = right ? x - 7 - w : x + 7;
+        placer.place(lx - 1, y - 9, w + 2, 12);
+      }
       ctx.beginPath();
       ctx.arc(x, y, 2.2, 0, TAU);
       ctx.fillStyle = css(p.accent);
       ctx.fill();
-      haloText(f, text, lx, y + 3.5, css(p.inkOnDark, 0.95));
+      if (marked) {
+        ctx.beginPath();
+        ctx.arc(x, y, 5.5, 0, TAU);
+        ctx.strokeStyle = css(p.accent);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+      haloText(f, text, lx, y + 3.5, css(marked ? p.accent : p.inkOnDark, 0.95));
       labelled.push(text);
     }
   }

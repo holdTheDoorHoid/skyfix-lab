@@ -46,6 +46,16 @@ export const deepSkyKey = (index: number): string => `d:${index}`;
 export const radiantKey = (code: string): string => `r:${code}`;
 export const customKey = (name: string): string => `c:${name}`;
 export const constellationKey = (index: number): string => `k:${index}`;
+/** A named direction (`showInSky` with a `point`, such as the galactic centre). */
+export const pointKey = 'p:0';
+
+/** A named direction to mark (sky2 agent): apparent altitude and azimuth, radians. */
+export interface PointMark {
+  key: string;
+  label: string;
+  alt: number;
+  az: number;
+}
 
 /** A meteor radiant to draw (sky2 agent): apparent altitude and azimuth, radians. */
 export interface RadiantMark {
@@ -152,6 +162,8 @@ export interface Frame {
   fov?: FovOutline | null;
   /** A constellation the search found (its figure is drawn brighter), or −1. */
   constellation?: number;
+  /** A named direction another view asked to show (the galactic centre), or null. */
+  point?: PointMark | null;
 }
 
 const BODY_TOKEN: Record<string, BodyKey> = {
@@ -260,6 +272,7 @@ export class SkyRenderer {
     if (f.radiants?.length) this.radiantMarks(f, f.radiants);
     if (f.custom?.length) this.customMarks(f, f.custom);
     this.drawBodies(f);
+    if (f.point) this.pointMark(f, f.point);
     if (f.fov) this.fovOutline(f, f.fov);
     if (dome) {
       ctx.restore(); // end of the sky clip
@@ -1533,6 +1546,34 @@ export class SkyRenderer {
     }
   }
 
+  /** A named direction: a small crosshair in the accent colour, and its name. */
+  private pointMark(f: Frame, m: PointMark): void {
+    const p = f.projector;
+    if (m.alt < -1 * DEG || !p.project(m.alt, m.az)) return;
+    const ctx = this.ctx;
+    const x = p.x;
+    const y = p.y;
+    ctx.beginPath();
+    ctx.moveTo(x + 7, y);
+    ctx.arc(x, y, 7, 0, TAU);
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ] as const) {
+      ctx.moveTo(x + dx * 10, y + dy * 10);
+      ctx.lineTo(x + dx * 15, y + dy * 15);
+    }
+    ctx.strokeStyle = css(f.palette.halo, f.palette.haloAlpha);
+    ctx.lineWidth = 3.6;
+    ctx.stroke();
+    ctx.strokeStyle = css(f.palette.accent);
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+    this.lineLabels.unshift({ text: m.label, x: x + 17, y: y - 6, fill: css(f.palette.accent) });
+  }
+
   /** The field-of-view outline over the shared casing, and its label above it. */
   private fovOutline(f: Frame, fov: FovOutline): void {
     const ctx = this.ctx;
@@ -1614,6 +1655,13 @@ export class SkyRenderer {
       const ok = p.project(m.alt, m.az);
       return { x: ok ? p.x : Number.NaN, y: ok ? p.y : Number.NaN, r: 4, alt: m.alt, az: m.az };
     }
+    if (key.startsWith('p:')) {
+      const m = f.point;
+      if (!m) return null;
+      const p = f.projector;
+      const ok = p.project(m.alt, m.az);
+      return { x: ok ? p.x : Number.NaN, y: ok ? p.y : Number.NaN, r: 8, alt: m.alt, az: m.az };
+    }
     if (key.startsWith('k:')) {
       const c = Number(key.slice(2));
       const ch = f.scene.ch;
@@ -1691,6 +1739,8 @@ export class SkyRenderer {
             ? (f.radiants?.find((r) => r.key === k)?.name ?? '')
             : k.startsWith('k:')
               ? (f.scene.catalog?.constellations[n]?.name ?? '')
+              : k.startsWith('p:')
+                ? (f.point?.label ?? '')
               : f.scene.stars
                 ? starTitle(f.scene.stars, n)
                 : '';
