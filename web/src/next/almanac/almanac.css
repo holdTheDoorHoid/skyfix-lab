@@ -1240,6 +1240,13 @@
     font-size: 6pt;
   }
 
+  /* The right page's notes gain a paragraph before 1767 and another outside the validated
+     tier: tighter lines keep its foot on US Letter (polish2; the page was 260.4 mm of 259.4
+     at 585 BC). */
+  .alm-opening .alm-notes {
+    line-height: 1.2;
+  }
+
   .alm-multi tbody.alm-day + tbody.alm-day tr:first-child > * {
     border-top-color: #000;
   }

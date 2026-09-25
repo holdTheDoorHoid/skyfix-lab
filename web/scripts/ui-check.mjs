@@ -867,6 +867,13 @@ async function main() {
       await openTab('altitude');
       await sleep(300);
       await printed('altitude-2018', SHEETS.altitude);
+      // Before 1767, and outside the validated tier, the opening's right page carries more notes
+      // (the first almanac's year, the historical estimate): still two sheets (polish2).
+      await open(`${AT.replace(/t=[^&]+/, 't=-0584-05-22T12:00:00Z')}&view=almanac`, { theme: 'night' });
+      await openTab('pages');
+      await setMode('opening');
+      await sleep(300);
+      await printed('opening-585bc', SHEETS.opening);
       // "Print all 30 pages" of increments: the copy made for printing, removed once printed
       // (printing to PDF fires afterprint, so it is made again for each paper).
       await openTab('increments');
