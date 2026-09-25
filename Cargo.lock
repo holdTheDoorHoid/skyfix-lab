@@ -413,7 +413,9 @@ dependencies = [
 name = "skyfix-starfield"
 version = "0.1.0"
 dependencies = [
+ "serde",
  "serde_json",
+ "skyfix-almanac",
  "skyfix-core",
  "skyfix-ephemeris",
  "thiserror",
