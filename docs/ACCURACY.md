@@ -2019,6 +2019,22 @@ squarely and by up to a minute where it meets it obliquely, near the Moon's pole
 graze's very existence depends on the real profile. The result says so beside every
 list (`limb_note`). A lunar-limb pack (programme item P12) would be the remedy.
 
+<!-- verify2 -->
+**On the two-tier Moon (verify2, 2026-09-25).** The figures above were measured on ELP
+2000-82B; with ELP/MPP02 and its refitted secular terms (section 21) the same tests give:
+perigee and apogee instants within **23.9 s** and distances within **0.36 km** (317
+events), distance at new and full Moon **0.39 km**, perigee fraction 0.00001; Meeus's
+50.a +4.8 s and −0.15 km from Skyfield; the whole libration chain 0.0052° (sub-observer
+point), 0.0054° (sub-solar), 0.0058° (axis position angle), the topocentric distance
+**0.71 km**, the semidiameter 0.00006′; occultation contacts within **1.17 s**. Every one
+is inside its target (2 min and 10 km for the apsides, 0.05° for libration, 30 s for the
+contacts), and the Moon's distance error, about 2e-6 of its value, is inside section 21's
+3e-6. The tests held only those targets; they now hold 45 s and 1 km (apsides), 1 km and
+1e-4 (phases), 30 s and 1 km (Meeus 50.a), 0.01° with no case allowed to drop out
+(libration: at 0.05° the model without the 78.7″ figure-to-mean-pole tilt passed), 5 s
+(contacts; 30 s let a spherical-Earth parallax through) and the three grazes within 3 s.
+<!-- /verify2 -->
+
 ### Speed
 
 Release build natively, CPU time on the shared machine (400 bare Moon positions cost
@@ -2931,6 +2947,32 @@ identical. Bowditch's three 2024 zone cases (their zones are not stated) give +1
 (CONVENTIONS 13.9.1), so a letter can differ; the exact correction for a stated
 temperature and pressure does not depend on them.
 
+<!-- verify2 -->
+**The ten differences checked (verify2, 2026-09-25).** An independent Python evaluation of
+this project's chain (Bennett, the semidiameters above, the Moon's upper part at HP
+57.7′) reproduces all ten of "here", so the tables compute what CONVENTIONS 13.9.1 says.
+Replacing only the refraction by a rigorous one (a ray trace through a standard
+atmosphere, 10 °C and 1010 hPa, dry air at 0.574 µm, which matches ERFA's `refco` to
+0.001′ from 10° to 67° and Bowditch's quoted 5.3′ at 10° and 2.6′ at 20°) turns four of
+them into the printed value: the stars at 27° 48.1′ (−1.825′), the Sun October-March at
+6° 29.7′ (+8.431′), the stars at 4° 02.1′ (−11.600′) and the temperature-and-pressure
+correction at 1° 19.7′ (+1.542′); the Sun April-September at 1° 19.7′ moves from −5.94′
+to −5.73′, past the printed −5.8′ (the printed table's own low-altitude atmosphere is not
+known to 0.1′ at 1.3°). Bennett's formula reads 0.04-0.07′ higher than a rigorous
+refraction between 5° and 30° (EXPANSION_PLAN 4.5 leaves it: "Bennett's residual").
+**The five Moon entries are not refraction**: a rigorous refraction moves every upper
+part further from the book (56.26, 62.67, 33.17, 52.38), and a Moon radius of 0.2724
+moves them by 0.006′. The printed upper part runs 0.05-0.16′ below this project's at
+every altitude checked (2° 30′ to 66° 40′), while its L and U mostly agree; an upper part
+at HP 57.6′ reproduces all four printed upper parts but then misses three of the four
+printed L and U. So the printed Moon table splits the correction in its own way, not
+recoverable from Bowditch; what a navigator adds up (upper plus lower part) is within
+0.13′ of the exact chain in this project and within 0.08′ in print, inside the 0.23′
+stated above. None of the ten is a bug; the "why" of the Moon rows above ("refraction,
+and the printed table's smaller Moon radius") is not borne out. The comparison test now
+pins these ten and the 36 identical (it asserted "at least 70 %").
+<!-- /verify2 -->
+
 **The 2016 Polaris page** (Bowditch 2019 Figure 1912c, LHA Aries 120°–239°; test
 `the_printed_2016_polaris_page`): every a1 (156) and every azimuth (84) identical; a0 42 of
 132 and a2 45 of 144 identical, because the printed page adopted a different mean position
@@ -3365,6 +3407,52 @@ purpose (each case at its own TT and UT1): the Moon's position at a given clock 
 long ago is uncertain by Delta T's σ times the Moon's 0.55″ a second: about half a
 degree at 2000 BC, where σ is an hour. The interface shows that as a band of time, not
 as a position error.
+
+<!-- verify2 -->
+**Verification (verify2, 2026-09-25).**
+
+- **The tidal acceleration.** Stephenson, Morrison & Hohenkerk (2016, §2) take −25.82″/cy²,
+  the value implicit in JPL's DE430 (lunar laser ranging), and say their Delta T "should
+  be used in conjunction with the lunar ephemeris JPL DE430"; −25.85″/cy² above (and in
+  THIRD_PARTY) is not theirs. The pairing still holds, for the reason given last: the
+  Moon here is refitted to DE440/DE441, JPL's successors to DE430, so ELP/MPP02's DE405
+  constant no longer governs it. A difference Δṅ of the order of the ones in play (0.03″/cy²)
+  is 0.91 Δṅ ((y − 1955)/100)² s of Delta T: 43 s at 2000 BC (1 % of σ) and 2.5 s at AD 1000
+  (0.17 σ).
+- **Delta T and its σ against the Five Millennium Canon** (Espenak & Meeus 2006: NASA's
+  polynomials, with the Canon's correction to −25.858″/cy²; σ as NASA's "Uncertainty in ΔT"
+  page gives it). At −2000: 47 228 ± 3 732 s here, 46 472 ± 3 732 s in the Canon (+755 s,
+  0.20 σ; the σ is the same Huber formula). At −500: 16 939 ± 150 s against 17 125 ± 431 s
+  (−186 s, 0.43 of the Canon's σ, 1.24 of this σ). At 1000: 1 650 ± 15 s against
+  1 562 ± 54 s (+88 s, 5.9 of this σ). At 2999: 4 159 ± 1 815 s against 4 414 ± 1 882 s
+  (−255 s, 0.14 σ; the σ grows from 2026 here, 2005 there). Between −720 and 1600 this
+  model is SMH 2016's splines with their published errors, which are three times smaller
+  than Morrison & Stephenson (2004)'s that the Canon used, and the two curves differ by up to
+  186 s at 1200 (12 of SMH's σ): a revision in the literature, not an error here, but the
+  ±15 s of 1000-1600 is SMH's formal error, and below 30 s no chip is shown. Before −720
+  the value is the long-term parabola, as in Skyfield, not SMH 2020's own table
+  (Table-DT-lod4500yrs.2020: 46 000 ± 1 000 s at −2000, 34 800 ± 700 s at −1500); the
+  differences, 1 228 s and 808 s, are inside the σ shown (Huber's 3 732 s and 1 900 s, which
+  is larger than that table's). Delta T and σ are continuous across every join (−1520,
+  −720, 1973, 2027-09-28, 2800); TT − clock steps by −0.04 s at 1972-01-01 and +1.54 s at
+  2036-01-01, as section 15.2 says.
+- **The labelled tier's 5″ cut, spot-checked** against DE441 in a frame independent of
+  `ltp.py` (ERFA's long-term precession and IAU 2000A nutation, pyerfa 2.0.1.5): Venus,
+  Mars and Neptune at −1500 and 2900 (closest approaches and random instants) within
+  1.38″, 4.25″ and 1.04″, and 0.30″, 2.61″ and 0.56″. Then every second closest approach of
+  Mercury to Saturn over the whole labelled tier, 11 955 cases: worst of RA and Dec
+  Mercury 0.0171′, Venus 0.0466′, Mars 0.1090′, Jupiter 0.2153′, Saturn 0.5925′, each
+  inside the published figure (0.02′, 0.06′, 0.15′, 0.25′, 0.7′). The historical table's
+  20 random epochs per bin miss the closest approaches, where a heliocentric error shows
+  largest: on the sky, Mars 5.93″ in 1100-1200 (the table: 4.14″, and 4.33″ for the whole
+  tier), Venus 2.25″ in 1800-1700 BC (0.67″), 2.70″ in 1900-1800 BC (1.18″), Jupiter
+  12.46″ (9.66″), Saturn 37.74″ (35.49″). The per-bin figures are a sample, not a bound;
+  the per-tier published figures stand.
+- **Mars, Jupiter and Saturn inside 1990-2060** (the deeptime report's "up to 0.0122′"):
+  0.0067′, 0.0084′ and 0.0122′ worst in GHA against the regenerated fixtures (the table
+  above), inside the 0.02′ each publishes for the validated tier (`accuracy_arcsec`) and a
+  sixth of the 0.1′ sights target.
+<!-- /verify2 -->
 
 ### Size
 
