@@ -20,6 +20,8 @@ jobs:
           targets: wasm32-unknown-unknown
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      - name: Workflow files parse (a broken pages.yml fails silently otherwise)
+        run: python3 -c "import sys, yaml, glob; [yaml.safe_load(open(f)) for f in glob.glob('.github/workflows/*.yml')]; print('ok')"
       - name: Format
         run: cargo fmt --all -- --check
       - name: Test

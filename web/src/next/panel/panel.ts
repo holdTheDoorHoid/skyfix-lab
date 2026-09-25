@@ -10,6 +10,8 @@ import { disposer, type Ctx } from '../component.js';
 import type { PlaceService } from '../shell/place.js';
 import { nowSection } from './now.js';
 import { placeSection } from './place.js';
+// photo agent (expansion Q8): the next high and low water in the Place section.
+import { tidesLine } from './photo.js';
 import { placeSearch } from './search.js';
 import { selectedSection } from './selected.js';
 import { sightsSection } from './sights.js';
@@ -35,6 +37,10 @@ export function panel(ctx: Ctx, place: PlaceService, options: { onPlaceChosen?: 
   ];
   for (const p of parts) d.add(p.destroy);
   const [switcher, search, placeSec, now, selected, skyNow, sights] = parts.map((p) => p.el) as HTMLElement[];
+  // photo agent (expansion Q8): the tides line joins the Place section when a station is near.
+  const tides = tidesLine(ctx);
+  d.add(tides.destroy);
+  placeSec!.querySelector('.sf-section__body')?.append(tides.el);
   const grab = h('div', { class: 'sf-panel__grab', role: 'button', tabindex: 0 });
   const el = h(
     'aside',
