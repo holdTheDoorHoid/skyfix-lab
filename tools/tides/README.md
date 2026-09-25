@@ -49,7 +49,7 @@ back-off.
   station, time differences for high and low water (minutes) and height differences
   (a ratio, "R", or an additive difference in feet, "F").
 - Datums relative to each station's datum, epoch 1983-2001 at 1 156 stations (2012-2016
-  at 68, 2002-2006 at 13, "Special" at 13, none at 5); LAT and HAT beside them.
+  at 68, 2002-2006 at 13, "Special" at 13, no epoch given at 5); LAT and HAT beside them.
 - One subordinate station, 1841275 (Malakal Harbor), names itself as its reference and
   has no constants (flag `reference_unusable`); `fetch.py` asks for its record anyway,
   as it does for every station a subordinate station refers to.
@@ -93,6 +93,8 @@ documents leave a choice:
 ## Refreshing
 
 NOAA revises constants and datums from time to time. To refresh: `fetch.py --refresh`,
-then steps 2-5. `fixtures.py` writes new fixtures only from the cache, and the windows are
-fixed in its source, so a refresh after NOAA changes something shows up as a test diff.
-Never regenerate a fixture from Rust output (`fixtures/README.md`).
+delete `tools/tides/cache/pred/` (NOAA's predictions are cached too), then
+`make -C tools/tides`. The fixture windows are fixed in `fixtures.py`, so a refresh after
+NOAA changes something shows up as a diff of the fixtures and, if the method no longer
+reproduces NOAA, as a failing test. Never regenerate a fixture from Rust output
+(`fixtures/README.md`).
