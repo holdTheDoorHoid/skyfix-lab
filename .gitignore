@@ -25,3 +25,5 @@ docs/design/local/
 
 # The assembled Pages site (web/scripts/pages-site.sh), for local checks.
 /site/
+# Lunar gazetteer raw downloads (tools/moon/fetch.py); re-fetchable, never committed.
+/tools/moon/data/
