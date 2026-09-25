@@ -2479,6 +2479,20 @@ on the base commit 28131c5 the package measured 214 KB / 87 KB before that.
   prints every number above (the 1990-2060 conjunction and station runs and the timing
   are `--ignored` in the default run, which covers 2024-2026 and 2019-2030).
 
+### On the two-tier series (deeptime agent, 2026-09-25; section 20)
+
+The figures above were measured on the one-tier series of 1990-2060. On the series of
+section 20, whose validated tier cuts the Earth to 0.01″, Mercury to 0.1″ and Venus to
+0.2″ for these engines, every test above passes with its own tolerances: the apsides
+within **0.71 min** of Skyfield, 1.2 min of USNO and 0.81 min of Meeus; transit contacts
+within **6.1 s** of Skyfield (0.074″ as a separation), least separations within 0.035″;
+a year of conjunctions 393-443 ms against 405-424 ms on main at the same load. The coverage being 1550-2650, the tests now also
+compare NASA's Mercury transits of 1601-2300 and Venus's of 1550-2650 (110 transits,
+contacts within 57 s beyond the ΔT difference, durations within 52 s; two catalogue rows
+that print contact I equal to II are compared at greatest transit only) and the Galilean
+instants of 1650, 1850 and 2150, where E5 is 0.89″ from JPL (Ganymede, 1650): the
+engine's 0.5″ holds near the present, not across the whole coverage.
+
 ## Charts: what the Sun, Tides and Moon charts compute themselves (charts2 agent, expansion programme Q5)
 
 Every number on the Sun, Tides and Moon charts is an engine's (sections 9, 14, 16 and "Moon in

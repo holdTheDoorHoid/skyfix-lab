@@ -2999,7 +2999,7 @@ The shape of "`explorer_coverage()` — tiers" above, with these values:
   |---|---|---|
   | Sun | 0.01 | 0.02 |
   | Moon | 0.02 | 0.05 |
-  | Planets | 0.03 (group); per planet 0.02, Uranus 0.03 | 0.7 (group); Mercury 0.02, Venus 0.05, Mars 0.1, Jupiter 0.25, Saturn 0.7, Uranus 0.2, Neptune 0.05 |
+  | Planets | 0.03 (group); per planet 0.02, Mercury and Venus 0.005, Uranus 0.03 | 0.7 (group); Mercury 0.02, Venus 0.05, Mars 0.1, Jupiter 0.25, Saturn 0.7, Uranus 0.2, Neptune 0.05 |
   | Stars | 0.03 | 0.2 (the catalogue's own proper-motion errors; Rigil Kentaurus apart, see its notes) |
 
 - The Sun, Moon, planet and star groups report their own tiers
