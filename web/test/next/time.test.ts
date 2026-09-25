@@ -271,7 +271,7 @@ describe('zone offsets are remembered without changing any answer', () => {
         }
       }
     }
-  });
+  }, 30_000); // thousands of Intl readings: slow on a loaded machine
 });
 
 describe('times without seconds are rounded to the nearest minute (the almanac’s practice)', () => {

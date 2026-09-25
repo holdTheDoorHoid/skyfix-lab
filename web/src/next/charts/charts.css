@@ -1009,3 +1009,784 @@
     stroke: CanvasText;
   }
 }
+
+/* ==================================================================================== */
+/* charts2 agent (expansion programme Q5): the Sun and Tides tabs, the Moon through the   */
+/* year, perigee and apogee on the calendar, every chart's Save menu, printing.           */
+/* ==================================================================================== */
+
+/* Card header: navigation, then the chart's own controls and Save. */
+.sfc-head-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sfc-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sfc-save .sf-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.sfc-export-menu .sf-menu__item {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 10px;
+}
+
+.sfc-export-menu .sf-menu__hint {
+  margin-left: 0;
+  font-family: var(--font-ui);
+}
+
+/* A tab of several charts: the second row of tabs. */
+.sfc-subtabs {
+  flex-wrap: wrap;
+  align-self: flex-start;
+  max-width: 100%;
+  margin-bottom: var(--space-3);
+}
+
+.sfc-subtabs .sf-seg__opt[aria-selected='true'] {
+  background: var(--stage-surface);
+  color: var(--stage-ink);
+  box-shadow: var(--shadow-1);
+}
+
+.sfc-subpanel:focus {
+  outline: none;
+}
+
+/* Controls inside a card. */
+.sfc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.sfc-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  max-width: 100%;
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* A long choice (a station's name) shrinks with the card instead of running past it. */
+.sfc-control > select {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  text-overflow: ellipsis;
+}
+
+.sfc-control .sf-input {
+  height: var(--control-h-sm);
+  padding: 0 var(--space-2);
+}
+
+.sfc-time-input {
+  width: 9.5em;
+}
+
+.sfc-num-input {
+  width: 5em;
+}
+
+.sfc-station {
+  max-width: min(30em, 100%);
+}
+
+.sfc-link {
+  color: var(--stage-accent-ink);
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sfc-link[hidden],
+.sfc-controls[hidden] {
+  display: none;
+}
+
+/* What the numbers are: shown above every estimate and prediction. */
+.sfc-estimate {
+  padding: var(--space-1) var(--space-3);
+  border-left: 3px solid var(--info);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--stage-surface-2);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-estimate strong {
+  color: var(--stage-ink);
+}
+
+/* "Not saved on this device": the pack and its Get button. */
+.sfc-packbox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px dashed var(--stage-line-strong);
+  border-radius: var(--radius-md);
+  color: var(--stage-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-packbox[hidden] {
+  display: none;
+}
+
+.sfc-packbox strong {
+  color: var(--stage-ink);
+}
+
+/* Heavy work for a new input waits for the time to settle: the old picture dims meanwhile. */
+.sfc-card[data-computing] .sfc-plot > svg {
+  opacity: 0.55;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.sfc-readout:empty {
+  display: none;
+}
+
+.sfc-readout--line {
+  display: block;
+  color: var(--stage-ink-2);
+  font-family: var(--font-ui);
+}
+
+.sfc-plot--second {
+  margin-top: var(--space-4);
+  min-height: 0;
+}
+
+/* Stat tiles (the solar panel). */
+.sfc-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.sfc-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 11em;
+  flex: 1 1 11em;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--stage-surface-2);
+  font-size: var(--text-sm);
+}
+
+.sfc-tile__value {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.sfc-tile__value strong {
+  font-family: var(--font-num);
+  font-size: var(--text-xl);
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-tile__value span {
+  color: var(--stage-ink-3);
+}
+
+.sfc-tile__label {
+  color: var(--stage-ink-2);
+}
+
+.sfc-tile .sf-btn {
+  align-self: flex-start;
+  margin-top: var(--space-1);
+}
+
+.sfc-table tr.sfc-row-total > * {
+  border-top: 2px solid var(--stage-line-strong);
+  font-weight: var(--weight-semibold);
+}
+
+/* Panel titles inside a chart. */
+.sfc-panel-title {
+  fill: var(--stage-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-panel-sub {
+  fill: var(--stage-ink-3);
+  font-weight: var(--weight-regular);
+}
+
+.sfc-compass {
+  fill: var(--stage-ink-2);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+}
+
+.sfc-compass--main {
+  fill: var(--stage-ink);
+  font-weight: var(--weight-bold);
+}
+
+.sfc-due {
+  stroke: var(--stage-ink-2);
+  stroke-width: 1;
+  stroke-dasharray: 5 3;
+}
+
+.sfc-extreme-dot {
+  fill: var(--stage-accent-ink);
+  stroke: var(--stage-surface);
+  stroke-width: 1.5;
+}
+
+.sfc-cursor--static line {
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.sfc-cursor-dot {
+  fill: var(--accent);
+  stroke: var(--stage-surface);
+  stroke-width: 2;
+}
+
+/* Legend keys for lines and marks. */
+.sfc-key {
+  display: inline-block;
+  flex: none;
+  width: 24px;
+  height: 0;
+  border-top: 3px solid var(--stage-ink-2);
+}
+
+.sfc-key-path {
+  border-top-color: var(--body-sun);
+}
+
+.sfc-key-env--june {
+  border-top: 2px dashed var(--event-rise);
+}
+
+.sfc-key-env--equinox {
+  border-top: 2px dashed var(--stage-ink-2);
+}
+
+.sfc-key-env--december {
+  border-top: 2.5px dotted var(--body-neptune);
+}
+
+.sfc-key-analemma {
+  border-top-color: var(--body-sun);
+}
+
+.sfc-key-analemma-below {
+  border-top: 2px dashed var(--body-sun);
+}
+
+.sfc-key-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid var(--stage-ink);
+  border-radius: 50%;
+  background: var(--stage-surface);
+}
+
+.sfc-key-dot--moon {
+  border-color: var(--body-moon);
+  background: var(--body-moon);
+}
+
+.sfc-key-dot--below {
+  border-color: var(--body-moon);
+  background: transparent;
+  opacity: 0.6;
+}
+
+.sfc-key-line--noon {
+  --c: var(--body-sun);
+}
+
+.sfc-key-line--dec {
+  --c: var(--body-sun);
+}
+
+.sfc-key-line--poa {
+  --c: var(--body-sun);
+}
+
+.sfc-key-line--ghi {
+  border-top: 2px dashed var(--stage-ink-2);
+}
+
+.sfc-key-line--tide {
+  --c: var(--body-neptune);
+}
+
+.sfc-key-mark {
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+}
+
+.sfc-key-mark--high {
+  border-bottom: 10px solid var(--event-rise);
+}
+
+.sfc-key-mark--low {
+  border-top: 10px solid var(--event-set);
+}
+
+.sfc-swatch--fast {
+  background: color-mix(in srgb, var(--event-rise) 40%, transparent);
+}
+
+.sfc-swatch--slow {
+  background: color-mix(in srgb, var(--body-neptune) 40%, transparent);
+}
+
+/* The sun path: the dome, the solstice and equinox paths, today's path and its hours. */
+.sfc-dome-disc {
+  fill: var(--stage-surface-2);
+}
+
+.sfc-dome-ring,
+.sfc-dome-spoke {
+  fill: none;
+  stroke: var(--stage-line-strong);
+  stroke-opacity: 0.45;
+  stroke-width: 1;
+}
+
+.sfc-dome-spoke--faint {
+  stroke-opacity: 0.2;
+}
+
+.sfc-dome-horizon {
+  fill: none;
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.5;
+}
+
+.sfc-dome-alt {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+}
+
+.sfc-env {
+  fill: none;
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.sfc-env--june {
+  stroke: var(--event-rise);
+  stroke-dasharray: var(--dash-rise);
+}
+
+.sfc-env--equinox {
+  stroke: var(--stage-ink-2);
+  stroke-dasharray: 4 3;
+}
+
+.sfc-env--december {
+  stroke: var(--body-neptune);
+  stroke-dasharray: var(--dash-set);
+  stroke-width: 2.4;
+}
+
+.sfc-pill--env text {
+  font-weight: var(--weight-regular);
+}
+
+.sfc-pill--hour rect {
+  fill-opacity: 0.9;
+  stroke: none;
+}
+
+.sfc-pill--hour text {
+  font-family: var(--font-num);
+  font-weight: var(--weight-medium);
+}
+
+.sfc-sunpath-casing,
+.sfc-analemma-casing {
+  fill: none;
+  stroke: var(--line-halo);
+  stroke-width: 6;
+  stroke-opacity: 0.5;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.sfc-sunpath-line {
+  fill: none;
+  stroke: var(--body-sun);
+  stroke-width: 3;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.sfc-hour-dot {
+  fill: var(--body-sun);
+  stroke: var(--stage-surface);
+  stroke-width: 1.2;
+}
+
+.sfc-now .sf-glyph {
+  color: var(--c);
+}
+
+.sfc-now-halo {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+
+.sfc-pill--rise rect {
+  stroke: var(--event-rise);
+}
+
+.sfc-pill--set rect {
+  stroke: var(--event-set);
+}
+
+/* The analemma's sky. */
+.sfc-skygrid path {
+  fill: none;
+  stroke: var(--stage-line-strong);
+  stroke-opacity: 0.35;
+  stroke-width: 1;
+}
+
+.sfc-skygrid-label {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+  paint-order: stroke;
+  stroke: var(--stage-surface);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+.sfc-analemma-line {
+  fill: none;
+  stroke: var(--body-sun);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.sfc-analemma-below {
+  fill: none;
+  stroke: var(--body-sun);
+  stroke-width: 1.5;
+  stroke-dasharray: var(--dash-below);
+  opacity: 0.75;
+}
+
+.sfc-analemma-month {
+  fill: var(--stage-surface);
+  stroke: var(--stage-ink);
+  stroke-width: 1.5;
+}
+
+/* Sunrise bearings and height at noon. */
+.sfc-noonline {
+  fill: none;
+  stroke: var(--body-sun);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+/* The equation of time and declination. */
+.sfc-eot-fast {
+  fill: var(--event-rise);
+  fill-opacity: 0.28;
+}
+
+.sfc-eot-slow {
+  fill: var(--body-neptune);
+  fill-opacity: 0.26;
+}
+
+.sfc-eot-line {
+  fill: none;
+  stroke: var(--stage-ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.sfc-dec-line {
+  fill: none;
+  stroke: var(--body-sun);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+/* The solar panel. */
+.sfc-solar-area {
+  fill: var(--body-sun);
+  fill-opacity: 0.18;
+}
+
+.sfc-solar-poa {
+  fill: none;
+  stroke: var(--body-sun);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.sfc-solar-ghi {
+  fill: none;
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.5;
+  stroke-dasharray: 5 3;
+  stroke-linejoin: round;
+}
+
+/* Tides. */
+.sfc-datum-line {
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.25;
+}
+
+.sfc-datum-label {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+}
+
+.sfc-tide-water {
+  fill: var(--body-neptune);
+  fill-opacity: 0.2;
+}
+
+.sfc-tide-line {
+  fill: none;
+  stroke: var(--body-neptune);
+  stroke-width: 2.5;
+  stroke-linejoin: round;
+}
+
+.sfc-tide-line--estimated {
+  stroke-dasharray: 7 4;
+}
+
+.sfc-marker--high {
+  fill: var(--event-rise);
+}
+
+.sfc-marker--low {
+  fill: var(--event-set);
+}
+
+/* The Moon through the year. */
+.sfc-moondot {
+  fill: var(--c);
+  stroke: var(--line-halo);
+  stroke-width: 0.6;
+}
+
+.sfc-moondot--below {
+  fill: none;
+  stroke: var(--c);
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+/* Perigee and apogee on the Moon calendar. */
+.sfc-cal-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 2px;
+}
+
+.sfc-cal-badge {
+  padding: 0 5px;
+  border-radius: var(--radius-pill);
+  background: var(--stage-surface-2);
+  color: var(--stage-ink);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  line-height: 1.5;
+  box-shadow: inset 0 0 0 1px var(--stage-line-strong);
+}
+
+.sfc-cal-badge--perigee,
+.sfc-cal-badge--supermoon {
+  box-shadow: inset 0 0 0 1.5px var(--stage-accent-ink);
+}
+
+.sfc-apsis-mark {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid var(--stage-accent-ink);
+}
+
+.sfc-apsis-mark--apogee {
+  border-color: var(--stage-ink-3);
+  border-style: dotted;
+}
+
+/* The Moon calendar drawn as a picture (moon-picture.ts). */
+.sfc-px-wd {
+  fill: var(--stage-ink-3);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-px-blank {
+  fill: var(--stage-surface-2);
+  fill-opacity: 0.5;
+}
+
+.sfc-px-cell {
+  fill: var(--stage-surface);
+  stroke: var(--stage-line);
+  stroke-width: 1;
+}
+
+.sfc-px-cell--principal {
+  fill: var(--stage-surface-2);
+}
+
+.sfc-px-num {
+  fill: var(--stage-ink);
+  font-family: var(--font-num);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-px-pct,
+.sfc-px-times {
+  fill: var(--stage-ink-3);
+  font-family: var(--font-num);
+  font-size: var(--text-2xs);
+}
+
+.sfc-px-name {
+  fill: var(--stage-ink-2);
+  font-size: var(--text-xs);
+}
+
+.sfc-px-name--principal {
+  fill: var(--stage-ink);
+  font-weight: var(--weight-semibold);
+}
+
+.sfc-px-badge {
+  fill: var(--stage-accent-ink);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+}
+
+@media (max-width: 640px) {
+  .sfc-head-tools {
+    justify-content: flex-start;
+  }
+  .sfc-cal-badge {
+    padding: 0 2px;
+    font-size: 9px;
+  }
+  .sfc-tile {
+    min-width: 9em;
+  }
+}
+
+/* Printing one chart (print.ts): only the copy in the print holder is printed, in the light
+   theme's colours, the chart as wide as the page. */
+.sfc-print-root {
+  display: none;
+}
+
+@media print {
+  html.sfc-printing,
+  html.sfc-printing body {
+    height: auto !important;
+    overflow: visible !important;
+    background: none !important;
+    color-scheme: light !important;
+  }
+  html.sfc-printing body > *:not(.sfc-print-root) {
+    display: none !important;
+  }
+  html.sfc-printing .sfc-print-root {
+    display: block !important;
+    height: auto;
+    overflow: visible;
+    padding: 0;
+    background: var(--stage-surface);
+    color: var(--stage-ink);
+  }
+  .sfc-print-root * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .sfc-print-root .sfc-card {
+    border: 0;
+    box-shadow: none;
+    padding: 0;
+    break-inside: auto;
+  }
+  .sfc-print-root .sfc-figure {
+    break-inside: avoid;
+  }
+  .sfc-print-root .sfc-plot > svg {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 175mm;
+  }
+  .sfc-print-root .sfc-table-wrap {
+    overflow: visible;
+  }
+  .sfc-print-root .sfc-table thead th {
+    position: static;
+  }
+  .sfc-print-root .sfc-cal {
+    break-inside: avoid;
+  }
+}
+
+.sfc-sky-horizon {
+  fill: none;
+  stroke: var(--stage-ink-2);
+  stroke-width: 1.5;
+}
+
+.sfc-plot > svg.sfc-centred {
+  margin: 0 auto;
+}

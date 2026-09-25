@@ -736,7 +736,91 @@ of it feeds sight reduction.
   arcsecond positions are worth a couple of seconds of time. `skyfix-almanac` still does
   not depend on `skyfix-starfield`.
 
-### 13.12 A bearing picked on the map (photo agent, expansion programme Q8)
+### 13.12 Planet detail (expansion programme P9, planetdetail agent)
+
+`skyfix_almanac::{discs, rings, satellites, transits, conjunctions, earth_apsides,
+orbits}`; wire format EXPLORER_API.md "Expansion programme — planet detail"; accuracy
+ACCURACY.md "Planet detail". Display and planning only: nothing here enters `reduce`,
+`solve` or a sight.
+
+- **Rotation.** The IAU WGCCRE 2015 poles and prime meridians (Archinal et al. 2018, as
+  NAIF's `pck00011.tpc`) with their periodic terms, Mercury to Neptune; Jupiter's System
+  I (`67.1° + 877.900°/d`) and II (`43.3° + 870.270°/d`, IAU 1976) beside the IAU's
+  System III. Rotation is evaluated when the light left the sub-Earth point: the
+  light-time instant plus the time across the equatorial radius (JPL Horizons'
+  convention).
+- **Sub-Earth and sub-solar points.** The sub-Earth point is on the geometric line from
+  the planet's centre to the Earth's at the light-time instant; the sub-solar point uses
+  the Sun's direction corrected for the aberration of the planet's own motion. Latitudes
+  are planetocentric; the `_graphic` ones are on the IAU ellipsoid,
+  `tan φg = tan φc / (1 − f)²`. Longitudes are planetographic, increasing opposite to the
+  rotation: west-positive for Mercury, Mars, Jupiter, Saturn and Neptune, east-positive
+  for Venus and Uranus (`longitude_positive` says which).
+- **Central meridian** in a system = the sub-Earth longitude in that system: the centre
+  of the geometric disc. Meeus (43.a) and some observing handbooks give the centre of the
+  illuminated disc instead, larger by `57.3° sin²(i/2)` on the side away from the Sun
+  (0.43° for Jupiter at `i` = 10°).
+- **The Great Red Spot is not tracked.** Its System II longitude drifts by tens of degrees
+  a year, irregularly; no value compiled into the site stays right for more than months.
+- **Disc.** Equatorial diameter `2 asin(R_eq / Δ)` (IAU radii); polar diameter the
+  apparent one, the equatorial diameter × `sqrt(1 − e² cos² φe)`, `φe` the planetocentric
+  sub-Earth latitude and `e` the ellipsoid's eccentricity. Phase angle `i` =
+  Sun-planet-Earth; illuminated fraction as 13.5; defect of illumination `(1 − k)` ×
+  equatorial diameter; bright-limb and pole position angles from celestial north through
+  east (the pole is the IAU north pole).
+- **Saturn's rings** lie in Saturn's IAU equator. `B` and `B′` are the saturnicentric
+  latitudes of the Earth and the Sun above that plane (positive: the north face), `ΔU`
+  the difference of their saturnicentric longitudes in it, `P` the position angle of the
+  northern semi-minor axis (Saturn's pole). The Earth sees the lit face when `B` and `B′`
+  have the same sign. Edge radii (km): A outer 136 780, A inner 122 340, B outer 117 507,
+  B inner 91 975, C inner 74 658 (NSSDCA). Axes `2 asin(r / Δ)` and that `× sin|B|`.
+- **Galilean moons.** Lieske's E5 theory (Meeus 44, higher accuracy), each moon at its
+  own light-time instant, Jupiter's centre from its barycentre less the moons' mass
+  offsets. `x_rj` along Jupiter's equator positive west, `y_rj` toward the projected north
+  pole, `z_rj` along the line of sight positive away from the Earth, in the apparent
+  equatorial radius. A **transit** or **occultation** starts and ends when the moon's
+  centre crosses the limb of the oblate disc as the Earth sees it; an **eclipse** or
+  **shadow transit** when it crosses the edge of the shadow cast from the Sun's centre
+  (the middle of the penumbra), with the light times Sun → Jupiter → Earth. A moment is
+  `observable: false` when the Earth cannot see it happen (an eclipse's edge behind the
+  planet, an occultation's in the shadow).
+- **Transits of Mercury and Venus.** Contacts I and IV: the discs externally tangent; II
+  and III internally tangent; greatest transit: the least separation of the centres. The
+  Sun's semidiameter is `959.63″ / R` (au), the planet's from its IAU equatorial radius; no
+  irradiation or black-drop allowance. Geocentric contacts are for the Earth's centre;
+  local ones for the WGS84 site, with the Sun's topocentric geometric altitude and
+  `visible` when it is above −50′. Position angles are on the Sun's disc from its north
+  point through east; the vertex angle is from the point nearest the zenith (position
+  angle − parallactic angle). A transit's `id` is the UTC date of greatest transit and the
+  planet, `2012-06-06-venus`.
+- **Conjunctions** are **closest approaches**: local minima of the apparent geocentric
+  separation of the two centres, reported up to `max_separation_deg`. The almanac's
+  conjunction in right ascension or longitude can be hours (the Moon) to days away. The
+  position angle is `body`'s seen from `other`; `body` is the Moon, else the inner planet,
+  else the planet (with a star). `visible`: both at least `min_sun_elongation_deg` (15°)
+  from the Sun. With an observer, `best` is the moment within 12 hours when the lower of
+  the two stands highest with both above the horizon (apparent altitudes, 13.2) and the
+  Sun below −6°.
+- **Stations**: the instants the apparent geocentric longitude of date stops changing,
+  in ecliptic longitude (true ecliptic and equinox of date) and in right ascension (true
+  equator and equinox). The explorer shows the **ecliptic** stations, the definition of
+  retrograde motion; the right-ascension ones can be a day or more apart from them.
+- **The Earth's perihelion and aphelion** are the extrema of the distance between the
+  centres of the Earth and the Sun (as USNO and Meeus 38 tabulate them; the Earth-Moon
+  barycentre's extrema differ by up to a day and a half).
+- **User-supplied orbits.** Heliocentric osculating elements referred to the J2000.0
+  ecliptic and equinox (obliquity 84 381.448″), times TT; the two-body problem around the
+  Sun with `GM = k²` (Gauss's constant), no planetary perturbation. Apparent place:
+  light-time iterated against the Earth's heliocentric position (VSOP87A), annual
+  aberration, then 7's rotation to the true equator of date (deflection by the Sun
+  omitted: under 0.02″ beyond 20° from it); then 13.2 for the topocentric display.
+  Magnitudes: the IAU H-G system for minor planets; `M1 + 5 log10 Δ + K1 log10 r` for
+  comets, with the MPC comet format's slope `k` read as `K1 = 2.5 k`. Results more than 30
+  days from the elements' epoch (or perihelion time, when no epoch is given) carry a
+  staleness warning. Custom bodies are points: no semidiameter, illuminated fraction or
+  bright limb.
+
+### 13.13 A bearing picked on the map (photo agent, expansion programme Q8)
 
 The Selected card's bearing tools ("When is it at…?" by bearing, the alignment finder)
 take a bearing typed in degrees from true north, `[0, 360)`, or the direction from the
@@ -1014,3 +1098,42 @@ as built"):
   session. Nothing about the person is sent to fetch a pack.
 - Every committed pack must install into the core built from the same commit
   (`cargo test -p skyfix-wasm`, and the Pages workflow before it builds).
+
+### 15.6 Deep time in the interface (time-ui agent, wave 2)
+
+Normative for every view under `web/src/next/`; the helpers are in `web/src/next/time/`.
+
+- **Dates** go through the display calendar (`time/civil.ts`; `wallClock` in `time.ts`):
+  the Julian calendar before 1582-10-15 unless Settings → Calendar chose the proleptic
+  Gregorian (ISO). Years are astronomical in code and written as Settings → Years chose
+  (`formatYear`: `585 BC`, `−584`, `-0584`; "AD" is written below the year 1000). A date
+  before the reform that stands alone carries its calendar (the time bar's *Julian* tag,
+  `formatCivilDate(jd, zone, form, { calendar: true })`). The ten dates 1582-10-05 to
+  1582-10-14 are refused as typed input unless the calendar is named; steps pass over them.
+  Engine arguments that are civil dates or years (`almanac_day`, `seasons`, …) are the
+  wire's proleptic Gregorian ones, never wall-clock fields (`gregorianDateOfMs`).
+- **The clock's word** is the scale's: "UTC" from 1972-01-01 to 2035-12-31 and "UT" outside
+  (`scaleLabel(jd)`; `formatOffset(ms, jd)` writes `UT−5:00:40`). Never a literal "UTC" beside
+  a time that may lie outside those years.
+- **Zones:** before 1850 a zone that follows the place is local mean time at the observer's
+  longitude, to the second, named "LMT" (`resolveZone(choice, lon, jd)`; `lmtReason` gives
+  the sentence); a zone the person pinned stays as chosen. The tooltip of an IANA zone before
+  1970 says its offset may be approximate (tz database) (`zoneTooltip`).
+- **Uncertainty:** the ±ΔT chip (`uncertaintyChip`, `uncertaintyText`) stands beside a clock
+  time when the standard uncertainty of ΔT at that date exceeds 30 s (half the precision of a
+  time to the minute), and always in the labelled tier, written ±s below 90 s, ±min below an
+  hour, ±h above. It concerns clock times of events at a place and eclipse paths, never
+  positions on the sky, and says so.
+- **Tiers:** `tierAt` is the one source of a date's tier in the interface (the engine's own
+  `tierAt`, else `explorer_coverage()`'s `validated_*` fields, else `time_info.tier`).
+  Sights, predicted readings and the planner are offered only in the validated tier, and say
+  "Sights are offered only between 1550 and 2650 …" (`sightsOnlyText`) instead of results.
+  One notice names the tier (`time/services.ts`): a persistent *Historical estimate* or
+  *Far-future estimate* in the labelled tier, and outside it "… outside the years the
+  SkyFix Lab core covers (…)" with the real bounds; a view needing the Deep time pack calls
+  `ctx.packs.ensure('deep-time', packReason(jd, ctx))` (`packForDate` says whether one would
+  reach the date).
+- **Playback** runs to ten years a second. Faster than eight days a second
+  (`FAST_PLAYBACK_S`) the per-day events are not computed while time runs (`sunToday` and
+  `aroundToday` return null) and are drawn as soon as it stops or slows; a view with its own
+  per-day work does the same (`fastPlayback(state)`).

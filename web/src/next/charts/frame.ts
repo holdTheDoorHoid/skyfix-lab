@@ -19,7 +19,8 @@ import { fallbackLimbFromUp } from './disc.js';
 import { clockUtc, clockZoned } from './format.js';
 
 export type ChartMode = 'chart' | 'table';
-export type ChartTab = 'day' | 'year' | 'moon' | 'planets';
+/** The Charts view's tabs; `sun` and `tides` added by the charts2 agent (expansion programme Q5). */
+export type ChartTab = 'day' | 'year' | 'sun' | 'moon' | 'planets' | 'tides';
 
 /** The Charts view's own interface state (not part of the app's store). */
 export interface ChartUi {
@@ -123,6 +124,8 @@ export interface Card {
   readonly title: HTMLElement;
   readonly subtitle: HTMLElement;
   readonly nav: HTMLElement;
+  /** Right of the navigation: the Save menu (export-menu.ts) and any chart's own controls. */
+  readonly actions: HTMLElement;
   readonly legend: HTMLElement;
   readonly figure: HTMLElement;
   readonly plot: HTMLElement;
@@ -144,6 +147,7 @@ export function card(kind: string, headingText: string): Card {
   const title = h('h2', { class: 'sfc-title', id: titleId }, headingText);
   const subtitle = h('p', { class: 'sfc-sub' });
   const nav = h('div', { class: 'sfc-nav', role: 'group', 'aria-label': 'Move through time' });
+  const actions = h('div', { class: 'sfc-actions' });
   const legend = h('div', { class: 'sfc-legend' });
   const plot = h('div', { class: 'sfc-plot' });
   const caption = h('figcaption', { class: 'sfc-caption' });
@@ -154,14 +158,38 @@ export function card(kind: string, headingText: string): Card {
   const root = h(
     'section',
     { class: `sfc-card sfc-card--${kind}`, 'aria-labelledby': titleId },
-    h('header', { class: 'sfc-head' }, h('div', { class: 'sfc-titles' }, title, subtitle), nav),
+    h('header', { class: 'sfc-head' }, h('div', { class: 'sfc-titles' }, title, subtitle), h('div', { class: 'sfc-head-tools' }, nav, actions)),
     legend,
     figure,
     tableWrap,
     status,
     notes,
   );
-  return { root, title, subtitle, nav, legend, figure, plot, caption, tableWrap, notes, status };
+  return { root, title, subtitle, nav, actions, legend, figure, plot, caption, tableWrap, notes, status };
+}
+
+/**
+ * The words of a card for a caption or a file (charts2): its title without the engine
+ * badge, and its subtitle.
+ */
+export function cardWords(c: Pick<Card, 'title' | 'subtitle'>): { title: string; subtitle: string } {
+  const title = [...c.title.childNodes]
+    .filter((n) => !(n instanceof Element && n.classList.contains('sf-badge')))
+    .map((n) => n.textContent ?? '')
+    .join('')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { title, subtitle: (c.subtitle.textContent ?? '').replace(/\s+/g, ' ').trim() };
+}
+
+/** The caption's sentences without its muted how-to-use hints (for a picture or a file). */
+export function captionSentences(c: Pick<Card, 'caption'>): string {
+  const parts: string[] = [];
+  for (const n of c.caption.childNodes) {
+    if (n instanceof Element && n.classList.contains('sfc-muted')) continue;
+    parts.push(n.textContent ?? '');
+  }
+  return parts.join('').replace(/\s+/g, ' ').trim();
 }
 
 /**
