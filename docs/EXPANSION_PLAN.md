@@ -112,6 +112,14 @@ The seven principles of `EXPLORER_PLAN.md` §3 stand. Three are extended:
   (2000 BC–1549 and 2651–3000: the figures in the historical table hold and the on-screen
   band says so), or `outside`. The UI never shows a number from the labelled band without
   the band's uncertainty beside it. Sights are offered only in the validated tier.
+- **Module size (budget revised 2026-09-25).** The core module's budget is ≤ 1.25 MB
+  gzipped and ≤ 3 MB raw (it was 1 MB / 2.5 MB). Nine of the eleven wave-1 engines took it
+  from 849 KB to 1.13 MB gzipped (2.72 MB raw: 1.71 MB code, 1.01 MB embedded data). The
+  levers measured on 2026-09-25: `panic = "abort"` and fat LTO save nothing, `wasm-opt -Oz`
+  6 KB, `opt-level = "z"` about 5 % (130 KB raw, 46 KB gzipped); moving data out of the
+  module does not reduce what a visitor downloads. The polish agent applies `opt-level =
+  "z"` if the performance budgets hold and profiles the code with twiggy for cheap wins;
+  the owner is told that the first visit is about 1.2 MB rather than 1 MB.
 - **Offline first → optional packs.** Data beyond the core ships as packs under
   `web/public/data/packs/`, content-hashed, listed in a precached manifest, stored by the
   app in its own cache (`skyfix-lab-packs-<schema>@<site>`), never in the precache and never
