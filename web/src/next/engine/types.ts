@@ -1642,9 +1642,11 @@ export function isTimeEngine(engine: unknown): engine is TimeEngine {
 
 export interface PackStatus {
   name: string;
+  /** The loaded pack's data version; '' until one is loaded (the manifest has the offered file's). */
   version: string;
   label: string;
   description: string;
+  /** The loaded pack file's size; 0 until one is loaded. */
   bytes: number;
   provides: string[];
   loaded: boolean;
@@ -1653,6 +1655,7 @@ export interface PackStatus {
 export interface PackInfo {
   name: string;
   version: string;
+  /** The whole pack file's size, header included. */
   bytes: number;
   provides: string[];
 }

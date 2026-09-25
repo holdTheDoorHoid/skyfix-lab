@@ -254,7 +254,7 @@ export function tonightSights(options: TonightOptions = {}): Component {
     };
     const request = (): void => {
       const inputs = inputsFor(ctx, from);
-      const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), ctx.store.get().settings.angleFormat, ctx.store.get().settings.timeDisplay, ctx.store.get().observer.zone]);
+      const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), ctx.store.get().settings.angleFormat, ctx.store.get().settings.timeDisplay, ctx.store.get().settings.hourCycle, ctx.store.get().observer.zone]);
       if (key === lastKey) return;
       lastKey = key;
       // A plan takes tens of milliseconds of the page's time. While the time keeps moving

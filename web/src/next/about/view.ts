@@ -84,7 +84,7 @@ const view: Component = (host, ctx) => {
       h(
         'p',
         {},
-        'The place you choose is never saved and never sent anywhere. It goes into a link only when you press Share, and then only into the link you are shown. Your settings (theme, units, angle format, the map’s layers) and whether you have seen the tour are remembered on this device. Sights you enter in Navigate are kept on this device, with their assumed position, only while its “Keep my sights in this browser” is on.',
+        'The place you choose is never saved and never sent anywhere. It goes into a link only when you press Share, and then only into the link you are shown. Your settings (theme, units, angle format, the map’s layers) and whether you have seen the tour are remembered on this device. Sights you enter in Navigate are kept on this device, with their assumed position, only while its “Keep my sights in this browser” is on. Data packs you choose to get (Settings → Data packs) are saved in this browser until you remove them; getting one sends nothing about you.',
       ),
       h('h2', {}, 'Also here'),
       h(

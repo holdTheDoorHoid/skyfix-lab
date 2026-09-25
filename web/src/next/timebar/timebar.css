@@ -619,3 +619,14 @@ button.sf-tb-clock:hover {
   color: var(--ui-ink-3);
   font-size: var(--text-xs);
 }
+
+/* AM or PM on the 12-hour clock (shell/format.ts `clockParts`): small, like the seconds, but
+   kept on phones, where the seconds are hidden. (packs agent, the 12-hour clock.) */
+.sf-tb-clock__ampm {
+  color: var(--chrome-ink-3);
+  font-weight: 500;
+}
+
+.sf-tb-clock__ampm:empty {
+  display: none;
+}

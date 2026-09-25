@@ -50,7 +50,9 @@ export function domPrompter(doc: Document = document): Prompter {
       const bar = h('span', { class: 'sf-packs-prompt__bar-fill' });
       const meter = h('div', { class: 'sf-packs-prompt__bar', role: 'progressbar', 'aria-valuemin': 0, 'aria-valuemax': 100, hidden: true }, bar);
       const actions = h('div', { class: 'sf-packs-prompt__actions' });
-      const close = iconButton('close', 'Not now', { size: 'sm', tip: 'Not now', class: 'sf-packs-prompt__close' });
+      // No tooltips on this card: its buttons are replaced under the pointer as the steps go
+      // by, and every one of them says what it does.
+      const close = iconButton('close', 'Not now', { size: 'sm', class: 'sf-packs-prompt__close' });
       const card = h(
         'div',
         { class: 'sf-notice sf-packs-prompt__card', 'data-state': 'ask' },
@@ -85,7 +87,7 @@ export function domPrompter(doc: Document = document): Prompter {
         onDismiss = () => resolve('dismiss');
         actions.replaceChildren(
           button({ label: 'Not now', variant: 'ghost', size: 'sm', onClick: () => resolve('dismiss') }),
-          button({ label: getLabel, variant: 'primary', size: 'sm', tip: `Download the ${request.label} pack (${size})`, onClick: () => resolve('get') }),
+          button({ label: getLabel, variant: 'primary', size: 'sm', onClick: () => resolve('get') }),
         );
       };
 

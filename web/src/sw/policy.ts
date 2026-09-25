@@ -70,7 +70,7 @@ export interface FragmentMap {
 }
 
 export interface SwEntry {
-  /** Relative to the site root, e.g. `assets/main-Ab12Cd34.js`, `classic/index.html`. */
+  /** Relative to the site root, e.g. `assets/main-Ab12Cd34.js`, `index.html`. */
   readonly url: string;
   /** SHA-256 of the file, first 16 hex digits (`revision`). */
   readonly rev: string;
@@ -233,7 +233,7 @@ export type Route =
 
 const PASS: Route = { kind: 'pass' };
 
-/** The file a URL names: `…/classic/` is `…/classic/index.html`. */
+/** The file a URL names: `…/docs/` is `…/docs/index.html`. */
 function fileUrl(href: string): string {
   return href.endsWith('/') ? `${href}index.html` : href;
 }

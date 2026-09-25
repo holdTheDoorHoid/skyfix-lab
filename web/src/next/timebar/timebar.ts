@@ -68,12 +68,14 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   );
   const local = h('span', {});
   const seconds = h('span', { class: 'sf-tb-clock__sec' });
+  // AM or PM on the 12-hour clock: its own element, so it stays when phones hide the seconds.
+  const ampm = h('span', { class: 'sf-tb-clock__ampm' });
   const zoneName = h('span', { class: 'sf-tb-clock__zone' });
   const other = h('output', { class: 'sf-tb-clock__utc' });
   const clockButton = h(
     'button',
     { type: 'button', class: 'sf-tb-clock', 'data-tip': 'Type a time' },
-    h('output', { class: 'sf-tb-clock__local' }, local, seconds),
+    h('output', { class: 'sf-tb-clock__local' }, local, seconds, ampm),
     h('span', { class: 'sf-tb-clock__row' }, zoneName, other),
   );
   prevDay.addEventListener('click', () => stepTime(store, { unit: 'day', count: -1 }));
@@ -176,7 +178,8 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     // Big hours and minutes, small seconds (and AM/PM on the 12-hour clock).
     const partsNow = clockParts(jd, zone);
     setText(local, partsNow.hm);
-    setText(seconds, `${partsNow.seconds}${partsNow.suffix}`);
+    setText(seconds, partsNow.seconds);
+    setText(ampm, partsNow.suffix);
     setText(zoneName, zoneShortName(jd, zone));
     // UTC beside the display zone; when UTC is the display zone, the place's own clock.
     const placeZ = placeZone(s);
