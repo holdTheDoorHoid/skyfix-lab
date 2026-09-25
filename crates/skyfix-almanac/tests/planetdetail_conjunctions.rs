@@ -131,6 +131,7 @@ fn check_conjunctions(a: f64, b: f64, moon_window: (f64, f64)) {
     };
     let mut per_kind: BTreeMap<String, (Worst, Worst, Worst)> = BTreeMap::new();
     let mut slow = Worst::default();
+    let mut along_ratio = Worst::default();
     let mut matched = 0;
     for (body, other, jd_tt, sep, pa) in &f.conjunctions {
         let jd = jd_utc_from_tt(*jd_tt);
@@ -160,13 +161,20 @@ fn check_conjunctions(a: f64, b: f64, moon_window: (f64, f64)) {
         // conjunction of 2038 close at 160"/day, so Uranus's own 2" moves the minimum by
         // 18 minutes. Past 5 minutes the difference must be one the bodies' accuracy
         // explains: the time apart, times the pair's relative speed, within the budget.
+        // verify2: every pair, fast or slow, is held to it (a slow pair's minutes and a
+        // fast pair's seconds are the same test); the 5-minute split is only for the
+        // printout. Before, only pairs past 5 minutes were, and the final `dt < 300 s`
+        // could not fail because every larger dt went to `slow`.
+        let along = dt.abs() / 86_400.0 * relative_speed(body, other, jd);
+        assert!(
+            along < budget,
+            "{body}-{other} {jd_tt}: {dt:.1} s apart, {along:.2}\" along the track (budget {budget}\")"
+        );
+        along_ratio.add(along / budget, || {
+            format!("{body}-{other} {jd_tt}: {dt:+.1} s")
+        });
         if dt.abs() > 300.0 {
-            let along = dt.abs() / 86_400.0 * relative_speed(body, other, jd);
             slow.add(along, || format!("{body}-{other} {jd_tt}: {dt:+.0} s"));
-            assert!(
-                along < budget,
-                "{body}-{other} {jd_tt}: {dt:.0} s apart, {along:.2}\" along the track (budget {budget}\")"
-            );
         } else {
             e.0.add(dt, label);
         }
@@ -228,9 +236,9 @@ fn check_conjunctions(a: f64, b: f64, moon_window: (f64, f64)) {
         ours_in_scope, matched,
         "every one of ours is in the reference and back; without a reference: {unmatched:?}"
     );
-    // The brief's target is 5 minutes (the separation and the position angle were held
-    // to the bodies' own accuracy above).
-    assert!(dt.value.abs() < 300.0, "{dt:?}");
+    // The brief's 5 minutes is the split above; every time was held to the bodies' own
+    // accuracy along the track.
+    println!("worst time difference as a fraction of the position budget: {along_ratio:?}");
 }
 
 #[test]
