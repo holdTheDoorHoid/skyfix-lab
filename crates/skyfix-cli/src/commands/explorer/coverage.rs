@@ -10,6 +10,7 @@
 //! is the sight providers' own coverage (the `coverage` export), a different question.
 
 use anyhow::Result;
+use skyfix_core::calendar::Calendar;
 use skyfix_ephemeris::tiers::Tier;
 use skyfix_wasm::coverage::native::{self as wasm_coverage, ExplorerCoverage};
 
@@ -161,6 +162,20 @@ pub fn run_tier(a: &TierArgs) -> Result<u8> {
     };
     let mut out = String::from("COVERAGE TIER\n");
     push_field(&mut out, "Instant", &text::utc(jd));
+    // The tiers' bounds are the wire's proleptic Gregorian dates: an instant shown in the
+    // Julian calendar is given in that one too, or 1549-12-25 (Julian) would seem to lie
+    // before a tier that starts on 1550-01-01 and contains it.
+    if text::display_calendar(jd) != Calendar::Gregorian {
+        let wire = skyfix_core::time::format_utc(text::round_to_second(jd));
+        push_field(
+            &mut out,
+            "Gregorian",
+            &format!(
+                "{} (proleptic, as are the bounds below)",
+                wire.replace(".000Z", "Z")
+            ),
+        );
+    }
     push_field(&mut out, "Tier", &format!("{tier}: {meaning}"));
     report::emit(&out)?;
     Ok(exit::OK)

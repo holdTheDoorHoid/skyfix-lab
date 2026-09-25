@@ -1790,8 +1790,15 @@ mod deep_time {
                 "{when}"
             );
         }
-        // A date as typed: Julian before the reform, as every CLI date.
+        // A date as typed: Julian before the reform, as every CLI date. The text gives
+        // such a date in the bounds' calendar too, so this one is plainly inside them.
         assert_eq!(json_of(&["tier-at", "-0584-05-28"]), json!("labelled"));
+        assert_eq!(json_of(&["tier-at", "1549-12-25"]), json!("validated"));
+        skyfix(["tier-at", "1549-12-25"])
+            .expect_code(0)
+            .expect_stdout_flat("Instant 1549-12-25T00:00:00 UT (Julian)")
+            .expect_stdout_flat("Gregorian 1550-01-04T00:00:00Z (proleptic")
+            .expect_stdout_flat("validated: inside 1550-01-01T00:00:00Z");
         assert_eq!(json_of(&["tier-at", "--jd", "0"]), json!("outside"));
     }
 

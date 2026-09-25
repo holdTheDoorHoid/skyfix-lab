@@ -2080,12 +2080,16 @@ Packs      none loaded (no pack is needed for either tier)
 ### `skyfix tier-at <DATE> | --jd JD`
 
 The tier of an instant (the export `tier_at`): `validated`, `labelled` or `outside`; its
-JSON is the name alone.
+JSON is the name alone. The tiers' bounds are proleptic Gregorian dates, as JSON writes
+them, while a date is typed and shown in the Julian calendar before 1582-10-15 (above,
+"Dates, years and calendars"): so an instant shown as Julian is given in the Gregorian
+calendar too, and `skyfix tier-at 1549-12-25` is validated, being 1550-01-04 there.
 
 ```console
 $ skyfix tier-at -0584-05-28T12:00:00Z
 COVERAGE TIER
 Instant    -0584-05-28T12:00:00 UT (Julian)
+Gregorian  -0584-05-22T12:00:00Z (proleptic, as are the bounds below)
 Tier       labelled: a historical or far-future estimate (-2000-01-01T00:00:00Z to
            3000-12-31T23:59:59Z): positions for display, each time with its Delta-T
            uncertainty (skyfix time-info); no sights, predicted readings or plans
