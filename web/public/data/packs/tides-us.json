@@ -1,0 +1,26 @@
+{
+  "name": "tides-us",
+  "version": "2026-09-25",
+  "rev": "8fd019a61b7290b2",
+  "file": "tides-us-8fd019a61b7290b2.bin",
+  "bytes": 344543,
+  "sha256": "8fd019a61b7290b2f3b40d16bba59d7261fb2757ae180cf61b81178a3de41666",
+  "label": "US tides",
+  "description": "Tide predictions for NOAA's tide stations, mostly in the United States",
+  "provides": [
+    "tides:us"
+  ],
+  "stations": {
+    "harmonic": 1256,
+    "subordinate": 2243,
+    "flags": {
+      "reference_unusable": 1,
+      "non_navigational": 10,
+      "no_constants": 4,
+      "noaa_differs": 1,
+      "no_datums": 2
+    }
+  },
+  "source": "NOAA CO-OPS (tidesandcurrents.noaa.gov), retrieved 2026-09-25 to 2026-09-25; public domain (U.S. Government work). See docs/THIRD_PARTY.md.",
+  "built_by": "tools/tides/build.py"
+}

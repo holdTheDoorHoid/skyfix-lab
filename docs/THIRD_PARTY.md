@@ -48,6 +48,8 @@ a fact you expect is not where you thought, it has moved, not gone.
 | International Geomagnetic Reference Field IGRF-14 (IAGA), 195 coefficient rows × 27 columns | Magnetic variation 1900-2024 | **CC BY 4.0** (IAGA's Zenodo record); credited in this document — [see the licence note](#igrf-14-is-cc-by-40-credited-in-the-documentation) | None on screen; credited here |
 | WMM2025 official test values and technical report (NCEI), IAGA's pyIGRF14 test values, the BGS IGRF-14 calculator, NOAA's Geomag 7.0 sample output, Bowditch ch. 15 | Development-time checks of the magnetic models and the compass-error method | U.S. Government works; MIT (pyIGRF14); BGS web-service outputs as test data; **never shipped** | None |
 | NAIF lunar orientation kernels (DE440), published occultation predictions (BAA; IOTA via EarthSky and Astronomy) | Development-time truth for the Moon in detail (`docs/ACCURACY.md` section 14) | US Government works; published times are facts, transcribed; **never shipped** | None (not in the runtime at all) |
+| NOAA CO-OPS tide stations, harmonic constants, datums and subordinate offsets (3 499 stations) | Tide predictions, the optional `tides-us` pack (downloaded when turned on) | U.S. Government work (public domain); NOS *requests* attribution, a docs line here | None |
+| Schureman (1958), *Manual of Harmonic Analysis and Prediction of Tides* (USC&GS Special Publication 98) | Node factors, equilibrium arguments, constituent definitions of the tides engine | U.S. Government work (public domain); formulas transcribed | None |
 
 ## Runtime data
 
@@ -964,6 +966,42 @@ a test re-parses both files and compares every number.
   converted to integers without changing any value (CC BY's "indicate if changes were
   made": only the storage format changed). See the licence note below for why this is a
   documentation credit and not an on-screen one.
+### Tides (optional `tides-us` pack)
+
+Owner: tides agent (expansion programme; `crates/skyfix-tides`, `tools/tides/`,
+`crates/skyfix-wasm/src/tides.rs`). Added 2026-09-25. No new crate or npm dependency.
+The data ships as an **optional pack**, `web/public/data/packs/tides-us-<rev>.bin`,
+downloaded only when the person turns tides on (EXPANSION_PLAN §3); the core module
+never contains it.
+
+#### NOAA CO-OPS — tide stations, harmonic constants, datums, subordinate offsets
+
+| | |
+|---|---|
+| Publisher | NOAA National Ocean Service, Center for Operational Oceanographic Products and Services (CO-OPS), tidesandcurrents.noaa.gov |
+| Endpoints | `https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type=tidepredictions&expand=tidepredoffsets` (the station list with the subordinate offsets) and `.../mdapi/prod/webapi/stations/<id>.json?expand=harcon,datums,disclaimers,notices&units=metric` (each harmonic station) |
+| Retrieved | 2026-09-25 (UTC), 1 258 requests; URL, time, size and SHA-256 of every response in the git-ignored cache manifest (`tools/tides/cache/manifest.json`) |
+| Licence basis | U.S. Government work. NOAA's disclaimer (tidesandcurrents.noaa.gov/disclaimers.html): "The information on government servers are in the public domain, unless specifically annotated otherwise, and may be used freely by the public." None of the records used is annotated otherwise (the 52 station disclaimers are about the observations' provenance and leveling). |
+| Attribution | "NOS requests that attribution be given whenever NOS material is reproduced and re-disseminated" — a request, met by this entry and the pack's sidecar `source` field; no on-screen credit (the owner's no-credit preference is kept). The disclaimer also asks that the information not "be modified in content and then presented as official government material": the app presents its own predictions, labelled "predictions, not observations", never as NOAA's. |
+| Used for | 1 256 harmonic stations' constants (37 constituents, Anchorage 120), their datums (MHHW, MHW, MTL, MSL, MLW, MLLW, LAT, HAT, NAVD88) and 2 243 subordinate stations' reference, time and height differences |
+| Processing | `tools/tides/build.py`: amplitudes kept to the millimetre and Greenwich phases to 0.01° (NOAA publishes 1 mm and 0.1°: nothing lost); zero-amplitude constituents dropped; datums re-expressed relative to MSL in millimetres; additive height differences converted from feet; names as NOAA's list gives them, words set entirely in capitals (the old tide tables' mark of a reference station) put in title case, acronyms kept; stations sorted by id; five flags (`noaa_differs`, `no_datums`, `no_constants`, `reference_unusable`, `non_navigational`). The payload format is in EXPLORER_API "Expansion programme — tides". |
+| Coverage | Every station NOAA predicts tides for: the U.S. coasts, territories and possessions, and the foreign ports NOAA's former tide tables covered (Mexico, Central America, the Caribbean, the Pacific islands, British Columbia), as NOAA publishes them; NOAA's list has no country field (its state code is empty for 431 stations, many of them U.S.). The on-screen label says "US stations (NOAA)". |
+
+Non-U.S. constants (UKHO, SHOM, CHS, BoM) are licensed and not used; TICON-4 (CC BY 4.0,
+mixed provenance) was not used (the data audit, section 6).
+
+#### Schureman (1958) — the prediction method
+
+P. Schureman, *Manual of Harmonic Analysis and Prediction of Tides*, U.S. Coast and
+Geodetic Survey Special Publication 98, revised edition 1940, reprinted 1958 (a U.S.
+Government work, public domain), as scanned by NOAA:
+`https://tidesandcurrents.noaa.gov/publications/SpecialPubNo98.pdf` (25 449 366 bytes,
+retrieved 2026-09-25, read by the agent for the formulas; not stored in the repository).
+Transcribed into `crates/skyfix-tides/src/schureman.rs`: the astronomical elements of
+Table 1; I, ν, ξ (p. 156), ν′ and 2ν″ (formulas 224, 232); the node factors of formulas
+73-78, 149, 197/207 (M1), 213-215 (L2), 227 (K1), 235 (K2); the arguments V and angles u of
+Tables 2 and 2a. `crates/skyfix-tides/tests/schureman_tables.rs` carries printed values
+of Tables 6, 14 and 15 (1990-1999) typed from the scan, as test data.
 
 ### The Moon in detail: named lunar features and the Moon's orientation (expansion programme P8)
 
@@ -1475,6 +1513,18 @@ registration, so it was not used; the BGS calculator is the other official IGRF-
 calculator NCEI's IGRF page names. The IGRF-14 paper itself (Earth Planets Space 78, 127)
 could not be fetched (the publisher's site challenges automated clients); it is cited from
 the Zenodo record, which is the release.
+### Tides: NOAA's own predictions (reference fixtures)
+
+Owner: tides agent. Development-time only; never shipped.
+
+| Fixture | Source | Retrieved |
+|---|---|---|
+| `fixtures/reference/tides_noaa.json` | NOAA CO-OPS predictions API, `https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions&application=skyfix-lab-tides&time_zone=gmt&units=metric&datum=MLLW&interval=hilo` and `interval=h`: 20 harmonic stations × 30 days (high/low and hourly) and 6 subordinate stations × 30 days (high/low); each harmonic station's (and each subordinate station's reference's) constants and datums as NOAA served them | 2026-09-25 (UTC), 46 prediction requests |
+| `fixtures/reference/tides_noaa_sweep.json` | the same API, `interval=hilo`, 2026-02-01 to 2026-02-03, every station of the list (3 492 answered, 7 refused, recorded) | 2026-09-25 (UTC), 3 499 requests |
+
+Same licence basis as the pack's data above (U.S. Government work, public domain).
+`tools/tides/fixtures.py` writes them; `fixtures/README.md`'s rule holds: never
+regenerated from Rust output.
 
 ### Sailings, dip short of the horizon, star finder (sailings agent, expansion programme)
 

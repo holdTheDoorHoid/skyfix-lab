@@ -113,6 +113,16 @@ import type {
   OccultationList,
   OccultationOptions,
 } from './types.js';
+import { MockTides } from './mock/tides.js';
+import type {
+  TideCurve,
+  TideDatum,
+  TideExtremes,
+  TideNow,
+  TidesPackInfo,
+  TideStation,
+  TideStationNear,
+} from './types.js';
 
 export const MOCK_DESCRIPTION =
   'MOCK ENGINE for developing the interface. Every number on this page is illustrative: positions come from ' +
@@ -152,6 +162,8 @@ export interface MockEngineOptions {
    * of the interface. Default false: the mock is not validated against anything.
    */
   validated?: boolean;
+  /** Tides (tides agent): answer as if the tides-us pack were loaded (default true). */
+  tidesLoaded?: boolean;
 }
 
 interface BodyDef {
@@ -292,7 +304,9 @@ export class MockEngine
   }
 
   loadPack(name: string, bytes: Uint8Array): PackInfo {
-    return this.packRegistry.loadPack(name, bytes);
+    const info = this.packRegistry.loadPack(name, bytes);
+    if (name === 'tides-us') this.tides.install(); // tides agent: the synthetic station answers once loaded
+    return info;
   }
 
   /** Sailings, DR, routes, star identification, star finder (mock-sailings.ts): illustrative. */
@@ -322,6 +336,7 @@ export class MockEngine
 
   constructor(options: MockEngineOptions = {}) {
     this.validated = options.validated ?? false;
+    this.tides = new MockTides({ loaded: options.tidesLoaded ?? true });
     this.field = buildStarfield({ synthetic: options.syntheticStars ?? 2000 });
     this.defs = [
       { name: 'Sun', kind: 'sun', navigational: true },
@@ -657,6 +672,34 @@ export class MockEngine
   almanacDay(date: string): AlmanacDay {
     return mockAlmanacDay(this, date);
   }
+
+  // --- Tides (tides agent): one synthetic station (mock/tides.ts), illustrative only.
+  private readonly tides: MockTides;
+
+  tideStationsNear(latDeg: number, lonDeg: number, n: number): TideStationNear[] {
+    return this.tides.tideStationsNear(latDeg, lonDeg, n);
+  }
+
+  tideStation(stationId: string): TideStation {
+    return this.tides.tideStation(stationId);
+  }
+
+  tidePredict(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum: TideDatum | '' = ''): TideCurve {
+    return this.tides.tidePredict(stationId, jdStart, jdEnd, stepMin, datum);
+  }
+
+  tideExtremes(stationId: string, jdStart: number, jdEnd: number, datum: TideDatum | '' = ''): TideExtremes {
+    return this.tides.tideExtremes(stationId, jdStart, jdEnd, datum);
+  }
+
+  tideNow(stationId: string, jdUtc: number, datum: TideDatum | '' = ''): TideNow {
+    return this.tides.tideNow(stationId, jdUtc, datum);
+  }
+
+  tidePackInfo(): TidesPackInfo | null {
+    return this.tides.tidePackInfo();
+  }
+  // --- end tides
 
   // -------------------------------------------------------------------------
   // Magnetic field and compass error (expansion programme, geomag agent;

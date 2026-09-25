@@ -60,6 +60,13 @@ import type {
   MoonOrientation,
   OccultationList,
   OccultationOptions,
+  TideCurve,
+  TideDatum,
+  TideExtremes,
+  TideNow,
+  TidesPackInfo,
+  TideStation,
+  TideStationNear,
 } from './types.js';
 // Deep sky (deepsky agent).
 import type {
@@ -193,6 +200,14 @@ export interface ExplorerWasmExports {
   sky_search?(query: string, observerJson: string, jdUtc?: number, limit?: number): unknown;
   tonight?(observerJson: string, jdUtc: number, optionsJson: string): unknown;
   extinction_table?(conditionsJson: string): unknown;
+  // --- Tides (tides agent, EXPLORER_API "Tides"); absent in builds before the tides work.
+  tide_stations_near?(latDeg: number, lonDeg: number, n: number): unknown;
+  tide_station?(stationId: string): unknown;
+  tide_predict?(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum: string): unknown;
+  tide_extremes?(stationId: string, jdStart: number, jdEnd: number, datum: string): unknown;
+  tide_now?(stationId: string, jdUtc: number, datum: string): unknown;
+  tide_pack_info?(): unknown;
+  // --- end tides
   version?(): string;
   // Expansion programme — sun tools (suntools agent; EXPLORER_API "Expansion programme —
   // sun tools"); absent in older builds.
@@ -779,6 +794,55 @@ export class WasmEngine
     const fn = this.deep('extinction_table');
     return this.call('extinction_table', () => fn.call(this.x, conditionsJson(conditions)));
   }
+  // ---------------------------------------------------------------------------------
+  // Tides (tides agent; EXPLORER_API "Tides"; TidesEngine in types.ts). Each throws
+  // `pack_not_loaded: …` until the tides-us pack is installed (`loadPack('tides-us', …)`).
+  // ---------------------------------------------------------------------------------
+
+  private tideFn<K extends keyof ExplorerWasmExports>(name: K): NonNullable<ExplorerWasmExports[K]> {
+    const fn = this.x[name];
+    if (typeof fn !== 'function') throw rebuildError(name, 'tide predictions');
+    return fn as NonNullable<ExplorerWasmExports[K]>;
+  }
+
+  /** The `n` stations nearest to a place (`tide_stations_near`). */
+  tideStationsNear(latDeg: number, lonDeg: number, n: number): TideStationNear[] {
+    const fn = this.tideFn('tide_stations_near');
+    return this.call('tide_stations_near', () => fn.call(this.x, latDeg, lonDeg, n));
+  }
+
+  /** One station by NOAA id (`tide_station`). */
+  tideStation(stationId: string): TideStation {
+    const fn = this.tideFn('tide_station');
+    return this.call('tide_station', () => fn.call(this.x, stationId));
+  }
+
+  /** Heights every `stepMin` minutes (`tide_predict`); typed arrays pass through. */
+  tidePredict(stationId: string, jdStart: number, jdEnd: number, stepMin: number, datum: TideDatum | '' = ''): TideCurve {
+    const fn = this.tideFn('tide_predict');
+    return this.call('tide_predict', () => fn.call(this.x, stationId, jdStart, jdEnd, stepMin, datum));
+  }
+
+  /** High and low water in the window (`tide_extremes`). */
+  tideExtremes(stationId: string, jdStart: number, jdEnd: number, datum: TideDatum | '' = ''): TideExtremes {
+    const fn = this.tideFn('tide_extremes');
+    return this.call('tide_extremes', () => fn.call(this.x, stationId, jdStart, jdEnd, datum));
+  }
+
+  /** The tide at an instant (`tide_now`). */
+  tideNow(stationId: string, jdUtc: number, datum: TideDatum | '' = ''): TideNow {
+    const fn = this.tideFn('tide_now');
+    return this.call('tide_now', () => fn.call(this.x, stationId, jdUtc, datum));
+  }
+
+  /** The installed pack's summary, or null (`tide_pack_info`). */
+  tidePackInfo(): TidesPackInfo | null {
+    const fn = this.x.tide_pack_info;
+    if (typeof fn !== 'function') return null;
+    return this.call('tide_pack_info', () => fn.call(this.x));
+  }
+
+  // --- end tides
 }
 
 // The WASM engine is a Moon-detail engine (checked here rather than in its `implements`

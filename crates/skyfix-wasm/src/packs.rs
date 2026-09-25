@@ -103,6 +103,14 @@ pub struct Producer {
 /// ```
 pub const PRODUCERS: &[Producer] = &[
     // ---- producer entries start (one per pack; the planner union-merges them) ----
+    // tides agent: NOAA tide stations (EXPLORER_API "Expansion programme — tides").
+    Producer {
+        name: "tides-us",
+        label: "US tides",
+        description: "Tide predictions for NOAA's tide stations, mostly in the United States",
+        provides: &["tides:us"],
+        install: crate::tides::install_tides_us,
+    },
     // ---- producer entries end ----
 ];
 

@@ -21,6 +21,8 @@ skyfix-starfield = { path = "../skyfix-starfield" }
 skyfix-motion = { path = "../skyfix-motion" }
 # geomag.rs: the magnetic field (WMM2025, IGRF-14) and compass error (expansion programme).
 skyfix-geomag = { path = "../skyfix-geomag" }
+# tides.rs: the optional tides-us pack (expansion programme P5, tides agent).
+skyfix-tides = { path = "../skyfix-tides" }
 wasm-bindgen = { workspace = true }
 serde-wasm-bindgen = { workspace = true }
 js-sys = { workspace = true }

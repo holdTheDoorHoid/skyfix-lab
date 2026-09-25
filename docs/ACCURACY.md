@@ -48,6 +48,7 @@ reproduce each row are in the numbered section named.
 | Moon in detail: libration, sub-solar point, axis (vs Skyfield + JPL's DE440 lunar orientation; Meeus 53.a) | 0.0052° / 0.0060° / 0.0061° over 1550–2650 (model), 0.0058° end to end for observers; Meeus 53.a to every printed digit | 0.05° | 14 |
 | Moon in detail: perigee, apogee, supermoons (vs Skyfield + DE440s) | instants within 11.2 s, distances 0.22 km; every supermoon/micromoon flag agrees | 2 min, 10 km | 14 |
 | Moon in detail: lunar occultations, mean limb (vs Skyfield's topocentric geometry; vs published predictions) | 48 contacts within 1.42 s, position angle 0.033°; BAA and IOTA city predictions within 5–48 s; a year at one place in 76 ms of CPU | 30 s; 200 ms | 14 |
+| Tides, `tides-us` pack (vs NOAA's own predictions: 20 harmonic stations × 30 days, 6 subordinate, and a 3-day sweep of all 3 492 predictable stations) | high and low water within 1.10 min and 1.08 cm (20 stations, 2 087 extremes; Anchorage the 1.08 cm, the others ≤ 0.12 cm); curve within 1.38 cm (others ≤ 0.29 cm); sweep 39 120 extremes within 1.36 min and 0.99 cm | 2 min, 5 cm | 16 |
 
 ## 1. What accuracy means here
 
@@ -2153,3 +2154,113 @@ python3 -m tools.starfield.wgsn
 cargo test -p skyfix-starfield -- --nocapture
 cargo test --release -p skyfix-starfield --test deepsky_timing -- --nocapture
 ```
+
+## 16. Tides
+
+Owner: tides agent (expansion programme, work package P5). The engine is
+`skyfix_tides` over the optional `tides-us` pack; the definitions are CONVENTIONS 13.11;
+the wire format is EXPLORER_API "Expansion programme — tides"; the pipeline and what it
+found are `tools/tides/README.md`. **These are predictions of the astronomical tide:
+weather, storm surge and river flow change the real water level by more than every
+number below, and NOAA's datums are those of the 1983-2001 epoch (sea level has risen
+since at most stations).** The comparison is with NOAA's own predictions made from the
+same published constants, so it measures the reproduction of NOAA's method, not the
+tide.
+
+### Against NOAA's own predictions, 20 harmonic stations × 30 days
+
+`tests/noaa_fixtures.rs` against `fixtures/reference/tides_noaa.json` (NOAA CO-OPS
+predictions API: high and low water and the hourly curve on MLLW, GMT, metres), built
+from the constants NOAA publishes, embedded in the fixture as NOAA served them. Five
+30-day windows from 2025-12-17 to 2027-12-19, including one across a new year and
+one at each end of a year. NOAA rounds times to the minute and heights to the millimetre.
+
+| station | tide | extremes | time worst | height worst | curve worst |
+|---|---|---|---|---|---|
+| Eastport, ME | semidiurnal, 5.5 m range | 116 | 0.57 min | 0.09 cm | 0.29 cm |
+| Boston, MA | semidiurnal | 116 | 0.57 min | 0.08 cm | 0.16 cm |
+| The Battery, NY | semidiurnal | 116 | 0.55 min | 0.06 cm | 0.11 cm |
+| Sewells Point, VA | semidiurnal | 116 | 0.56 min | 0.05 cm | 0.08 cm |
+| Wilmington, NC | semidiurnal, river | 116 | 0.59 min | 0.06 cm | 0.12 cm |
+| Key West, FL | mixed | 116 | 0.60 min | 0.06 cm | 0.07 cm |
+| Pensacola, FL | diurnal (F = 11) | 64 | 0.65 min | 0.06 cm | 0.07 cm |
+| Grand Isle, LA | diurnal | 60 | 1.10 min | 0.05 cm | 0.06 cm |
+| Galveston, TX | mixed, mainly diurnal | 90 | 0.60 min | 0.05 cm | 0.07 cm |
+| Charlotte Amalie, VI | mixed, mainly diurnal | 74 | 0.77 min | 0.05 cm | 0.06 cm |
+| San Diego, CA | mixed | 116 | 0.59 min | 0.07 cm | 0.12 cm |
+| San Francisco, CA | mixed | 116 | 0.67 min | 0.07 cm | 0.12 cm |
+| Astoria, OR | mixed, Columbia River | 116 | 0.59 min | 0.08 cm | 0.14 cm |
+| Seattle, WA | mixed | 116 | 0.61 min | 0.08 cm | 0.20 cm |
+| Juneau, AK | mixed, mainly semidiurnal | 116 | 0.61 min | 0.12 cm | 0.26 cm |
+| Anchorage, AK | 9 m range, NOAA's 120 constituents | 116 | 0.67 min | **1.08 cm** | **1.38 cm** |
+| Adak, AK | diurnal | 82 | 0.66 min | 0.07 cm | 0.10 cm |
+| Unalaska, AK | mixed, mainly diurnal | 92 | 0.90 min | 0.07 cm | 0.10 cm |
+| Honolulu, HI | mixed | 117 | 0.56 min | 0.06 cm | 0.07 cm |
+| Apra Harbor, Guam | mixed | 116 | 0.56 min | 0.06 cm | 0.07 cm |
+
+**All 2 087 extremes within 1.10 min (target 2 min) and 1.08 cm (target 5 cm); the
+curve within 1.38 cm (target 5 cm).** Every extreme is paired both ways (none missing,
+none extra). Outside Anchorage the agreement is at NOAA's own rounding (heights ≤ 0.12
+cm, curves ≤ 0.29 cm). Anchorage's residual, 0.7 cm rms, sits in the diurnal band near
+σ1 and 2Q1; no convention for those two (or for any other of the 83 extended
+constituents tried) reduces it further.
+
+The validation rules (`skyfix_tides::validation`) also allow, at a flat turn of the
+tide, three times the time uncertainty that the rounding of NOAA's published constants
+(1 mm, 0.1°) alone implies there; **no extreme needed that allowance**.
+
+**Node factors: at mid-year, not at each instant.** With f and u evaluated at the
+instant instead (`NodalMode::Instant`), the same comparison gives times up to 21.2 min
+(Charlotte Amalie), heights up to 11.3 cm and curves up to 18.0 cm (Anchorage; 0.1-7.3
+cm elsewhere). NOAA's predictions follow the mid-year convention (the test asserts the
+difference).
+
+### Six subordinate stations × 30 days
+
+Hell Gate and Hudson, NY (ratio, from The Battery, +3 h and +7 h), Farmdale, FL (ratio,
+from diurnal Pensacola), Haleiwa, HI (ratio), Security Cove, AK (additive, from Sitka),
+Christmas Island (additive, from Honolulu): **644 extremes within 0.80 min and 0.57 cm.**
+The curve between them is NOAA's cosine interpolation, an estimate labelled as such; NOAA
+publishes no curve to compare it with.
+
+### Every station: a 3-day sweep
+
+`tests/pack_real.rs` against `fixtures/reference/tides_noaa_sweep.json` (NOAA's high and
+low water for 2026-02-01 to 2026-02-03 at every station of its list): **3 492 stations,
+39 120 extremes, all within 1.36 min and 0.99 cm**, every extreme paired both ways but
+one: at Clear Lake, TX (8770933), a double high whose peaks differ by 1 mm, where NOAA's
+table keeps one peak and ours the other (counted as a stand). NOAA refuses predictions
+for 7 stations: 6 that the pack also cannot predict on MLLW (no constants, or no datums)
+and 8661558, Holly Grove Plantation, which it lists with usable offsets; that one is
+flagged `noaa_differs`. A debug build checks every 7th station (`TIDES_FULL_SWEEP=1` for
+all).
+
+### Schureman's printed tables
+
+`tests/schureman_tables.rs`: I, ν, ξ, ν′, 2ν″ within 0.011° of Table 6; the speeds of
+Tables 2 and 2a within 5 × 10⁻⁷ °/h; node factors within 0.0011 of Table 14 for
+1990-1999 (0.004 for K2, L2 and OO1, 0.009 for M1, whose tabulated values were
+interpolated from tables per 0.1° of I: under 0.2 mm of height at any station);
+V0 + u within 0.16° of Table 15 for 1990-1997 (M1 within 0.5°).
+
+### Speed
+
+Release build, x86-64, natively (WASM is typically 1.5-3 times slower): a month of high
+and low water 4.5 ms at Boston (34 constituents), 11 ms at Anchorage (120), 4.5 ms at a
+subordinate station; a week's curve at 6 minutes 0.3-0.7 ms; the tide now 1.4 ms; the ten
+nearest stations 1.3-3 ms; decoding the pack 18-22 ms (once). Target: a month in under
+20 ms.
+
+### Size
+
+The pack: 344 543 bytes (0.34 MB, target ≤ 0.5 MB), 234 KB deflated. The tides code in
+the core module (`npm run wasm`): +88 KB raw, +35 KB gzipped, measured on the programme's
+base commit 28131c5 (2.06 MB / 849 KB before, 2.15 MB / 885 KB with tides).
+
+### Reproduce
+
+- `cargo test -p skyfix-tides -- --nocapture` (the sweep in full with
+  `TIDES_FULL_SWEEP=1` or `--release`); `cargo test --release -p skyfix-tides --test
+  perf -- --ignored --nocapture` for the timings.
+- The data and fixtures: `tools/tides/README.md` (NOAA's API, about 4 800 requests,
+  cached).

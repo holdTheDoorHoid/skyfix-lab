@@ -46,6 +46,8 @@ pub mod moondetail;
 // showers, the Milky Way, search, extinction, tonight. EXPLORER_API.md, "Deep sky".
 pub mod deepsky;
 // --- end deepsky ---
+// Expansion programme (tides agent): tide predictions from the optional tides-us pack.
+pub mod tides;
 
 use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;

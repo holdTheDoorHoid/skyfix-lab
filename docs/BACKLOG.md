@@ -127,3 +127,13 @@ This file is the single list; the completion report links here.
 | Milky Way outline: windows in the dust | unstarted | The 100 µm dust screen darkens the whole plane, so the Sagittarius Star Cloud (M24) and similar windows come out darker than the eye sees them; a visual-band dust model or hand-set windows would fix it |
 | Visibility from surface brightness | unstarted | The instrument guide uses integrated magnitude with a size term; a surface-brightness model (with the sky's brightness) would rank faint large galaxies and nebulae better |
 | CLI access to deep sky | unstarted | No `skyfix` subcommand yet (`tonight`, `showers`, `dso`); the engine calls are ready |
+
+## Expansion programme — tides (tides agent)
+
+| item | status | notes |
+|---|---|---|
+| Tide predictions engine and the `tides-us` pack | completed (engine) | `skyfix-tides` + `skyfix-wasm::tides`: NOAA's 3 499 stations, harmonic prediction with Schureman node factors in NOAA's conventions, high and low water with NOAA's tide-table rule, subordinate stations, datums, nearest stations; within 1.36 min and 1.08 cm of NOAA's own predictions at every station tested (`docs/ACCURACY.md` section 16). The interface (Charts → Tides, map layer, Tonight line) is wave 2 |
+| Tide pack loading through the pack mechanism | completed | `tides-us` is an entry of `packs::PRODUCERS`; `load_pack("tides-us", bytes)` installs it (the temporary loader of the first draft is gone) |
+| Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
+| Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
+| Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |
