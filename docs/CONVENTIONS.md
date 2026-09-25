@@ -1338,3 +1338,14 @@ the Events view builds its entries in `web/src/next/events/items.ts`).
   Sun's edge with 12 toward the zenith (the occultation card's). The list, its Save menu and
   its calendar files keep the mean limb; the card's own calendar entry says when its times
   are corrected.
+- **Opening the Events view from another view** (`web/src/next/events/link.ts`, re-exported by
+  `events/view.ts`): `showEvents(store, target, ref)`, `target` a tab or a list
+  (`eclipses`, `moon/phases|apsides|occultations`,
+  `planets/events|conjunctions|retrograde|transits|jupiter`, `meteors`, `seasons`;
+  `eventsTargetFor(kind)` names the list for a kind of event), `ref` `{ jd, body, id }`, each
+  optional. It sets the explorer's time to `jd` and selects `body`, opens the view, and posts
+  the request on the explorer's channel `eventsRequests(store)` (the pattern of Tonight's
+  `skyTargets`), which the view answers when it mounts or at once: the tab and list, the
+  list built from `jd` and running forward so the event heads it, and the card of `id` (an
+  eclipse, occultation, transit or meteor shower) opened. Ids are the lists' own, which are
+  their calendar UIDs; `eventIds` builds them without loading the view.

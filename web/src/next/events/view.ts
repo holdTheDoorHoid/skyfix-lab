@@ -38,9 +38,13 @@ import { button } from '../theme/primitives.js';
 import { eclipsesTab } from './eclipses.js';
 import { watchAll, type EventsTab, type EventsUi, type JumpOptions, type TabComponent, type TabEnv } from './env.js';
 import { moonGroup, planetsGroup } from './groups.js';
+import { eventsRequests, requestPatch } from './link.js';
 import { seasonsTab } from './lists.js';
 import { sharedSearches } from './shared.js';
 import { showersTab } from './showers.js';
+
+// Other views open this one on a list at an event through the light link module.
+export { eventIds, eventsTargetFor, showEvents, type EventsRef, type EventsTarget } from './link.js';
 
 const TABS: readonly { id: EventsTab; label: string; tip: string; tab: TabComponent }[] = [
   { id: 'eclipses', label: 'Eclipses', tip: 'Solar and lunar eclipses, and what you would see of them', tab: eclipsesTab },
@@ -251,6 +255,16 @@ const view: Component = (host, ctx) => {
       },
     ),
   );
+
+  // --- Requests from other views (link.ts `showEvents`): one waiting when the view mounts is
+  // answered before the first tab mounts; later ones at once.
+  const requests = eventsRequests(ctx.store);
+  const answer = (): void => {
+    const r = requests.take();
+    if (r) ui.patch(requestPatch(r));
+  };
+  answer();
+  d.add(requests.subscribe((r) => r && answer()));
 
   // --- Mount the chosen tab ----------------------------------------------------------------
   let mounted: Mounted | null = null;

@@ -27,7 +27,8 @@ import { csvComments, csvOfItems, icsOfItems, screenWords, fileWords, type Event
 import { apsidesItems, moonPartner, occultationItem, occultedSomewhere, whereSeen } from '../../src/next/events/moon-model.js';
 import { OCCULTABLE_STARS } from '../../src/next/events/occultations.js';
 import { conjunctionItem, galileanItem, retrogradePeriods, stationItem, transitItem } from '../../src/next/events/planet-model.js';
-import { earthApsisItem, showerItem } from '../../src/next/events/sky-model.js';
+import { eventIds } from '../../src/next/events/link.js';
+import { earthApsisItem, eclipseItem, showerItem } from '../../src/next/events/sky-model.js';
 import { defaultState } from '../../src/next/state.js';
 import { validate } from './ics-reader.js';
 
@@ -164,5 +165,20 @@ describe.skipIf(!hasPackage)('the Events view’s new lists on the built WebAsse
       expect(lines.length - header - 1, name).toBe(items.length);
     }
     console.info(`a year of events as files: ${JSON.stringify(counts)}`);
+  });
+
+  it('the ids other views open cards by (link.ts `eventIds`) are the lists’ own', () => {
+    const w = fileWords(defaultState(Date.parse('2026-09-25T16:00:00Z')));
+    const eclipses = engine.eclipses(jdOf('2024-01-01T00:00:00Z'), jdOf('2027-01-01T00:00:00Z')).eclipses;
+    expect(eclipses.length).toBeGreaterThan(4);
+    for (const e of eclipses) expect(eclipseItem(e, null, w).id).toBe(eventIds.eclipse(e.id));
+    const transits = engine.transits(jdOf('2016-01-01T00:00:00Z'), jdOf('2033-01-01T00:00:00Z'), PHILLY).transits;
+    expect(transits.length).toBe(3);
+    for (const t of transits) expect(transitItem(t, w).id).toBe(eventIds.transit(t.id));
+    const a = jdOf('2026-09-25T00:00:00Z');
+    const occultations = engine.occultations(PHILLY, a, a + 365.25, { include_below_horizon: true }).events;
+    expect(occultations.length).toBeGreaterThan(10);
+    for (const o of occultations) expect(occultationItem(o, w).id).toBe(eventIds.occultation(o.body, o.closest.jd_utc));
+    for (const sd of engine.meteorShowers(2026).showers) expect(showerItem(sd, w).id).toBe(eventIds.shower(sd.shower.code, sd.peak.jd_utc));
   });
 });
