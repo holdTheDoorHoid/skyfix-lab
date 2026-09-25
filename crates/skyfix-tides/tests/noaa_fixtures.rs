@@ -185,6 +185,22 @@ fn harmonic_stations_match_noaa_within_2_minutes_and_5_cm() {
         inst_curve * 100.0
     );
     assert!(n > 2000);
+    // verify2: hold the figures docs/ACCURACY.md publishes, not only the brief's
+    // acceptance (2 min, 5 cm) that `check` applies: 1.10 min, 0.19 cm and 0.45 cm are
+    // measured. With Schureman's A20 for sigma1 instead of NOAA's 2O1 - P1, Anchorage's
+    // heights were 1.08 cm out and its curve 1.38 cm, and these fail.
+    assert_eq!(flat, 0, "an extreme needed the flat-turn allowance");
+    assert!(dt_worst <= 1.5, "extremes {dt_worst:.2} min from NOAA");
+    assert!(
+        dh_worst <= 0.005,
+        "heights {:.2} cm from NOAA",
+        dh_worst * 100.0
+    );
+    assert!(
+        curve_worst_all <= 0.006,
+        "curve {:.2} cm from NOAA",
+        curve_worst_all * 100.0
+    );
     // NOAA's predictions follow the mid-year convention, not instantaneous node factors.
     assert!(
         inst_curve > 5.0 * curve_worst_all,
@@ -267,5 +283,14 @@ fn subordinate_stations_match_noaa_within_2_minutes_and_5_cm() {
             c.stands
         );
         check(&c, id);
+        // verify2: the published figures (0.80 min, 0.57 cm), not only 2 min / 5 cm,
+        // and no extreme through the flat-turn allowance.
+        assert_eq!(c.flat, 0, "{id}: an extreme needed the flat-turn allowance");
+        assert!(c.worst_dt_min <= 1.2, "{id}: {:.2} min", c.worst_dt_min);
+        assert!(
+            c.worst_dh_m <= 0.008,
+            "{id}: {:.2} cm",
+            c.worst_dh_m * 100.0
+        );
     }
 }

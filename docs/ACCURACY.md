@@ -2236,6 +2236,24 @@ cm, curves ≤ 0.29 cm). Anchorage's residual, 0.7 cm rms, sits in the diurnal b
 σ1 and 2Q1; no convention for those two (or for any other of the 83 extended
 constituents tried) reduces it further.
 
+<!-- verify2 -->
+**Anchorage resolved (verify2, 2026-09-25): NOAA treats σ1 as the compound 2O1 − P1.**
+Against a whole year of NOAA's hourly predictions (the CO-OPS API, 2026 and 2027, 8 760
+hours each) the residual was 7.3 mm rms, and a least-squares fit at the 120 constituents'
+speeds put all of it at σ1's: 10.0 mm, 21 % of σ1's 47 mm, with 0.29 mm left over (NOAA's
+millimetre rounding). Solving for NOAA's own σ1 term gives f = 1.3616 and u = −8.03° in
+2026 (1.2927, −13.24° in 2027): f(O1)² and 2u(O1) exactly, the node factor and angle of
+2O1 − P1, whose V (T − 4s + 3h + 90°) and speed are those of Schureman's A20. With σ1 as
+that compound (`schureman.rs`), Anchorage's high and low waters are within **0.19 cm**
+(was 1.08 cm) and its curve within **0.45 cm** (was 1.38 cm) in the table above; the
+year's residual is 1.9 mm rms, at M2, N2, M4 and M6, about 0.1 % of each: M2's is a steady
++0.039° in both years, which is the size of NOAA publishing phases to 0.1° while predicting
+from its unrounded constants. The 3-day sweep is now within 1.36 min and **0.59 cm** (0.99
+cm before). `tests/noaa_fixtures.rs` and `tests/pack_real.rs` now hold these figures (1.5
+min, 0.5 cm, 0.6 cm for the curve, 0.8 cm in the sweep, and no extreme through the
+flat-turn allowance) instead of only the brief's 2 min and 5 cm.
+<!-- /verify2 -->
+
 The validation rules (`skyfix_tides::validation`) also allow, at a flat turn of the
 tide, three times the time uncertainty that the rounding of NOAA's published constants
 (1 mm, 0.1°) alone implies there; **no extreme needed that allowance**.
