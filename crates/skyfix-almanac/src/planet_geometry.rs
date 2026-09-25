@@ -393,8 +393,8 @@ pub(crate) struct VecFit {
     parts: Vec<[crate::eclipses::cheb::Cheb; 3]>,
 }
 
-/// The direction tolerance of [`VecFit`], radians (1e-5").
-const FIT_TOL_RAD: f64 = 1e-5 / RAD_TO_ARCSEC;
+/// The direction tolerance of [`VecFit`], radians (1e-4").
+const FIT_TOL_RAD: f64 = 1e-4 / RAD_TO_ARCSEC;
 /// The shortest segment [`VecFit`] splits down to, days.
 const FIT_MIN_SEG_DAYS: f64 = 1.0;
 

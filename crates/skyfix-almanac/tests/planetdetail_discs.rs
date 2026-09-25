@@ -224,3 +224,26 @@ fn saturns_rings_reproduce_meeus_example_45a_up_to_the_pole_and_ring_size() {
         "{r:?}"
     );
 }
+
+#[test]
+fn jupiters_central_meridians_reproduce_meeus_example_43a() {
+    // Meeus, Astronomical Algorithms, example 43.a, 1992 December 16 at 0h UT: DE =
+    // -2.48, P = 24.80, omega I = 268.06 and omega II = 72.74 degrees. Meeus's omegas
+    // are the central meridians of the illuminated disc: the geometric ones (ours, and
+    // Horizons' sub-observer point) plus the phase correction 57.3 sin^2(i/2) degrees,
+    // added with Jupiter west of the Sun, as it was (0.43 deg at i = 9.9 deg). His own
+    // geometric low-accuracy values are 267.69 and 72.36.
+    let d = planet_disc(&PlanetProvider::new(), Planet::Jupiter, 2_448_972.5).unwrap();
+    assert!((d.sub_earth_lat_deg - -2.48).abs() < 0.01, "{d:?}");
+    assert!((d.pole_position_angle_deg - 24.80).abs() < 0.01, "{d:?}");
+    let phase = 57.3 * (d.phase_angle_deg.to_radians() / 2.0).sin().powi(2);
+    let cm = |system: &str| {
+        d.central_meridians
+            .iter()
+            .find(|c| c.system == system)
+            .unwrap()
+            .longitude_deg
+    };
+    assert!((cm("I") + phase - 268.06).abs() < 0.1, "{d:?}");
+    assert!((cm("II") + phase - 72.74).abs() < 0.1, "{d:?}");
+}

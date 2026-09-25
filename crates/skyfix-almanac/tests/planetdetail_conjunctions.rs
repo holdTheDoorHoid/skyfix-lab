@@ -325,17 +325,38 @@ fn stations_1990_to_2060_match_skyfield() {
 #[test]
 #[ignore = "timing; run in release with --ignored --nocapture"]
 fn a_years_search_is_fast() {
+    // The search is single-threaded, so on a busy machine its own CPU time is the fair
+    // measure: Linux's per-thread scheduler statistics (nanoseconds on the CPU), else the
+    // wall clock. The best of three runs.
+    fn cpu_ns() -> Option<u64> {
+        std::fs::read_to_string("/proc/thread-self/schedstat")
+            .ok()?
+            .split_whitespace()
+            .next()?
+            .parse()
+            .ok()
+    }
     let (a, b) = (civil_to_jd(2026, 1, 1), civil_to_jd(2027, 1, 1));
-    let _ = conjunctions(a, b, &ConjunctionOptions::default()).unwrap();
-    let t = std::time::Instant::now();
-    let n = conjunctions(a, b, &ConjunctionOptions::default())
-        .unwrap()
-        .conjunctions
-        .len();
-    let ms = t.elapsed().as_secs_f64() * 1e3;
-    let t = std::time::Instant::now();
-    let s = stations(a, b).unwrap().stations.len();
-    let ms_st = t.elapsed().as_secs_f64() * 1e3;
+    let best = |f: &dyn Fn() -> usize| {
+        (0..3)
+            .map(|_| {
+                let (wall, cpu) = (std::time::Instant::now(), cpu_ns());
+                let n = f();
+                let ms = match (cpu, cpu_ns()) {
+                    (Some(x), Some(y)) => (y - x) as f64 / 1e6,
+                    _ => wall.elapsed().as_secs_f64() * 1e3,
+                };
+                (ms, n)
+            })
+            .fold((f64::INFINITY, 0), |x, y| if y.0 < x.0 { y } else { x })
+    };
+    let (ms, n) = best(&|| {
+        conjunctions(a, b, &ConjunctionOptions::default())
+            .unwrap()
+            .conjunctions
+            .len()
+    });
+    let (ms_st, s) = best(&|| stations(a, b).unwrap().stations.len());
     eprintln!("a year of conjunctions: {n} in {ms:.1} ms; stations: {s} in {ms_st:.1} ms");
     assert!(ms < 300.0, "{ms} ms");
 }
