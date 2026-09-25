@@ -18,7 +18,8 @@ import { mockAlmanacDay } from './mock/almanac.js';
 import * as A from './mock/astro.js';
 import { crossings, grid, sample } from './mock/roots.js';
 import { createMockMisfit } from './mock-misfit.js';
-import type { MisfitEngine } from './types.js';
+import { MockPacks } from './mock/packs.js';
+import type { MisfitEngine, PackEngine, PackInfo, PackStatus } from './types.js';
 import {
   buildStarfield,
   mockConstellationAt,
@@ -197,7 +198,7 @@ function inCoverage(jd: number): boolean {
   return jd >= COVERAGE_START && jd <= COVERAGE_END;
 }
 
-export class MockEngine implements ExplorerEngine, AlmanacEngine {
+export class MockEngine implements ExplorerEngine, AlmanacEngine, PackEngine {
   readonly kind = 'mock' as const;
   readonly description = MOCK_DESCRIPTION;
   /** Navigation tools for the Navigate view (mock-nav.ts): illustrative, like everything here. */
@@ -211,6 +212,16 @@ export class MockEngine implements ExplorerEngine, AlmanacEngine {
   private readonly validated: boolean;
   /** The residual heat map (mock-misfit.ts): illustrative, like everything here. */
   readonly misfit: MisfitEngine = createMockMisfit(this);
+  /** Data packs (mock/packs.ts): the planned registry; `loadPack` accepts anything. */
+  private readonly packRegistry = new MockPacks();
+
+  packs(): PackStatus[] {
+    return this.packRegistry.packs();
+  }
+
+  loadPack(name: string, bytes: Uint8Array): PackInfo {
+    return this.packRegistry.loadPack(name, bytes);
+  }
 
   constructor(options: MockEngineOptions = {}) {
     this.validated = options.validated ?? false;

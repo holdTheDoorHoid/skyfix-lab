@@ -28,6 +28,7 @@ import { createExplorerStore, currentDayWindow, displayZone, listenForShareLinks
 import { formatWithUtc, zoneLabel } from '../../time.js';
 import { createMapView } from '../map-view.js';
 import { capFeature, circleOfPositionFeature, ellipseFeature, mapServiceFor, pathFeature } from '../overlays.js';
+import { NO_PACKS } from '../../packs/service.js';
 
 const BANNER = 'Simulation and analysis workbench. Not a navigation instrument.';
 
@@ -58,7 +59,7 @@ async function boot(app: HTMLElement): Promise<void> {
   const stopShare = listenForShareLinks(store);
   const scheduler = createScheduler();
   const engine = memoEngine(selection.engine, { freeze: import.meta.env.DEV });
-  const ctx: Ctx = { store, engine, notices, scheduler };
+  const ctx: Ctx = { store, engine, notices, scheduler, packs: NO_PACKS };
   startPlayback(store, scheduler);
   bindTimeKeys(window, store);
 

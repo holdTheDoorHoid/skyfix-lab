@@ -1672,10 +1672,47 @@ export function isPackEngine(engine: unknown): engine is PackEngine {
   );
 }
 
+/**
+ * One pack as the page sees it (packs agent, 2026-09-24): what the engine says
+ * (`PackStatus`), what the site offers (its manifest) and what this device has saved.
+ * `version`, `bytes`, `label` and `description` are the offered file's when the site
+ * offers it, else the saved or loaded copy's.
+ */
+export interface PackState extends PackStatus {
+  /** Listed in the site's `data/packs/manifest.json`: it can be downloaded. */
+  offered: boolean;
+  /** This build of the core can install it (its name is in `packs()`). */
+  supported: boolean;
+  /** A copy is saved on this device. */
+  saved: boolean;
+  savedBytes: number;
+  /** The saved copy is an older revision than the site's; it is replaced on next use. */
+  stale: boolean;
+  /** Removed from this device while loaded: still in use until the page is reloaded. */
+  removedInUse: boolean;
+  /** A download in progress. */
+  progress: { received: number; total: number } | null;
+  /** The last thing that went wrong with this pack, in a sentence. */
+  error: string | null;
+}
+
 /** The pack service every component reaches through `Ctx.packs` (packs agent). */
 export interface PackService {
-  /** Makes sure a pack is loaded, prompting once with `reason`; false when declined or offline without a copy. */
+  /**
+   * Makes sure a pack is loaded: at once when it is loaded or saved, otherwise after one
+   * prompt that starts with `reason` (a sentence: "Positions before 1550 need the Deep time
+   * pack.") and gives the size. False when declined (remembered for the page session), when
+   * offline without a saved copy, or when the site does not offer it.
+   */
   ensure(name: string, reason: string): Promise<boolean>;
-  status(): PackStatus[];
+  /** Every pack the site offers, and any other saved or loaded one. */
+  status(): PackState[];
+  /** Deletes the saved copy (a loaded pack stays in use until the page is reloaded). */
   remove(name: string): Promise<void>;
+  /** Downloads, saves and loads a pack with no prompt (Settings → Data packs: Get). */
+  get(name: string): Promise<boolean>;
+  /** Called after every change: loaded, saved, removed, download progress. Returns the stop function. */
+  subscribe(listener: () => void): () => void;
+  /** Reads the site's pack list and this device's saved packs again. */
+  refresh(): Promise<void>;
 }

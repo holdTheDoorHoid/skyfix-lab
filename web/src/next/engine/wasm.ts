@@ -27,6 +27,9 @@ import type {
   ExplorerCoverage,
   ExplorerEngine,
   Observer,
+  PackEngine,
+  PackInfo,
+  PackStatus,
   PhaseEvent,
   PlanetEventList,
   PlanetEventsEngine,
@@ -98,6 +101,9 @@ export interface ExplorerWasmExports {
   eclipse_path?(id: string): unknown;
   /** Wave 2, planet events (EXPLORER_API "Wave 2 — planet events"); absent in older builds. */
   planet_events?(jdStart: number, jdEnd: number): unknown;
+  /** Expansion programme, data packs (EXPLORER_API "Packs"); absent in older builds. */
+  packs?(): unknown;
+  load_pack?(name: string, bytes: Uint8Array): unknown;
   version?(): string;
 }
 
@@ -148,7 +154,7 @@ function rebuildError(name: string, what: string): Error {
   );
 }
 
-export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine {
+export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine, PlanetEventsEngine, PackEngine {
   readonly kind = 'wasm' as const;
   readonly description: string;
   readonly version: string | null;
@@ -340,6 +346,25 @@ export class WasmEngine implements ExplorerEngine, AlmanacEngine, EclipseEngine,
     const fn = this.x.planet_events;
     if (typeof fn !== 'function') throw rebuildError('planet_events', 'planet events');
     return this.call('planet_events', () => fn.call(this.x, jdStart, jdEnd));
+  }
+
+  /** The data packs this build can install, and which are loaded (`packs`); none in older builds. */
+  packs(): PackStatus[] {
+    const fn = this.x.packs;
+    if (typeof fn !== 'function') return [];
+    return this.call('packs', () => fn.call(this.x));
+  }
+
+  /**
+   * Parse, verify and install a data pack (`load_pack`). Throws with the core's sentence
+   * when the file is wrong. The coverage it reports changes, so it is asked again.
+   */
+  loadPack(name: string, bytes: Uint8Array): PackInfo {
+    const fn = this.x.load_pack;
+    if (typeof fn !== 'function') throw rebuildError('load_pack', 'data packs');
+    const info = this.call<PackInfo>('load_pack', () => fn.call(this.x, name, bytes));
+    this.coverageCache = null;
+    return info;
   }
 }
 

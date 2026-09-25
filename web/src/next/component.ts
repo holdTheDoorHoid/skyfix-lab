@@ -22,6 +22,7 @@
 import {
   isAlmanacEngine,
   isEclipseEngine,
+  isPackEngine,
   isPlanetEventsEngine,
   type AlmanacEngine,
   type BodySelection,
@@ -29,6 +30,8 @@ import {
   type EventOptions,
   type ExplorerEngine,
   type Observer,
+  type PackEngine,
+  type PackService,
   type PlanetEventsEngine,
 } from './engine/types.js';
 import type { Notices } from './notices.js';
@@ -44,6 +47,12 @@ export interface Ctx {
   readonly engine: ExplorerEngine;
   readonly notices: Notices;
   readonly scheduler: FrameScheduler;
+  /**
+   * Optional data packs (packs/, EXPLORER_API "Packs"): `ensure(name, reason)` before using
+   * what a pack adds; saved packs are already loaded when a view mounts. Developer pages
+   * without packs pass `NO_PACKS` (packs/service.ts).
+   */
+  readonly packs: PackService;
 }
 
 export interface Mounted {
@@ -182,6 +191,15 @@ export function createScheduler(options: SchedulerOptions = {}): FrameScheduler 
   };
 }
 
+/**
+ * Settings that change how text is written without changing any value a view selects:
+ * today the 12- or 24-hour clock (shell/format.ts). When one changes, every `watch` draws
+ * again once with its current value, so no time on screen keeps the old form.
+ */
+function displayForm(state: ExplorerState): string {
+  return state.settings.hourCycle;
+}
+
 export interface WatchOptions<T> {
   /** Default `Object.is`; use `shallowEqual` for selectors that return tuples. */
   equals?: Equality<T>;
@@ -209,9 +227,14 @@ export function watch<T>(
     },
     options.equals ? { equals: options.equals } : {},
   );
+  const stopForm = ctx.store.select(displayForm, () => {
+    latest = selector(ctx.store.get());
+    ctx.scheduler.schedule(task);
+  });
   if (options.immediate ?? true) ctx.scheduler.schedule(task);
   return () => {
     stop();
+    stopForm();
     ctx.scheduler.cancel(task);
   };
 }
@@ -270,13 +293,22 @@ export interface MemoOptions {
   freeze?: boolean;
 }
 
+/** A memoised engine; `invalidate` forgets every remembered result. */
+export type MemoEngine = ExplorerEngine & {
+  /**
+   * Forget every remembered result: a data pack was loaded (packs/), so the engine can now
+   * answer more (a date it refused, a wider coverage) and must be asked again.
+   */
+  invalidate(): void;
+};
+
 /**
  * Wrap an engine so identical calls return the same (shared, read-only) result. Keyed
  * by value: two components asking for `skyState(observer, jd, 'all')` in one frame get
  * one computation. Constant tables (`bodies`, `coverage`, `starfieldCatalog`,
- * `constellationBoundaries`) are computed once. Errors are not cached.
+ * `constellationBoundaries`) are computed once, until `invalidate`. Errors are not cached.
  */
-export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): ExplorerEngine {
+export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): MemoEngine {
   const capacity = options.capacity ?? 8;
   const finish = options.freeze ? deepFreeze : <T>(v: T): T => v;
   const caches = new Map<string, Lru<unknown>>();
@@ -294,7 +326,15 @@ export function memoEngine(engine: ExplorerEngine, options: MemoOptions = {}): E
     return value;
   }
 
-  const memo: ExplorerEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> = {
+  const memo: MemoEngine & Partial<AlmanacEngine> & Partial<EclipseEngine> & Partial<PlanetEventsEngine> & Partial<PackEngine> = {
+    invalidate: () => caches.clear(),
+    // Data packs pass through unmemoised (packs/ loads them; `packs()` changes when one does).
+    ...(isPackEngine(engine)
+      ? {
+          packs: () => engine.packs(),
+          loadPack: (name: string, bytes: Uint8Array) => engine.loadPack(name, bytes),
+        }
+      : {}),
     // Optional: present on the wrapper exactly when the engine makes almanac pages (the
     // Almanac view checks with `isAlmanacEngine`). A page is tens of milliseconds, so a
     // few dates are kept.
