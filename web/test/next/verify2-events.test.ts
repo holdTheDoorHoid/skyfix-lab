@@ -55,3 +55,16 @@ describe('an occultation of a planet (verify2)', () => {
     expect(occultationItem(jupiter, W).sentence).toMatch(/disc takes 1 min 4[34] s to disappear and 1 min 3[12] s to reappear; the times are those of its centre/);
   });
 });
+
+// --- verify2: the Sky view's close-up at a far date --------------------------------------------
+describe('a far date’s refusal in plain words (verify2)', () => {
+  it('reads the planet-detail and Moon-detail messages the close-up shows at 585 BC', async () => {
+    const { rangeWords } = await import('../../src/next/time/tier.js');
+    // What galilean_moons answered at 585 BC (the close-up printed it as it came).
+    expect(
+      rangeWords(
+        'galilean_moons: Jupiter: the Galilean moons are computed where the Sun and planet providers answer (1550-01-01T00:00:00.000Z .. 2650-01-22T00:00:00.000Z); jd_utc 1507906 is outside',
+      ),
+    ).toBe('1550 to 2650');
+  });
+});

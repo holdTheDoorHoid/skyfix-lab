@@ -440,6 +440,23 @@ async function main() {
       }
     }
 
+    // A developer's probe: open PROBE_HASH, run each PROBE_JS step (separated by ';;'), print
+    // what the last returns, and save a screenshot (not a check).
+    if (ONLY.has('probe')) {
+      await open(process.env.PROBE_HASH ?? `${PLACE}&view=sky`);
+      let out = null;
+      for (const step of (process.env.PROBE_JS ?? 'document.title').split(';;')) {
+        const click = /^CLICK (\d+),(\d+)$/.exec(step.trim());
+        if (click) {
+          const [x, y] = [Number(click[1]), Number(click[2])];
+          for (const type of ['mousePressed', 'mouseReleased']) await send('Input.dispatchMouseEvent', { type, x, y, button: 'left', clickCount: 1 });
+        } else out = await evaluate(step);
+        await sleep(Number(process.env.PROBE_WAIT ?? 800));
+      }
+      console.log(`probe ${JSON.stringify(out)}`);
+      await shot('probe');
+    }
+
     // Exports opened by real readers.
     if (ONLY.has('exports')) {
       const downloads = join(scratch, 'downloads');

@@ -34,6 +34,7 @@ import { formatAngle, formatBearing } from './format.js';
 import type { BodyKey, SkyPalette } from './palette.js';
 import { drawJupiterInset, drawMoonInset, drawPlanetInset, drawSaturnInset, type InsetFrame } from './upclose-draw.js';
 import { galileanAccuracyWords, librationWords, skyBasis, type UpCloseOrientation } from './upclose-geometry.js';
+import { rangeWords } from '../time/tier.js';
 
 export const UP_CLOSE_BODIES = ['Moon', 'Mercury', 'Venus', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'] as const;
 
@@ -276,7 +277,11 @@ export function upClosePanel(ctx: Ctx, settings: UpCloseSettings, onClose: () =>
     } catch (error) {
       canvas.hidden = true;
       setFacts([]);
-      note.textContent = `No close-up now: ${error instanceof Error ? error.message : String(error)}`;
+      const text = error instanceof Error ? error.message : String(error);
+      // A far date in plain words, as the Selected card's tools say it (polish2's rangeWords);
+      // the engine's own message named ISO dates and a Julian day (verify2, 585 BC).
+      const years = rangeWords(text);
+      note.textContent = years ? `No close-up now: close-ups are worked out only for ${years}.` : `No close-up now: ${text}`;
       summaryText = note.textContent;
     }
   }
