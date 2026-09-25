@@ -2423,6 +2423,24 @@ section above:
   elements a person pastes are theirs: the explorer does not ship them.
 - the Moon close-up's "Feature positions: USGS/IAU Gazetteer of Planetary Nomenclature
   (public domain)."
+- the deep-sky card's folded "Source" section (the catalogue's sources: Wikidata, SIMBAD,
+  Corwin, HEASARC, RC3; their entries are in the deep-sky section above);
+- the meteor list's "Shower table: … compiled from IAU Meteor Data Center and IMO published
+  values";
+- the saved sky picture's caption "Star field: Yale Bright Star Catalogue (NASA HEASARC).";
+- the map's "Map data: Natural Earth" (public domain, which asks for no credit): the credit
+  box now appears only with OpenStreetMap's credit, while its street tiles are drawn;
+- About's line "Map data: Natural Earth (public domain). Stars: the Yale Bright Star
+  Catalogue from NASA HEASARC. Fonts: Inter and JetBrains Mono (SIL Open Font License).":
+  About links this page instead.
+
+A source scan (`web/test/next/verify2-credits.test.ts`) fails if any of them returns.
+
+The typefaces' licence now ships with them: the woff2 subsets keep the copyright (name
+record 0) and the licence's address (record 14) but not its text (record 13), so the
+packages' own `LICENSE` files are served as `licenses/inter-OFL.txt` and
+`licenses/jetbrains-mono-OFL.txt` and precached; a test keeps them identical to the
+packages'.
 
 | what | where it ships | retrieved | licence basis | hash (SHA-256) | processing |
 |---|---|---|---|---|---|
