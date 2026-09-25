@@ -172,11 +172,11 @@ const PKG = resolve(__dirname, '../../src/wasm-pkg/skyfix_wasm.js');
 const hasPkg = existsSync(PKG);
 
 describe.skipIf(!hasPkg)('the built core (npm run wasm)', () => {
-  it('answers every sailings export with the documented shapes', async () => {
+  it('answers every sailings export with the documented shapes', async ({ skip }) => {
     const mod = (await import(pathToFileURL(PKG).href)) as Record<string, unknown> & { initSync: (o: { module: Buffer }) => void };
     const { readFileSync } = await import('node:fs');
     mod.initSync({ module: readFileSync(resolve(__dirname, '../../src/wasm-pkg/skyfix_wasm_bg.wasm')) });
-    if (typeof mod.sailing !== 'function') return; // a package built before this work
+    if (typeof mod.sailing !== 'function') return skip(); // a package built before this work (verify2: skipped, not a silent pass)
     const engine = new WasmEngine(mod as unknown as ExplorerWasmExports);
     const p = engine.sailing({ from: { lat_deg: -22, lon_deg: 116 }, to: { lat_deg: -20, lon_deg: 31 } });
     expect(p.great_circle.distance_nm).toBeCloseTo(4693.53, 1);

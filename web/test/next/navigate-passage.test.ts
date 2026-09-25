@@ -181,9 +181,10 @@ describe.skipIf(!existsSync(PKG))('against the built core (npm run wasm)', () =>
     return new WasmEngine(mod as unknown as ExplorerWasmExports);
   }
 
-  it('reproduces Bowditch section 1208’s great circle (3264.54 NM, initial course 055.8°)', async () => {
+  // verify2: an old package (no `sailing`) skips these, instead of reporting a pass that checked nothing.
+  it('reproduces Bowditch section 1208’s great circle (3264.54 NM, initial course 055.8°)', async ({ skip }) => {
     const e = await engine();
-    if (!e) return;
+    if (!e) return skip();
     const plan = planPassage(e, ROUTE);
     expect(plan.legs[0]!.distanceNm).toBeCloseTo(3264.54, 2);
     expect(plan.legs[0]!.initialCourseDeg).toBeCloseTo(55.807, 3);
@@ -195,9 +196,9 @@ describe.skipIf(!existsSync(PKG))('against the built core (npm run wasm)', () =>
     }
   });
 
-  it('hands the running fix legs whose dead reckoning follows the passage to under 5 m', async () => {
+  it('hands the running fix legs whose dead reckoning follows the passage to under 5 m', async ({ skip }) => {
     const e = await engine();
-    if (!e) return;
+    if (!e) return skip();
     const plan = planPassage(e, ROUTE);
     // Three-hour runs in the middle of the great circle (its course turns 53° over the leg),
     // across the change of leg, and in the middle of the rhumb line.

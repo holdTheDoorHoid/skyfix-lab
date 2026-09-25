@@ -162,9 +162,10 @@ describe.skipIf(!existsSync(PKG))('against the built core (npm run wasm)', () =>
     return { h: h / D, A: (((A / D) % 360) + 360) % 360 };
   }
 
-  it('draws the template where the engine puts it, and each star where the set template reads it (both hemispheres)', async () => {
+  // verify2: an old package skips these, instead of reporting a pass that checked nothing.
+  it('draws the template where the engine puts it, and each star where the set template reads it (both hemispheres)', async ({ skip }) => {
     const e = await engine();
-    if (!e) return;
+    if (!e) return skip();
     for (const lat of [39.95, -33.9]) {
       const g: StarFinderGeometry = e.starFinderGeometry(lat);
       // Our template formula reproduces the engine's points (and index 36 is azimuth 180).
@@ -190,9 +191,9 @@ describe.skipIf(!existsSync(PKG))('against the built core (npm run wasm)', () =>
     }
   });
 
-  it('GHA ♈ on the session’s UT1: GHA ♈ + SHA gives the star’s GHA from the core', async () => {
+  it('GHA ♈ on the session’s UT1: GHA ♈ + SHA gives the star’s GHA from the core', async ({ skip }) => {
     const e = await engine();
-    if (!e) return;
+    if (!e) return skip();
     const mod = (await import(pathToFileURL(PKG).href)) as { reduce: (s: string, m: string) => { status: string; sight: ReducedSight }[] };
     const base: Session = {
       schema: 'skyfix.session/1',

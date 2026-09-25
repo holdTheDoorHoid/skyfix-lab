@@ -730,8 +730,8 @@ describe.skipIf(!hasPackage)('the Sky view’s layers on the built WebAssembly p
     expect(rel[0]).toBeCloseTo(0.25 * (X(0) - X(90)), 3);
   });
 
-  it('has the Moon in detail for the close-up', () => {
-    if (load.status !== 'ready') return;
+  it('has the Moon in detail for the close-up', ({ skip }) => {
+    if (load.status !== 'ready') return skip(); // verify2: skipped, not a silent pass
     expect(isMoonDetailEngine(load.engine)).toBe(true);
   });
 });

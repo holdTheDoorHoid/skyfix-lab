@@ -355,10 +355,10 @@ describe('the shore horizon’s sentence (dip short of the horizon)', () => {
 const PKG = resolve(__dirname, '../../src/wasm-pkg/skyfix_wasm.js');
 
 describe.skipIf(!existsSync(PKG))('the Compass tab against the built core (npm run wasm)', () => {
-  it('reproduces the documented Philadelphia bearing: compass error 14.4° W, variation 11.8° W, deviation 2.6° W', async () => {
+  it('reproduces the documented Philadelphia bearing: compass error 14.4° W, variation 11.8° W, deviation 2.6° W', async ({ skip }) => {
     const mod = (await import(pathToFileURL(PKG).href)) as Record<string, unknown> & { initSync: (o: { module: Buffer }) => void };
     mod.initSync({ module: readFileSync(resolve(__dirname, '../../src/wasm-pkg/skyfix_wasm_bg.wasm')) });
-    if (typeof mod.compass_error !== 'function') return; // a package built before the geomag work
+    if (typeof mod.compass_error !== 'function') return skip(); // a package built before the geomag work (verify2: skipped, not a silent pass)
     const engine = new WasmEngine(mod as unknown as ExplorerWasmExports);
     const explorer = defaultState(Date.UTC(2026, 8, 24, 21, 40));
     explorer.observer.height_m = 12;
