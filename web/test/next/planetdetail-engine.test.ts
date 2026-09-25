@@ -143,7 +143,9 @@ describe('the WASM wrapper', () => {
     (module as unknown as Record<string, unknown>).planet_disc = () => {
       throw 'planet_disc: "Pluto" is not a planet';
     };
-    expect(() => new WasmEngine(module).planetDisc('Pluto', 1)).toThrow(/^planet_disc: planet_disc: "Pluto"/);
+    // One prefix, as EXPLORER_API promises (verify2: the message already starts with the
+    // export's name, and this line used to expect it twice).
+    expect(() => new WasmEngine(module).planetDisc('Pluto', 1)).toThrow(/^planet_disc: "Pluto" is not a planet$/);
   });
 
   it('is told apart from engines without it', () => {

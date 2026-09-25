@@ -279,3 +279,68 @@ describe.skipIf(!hasPackage)('the built WebAssembly package (src/wasm-pkg)', () 
     expect(jupiter?.utc.slice(0, 10)).toBe('2024-12-07');
   });
 });
+
+// --- verify2: one prefix per error, and conditions without tonight's own option -------------
+describe('errors name the export once, and only tonight is sent a limit (verify2)', () => {
+  it('does not repeat a name the Rust message already starts with', () => {
+    const module: Record<string, unknown> = {
+      version: () => '9.9.9',
+      // planetdetail.rs and earth_apsides.rs write their export's name themselves.
+      planet_disc: () => {
+        throw 'planet_disc: "Pluto" is not a planet (the planets are Mercury, Venus, Mars, Jupiter, Saturn, Uranus and Neptune)';
+      },
+      earth_apsides: () => {
+        throw new Error('earth_apsides: year must be a whole number (got 2026.5)');
+      },
+      // A message naming a field, not the export, still gets the export's name.
+      stations: () => {
+        throw 'window: the end is before the start';
+      },
+    };
+    const engine = new WasmEngine(module as unknown as ExplorerWasmExports) as unknown as {
+      planetDisc(body: string, jd: number): unknown;
+      earthApsides(year: number): unknown;
+      stations(a: number, b: number): unknown;
+    };
+    const message = (f: () => unknown): string => {
+      try {
+        f();
+      } catch (error) {
+        return (error as Error).message;
+      }
+      return '';
+    };
+    expect(message(() => engine.planetDisc('Pluto', 2461000.5))).toBe(
+      'planet_disc: "Pluto" is not a planet (the planets are Mercury, Venus, Mars, Jupiter, Saturn, Uranus and Neptune)',
+    );
+    expect(message(() => engine.earthApsides(2026.5))).toBe('earth_apsides: year must be a whole number (got 2026.5)');
+    expect(message(() => engine.stations(2, 1))).toBe('stations: window: the end is before the start');
+  });
+
+  it("sends tonight's limit to tonight only: the other deep-sky exports refuse unknown fields", async () => {
+    const { conditionsJson } = await import('../../src/next/engine/wasm.js');
+    const options = { bortle: 4, k: 0.2, limit: 7 };
+    expect(conditionsJson(options)).toBe('{"bortle":4,"k":0.2}');
+    expect(conditionsJson(options, true)).toBe('{"bortle":4,"k":0.2,"limit":7}');
+    const calls: Record<string, unknown[][]> = {};
+    const module: Record<string, unknown> = { version: () => '9.9.9' };
+    for (const name of ['dso_visibility', 'meteor_showers', 'extinction_table', 'tonight']) {
+      module[name] = (...args: unknown[]) => ((calls[name] ??= []).push(args), {});
+    }
+    const engine = new WasmEngine(module as unknown as ExplorerWasmExports) as unknown as {
+      dsoVisibility(id: string, o: object, jd: number, c?: object): unknown;
+      meteorShowers(year: number, o?: object | null, c?: object): unknown;
+      extinction(c?: object): unknown;
+      tonight(o: object, jd: number, c?: object): unknown;
+    };
+    // A TonightOptions object is a SkyConditionsInput too, so these calls type-check.
+    engine.dsoVisibility('m31', HERE, 1, options);
+    engine.meteorShowers(2026, HERE, options);
+    engine.extinction(options);
+    engine.tonight(HERE, 1, options);
+    expect(calls.dso_visibility?.[0]?.[3]).toBe('{"bortle":4,"k":0.2}');
+    expect(calls.meteor_showers?.[0]?.[2]).toBe('{"bortle":4,"k":0.2}');
+    expect(calls.extinction_table?.[0]?.[0]).toBe('{"bortle":4,"k":0.2}');
+    expect(calls.tonight?.[0]?.[2]).toBe('{"bortle":4,"k":0.2,"limit":7}');
+  });
+});
