@@ -1,7 +1,7 @@
 //! The station index: NOAA's tide-prediction stations, their harmonic constants, datums
 //! and subordinate offsets, as the `tides-us` pack carries them (see [`crate::pack`]).
 
-use crate::predict::{NodalMode, Predictor, Term};
+use crate::predict::{Extreme, ExtremeKind, NodalMode, Predictor, Term};
 use crate::schureman::CONSTITUENTS;
 
 /// A tidal (or geodetic) datum heights can be given on. Harmonic predictions are about
@@ -218,6 +218,45 @@ pub struct Subordinate {
     pub time_high_min: i16,
     pub time_low_min: i16,
     pub heights: HeightAdjust,
+}
+
+impl Subordinate {
+    /// The subordinate station's high and low waters from its reference station's (on
+    /// the reference's MLLW): times shifted by the high or low water difference, heights
+    /// multiplied by the ratio or increased by the additive difference; sorted by time.
+    pub fn apply(&self, reference: &[Extreme]) -> Vec<Extreme> {
+        let mut out: Vec<Extreme> = reference
+            .iter()
+            .map(|e| {
+                let high = e.kind == ExtremeKind::High;
+                let (dt, height_m) = match self.heights {
+                    HeightAdjust::Ratio { high: rh, low: rl } => (
+                        if high {
+                            self.time_high_min
+                        } else {
+                            self.time_low_min
+                        },
+                        e.height_m * if high { rh } else { rl },
+                    ),
+                    HeightAdjust::Additive { high_m, low_m } => (
+                        if high {
+                            self.time_high_min
+                        } else {
+                            self.time_low_min
+                        },
+                        e.height_m + if high { high_m } else { low_m },
+                    ),
+                };
+                Extreme {
+                    kind: e.kind,
+                    jd_utc: e.jd_utc + f64::from(dt) / 1440.0,
+                    height_m,
+                }
+            })
+            .collect();
+        out.sort_by(|a, b| a.jd_utc.total_cmp(&b.jd_utc));
+        out
+    }
 }
 
 #[derive(Debug, Clone, PartialEq)]

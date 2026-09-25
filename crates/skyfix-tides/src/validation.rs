@@ -12,10 +12,13 @@
 //!   moves the instant where the rate is zero by `σ_r / |acceleration|`. At the flat
 //!   high and low waters of diurnal ports that is several minutes; elsewhere it is well
 //!   under the 2-minute floor.
-//! - A pair of consecutive extremes whose heights differ by less than
-//!   [`Tolerance::tiny_pair_m`] (5 mm, the same rounding noise) is a stand of the tide
-//!   that one list may show and the other not; such pairs are not counted as missing or
-//!   invented. Every other extreme must be paired both ways.
+//! - Both lists are tide tables: ripples shallower than 0.1 ft within 2 hours are
+//!   dropped by NOAA's rule (`predict::table_rule`). Where that rule meets a double high
+//!   or low whose peaks differ by less than [`Tolerance::stand_m`] (5 mm, the rounding
+//!   noise again), the two lists may keep different peaks of the same stand: an unpaired
+//!   extreme on each side, of the same kind, within 3 hours and 5 mm of each other, is
+//!   counted as such a stand (`stands`), not as missing or invented. Every other extreme
+//!   must be paired both ways.
 
 use crate::predict::{Extreme, ExtremeKind, Predictor};
 
@@ -31,7 +34,7 @@ pub struct RefExtreme {
 pub struct Tolerance {
     pub time_min: f64,
     pub height_m: f64,
-    pub tiny_pair_m: f64,
+    pub stand_m: f64,
     /// Multiple of the rounding-implied time uncertainty allowed at flat turns.
     pub sigmas: f64,
 }
@@ -41,7 +44,7 @@ impl Default for Tolerance {
         Tolerance {
             time_min: 2.0,
             height_m: 0.05,
-            tiny_pair_m: 0.005,
+            stand_m: 0.005,
             sigmas: 3.0,
         }
     }
@@ -64,13 +67,12 @@ pub struct Comparison {
     pub late: Vec<(f64, f64, f64)>,
     /// Pairs whose height failed: (reference JD, dh metres).
     pub off_height: Vec<(f64, f64)>,
-    /// Reference extremes with no partner (not part of a tiny pair).
+    /// Reference extremes with no partner (inside the window, away from its edges).
     pub missing: Vec<f64>,
-    /// Our extremes with no reference partner (not part of a tiny pair), inside the
-    /// compared window.
+    /// Our extremes with no reference partner (inside the window, away from its edges).
     pub invented: Vec<f64>,
-    /// Tiny pairs present in one list only.
-    pub tiny_unpaired: usize,
+    /// Stands where the two lists keep different peaks (see the module notes).
+    pub stands: usize,
 }
 
 impl Comparison {
@@ -97,12 +99,6 @@ pub fn rounding_rate_sigma(p: &Predictor) -> f64 {
         .sqrt()
 }
 
-fn tiny_neighbour<T>(list: &[T], k: usize, height: impl Fn(&T) -> f64, tiny: f64) -> bool {
-    let h = height(&list[k]);
-    (k > 0 && (h - height(&list[k - 1])).abs() < tiny)
-        || (k + 1 < list.len() && (h - height(&list[k + 1])).abs() < tiny)
-}
-
 /// Compare `ours` (heights on the same datum as the reference) with `reference` over
 /// `[jd0, jd1]`. `accel_at` gives our curve's acceleration (m/h²) at an instant and
 /// `sigma_rate` the rounding-implied rate uncertainty (m/h); pass `f64::INFINITY` as
@@ -119,7 +115,9 @@ pub fn compare(
 ) -> Comparison {
     let mut c = Comparison::default();
     let mut used = vec![false; ours.len()];
-    for (k, r) in reference.iter().enumerate() {
+    let inside = |t: f64| t >= jd0 + 3.0 / 1440.0 && t <= jd1 - 3.0 / 1440.0;
+    let mut unmatched_ref = Vec::new();
+    for r in reference {
         let best = ours
             .iter()
             .enumerate()
@@ -131,12 +129,10 @@ pub fn compare(
             });
         let partner = best.filter(|(_, o)| (o.jd_utc - r.jd_utc).abs() * 1440.0 < 60.0);
         let Some((j, o)) = partner else {
-            if tiny_neighbour(reference, k, |e| e.height_m, tol.tiny_pair_m) {
-                c.tiny_unpaired += 1;
-            } else if r.jd_utc >= jd0 + 3.0 / 1440.0 && r.jd_utc <= jd1 - 3.0 / 1440.0 {
-                // Within 3 minutes of an edge, the reference's rounding to the minute
-                // decides which side an extreme falls: not a disagreement.
-                c.missing.push(r.jd_utc);
+            // Within 3 minutes of an edge, the reference's rounding to the minute decides
+            // which side an extreme falls: not a disagreement.
+            if inside(r.jd_utc) {
+                unmatched_ref.push(*r);
             }
             continue;
         };
@@ -161,15 +157,26 @@ pub fn compare(
             }
         }
     }
-    for (j, o) in ours.iter().enumerate() {
-        if used[j] || o.jd_utc < jd0 + 3.0 / 1440.0 || o.jd_utc > jd1 - 3.0 / 1440.0 {
-            continue;
-        }
-        if tiny_neighbour(ours, j, |e| e.height_m, tol.tiny_pair_m) {
-            c.tiny_unpaired += 1;
-        } else {
-            c.invented.push(o.jd_utc);
+    let mut unmatched_ours: Vec<&Extreme> = ours
+        .iter()
+        .enumerate()
+        .filter(|(j, o)| !used[*j] && inside(o.jd_utc))
+        .map(|(_, o)| o)
+        .collect();
+    for r in unmatched_ref {
+        let stand = unmatched_ours.iter().position(|o| {
+            (o.kind == ExtremeKind::High) == r.high
+                && (o.jd_utc - r.jd_utc).abs() * 1440.0 < 180.0
+                && (o.height_m - r.height_m).abs() < tol.stand_m
+        });
+        match stand {
+            Some(k) => {
+                unmatched_ours.remove(k);
+                c.stands += 1;
+            }
+            None => c.missing.push(r.jd_utc),
         }
     }
+    c.invented = unmatched_ours.iter().map(|o| o.jd_utc).collect();
     c
 }

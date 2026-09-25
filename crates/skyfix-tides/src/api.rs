@@ -8,10 +8,8 @@
 use serde::Serialize;
 use skyfix_core::time::format_utc;
 
-use crate::db::{
-    Datum, Harmonic, HeightAdjust, Station, StationKind, Subordinate, TideDb, TideType, flags,
-};
-use crate::predict::{Extreme, ExtremeKind, NodalMode, jd_year_start};
+use crate::db::{Datum, Harmonic, Station, StationKind, Subordinate, TideDb, TideType, flags};
+use crate::predict::{Extreme, ExtremeKind, NodalMode, jd_year_start, table_rule};
 
 /// The label every tide result carries (EXPANSION_PLAN, tides work package).
 pub const LABEL: &str =
@@ -402,11 +400,12 @@ fn common_notes(d: Datum) -> Vec<String> {
     )]
 }
 
-/// Extremes of a harmonic station about datum `d`, over `[a, b]`.
+/// The tide table of a harmonic station about datum `d`, over `[a, b]` (NOAA's rule for
+/// ripples applied, `predict::table_rule`).
 fn harmonic_extremes(h: &Harmonic, d: Datum, a: f64, b: f64) -> Vec<Extreme> {
     let off = h.datums.offset_m(d).unwrap_or(0.0);
     h.predictor(NodalMode::MidYear)
-        .extremes(a, b)
+        .table_extremes(a, b)
         .into_iter()
         .map(|e| Extreme {
             height_m: e.height_m - off,
@@ -415,41 +414,31 @@ fn harmonic_extremes(h: &Harmonic, d: Datum, a: f64, b: f64) -> Vec<Extreme> {
         .collect()
 }
 
-/// Extremes of a subordinate station on its MLLW, over `[a, b]`.
+/// The tide table of a subordinate station on its MLLW, over `[a, b]`: the reference
+/// station's high and low waters with the differences applied, then NOAA's ripple rule
+/// on the result (NOAA applies it to the subordinate list, not the reference's: a pair
+/// the offsets make deeper stays, as at Christmas Island).
 fn subordinate_extremes(sub: &Subordinate, reference: &Harmonic, a: f64, b: f64) -> Vec<Extreme> {
     let span = f64::from(
         sub.time_high_min
             .unsigned_abs()
             .max(sub.time_low_min.unsigned_abs()),
     );
-    let pad = (span + 30.0) / 1440.0;
-    let mut out: Vec<Extreme> = harmonic_extremes(reference, Datum::Mllw, a - pad, b + pad)
+    let pad = (span + 30.0) / 1440.0 + 0.25;
+    let off = reference.datums.offset_m(Datum::Mllw).unwrap_or(0.0);
+    let raw: Vec<Extreme> = reference
+        .predictor(NodalMode::MidYear)
+        .extremes(a - pad, b + pad)
         .into_iter()
-        .map(|e| {
-            let (dt, h) = match (e.kind, sub.heights) {
-                (ExtremeKind::High, HeightAdjust::Ratio { high, .. }) => {
-                    (sub.time_high_min, e.height_m * high)
-                }
-                (ExtremeKind::Low, HeightAdjust::Ratio { low, .. }) => {
-                    (sub.time_low_min, e.height_m * low)
-                }
-                (ExtremeKind::High, HeightAdjust::Additive { high_m, .. }) => {
-                    (sub.time_high_min, e.height_m + high_m)
-                }
-                (ExtremeKind::Low, HeightAdjust::Additive { low_m, .. }) => {
-                    (sub.time_low_min, e.height_m + low_m)
-                }
-            };
-            Extreme {
-                kind: e.kind,
-                jd_utc: e.jd_utc + f64::from(dt) / 1440.0,
-                height_m: h,
-            }
+        .map(|e| Extreme {
+            height_m: e.height_m - off,
+            ..e
         })
-        .filter(|e| e.jd_utc >= a && e.jd_utc <= b)
         .collect();
-    out.sort_by(|x, y| x.jd_utc.total_cmp(&y.jd_utc));
-    out
+    table_rule(&sub.apply(&raw))
+        .into_iter()
+        .filter(|e| e.jd_utc >= a && e.jd_utc <= b)
+        .collect()
 }
 
 /// Extremes for any station on datum `d` (already resolved), `[a, b]`.

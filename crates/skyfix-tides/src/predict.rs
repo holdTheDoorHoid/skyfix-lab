@@ -55,9 +55,42 @@ pub struct Extreme {
 }
 
 /// Grid step of the extremum search, minutes. Two extremes closer together than this
-/// could be missed; at NOAA's stations the closest pairs (double low waters of
-/// shallow-water ports) are more than an hour apart.
+/// could be missed; such a pair is a ripple far shallower than 0.1 ft, which the tide
+/// table drops anyway ([`table_rule`]).
 pub const SEARCH_STEP_MIN: f64 = 6.0;
+
+/// A high and a low water closer together than this (in whole minutes)...
+pub const TABLE_MIN_GAP_MIN: i64 = 120;
+/// ...and differing in height by less than this (0.1 ft) are both left out of the tide
+/// table: NOAA's rule, found from its own lists (`tools/tides/README.md`).
+pub const TABLE_MIN_RANGE_M: f64 = 0.030_48;
+
+/// NOAA's tide-table rule, applied to extremes in time order: scanning from the
+/// earliest, a high and the next low (or a low and the next high) less than 2 hours
+/// apart, their instants rounded to the minute, and less than 0.1 ft apart in height are
+/// both dropped (a ripple on a rising or falling tide, or a stand, not a tide). Across
+/// NOAA's 3 499 stations this reproduces NOAA's lists of high and low water except for
+/// one sub-millimetre double high (tests/pack_real.rs).
+pub fn table_rule(ex: &[Extreme]) -> Vec<Extreme> {
+    let minute = |jd: f64| (jd * 1440.0).round() as i64;
+    let mut out = Vec::with_capacity(ex.len());
+    let mut k = 0;
+    while k < ex.len() {
+        if let Some(next) = ex.get(k + 1) {
+            let a = &ex[k];
+            if next.kind != a.kind
+                && minute(next.jd_utc) - minute(a.jd_utc) < TABLE_MIN_GAP_MIN
+                && (next.height_m - a.height_m).abs() < TABLE_MIN_RANGE_M
+            {
+                k += 2;
+                continue;
+            }
+        }
+        out.push(ex[k]);
+        k += 1;
+    }
+    out
+}
 
 /// The Gregorian year containing `jd` (UTC).
 pub fn year_of(jd: f64) -> i32 {
@@ -251,35 +284,82 @@ impl Predictor {
         if jd_end <= jd_start {
             return out;
         }
-        let (mut t0, mut r0) = (jd_start, self.eval(jd_start).1);
-        loop {
-            let t1 = (t0 + step).min(jd_end);
-            let r1 = self.eval(t1).1;
+        let (times, rates) = self.rate_grid(jd_start, jd_end, step);
+        for k in 1..times.len() {
+            let (t0, r0, t1, r1) = (times[k - 1], rates[k - 1], times[k], rates[k]);
             let kind = if r0 > 0.0 && r1 <= 0.0 {
-                Some(ExtremeKind::High)
+                ExtremeKind::High
             } else if r0 < 0.0 && r1 >= 0.0 {
-                Some(ExtremeKind::Low)
+                ExtremeKind::Low
             } else {
-                None
+                continue;
             };
-            if let Some(kind) = kind {
-                let t = self.refine(t0, r0, t1, r1);
-                if t >= jd_start && t <= jd_end {
-                    let height_m = self.eval(t).0;
-                    out.push(Extreme {
-                        kind,
-                        jd_utc: t,
-                        height_m,
-                    });
-                }
+            let t = self.refine(t0, r0, t1, r1);
+            if t >= jd_start && t <= jd_end {
+                let height_m = self.eval(t).0;
+                out.push(Extreme {
+                    kind,
+                    jd_utc: t,
+                    height_m,
+                });
             }
-            if t1 >= jd_end {
-                break;
-            }
-            t0 = t1;
-            r0 = r1;
         }
         out
+    }
+
+    /// The rate at `jd_start + k·step` up to `jd_end` (always included): phasor stepping
+    /// in mid-year mode, re-seeded exactly every 256 steps and at each new year.
+    fn rate_grid(&mut self, jd_start: f64, jd_end: f64, step: f64) -> (Vec<f64>, Vec<f64>) {
+        let n = ((jd_end - jd_start) / step).floor() as usize;
+        let mut times: Vec<f64> = (0..=n).map(|k| jd_start + k as f64 * step).collect();
+        if *times.last().expect("n + 1 points") < jd_end {
+            times.push(jd_end);
+        }
+        let mut rates = Vec::with_capacity(times.len());
+        if self.mode == NodalMode::Instant {
+            for &t in &times {
+                rates.push(self.eval_instant(t).1);
+            }
+            return (times, rates);
+        }
+        let mut k = 0;
+        while k < times.len() {
+            let yt = self.year(year_of(times[k])).clone();
+            let mut stepper = Stepper::new(&yt, times[k], step);
+            let mut run = 0;
+            while k < times.len() && run < 256 {
+                let t = times[k];
+                if t >= yt.jd1 || t < yt.jd0 {
+                    break;
+                }
+                // Points 0..=n are on the lattice; the appended end point is not, and is
+                // evaluated exactly.
+                rates.push(if k <= n {
+                    stepper.rate(&yt.omega)
+                } else {
+                    yt.eval(t).1
+                });
+                stepper.advance();
+                k += 1;
+                run += 1;
+            }
+            if run == 0 {
+                rates.push(self.eval(times[k]).1);
+                k += 1;
+            }
+        }
+        (times, rates)
+    }
+
+    /// The tide table for `[jd_start, jd_end]`: [`Predictor::extremes`] searched 6 hours
+    /// beyond each edge, [`table_rule`] applied, then clipped to the window (so a ripple
+    /// straddling an edge is judged whole, as NOAA's own lists judge it).
+    pub fn table_extremes(&mut self, jd_start: f64, jd_end: f64) -> Vec<Extreme> {
+        let margin = 0.25;
+        table_rule(&self.extremes(jd_start - margin, jd_end + margin))
+            .into_iter()
+            .filter(|e| e.jd_utc >= jd_start && e.jd_utc <= jd_end)
+            .collect()
     }
 
     /// The root of the rate between `a` (rate `ra`) and `b` (rate `rb`), which differ in
@@ -359,6 +439,11 @@ impl Stepper {
         self.re.iter().sum()
     }
 
+    /// −Σ A·ω·sin θ, m/h.
+    fn rate(&self, omega: &[f64]) -> f64 {
+        -self.im.iter().zip(omega).map(|(i, w)| i * w).sum::<f64>()
+    }
+
     fn advance(&mut self) {
         for k in 0..self.re.len() {
             let (x, y) = (self.re[k], self.im[k]);
@@ -433,5 +518,50 @@ mod tests {
             let exact = p.height(*jd);
             assert!((exact - h).abs() < 1e-7, "{jd}: {h} vs {exact}");
         }
+        // The extremum search's stepped rates, likewise (off-lattice end included).
+        let (ts, rs) = p.rate_grid(start, start + 6.0 + 1e-3, 6.0 / 1440.0);
+        assert_eq!(ts.len(), 1442);
+        for (t, r) in ts.iter().zip(&rs) {
+            let exact = p.eval(*t).1;
+            assert!((exact - r).abs() < 1e-6, "{t}: {r} vs {exact}");
+        }
+    }
+
+    fn ex(kind: ExtremeKind, minute: f64, height_m: f64) -> Extreme {
+        Extreme {
+            kind,
+            jd_utc: 2_461_000.5 + minute / 1440.0,
+            height_m,
+        }
+    }
+
+    /// NOAA's rule: a high and a low less than 2 h apart and less than 0.1 ft apart are
+    /// both dropped, scanning from the earliest; either condition alone keeps them.
+    #[test]
+    fn the_table_rule_drops_short_shallow_pairs_only() {
+        use ExtremeKind::{High, Low};
+        let list = [
+            ex(Low, 0.0, -0.10),
+            ex(High, 400.0, 0.50),
+            // A double high: the first high and the dip after it (80 min, 2 cm) are
+            // dropped together and the second high stays, even though it is 1 cm lower,
+            // as NOAA's lists do (Vaca Key, 2026-02-01).
+            ex(Low, 480.0, 0.48),
+            ex(High, 540.0, 0.49),
+            ex(Low, 900.0, 0.00),
+            ex(High, 1000.0, 0.04), // 100 min but 4 cm: kept
+            ex(Low, 1130.0, 0.035), // 130 min, 5 mm: kept (2 h or more)
+        ];
+        let kept = table_rule(&list);
+        let minutes: Vec<i64> = kept
+            .iter()
+            .map(|e| ((e.jd_utc - 2_461_000.5) * 1440.0).round() as i64)
+            .collect();
+        assert_eq!(minutes, [0, 540, 900, 1000, 1130]);
+        // 119.6 min apart rounds to 120 in whole minutes: kept, as NOAA's lists keep it.
+        let edge = [ex(High, 10.2, 0.2), ex(Low, 129.8, 0.19)];
+        assert_eq!(table_rule(&edge).len(), 2);
+        let inside = [ex(High, 10.6, 0.2), ex(Low, 129.4, 0.19)];
+        assert!(table_rule(&inside).is_empty());
     }
 }

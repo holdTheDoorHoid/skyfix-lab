@@ -167,8 +167,8 @@ pub enum NodeRule {
     K1,
     /// Formula 149 (M3): f = cos⁶½I/0.8758, u = 3ξ − 3ν.
     M3,
-    /// Formulas 194, 196, 197, 207 (M1, with the element p in V):
-    /// f = f(O1)·(2.310 + 1.435 cos 2P)^½, u = −ν − Qu, Qu = P − Q, tan Q = 0.483 tan P.
+    /// Formulas 197, 201, 203, 207 (M1, in the form without the element p in V):
+    /// f = f(O1)·(2.310 + 1.435 cos 2P)^½, u = ξ − ν + Q, tan Q = 0.483 tan P.
     M1,
     /// Formulas 212 to 215 (L2): f = f(M2)/Ra, u = 2ξ − 2ν − R.
     L2,
@@ -219,8 +219,7 @@ fn node_factor_raw(rule: NodeRule, a: &NodeArgs) -> (f64, f64) {
             let p = a.big_p;
             let inv_qa = (2.310 + 1.435 * (2.0 * p).cos()).sqrt();
             let q = (0.483 * p.sin()).atan2(p.cos());
-            let qu = p - q;
-            (f_o1 * inv_qa, -a.nu - qu)
+            (f_o1 * inv_qa, a.xi - a.nu + q)
         }
         NodeRule::L2 => {
             let p = a.big_p;
@@ -245,6 +244,8 @@ pub enum Kind {
     Elementary {
         /// Coefficients of T, s, h, p, p1.
         v: [i8; 5],
+        /// The coefficients whose rates give the speed: `v`, except for M1.
+        speed_v: [i8; 5],
         /// The constant of V, degrees (0, ±90 or 180).
         v_const_deg: f64,
         rule: NodeRule,
@@ -282,7 +283,7 @@ impl Constituent {
     /// Speed in degrees per mean solar hour, from the rates of Table 1.
     pub fn speed_deg_per_hour(&self) -> f64 {
         match self.kind {
-            Kind::Elementary { v, .. } => v
+            Kind::Elementary { speed_v, .. } => speed_v
                 .iter()
                 .zip(RATES_DEG_PER_HOUR)
                 .map(|(&k, r)| f64::from(k) * r)
@@ -332,6 +333,7 @@ const fn el(name: &'static str, v: [i8; 5], v_const_deg: f64, rule: NodeRule) ->
         name,
         kind: Kind::Elementary {
             v,
+            speed_v: v,
             v_const_deg,
             rule,
         },
@@ -350,8 +352,10 @@ pub const NOAA_STANDARD: usize = 37;
 
 /// NOAA's 37 standard constituents in NOAA's own numbering, then the 83 further ones of
 /// NOAA's extended set (so far published only for Anchorage, 9455920), in NOAA's order.
-/// Elementary terms from Schureman Table 2 (σ1 is A20, MP1 A29, χ1 A27, θ1 A28, SO1
-/// A30); compounds as their names say, each checked against NOAA's printed speed.
+/// Elementary terms from Schureman Table 2 (σ1 is A20, χ1 A27, θ1 A28,
+/// TK1 = π1 B15, RP1 = ψ1 B24, KP1 = φ1 B31); compounds as their names say (MP1 =
+/// M2 − P1 and SO1 = S2 − O1 rather than A29 and A30), each
+/// checked against NOAA's printed speed and NOAA's Anchorage predictions.
 pub const CONSTITUENTS: [Constituent; 120] = [
     el("M2", [2, -2, 2, 0, 0], 0.0, NodeRule::M2),
     el("S2", [2, 0, 0, 0, 0], 0.0, NodeRule::Unity),
@@ -370,7 +374,19 @@ pub const CONSTITUENTS: [Constituent; 120] = [
     el("OO1", [1, 2, 1, 0, 0], -90.0, NodeRule::Oo1),
     el("LAM2", [2, -1, 0, 1, 0], 180.0, NodeRule::M2),
     el("S1", [1, 0, 0, 0, 0], 0.0, NodeRule::Unity),
-    el("M1", [1, -1, 1, 1, 0], -90.0, NodeRule::M1),
+    // M1 as NOAA predicts it: V0 + u of Schureman's formula 201 (V = T − s + h − 90°,
+    // u = ξ − ν + Q, the form his Table 15 prints) advanced at the speed of formula 194,
+    // 14.4966939°/h, which includes the perigee's motion (NOAA's published speed). The
+    // mixture reproduces NOAA's curves (1.2 cm better at Juneau than either pure form).
+    Constituent {
+        name: "M1",
+        kind: Kind::Elementary {
+            v: [1, -1, 1, 0, 0],
+            speed_v: [1, -1, 1, 1, 0],
+            v_const_deg: -90.0,
+            rule: NodeRule::M1,
+        },
+    },
     el("J1", [1, 1, 1, -1, 0], -90.0, NodeRule::J1),
     el("MM", [0, 1, 0, -1, 0], 0.0, NodeRule::Mm),
     el("SSA", [0, 0, 2, 0, 0], 0.0, NodeRule::Unity),
@@ -394,10 +410,13 @@ pub const CONSTITUENTS: [Constituent; 120] = [
     cp("MS4", &[("M2", 1), ("S2", 1)]),
     // NOAA's extended set, numbers 38-120.
     el("SIGMA1", [1, -4, 3, 0, 0], 90.0, NodeRule::O1),
-    el("MP1", [1, -2, 3, 0, 0], -90.0, NodeRule::J1),
+    // MP1 as the compound M2 − P1 (same V as Schureman A29, but u and f of M2): it
+    // reproduces NOAA's Anchorage curve 0.4 cm (rms) better than A29.
+    cp("MP1", &[("M2", 1), ("P1", -1)]),
     el("CHI1", [1, -1, 3, -1, 0], -90.0, NodeRule::J1),
     cp("2PO1", &[("P1", 2), ("O1", -1)]),
-    el("SO1", [1, 2, -1, 0, 0], -90.0, NodeRule::J1),
+    // SO1 as the compound S2 − O1 (same V as Schureman A30), like MP1.
+    cp("SO1", &[("S2", 1), ("O1", -1)]),
     cp("MSN2", &[("M2", 1), ("S2", 1), ("N2", -1)]),
     cp("MNS2", &[("M2", 1), ("N2", 1), ("S2", -1)]),
     cp("OP2", &[("O1", 1), ("P1", 1)]),
@@ -470,9 +489,12 @@ pub const CONSTITUENTS: [Constituent; 120] = [
     cp("5MS12", &[("M2", 5), ("S2", 1)]),
     cp("4MSL12", &[("M2", 4), ("S2", 1), ("L2", 1)]),
     cp("4M2S12", &[("M2", 4), ("S2", 2)]),
-    cp("TK1", &[("T2", 1), ("K1", -1)]),
-    cp("RP1", &[("R2", 1), ("P1", -1)]),
-    cp("KP1", &[("K2", 1), ("P1", -1)]),
+    // TK1, RP1 and KP1 are Schureman's solar diurnal terms π1 (B15), ψ1 (B24) and φ1
+    // (B31), with f = 1 and u = 0, not the compounds their names suggest (RP1 as R2 − P1
+    // would differ by 180°): the elementary forms reproduce NOAA's Anchorage curve.
+    el("TK1", [1, 0, -2, 0, 1], 90.0, NodeRule::Unity),
+    el("RP1", [1, 0, 2, 0, -1], -90.0, NodeRule::Unity),
+    el("KP1", [1, 0, 3, 0, 0], -90.0, NodeRule::Unity),
     el("THETA1", [1, 1, -1, 1, 0], -90.0, NodeRule::J1),
     cp("KJ2", &[("K1", 1), ("J1", 1)]),
     cp("OO2", &[("O1", 1), ("Q1", 1)]),
@@ -634,7 +656,11 @@ mod tests {
                 let a = node_args(f64::from(k) * 0.1, f64::from(k) * 0.37);
                 let (f, u) = c.node(&a);
                 assert!(f > 0.0 && f < 2.5, "{}: f = {f}", c.name);
-                assert!(u.abs() < 60.0 * DEG, "{}: u = {}", c.name, u / DEG);
+                // M1's u = ξ − ν + Q carries Q, which follows the perigee all the way
+                // round; every other u stays within a few tens of degrees.
+                if c.name != "M1" {
+                    assert!(u.abs() < 60.0 * DEG, "{}: u = {}", c.name, u / DEG);
+                }
                 sum += f;
             }
             let mean = sum / f64::from(n);

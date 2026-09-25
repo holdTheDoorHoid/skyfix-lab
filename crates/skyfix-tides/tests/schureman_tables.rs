@@ -290,29 +290,20 @@ fn equilibrium_arguments_match_table_15() {
     eprintln!("Table 15 worst: {:+.3}° at {}", worst.0, worst.1);
 }
 
-/// M1 is the one constituent printed in Table 15 with V taken without the perigee
-/// (formula 201: V = T − s + h − 90°, u = ξ − ν + Q), while NOAA's published speed for
-/// M1 (14.4966939°/h) is that of formula 194 (V = T − s + h + p − 90°, u = −ν − Qu),
-/// which this crate uses. The two agree at mid-year and differ at the start of the year
-/// by p(1 January) − p(mid-year), about −20.3°: exactly what this test finds.
+/// M1: Table 15 prints V0 + u of formula 201 (V = T − s + h − 90°, u = ξ − ν + Q), which
+/// is the V0 + u this crate uses (advanced at NOAA's speed 14.4966939°/h, formula 194's).
 #[test]
-fn m1_differs_from_table_15_by_the_half_year_of_perigee_motion() {
+fn m1_matches_table_15() {
     let values = [85.9, 33.5, 305.0, 184.1, 79.3, 4.9, 293.5, 176.9];
     let c = constituent("M1").unwrap();
     for (k, want) in values.iter().enumerate() {
         let year = 1990 + k as i32;
-        let jd0 = jd_year_start(year);
-        let jd_mid = 0.5 * (jd0 + jd_year_start(year + 1));
-        let e0 = elements(jd0);
+        let e0 = elements(jd_year_start(year));
         let (_, u) = c.node(&mid_year_node(year));
         let got = (c.v_deg(&e0) + u.to_degrees()).rem_euclid(360.0);
-        let shift = wrap180(e0.p - elements(jd_mid).p);
-        let d = wrap180(got - shift - want);
+        let d = wrap180(got - want);
         // Within 0.5°: Table 10's Q is tabulated per degree of P (0.07 mm of height at
         // NOAA's largest M1).
-        assert!(
-            d.abs() <= 0.5,
-            "M1 {year}: {got:.2} − ({shift:.2}) vs Table 15 {want}"
-        );
+        assert!(d.abs() <= 0.5, "M1 {year}: {got:.2} vs Table 15 {want}");
     }
 }
