@@ -450,7 +450,11 @@ async function main() {
     // A developer's probe: open PROBE_HASH, run each PROBE_JS step (separated by ';;'), print
     // what the last returns, and save a screenshot (not a check).
     if (ONLY.has('probe')) {
-      await open(process.env.PROBE_HASH ?? `${PLACE}&view=sky`);
+      if (process.env.PROBE_PATH) {
+        // Another page of the site (a developer page: build with SKYFIX_DEV_PAGES=1).
+        await send('Page.navigate', { url: `${BASE}${process.env.PROBE_PATH}` });
+        await waitFor('document.readyState === "complete"', 60000);
+      } else await open(process.env.PROBE_HASH ?? `${PLACE}&view=sky`);
       let out = null;
       for (const step of (process.env.PROBE_JS ?? 'document.title').split(';;')) {
         const click = /^CLICK (\d+),(\d+)$/.exec(step.trim());
@@ -462,6 +466,27 @@ async function main() {
       }
       console.log(`probe ${JSON.stringify(out)}`);
       await shot('probe');
+    }
+
+    // First paint: a first visit in a fresh profile (no cache, no service worker), the time to
+    // the first contentful paint and to the explorer's ready flag, PAINT_RUNS times.
+    if (ONLY.has('paint')) {
+      const runs = [];
+      for (let i = 0; i < Number(process.env.PAINT_RUNS ?? 5); i += 1) {
+        await send('Network.clearBrowserCache');
+        await send('Storage.clearDataForOrigin', { origin: `http://127.0.0.1:${PORT}`, storageTypes: 'all' });
+        await send('Page.navigate', { url: 'about:blank' });
+        await sleep(300);
+        const t0 = Date.now();
+        await send('Page.navigate', { url: `${BASE}#${PLACE}&view=map` });
+        await waitFor(`document.documentElement.dataset.ready === '1'`, 90000);
+        const ready = Date.now() - t0;
+        const fcp = await evaluate(`performance.getEntriesByType('paint').find((e) => e.name === 'first-contentful-paint')?.startTime ?? -1`);
+        runs.push({ fcp: Math.round(fcp), ready });
+      }
+      const med = (k) => [...runs].sort((a, b) => a[k] - b[k])[Math.floor(runs.length / 2)][k];
+      summary.paint = { runs, fcpMedianMs: med('fcp'), readyMedianMs: med('ready') };
+      console.log(`info  paint: ${JSON.stringify(summary.paint)}`);
     }
 
     // Exports opened by real readers.
