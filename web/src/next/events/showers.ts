@@ -11,15 +11,15 @@
 
 import { h, s as svgEl } from '../../dom.js';
 import { disposer } from '../component.js';
-import { isDeepSkyEngine, type ShowerDates, type ShowerYear, type Tonight } from '../engine/types.js';
+import { isDeepSkyEngine, type ShowerDates, type ShowerYear, type SkyConditionsInput, type Tonight } from '../engine/types.js';
 import { dateLong, monthName } from '../shell/format.js';
 import { displayZone } from '../state.js';
 import { msFromJd, roundToMinute } from '../time.js';
 import { gregorianDateOfMs, formatYear } from '../time/index.js';
 import { phaseDisc } from '../theme/glyphs.js';
-import { button, segmented } from '../theme/primitives.js';
+import { button } from '../theme/primitives.js';
 import { calendarNote, chipsIn, coveredSentence, rowTimeInfo, wireYear } from './deeptime.js';
-import { errorText, watchAll, type SkyDarkness, type TabComponent, type TabEnv } from './env.js';
+import { errorText, watchAll, type TabComponent, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, screenWords, type EventItem, type Words } from './items.js';
 import { coverageKey, observerOf } from './listtab.js';
@@ -27,16 +27,12 @@ import { nextAfter } from './model.js';
 import { eventRow, splitView, type Badge, type Row } from './rows.js';
 import { moonGlare, moonWords, nightWords, rateText, showerId, showerItem, tonightLine } from './sky-model.js';
 import { rangeWords } from '../time/tier.js';
+import { skyConditions } from '../sky/conditions.js';
+import { skyChoiceSelect } from '../sky/sky-choice.js';
 
 /** Showers this strong or variable get a bar in the year strip; the list has them all. */
 export const STRIP_MIN_ZHR = 10;
 
-const DARKNESS: readonly { value: SkyDarkness; label: string; tip: string }[] = [
-  { value: 2, label: 'Dark site', tip: 'Far from towns: the Milky Way casts shadows (Bortle 2)' },
-  { value: 4, label: 'Rural', tip: 'Some glow on the horizon (Bortle 4)' },
-  { value: 5, label: 'Suburban', tip: 'The Milky Way faint or gone (Bortle 5)' },
-  { value: 8, label: 'City', tip: 'Only the brightest stars (Bortle 8)' },
-];
 
 /** Cached per year, place and sky: the year without the place (fast) and with it. */
 interface YearCache {
@@ -65,13 +61,10 @@ export const showersTab: TabComponent = (host, env) => {
   const next = button({ icon: 'chevron-right', variant: 'ghost', size: 'sm', ariaLabel: 'The year after', onClick: () => ui.patch({ showerYear: yearOf() + 1 }) });
   const thisYear = button({ label: 'This year', variant: 'ghost', size: 'sm', tip: 'The year of the explorer’s time', onClick: () => ui.patch({ showerYear: null }) });
   const yearStep = h('div', { class: 'sfe-year-step', role: 'group', 'aria-label': 'Year' }, prev, yearLabel, next, thisYear);
-  const darkness = segmented<string>({
-    label: 'How dark your sky is',
-    size: 'sm',
-    value: String(ui.get().skyDarkness),
-    options: DARKNESS.map((o) => ({ value: String(o.value), label: o.label, tip: o.tip })),
-    onChange: (v) => ui.patch({ skyDarkness: Number(v) as SkyDarkness }),
-  });
+  // How dark the sky is: the stored setting Settings, the Sky view and Tonight share
+  // (sky/sky-choice.ts; polish2, list items 37 and 45: it was this tab's own four classes).
+  const skyChoice = skyChoiceSelect(ctx.store, { class: 'sf-input sfe-sky', label: 'How dark your sky is' });
+  const darkness = { el: h('label', { class: 'sfe-sky-choice' }, h('span', {}, 'Your sky'), skyChoice.el) };
   const tonightBox = h('div', { class: 'sfe-tonight' });
   const status = h('p', { class: 'sfe-status', role: 'status', 'aria-live': 'polite' });
   const strip = h('div', { class: 'sfe-figure' });
@@ -99,10 +92,11 @@ export const showersTab: TabComponent = (host, env) => {
   d.add(() => {
     if (timer !== null) clearTimeout(timer);
   });
-  const conditions = (): { bortle: number } => ({ bortle: ui.get().skyDarkness });
+  const conditions = (): SkyConditionsInput => skyConditions(ctx.store.get().settings);
+  const skyKey = (): string => JSON.stringify(conditions());
   const keyNow = (): string => {
     const { key } = observerOf(ctx.store.get());
-    return `${yearOf()}|${key}|${ui.get().skyDarkness}|${coverageKey(env)}`;
+    return `${yearOf()}|${key}|${skyKey()}|${coverageKey(env)}`;
   };
   /** The place's rates, in the background once the page is still. */
   const scheduleSite = (): void => {
@@ -130,7 +124,7 @@ export const showersTab: TabComponent = (host, env) => {
   const tonightNow = (): Tonight | null => {
     const s = ctx.store.get();
     const { observer, key } = observerOf(s);
-    const k = `${Math.round(ui.get().anchor * 48)}|${key}|${ui.get().skyDarkness}`;
+    const k = `${Math.round(ui.get().anchor * 48)}|${key}|${skyKey()}`;
     if (tonight.key === k) return tonight.value;
     let value: Tonight | null = null;
     try {
@@ -151,7 +145,7 @@ export const showersTab: TabComponent = (host, env) => {
     const u = ui.get();
     const year = yearOf();
     yearLabel.textContent = formatYear(year);
-    darkness.set(String(u.skyDarkness));
+    skyChoice.sync(s);
     thisYear.hidden = u.showerYear === null;
     const key = keyNow();
     if (key !== cache.key) {
@@ -281,7 +275,7 @@ export const showersTab: TabComponent = (host, env) => {
   d.add(
     watchAll(
       env,
-      (s, u) => [u.anchor, u.showerYear, u.shower, u.skyDarkness, s.observer.lat_deg, s.observer.lon_deg, s.observer.height_m, s.observer.zone, s.settings.timeDisplay, s.settings.hourCycle, s.settings.angleFormat] as const,
+      (s, u) => [u.anchor, u.showerYear, u.shower, s.settings.skyQuality, s.settings.skyBortle, s.settings.skyNelm, s.observer.lat_deg, s.observer.lon_deg, s.observer.height_m, s.observer.zone, s.settings.timeDisplay, s.settings.hourCycle, s.settings.angleFormat] as const,
       () => render(),
     ),
   );

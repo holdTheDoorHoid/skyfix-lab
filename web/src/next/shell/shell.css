@@ -176,6 +176,13 @@
   padding-left: 6px;
 }
 
+/* A select in a settings row ("Your sky", polish2): as wide as the row allows. */
+.sf-settings__select {
+  justify-self: stretch;
+  min-width: 0;
+  height: var(--control-h-sm);
+}
+
 .sf-settings__note {
   margin: 6px 6px 0;
   color: var(--ui-ink-3);

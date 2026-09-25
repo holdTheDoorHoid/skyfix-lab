@@ -67,13 +67,12 @@ export function tryCall<T>(errors: string[], what: string, fn: () => T): T | nul
   }
 }
 
-/** The view's own choice of sky (the deep-sky engine's conditions). */
-export interface SkyChoice {
-  /** Bortle class, 1 (darkest) to 9. */
-  bortle: number;
-}
-
-export const DEFAULT_SKY: SkyChoice = { bortle: 5 };
+/**
+ * The sky the night is ranked for: the deep-sky engine's conditions, from the stored
+ * settings every view shares (sky/sky-choice.ts `skyConditions`; polish2, list items 37 and
+ * 45: it was the page's own Bortle class, lost on reload).
+ */
+export type SkyChoice = SkyConditionsInput;
 
 /** Everything that decides one night's numbers. */
 export interface NightQuery {
@@ -90,7 +89,7 @@ export interface NightQuery {
 /** A key that changes exactly when the numbers of the night would. */
 export function queryKey(q: NightQuery): string {
   const o = q.observer;
-  return [o.lat_deg, o.lon_deg, o.height_m ?? 0, q.n, q.options.horizon, q.options.height_of_eye_m, q.conditions.bortle ?? '', q.limit].join('|');
+  return [o.lat_deg, o.lon_deg, o.height_m ?? 0, q.n, q.options.horizon, q.options.height_of_eye_m, q.conditions.bortle ?? '', q.conditions.nelm ?? '', q.limit].join('|');
 }
 
 /** Deep-sky objects the view asks for (it lists 8 at first, more on request). */
@@ -133,7 +132,7 @@ export function stepNightTime(ctx: Pick<Ctx, 'engine'>, s: ExplorerState, dir: -
 }
 
 export function nightQuery(s: ExplorerState, n: number, sky: SkyChoice): NightQuery {
-  return { observer: engineObserver(s), n, options: eventOptions(s), conditions: { bortle: sky.bortle }, limit: DSO_LIMIT };
+  return { observer: engineObserver(s), n, options: eventOptions(s), conditions: { ...sky }, limit: DSO_LIMIT };
 }
 
 // -------------------------------------------------------------------------------------

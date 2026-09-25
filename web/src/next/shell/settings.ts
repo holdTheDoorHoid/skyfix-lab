@@ -10,6 +10,7 @@
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
 import { packsSettings } from '../packs/settings-section.js';
+import { skyChoiceSelect } from '../sky/sky-choice.js';
 import { lengthToMetres, metresToUnits } from './format.js';
 import { shallowEqual, type AngleFormat, type HorizonOption, type HourCycle, type Theme, type TimeDisplay, type Units } from '../state.js';
 import type { CalendarMode } from '../time/civil.js';
@@ -122,6 +123,9 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
     checked: s0.navigatorTerms,
     onChange: (v) => set('navigatorTerms', v),
   });
+  // How dark the sky is (polish2, list items 37 and 45): the one setting the Sky view's
+  // magnitude limit, Tonight's ranking and the meteor rates share.
+  const skyChoice = skyChoiceSelect(store, { class: 'sf-input sf-settings__select' });
   const packs = packsSettings(ctx.packs);
   d.add(packs.destroy);
   const eye = h('input', { class: 'sf-input sf-num', type: 'number', min: 0, max: 500, step: 'any', inputmode: 'decimal', id: 'sf-set-eye' });
@@ -168,6 +172,9 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
       h('div', { class: 'sf-editor__with-unit' }, ic, h('span', { class: 'sf-editor__unit' }, '′ added')),
     ),
     h('p', { class: 'sf-settings__note' }, 'Index correction: on the arc 1.5′ → −1.5. Used by tonight’s sights and new sessions in Navigate.'),
+    h('div', { class: 'sf-popover__title' }, 'Sky'),
+    row('Your sky', skyChoice.el),
+    h('p', { class: 'sf-settings__note' }, 'How dark your sky is: the Sky view draws the stars you could see, and Tonight and the meteor showers rank and estimate for it. The Sky view’s Layers can also take the faintest star you see.'),
     h('p', { class: 'sf-settings__note' }, 'Settings are remembered on this device. Your place is not.'),
     packs.el,
   );
@@ -192,6 +199,7 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
         if (document.activeElement !== eye) eye.value = String(Number(metresToUnits(s.height_of_eye_m, s.units).toFixed(2)));
         if (document.activeElement !== ic) ic.value = String(s.index_correction_arcmin);
         eyeUnit.textContent = s.units === 'imperial' ? 'ft' : 'm';
+        skyChoice.sync(store.get());
       },
       { equals: shallowEqual },
     ),
