@@ -16,7 +16,7 @@ import { isPlanetDetailEngine, type OrbitalElements } from '../engine/types.js';
 import type { Layers, SkyQuality } from '../state.js';
 import { button, segmented, switchRow, type Segmented } from '../theme/primitives.js';
 import { BORTLE_NELM, BORTLE_WORDS } from './conditions.js';
-import { CUSTOM_EXAMPLE, CUSTOM_EXAMPLE_CREDIT, customBodies, MAX_CUSTOM_BODIES, MPC_CREDIT } from './custom.js';
+import { CUSTOM_EXAMPLE, customBodies, MAX_CUSTOM_BODIES } from './custom.js';
 
 export interface LayerOption {
   key: keyof Layers;
@@ -112,7 +112,6 @@ export function layersMenu(ctx: Ctx, options: readonly LayerOption[]): LayersMen
     placeholder: 'Paste MPCORB or comet lines from the Minor Planet Center, or JSON',
   });
   const formError = h('p', { class: 'sky-custom__error', role: 'alert', hidden: true });
-  const credit = h('p', { class: 'sky-custom__hint', hidden: true }, CUSTOM_EXAMPLE_CREDIT);
   const exampleButton = button({ label: 'Example', size: 'sm', variant: 'ghost', tip: 'Fill in (1) Ceres' });
   const readButton = button({ label: 'Add', size: 'sm', variant: 'primary' });
   const cancelButton = button({ label: 'Cancel', size: 'sm', variant: 'ghost' });
@@ -121,7 +120,6 @@ export function layersMenu(ctx: Ctx, options: readonly LayerOption[]): LayersMen
     { class: 'sky-custom__form', hidden: true },
     textarea,
     formError,
-    credit,
     h('div', { class: 'sky-custom__buttons' }, exampleButton, cancelButton, readButton),
     h('p', { class: 'sky-custom__hint' }, 'Positions from elements follow the orbit without the planets’ pull, so they drift from the real body as the elements age (a warning shows past 30 days). Kept for this visit only.'),
   );
@@ -141,7 +139,6 @@ export function layersMenu(ctx: Ctx, options: readonly LayerOption[]): LayersMen
   });
   exampleButton.addEventListener('click', () => {
     textarea.value = CUSTOM_EXAMPLE;
-    credit.hidden = false;
     formError.hidden = true;
   });
   readButton.addEventListener('click', () => {
@@ -159,12 +156,11 @@ export function layersMenu(ctx: Ctx, options: readonly LayerOption[]): LayersMen
       formError.textContent = 'No elements found in that text.';
       return;
     }
-    // The worked example's values are the MPC's: they keep its credit.
-    bodies.add(parsed, textarea.value.trim() === CUSTOM_EXAMPLE.trim() ? MPC_CREDIT : undefined);
+    // No credit line (verify2): the example's values are JPL's, which asks for none.
+    bodies.add(parsed);
     if (!store.get().layers.customBodies) store.patch({ layers: { customBodies: true } });
     textarea.value = '';
     formError.hidden = true;
-    credit.hidden = true;
     form.hidden = true;
     addButton.focus();
   });

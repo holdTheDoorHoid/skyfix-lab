@@ -8,8 +8,10 @@
  * storage (state.ts privacy rules), and a reload forgets them. Each frame the Sky view
  * asks `custom_body_states` for their places.
  *
- * The Minor Planet Center asks that "Source: Minor Planet Center" accompany its data: a
- * body read from an MPC format carries that line wherever it is described.
+ * No credit line (verify2): nothing on screen credits anything but OpenStreetMap
+ * (EXPANSION_PLAN, "Data credit"). The worked example's values are JPL's Small-Body
+ * Database's, which asks for none (THIRD_PARTY.md, verify2), and elements the person pastes
+ * are theirs to bring: the explorer does not ship them, so it owes no line for them.
  */
 
 import type { Ctx } from '../component.js';
@@ -19,7 +21,7 @@ export interface CustomBodies {
   get(): readonly OrbitalElements[];
   /** Add or replace (by name) these bodies; `credit` is shown wherever they are described. */
   add(bodies: readonly OrbitalElements[], credit?: string): void;
-  /** The credit line for a body: its own, or the MPC's for a body read from an MPC format. */
+  /** The credit line given with a body when it was added, or '' (none is given today). */
   creditOf(body: OrbitalElements): string;
   remove(name: string): void;
   clear(): void;
@@ -56,7 +58,7 @@ function createChannel(): CustomBodies {
       emit([...list.filter((b) => !names.has(b.name)), ...bodies].slice(-MAX_CUSTOM_BODIES));
     },
     creditOf(body) {
-      return credits.get(body.name) ?? (fromMpc(body) ? MPC_CREDIT : '');
+      return credits.get(body.name) ?? '';
     },
     remove(name) {
       if (list.some((b) => b.name === name)) emit(list.filter((b) => b.name !== name));
@@ -83,9 +85,6 @@ export function customBodies(ctx: Pick<Ctx, 'store'>): CustomBodies {
   return channel;
 }
 
-/** The line the Minor Planet Center asks to accompany its data. */
-export const MPC_CREDIT = 'Source: Minor Planet Center';
-
 /** True when the elements came from one of the Minor Planet Center's formats. */
 export function fromMpc(body: Pick<OrbitalElements, 'source'>): boolean {
   return body.source === 'mpcorb' || body.source === 'mpc_comet';
@@ -93,12 +92,12 @@ export function fromMpc(body: Pick<OrbitalElements, 'source'>): boolean {
 
 
 /**
- * A worked example for the add dialog: (1) Ceres as typed-in elements (the values of the
- * API document's `parse_orbits` example, from the Minor Planet Center's MPCORB).
+ * A worked example for the add dialog: (1) Ceres as typed-in elements, JPL's Small-Body
+ * Database solution (JPL 48 of 2021-04-13) at epoch JD 2461200.5 TDB, rounded
+ * (verify2: they were the Minor Planet Center's, which asks for an on-screen credit; the
+ * two orbits agree to every digit shown but the time of perihelion, which is JPL's next
+ * passage rather than the MPC's last, and G, 0.12 against 0.15).
  */
 export const CUSTOM_EXAMPLE = `{"name": "(1) Ceres", "class": "asteroid", "epoch_jd_tt": 2461200.5,
  "q_au": 2.545159, "e": 0.079692, "i_deg": 10.58803, "node_deg": 80.24863,
- "peri_deg": 73.2942, "tp_jd_tt": 2459919.988326, "h": 3.34, "g": 0.15}`;
-
-/** Credit line shown with the example (its values are the MPC's). */
-export const CUSTOM_EXAMPLE_CREDIT = 'Example values: Source: Minor Planet Center.';
+ "peri_deg": 73.2942, "tp_jd_tt": 2461599.841467, "h": 3.34, "g": 0.12}`;

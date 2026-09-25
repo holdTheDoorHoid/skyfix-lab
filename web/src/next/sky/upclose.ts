@@ -194,7 +194,9 @@ export function upClosePanel(ctx: Ctx, settings: UpCloseSettings, onClose: () =>
           ['Bright edge faces', `${formatBearing(o.bright_limb_angle_deg, fmt)} from celestial north`],
           ['Along the shadow line', result.labelled.length ? result.labelled.join(', ') : 'no named feature in good relief now'],
         ]);
-        note.textContent = 'Maria are drawn as ellipses of their size; the dashed lines are the Moon’s equator and central meridian, offset by the libration. Feature positions: USGS/IAU Gazetteer of Planetary Nomenclature (public domain).';
+        // verify2: no source line (nothing on screen credits anything but OpenStreetMap); the
+        // gazetteer's provenance is in THIRD_PARTY.md.
+        note.textContent = 'Maria are drawn as ellipses of their size; the dashed lines are the Moon’s equator and central meridian, offset by the libration.';
         summaryText = `The Moon, ${sub.textContent}. ${librationWords(o.libration.lon_deg, o.libration.lat_deg)} Features along the shadow line: ${result.labelled.join(', ') || 'none'}.`;
         canvas.setAttribute('aria-label', summaryText);
         return;

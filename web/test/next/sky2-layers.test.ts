@@ -36,7 +36,7 @@ import {
   skyModel,
   zenithLimit,
 } from '../../src/next/sky/conditions.js';
-import { customBodies, fromMpc, MAX_CUSTOM_BODIES, MPC_CREDIT } from '../../src/next/sky/custom.js';
+import { CUSTOM_EXAMPLE, customBodies, fromMpc, MAX_CUSTOM_BODIES } from '../../src/next/sky/custom.js';
 import { DeepSkyField, dsoKey, dsoReach, dsoShape, DsoShape, NO_MAGNITUDE_AS } from '../../src/next/sky/deepsky.js';
 import { hitWhere, panelSkyOptions, runSkySearch, targetOfHit } from '../../src/next/sky/find.js';
 import { formatDec, formatRa } from '../../src/next/sky/format.js';
@@ -590,13 +590,13 @@ describe('added comets and asteroids (custom.ts)', () => {
   const body = (name: string, source: OrbitalElements['source'] = 'manual'): OrbitalElements =>
     ({ name, designation: null, class: 'asteroid', epoch_jd_tt: T0, perihelion_distance_au: 2, eccentricity: 0.1, inclination_deg: 1, ascending_node_deg: 2, argument_of_perihelion_deg: 3, perihelion_jd_tt: T0, magnitude: { model: 'none' }, source }) as OrbitalElements;
 
-  it('adds, replaces by name, removes, keeps at most twenty, and credits the MPC', () => {
+  it('adds, replaces by name, removes, keeps at most twenty, and credits nothing it was not given (verify2: no MPC line)', () => {
     const ctx = { store: createExplorerStore({ storage: null }) };
     const c = customBodies(ctx);
     c.add([body('A'), body('B', 'mpcorb')]);
     c.add([body('A')], 'Source: a circular');
     expect(c.get().map((b) => b.name)).toEqual(['B', 'A']);
-    expect(c.creditOf(c.get()[0]!)).toBe(MPC_CREDIT);
+    expect(c.creditOf(c.get()[0]!)).toBe(''); // elements pasted in an MPC format are the person's: no line
     expect(c.creditOf(c.get()[1]!)).toBe('Source: a circular');
     expect(fromMpc(body('C', 'mpc_comet'))).toBe(true);
     c.remove('B');
@@ -792,5 +792,25 @@ describe.skipIf(!hasPackage)('the Milky Way rings against ACCURACY §20 (verify2
     expect(edges).toBeGreaterThan(100);
     expect(longest).toBeLessThanOrEqual(14);
     expect(worst).toBeLessThan(0.1);
+  });
+});
+
+// --- verify2: the worked example's values, credit-free ---------------------------------------
+describe('the add dialog’s worked example (verify2)', () => {
+  it('is (1) Ceres with JPL’s Small-Body Database elements, read by parse_orbits', () => {
+    const engine = new MockEngine({ syntheticStars: 0 });
+    const [ceres] = engine.parseOrbits(CUSTOM_EXAMPLE);
+    expect(ceres!.name).toBe('(1) Ceres');
+    expect(ceres!.source).toBe('manual');
+    // JPL SBDB, solution JPL 48 (2021-04-13), epoch 2461200.5 TDB: q 2.545159361, e 0.0796922951,
+    // i 10.5880278, node 80.2486268, peri 73.2942145, tp 2461599.841466614, H 3.34, G 0.12.
+    expect(ceres!.epoch_jd_tt).toBe(2461200.5);
+    expect(ceres!.perihelion_distance_au).toBeCloseTo(2.545159361, 6);
+    expect(ceres!.eccentricity).toBeCloseTo(0.0796922951, 6);
+    expect(ceres!.inclination_deg).toBeCloseTo(10.5880278, 5);
+    expect(ceres!.ascending_node_deg).toBeCloseTo(80.2486268, 5);
+    expect(ceres!.argument_of_perihelion_deg).toBeCloseTo(73.2942145, 4);
+    expect(ceres!.perihelion_jd_tt).toBeCloseTo(2461599.841466614, 6);
+    expect(ceres!.magnitude).toEqual({ model: 'hg', h: 3.34, g: 0.12 });
   });
 });

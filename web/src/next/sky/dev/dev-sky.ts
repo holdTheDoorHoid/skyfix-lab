@@ -48,7 +48,7 @@ import { createExplorerStore, displayZone, type Layers, type Theme } from '../..
 import { formatWithUtc, isValidIanaZone, jdFromIso, jdFromWallClock, resolveZone } from '../../time.js';
 import { highlightBodies, mountSky, type SkyMounted } from '../index.js';
 import { skyViewSettings } from '../view.js';
-import { customBodies, CUSTOM_EXAMPLE, MPC_CREDIT } from '../custom.js';
+import { customBodies, CUSTOM_EXAMPLE } from '../custom.js';
 import { isPlanetDetailEngine } from '../../engine/types.js';
 import type { FovPresetId } from '../fov.js';
 import type { SkyTarget } from '../requests.js';
@@ -224,7 +224,7 @@ async function boot(root: HTMLElement): Promise<void> {
   (globalThis as { __sky?: unknown }).__sky = { ctx, handle };
   // sky2 agent: targets, the close-up, the field of view, search, ranking, added bodies.
   if (params.get('custom') === 'ceres' && isPlanetDetailEngine(engine)) {
-    customBodies(ctx).add(engine.parseOrbits(CUSTOM_EXAMPLE), MPC_CREDIT);
+    customBodies(ctx).add(engine.parseOrbits(CUSTOM_EXAMPLE));
   }
   if (params.has('fov')) handle.setFov((params.get('fov') as FovPresetId) || null, params.get('fovat') === 'centre' ? 'centre' : 'target');
   if (params.has('zoom')) handle.setDomeZoom(Number(params.get('zoom')) || 1);
