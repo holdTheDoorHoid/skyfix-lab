@@ -145,6 +145,96 @@
       }
     }
   },
+  "milkyway": {
+    "bytes": 3785,
+    "checks": {
+      "galactic_vs_pixel_file_max_deg": 0.000632,
+      "pixels_masked_as_point_sources": 18444
+    },
+    "generator": "tools/starfield/milkyway.py",
+    "inputs": {
+      "DIRBE_BAND08_ZSMA.FITS": {
+        "retrieved_utc": "2026-09-25T03:22:48Z",
+        "sha256": "907a62a76f1347141affd2124af27c071ead27a0629689b578a3d0a1c1943eaa",
+        "size_bytes": 6701760,
+        "url": "https://lambda.gsfc.nasa.gov/data/cobe/dirbe/zsma/DIRBE_BAND08_ZSMA.FITS"
+      },
+      "DIRBE_BAND1A_ZSMA.FITS": {
+        "retrieved_utc": "2026-09-25T03:22:45Z",
+        "sha256": "5686cf768467fa595aea2e1fad9cfc1b0231d5c5736073fde05333bfcd895a76",
+        "size_bytes": 6701760,
+        "url": "https://lambda.gsfc.nasa.gov/data/cobe/dirbe/zsma/DIRBE_BAND1A_ZSMA.FITS"
+      },
+      "DIRBE_SKYMAP_INFO.FITS": {
+        "retrieved_utc": "2026-09-25T03:22:53Z",
+        "sha256": "391a2f839e67c8b074c1666eeb29928c7dcfcaab5b12a10be1dedae75bb67cc4",
+        "size_bytes": 12620160,
+        "url": "https://lambda.gsfc.nasa.gov/data/cobe/dirbe/ancil/skyinfo/DIRBE_SKYMAP_INFO.FITS"
+      }
+    },
+    "levels": [
+      {
+        "level_mjy_sr": 0.32,
+        "points": 460,
+        "points_before": 3104,
+        "rings": 12,
+        "rings_dropped_small": 1
+      },
+      {
+        "level_mjy_sr": 0.5,
+        "points": 353,
+        "points_before": 2580,
+        "rings": 10,
+        "rings_dropped_small": 0
+      },
+      {
+        "level_mjy_sr": 0.8,
+        "points": 147,
+        "points_before": 1154,
+        "rings": 8,
+        "rings_dropped_small": 0
+      },
+      {
+        "level_mjy_sr": 1.3,
+        "points": 32,
+        "points_before": 250,
+        "rings": 2,
+        "rings_dropped_small": 0
+      }
+    ],
+    "parameters": {
+      "av_per_mjy_sr_100um": 0.05,
+      "grid_deg": 0.5,
+      "levels_mjy_sr": [
+        0.32,
+        0.5,
+        0.8,
+        1.3
+      ],
+      "masked_l_b_radius_deg": [
+        [
+          280.47,
+          -32.89,
+          6.0
+        ],
+        [
+          302.81,
+          -44.33,
+          3.5
+        ]
+      ],
+      "min_ring_deg": 3.0,
+      "point_source_box_deg": 3.5,
+      "point_source_sigma": 4.0,
+      "screen_fraction": 0.5,
+      "simplify_deg": 0.2,
+      "smooth_sigma_deg": 1.5,
+      "tau_j_over_tau_v": 0.28,
+      "tau_v_cap": 30.0,
+      "unit_deg": 0.01
+    },
+    "sha256": "ede5a41853ae3390dae8538025959593e15ea643938a84229a68cfd6b32cfcdc"
+  },
   "showers": {
     "bytes": 2835,
     "exceptions": {
