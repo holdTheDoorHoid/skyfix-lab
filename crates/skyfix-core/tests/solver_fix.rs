@@ -288,6 +288,7 @@ fn tangent_and_disjoint_two_sight_circles_never_produce_a_point() {
         ho_rad: alt_deg.to_radians(),
         sigma_rad: ARCMIN,
         gha_rate_rad_per_s: sidereal_rate_rad_per_s(),
+        moon_hp_arcmin: None,
     };
 
     // Tangent: zenith distances 45 + 45 = the 90 degree GP separation.
@@ -348,6 +349,7 @@ fn a_duplicate_record_cannot_turn_two_degenerate_circles_into_a_fix() {
         ho_rad: alt_deg.to_radians(),
         sigma_rad: ARCMIN,
         gha_rate_rad_per_s: sidereal_rate_rad_per_s(),
+        moon_hp_arcmin: None,
     };
     // GPs on the equator 90 degrees apart, so z1 + z2 vs 90 sets the circle separation.
     let pair = |gap_nm: f64| {

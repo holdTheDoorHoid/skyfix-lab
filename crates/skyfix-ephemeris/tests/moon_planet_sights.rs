@@ -6,17 +6,23 @@
 //!
 //! 1. **Arithmetic.** `correct_sight` reproduces `chain_ho_deg`, the amended section 5
 //!    chain transcribed in Python from the text, to 1e-6 arcmin.
-//! 2. **The model.** On the `sphere` Earth (the Earth of CONVENTIONS section 1) the
+//! 2. **The chain.** On the `sphere` Earth (the Earth of CONVENTIONS section 1) the
 //!    reduced Ho lands within 0.01' of the geocentric altitude at the site; on the
 //!    `wgs84` Earth within the residual the file records for that body class (the
 //!    Moon's is the parallax the sphere leaves out, up to about 0.22').
-//! 3. **The providers.** Reduced with the auto composition (Sun, Moon, sight planets,
+//! 3. **The model** (CONVENTIONS 15.4). On the `wgs84` Earth, the real one, the reduced
+//!    Ho lands within 0.01' of the model altitude: the geocentric altitude at the site
+//!    plus, for the Moon, the Earth-shape term (`sights::wgs84::earth_shape_arcmin`).
+//! 4. **The providers.** Reduced with the auto composition (Sun, Moon, sight planets,
 //!    stars) instead of the supplied DE440s directions, Ho still agrees with the
 //!    provider's own Hc at the site within the sphere tolerance plus the provider's
 //!    documented accuracy.
 //!
-//! The four `reference-moon-*` sessions are then reduced and solved end to end with
-//! ephemeris "auto" and the known position recovered.
+//! The two WGS84 `reference-moon-*` sessions are then reduced and solved end to end with
+//! ephemeris "auto" and the known position recovered to 15 m. The two `*-sphere`
+//! sessions were built on the sphere of radius 6378.14 km, an Earth that does not exist;
+//! they are solved with the Earth-shape term switched off explicitly, which is the model
+//! they were built for.
 
 use std::collections::BTreeMap;
 
@@ -24,6 +30,7 @@ use serde::Deserialize;
 use skyfix_core::corrections::{CorrectionInputs, SightBody, correct_sight, sight_body};
 use skyfix_core::geometry::{Point, altitude_azimuth};
 use skyfix_core::reduce::{DirectionSource, reduce_session_partitioned, to_sights};
+use skyfix_core::sights::wgs84::earth_shape_arcmin;
 use skyfix_core::solver::solve;
 use skyfix_core::types::{
     AltitudeKind, FixResult, GeocentricDirection, HorizonMode, Limb, Session, SolveOptions, Truth,
@@ -127,6 +134,8 @@ fn the_chain_reproduces_the_text_and_skyfields_sky() {
     assert!(f.cases.len() > 300, "{} cases", f.cases.len());
     let mut worst_arith = 0.0f64;
     let mut worst_model: BTreeMap<String, f64> = BTreeMap::new();
+    let mut worst_full: BTreeMap<String, f64> = BTreeMap::new();
+    let mut moon_terms: Vec<f64> = Vec::new();
     for c in &f.cases {
         let class = sight_body(&c.body);
         assert_eq!(class_name(class), c.kind, "{}: {}", c.id, c.body);
@@ -171,13 +180,60 @@ fn the_chain_reproduces_the_text_and_skyfields_sky() {
             b.ho_deg,
             c.expected_ho_deg
         );
-        let w = worst_model.entry(key).or_insert(0.0);
+        let w = worst_model.entry(key.clone()).or_insert(0.0);
         *w = w.max(resid);
+
+        // 3. The model altitude on the real Earth (CONVENTIONS 15.4): the geocentric
+        // altitude plus, for the Moon, the Earth-shape term at the site.
+        if c.earth == "wgs84" {
+            let term = if class == SightBody::Moon {
+                let t = earth_shape_arcmin(
+                    c.site.lat_deg,
+                    c.site.lon_deg,
+                    c.geocentric.gha_deg,
+                    c.geocentric.dec_deg,
+                    c.geocentric.horizontal_parallax_arcmin,
+                );
+                moon_terms.push(t.abs());
+                t
+            } else {
+                0.0
+            };
+            let full = (b.ho_deg - (c.expected_ho_deg + term / 60.0)).abs() * 60.0;
+            assert!(
+                full <= f.generator.tolerance_arcmin,
+                "{} {} {}: Ho {} vs model {} ({full:.4}')",
+                c.id,
+                c.body,
+                c.utc,
+                b.ho_deg,
+                c.expected_ho_deg + term / 60.0
+            );
+            let w = worst_full.entry(key).or_insert(0.0);
+            *w = w.max(full);
+        }
     }
     println!("worst arithmetic difference {worst_arith:.2e}'");
     for (k, v) in &worst_model {
         println!("worst |Ho - geocentric altitude| {k:<14} {v:.4}'");
     }
+    for (k, v) in &worst_full {
+        println!("worst |Ho - model altitude|      {k:<14} {v:.4}'");
+    }
+    moon_terms.sort_by(f64::total_cmp);
+    println!(
+        "Moon Earth-shape term over the {} WGS84 Moon sights: median {:.4}', worst {:.4}'",
+        moon_terms.len(),
+        moon_terms[moon_terms.len() / 2],
+        moon_terms[moon_terms.len() - 1]
+    );
+    // The model leaves nothing of the Earth's shape: the Moon on the real Earth is now
+    // as good as the sphere was, the diurnal aberration Skyfield includes being the rest.
+    assert!(
+        worst_full["wgs84/moon"] <= 0.01,
+        "{}",
+        worst_full["wgs84/moon"]
+    );
     // The sphere is where the chain is exact: only diurnal aberration (0.3") is left.
     for (k, v) in &worst_model {
         if k.starts_with("sphere") {
@@ -243,7 +299,10 @@ fn miss_m(a: skyfix_core::types::LatLon, b: skyfix_core::types::LatLon) -> f64 {
     ))
 }
 
-fn solve_session(name: &str) -> (f64, Session, Vec<skyfix_core::types::Sight>) {
+/// Solve a reference session with ephemeris "auto". `sphere_only` switches the Moon's
+/// Earth-shape term off (CONVENTIONS 15.4) by leaving out its horizontal parallax: the
+/// model of the `*-sphere` sessions, which were built on a spherical Earth.
+fn solve_session(name: &str, sphere_only: bool) -> (f64, Session, Vec<skyfix_core::types::Sight>) {
     let session: Session = serde_json::from_str(
         &std::fs::read_to_string(repo_path(&format!("fixtures/sessions/{name}.json")))
             .expect("session present"),
@@ -266,7 +325,12 @@ fn solve_session(name: &str) -> (f64, Session, Vec<skyfix_core::types::Sight>) {
             r.id
         );
     }
-    let sights = to_sights(&reduced, &source);
+    let mut sights = to_sights(&reduced, &source);
+    if sphere_only {
+        for s in &mut sights {
+            s.moon_hp_arcmin = None;
+        }
+    }
     let options = SolveOptions {
         initializer: session.observer.assumed_position,
         ..SolveOptions::default()
@@ -289,18 +353,27 @@ impl UsesProvider for skyfix_core::types::ReducedSight {
 
 #[test]
 fn moon_and_planet_sessions_recover_the_known_position() {
-    // On the spherical Earth CONVENTIONS section 1 reduces on, the only errors left are
-    // the providers' (0.02' at most) and diurnal aberration: tens of metres at most.
-    // On the WGS84 Earth the Moon's parallax differs from the sphere's by up to 0.22',
-    // which moves these fixes by a few tens of metres more (docs/NAVIGATION_SKY.md).
-    for (name, bound_m) in [
-        ("reference-moon-planets-atlantic-sphere", 15.0),
-        ("reference-moon-venus-timor-sphere", 15.0),
-        ("reference-moon-planets-atlantic", 60.0),
-        ("reference-moon-venus-timor", 80.0),
+    // On the real (WGS84) Earth the model altitude carries the Moon's Earth-shape term
+    // (CONVENTIONS 15.4), so the only errors left are the providers' (0.02' at most) and
+    // diurnal aberration: 15 m at most (60 m and 80 m before the term was modelled). The
+    // `*-sphere` sessions were built on the sphere of radius 6378.14 km, which the term
+    // does not describe: solved with it switched off they come back as they always did,
+    // and with it on they miss by the term itself (docs/NAVIGATION_SKY.md).
+    for (name, sphere_only, bound_m) in [
+        ("reference-moon-planets-atlantic", false, 15.0),
+        ("reference-moon-venus-timor", false, 15.0),
+        ("reference-moon-planets-atlantic-sphere", true, 15.0),
+        ("reference-moon-venus-timor-sphere", true, 15.0),
     ] {
-        let (miss, session, sights) = solve_session(name);
-        println!("{name}: fix {miss:.1} m from the truth");
+        let (miss, session, sights) = solve_session(name, sphere_only);
+        println!(
+            "{name}{}: fix {miss:.1} m from the truth",
+            if sphere_only {
+                " (Earth-shape term off)"
+            } else {
+                ""
+            }
+        );
         assert!(miss <= bound_m, "{name}: {miss:.1} m > {bound_m} m");
 
         // Every Moon and planet sight carries its own GHA rate (CONVENTIONS 13.1); the
@@ -319,6 +392,29 @@ fn moon_and_planet_sessions_recover_the_known_position() {
                 SightBody::Sun => {}
             }
         }
+    }
+}
+
+#[test]
+fn the_sphere_model_misses_the_real_earth_by_the_earth_shape_term() {
+    // The comparison that justified modelling the term (EXPANSION_PLAN 4.4): the WGS84
+    // sessions solved on the sphere alone, and the sphere sessions solved with the term.
+    for (name, sphere_only, at_least_m) in [
+        ("reference-moon-planets-atlantic", true, 12.0),
+        ("reference-moon-venus-timor", true, 25.0),
+        ("reference-moon-planets-atlantic-sphere", false, 12.0),
+        ("reference-moon-venus-timor-sphere", false, 25.0),
+    ] {
+        let (miss, _, _) = solve_session(name, sphere_only);
+        println!(
+            "{name}{}: fix {miss:.1} m from the truth",
+            if sphere_only {
+                " (Earth-shape term off)"
+            } else {
+                " (term on)"
+            }
+        );
+        assert!(miss >= at_least_m, "{name}: {miss:.1} m");
     }
 }
 

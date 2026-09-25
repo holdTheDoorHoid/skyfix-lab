@@ -18,7 +18,9 @@
 //!   `atan2(up, hypot(north, east))`. That is the same angle to rounding (about 1e-16 rad,
 //!   exact at the zenith too) at half the cost, which keeps a 200 x 200 grid of 10 sights
 //!   well inside its 30 ms budget. The grid's lowest node therefore sits next to the
-//!   solver's fix.
+//!   solver's fix. A Moon sight that carries its horizontal parallax adds the Earth-shape
+//!   term at every node, from the same components, through the solver's own
+//!   [`crate::sights::wgs84::EarthShape`] (CONVENTIONS 15.4).
 //! - The same sights as the solver: those with a finite direction, altitude and sigma and
 //!   `sigma > 0`, in input order.
 //! - `b` is 0 unless [`MisfitOptions::estimate_shared_bias`] is on. Then it is **profiled
@@ -74,6 +76,7 @@ use crate::geometry::{
     geographic_position, initial_bearing, tangent_row, two_circle_intersections,
 };
 use crate::linalg;
+use crate::sights::wgs84::EarthShape;
 use crate::types::{FixCandidate, FixResult, LatLon, Sight, SolveOptions};
 use crate::uncertainty;
 use crate::units::{CHI2_95_2DOF, NM_M, nm_to_rad, norm_180, rad_to_arcmin, rad_to_deg, rad_to_nm};
@@ -668,6 +671,8 @@ struct Term<'a> {
     w: f64,
     /// `w / sigma^2`, for the profiled bias.
     wn: f64,
+    /// The Moon's Earth-shape term (CONVENTIONS 15.4), as the solver has it.
+    shape: Option<EarthShape>,
 }
 
 struct Model<'a> {
@@ -751,6 +756,7 @@ impl<'a> Model<'a> {
                 sigma: s.sigma_rad,
                 w,
                 wn: w / (s.sigma_rad * s.sigma_rad),
+                shape: s.moon_hp_arcmin.and_then(EarthShape::new),
             });
         }
         if terms.is_empty() {
@@ -803,13 +809,13 @@ impl<'a> Model<'a> {
                 *cell = if self.bias {
                     for ((r, c), (t, dk)) in rows.iter().zip(col).zip(self.terms.iter().zip(&mut d))
                     {
-                        *dk = t.ho - altitude(r, c);
+                        *dk = t.ho - model_altitude(t, r, c, sphi, cphi);
                     }
                     self.profiled(&d)
                 } else {
                     let mut acc = 0.0;
                     for ((r, c), t) in rows.iter().zip(col).zip(&self.terms) {
-                        let dk = t.ho - altitude(r, c);
+                        let dk = t.ho - model_altitude(t, r, c, sphi, cphi);
                         acc += t.wn * dk * dk;
                     }
                     acc
@@ -835,7 +841,7 @@ impl<'a> Model<'a> {
                     clha,
                     east: -t.cdec * slha,
                 };
-                t.ho - altitude(&r, &c)
+                t.ho - model_altitude(t, &r, &c, sphi, cphi)
             })
             .collect()
     }
@@ -888,7 +894,11 @@ impl<'a> Model<'a> {
         let mut r = Vec::with_capacity(self.terms.len());
         let mut cost = 0.0;
         for t in &self.terms {
-            let (h, z) = altitude_azimuth(p, t.gha, t.dec());
+            let (h_sphere, z) = altitude_azimuth(p, t.gha, t.dec());
+            let h = match &t.shape {
+                Some(shape) => h_sphere + shape.term_rad(p.lat, p.lon, t.gha, t.dec()),
+                None => h_sphere,
+            };
             let ri = t.ho - h - b;
             let u = ri / t.sigma;
             cost += t.w * u * u;
@@ -1025,6 +1035,22 @@ fn altitude(r: &RowCoef, c: &ColCoef) -> f64 {
     // cos h >= 0; at the zenith it is 0 and up / 0 = +inf gives exactly pi / 2.
     let cos_h = (north * north + c.east * c.east).sqrt();
     (up / cos_h).atan()
+}
+
+/// The model altitude of term `t` at a node: [`altitude`], plus the Moon's Earth-shape
+/// term from the same components when the sight carries it (CONVENTIONS 15.4).
+/// `sphi`, `cphi`: the node's latitude.
+#[inline(always)]
+fn model_altitude(t: &Term<'_>, r: &RowCoef, c: &ColCoef, sphi: f64, cphi: f64) -> f64 {
+    let h = altitude(r, c);
+    match &t.shape {
+        Some(shape) => {
+            let up = r.sphi_sdec + r.cphi_cdec * c.clha;
+            let north = r.cphi_sdec - r.sphi_cdec * c.clha;
+            h + shape.term_rad_from_components(sphi, cphi, up, north, c.east)
+        }
+        None => h,
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1496,6 +1522,7 @@ mod tests {
             ho_rad: alt_deg.to_radians(),
             sigma_rad: arcmin_to_rad(sigma_arcmin),
             gha_rate_rad_per_s: 0.0,
+            moon_hp_arcmin: None,
         }
     }
 

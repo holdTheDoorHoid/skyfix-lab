@@ -6,22 +6,23 @@ Instrument  sea horizon, index correction -2.0' (added to the reading)
 Time        2026-10-01T03:00:00Z
 Direction   GHA 352 05.0, Dec N 26 18.3, SD 16.17', HP 59.34' (from skyfix-auto)
 
-Hs  +20 28.7   the sextant reading: set this on the arc
+Hs  +20 28.8   the sextant reading: set this on the arc
 Zn   73 06.1   the true bearing to look along
-Hc  +21 33.1   the computed altitude here; reducing Hs gives it back
+Hc  +21 33.2   the computed altitude here; reducing Hs gives it back
+         including the Moon's Earth-shape term, +0.057' (CONVENTIONS 15.4)
 Ha  +20 24.0   the apparent altitude after the index correction and the horizon step
 
 Corrections, from the reading forward to Hc
   step                        applied   before deg   after deg  delta '  note
-  index_correction            yes        20.478996   20.445663    -2.00  index correction -2.000' added to the sextant reading
-  dip                         yes        20.445663   20.399283    -2.78  sea horizon, height of eye 2.500 m: dip 2.783' subtracted
-  artificial_horizon_halving  no         20.399283   20.399283     0.00  not applicable: the sea horizon reading is a single angle
-  refraction                  yes        20.399283   20.355162    -2.65  Bennett 1982 at Ha 20.3993 deg, 1010.0 hPa, 10.0 C: 2.647' subtracted
-  semidiameter                yes        20.355162   20.626350    16.27  Moon lower limb: semidiameter 16.170' augmented by 0.101' to 16.271' (topocentric, centre at 20.6264 deg) added
-  parallax                    yes        20.626350   21.551968    55.54  Moon: asin(sin HP 59.341' x cos h), h = 20.6264 deg topocentric: 55.537' added
-  Ho 21.551968 deg = Hc 21.551968 deg
+  index_correction            yes        20.479944   20.446611    -2.00  index correction -2.000' added to the sextant reading
+  dip                         yes        20.446611   20.400231    -2.78  sea horizon, height of eye 2.500 m: dip 2.783' subtracted
+  artificial_horizon_halving  no         20.400231   20.400231     0.00  not applicable: the sea horizon reading is a single angle
+  refraction                  yes        20.400231   20.356112    -2.65  Bennett 1982 at Ha 20.4002 deg, 1010.0 hPa, 10.0 C: 2.647' subtracted
+  semidiameter                yes        20.356112   20.627301    16.27  Moon lower limb: semidiameter 16.170' augmented by 0.101' to 16.271' (topocentric, centre at 20.6273 deg) added
+  parallax                    yes        20.627301   21.552913    55.54  Moon: asin(sin HP 59.341' x cos h), h = 20.6273 deg topocentric: 55.537' added
+  Ho 21.552913 deg = Hc 21.552913 deg
 
-Hs and Hc are on the spherical Earth of CONVENTIONS section 1, like every reduction. For
-the Moon a perfect sextant on the real (WGS84) Earth can read up to 0.22' differently
-(docs/NAVIGATION_SKY.md section 3): far below what matters for finding it with a preset
-sextant.
+Hc is the spherical Earth's computed altitude (CONVENTIONS section 3) plus the Moon's
+Earth-shape term, the part of its parallax the sphere leaves out (up to 0.24'): Hs is
+what a perfect sextant reads on the real (WGS84) Earth at sea level, and reducing it
+with the usual chain lands on this Hc (docs/NAVIGATION_SKY.md section 3).

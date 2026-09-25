@@ -1288,17 +1288,21 @@ Instrument  sea horizon, index correction -2.0' (added to the reading)
 Time        2026-10-01T03:00:00Z
 Direction   GHA 352 05.0, Dec N 26 18.3, SD 16.17', HP 59.34' (from skyfix-auto)
 
-Hs  +20 28.7   the sextant reading: set this on the arc
+Hs  +20 28.8   the sextant reading: set this on the arc
 Zn   73 06.1   the true bearing to look along
-Hc  +21 33.1   the computed altitude here; reducing Hs gives it back
+Hc  +21 33.2   the computed altitude here; reducing Hs gives it back
+         including the Moon's Earth-shape term, +0.057' (CONVENTIONS 15.4)
 Ha  +20 24.0   the apparent altitude after the index correction and the horizon step
 ...
 ```
 
 The Moon reads more than a degree below its computed altitude: 55.5' of parallax and
 16.3' of semidiameter, less 2.7' of refraction, 2.8' of dip and the 2.0' index correction.
-That is exactly why presetting `Hc` on the arc would not bring it into the telescope. A body below the lowest altitude the horizon lets a sextant
-show exits 1 and says so.
+That is exactly why presetting `Hc` on the arc would not bring it into the telescope. For
+the Moon `Hc` also carries the Earth-shape term (CONVENTIONS 15.4): the part of its
+parallax that the spherical Earth leaves out, here +0.057', so the reading is what a
+perfect sextant shows on the real Earth. A body below the lowest altitude the horizon
+lets a sextant show exits 1 and says so.
 
 ### `skyfix lunar <input.json>`
 
