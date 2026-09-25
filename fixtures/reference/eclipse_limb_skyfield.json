@@ -2077,7 +2077,7 @@
     }
   ],
   "generator": {
-    "description": "An independent implementation of the limb-corrected contacts of docs/CONVENTIONS.md 15.6 for the SVS cities: the topocentric apparent Sun and Moon from Skyfield 1.55 with JPL DE440s on Skyfield's IERS time scale (dut1_s is its UT1 - UTC); the Moon's orientation from NAIF's DE440 lunar PCK in MOON_ME_DE440_ME421 at the instant the light left it; the profile from the raw LDEM_16 grid (bilinear), every 1/16 degree of position angle, slices sampled every 1/16 degree to 8 degrees either side of the plane of the sky; Sun 959.63 arcsec at 1 au; mean-limb contacts with NASA's k1 = 0.272488 and k2 = 0.272281 (WGS84 equatorial radii). Contacts are UTC Julian dates found by Brent's method to 1e-8 day.",
+    "description": "An independent implementation of the limb-corrected contacts of docs/CONVENTIONS.md 15.7 for the SVS cities: the topocentric apparent Sun and Moon from Skyfield 1.55 with JPL DE440s on Skyfield's IERS time scale (dut1_s is its UT1 - UTC); the Moon's orientation from NAIF's DE440 lunar PCK in MOON_ME_DE440_ME421 at the instant the light left it; the profile from the raw LDEM_16 grid (bilinear), every 1/16 degree of position angle, slices sampled every 1/16 degree to 8 degrees either side of the plane of the sky; Sun 959.63 arcsec at 1 au; mean-limb contacts with NASA's k1 = 0.272488 and k2 = 0.272281 (WGS84 equatorial radii). Contacts are UTC Julian dates found by Brent's method to 1e-8 day.",
     "ephemeris": {
       "file": "de440s.bsp",
       "sha256": "c1c7feeab882263fc493a9d5a5b2ddd71b54826cdf65d8d17a76126b260a49f2",

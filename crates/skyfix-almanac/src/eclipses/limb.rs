@@ -1,7 +1,7 @@
 //! The lunar limb profile: solar-eclipse contacts corrected for the Moon's mountains and
 //! valleys, the profile itself for drawing, and approximate Baily's beads.
 //!
-//! OWNER: eclipselimb agent (expansion programme P12). Definitions: CONVENTIONS 15.6;
+//! OWNER: eclipselimb agent (expansion programme P12). Definitions: CONVENTIONS 15.7;
 //! wire format: `docs/EXPLORER_API.md`, "Expansion programme P12 — the lunar limb";
 //! accuracy: `docs/ACCURACY.md`, "Lunar limb"; data: `docs/THIRD_PARTY.md`, "Lunar limb
 //! profile". Display only, like every eclipse quantity (CONVENTIONS 1 and 13).

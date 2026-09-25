@@ -4063,7 +4063,7 @@ export function isPlanetDetailEngine(engine: unknown): engine is PlanetDetailEng
 // Expansion programme P12 — the lunar limb (eclipselimb agent). Rust:
 // crates/skyfix-wasm/src/limb.rs over skyfix_almanac::eclipses::limb. Wire format:
 // docs/EXPLORER_API.md, "Expansion programme P12 — the lunar limb"; definitions:
-// CONVENTIONS 15.6. Additive: an engine without it keeps answering eclipseLocal as before.
+// CONVENTIONS 15.7. Additive: an engine without it keeps answering eclipseLocal as before.
 // ---------------------------------------------------------------------------------
 
 /** `eclipseLocal(id, observer, options)`. */

@@ -11,7 +11,7 @@ Writes into `fixtures/reference/`:
   DE421), stored verbatim for the cities chosen below, each with the ground height this
   project assigns it (the file carries none).
 * `eclipse_limb_skyfield.json` (`skyfield`) - an independent implementation of the
-  engine's definitions (docs/CONVENTIONS.md 15.6), for the same cities: the Sun and the
+  engine's definitions (docs/CONVENTIONS.md 15.7), for the same cities: the Sun and the
   Moon from Skyfield with JPL DE440s on Skyfield's own IERS time scale, the Moon's
   orientation from NAIF's DE440 lunar PCK in the MOON_ME_DE440_ME421 frame, and the
   profile from the **raw LDEM_16 grid** (not the pack's ring): mean-limb contacts
@@ -333,7 +333,7 @@ def bins_around(psi_centre: float, half_deg: float) -> np.ndarray:
 
 
 def limb_condition(x: Instant, kind: str, bins) -> tuple[float, int]:
-    """The contact function of docs/CONVENTIONS.md 15.6 (zero at the contact) and the
+    """The contact function of docs/CONVENTIONS.md 15.7 (zero at the contact) and the
     deciding bin. external: min |rho e - c| - s. total: max (t_plus - rho). annular:
     max |rho e - c| - s."""
     k, psi, rho, _ = x.outline(bins)
@@ -584,7 +584,7 @@ def build_skyfield(only=None):
             "generated_utc": now,
             "description": (
                 "An independent implementation of the limb-corrected contacts of "
-                "docs/CONVENTIONS.md 15.6 for the SVS cities: the topocentric apparent Sun "
+                "docs/CONVENTIONS.md 15.7 for the SVS cities: the topocentric apparent Sun "
                 "and Moon from Skyfield 1.55 with JPL DE440s on Skyfield's IERS time scale "
                 "(dut1_s is its UT1 - UTC); the Moon's orientation from NAIF's DE440 lunar "
                 "PCK in MOON_ME_DE440_ME421 at the instant the light left it; the profile "

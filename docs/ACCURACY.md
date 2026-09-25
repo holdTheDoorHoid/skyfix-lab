@@ -2519,7 +2519,7 @@ for reading (±s below 90 s, ±min below an hour, ±h above); it is not a new es
 ## 18. Lunar limb: limb-corrected eclipse contacts (expansion programme P12)
 
 Owner: eclipselimb agent. The engine is `skyfix_almanac::eclipses::limb` (definitions in
-CONVENTIONS 15.6), fed by the optional `lunar-limb` pack (LRO LOLA LDEM_16, 1/16°, about
+CONVENTIONS 15.7), fed by the optional `lunar-limb` pack (LRO LOLA LDEM_16, 1/16°, about
 1.9 km; `docs/THIRD_PARTY.md`, "Lunar limb profile"); wire format in EXPLORER_API
 "Expansion programme P12 — the lunar limb". Without the pack every eclipse result is the
 mean limb's (section 12), unchanged. The tests are `crates/skyfix-almanac/tests/eclipse_limb.rs`
@@ -2600,7 +2600,7 @@ that we attribute to SVS's definition; the scatter about SVS after the correctio
 
 ### Baily's beads
 
-Approximate by construction (CONVENTIONS 15.6): the valleys of a 1.9 km model, at most 8
+Approximate by construction (CONVENTIONS 15.7): the valleys of a 1.9 km model, at most 8
 per contact within 15 s, the last before second contact and the first after third being
 the contact's own valley (tested). At Indianapolis in 2024 the model gives eight beads in
 the last 1.5 s before totality, between position angles 27° and 40° on the Sun, and

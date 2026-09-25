@@ -3,7 +3,7 @@
 //! OWNER: eclipselimb agent (expansion programme P12). Wire format:
 //! `docs/EXPLORER_API.md`, "Expansion programme P12 — the lunar limb"; TypeScript mirror:
 //! `EclipseLocalOptions`, `SolarEclipseLimb` and `LimbEngine` in
-//! `web/src/next/engine/types.ts`; definitions: CONVENTIONS 15.6 and
+//! `web/src/next/engine/types.ts`; definitions: CONVENTIONS 15.7 and
 //! `skyfix_almanac::eclipses::limb`.
 //!
 //! The decoded ring lives in this module once the pack is installed, for the page

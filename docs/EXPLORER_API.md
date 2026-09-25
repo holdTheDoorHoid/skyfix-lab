@@ -2816,7 +2816,7 @@ samples per body.
 
 Solar-eclipse contacts corrected for the mountains and valleys at the Moon's edge, the
 limb profile for drawing, and approximate Baily's beads, from the optional
-**`lunar-limb`** pack (LRO LOLA topography). Definitions: CONVENTIONS 15.6; measured
+**`lunar-limb`** pack (LRO LOLA topography). Definitions: CONVENTIONS 15.7; measured
 agreement: `docs/ACCURACY.md`, "Lunar limb"; the engine is
 `skyfix_almanac::eclipses::limb`, the exports `crates/skyfix-wasm/src/limb.rs`; the
 TypeScript mirror is `EclipseLocalOptions`, `SolarEclipseLimb`, `LimbContact`,
@@ -2879,7 +2879,7 @@ LimbBead = { contact: "c2" | "c3", jd_utc, utc,
 (`mean_jd_utc: null` on c2 and c3); where the mean limb says total but light gets
 through a valley throughout, the corrected type is `partial`. With the pack loaded but no
 eclipse at the place (`visibility: "none"`), `limb.local_type` is `"none"` and the lists
-are empty. The beads are approximate (CONVENTIONS 15.6): at most 8 per contact, the
+are empty. The beads are approximate (CONVENTIONS 15.7): at most 8 per contact, the
 valleys at least 0.1" deep, within 15 s of the contact.
 
 ### `lunar_limb_profile(observer_json, jd_utc) -> LimbProfile`

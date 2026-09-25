@@ -1124,7 +1124,7 @@ Normative for every view under `web/src/next/`; the helpers are in `web/src/next
   `aroundToday` return null) and are drawn as soon as it stops or slows; a view with its own
   per-day work does the same (`fastPlayback(state)`).
 
-### 15.6 The lunar limb (expansion programme P12, eclipselimb agent)
+### 15.7 The lunar limb (expansion programme P12, eclipselimb agent)
 
 `skyfix_almanac::eclipses::limb`, from the optional `lunar-limb` pack (15.5); wire format
 in `docs/EXPLORER_API.md`, "Expansion programme P12 — the lunar limb". Display only, like
