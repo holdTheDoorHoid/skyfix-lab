@@ -417,6 +417,10 @@ const EXPANSION_CASES: &[(&str, &[&str])] = &[
         ],
     ),
     ("packs.txt", &["packs"]),
+    (
+        "almanac_increments_58m.txt",
+        &["almanac-increments", "--minute", "58"],
+    ),
 ];
 
 fn packs_dir() -> String {

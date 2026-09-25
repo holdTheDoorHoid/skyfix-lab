@@ -26,6 +26,7 @@
 //! command list by a single variant in `cli.rs`, so they arrive as one self-contained
 //! module.
 
+pub mod almanac_tables;
 pub mod args;
 pub mod average;
 pub mod calendar;
@@ -276,6 +277,24 @@ pub enum ExplorerCommand {
 
     /// What the loaded lunar-limb pack holds.
     LimbPack(limb::PackArgs),
+
+    /// The Nautical Almanac's two facing pages for the three dates of an opening.
+    AlmanacOpening(almanac_tables::OpeningArgs),
+
+    /// The Increments and Corrections table for one minute of time.
+    AlmanacIncrements(almanac_tables::IncrementsArgs),
+
+    /// Conversion of Arc to Time.
+    AlmanacArcToTime(almanac_tables::ArcToTimeArgs),
+
+    /// The altitude correction tables: Sun, stars and planets, dip, non-standard air.
+    AlmanacAltitude(almanac_tables::AltitudeArgs),
+
+    /// The additional corrections for Venus and Mars through a year.
+    AlmanacPlanets(almanac_tables::PlanetsArgs),
+
+    /// The Polaris tables for a year: a0, a1, a2 and the azimuth.
+    AlmanacPolaris(almanac_tables::PolarisArgs),
 }
 
 /// Run one explorer command, returning the exit code it earned.
@@ -346,5 +365,11 @@ pub fn run(command: ExplorerCommand) -> Result<u8> {
         ExplorerCommand::TidePack(a) => tides::run_pack(&a),
         ExplorerCommand::LimbProfile(a) => limb::run_profile(&a),
         ExplorerCommand::LimbPack(a) => limb::run_pack(&a),
+        ExplorerCommand::AlmanacOpening(a) => almanac_tables::run_opening(&a),
+        ExplorerCommand::AlmanacIncrements(a) => almanac_tables::run_increments(&a),
+        ExplorerCommand::AlmanacArcToTime(a) => almanac_tables::run_arc_to_time(&a),
+        ExplorerCommand::AlmanacAltitude(a) => almanac_tables::run_altitude(&a),
+        ExplorerCommand::AlmanacPlanets(a) => almanac_tables::run_planets(&a),
+        ExplorerCommand::AlmanacPolaris(a) => almanac_tables::run_polaris(&a),
     }
 }

@@ -1688,3 +1688,67 @@ mod dut1 {
 
     use skyfix_almanac::eclipses::Eclipses;
 }
+
+// ---------------------------------------------------------------------------
+// The almanac's tables and three-day openings
+// ---------------------------------------------------------------------------
+
+mod almanac_tables {
+    use super::*;
+    use skyfix_almanac::opening::almanac_opening;
+    use skyfix_almanac::tables::{
+        Conditions, altitude_tables, arc_to_time, increments, planet_corrections, polaris_table,
+    };
+    use skyfix_core::calendar::Calendar;
+    use skyfix_wasm::almanac_tables::native;
+
+    #[test]
+    fn the_opening_and_the_fixed_tables_are_the_library() {
+        let v = json_of(&["almanac-opening", "--date", "2016-03-08"]);
+        let want = almanac_opening(&Sky::new(), "2016-03-08", None).unwrap();
+        assert_same(&v, &want, "almanac-opening");
+        assert_eq!(v["index"], 1);
+        assert_same(&v, &native::opening("2016-03-08", "").unwrap(), "export");
+
+        let v = json_of(&["almanac-increments", "--minute", "58"]);
+        assert_same(&v, &increments(58).unwrap(), "almanac-increments");
+        assert_eq!(v["rows"][0]["sun_planets"]["printed"], "14 30.0");
+        skyfix(["almanac-increments", "--minute", "60"]).expect_code(1);
+
+        let v = json_of(&["almanac-arc-to-time"]);
+        assert_same(&v, &arc_to_time(), "almanac-arc-to-time");
+
+        let v = json_of(&[
+            "almanac-altitude",
+            "--temperature",
+            "31.1",
+            "--pressure",
+            "982",
+        ]);
+        let want = altitude_tables(Some(Conditions {
+            temperature_c: 31.1,
+            pressure_hpa: 982.0,
+        }))
+        .unwrap();
+        assert_same(&v, &want, "almanac-altitude");
+        assert_eq!(v["additional"]["conditions"]["zone"], "M");
+        let v = json_of(&["almanac-altitude"]);
+        assert_same(&v, &native::altitude("").unwrap(), "export");
+    }
+
+    #[test]
+    fn the_yearly_tables_follow_the_calendar() {
+        let v = json_of(&["almanac-planets", "--year", "2016"]);
+        let want = planet_corrections(&Sky::new(), 2016, Calendar::Gregorian).unwrap();
+        assert_same(&v, &want, "almanac-planets");
+        let v = json_of(&["almanac-polaris", "--year", "2016"]);
+        let want = polaris_table(&Sky::new(), 2016, Calendar::Gregorian).unwrap();
+        assert_same(&v, &want, "almanac-polaris");
+        assert!((v["columns"][0]["a0"][0]["arcmin"].as_f64().unwrap() - 29.6997).abs() < 1e-3);
+        assert_same(&v, &native::polaris(2016.0, "").unwrap(), "export");
+        // --calendar julian reaches the export's calendar argument.
+        let v = json_of(&["almanac-polaris", "--year", "2016", "--calendar", "julian"]);
+        assert_eq!(v["calendar"], "julian");
+        assert_same(&v, &native::polaris(2016.0, "julian").unwrap(), "julian");
+    }
+}

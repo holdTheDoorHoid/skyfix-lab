@@ -1489,6 +1489,7 @@ reproduced, and scripted, without a browser:
 | planets | `galilean-moons`, `galilean-events`, `saturn-rings`, `planet-disc`, `transits`, `conjunctions`, `stations`, `earth-apsides`, `orbit` | `galilean_moons`, `galilean_events`, `saturn_rings`, `planet_disc`, `transits`, `conjunctions`, `stations`, `earth_apsides`, `parse_orbits`, `custom_body_states`, `sample_custom_bodies` |
 | tides | `tide-stations`, `tide-station`, `tide-predict`, `tide-extremes`, `tide-now`, `tide-pack` | `tide_stations_near`, `tide_station`, `tide_predict`, `tide_extremes`, `tide_now`, `tide_pack_info` |
 | lunar limb | `eclipse --limb`, `limb-profile`, `limb-pack` | `eclipse_local_limb`, `lunar_limb_profile`, `lunar_limb_info` |
+| almanac tables | `almanac-opening`, `almanac-increments`, `almanac-arc-to-time`, `almanac-altitude`, `almanac-planets`, `almanac-polaris` | `almanac_opening`, `almanac_increments`, `almanac_arc_to_time`, `almanac_altitude_tables`, `almanac_planet_corrections`, `almanac_polaris` |
 
 **How they answer.** These commands call the WASM adapter's native layer
 (`skyfix_wasm::<module>::native`): the function each export calls, with the export's own
@@ -2633,6 +2634,115 @@ $ skyfix limb-pack --pack $P/lunar-limb
 LUNAR LIMB PACK
 Pack       lunar-limb 2026-09-25: LRO LOLA LDEM_16 V3.1 (LRO-L-LOLA-4-GDR-V1.0), NASA PDS Geosciences Node
 Ring       every 0.0625 deg (1.895 km), -12 to 12 deg from the mean limb, heights -7305 m to 6905 m above 1737.4 km
+```
+
+---
+
+## The almanac's other tables
+
+The rest of the printed Nautical Almanac beside its daily pages (`skyfix almanac`):
+three-date openings, Increments and Corrections, the Altitude Correction Tables, the
+additional corrections for Venus and Mars, the Polaris tables and Conversion of Arc to
+Time (`skyfix_almanac::{opening, tables}`; CONVENTIONS 13.9.1; `docs/ACCURACY.md`,
+"Almanac tables and three-day pages"). Display and teaching only: sight reduction never
+reads them. The text prints each table's `printed` values, rounded as the printed tables
+round; `--format json` is the export's document, with the numbers beside them.
+
+### `skyfix almanac-opening --date`
+
+The two facing pages for the three UT dates of an opening: the three daily pages as
+`skyfix almanac` prints them, then moonrise and moonset for the three dates and the
+next, and the planets' SHA. The dates are grouped from 1 January in the date's calendar
+(`--calendar`, as for every date).
+
+```console
+$ skyfix almanac-opening --date 2016-03-08
+THE NAUTICAL ALMANAC'S OPENING  2016-03-08
+Dates      2016-03-07 Monday, 2016-03-08 Tuesday, 2016-03-09 Wednesday (Gregorian
+           calendar)
+
+...
+MOONRISE AND MOONSET  2016-03-07 to 2016-03-10, by day of the month
+  Lat   rise 07  set 07  rise 08  set 08  rise 09  set 09  rise 10  set 10
+  N 72    07 13   14 32    07 08   16 33    07 03   18 34    06 58   20 34
+...
+```
+
+### `skyfix almanac-increments --minute M`
+
+```console
+$ skyfix almanac-increments --minute 58
+INCREMENTS AND CORRECTIONS  58m
+
+   s  Sun and planets    Aries     Moon
+  00          14 30.0  14 32.4  13 50.4
+  01          14 30.3  14 32.6  13 50.6
+  02          14 30.5  14 32.9  13 50.8
+...
+```
+
+### `skyfix almanac-arc-to-time`
+
+```console
+$ skyfix almanac-arc-to-time
+CONVERSION OF ARC TO TIME
+
+Degrees (h m)
+  deg   h m  deg   h m  deg    h m  deg    h m  deg    h m  deg    h m
+    0  0 00   60  4 00  120   8 00  180  12 00  240  16 00  300  20 00
+    1  0 04   61  4 04  121   8 04  181  12 04  241  16 04  301  20 04
+...
+```
+
+### `skyfix almanac-altitude [--temperature C --pressure HPA]`
+
+The Sun's, the stars' and planets' and the dip's critical tables; with the air's
+temperature and pressure, the exact additional corrections for them (and their zone).
+The JSON adds the Moon's two-part table and every zone's corrections.
+
+```console
+$ skyfix almanac-altitude --temperature 31.1 --pressure 982
+ALTITUDE CORRECTION TABLES
+Refraction Bennett (1982), CONVENTIONS 5 at 1010 hPa and 10 C; the Sun's SD 16.15'
+(October to March) and 15.9' (April to September), HP 0.147'.
+
+Sun, October to March (apparent altitude)
+  apparent altitude  Lower limb  Upper limb
+  9 53 to 10 05           +10.9       -21.4
+  10 05 to 10 17          +11.0       -21.3
+...
+Additional corrections for 31.1 C and 982 hPa (factor 0.9048, zone M)
+  app. alt  corr
+  0 00      +3.3
+...
+```
+
+### `skyfix almanac-planets --year` and `skyfix almanac-polaris --year`
+
+```console
+$ skyfix almanac-planets --year 2016
+ADDITIONAL CORRECTIONS FOR VENUS AND MARS 2016
+
+Venus, 2016-01-01 to 2016-12-03: HP 0.1'
+  apparent altitude  Corr
+  0 to 59            +0.1
+  59 to 90            0.0
+
+...
+```
+
+```console
+$ skyfix almanac-polaris --year 2016
+POLARIS (POLE STAR) TABLES 2016
+Mean place SHA 316 48.9, Dec N 89 19.9; polar distance 40.089'; the formula's own error up to 0.0068'
+
+LHA Aries
+                  0-9   10-19   20-29   30-39   40-49   50-59
+  a0 0         0 29.7  0 25.3  0 22.0  0 19.8  0 18.8  0 19.0
+  a0 1         0 29.2  0 25.0  0 21.7  0 19.6  0 18.7  0 19.1
+...
+  a1 lat 40       0.6     0.6     0.6     0.6     0.6     0.6
+...
 ```
 
 ---
