@@ -25,6 +25,7 @@ import type {
   SunToolsEngine,
 } from '../engine/types.js';
 import { utcMs, zoneOffsetMs, type Zone } from '../time.js';
+import { scaleLabel } from '../time/scale.js';
 import { daysInMonth, isLeapYear, wallHours, type LocalDay } from './windows.js';
 
 export const DEG = Math.PI / 180;
@@ -83,15 +84,17 @@ export function standardOffsetHours(zone: Zone, year: number): number {
 }
 
 /** `UTC−5`, `UTC+5:30`, `UTC−5:00:39` for an offset in hours. */
-export function offsetText(hours: number): string {
-  if (hours === 0) return 'UTC';
+export function offsetText(hours: number, jd?: number): string {
+  // The clock's own word: UT outside 1972-2035 (time-ui's `scaleLabel`; polish2).
+  const word = jd === undefined ? 'UTC' : scaleLabel(jd);
+  if (hours === 0) return word;
   const sign = hours > 0 ? '+' : '−';
   const total = Math.round(Math.abs(hours) * 3600);
   const hh = Math.floor(total / 3600);
   const mm = Math.floor((total % 3600) / 60);
   const ss = total % 60;
   const p = (n: number): string => String(n).padStart(2, '0');
-  return ss ? `UTC${sign}${hh}:${p(mm)}:${p(ss)}` : mm ? `UTC${sign}${hh}:${p(mm)}` : `UTC${sign}${hh}`;
+  return ss ? `${word}${sign}${hh}:${p(mm)}:${p(ss)}` : mm ? `${word}${sign}${hh}:${p(mm)}` : `${word}${sign}${hh}`;
 }
 
 // ---------------------------------------------------------------------------------------

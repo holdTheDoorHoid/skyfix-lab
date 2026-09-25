@@ -22,13 +22,14 @@ import { localDayCache, mountChart, placeName, type Shell } from './chart-shell.
 import { OutsideCoverageError } from './coverage.js';
 import { yearMemo } from './year-chart.js';
 import type { YearInput } from './year-data.js';
-import { altitude, bearing, clock, dateShort, dayMonth, MONTHS_LONG } from './format.js';
+import { altitude, bearing, clock, dateShort, dayMonth } from './format.js';
 import { errorText, pill, round, stepperNav, svgText, table, timeButton, tipHead, tipRow, tooltip, type ChartComponent, type Tooltip } from './frame.js';
 import { frameRect, linePath, monthGrid, monthLabels, panelTitle, svgRoot, todayOnAxis, yearAxis, type MonthLabel, type YearAxis } from './plot.js';
 import { clamp, linearScale, type LinearScale } from './scale.js';
-import { parseDate } from './analemma.js';
+import { displayDateKey, monthHeading, parseDate } from './analemma.js';
 import { bearingsFromYear, dayOfYearOf, type BearingData, type BearingDay } from './sun-data.js';
 import { dateKey, jdAtWallHours, localDateOf, zoneKey } from './windows.js';
+import { formatYear } from '../time/format.js';
 
 interface BearingChartData {
   readonly bearings: BearingData;
@@ -75,7 +76,7 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
       return { bearings, seasons };
     },
     failureText: (error, input) =>
-      error instanceof OutsideCoverageError ? error.message : `The engine could not find this year’s sunrises and sunsets (${input.year}): ${errorText(error)}`,
+      error instanceof OutsideCoverageError ? error.message : `The engine could not find this year’s sunrises and sunsets (${formatYear(input.year)}): ${errorText(error)}`,
     setup(shell) {
       stepperNav(shell.c.nav, 'Previous year', 'Next year', (dir) => stepTime(ctx.store, { unit: 'year', count: dir }));
       tip = tooltip(shell.c.plot);
@@ -88,11 +89,11 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
     },
     header(shell) {
       const st = ctx.store.get();
-      shell.c.title.replaceChildren(`Sunrise and sunset bearings · ${shell.input.year}`);
+      shell.c.title.replaceChildren(`Sunrise and sunset bearings · ${formatYear(shell.input.year)}`);
       if (st.settings.navigatorTerms) shell.c.title.append(h('span', { class: 'sfc-term', 'data-term': '' }, ' · azimuth of rising and setting'));
-      shell.c.subtitle.textContent = `${placeName(st)} · every day of ${shell.input.year}; bearings from true north`;
+      shell.c.subtitle.textContent = `${placeName(st)} · every day of ${formatYear(shell.input.year)}; bearings from true north`;
       const label = shell.c.nav.querySelector('.sfc-nav-label');
-      if (label) label.textContent = String(shell.input.year);
+      if (label) label.textContent = formatYear(shell.input.year);
     },
     draw: (shell) => draw(shell),
     cursor: (shell) => placeToday(shell),
@@ -332,16 +333,16 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
     const today = dateKey(localDateOf(st.time.jd_utc, zone));
     let month = '';
     for (const d of b.days) {
-      const m = d.date.slice(0, 7);
+      const m = monthHeading(d.date);
       if (m !== month) {
         month = m;
-        t.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 7 }, `${MONTHS_LONG[Number(d.date.slice(5, 7)) - 1]} ${d.date.slice(0, 4)}`)));
+        t.body.append(h('tr', { class: 'sfc-row-month' }, h('th', { scope: 'rowgroup', colspan: 7 }, m)));
       }
       const none = d.alwaysAbove ? 'up all day' : d.alwaysBelow ? 'down all day' : '—';
       t.body.append(
         h(
           'tr',
-          { class: d.date === today ? 'sfc-row-current' : '' },
+          { class: displayDateKey(d.date) === today ? 'sfc-row-current' : '' },
           h('th', { scope: 'row' }, dateShort(parseDate(d.date))),
           d.rise ? h('td', {}, timeButton(d.rise.jd, zone)) : h('td', { class: 'sfc-muted' }, none),
           h('td', { 'data-csv': d.rise ? d.rise.az.toFixed(2) : '' }, d.rise ? bearing(d.rise.az) : ''),

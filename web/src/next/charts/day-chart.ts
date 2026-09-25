@@ -67,6 +67,7 @@ import { bodyClass, PHASE_LABELS, phaseClass } from './palette.js';
 import { attachExport } from './export-menu.js';
 import { clamp, linearScale, pickStep, type LinearScale } from './scale.js';
 import { clockChangeIn, localDayAt, wallHours, zoneKey, type LocalDay } from './windows.js';
+import { scaleLabel } from '../time/scale.js';
 
 /** The altitude axis: fixed, so stepping through days never rescales it. */
 export const ALT_MIN = -30;
@@ -786,7 +787,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     c.caption.replaceChildren(
       summaryText(),
       ' ',
-      h('span', { class: 'sfc-muted' }, 'Heights are what the eye sees (refraction included); bearings from true north. Times are local; hover for UTC.'),
+      h('span', { class: 'sfc-muted' }, `Heights are what the eye sees (refraction included); bearings from true north. Times are local; hover for ${scaleLabel(store.get().time.jd_utc)}.`),
     );
     const notes: Node[] = [];
     if (data?.errors.length) {
