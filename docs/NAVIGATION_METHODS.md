@@ -1138,7 +1138,9 @@ arithmetic of its own it is listed here with its test.*
   position, which is the DR itself, and LHA = GHA + longitude east; Hc and Zn; the intercept
   toward or away. GHA ♈ is the explorer's `sidereal` brought to the session's UT1 (at
   360.9856° a day), so GHA ♈ + SHA equals the core's GHA whatever DUT1 the session uses
-  (tested to 0.05″).
+  (tested to 0.05″). Its figures are carried to 0.01′ so that the sheet's own sums close
+  (rounded one by one to 0.1′, Ho 67° 28.05′ and Hc 67° 20.32′ would read 28.1 − 20.3
+  against an intercept of 7.7′; tested).
 - **The plotting sheet** is the plane of a universal plotting sheet centred on the DR: north
   up, 1′ of latitude = 1 NM, meridians at cos φ; each intercept laid off along Zn or its
   reciprocal and the line of position at right angles. Lines of position from sights taken at

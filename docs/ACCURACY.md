@@ -2285,6 +2285,7 @@ places where the interface does arithmetic of its own, each with its test in
 | With the template set to LHA ♈, every star above the horizon lies under its own altitude and azimuth (CONVENTIONS 3 at the template latitude) | 1e-5 of the radius, both hemispheres | same |
 | The worksheet's GHA ♈ brought to the session's UT1: GHA ♈ + SHA = the core's GHA, with DUT1 automatic, +0.6 s or −0.8 s | SHA the same to 0.05″ | `navigate-print.test.ts`, "GHA ♈ on the session’s UT1…" |
 | The plotting sheet's lines of position from sights taken at one position cross there | 1e-9 NM (plane geometry) | `navigate-print.test.ts`, "draws every line through the position…" |
+| The worksheet's printed figures close their own sums (Ho − Hc = a) | to its 0.01′ | `navigate-print.test.ts`, "the worksheet’s sums close" |
 | The deviation curve (A–E by least squares) recovers a curve exactly, and on a swing gives the textbook's A, D, E (and B, C when the swing follows the curve) | 1e-9° | `navigate-compass.test.ts` |
 | The Compass tab's request reproduces the documented Philadelphia bearing | compass error −14.448°, variation −11.805°, deviation −2.642°, the engine's sentence | `navigate-compass.test.ts`, "against the built core" |
 | The shoreline horizon's sentence: Bowditch Table 14 at 100 ft and 0.2 NM | 282.3′ (as printed) | `navigate-compass.test.ts`, "the shore horizon’s sentence" |

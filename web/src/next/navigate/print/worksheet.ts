@@ -60,7 +60,10 @@ export function lhaDeg(ghaDeg: number, lonDeg: number): number {
 export function worksheetRows(input: WorksheetInput): WorksheetRow[] {
   const { session, obs, sight } = input;
   const f = input.format ?? 'dm';
-  const ang = (v: number): string => fmtAngle(v, f);
+  // To 0.01′ (a hundredth of a minute) so the sheet's own sums close — GHA ♈ + SHA = GHA,
+  // Ho − Hc = a — which figures rounded one by one to 0.1′ need not do.
+  const ang = (v: number): string => fmtAngle(v, f, f === 'dm' ? 2 : undefined);
+  const arc = (v: number): string => fmtArcmin(v, 2);
   const rows: WorksheetRow[] = [];
   const push = (step: number, plain: string, term: string, value: string, note?: string): void => {
     rows.push({ step, plain, term, value, ...(note ? { note } : {}) });
@@ -83,7 +86,7 @@ export function worksheetRows(input: WorksheetInput): WorksheetRow[] {
     const s = byKind.get(k);
     const t = STEP_TEXT[k];
     if (!s) return;
-    push(2, t.plain, term, s.applied ? fmtArcmin(s.delta_arcmin, 1) : '—', s.applied ? note : 'not applied');
+    push(2, t.plain, term, s.applied ? arc(s.delta_arcmin) : '—', s.applied ? note : 'not applied');
   };
   stepRow('index_correction', 'IC', sight.index_correction_from_log ? 'from the index-error log' : undefined);
   const horizon = obs.horizon ?? session.instrument.horizon;
@@ -110,8 +113,8 @@ export function worksheetRows(input: WorksheetInput): WorksheetRow[] {
   // 4. Assumed position and LHA.
   const ap = session.observer.assumed_position;
   if (ap) {
-    push(4, 'Assumed latitude', 'aLat', fmtLatitude(ap.lat_deg, f), 'the DR itself');
-    push(4, 'Assumed longitude', 'aLon', fmtLongitude(ap.lon_deg, f), 'the DR itself');
+    push(4, 'Assumed latitude', 'aLat', fmtLatitude(ap.lat_deg, f, f === 'dm' ? 2 : undefined), 'the DR itself');
+    push(4, 'Assumed longitude', 'aLon', fmtLongitude(ap.lon_deg, f, f === 'dm' ? 2 : undefined), 'the DR itself');
     push(4, 'Local hour angle', 'LHA', ang(lhaDeg(sight.gha_deg, ap.lon_deg)), 'GHA + longitude east (− west)');
   } else {
     push(4, 'Assumed position', 'AP', '—', 'none in the session: steps 4 to 6 need one');
@@ -119,15 +122,15 @@ export function worksheetRows(input: WorksheetInput): WorksheetRow[] {
 
   // 5. Computed altitude and azimuth.
   if (sight.hc_deg !== null && sight.zn_deg !== null) {
-    push(5, 'Computed altitude', 'Hc', ang(sight.hc_deg), typeof sight.earth_shape_arcmin === 'number' ? `includes ${fmtArcmin(sight.earth_shape_arcmin, 2)} for the Earth’s shape (the Moon)` : undefined);
+    push(5, 'Computed altitude', 'Hc', ang(sight.hc_deg), typeof sight.earth_shape_arcmin === 'number' ? `includes ${arc(sight.earth_shape_arcmin)} for the Earth’s shape (the Moon)` : undefined);
     push(5, 'True azimuth', 'Zn', bearing1(sight.zn_deg));
   }
 
   // 6. Intercept.
   if (sight.intercept_nm !== null && sight.zn_deg !== null) {
     const a = sight.intercept_nm;
-    push(6, 'Intercept', 'a = Ho − Hc', `${Math.abs(a).toFixed(1)}′ = ${fmtNm(Math.abs(a), 1)} ${a >= 0 ? 'Toward' : 'Away'}`, a >= 0 ? 'Ho greater: toward the body' : 'Ho less: away from the body');
-    push(6, 'Plot', '', `from the AP, ${fmtNm(Math.abs(a), 1)} along ${bearing1(a >= 0 ? sight.zn_deg : sight.zn_deg + 180)}; the line of position at right angles`);
+    push(6, 'Intercept', 'a = Ho − Hc', `${Math.abs(a).toFixed(2)}′ = ${fmtNm(Math.abs(a), 2)} ${a >= 0 ? 'Toward' : 'Away'}`, a >= 0 ? 'Ho greater: toward the body' : 'Ho less: away from the body');
+    push(6, 'Plot', '', `from the AP, ${fmtNm(Math.abs(a), 2)} along ${bearing1(a >= 0 ? sight.zn_deg : sight.zn_deg + 180)}; the line of position at right angles`);
   }
   return rows;
 }
@@ -177,6 +180,6 @@ export function worksheetSheet(input: WorksheetInput): HTMLElement {
     `${session.meta.name || 'Untitled session'} · sight ${sight.id} · ${utcInputText(obs.utc)} UTC`,
     session.meta.kind,
     table,
-    h('p', { class: 'sfn-sheet__note' }, 'The assumed position is the DR itself: the core computes Hc exactly, so no rounding is needed. With Pub. 229, choose the assumed latitude and longitude to make them and the LHA whole degrees, and the intercept changes with them; the line of position does not.'),
+    h('p', { class: 'sfn-sheet__note' }, 'The assumed position is the DR itself: the core computes Hc exactly, so no rounding is needed. With Pub. 229, choose the assumed latitude and longitude to make them and the LHA whole degrees, and the intercept changes with them; the line of position does not. Figures are carried to 0.01′ so the sheet’s sums close; a navigator writes 0.1′.'),
   );
 }

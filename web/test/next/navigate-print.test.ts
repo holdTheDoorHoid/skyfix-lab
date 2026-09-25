@@ -93,11 +93,33 @@ describe('the worksheet', () => {
     const sight = sightTo('obs-1', 149.3, -12.4);
     const rows = worksheetRows({ session, obs: { id: 'obs-1', body: 'Vega', utc: sight.utc, altitude_deg: 40, altitude_kind: 'observed_ho', sigma_arcmin: 1, limb: 'center', horizon: null, geocentric: null, notes: '' }, sight, ghaAriesDeg: 90 });
     expect([...new Set(rows.map((r) => r.step))]).toEqual([1, 2, 3, 4, 5, 6]);
-    expect(rows.find((r) => r.term === 'SHA')!.value).toBe('10° 00.0′');
-    expect(rows.find((r) => r.term === 'LHA')!.value).toBe(`24° 35.0′`);
+    expect(rows.find((r) => r.term === 'SHA')!.value).toBe('10° 00.00′');
+    expect(rows.find((r) => r.term === 'LHA')!.value).toBe('24° 35.00′');
     expect(rows.find((r) => r.term === 'Zn')!.value).toBe('149.3°');
-    expect(rows.find((r) => r.term === 'a = Ho − Hc')!.value).toBe('12.4′ = 12.4 NM Away');
+    expect(rows.find((r) => r.term === 'a = Ho − Hc')!.value).toBe('12.40′ = 12.40 NM Away');
     expect(rows.find((r) => r.plain === 'Plot')!.value).toMatch(/along 329\.3°/);
+  });
+});
+
+describe('the worksheet’s sums close', () => {
+  it('to the 0.01′ it prints: Ho − Hc = a (Deneb of the dusk example, where 0.1′ would show 28.1 − 20.3 against 7.7)', () => {
+    const session: Session = {
+      schema: 'skyfix.session/1',
+      meta: { name: 'w', notes: '', kind: 'simulated' },
+      observer: { height_of_eye_m: 2.5, pressure_hpa: 1010, temperature_c: 10, assumed_position: { lat_deg: 40.0833, lon_deg: -75.4167 }, assumed_position_role: { role: 'initializer' } },
+      instrument: { name: '', index_correction_arcmin: -1.2, horizon: 'sea' },
+      clock: { uncertainty_s: 0, correction_s: 0 },
+      observations: [],
+    };
+    const sight = { ...sightTo('obs-1', 66.2, (67.46755 - 67.338646) * 60), ho_deg: 67.46755, hc_deg: 67.338646 };
+    const rows = worksheetRows({ session, obs: { id: 'obs-1', body: 'Deneb', utc: sight.utc, altitude_deg: 67.54, altitude_kind: 'sextant_hs', sigma_arcmin: 0.5, limb: 'center', horizon: null, geocentric: null, notes: '' }, sight, ghaAriesDeg: null });
+    const minutes = (v: string): number => Number(/(\d+)° (\d+\.\d+)′/.exec(v)![1]) * 60 + Number(/(\d+)° (\d+\.\d+)′/.exec(v)![2]);
+    const ho = minutes(rows.find((r) => r.term === 'Ho')!.value);
+    const hc = minutes(rows.find((r) => r.term === 'Hc')!.value);
+    const a = Number(/^(\d+\.\d+)′/.exec(rows.find((r) => r.term === 'a = Ho − Hc')!.value)![1]);
+    expect(rows.find((r) => r.term === 'Ho')!.value).toBe('67° 28.05′');
+    expect(rows.find((r) => r.term === 'Hc')!.value).toBe('67° 20.32′');
+    expect(Math.abs(ho - hc - a)).toBeLessThan(0.0051);
   });
 });
 
