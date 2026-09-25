@@ -2978,24 +2978,27 @@ as a position error.
 ### Size
 
 The whole two-tier series set is one file, `crates/skyfix-ephemeris/data/series.bin`:
-**151 625 bytes** (116 307 gzipped), against 477 494 bytes (149 573 gzipped) for the three
-one-tier JSON files it replaced (VSOP87D Sun, VSOP87A planets, ELP 2000-82B Moon, all cut
-for 1990–2060). The encoding (EXPLORER_API "Series payload") stores each body's VSOP87
-frequencies once, amplitudes and phases in 32 or 16 bits where the budget allows, and
-keeps the generator's checkpoints out of the shipped bytes (`series_checks.json`, read by
-the tests).
+**162 507 bytes** (125 716 gzipped), against 477 494 bytes (148 260 gzipped, each file on
+its own) for the three one-tier JSON files it replaced (VSOP87D Sun, VSOP87A planets, ELP
+2000-82B Moon, all cut for 1990–2060). The encoding (EXPLORER_API "Series payload")
+stores each body's VSOP87 frequencies once, amplitudes and phases in 32 or 16 bits where
+the budget allows, and keeps the generator's checkpoints out of the shipped bytes
+(`series_checks.json`, read by the tests). The tighter validated cut of the Earth, Mercury
+and Venus (above) is 10 882 bytes of it (9 420 gzipped).
 
-The core WASM module (`npm run wasm`, gzip -9), measured on the same machine:
+The core WASM module (`npm run wasm`, `gzip -9`), both built on the same machine on
+2026-09-25:
 
 | build | raw | gzipped |
 |---|---|---|
-| main at 3f4fe4e (the ten merged engines, one tier) | 2 806 209 | 1 154 427 |
-| this branch (main merged, both tiers) | 2 480 063 | 1 123 474 |
-| change | −326 146 (−11.6 %) | −30 953 (−2.7 %) |
+| main at 52ebc77 (one tier; planet detail, photo and the lunar limb merged) | 3 042 660 | 1 252 306 |
+| this branch (that main merged, both tiers) | 2 733 512 | 1 232 714 |
+| change | −309 148 (−10.2 %) | −19 592 (−1.6 %) |
 
-Both tiers therefore ship in the core, inside the budget (EXPANSION_PLAN §3: 3 MB raw,
-1.25 MB gzipped) and smaller than before; the `deep-time` pack of the plan was not built
-(the planner's rule: both tiers in the core if the module stays within budget).
+Main is over the budget of EXPANSION_PLAN §3 (3 MB raw, 1.25 MB gzipped) on both counts;
+with both tiers in the core the module is inside it, with 266 488 bytes raw and 17 286
+gzipped to spare. The `deep-time` pack of the plan was not built (the planner's rule: both
+tiers in the core if the module stays within budget).
 
 ### Speed
 
