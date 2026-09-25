@@ -5,7 +5,7 @@
  * - **validated** (1550-01-01 to 2650-01-22, the span of JPL DE440): the accuracy figures
  *   hold; sights are offered.
  * - **labelled** (2000 BC to AD 3000, in the core since the deeptime merge): estimates, shown with the
- *   Earth-rotation uncertainty (time/chip.ts); no sights.
+ *   Earth-rotation uncertainty where it moves a time or a place (time/chip.ts); no sights.
  * - **outside**: nothing is computed, and the page says why.
  *
  * `tierAt` asks the engine's own `tierAt` when it has one (deeptime agent), else works the
@@ -192,8 +192,8 @@ export function tierNotice(
     const suppliers = ephemerisPackLabels(source, b?.packsLoaded ?? []);
     const loaded = suppliers.length ? ` from the ${packWords(suppliers)}` : '';
     const text = before
-      ? `Historical estimate: before ${from} the positions${loaded} are estimates, checked against JPL’s long ephemeris DE441 but not to the accuracy of ${from} to ${to}, and every clock time carries the uncertainty in the Earth’s rotation shown beside it (±). Sights are offered only between ${from} and ${to}.`
-      : `Far-future estimate: after ${to} the positions${loaded} are estimates, and the Earth’s rotation cannot be predicted exactly, so every clock time carries the uncertainty shown beside it (±). Sights are offered only between ${from} and ${to}.`;
+      ? `Historical estimate: before ${from} the positions${loaded} are estimates, checked against JPL’s long ephemeris DE441 but not to the accuracy of ${from} to ${to}, and the Earth’s rotation is known only roughly: the times and places it moves carry their uncertainty beside them (±). Sights are offered only between ${from} and ${to}.`
+      : `Far-future estimate: after ${to} the positions${loaded} are estimates, and the Earth’s rotation cannot be predicted exactly: the times and places it moves carry their uncertainty beside them (±). Sights are offered only between ${from} and ${to}.`;
     return { level: 'caution', text, persistent: true, side: before ? 'before' : 'after' };
   }
   const what = options.dateText ?? 'This date';

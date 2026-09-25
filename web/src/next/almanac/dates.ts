@@ -2,7 +2,8 @@
  * Dates in any year for the Almanac view (almanac2 agent), over the shared time helpers of
  * `web/src/next/time/` (time-ui agent): the display calendar (Julian before 1582-10-15, or
  * proleptic Gregorian with the ISO setting), years as Settings writes them (585 BC, −584,
- * -0584), the ±ΔT chip, the tier sentences and the pack a date would need (none ships today).
+ * -0584), the ± chips of the pages' column heads, the tier sentences and the pack a date would
+ * need (none ships today).
  *
  * The almanac adds only what is its own: a calendar it may be told to use instead of the
  * display calendar (`CalendarChoice`), the printed almanac's headings, and the note for
@@ -11,6 +12,7 @@
 
 import type { AlmanacOpeningDay, CalendarKind, TimeInfo } from '../engine/types.js';
 import type { Ctx } from '../component.js';
+import type { PageChips } from './daily.js';
 import {
   calendarMode,
   calendarName,
@@ -25,9 +27,13 @@ import {
   jdnFromDate,
   MONTHS_LONG,
   parseYear,
+  dtChip,
+  position,
   tierNotice,
   timeInfoAt as sharedTimeInfoAt,
+  turning,
   uncertaintyChip,
+  type ChipSubject,
 } from '../time/index.js';
 
 /** The calendar the almanac shows: `auto` is the display calendar of Settings. */
@@ -182,13 +188,21 @@ export function timeInfoAt(ctx: Ctx, jd: number): TimeInfo | null {
 }
 
 /**
- * The ±ΔT chip beside a page heading (the shared `uncertaintyChip`): shown when the Earth's
- * rotation is uncertain by more than 30 s, and always in the labelled tier. Null when it
- * has nothing to show, so a heading does not carry an empty element.
+ * The ± chips of a page's column heads (chip2, CONVENTIONS 15.2; time/chip.ts `dtChip`) at
+ * `jd`, the explorer's instant on the page's (middle) date: a body's place every hour
+ * (`position`: the Moon's 1.5′ at 585 BC, the planets' when over 0.1′) and the Sun's, the
+ * Moon's and the planets' turning in the rise, set and meridian-passage tables (`turning`,
+ * under a second for the Sun before about 1000 BC). A page heading carries none: what the
+ * Earth's rotation moves differs from column to column, and no chip speaks for the page. A
+ * chip that does not show is left out, so a heading carries no empty element.
  */
-export function deltaTChip(info: TimeInfo | null): HTMLElement | null {
-  const chip = uncertaintyChip(info);
-  return chip.hidden ? null : chip;
+export function pageChips(ctx: Ctx, jd: number): PageChips {
+  const info = timeInfoAt(ctx, jd);
+  const make = (subject: ChipSubject): Node | null => {
+    const chip = dtChip(ctx, jd, subject, info);
+    return chip?.shown ? uncertaintyChip(chip) : null;
+  };
+  return { place: (body) => make(position(body)), turning: (...bodies) => make(turning(...bodies)) };
 }
 
 /** The tier's sentence (historical or far-future estimate) for the page's notes, or null. */

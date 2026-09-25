@@ -17,7 +17,7 @@ import { displayZone, type ExplorerState } from '../state.js';
 import { jdFromWallClock, wallClock, type Zone } from '../time.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { switchRow } from '../theme/primitives.js';
-import { calendarNote, chipsIn, rowTimeInfo, truncatedNote } from './deeptime.js';
+import { calendarNote, chipsIn, rowChip, truncatedNote } from './deeptime.js';
 import { errorText, watchAll, type TabComponent, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, screenWords, utcDate, type EventItem, type Words } from './items.js';
@@ -220,7 +220,7 @@ export const jupiterTab: TabComponent = (host, env) => {
             glyph: bodyGlyph('Jupiter', { size: 20 }),
             badges,
             showEnd: true,
-            timeInfo: rowTimeInfo(ctx.engine, item.start, chips),
+            chip: rowChip(ctx.engine, item.start, chips),
             onJump: () => env.jump(item.jump, { body: 'Jupiter' }),
             add: addToCalendarButton(ctx, ui, () => fileItem(item.id) ?? item, `${item.title}, ${w.dateYear(item.start)}`),
             dim: !galileanSeen(p, { start: skyAt(env, p.start.jd_utc, skyCache), end: skyAt(env, p.end.jd_utc, skyCache) }),

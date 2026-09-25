@@ -21,7 +21,7 @@ import { bodyGlyph } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { segmented, type Segmented } from '../theme/primitives.js';
 import { isoUtc, jdFromIso, jdNow, wallClock, zoneShortName } from '../time.js';
-import { setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../time/chip.js';
+import { CLOCK, dtChip, setUncertaintyChip, uncertaintyChip } from '../time/chip.js';
 import { calendarName, calendarTag, formatCivilDate } from '../time/format.js';
 import { scaleLabel } from '../time/scale.js';
 import { angleFormat, hasDisc, kindOf, zone, type NavCtx } from './context.js';
@@ -125,8 +125,9 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
   limbSeg.el.setAttribute('aria-labelledby', limbWrap.firstElementChild!.id);
 
   const timeInput = textInput({ placeholder: 'yyyy-mm-dd hh:mm:ss', inputmode: 'numeric', size: 20 });
-  // navigate2 (time-ui helpers): the ±ΔT chip beside the time, shown when the Earth's rotation
-  // then is uncertain by more than 30 s; the label's clock word follows the typed time.
+  // navigate2 (time-ui helpers): the clock's ± chip beside the time (chip2 `CLOCK`), shown when
+  // the Earth's rotation then is uncertain by more than 30 s; the label's clock word follows
+  // the typed time.
   const timeChip = uncertaintyChip(null);
   const timeField = field(`Time of the sight (${scaleLabel(nc.ctx.store.get().time.jd_utc)})`, timeInput, { help: null, aside: timeChip });
   const nowBtn = btn('Now', () => setTime(isoUtc(jdNow())), { tip: 'The time on this computer’s clock, now', variant: 'outline' });
@@ -289,7 +290,7 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
     const caution = t0 ? rotationCaution(t0) : null;
     tierBox.replaceChildren(...(blocked ? [notice('caution', t0!.sentence ?? 'No sights for this date.')] : caution ? [notice('caution', caution)] : []));
     submit.disabled = blocked;
-    setUncertaintyChip(timeChip, t0?.info ?? null);
+    setUncertaintyChip(timeChip, t0?.clock ?? null);
     // Empty, the label speaks for the time bar's instant, which "Time bar" would fill in
     // (polish2: it said UTC at 585 BC).
     timeField.setLabel(`Time of the sight (${scaleLabel(jd ?? nc.ctx.store.get().time.jd_utc)})`);
@@ -697,9 +698,10 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
                 { class: 'sfn-sight__time' },
                 h('span', { class: 'sfn-num' }, `${clockPart(o.utc)} ${scaleLabel(jd)}`),
                 h('span', { class: 'sfn-muted' }, ` ${fmtZoneClock(jd, z)}`),
-                // navigate2: the ±ΔT chip (hidden unless the Earth's rotation then is uncertain by over 30 s).
+                // navigate2: the clock's ± chip (chip2 `CLOCK`; hidden unless the Earth's rotation
+                // then is uncertain by over 30 s).
                 ' ',
-                uncertaintyChip(timeInfoAt(nc.ctx, jd)),
+                uncertaintyChip(dtChip(nc.ctx, jd, CLOCK)),
               )
             : h('span', { class: 'sfn-sight__rejected' }, o.utc || 'no time'),
         ),

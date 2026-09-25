@@ -11,7 +11,7 @@ import { horizonName } from '../../types.js';
 import { disposer, type Mounted } from '../component.js';
 import { badge } from '../theme/primitives.js';
 import { UTC_ZONE } from '../time.js';
-import { setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../time/chip.js';
+import { CLOCK, dtChip, setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../time/chip.js';
 import { formatCivilDate } from '../time/format.js';
 import { angleFormat, type NavCtx } from './context.js';
 import { dut1Instant, dut1Line } from './dut1.js';
@@ -238,7 +238,7 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     const line = dut1Line(typeof s.clock.dut1_s === 'number' ? s.clock.dut1_s : null, info, when);
     dut1.parts.setHelp(null);
     if (dut1Words.data !== line.text) dut1Words.data = line.text;
-    setUncertaintyChip(dut1Chip, info);
+    setUncertaintyChip(dut1Chip, dtChip(nc.ctx, at.jd, CLOCK, info));
     dut1Auto.classList.toggle('sfn-dut1-auto--caution', line.level === 'caution');
   }
 

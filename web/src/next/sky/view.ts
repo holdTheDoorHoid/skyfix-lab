@@ -56,7 +56,8 @@ import {
   type Layers,
 } from '../state.js';
 import { wallClock, formatWithUtc } from '../time.js';
-import { timeInfoAt, withUncertainty } from '../time/chip.js';
+import { CLOCK, dtChip, position, timeInfoAt, turning, uncertaintyText, withUncertainty, type DtChip } from '../time/chip.js';
+import { SOLAR_SYSTEM } from '../engine/bodies.js';
 import { rangeWords } from '../time/tier.js';
 import { covered } from '../shell/derived.js';
 import { DEG, limitingMagnitude, nextRise, RAD, refractionArcmin } from './astro.js';
@@ -1381,6 +1382,11 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     /** Right ascension and declination of date, degrees (NaN when unknown). */
     ra: number;
     dec: number;
+    /**
+     * chip2: a Sun's, Moon's or planet's place at the time shown moves with the Earth's
+     * uncertain rotation (time/chip.ts `position`); null for anything fixed on the sky.
+     */
+    place: DtChip | null;
   }
 
   function words(state: ExplorerState): { height: string; bearing: string; fmt: AngleFormat } {
@@ -1500,6 +1506,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       return null;
     }
     const up = alt >= 0;
+    const place = canonical && SOLAR_SYSTEM.includes(canonical) ? dtChip(engine, displayJd, position(canonical), timeInfoAt(engine, Math.floor(displayJd - 0.5) + 0.5)) : null;
     lines.push([heightWord, `${formatAngle(alt, fmt)}${up ? '' : ' (below the horizon)'}`]);
     lines.push([bearingWord, `${formatBearing(az, fmt)} ${compassPoint(az)}`]);
     if (mag !== null && Number.isFinite(mag)) lines.push([magWord, formatMagnitude(mag)]);
@@ -1511,7 +1518,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       .slice(0, 2)
       .map(([k, v]) => `${k} ${v}`)
       .join('. ')}.`;
-    return { title, sub, lines, speech, alt, az, ra, dec };
+    return { title, sub, lines, speech, alt, az, ra, dec, place };
   }
 
   function updateTooltip(state: ExplorerState): void {
@@ -1529,7 +1536,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       tipText = '';
       return;
     }
-    const text = `${d.title}\n${d.sub}\n${d.lines.map((l) => l.join(':')).join('\n')}`;
+    const text = `${d.title}\n${d.sub}\n${d.lines.map((l) => l.join(':')).join('\n')}\n${uncertaintyText(d.place)}`;
     const wasHidden = tooltip.hidden;
     tooltip.hidden = false;
     if (text !== tipText || wasHidden) {
@@ -1537,7 +1544,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
       tooltip.replaceChildren(
         el('strong', { class: 'sky-tip-title' }, d.title),
         ...(d.sub ? [el('span', { class: 'sky-tip-sub' }, d.sub)] : []),
-        ...d.lines.map(([k, v]) => el('span', { class: 'sky-tip-line' }, ...(v ? [`${k} `, el('b', {}, v)] : [k]))),
+        // chip2: the place's ± after the height, at far dates (a glance: its text, not the chip).
+        ...d.lines.map(([k, v], i) => el('span', { class: 'sky-tip-line' }, ...(v ? [`${k} `, el('b', {}, i === 0 && uncertaintyText(d.place) ? `${v} ${uncertaintyText(d.place)}` : v)] : [k]))),
       );
       // Measured only when the text changed (a layout read).
       tipSize = { w: tooltip.offsetWidth, h: tooltip.offsetHeight };
@@ -1617,19 +1625,22 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     if (!d) return null;
     const { fmt } = words(state);
     const zone = displayZone(state);
-    const lines: CardLine[] = d.lines.filter(([, v]) => v).map(([label, value]) => ({ label, value }));
+    // chip2: the height line (the first) and the right ascension carry the place's ± chip.
+    const lines: CardLine[] = d.lines.filter(([, v]) => v).map(([label, value], i) => (i === 0 && d.place ? { label, value, chip: d.place } : { label, value }));
     const notes: string[] = [];
     const actions: CardContent['actions'] = [];
     let source: string | undefined;
     let symbol: (() => Element) | undefined;
     const kind = keyKind(key);
     if (Number.isFinite(d.ra)) {
-      lines.push({ label: state.settings.navigatorTerms ? 'Right ascension · declination' : 'Right ascension, declination', value: `${formatRa(d.ra)}, ${formatDec(d.dec, fmt)}`, tip: 'The sky’s own coordinates, true equator and equinox of date' });
+      lines.push({ label: state.settings.navigatorTerms ? 'Right ascension · declination' : 'Right ascension, declination', value: `${formatRa(d.ra)}, ${formatDec(d.dec, fmt)}`, tip: 'The sky’s own coordinates, true equator and equinox of date', ...(d.place ? { chip: d.place } : {}) });
     }
     const rise = riseWords(key, d, state);
     if (rise.text) {
-      const info = rise.jd !== null ? timeInfoAt(engine, rise.jd) : null;
-      lines.push(rise.jd !== null ? { label: 'Rises', value: rise.text, chip: info } : { label: rise.text, value: '' });
+      // chip2: a rising is set by the Earth's turning: the body's own share of σ(ΔT); a star,
+      // a deep-sky object or a body from typed elements is (near enough) fixed on the sky.
+      const chip = rise.jd !== null && kind === 'b' ? dtChip(engine, rise.jd, turning(key.slice(2))) : null;
+      lines.push(rise.jd !== null ? { label: 'Rises', value: rise.text, chip } : { label: rise.text, value: '' });
     }
     if (kind === 'b') {
       const name = key.slice(2);
@@ -1648,7 +1659,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
         const best = v.visibility.best;
         if (best) {
           const day = otherDay(best.jd_utc, displayJd, zone);
-          lines.push({ label: 'Best tonight', value: `${eventTime(best.jd_utc, zone)}${day ? ` ${day}` : ''}, ${Math.round(best.alt_deg)}° up in the ${best.direction}`, chip: timeInfoAt(engine, best.jd_utc) });
+          // Fixed on the sky: its best time moves only with darkness, the Sun's turning (chip2).
+          lines.push({ label: 'Best tonight', value: `${eventTime(best.jd_utc, zone)}${day ? ` ${day}` : ''}, ${Math.round(best.alt_deg)}° up in the ${best.direction}`, chip: dtChip(engine, best.jd_utc, turning('Sun')) });
         } else lines.push({ label: 'Not up in the dark tonight', value: '' });
         if (v.visibility.instrument) {
           const inst = { eye: 'the naked eye', binoculars: 'binoculars', telescope: 'a small telescope', camera: 'a camera' }[v.visibility.instrument];
@@ -1676,7 +1688,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
         if (nightly) {
           if (nightly.best) {
             const day = otherDay(nightly.best.jd_utc, displayJd, zone);
-            lines.push({ label: 'Tonight', value: `${rateWords(nightly.expected_rate_per_hour)} at best, ${eventTime(nightly.best.jd_utc, zone)}${day ? ` ${day}` : ''}`, chip: timeInfoAt(engine, nightly.best.jd_utc) });
+            // The radiant is fixed on the sky: darkness, the Sun's turning, moves it (chip2).
+            lines.push({ label: 'Tonight', value: `${rateWords(nightly.expected_rate_per_hour)} at best, ${eventTime(nightly.best.jd_utc, zone)}${day ? ` ${day}` : ''}`, chip: dtChip(engine, nightly.best.jd_utc, turning('Sun')) });
           }
           notes.push(nightly.reason);
         } else if (tonightError) notes.push(`Tonight’s rate: ${tonightError}`);
@@ -1771,7 +1784,7 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
         b.replaceChildren(
           el('span', { class: 'sky-rank__sym' }, kindSymbol('deep_sky', i >= 0 ? (scene.dso.shape[i] as never) : undefined)),
           el('span', { class: 'sky-rank__name' }, o.name ? `${o.name} (${o.label})` : o.label),
-          el('span', { class: 'sky-rank__when' }, withUncertainty(`${eventTime(o.best.jd_utc, zone)}${day ? ` ${day}` : ''} · ${Math.round(o.best.alt_deg)}° ${o.best.direction}`, timeInfoAt(engine, o.best.jd_utc))),
+          el('span', { class: 'sky-rank__when' }, withUncertainty(`${eventTime(o.best.jd_utc, zone)}${day ? ` ${day}` : ''} · ${Math.round(o.best.alt_deg)}° ${o.best.direction}`, dtChip(engine, o.best.jd_utc, turning('Sun')))),
           el('span', { class: 'sky-rank__how' }, { eye: 'naked eye', binoculars: 'binoculars', telescope: 'telescope', camera: 'camera' }[o.instrument]),
         );
         return el('li', {}, b);
@@ -1881,7 +1894,8 @@ export function mountSky(host: HTMLElement, ctx: Ctx): SkyMounted {
     const ew = o.lon_deg >= 0 ? 'E' : 'W';
     const place = o.label || `${Math.abs(o.lat_deg).toFixed(1)}° ${ns}, ${Math.abs(o.lon_deg).toFixed(1)}° ${ew}`;
     const zone = displayZone(state);
-    const time = withUncertainty(`${formatWithUtc(displayJd, zone)}`, timeInfoAt(engine, displayJd));
+    // The picture's moment, with the clock's own chip (chip2: `CLOCK`, the date's σ(ΔT)).
+    const time = withUncertainty(`${formatWithUtc(displayJd, zone)}`, dtChip(engine, displayJd, CLOCK));
     const p = view.panorama;
     const what = view.mode === 'dome' ? `The whole sky, ${view.southUp ? 'south' : 'north'} at the top` : `Looking ${compassPoint(p.azimuth)}, ${Math.round(p.fov)}° wide`;
     const q = state.settings;

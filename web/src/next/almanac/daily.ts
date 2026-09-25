@@ -30,6 +30,25 @@ import { blocks, dayOfMonth, phaseName, phaseSymbol, showDecDegrees } from './la
 /** The table rows of each hour, per date, so the view can mark the explorer's hour. */
 export type HourRows = HTMLTableRowElement[][][];
 
+/**
+ * chip2: the ± chips of the column heads at a far date (CONVENTIONS 15.2; almanac/dates.ts
+ * `pageChips` makes them with time/chip.ts `dtChip`): a body's place in the hourly tables
+ * (`place`: the Moon 1.5′ at 585 BC) and a time set by the Earth's turning in the rise, set and
+ * meridian-passage tables (`turning`, the fastest of the bodies named). Each call makes a new
+ * element; null when that chip does not show.
+ */
+export interface PageChips {
+  place(body: string): Node | null;
+  turning(...bodies: string[]): Node | null;
+}
+
+const NO_CHIPS: PageChips = { place: () => null, turning: () => null };
+
+/** A head cell's words with its chip after them (or the words alone). */
+function withChip(words: Child, chip: Node | null): Child {
+  return chip ? h('span', {}, words, ' ', chip) : words;
+}
+
 export interface RenderedPages {
   pages: HTMLElement[];
   /** `rows[dateIndex][hour]` = the rows of that hour on both pages. */
@@ -95,12 +114,12 @@ function notesBox(notes: readonly string[], errors: readonly BodyError[], extra:
   );
 }
 
-function planetBox(day: AlmanacDay, sha: readonly { body: string; printed: { gha: string } }[] | null, when: string): HTMLTableElement {
+function planetBox(day: AlmanacDay, sha: readonly { body: string; printed: { gha: string } }[] | null, when: string, chips: PageChips = NO_CHIPS): HTMLTableElement {
   return h(
     'table',
     { class: 'alm-table alm-box alm-planet-box' },
     caption(`The planets' SHA (${when}) and meridian passage at Greenwich`),
-    h('thead', {}, h('tr', {}, th('', { scope: 'col' }), th('SHA', { scope: 'col' }), th('Mer. Pass.', { scope: 'col' }))),
+    h('thead', {}, h('tr', {}, th('', { scope: 'col' }), th('SHA', { scope: 'col' }), th(withChip('Mer. Pass.', chips.turning(...day.planets.map((p) => p.body))), { scope: 'col' }))),
     h(
       'tbody',
       {},
@@ -168,6 +187,7 @@ function riseSetTables(
   moonLabels: readonly string[],
   moonTitles: readonly string[],
   when: string,
+  chips: PageChips = NO_CHIPS,
 ): HTMLTableElement[] {
   const moonHeads = (): HTMLTableCellElement[] =>
     moonLabels.map((label, i) => th(label, { scope: 'col', title: moonTitles[i] ?? '' }));
@@ -191,8 +211,8 @@ function riseSetTables(
         {},
         th('Lat.', { rowspan: 2, scope: 'col' }),
         th('Twilight', { colspan: 2, scope: 'colgroup' }),
-        th('Sunrise', { rowspan: 2, scope: 'col' }),
-        th('Moonrise', { colspan: n, scope: 'colgroup' }),
+        th(withChip('Sunrise', chips.turning('Sun')), { rowspan: 2, scope: 'col' }),
+        th(withChip('Moonrise', chips.turning('Moon')), { colspan: n, scope: 'colgroup' }),
       ),
       h('tr', {}, th('Naut.', { scope: 'col' }), th('Civil', { scope: 'col' }), ...moonHeads()),
     ),
@@ -209,9 +229,9 @@ function riseSetTables(
         'tr',
         {},
         th('Lat.', { rowspan: 2, scope: 'col' }),
-        th('Sunset', { rowspan: 2, scope: 'col' }),
+        th(withChip('Sunset', chips.turning('Sun')), { rowspan: 2, scope: 'col' }),
         th('Twilight', { colspan: 2, scope: 'colgroup' }),
-        th('Moonset', { colspan: n, scope: 'colgroup' }),
+        th(withChip('Moonset', chips.turning('Moon')), { colspan: n, scope: 'colgroup' }),
       ),
       h('tr', {}, th('Civil', { scope: 'col' }), th('Naut.', { scope: 'col' }), ...moonHeads()),
     ),
@@ -220,7 +240,7 @@ function riseSetTables(
   return [rise, set];
 }
 
-function sunMoonBox(days: readonly AlmanacDay[], labels: readonly string[]): HTMLTableElement {
+function sunMoonBox(days: readonly AlmanacDay[], labels: readonly string[], chips: PageChips = NO_CHIPS): HTMLTableElement {
   return h(
     'table',
     { class: 'alm-table alm-box alm-sunmoon' },
@@ -232,8 +252,8 @@ function sunMoonBox(days: readonly AlmanacDay[], labels: readonly string[]): HTM
         'tr',
         {},
         th('Day', { rowspan: 3, scope: 'col' }),
-        th('SUN', { colspan: 3, scope: 'colgroup', class: 'alm-body' }),
-        th('MOON', { colspan: 4, scope: 'colgroup', class: 'alm-body' }),
+        th(withChip('SUN', chips.turning('Sun')), { colspan: 3, scope: 'colgroup', class: 'alm-body' }),
+        th(withChip('MOON', chips.turning('Moon')), { colspan: 4, scope: 'colgroup', class: 'alm-body' }),
       ),
       h(
         'tr',
@@ -336,7 +356,7 @@ function hourBodies(
   });
 }
 
-function leftHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: HourRows): HTMLTableElement {
+function leftHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: HourRows, chips: PageChips = NO_CHIPS): HTMLTableElement {
   const multi = dates.length > 1;
   const head1 = h('tr', {});
   if (multi) head1.append(th('', { rowspan: 2, scope: 'col', class: 'alm-daylabel-head' }));
@@ -344,7 +364,7 @@ function leftHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: HourR
   const head2 = h('tr', {}, th('GHA', { scope: 'col' }));
   for (const p of middle.planets) {
     head1.append(
-      th(h('span', {}, p.body.toUpperCase(), ' ', h('span', { class: 'alm-mag' }, p.printed.magnitude)), {
+      th(withChip(h('span', {}, p.body.toUpperCase(), ' ', h('span', { class: 'alm-mag' }, p.printed.magnitude)), chips.place(p.body)), {
         colspan: 2,
         scope: 'colgroup',
         class: 'alm-body',
@@ -375,14 +395,14 @@ function leftHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: HourR
   return table;
 }
 
-function rightHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: HourRows): HTMLTableElement {
+function rightHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: HourRows, chips: PageChips = NO_CHIPS): HTMLTableElement {
   const multi = dates.length > 1;
   const head1 = h('tr', {});
   if (multi) head1.append(th('', { rowspan: 2, scope: 'col', class: 'alm-daylabel-head' }));
   head1.append(
     th('UT', { rowspan: 2, scope: 'col', class: 'alm-ut' }),
-    th('SUN', { colspan: 2, scope: 'colgroup', class: 'alm-body' }),
-    th('MOON', { colspan: 5, scope: 'colgroup', class: 'alm-body' }),
+    th(withChip('SUN', chips.place('Sun')), { colspan: 2, scope: 'colgroup', class: 'alm-body' }),
+    th(withChip('MOON', chips.place('Moon')), { colspan: 5, scope: 'colgroup', class: 'alm-body' }),
   );
   const table = h(
     'table',
@@ -446,7 +466,7 @@ function rightHourly(dates: readonly DateBlock[], middle: AlmanacDay, rows: Hour
 // ---------------------------------------------------------------------------
 
 /** The printed almanac's opening: three dates on two facing pages. */
-export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], headExtra: Child, mock: boolean): RenderedPages {
+export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], headExtra: Child, mock: boolean, chips: PageChips = NO_CHIPS): RenderedPages {
   const heading = openingHeading(o.dates);
   const dates: DateBlock[] = o.days.map((day, i) => ({
     day,
@@ -467,8 +487,8 @@ export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], h
     h(
       'div',
       { class: 'alm-grid' },
-      h('div', { class: 'alm-main' }, leftHourly(dates, middle, rows), explainBox()),
-      h('div', { class: 'alm-side' }, starTable(middle, `12h UT on ${middleText}`), planetBox(middle, o.planet_sha_00h, `0h UT on ${middleText}`)),
+      h('div', { class: 'alm-main' }, leftHourly(dates, middle, rows, chips), explainBox()),
+      h('div', { class: 'alm-side' }, starTable(middle, `12h UT on ${middleText}`), planetBox(middle, o.planet_sha_00h, `0h UT on ${middleText}`, chips)),
     ),
     pageFooter(`Stars, planets' SHA, v, d and Mer. Pass. for the middle date · ${heading}`),
   );
@@ -479,12 +499,12 @@ export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], h
     h(
       'div',
       { class: 'alm-grid' },
-      h('div', { class: 'alm-main' }, rightHourly(dates, middle, rows)),
+      h('div', { class: 'alm-main' }, rightHourly(dates, middle, rows, chips)),
       h(
         'div',
         { class: 'alm-side' },
-        ...riseSetTables(middle.rise_set.rows, o.moon_rows, moonLabels, moonTitles, `the middle date, ${middleText}`),
-        sunMoonBox(o.days, labels),
+        ...riseSetTables(middle.rise_set.rows, o.moon_rows, moonLabels, moonTitles, `the middle date, ${middleText}`, chips),
+        sunMoonBox(o.days, labels, chips),
       ),
     ),
     notesBox(o.notes, o.errors, extraNotes),
@@ -494,7 +514,7 @@ export function openingPages(o: AlmanacOpening, extraNotes: readonly string[], h
 }
 
 /** One date on two facing pages (the almanac agent's layout). */
-export function oneDayPages(day: AlmanacDay, shown: ShownDate, extraNotes: readonly string[], headExtra: Child, mock: boolean): RenderedPages {
+export function oneDayPages(day: AlmanacDay, shown: ShownDate, extraNotes: readonly string[], headExtra: Child, mock: boolean, chips: PageChips = NO_CHIPS): RenderedPages {
   const heading = dayHeading(shown, day.weekday);
   const text = dayMonthYear(shown);
   const dates: DateBlock[] = [{ day, dayNumber: String(shown.day), weekday: day.weekday, text }];
@@ -509,7 +529,7 @@ export function oneDayPages(day: AlmanacDay, shown: ShownDate, extraNotes: reado
     h(
       'div',
       { class: 'alm-grid' },
-      h('div', { class: 'alm-main' }, leftHourly(dates, day, rows), planetBox(day, null, `12h UT on ${text}`), explainBox()),
+      h('div', { class: 'alm-main' }, leftHourly(dates, day, rows, chips), planetBox(day, null, `12h UT on ${text}`, chips), explainBox()),
       h('div', { class: 'alm-side' }, starTable(day, `12h UT on ${text}`)),
     ),
     pageFooter(`Stars and SHA at 12h UT · ${day.weekday} ${text}`),
@@ -521,7 +541,7 @@ export function oneDayPages(day: AlmanacDay, shown: ShownDate, extraNotes: reado
     h(
       'div',
       { class: 'alm-grid' },
-      h('div', { class: 'alm-main' }, rightHourly(dates, day, rows), sunMoonBox([day], [String(shown.day)]), notesBox(day.notes, day.errors, extraNotes)),
+      h('div', { class: 'alm-main' }, rightHourly(dates, day, rows, chips), sunMoonBox([day], [String(shown.day)], chips), notesBox(day.notes, day.errors, extraNotes)),
       h(
         'div',
         { class: 'alm-side' },
@@ -531,6 +551,7 @@ export function oneDayPages(day: AlmanacDay, shown: ShownDate, extraNotes: reado
           labels,
           moonDays.map((d) => dayMonthYear(d)),
           text,
+          chips,
         ),
       ),
     ),

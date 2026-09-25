@@ -39,6 +39,7 @@ import { openUpClose } from '../sky/requests.js'; // sky2 agent: the Moon's clos
 /** The mean distance the engine compares sizes with (EXPLORER_API `moon_apsides.definitions`). */
 export const MEAN_DISTANCE_KM = 384_400;
 import { rangeWords } from '../time/tier.js';
+import { INSTANT } from '../time/chip.js';
 
 /** Below this total libration (degrees) the Moon faces us squarely enough to say so. */
 const SQUARE_DEG = 0.75;
@@ -279,8 +280,9 @@ export function moonTools(ctx: Ctx): MoonTools {
     const zone = displayZone(s);
     const jd = s.time.jd_utc;
     const next = apsides ? nextApsides(apsides, jd) : { perigee: null, apogee: null, full: null };
-    // The ±ΔT chip's text after each time (time-ui's uncertaintyText, through deltaTNote).
-    const dt = deltaTNote(ctx, jd);
+    // The ± chip's text after each time: a perigee or apogee is an instant of the Moon's own
+    // motion, so it carries the whole σ(ΔT) (chip2: `INSTANT`, through deltaTNote).
+    const dt = deltaTNote(ctx, jd, INSTANT);
     const line = (x: MoonApsis | null, row: HTMLElement, value: HTMLElement): void => {
       row.hidden = !x;
       if (!x) return;

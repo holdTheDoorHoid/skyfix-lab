@@ -33,7 +33,7 @@ import { displayZone, engineObserver, placeZone, shallowEqual, type ExplorerStat
 import { icon } from '../theme/icons.js';
 import { button, iconButton, menu, popover, segmented } from '../theme/primitives.js';
 import { UTC_ZONE, jdFromWallClock, jdNow, wallClock, zoneShortName, type Zone } from '../time.js';
-import { setUncertaintyChip, timeInfoAt, uncertaintyChip, type ChipInfo } from '../time/chip.js';
+import { CLOCK, chipOf, setUncertaintyChip, timeInfoAt, uncertaintyChip, type DtChip } from '../time/chip.js';
 import { calendarName, calendarTag, calendarTip, dayMonth, formatYear, WEEKDAYS_SHORT, yearForms } from '../time/format.js';
 import { scaleLabel } from '../time/scale.js';
 import { tierAt } from '../time/tier.js';
@@ -265,10 +265,13 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     return `${clock(s.time.jd_utc, zone)} ${zoneShortName(s.time.jd_utc, zone)}`;
   };
 
-  /** What the chip needs: σ(ΔT) for the day (it changes by well under a second a day) and the tier now. */
-  const chipInfo = (jd: number): ChipInfo | null => {
+  /**
+   * The clock's own chip (chip2: `CLOCK`, the date's σ(ΔT) with what it moves in its tooltip):
+   * σ for the day (it changes by well under a second a day) and the tier now.
+   */
+  const clockChip = (jd: number): DtChip | null => {
     const info = timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5);
-    return info ? { delta_t_sigma_s: info.delta_t_sigma_s, tier: tierAt(ctx, jd) } : null;
+    return info ? chipOf({ delta_t_sigma_s: info.delta_t_sigma_s, tier: tierAt(ctx, jd) }, CLOCK) : null;
   };
 
   // --- the moving part: handle, clock, buttons -------------------------------------------------
@@ -305,7 +308,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     setText(other, utcShown ? `${clock(jd, UTC_ZONE)} ${scaleLabel(jd)}` : `${clock(jd, placeZ)} ${zoneShortName(jd, placeZ)}`);
     setAttr(other, 'data-tip', utcShown ? zoneTooltip(jd, UTC_ZONE, s.observer.lon_deg) : zoneTooltip(jd, placeZ, s.observer.lon_deg));
     setAttr(clockButton, 'aria-label', `Time: ${full} ${zoneShortName(jd, zone)}. Type a time`);
-    setUncertaintyChip(chip, chipInfo(jd));
+    setUncertaintyChip(chip, clockChip(jd));
     setAttr(nowButton, 'aria-pressed', String(s.time.live));
     setAttr(nowButton, 'data-tip', s.time.live ? 'Following the clock (N)' : 'Back to now, and follow the clock (N)');
     const playing = s.time.playing;

@@ -30,7 +30,7 @@ import { displayZone, engineObserver, type AngleFormat, type ExplorerState } fro
 import { icon } from '../theme/icons.js';
 import { segmented } from '../theme/primitives.js';
 import { msFromJd, wallClock, type Zone } from '../time.js';
-import { formatYear, gregorianDateOfMs } from '../time/index.js';
+import { formatYear, gregorianDateOfMs, turning } from '../time/index.js';
 import { bearingSourceText, deltaTNote, photoBearing, toolChip, type BearingValue } from './photo.js';
 import { magneticFromTrue, parseAltitude, parseBearing, parseTolerance, TOLERANCE_MAX, TOLERANCE_MIN } from './sun-tools.js';
 
@@ -112,19 +112,24 @@ function runCount(matches: readonly AlignmentMatch[]): number {
   return matches.filter((m) => m.best).length;
 }
 
-/** The list of days and one sentence for an `alignment_days` result. */
+/**
+ * The list of days and one sentence for an `alignment_days` result. `dt` is the ± text after a
+ * time (` ±6 s`): one for every row, or worked out per row (chip2: the Moon's share of σ(ΔT)
+ * changes through the month).
+ */
 export function alignmentRows(
   result: AlignmentResult,
   zone: Zone,
   format: AngleFormat,
-  dt = '',
+  dt: string | ((jd: number) => string) = '',
 ): { rows: AlignmentRow[]; summary: string } {
+  const note = typeof dt === 'function' ? dt : () => dt;
   const body = result.body;
   const along = `${result.azimuth_deg.toFixed(1)}°`;
   const within = `within ${result.tolerance_deg}° of ${along}`;
   const rows = result.matches.map((m): AlignmentRow => {
     const date = dateShort(m.jd_utc, zone);
-    const time = `${eventTime(m.jd_utc, zone)}${dt}`;
+    const time = `${eventTime(m.jd_utc, zone)}${note(m.jd_utc)}`;
     const what = kindWords(m, result.event, format);
     const offset = offsetWords(m.offset_deg);
     return {
@@ -146,7 +151,7 @@ export function alignmentRows(
     summary = `The ${body} ${eventName(result.event, format)} ${within} on ${rows.length} ${rows.length === 1 ? 'day' : 'days'} of ${result.year}${runs > 1 ? `, in ${runs} runs; the closest day of each is marked` : rows.length > 1 ? '; the closest is marked' : ''}. Press a day to show it.${cut}`;
   } else if (result.closest) {
     const c = result.closest;
-    summary = `The ${body} never ${eventName(result.event, format)} ${within} in ${result.year}. The nearest is ${dateShort(c.jd_utc, zone)} at ${eventTime(c.jd_utc, zone)}${dt}, ${offsetWords(c.offset_deg)}: widen the tolerance, or check the bearing.${cut}`;
+    summary = `The ${body} never ${eventName(result.event, format)} ${within} in ${result.year}. The nearest is ${dateShort(c.jd_utc, zone)} at ${eventTime(c.jd_utc, zone)}${note(c.jd_utc)}, ${offsetWords(c.offset_deg)}: widen the tolerance, or check the bearing.${cut}`;
   } else {
     summary = `The ${body} never ${result.event.kind === 'set' ? 'sets' : result.event.kind === 'rise' ? 'rises' : 'reaches that height'} here in ${result.year}.${cut}`;
   }
@@ -388,8 +393,10 @@ export function alignmentTool(ctx: Ctx): AlignmentTool {
         }
         shownKey = r.key;
         const zone = displayZone(st);
-        chip.set(ctx, result.jd_start, result.jd_end);
-        const model = alignmentRows(result, zone, st.settings.angleFormat, deltaTNote(ctx, (result.jd_start + result.jd_end) / 2));
+        // A rising, setting or height on a line: set by the Earth's turning, the body's own
+        // share of σ(ΔT) (chip2).
+        chip.set(ctx, turning(result.body), result.jd_start, result.jd_end);
+        const model = alignmentRows(result, zone, st.settings.angleFormat, (jd) => deltaTNote(ctx, jd, turning(result.body)));
         setText(statusText, model.summary);
         list.replaceChildren(
           ...model.rows.map((row) => {

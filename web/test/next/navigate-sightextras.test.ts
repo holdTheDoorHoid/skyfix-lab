@@ -164,7 +164,9 @@ describe('the tier gate: sights only in the validated span', () => {
     expect(t.tier).toBe('labelled');
     expect(t.offered).toBe(false);
     expect(t.sentence).toBe(
-      'No sights for 28 May 585 BC (Julian): positions then are estimates, because the Earth’s rotation is known only roughly (±3 h of time, 45.1° of longitude). ' +
+      // chip2 (V18): the reason is that positions then are estimates; a sight's own UT is not
+      // moved by the Earth's uncertain rotation, so no longitude is claimed for it.
+      'No sights for 28 May 585 BC (Julian): positions then are estimates, and the Earth’s rotation is known only roughly (±3 h). ' +
         'Sights are offered only between 1550 and 2650, the years whose positions are checked against JPL’s DE440 ephemeris.',
     );
     // The chip's information travels with the answer.
@@ -197,7 +199,19 @@ describe('the tier gate: sights only in the validated span', () => {
     expect(rotationCaution(quiet)).toBeNull();
     const loud = sightTierAt(fake(info('validated', 120)), Y2026);
     expect(loud.offered).toBe(true);
-    expect(rotationCaution(loud)).toBe('The Earth’s rotation then is known only to ±2 min (ΔT), so every fix’s longitude is uncertain by ±30.1′. The bodies’ places are not affected.');
+    // chip2 (V18): a sight's time is UT, so the fix moves only with the bodies' places. This
+    // fake engine places nothing: the Moon is named without a number.
+    expect(rotationCaution(loud)).toBe(
+      'The Earth’s rotation then is known only to ±2 min (ΔT). A sight’s time is read as UT, the Earth’s own clock, so that does not move the fix by itself; it moves the bodies’ places at that time: the Moon’s most, the Sun’s and the planets’ far less, the stars’ not at all.',
+    );
+    // With an engine that places the Moon (the mock, in 2026, given σ = 120 s): its number.
+    const mock = new MockEngine();
+    const placed = Object.assign(Object.create(mock) as MockEngine, {
+      coverage: () => fake(info('validated', 120)).coverage(),
+      timeInfo: () => info('validated', 120),
+      tierAt: () => 'validated',
+    }) as unknown as ExplorerEngine;
+    expect(rotationCaution(sightTierAt(placed, Y2026))).toMatch(/^The Earth’s rotation then is known only to ±2 min \(ΔT\)\. .*: the Moon’s by about 1\.\d′, the Sun’s and the planets’ far less, the stars’ not at all\.$/);
   });
 });
 

@@ -29,6 +29,7 @@ import { eventIds } from '../events/link.js';
 import { formatMagnitude } from '../shell/format.js';
 import { wallClock } from '../time.js';
 import type { NightQuery } from './data.js';
+import { INSTANT, turning, type ChipSubject } from '../time/chip.js';
 import { cap, clock, clockOn, degrees, distanceText, percentLit, type Fmt } from './format.js';
 
 /** How far ahead the list looks, days (the brief: the next 14 days). */
@@ -63,6 +64,12 @@ export interface ComingItem {
    * for the lists without cards (polish2, list item 41).
    */
   ref?: string;
+  /**
+   * What sets the item's time, for its ± chip (chip2, CONVENTIONS 15.2): absent, an instant of
+   * the bodies' own motion (`INSTANT`: a phase, an eclipse, a peak, a station); a conjunction's
+   * best-seen moment is the bodies' and darkness's turning.
+   */
+  chip?: ChipSubject;
 }
 
 /** What one source gives: its items, and (the apsides source) notes for the phases' titles. */
@@ -187,7 +194,7 @@ const eclipses: ComingSource = {
         const local = engine.eclipseLocal(e.id, q.observer);
         [words, seen] = SEEN_WORDS[local.visibility];
         if (local.kind === 'solar' && local.visible_max && seen) {
-          words += `, ${percentLit(local.visible_max.obscuration ?? local.obscuration)} of the Sun covered at ${clock(local.visible_max.jd_utc, f)}`;
+          words += `, ${percentLit(local.visible_max.obscuration ?? local.obscuration)} of the Sun covered at ${clock(local.visible_max.jd_utc, f, INSTANT)}`;
         }
       } catch {
         // The global circumstances still stand.
@@ -240,13 +247,17 @@ const conjunctions: ComingSource = {
       .map((c) => {
         const best = c.local!.best!;
         const low = Math.min(best.body_alt_deg, best.other_alt_deg);
+        // chip2: the best-seen moment is set by the two bodies' heights and darkness (the
+        // Earth's turning); the closest approach is an instant of their own motion.
+        const seenBy = turning(c.body, c.other, 'Sun');
         return {
           kind: 'conjunction' as const,
           jd: best.jd_utc,
           title: conjunctionTitle(c),
-          detail: `Best seen at ${clock(best.jd_utc, f)}, both ${degrees(low)} up or more; closest at ${clockOn(c.jd_utc, best.jd_utc, f)}.`,
+          detail: `Best seen at ${clock(best.jd_utc, f, seenBy)}, both ${degrees(low)} up or more; closest at ${clockOn(c.jd_utc, best.jd_utc, f, INSTANT)}.`,
           body: c.body,
           seen: true,
+          chip: seenBy,
         };
       });
     return { items };
@@ -258,8 +269,9 @@ export function occultationItem(o: Occultation, f: Fmt): ComingItem {
   const d = o.disappearance;
   const r = o.reappearance;
   const parts: string[] = [];
-  if (d) parts.push(`disappears ${clock(d.jd_utc, f)} at the ${d.limb} limb`);
-  if (r) parts.push(`reappears ${clock(r.jd_utc, f)} at the ${r.limb} limb`);
+  // An occultation's contacts at a place come from instants of the Moon's own motion: σ(ΔT).
+  if (d) parts.push(`disappears ${clock(d.jd_utc, f, INSTANT)} at the ${d.limb} limb`);
+  if (r) parts.push(`reappears ${clock(r.jd_utc, f, INSTANT)} at the ${r.limb} limb`);
   const star = o.kind === 'star' ? ` (magnitude ${formatMagnitude(o.magnitude)})` : '';
   return {
     kind: 'occultation',

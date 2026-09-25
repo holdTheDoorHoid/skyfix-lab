@@ -39,6 +39,7 @@ import {
   tideLineModel,
   type SettlerClock,
 } from '../../src/next/panel/photo.js';
+import { INSTANT, turning } from '../../src/next/time/chip.js';
 import {
   bearingDifference,
   formatDecSigned,
@@ -158,11 +159,16 @@ describe('the direction to a picked point (Vincenty on WGS84)', () => {
 // ---------------------------------------------------------------------------------
 
 describe('the uncertainty of a time and the years the core covers (time-ui helpers)', () => {
-  it('adds the ±ΔT text only where the Earth’s rotation is uncertain by more than 30 s', () => {
+  it('adds the ± text only where what sets the time carries enough of the Earth’s rotation’s uncertainty (chip2)', () => {
     const ctx = { engine: mock };
-    expect(deltaTNote(ctx, jd('2026-09-24T12:00:00Z'))).toBe('');
-    expect(deltaTNote(ctx, jd('2500-06-01T12:00:00Z'))).toMatch(/^ ±\d+ min$/);
-    expect(deltaTNote({ engine: {} as never }, jd('2500-06-01T12:00:00Z'))).toBe('');
+    // An instant of the bodies' own motion (a perigee): the whole σ(ΔT), over 30 s.
+    expect(deltaTNote(ctx, jd('2026-09-24T12:00:00Z'), INSTANT)).toBe('');
+    expect(deltaTNote(ctx, jd('2500-06-01T12:00:00Z'), INSTANT)).toMatch(/^ ±\d+ min$/);
+    // Golden hour is the Sun's turning: in 2026 nothing; in 2500 the mock cannot place the Sun
+    // (it covers 1990-2060), so the whole σ stands, as before the rule.
+    expect(deltaTNote(ctx, jd('2026-09-24T12:00:00Z'), turning('Sun'))).toBe('');
+    expect(deltaTNote(ctx, jd('2500-06-01T12:00:00Z'), turning('Sun'))).toMatch(/^ ±\d+ min$/);
+    expect(deltaTNote({ engine: {} as never }, jd('2500-06-01T12:00:00Z'), INSTANT)).toBe('');
   });
 
   it('names the covered years when a day is outside them', () => {

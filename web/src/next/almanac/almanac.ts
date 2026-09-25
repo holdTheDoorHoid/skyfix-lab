@@ -7,7 +7,8 @@
  * - **Daily pages**: the opening (three dates on two facing pages, grouped from January 1
  *   as the printed almanac groups them) or one date, for the UT date of the explorer's
  *   time, in any year the engine covers (years BC, the Julian calendar before 1582-10-15,
- *   a ±ΔT chip where the Earth's rotation is uncertain).
+ *   ± chips on the column heads where the Earth's uncertain rotation moves a place or a
+ *   time: chip2).
  * - **Increments**: Increments and Corrections, two minutes a page as printed, with a
  *   look-up for a time after the hour and a v or d.
  * - **Altitude corrections**: the Sun, stars and planets (10°–90° and 0°–10°), dip,
@@ -43,12 +44,11 @@ import { BANNER } from './cells.js';
 import { oneDayPages, openingPages, type HourRows, type RenderedPages } from './daily.js';
 import {
   anachronismNote,
-  deltaTChip,
   engineCalendar,
   entryToJd,
+  pageChips,
   shownDate,
   tierNote,
-  timeInfoAt,
   yearText,
   type CalendarChoice,
 } from './dates.js';
@@ -298,19 +298,19 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
   });
   const compute = (jd: number, sd: ReturnType<typeof shownDate>): void => {
     status.textContent = '';
-    const info = timeInfoAt(ctx, jd);
-    const chip = deltaTChip(info);
+    // chip2: the ± chips go on the column heads they belong to, not on the page's heading.
+    const chips = pageChips(ctx, jd);
     const extra = [anachronismNote(sd.year), tierNote(ctx, jd)].filter((x): x is string => !!x);
     try {
       if (mode === 'opening' && env.tables) {
         const o = env.tables.almanacOpening(sd.wire, engineCalendar(lastCalendar));
         // The engine's notes already say it for an opening before 1767.
-        show(openingPages(o, extra.filter((x) => !x.startsWith('The first Nautical')), chip, env.mock));
+        show(openingPages(o, extra.filter((x) => !x.startsWith('The first Nautical')), null, env.mock, chips));
         shownWire = o.dates.map((x) => x.date);
         shownIndex = o.index;
       } else if (env.pages) {
         const day = env.pages.almanacDay(sd.wire);
-        show(oneDayPages(day, sd, extra, chip, env.mock));
+        show(oneDayPages(day, sd, extra, null, env.mock, chips));
         shownWire = [day.date];
         shownIndex = 0;
       } else {

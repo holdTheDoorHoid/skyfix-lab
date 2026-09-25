@@ -48,7 +48,7 @@ import { createStore, displayZone, engineObserver, shallowEqual, type ExplorerSt
 import { icon } from '../theme/icons.js';
 import { swatch } from '../theme/primitives.js';
 import { dayWindow, jdFromWallClock, wallClock, type Zone } from '../time.js';
-import { coverageBounds, setUncertaintyChip, timeInfoAt, timeInfoForSpan, uncertaintyChip, uncertaintyText, wireDateText } from '../time/index.js';
+import { coverageBounds, dtChip, setUncertaintyChip, timeInfoForSpan, turning, uncertaintyChip, uncertaintyText, wireDateText, type ChipSubject, type DtChip } from '../time/index.js';
 import {
   formatDecSigned,
   formatRa,
@@ -189,25 +189,33 @@ function reducedMotion(): boolean {
 // ---------------------------------------------------------------------------------
 
 /**
- * ` ±12 min` after a clock time when the Earth's rotation at `jd` is uncertain by more than
- * 30 s, or always in the labelled tier (time-ui's `uncertaintyText`, CONVENTIONS 15.1-15.2),
- * else ''. The text form of the ±ΔT chip, for times inside sentences and lists; each tool
- * also shows the chip itself, with its explanation, beside its heading (`toolChip`).
+ * ` ±6 s` after a clock time when its ± chip shows (time/chip.ts `dtChip` for what sets the
+ * time: `turning('Sun')` for golden hour, `INSTANT` for a perigee; CONVENTIONS 15.1-15.2),
+ * else ''. The text form of the chip, for times inside sentences and lists; each tool also
+ * shows the chip itself, with its explanation, beside its heading (`toolChip`).
  */
-export function deltaTNote(ctx: Pick<Ctx, 'engine'>, jd: number): string {
-  const u = uncertaintyText(timeInfoAt(ctx, jd));
+export function deltaTNote(ctx: Pick<Ctx, 'engine'>, jd: number, subject: ChipSubject): string {
+  const u = uncertaintyText(dtChip(ctx, jd, subject));
   return u ? ` ${u}` : '';
 }
 
-/** The ±ΔT chip for a tool's heading: hidden unless its times carry an uncertainty. */
-export function toolChip(): { el: HTMLElement; set(ctx: Pick<Ctx, 'engine'>, jdStart: number, jdEnd?: number): void } {
+/** The ± chip for a tool's heading: hidden unless its times carry an uncertainty. */
+export function toolChip(): { el: HTMLElement; set(ctx: Pick<Ctx, 'engine'>, subject: ChipSubject, jdStart: number, jdEnd?: number): void } {
   const el = uncertaintyChip(null);
   return {
     el,
-    set(ctx, jdStart, jdEnd = jdStart) {
-      setUncertaintyChip(el, timeInfoForSpan(ctx, jdStart, jdEnd));
+    set(ctx, subject, jdStart, jdEnd = jdStart) {
+      setUncertaintyChip(el, dtChip(ctx, (jdStart + jdEnd) / 2, subject, timeInfoForSpan(ctx, jdStart, jdEnd)));
     },
   };
+}
+
+/**
+ * What sets the Milky Way planner's times (chip2): darkness, the Sun's, and the core's height,
+ * fixed on the sky; and the Moon's rising or setting where the windows split at it.
+ */
+export function galacticSubject(windows: readonly Pick<GalacticWindow, 'moon_up'>[]): ChipSubject {
+  return windows.some((w) => w.moon_up) && windows.some((w) => !w.moon_up) ? turning('Moon', 'Sun') : turning('Sun');
 }
 
 /** "Sat 1 Jun is outside the years the core covers (1 January 1990 to 31 December 2060)." */
@@ -368,8 +376,9 @@ export function lightTableView(ctx: Ctx): LightTableView {
       setText(note, span ? (years ? `Golden and blue hour: worked out only for ${years}.` : `Golden and blue hour: not computed (${error}).`) : `Golden and blue hour: ${outsideWords(ctx, 'this day')}`);
       return;
     }
-    chip.set(ctx, a, b);
-    const model = lightTable(hours, zone, deltaTNote(ctx, (a + b) / 2));
+    // Golden and blue hour are set by the Earth's turning: the Sun's share of σ(ΔT) (chip2).
+    chip.set(ctx, turning('Sun'), a, b);
+    const model = lightTable(hours, zone, deltaTNote(ctx, (a + b) / 2, turning('Sun')));
     body.replaceChildren(
       ...model.rows.map((r) =>
         h(
@@ -776,8 +785,9 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
       setText(arch, '');
       return;
     }
-    nightChip.set(ctx, a, b);
-    const model = galacticNight(result, zone, s.settings.angleFormat, deltaTNote(ctx, (a + b) / 2));
+    const subject = galacticSubject(result.windows);
+    nightChip.set(ctx, subject, a, b);
+    const model = galacticNight(result, zone, s.settings.angleFormat, deltaTNote(ctx, (a + b) / 2, subject));
     status.replaceChildren(
       h('p', { class: 'sf-photo__head' }, `The night of ${dateShort(a, zone)} `, nightChip.el),
       ...model.sentences.map((t) => h('p', { class: 'sf-photo__line' }, t)),
@@ -821,8 +831,9 @@ export function milkyWayTool(ctx: Ctx): MilkyWayTool {
       return;
     }
     const nights = bestNights(result, a);
-    monthChip.set(ctx, a, a + 30);
-    const dt = deltaTNote(ctx, a + 15);
+    // A night's Moon-free stretch ends at darkness or at the Moon's rising or setting (chip2).
+    monthChip.set(ctx, turning('Moon', 'Sun'), a, a + 30);
+    const dt = deltaTNote(ctx, a + 15, turning('Moon', 'Sun'));
     setText(
       monthStatus,
       nights.length
@@ -902,7 +913,8 @@ export const COORD_TIP =
 
 export interface CoordRow {
   el: HTMLElement;
-  update(b: BodyState, s: ExplorerState): void;
+  /** `chip`: the place's ± chip at far dates (chip2, time/chip.ts `position`), or null. */
+  update(b: BodyState, s: ExplorerState, chip?: DtChip | null): void;
 }
 
 /** The "Sky position" row: RA and Dec, and the navigator's SHA beside (navigator's terms). */
@@ -910,6 +922,7 @@ export function coordRow(): CoordRow {
   const ra = h('span', { class: 'sf-num' });
   const dec = h('span', { class: 'sf-num' });
   const sha = h('span', { class: 'sf-num' });
+  const dt = uncertaintyChip(null);
   const el = h(
     'div',
     { class: 'sf-photo-coord', 'data-tip': COORD_TIP },
@@ -918,17 +931,18 @@ export function coordRow(): CoordRow {
       { class: 'sf-kv' },
       icon('target'),
       h('span', { class: 'sf-kv__k' }, 'Sky position'),
-      h('span', { class: 'sf-kv__v sf-photo-coord__v' }, h('span', { class: 'sf-photo-coord__lab' }, 'RA '), ra, h('span', { class: 'sf-photo-coord__lab' }, ' Dec '), dec),
+      h('span', { class: 'sf-kv__v sf-photo-coord__v' }, h('span', { class: 'sf-photo-coord__lab' }, 'RA '), ra, h('span', { class: 'sf-photo-coord__lab' }, ' Dec '), dec, ' ', dt),
     ),
     h('div', { class: 'sf-photo-coord__term', 'data-term': '' }, 'right ascension, declination · SHA ', sha),
   );
   return {
     el,
-    update(b, s) {
+    update(b, s, chip = null) {
       const t = coordText(b, s.settings.angleFormat);
       setText(ra, t.ra);
       setText(dec, t.dec);
       setText(sha, t.sha);
+      setUncertaintyChip(dt, chip);
     },
   };
 }

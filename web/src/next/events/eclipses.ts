@@ -46,7 +46,7 @@ import { jdFromIso, roundToMinute, UTC_ZONE, zoneShortName, type Zone } from '..
 import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph } from '../theme/glyphs.js';
 import { button, readout, segmented, switchRow } from '../theme/primitives.js';
-import { calendarNote, chipsIn, coveredSentence, listCoverage, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, listCoverage, listUncertaintySentence, rowChip, truncatedNote, wireYear, yearText } from './deeptime.js';
 import { formatBytes } from '../packs/manifest.js';
 import { clockPosition } from './moon-model.js';
 import { errorText, watchAll, type EclipseYears, type TabComponent, type TabEnv } from './env.js';
@@ -336,7 +336,7 @@ function contactsTable(
         'td',
         {},
         time,
-        uncertaintyChip(rowTimeInfo(engine, ev.jd_utc, chips)),
+        uncertaintyChip(rowChip(engine, ev.jd_utc, chips)),
         h('span', { class: 'sfe-utc' }, `${clockSeconds(ev.jd_utc, UTC_ZONE)} ${scaleLabel(ev.jd_utc)}`),
       ),
       h('td', { class: 'sf-num-r' }, alt, ev.visible ? null : h('span', { class: 'sfe-below' }, 'below the horizon')),

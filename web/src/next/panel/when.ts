@@ -21,6 +21,7 @@ import { displayZone, engineObserver, type ExplorerState } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { segmented } from '../theme/primitives.js';
 import { deltaTNote, outsideWords, photoBearing, Settler, toolChip } from './photo.js';
+import { turning } from '../time/chip.js';
 import { FIND_ALT_MAX, FIND_ALT_MIN, parseAltitude, parseBearing } from './sun-tools.js';
 
 export type WhenMode = 'height' | 'bearing';
@@ -181,8 +182,9 @@ export function whenTool(ctx: Ctx): WhenTool {
         ? `${body} is never at ${at} on ${day}.`
         : `${body} at ${at} on ${day}: ${found.length === 1 ? 'once' : `${found.length} times`}. Press a time to show it.`,
     );
-    chip.set(ctx, a, b);
-    const dt = deltaTNote(ctx, (a + b) / 2);
+    // The body at a height or on a bearing: set by the Earth's turning (chip2).
+    chip.set(ctx, turning(body), a, b);
+    const dt = deltaTNote(ctx, (a + b) / 2, turning(body));
     list.replaceChildren(
       ...found.map((c) => {
         const time = `${eventTime(c.jd_utc, zone)}${dt}`;
@@ -231,8 +233,9 @@ export function whenTool(ctx: Ctx): WhenTool {
         ? `${body} does not pass ${on} ${compassPoint(az)} above the horizon on ${day}.`
         : `${body} on ${on} on ${day}: ${found.length === 1 ? 'once' : `${found.length} times`}. Press a time to show it.`,
     );
-    chip.set(ctx, a, b);
-    const dt = deltaTNote(ctx, (a + b) / 2);
+    // The body at a height or on a bearing: set by the Earth's turning (chip2).
+    chip.set(ctx, turning(body), a, b);
+    const dt = deltaTNote(ctx, (a + b) / 2, turning(body));
     const f = s.settings.angleFormat;
     list.replaceChildren(
       ...found.map((c) => {

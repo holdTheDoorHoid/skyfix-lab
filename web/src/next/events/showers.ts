@@ -18,7 +18,7 @@ import { msFromJd, roundToMinute } from '../time.js';
 import { gregorianDateOfMs, formatYear } from '../time/index.js';
 import { phaseDisc } from '../theme/glyphs.js';
 import { button } from '../theme/primitives.js';
-import { calendarNote, chipsIn, coveredSentence, rowTimeInfo, wireYear } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, rowChip, wireYear } from './deeptime.js';
 import { errorText, watchAll, type TabComponent, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { fileWords, screenWords, type EventItem, type Words } from './items.js';
@@ -178,7 +178,7 @@ export const showersTab: TabComponent = (host, env) => {
           zone,
           glyph: meteorGlyph(),
           badges,
-          timeInfo: rowTimeInfo(ctx.engine, item.start, chips),
+          chip: rowChip(ctx.engine, item.start, chips),
           onJump: () => env.jump(item.jump),
           add: addToCalendarButton(ctx, ui, () => showerItem(sd, fileWords(ctx.store.get())), `${item.title}, ${w.dateYear(item.start)}`),
           onSelect: () => ui.patch({ shower: u.shower === sd.shower.code ? null : sd.shower.code }),

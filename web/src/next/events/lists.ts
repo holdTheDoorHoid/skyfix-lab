@@ -29,7 +29,7 @@ import { roundToMinute, UTC_ZONE, wallClock, type Zone } from '../time.js';
 import { scaleLabel, uncertaintyChip } from '../time/index.js';
 import { bodyGlyph, phaseDisc } from '../theme/glyphs.js';
 import { segmented } from '../theme/primitives.js';
-import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowTimeInfo, truncatedNote, wireYear, yearText, type OwnSpan } from './deeptime.js';
+import { calendarNote, chipsIn, coveredSentence, listUncertaintySentence, rowChip, truncatedNote, wireYear, yearText, type OwnSpan } from './deeptime.js';
 import { errorText, watchAll, type TabComponent } from './env.js';
 import { addToCalendarButton, exportMenu } from './export-ui.js';
 import { utcDate, type EventItem } from './items.js';
@@ -205,7 +205,7 @@ export const moonTab: TabComponent = (host, env) => {
             return h(
               'td',
               {},
-              h('span', { class: 'sfe-cell' }, b, uncertaintyChip(rowTimeInfo(ctx.engine, p.jd_utc, chips)), add),
+              h('span', { class: 'sfe-cell' }, b, uncertaintyChip(rowChip(ctx.engine, p.jd_utc, chips)), add),
               chip,
             );
           });
@@ -377,7 +377,7 @@ export const seasonsTab: TabComponent = (host, env) => {
         return h(
           'td',
           {},
-          h('span', { class: 'sfe-cell' }, b, uncertaintyChip(rowTimeInfo(ctx.engine, e.jd_utc, chips)), addToCalendarButton(ctx, ui, item, `${label}, ${dateMedium(roundToMinute(e.jd_utc), zone)}`)),
+          h('span', { class: 'sfe-cell' }, b, uncertaintyChip(rowChip(ctx.engine, e.jd_utc, chips)), addToCalendarButton(ctx, ui, item, `${label}, ${dateMedium(roundToMinute(e.jd_utc), zone)}`)),
         );
       };
       const rows = ys.map((y) => {
@@ -607,7 +607,7 @@ export const planetsTab: TabComponent = (host, env) => {
         const el = h(
           'li',
           { class: `sfe-pe${e.transit ? ' sfe-pe--transit' : ''}`, 'data-kind': e.kind, 'data-body': e.body },
-          h('span', { class: 'sfe-pe__when' }, timeButton(e.jd_utc, zone, title, () => env.jump(e.jd_utc, { body: e.body })), uncertaintyChip(rowTimeInfo(ctx.engine, e.jd_utc, chips))),
+          h('span', { class: 'sfe-pe__when' }, timeButton(e.jd_utc, zone, title, () => env.jump(e.jd_utc, { body: e.body })), uncertaintyChip(rowChip(ctx.engine, e.jd_utc, chips))),
           h('span', { class: 'sfe-pe__glyph' }, bodyGlyph(e.body, { size: 22 })),
           h(
             'div',

@@ -6,7 +6,7 @@
 
 import type { FixResult, Observation, ReducedSight, Session } from '../../../types.js';
 import { isTimeEngine, type ExplorerEngine } from '../../engine/types.js';
-import { timeInfoAt } from '../../time/chip.js';
+import { CLOCK, dtChip, position } from '../../time/chip.js';
 import { angleFormat, kindOf, type NavCtx } from '../context.js';
 import { settledReductions } from '../reductions.js';
 import { plottingSheet } from './plotting.js';
@@ -44,7 +44,8 @@ function inputFor(nc: NavCtx, session: Session, obs: Observation, sight: Reduced
     sight,
     ghaAriesDeg: ghaAriesFor(nc.ctx.engine, session, sight, kindOf(nc, sight.body) === 'star'),
     format: angleFormat(nc),
-    timeInfo: timeInfoAt(nc.ctx, sight.jd_utc),
+    clock: dtChip(nc.ctx, sight.jd_utc, CLOCK),
+    place: dtChip(nc.ctx, sight.jd_utc, position(sight.body)),
   };
 }
 

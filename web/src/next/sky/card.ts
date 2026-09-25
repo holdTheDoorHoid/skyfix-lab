@@ -9,18 +9,17 @@
  */
 
 import { h } from '../../dom.js';
-import type { TimeInfo } from '../engine/types.js';
 import type { IconName } from '../theme/icons.js';
 import { button, iconButton } from '../theme/primitives.js';
-import { setUncertaintyChip, uncertaintyChip } from '../time/chip.js';
+import { setUncertaintyChip, uncertaintyChip, type DtChip } from '../time/chip.js';
 
 export interface CardLine {
   /** Plain words ("Height above horizon"), with the navigator's term after " · " when shown. */
   label: string;
   /** The value, in the number font; '' makes the line a note. */
   value: string;
-  /** Put the ±ΔT chip after the value (a clock time). */
-  chip?: TimeInfo | null;
+  /** Put the ± chip after the value (a clock time or a place: time/chip.ts `dtChip`). */
+  chip?: DtChip | null;
   tip?: string;
 }
 
@@ -68,7 +67,7 @@ export function infoCard(onAction: (id: string, content: CardContent) => void, o
   });
   let content: CardContent | null = null;
   let rendered = '';
-  const chips: { el: HTMLElement; info: TimeInfo | null }[] = [];
+  const chips: { el: HTMLElement; info: DtChip | null }[] = [];
 
   const render = (c: CardContent): void => {
     chips.length = 0;
@@ -134,7 +133,7 @@ export function infoCard(onAction: (id: string, content: CardContent) => void, o
         rendered = '';
         return;
       }
-      const key = JSON.stringify([next.key, next.title, next.sub, next.lines.map((l) => [l.label, l.value, l.chip?.delta_t_sigma_s ?? null, l.chip?.tier ?? null]), next.notes, next.actions.map((a) => a.id + a.label), next.source]);
+      const key = JSON.stringify([next.key, next.title, next.sub, next.lines.map((l) => [l.label, l.value, l.chip?.text ?? null, l.chip?.tip ?? null, l.chip?.tier ?? null]), next.notes, next.actions.map((a) => a.id + a.label), next.source]);
       if (key !== rendered) {
         // Keep the focus on the same action across a redraw (the time moved under it).
         const focused = (document.activeElement as HTMLElement | null)?.dataset?.action;
