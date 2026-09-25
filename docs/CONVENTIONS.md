@@ -1297,6 +1297,11 @@ Normative for every view under `web/src/next/`; the helpers are in `web/src/next
   SkyFix Lab core covers (…)" with the real bounds; a view needing the Deep time pack calls
   `ctx.packs.ensure('deep-time', packReason(jd, ctx))` (`packForDate` says whether one would
   reach the date).
+  *polish2:* there is no Deep time pack, because both tiers are in the core. `packForDate`
+  returns a pack only when one in the site's registry provides positions for the date
+  (`provides: ephemeris:a..b`). `packReason(jd, source, pack)` words its prompt from the
+  engine's coverage and that pack's own years. The tier notice names a loaded pack only when
+  it provides positions (`ephemerisPackLabels`), never the tides or the lunar-limb pack.
 - **Playback** runs to ten years a second. Faster than eight days a second
   (`FAST_PLAYBACK_S`) the per-day events are not computed while time runs (`sunToday` and
   `aroundToday` return null) and are drawn as soon as it stops or slows; a view with its own

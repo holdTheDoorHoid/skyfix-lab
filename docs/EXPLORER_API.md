@@ -1667,6 +1667,11 @@ no precache, no runtime copy) and never deletes the page's packs cache (`isStale
   revision against the manifest, calls `loadPack`, and only then saves the file. A failure
   is shown in words with **Try again**. Not now, Stop, Esc, × and closing after a failure
   are all remembered for the page session. Concurrent calls share one prompt.
+- **polish2: `ensure(name, reason, { asked: true })`** is for a caller whose own button
+  already asked, and stated the size (Tonight's tides card: "Get tide predictions (US
+  stations, 0.3 MB)"). No prompt is shown: the download starts at once with its progress card
+  and **Stop**, and an earlier Not now of this page session is forgotten. Without `asked`,
+  nothing changes.
 - **`remove(name)`** deletes the saved copy; a loaded pack stays in the engine (there is no
   unloading) until the page is reloaded, and Settings says so.
 - After every load the explorer's memoised engine forgets its results
@@ -1676,6 +1681,9 @@ no precache, no runtime copy) and never deletes the page's packs cache (`isStale
   engine now answers. `ctx.packs.subscribe` hears every change (progress included).
 - Developer harnesses pass `NO_PACKS`; the mock engine lists `deep-time`, `tides-us` and
   `lunar-limb` and accepts any bytes (`engine/mock/packs.ts`).
+- **polish2:** there is no `deep-time` pack: both coverage tiers are in the core. The mock
+  lists only the packs that `PRODUCERS` (`crates/skyfix-wasm/src/packs.rs`) makes,
+  `tides-us` and `lunar-limb`, and a test holds the two lists equal (`shell-fixes.test.ts`).
 
 ### Time scales, Delta-T and calendars (timescales agent)
 
