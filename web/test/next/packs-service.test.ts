@@ -300,6 +300,18 @@ describe('ensure: a view that needs a pack', () => {
     expect(r.service.status()[0]).toMatchObject({ loaded: true, saved: true });
   });
 
+  // polish2 (list item 40): a card's own Get button (it states the size) is the question.
+  it('with asked, downloads at once with its progress card, even after a Not now', async () => {
+    const r = rig([DEEP], { answers: ['dismiss'] });
+    await expect(r.service.ensure('deep-time', 'why')).resolves.toBe(false);
+    expect(r.prompter.shown).toEqual(['closed']);
+    await expect(r.service.ensure('deep-time', 'why', { asked: true })).resolves.toBe(true);
+    // The second card went straight to the download: no answer was awaited.
+    expect(r.prompter.asked).toHaveLength(2);
+    expect(r.prompter.shown).toEqual(['closed', 'downloading', 'done: The Deep time pack is saved on this device.']);
+    expect(r.service.status()[0]).toMatchObject({ loaded: true, saved: true });
+  });
+
   it('shares one prompt between views that ask at the same time', async () => {
     const r = rig([DEEP], { answers: ['get'] });
     const [a, b] = await Promise.all([r.service.ensure('deep-time', 'one'), r.service.ensure('deep-time', 'two')]);
