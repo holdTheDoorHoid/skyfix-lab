@@ -12,6 +12,7 @@ import type { ReducedSight, Session } from '../../src/types.js';
 import { MockEngine } from '../../src/next/engine/mock.js';
 import type { ExplorerEngine, TimeInfo } from '../../src/next/engine/types.js';
 import { WasmEngine, type ExplorerWasmExports } from '../../src/next/engine/wasm.js';
+import { instrumentJson } from '../../src/next/engine/wasm-nav.js';
 import { defaultState } from '../../src/next/state.js';
 import { logRows, logValueAt, watchCorrectionAt } from '../../src/next/navigate/logs.js';
 import { defaultWorking, type Working } from '../../src/next/navigate/model.js';
@@ -55,6 +56,14 @@ describe('a log read at an instant (the core’s rule)', () => {
     expect(logValueAt(rows.slice(0, 1), '2027-01-01T00:00:00Z')).toEqual({ value: 3, hoursOutside: 0 });
     expect(logValueAt([], '2026-10-01T00:00:00Z')).toBeNull();
     expect(watchCorrectionAt({ ...LOGGED, clock: { uncertainty_s: 0, correction_s: -2.5 } }, '2026-10-01T01:00:00Z')).toBe(-2.5);
+  });
+});
+
+describe('predictions take the index-error log (navigate2)', () => {
+  it('sends the log with the instrument when it has entries, and not otherwise', () => {
+    const log = [{ utc: '2026-10-01T00:00:00Z', ic_arcmin: -3, note: '' }];
+    expect(JSON.parse(instrumentJson({ index_correction_arcmin: 0, horizon: 'sea', index_error_log: log }))).toEqual({ index_correction_arcmin: 0, horizon: 'sea', index_error_log: log });
+    expect(JSON.parse(instrumentJson({ index_correction_arcmin: -1, index_error_log: [] }))).toEqual({ index_correction_arcmin: -1 });
   });
 });
 
@@ -180,6 +189,15 @@ describe.skipIf(!existsSync(PKG))('against the built core (npm run wasm)', () =>
     const out = engine.starIdentify(r.request);
     expect(out.best).toBe('Vega');
     expect(out.observed_bearing_deg).toBeCloseTo(273.5, 6);
+    // A predicted reading with a one-entry log equals one with that single correction.
+    const nav = (engine as unknown as { nav: { predictSextant: (o: object, i: object, b: string, l: string, jd: number) => { hs_deg: number } } }).nav;
+    expect(nav).toBeTruthy();
+    if (nav) {
+      const observer = { lat_deg: 39.95, lon_deg: -75.17, height_of_eye_m: 2.5 };
+      const byLog = nav.predictSextant(observer, { index_correction_arcmin: 0, index_error_log: [{ utc: '2026-10-01T00:00:00Z', ic_arcmin: -3, note: '' }] }, 'Vega', 'center', 2461314.5625);
+      const bySingle = nav.predictSextant(observer, { index_correction_arcmin: -3 }, 'Vega', 'center', 2461314.5625);
+      expect(byLog.hs_deg).toBeCloseTo(bySingle.hs_deg, 12);
+    }
     // The tier from the real engine: 1980 is outside this build's coverage.
     expect(sightTierAt(engine, 2444391.5).offered).toBe(false);
     expect(sightTierAt(engine, 2461314.5).offered).toBe(true);

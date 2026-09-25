@@ -582,6 +582,8 @@ export function lunarInputFor(w: Working, place: LatLon): { input: LunarDistance
       instrument: {
         index_correction_arcmin: w.session.instrument.index_correction_arcmin,
         horizon: w.session.instrument.horizon,
+        // navigate2: the logged index correction, as the session's sights use it.
+        ...(w.session.instrument.index_error_log?.length ? { index_error_log: w.session.instrument.index_error_log } : {}),
       },
       body: f.body,
       utc_estimate: f.watchUtc,

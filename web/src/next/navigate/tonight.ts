@@ -64,7 +64,12 @@ function inputsFor(ctx: Ctx, from: 'place' | 'dr'): Inputs {
           pressure_hpa: w.session.observer.pressure_hpa,
           temperature_c: w.session.observer.temperature_c,
         },
-        instrument: { index_correction_arcmin: w.session.instrument.index_correction_arcmin, horizon: w.session.instrument.horizon },
+        instrument: {
+          index_correction_arcmin: w.session.instrument.index_correction_arcmin,
+          horizon: w.session.instrument.horizon,
+          // navigate2: the logged index correction, as the session's sights use it.
+          ...(w.session.instrument.index_error_log?.length ? { index_error_log: w.session.instrument.index_error_log } : {}),
+        },
         jdStart: s.time.jd_utc,
         label: 'the session’s assumed position',
       };
