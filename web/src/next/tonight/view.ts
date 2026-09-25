@@ -69,6 +69,7 @@ import { chipNeeded, timeInfoForSpan, uncertaintyChip, type ChipInfo } from '../
 import { formatCivilDate } from '../time/format.js';
 import { scaleLabel } from '../time/scale.js';
 import { UTC_ZONE, zoneShortName } from '../time.js';
+import { eventsTargetFor, showEvents } from '../events/link.js';
 
 // -------------------------------------------------------------------------------------
 // The view's own memory (per explorer, while the page lives)
@@ -632,12 +633,13 @@ const view: Component = (host, ctx) => {
       icon('chevron-right', { class: 'sft-row__go' }),
     );
     // The time carries the night's ± uncertainty in its text when time-ui's rule asks for it (`clock`).
+    // Events opens on the list of the item's kind at its moment, with its card when it has
+    // one (events/link.ts `showEvents`; polish2, list item 41: it opened whatever tab Events
+    // remembered).
     open.addEventListener('click', () => {
       store.batch(() => {
         pinAt(i.jd);
-        setTime(store, i.jd);
-        if (i.body) store.patch({ selection: { body: i.body } });
-        store.patch({ view: 'events' });
+        showEvents(store, eventsTargetFor(i.kind) ?? 'eclipses', { jd: i.jd, body: i.body, id: i.ref ?? null });
       });
     });
     return h('li', { class: i.seen ? 'sft-coming__item' : 'sft-coming__item is-unseen' }, open);
