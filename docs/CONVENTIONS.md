@@ -28,8 +28,12 @@ section it implements.
   it. Those values never feed the navigation chain. **One exception for a time
   method:** clearing a lunar distance (`skyfix_core::sights::lunar`) places the observer
   on the WGS84 ellipsoid at the DR position, because a lunar's time needs the Moon's
-  parallax to 0.03' and the sphere is up to 0.22' out for the Moon. Sight reduction, the
-  solver, the planner's geometry and the predicted sextant readings stay on the sphere.
+  parallax to 0.03' and the sphere is up to 0.22' out for the Moon. **A third exception,
+  in the model altitude of the Moon (section 15.4):** `Hc` of a Moon sight is the
+  sphere's plus the Earth-shape term, the WGS84 geometry at the trial position minus the
+  sphere's, wherever a model altitude is evaluated (the solver, the intercept, predicted
+  readings, the noon and averaging methods, the planner and the misfit grid). `Ho`, the
+  correction chain, 1' = 1 NM and every other body stay on the sphere.
 
 ## 2. Coordinates and sign conventions
 
@@ -129,14 +133,17 @@ Order for `sextant_hs`:
      in the tabulated GHA and Dec); for Jupiter and Saturn it is under 0.04', which the
      Almanac omits and this chain applies.
    - **Stars**: 0.
-   - **Not modelled: the Earth's figure.** On the real (WGS84) Earth the observer's
-     geocentric radius is shorter than the equatorial radius and the plumb line does not
-     point at the Earth's centre, so the Moon's true parallax in altitude differs from
-     the sphere's by up to **0.22'** (median 0.09'; measured against 104 Skyfield sights,
-     and USNO's own values agree with the WGS84 figure to 0.004'). The term depends on
-     the observer's latitude and the Moon's azimuth, which a reduction does not know, so
-     the sphere of section 1 is kept and the residual is in the error budget
-     (`docs/ACCURACY.md`, section 8). Planets: under 0.005'.
+   - **The Earth's figure is not in this step; it is in the Moon's model altitude.**
+     On the real (WGS84) Earth the observer's geocentric radius is shorter than the
+     equatorial radius and the plumb line does not point at the Earth's centre, so the
+     Moon's true parallax in altitude differs from the sphere's by up to **0.24'**
+     (median 0.09' over 104 Skyfield sights). The difference depends on the observer's
+     latitude and the Moon's azimuth, which a reduction does not know, so this step keeps
+     the sphere of section 1 and `Ho` stays the sphere's geocentric altitude; the term is
+     added to `Hc` at every trial position instead (section 15.4), which leaves a perfect
+     Moon sight on the WGS84 Earth within 0.0064' of its model altitude, and the Moon's
+     parallax implied by the model within 0.0004' of USNO's. Planets: at most 0.0021'
+     (Venus at inferior conjunction), not applied.
 6. `Ho = Ha - R (+/- SD) + PA`.
 
 Limb with an artificial horizon: halving first, then the limb rule above, is correct.
@@ -154,9 +161,13 @@ low-altitude term above.
 - Internally: `jd_utc: f64` (Julian date). Derived:
   `jd_tt = jd_utc + (delta_at + 32.184) / 86400` with `delta_at` from the leap-second
   table in `skyfix_core::time` (37 s from 2017-01-01; no later leap second exists as of
-  the build date). `jd_ut1 = jd_utc + dut1 / 86400` with **DUT1 assumed 0** unless the
-  provider is given one. |DUT1| < 0.9 s, so GHA carries up to 0.23' of unmodelled
-  error from this assumption; it is listed in the error budget, not hidden.
+  the build date). `jd_ut1 = jd_utc + dut1 / 86400`, with DUT1 from the single lookup
+  `skyfix_core::time::dut1_s(jd_utc, user)`: the session's `clock.dut1_s` (or the CLI's
+  `--dut1`, or an observer document's `dut1_s` at the WASM boundary) when given,
+  otherwise the engine's value (0 until the timescales work adds the IERS history and
+  the model of section 15.2). A session's providers are built once, at its earliest
+  sight. |DUT1| < 0.9 s, so an unknown DUT1 leaves up to 0.23' in every GHA; it is
+  listed in the error budget, not hidden.
 - **Clock offset**: a shared offset `dt` makes every recorded time wrong by the same
   amount. It shifts every GHA by `omega * dt` (`omega = 15.041 07 deg/h` sidereal for
   stars, 15.000 deg/h for the Sun to first order, and the body's own rate for the Moon
@@ -248,7 +259,7 @@ low-altitude term above.
     "assumed_position_role": { "role": "initializer" }
   },
   "instrument": { "name": "simulated", "index_correction_arcmin": 0.0, "horizon": "sea" },
-  "clock": { "uncertainty_s": 0.0, "correction_s": 0.0 },
+  "clock": { "uncertainty_s": 0.0, "correction_s": 0.0, "dut1_s": -0.1 },
   "observations": [
     {
       "id": "obs-1",
@@ -270,6 +281,11 @@ low-altitude term above.
 - `kind` is `simulated` or `real`; the UI shows it on every view.
 - `assumed_position_role.role` is `initializer` (default), `prior` (with `sigma_nm`) or
   `disabled`.
+- `clock.dut1_s` (expansion programme): UT1 − UTC in seconds from the time signal or
+  IERS Bulletin A, optional. Absent or `null` means automatic (section 6); a session
+  without it is written without it, in JSON and in CSV (`# clock.dut1_s=...`, empty =
+  automatic). Validation: finite; beyond the IERS bound of 0.9 s a warning; beyond 60 s
+  refused as not seconds.
 - `horizon` on an observation overrides the instrument's mode for that sight only.
 - `geocentric` supplies the body direction directly ("first numerical slice"). When
   present it wins over any ephemeris provider and the report says so. When absent, an
@@ -343,7 +359,9 @@ Wire formats are in `docs/EXPLORER_API.md`; the program plan is `docs/EXPLORER_P
   display only; sight reduction still uses section 5.
 - `hc_deg` / `zn_deg` in the explorer are exactly section 3 from the apparent
   geocentric GHA/Dec: what a navigator's tables give. The UI labels the two families
-  differently and never subtracts one from the other as if they were comparable.
+  differently and never subtracts one from the other as if they were comparable. (For
+  the Moon this display `hc_deg` is the tables' sphere, without the Earth-shape term the
+  navigation paths add to its model altitude, section 15.4.)
 
 ### 13.3 Rise, set, transit and twilight
 
@@ -529,6 +547,40 @@ WGS84 topocentric geometry at the trial position and the spherical one, f = 1/29
 in the solver, the intercept, predicted readings, the noon and Polaris methods, the
 planner and the misfit grid. `Ho` and the six-step correction chain are unchanged. The
 term is under 0.002′ for Venus and Mars and is not applied to them.
+
+Implementation (moonshape, 2026-09-24; `skyfix_core::sights::wgs84::EarthShape`):
+
+- **Definition.** For a Moon sight whose direction carries its horizontal parallax,
+  `term = [h_t + asin(sin HP cos h_t)] − Hc_sphere`: `h_t` is the altitude, above the
+  geodetic horizon of a sea-level WGS84 site at the trial position, of the Moon placed at
+  `6378.14 km / sin HP` along its apparent geocentric direction, and `Hc_sphere` is
+  section 3 at the same geodetic latitude and longitude. Both altitudes are taken with
+  `atan2`, so the term is exact to the zenith. The model altitude is `Hc_sphere + term`;
+  `Ho − Hc` is then zero for a perfect sight on the real Earth. `OB` above is minus this
+  term to first order, with `h` and `Z` the altitude and azimuth the observer sees
+  (0.00018′ from the exact value below 84°; 0.004′ if `h` is taken as the geocentric
+  altitude). Worst case 0.2382′ (φ = 54.9°, the Moon toward the equator at 55°, HP
+  61.5′); Venus 0.0021′, Mars 0.0015′, the Sun 0.0006′.
+- **Where.** `Sight.moon_hp_arcmin` (set by `reduce::to_sights` for the Moon) brings the
+  term into the solver at every trial position; `ReducedSight.hc_deg` and the intercept
+  at the assumed position include it and `ReducedSight.earth_shape_arcmin` reports it;
+  `PredictedSight.hc_deg` includes it and `earth_shape_arcmin` reports it (so a
+  predicted reading is the real Earth's); the noon method's curve, meridian altitude
+  and latitude rule (`lat = dec ± (90° − (H0 − term))`), the averaging method's
+  predicted altitude, the planner's Moon altitude and the misfit grid use it. Polaris
+  sights have no Moon. A running fix takes the term at the estimated position at each
+  sight and removes it from that sight's `Ho` before advancing it. A Moon circle of
+  position carries the term evaluated at the fix (at the best candidate, or the
+  initializer, when there is no fix).
+- **Jacobian.** The solver's row stays `[cos Zn, sin Zn]`. The term's own slope is at
+  most 0.9e-4 of the main term's below 45° of altitude and 1.8e-4 below 70°, growing as
+  `tan h` toward the zenith (7e-4 at 85°): it changes the iteration's path, not where it
+  stops, and the covariance by under 0.04 % below 70°.
+- **Without HP.** An `observed_ho` Moon record whose supplied direction has no
+  horizontal parallax cannot have the term; it is modelled on the sphere and the
+  reduction says so (a warning).
+- **Not modelled with it:** the observer's height (30 m changes the parallax by
+  0.0003′), polar motion, and the deflection of the vertical.
 
 ### 15.5 Packs
 

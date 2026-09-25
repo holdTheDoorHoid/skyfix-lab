@@ -633,7 +633,8 @@ ignored with a `limb_ignored_for_star` warning).
 | `body`, `jd_utc`, `utc`, `limb`, `horizon` | as asked (canonical name) |
 | `direction_source` | the provider that gave the direction |
 | `gha_deg`, `dec_deg`, `semidiameter_arcmin`, `horizontal_parallax_arcmin` | apparent geocentric (Venus: centre of light) |
-| `hc_deg`, `zn_deg` | computed altitude and true azimuth at the observer (CONVENTIONS §3) |
+| `hc_deg`, `zn_deg` | computed altitude and true azimuth at the observer (CONVENTIONS §3; the Moon's altitude includes `earth_shape_arcmin`, §15.4) |
+| `earth_shape_arcmin` | the Moon's Earth-shape term included in `hc_deg`, arcminutes; 0 for every other body (expansion programme) |
 | `hs_deg` | **the sextant reading** (the double angle with a reflected artificial horizon) |
 | `ha_deg` | apparent altitude after index correction and dip (or halving) |
 | `corrections` | a `CorrectionBreakdown` (the existing session type): the forward chain from `hs_deg`, six steps, `ho_deg` equal to `hc_deg` to 1e-9 deg |
@@ -1142,3 +1143,55 @@ engine's history or model). Additive; older files still load. Rust:
 `skyfix_core::time::dut1_s(jd_utc: f64, user: Option<f64>) -> f64` is the single lookup
 (moonshape adds it returning `user.unwrap_or(0.0)`; timescales replaces the fallback with
 the IERS history and the model).
+
+## Expansion programme — moonshape (P1): the Moon's Earth-shape term and DUT1
+
+Implemented 2026-09-24 in `agent/moonshape`. Additive throughout: no field was renamed or
+removed, and a document without the new fields reads as before.
+
+### The Moon's Earth-shape term (CONVENTIONS §15.4)
+
+- **`ReducedSight`** (`reduce` entries, every method's `sights`) gains
+  `horizontal_parallax_arcmin: number` (the direction's HP, 0 for a star) and
+  `earth_shape_arcmin: number | null` — the Moon's Earth-shape term included in `hc_deg`
+  and `intercept_nm` at the assumed position; `null` for every other body, without an
+  assumed position, and for a Moon direction without HP (the reduction then warns, a
+  `{"code": "other"}` naming the term). `corrections` and `ho_deg` never include it.
+- **`PredictedSight`** (`predict_sextant`, every `plan_sights` recommendation) gains
+  `earth_shape_arcmin: number` (0 for every body but the Moon); `hc_deg` includes it, so
+  the predicted reading is the real (WGS84) Earth's and `corrections.ho_deg` still equals
+  `hc_deg` to 1e-9°.
+- **`FixResult`**: every `Residual.hc_deg` and `intercept_nm` of a Moon sight is the model
+  altitude with the term at the fix; a Moon `CircleOfPosition.zenith_distance_deg` is
+  `90 − (Ho − term)` with the term at the fix (the best candidate when ambiguous, the
+  initializer when there is no point fix, none without one), so the plotted circle passes
+  through the fix.
+- **`NoonSightResult`** for the Moon: `meridian_altitude_deg` is an `Ho` (the sphere's
+  plus the term), `zenith_distance_deg` is `90 − (meridian altitude − term)` (so
+  `latitude = declination ± zenith distance` still holds exactly), and `latitude_rule`
+  states the term. `AveragedSight.observation` of an all-supplied Moon run keeps the
+  Moon's HP in its `geocentric` direction.
+- **Misfit grid**: the mapped misfit includes the term at every node, exactly as the
+  solver evaluates it. **Planner** (`plan`, `plan_sights`): the Moon's candidate altitude
+  includes it.
+
+### DUT1 (UT1 − UTC)
+
+- **Session**: `clock.dut1_s: number | null`, seconds, optional (contract above). Omitted
+  from a session the core writes when absent; CSV header `# clock.dut1_s=` (empty =
+  automatic). `parse_session` refuses a non-finite value or one beyond 60 s, and warns
+  beyond 0.9 s.
+- **Every session export** — `reduce`, `solve`, `misfit_grid`, `misfit_default_bounds`,
+  `noon_sight`, `polaris_latitude`, `average_sights`, `running_fix` — builds its `auto`
+  providers once per call with `time::dut1_s(earliest sight, clock.dut1_s)`
+  (`skyfix_wasm::nav::session_source`). A GHA moves by 15.04″ per second of DUT1,
+  whatever the body.
+- **`predict_sextant`, `plan_sights`, `lunar_distance`** take no session: the observer
+  document (for `lunar_distance`, the input's `observer`) may carry
+  `"dut1_s": number | null`, read at the boundary (it is not a field of the Rust
+  `SightObserver`, and a plan does not echo it); `plan_sights` takes one value for its
+  whole span, at `jd_start`. Refused like the session's.
+- **TypeScript**: `Clock.dut1_s?`, `ReducedSight.horizontal_parallax_arcmin` and
+  `earth_shape_arcmin`, `PredictedSight.earth_shape_arcmin`, `SightObserver.dut1_s?`
+  (`web/src/types.ts`, `web/src/next/engine/types.ts`); `sightObserverJson` passes
+  `dut1_s` on.

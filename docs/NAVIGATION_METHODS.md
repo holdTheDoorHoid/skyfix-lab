@@ -548,3 +548,16 @@ provided:
   straight-line track through supplied directions is fine over minutes, not hours.
 - **Lunar distance** is a new method with its own clearing of the distance; nothing here
   covers it.
+- **The Moon's Earth-shape term** (expansion programme, CONVENTIONS 15.4). The Moon's
+  model altitude is the sphere's plus the part of its parallax the sphere leaves out, up
+  to 0.24′, and on the meridian that term is the whole error of a latitude reduced on
+  the sphere. The noon method's exact curve, its free parabola, the single maximum and
+  the ex-meridian latitude all use the model altitude, the meridian altitude it reports
+  is an `Ho` (the sphere's plus the term), and the rule it states reads
+  `latitude = declination ± (90° − (meridian altitude − term))`, with the term's value in
+  the sentence. The averaging method predicts the Moon's altitude the same way, and an
+  averaged Moon sight keeps the Moon's horizontal parallax in its direction so a fix made
+  from it keeps the term. A running fix takes the term at the estimated position at each
+  sight. `crates/skyfix-core/tests/moon_earth_shape.rs`: a noise-free Moon run on the real
+  Earth (term +0.22′ at 50° N) gives the latitude to 1e-6′ by the curve, 0.001′ by a
+  single maximum and 4e-6′ ex-meridian.
