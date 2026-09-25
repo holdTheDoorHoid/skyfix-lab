@@ -3,26 +3,32 @@
  * where on the horizon the Sun rises and sets on every day, and how high it stands at
  * solar noon. OWNER: charts2 agent.
  *
- * One `rise_set_azimuths` call for the observer's year (the event finder's rise and set:
- * the upper limb on the horizon; the days laid out on the display zone's standard time).
- * Three panels share the date axis; in the two bearing panels north is up, so both show
- * the Sun swinging north in summer and south in winter the same way.
+ * The event finder's rise, set and transit on every local day of the year (the upper limb
+ * on the horizon): the Year chart's own `day_events_batch`, memoised and shared, so the two
+ * charts cost one computation between them. `rise_set_azimuths` is the same finder over the
+ * year split into days (EXPLORER_API "sun tools"); sharing the Year chart's days keeps the
+ * two charts identical and draws this one at no cost after the other. Three panels share
+ * the date axis; in the two bearing panels north is up, so both show the Sun swinging north
+ * in summer and south in winter the same way.
  */
 
 import { h, s } from '../../dom.js';
 import { observerKey } from '../component.js';
-import { isSunToolsEngine, type SeasonEvent } from '../engine/types.js';
+import type { SeasonEvent } from '../engine/types.js';
 import { setTime, stepTime } from '../playback.js';
 import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
 import { wallClock, zoneLabel } from '../time.js';
-import { localDayCache, mountChart, NotAvailableError, placeName, type Shell } from './chart-shell.js';
+import { localDayCache, mountChart, placeName, type Shell } from './chart-shell.js';
+import { OutsideCoverageError } from './coverage.js';
+import { yearMemo } from './year-chart.js';
+import type { YearInput } from './year-data.js';
 import { altitude, bearing, clock, dateShort, dayMonth, MONTHS_LONG } from './format.js';
 import { errorText, pill, round, stepperNav, svgText, table, timeButton, tipHead, tipRow, tooltip, type ChartComponent, type Tooltip } from './frame.js';
 import { frameRect, linePath, monthGrid, monthLabels, panelTitle, svgRoot, todayOnAxis, yearAxis, type MonthLabel, type YearAxis } from './plot.js';
 import { clamp, linearScale, type LinearScale } from './scale.js';
 import { parseDate } from './analemma.js';
-import { computeBearings, dayOfYearOf, standardOffsetHours, type BearingData, type BearingDay, type BearingInput } from './sun-data.js';
-import { dateKey, jdAtWallHours, localDateOf } from './windows.js';
+import { bearingsFromYear, dayOfYearOf, type BearingData, type BearingDay } from './sun-data.js';
+import { dateKey, jdAtWallHours, localDateOf, zoneKey } from './windows.js';
 
 interface BearingChartData {
   readonly bearings: BearingData;
@@ -46,31 +52,30 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
   let geom: { axis: YearAxis; top: number; bottom: number; svg: SVGSVGElement; months: MonthLabel[] } | null = null;
   let hoverLayer: SVGGElement | null = null;
 
-  const inputFor = (state: ExplorerState): BearingInput => {
+  const inputFor = (state: ExplorerState): YearInput => {
     const zone = displayZone(state);
-    const year = dayOf(state.time.jd_utc, zone).date.year;
-    return { observer: engineObserver(state), year, offsetH: standardOffsetHours(zone, year), options: eventOptions(state) };
+    return { observer: engineObserver(state), zone, year: dayOf(state.time.jd_utc, zone).date.year, options: eventOptions(state) };
   };
 
-  return mountChart<BearingInput, BearingChartData>(host, ctx, ui, {
+  return mountChart<YearInput, BearingChartData>(host, ctx, ui, {
     kind: 'bearings',
     heading: 'Sunrise and sunset bearings',
     heavy: true,
     input: inputFor,
-    key: (i) => [observerKey(i.observer), i.year, i.offsetH, i.options.horizon, i.options.height_of_eye_m].join('|'),
+    key: (i) => [observerKey(i.observer), zoneKey(i.zone), i.year, i.options.horizon, i.options.height_of_eye_m].join('|'),
     compute(input) {
-      const engine = ctx.engine;
-      if (!isSunToolsEngine(engine)) throw new NotAvailableError('The Sun charts');
-      const bearings = computeBearings(engine, input);
+      const year = yearMemo(ctx, input);
+      const bearings = bearingsFromYear(input.year, year.days);
       let seasons: SeasonEvent[] = [];
       try {
-        seasons = [...engine.seasons(input.year)];
+        seasons = [...ctx.engine.seasons(input.year)];
       } catch {
         seasons = [];
       }
       return { bearings, seasons };
     },
-    failureText: (error, input) => `The engine could not find this year’s sunrises and sunsets (${input.year}): ${errorText(error)}`,
+    failureText: (error, input) =>
+      error instanceof OutsideCoverageError ? error.message : `The engine could not find this year’s sunrises and sunsets (${input.year}): ${errorText(error)}`,
     setup(shell) {
       stepperNav(shell.c.nav, 'Previous year', 'Next year', (dir) => stepTime(ctx.store, { unit: 'year', count: dir }));
       tip = tooltip(shell.c.plot);
@@ -97,14 +102,14 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
     labels: () => ['Sunrise and sunset: the upper limb of the Sun on a sea-level horizon (standard refraction). Bearings from true north. Heights at solar noon are geometric (without refraction).'],
   });
 
-  function draw(shell: Shell<BearingInput, BearingChartData>): SVGSVGElement {
+  function draw(shell: Shell<YearInput, BearingChartData>): SVGSVGElement {
     const { bearings, seasons } = shell.data!;
     const W = shell.width;
     const narrow = W < 560;
     const margin = { left: narrow ? 58 : 76, right: narrow ? 8 : 14, top: 22 };
     const x0 = margin.left;
     const x1 = W - margin.right;
-    const axis = yearAxis(bearings.input.year, x0, x1);
+    const axis = yearAxis(bearings.year, x0, x1);
     const panelH = Math.round(clamp(W * 0.17, 110, 170));
     const gap = 30;
     const noonH = Math.round(panelH * 0.75);
@@ -239,12 +244,12 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
       h('span', { class: 'sfc-muted' }, 'Dashed lines: the equinoxes and solstices. Click a day to go to it; hover for the times.'),
     );
     const notes: HTMLElement[] = [];
-    if (bearings.raw.truncated) notes.push(h('p', { class: 'sfc-note' }, 'Part of this year is outside the engine’s coverage and is left blank.'));
+    if (bearings.missing) notes.push(h('p', { class: 'sfc-note' }, `${bearings.missing} day${bearings.missing === 1 ? ' is' : 's are'} outside the engine’s coverage and left blank.`));
     shell.c.notes.replaceChildren(...notes);
     return svg;
   }
 
-  function placeToday(shell: Shell<BearingInput, BearingChartData>): void {
+  function placeToday(shell: Shell<YearInput, BearingChartData>): void {
     if (!geom) return;
     const layer = geom.svg.querySelector<SVGGElement>('.sfc-today-layer');
     if (!layer) return;
@@ -263,7 +268,7 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
     return clamp(Math.floor(geom.axis.xs.invert(px)), 0, geom.axis.n - 1);
   }
 
-  function onHover(event: PointerEvent, shell: Shell<BearingInput, BearingChartData>): void {
+  function onHover(event: PointerEvent, shell: Shell<YearInput, BearingChartData>): void {
     const i = dayAt(event);
     const day = i === null ? undefined : shell.data?.bearings.days.find((d) => d.index === i);
     if (!geom || !day || !tip || !hoverLayer) {
@@ -285,7 +290,7 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
     tip.show(event.clientX - rect.left, event.clientY - rect.top, rows);
   }
 
-  function onClick(event: MouseEvent, shell: Shell<BearingInput, BearingChartData>): void {
+  function onClick(event: MouseEvent, shell: Shell<YearInput, BearingChartData>): void {
     const i = dayAt(event);
     const day = i === null ? undefined : shell.data?.bearings.days.find((d) => d.index === i);
     if (!day) return;
@@ -295,7 +300,7 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
     setTime(ctx.store, jdAtWallHours(parseDate(day.date), w.hour + w.minute / 60, zone));
   }
 
-  function summary(shell: Shell<BearingInput, BearingChartData>): string {
+  function summary(shell: Shell<YearInput, BearingChartData>): string {
     const data = shell.data;
     if (!data) return 'Where on the horizon the Sun rises and sets through the year.';
     const b = data.bearings;
@@ -310,12 +315,12 @@ export const sunBearingsChart: ChartComponent = (host, ctx, ui) => {
     return text;
   }
 
-  function tables(shell: Shell<BearingInput, BearingChartData>): HTMLElement[] {
+  function tables(shell: Shell<YearInput, BearingChartData>): HTMLElement[] {
     const b = shell.data!.bearings;
     const st = ctx.store.get();
     const zone = displayZone(st);
     const fmt = st.settings.angleFormat;
-    const t = table(`Sunrise, sunset and solar noon, every day of ${b.input.year} (local times, ${zoneLabel(st.time.jd_utc, zone)}; UTC on hover)`, [
+    const t = table(`Sunrise, sunset and solar noon, every day of ${b.year} (local times, ${zoneLabel(st.time.jd_utc, zone)}; UTC on hover)`, [
       'Date',
       'Sunrise',
       'Bearing',

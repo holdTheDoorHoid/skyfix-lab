@@ -9,8 +9,8 @@
  *   measured at large and small tidal ranges, day and week (ACCURACY.md, "Charts").
  * - The Moon through the year is `sample_bodies`, one exact sample a day: it equals
  *   `sky_state` at the same instants within 1″ (a run takes DUT1 at its middle).
- * - The sun path's hour marks are the engine's samples; the bearings chart's days are
- *   `rise_set_azimuths`' days.
+ * - The sun path's hour marks are the engine's samples; the bearings chart's days (the
+ *   Year chart's `day_events_batch`) agree with `rise_set_azimuths` event by event.
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -21,7 +21,8 @@ import { inspectWasmModule, type WasmEngine } from '../../src/next/engine/wasm.j
 import type { Zone } from '../../src/next/time.js';
 import { computeTides, heightAt, rateAt } from '../../src/next/charts/tides-data.js';
 import { computeMoonYear } from '../../src/next/charts/moon-year-data.js';
-import { computeBearings, computeSunPath } from '../../src/next/charts/sun-data.js';
+import { bearingsFromYear, computeSunPath } from '../../src/next/charts/sun-data.js';
+import { computeYear } from '../../src/next/charts/year-data.js';
 import { localDay } from '../../src/next/charts/windows.js';
 
 const PKG = resolve(import.meta.dirname, '../../src/wasm-pkg');
@@ -110,10 +111,24 @@ describe.skipIf(!ready)('the charts on the real core', () => {
     const observer = { lat_deg: 39.9526, lon_deg: -75.1652, height_m: 0 };
     const path = computeSunPath(engine, { observer, zone, day: localDay(zone, { year: 2026, month: 6, day: 21 }), options: OPTIONS });
     expect(path.hours.map((m) => m.hour)).toEqual([6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
-    const bearings = computeBearings(engine, { observer, year: 2026, offsetH: -5, options: OPTIONS });
+    const bearings = bearingsFromYear(2026, computeYear(engine, { observer, zone, year: 2026, options: OPTIONS }).days);
     expect(bearings.days).toHaveLength(365);
     // The June solstice sunrise at Philadelphia: 57.9° (ACCURACY.md section 14's engine).
     expect(bearings.riseRange!.min).toBeCloseTo(57.9, 0);
     expect(bearings.setRange!.max).toBeCloseTo(302.1, 0);
+    // The Year chart's day events are rise_set_azimuths' own: the same instants and bearings.
+    const rsa = engine.riseSetAzimuths(observer, { body: 'Sun', year: 2026, utc_offset_hours: -5, options: OPTIONS });
+    const rises = rsa.days.flatMap((d) => d.rises);
+    let worstS = 0;
+    let worstAz = 0;
+    for (const d of bearings.days) {
+      const other = rises.find((r) => Math.abs(r.jd_utc - d.rise!.jd) < 0.01)!;
+      worstS = Math.max(worstS, Math.abs(other.jd_utc - d.rise!.jd) * 86_400);
+      worstAz = Math.max(worstAz, Math.abs(other.az_deg - d.rise!.az));
+    }
+    console.log(`bearings from the Year chart against rise_set_azimuths: ${worstS.toFixed(4)} s, ${(worstAz * 3600).toFixed(4)}″`);
+    // rise_set_azimuths takes one DUT1 for its year-long window, the batch each day's: 14 ms.
+    expect(worstS).toBeLessThan(0.05);
+    expect(worstAz * 3600).toBeLessThan(0.01);
   });
 });

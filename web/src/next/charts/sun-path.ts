@@ -384,7 +384,7 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
     const layer = s('g', { 'clip-path': clip.url }) as SVGGElement;
     svg.append(layer);
     const boxes: Box[] = [];
-    const screen = drawPaths(layer, data, project, boxes, shell.input.zone, { away: [0, H * 10], outward: false, seam: (W - 0) / 2 });
+    const screen = drawPaths(layer, data, project, boxes, shell.input.zone, { away: [0, H * 10], outward: false, seam: (W - 0) / 2, bounds: [x0, y0, x1, y1] });
     drawRiseSet(svg, data, project, shell.input.zone, boxes, 'across', null);
     svg.append(s('rect', { class: 'sfc-frame', x: x0 + 0.5, y: y0 + 0.5, width: x1 - x0 - 1, height: plotH - 1 }));
     return { svg, project, screen };
@@ -397,7 +397,7 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
     project: Projector,
     boxes: Box[],
     zone: Zone,
-    options: { away: [number, number]; outward: boolean; seam?: number; centre?: [number, number] },
+    options: { away: [number, number]; outward: boolean; seam?: number; centre?: [number, number]; bounds?: [number, number, number, number] },
   ): { p: SkyPoint; x: number; y: number }[] {
     const toPath = (run: readonly SkyPoint[]): string => {
       const pts: ([number, number] | null)[] = [];
@@ -411,41 +411,21 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
       }
       return linePath(pts);
     };
+    /** A label kept inside the picture (x0, y0, x1, y1), when it has edges to respect. */
+    const inside = (x: number, y: number, text: string, cls: string, size: number): ReturnType<typeof pill> => {
+      let lp = pill(x, y, text, { size, cls });
+      const b = options.bounds;
+      if (b) {
+        const cx = clamp(x, b[0] + lp.box.w / 2 + 2, b[2] - lp.box.w / 2 - 2);
+        const cy = clamp(y, b[1] + lp.box.h / 2 + 2, b[3] - lp.box.h / 2 - 2);
+        if (cx !== x || cy !== y) lp = pill(cx, cy, text, { size, cls });
+      }
+      return lp;
+    };
     const env = s('g', { class: 'sfc-envelope' });
-    const envLabelled = new Set<string>();
     for (const cur of data.path.envelope) {
       const d = cur.runs.map(toPath).join('');
-      if (!d) continue;
-      env.append(s('path', { class: ENVELOPE_CLASS[cur.kind] ?? 'sfc-env', d }));
-      const labelKind = cur.kind.endsWith('equinox') ? 'equinox' : cur.kind;
-      if (envLabelled.has(labelKind) || !cur.peak) continue;
-      const p = project(cur.peak.az, cur.peak.alt);
-      if (!p) continue;
-      const text =
-        labelKind === 'equinox'
-          ? 'Equinoxes'
-          : cur.seasonJd !== null
-            ? dayMonth(localDateOf(cur.seasonJd, zone))
-            : cur.kind === 'june_solstice'
-              ? 'June solstice'
-              : 'December solstice';
-      // Beside the curve's highest point: toward the zenith from above, above it across.
-      let dx = 0;
-      let dy = -13;
-      if (options.outward && options.centre) {
-        const vx = options.centre[0] - p[0];
-        const vy = options.centre[1] - p[1];
-        const len = Math.hypot(vx, vy);
-        if (len > 1) {
-          dx = (vx / len) * 13;
-          dy = (vy / len) * 13;
-        }
-      }
-      const lp = pill(p[0] + dx, p[1] + dy, text, { size: 10, cls: `sfc-pill--env sfc-pill--${labelKind}` });
-      if (boxes.some((b) => overlaps(b, lp.box))) continue;
-      boxes.push(lp.box);
-      env.append(lp.el);
-      envLabelled.add(labelKind);
+      if (d) env.append(s('path', { class: ENVELOPE_CLASS[cur.kind] ?? 'sfc-env', d }));
     }
     parent.append(env);
 
@@ -488,7 +468,7 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
         ny = -1;
       }
       const text = hourTag(m.hour);
-      const lp = pill(q[0] + nx * 13, q[1] + ny * 13, text, { size: 9.5, cls: 'sfc-pill--hour' });
+      const lp = inside(q[0] + nx * 13, q[1] + ny * 13, text, 'sfc-pill--hour', 9.5);
       if (boxes.some((bx) => overlaps(bx, lp.box, 1))) continue;
       boxes.push(lp.box);
       const title = s('title');
@@ -497,6 +477,45 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
       g.append(lp.el);
     }
     parent.append(g);
+
+    // The solstices' and equinoxes' names last: the day's hours have the first claim on room.
+    const envLabels = s('g', { class: 'sfc-envelope-labels' });
+    const envLabelled = new Set<string>();
+    for (const cur of data.path.envelope) {
+      const labelKind = cur.kind.endsWith('equinox') ? 'equinox' : cur.kind;
+      if (envLabelled.has(labelKind) || !cur.peak || !cur.runs.length) continue;
+      const p = project(cur.peak.az, cur.peak.alt);
+      if (!p) continue;
+      const text =
+        labelKind === 'equinox'
+          ? 'Equinoxes'
+          : cur.seasonJd !== null
+            ? dayMonth(localDateOf(cur.seasonJd, zone))
+            : cur.kind === 'june_solstice'
+              ? 'June solstice'
+              : 'December solstice';
+      // Beside the curve's highest point: toward the zenith from above, above it across.
+      let dx = 0;
+      let dy = -13;
+      if (options.outward && options.centre) {
+        const vx = options.centre[0] - p[0];
+        const vy = options.centre[1] - p[1];
+        const len = Math.hypot(vx, vy);
+        if (len > 1) {
+          dx = (vx / len) * 13;
+          dy = (vy / len) * 13;
+        }
+      }
+      for (const k of [1, 2, -1]) {
+        const lp = inside(p[0] + dx * k, p[1] + dy * k, text, `sfc-pill--env sfc-pill--${labelKind}`, 10);
+        if (boxes.some((b) => overlaps(b, lp.box))) continue;
+        boxes.push(lp.box);
+        envLabels.append(lp.el);
+        envLabelled.add(labelKind);
+        break;
+      }
+    }
+    parent.append(envLabels);
     return screen;
   }
 

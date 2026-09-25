@@ -28,6 +28,10 @@ import { chartsView, MOON_VIEWS, SUN_VIEWS, type MoonView, type SunView } from '
 import { redrawEverything } from '../../component.js';
 import { startPacks } from '../../packs/index.js';
 import { presetSunPath } from '../sun-path.js';
+import { isMoonDetailEngine, isSunToolsEngine, isTidesEngine } from '../../engine/types.js';
+import { bearingsFromYear, computeAnalemma, computeEot, computeSolarYear, computeSunPath, standardOffsetHours } from '../sun-data.js';
+import { computeMoonYear } from '../moon-year-data.js';
+import { computeTides } from '../tides-data.js';
 import { presetTides } from '../tides.js';
 import type { Units } from '../../state.js';
 import { computeDay } from '../day-data.js';
@@ -307,6 +311,37 @@ async function bench(stage: HTMLElement, ctx: Ctx, engine: Ctx['engine']): Promi
       `planet chart ${2026 + i}${i ? ' (warm)' : ' (cold)'}: first piece ${first.toFixed(0)} ms, Venus-Saturn done ${primary.toFixed(0)} ms, all ${total.toFixed(0)} ms wall (engine ${job.data.timing.engineMs.toFixed(0)} ms)`,
     );
     print();
+  }
+  // charts2: the Sun, Moon and Tides charts' engine work, cold (first) and warm (median of
+  // the following years or days), as the charts ask for it.
+  if (isSunToolsEngine(engine)) {
+    const e = engine;
+    const offsetH = standardOffsetHours(zone, 2026);
+    const newCharts: [string, (i: number) => unknown][] = [
+      ['sun path (sun_path + day_events + sky_state)', (i) => computeSunPath(e, { observer, zone, day: localDay(zone, { year: 2026, month: 3, day: 1 + i }), options })],
+      ['analemma (a year)', (i) => computeAnalemma(e, { observer, year: 2020 + i, timeH: 12, clock: 'lmt', zoneOffsetH: offsetH })],
+      ['sunrise bearings (the Year chart’s day_events_batch, a year)', (i) => bearingsFromYear(2010 + i, computeYear(e, { observer, zone, year: 2010 + i, options }).days)],
+      ['equation of time (a year)', (i) => computeEot(e, 2020 + i)],
+      ['solar panel (solar_year with the best tilt)', (i) => computeSolarYear(e, { observer, year: 2020 + i, offsetH, panel: { tilt: 40, azimuth: 180 } })],
+      ['Moon through the year (sample_bodies, 365 days)', (i) => computeMoonYear(e, { observer, zone, year: 2020 + i, hour: 21 })],
+    ];
+    if (isMoonDetailEngine(e)) newCharts.push(['perigee and apogee (moon_apsides, a month)', (i) => e.moonApsides(2461284.5 + 31 * i, 2461314.5 + 31 * i)]);
+    if (isTidesEngine(e) && e.tidePackInfo()) {
+      newCharts.push(['tides, a day (stations, extremes, curve, day_events)', (i) => computeTides(e, { observer, zone, day: localDay(zone, { year: 2026, month: 9, day: 1 + i }), span: 'day', datum: '', stationId: null, options })]);
+      newCharts.push(['tides, a week', (i) => computeTides(e, { observer, zone, day: localDay(zone, { year: 2026, month: 9, day: 1 + 7 * i }), span: 'week', datum: '', stationId: null, options })]);
+    }
+    lines.push('');
+    for (const [label, run] of newCharts) {
+      const times: number[] = [];
+      for (let i = 0; i < REPS; i += 1) {
+        const t0 = performance.now();
+        run(i);
+        times.push(performance.now() - t0);
+        await pause();
+      }
+      lines.push(`${label}: first ${times[0]!.toFixed(0)} ms; then ${stats(times.slice(1))}`);
+      print();
+    }
   }
   document.documentElement.dataset.ready = '1';
 }

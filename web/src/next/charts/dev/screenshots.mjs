@@ -110,7 +110,7 @@ const SHOTS = {
   'export-moon': [`${PHILLY}&theme=light&tab=moon&sub=phases`, TALL],
   'export-year': [`${PHILLY}&theme=light&tab=year`, DESKTOP],
   // Not a picture: warm and cold timings in this browser, printed (see harness.ts `bench`).
-  bench: [`${PHILLY}&bench=1`, DESKTOP],
+  bench: [`${PHILLY}&bench=1&packs=tides-us`, DESKTOP],
 };
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));

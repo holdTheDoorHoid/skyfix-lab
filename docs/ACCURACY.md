@@ -2281,6 +2281,7 @@ figures) and with the mock engine in `charts-sun.test.ts` and `charts-tides-moon
 | the rate of rise under the cursor, the same cubic's slope | `tide_now`'s rate | **0.09 cm/h** (Anchorage) |
 | the Moon at one hour through the year: `sample_bodies`, one exact sample a day, in two or three runs a year (a clock change starts a run) | `sky_state` at the same instants (Philadelphia, 21:00, 2026) | **0.72″**: a run takes the Earth's rotation (DUT1) at its middle (EXPLORER_API `set_dut1`); displayed to 0.1′ |
 | the sun path's whole hours on the local clock | the engine's own samples (identical values) | exact |
+| sunrise and sunset bearings through the year, drawn from the Year chart's shared `day_events_batch` (one computation for both charts) | `rise_set_azimuths` for the same year, event by event (Philadelphia, 2026) | **0.014 s, 0.005″**: the year-long call takes one DUT1 for the year, the batch each day's |
 
 Drawn but never shown as a number: the sun path's crossing of the horizon between two
 10-minute samples (linear; the rise and set shown are the event finder's), and the

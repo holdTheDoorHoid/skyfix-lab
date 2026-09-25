@@ -14,7 +14,7 @@ import {
   azAxisStart,
   azDelta,
   computeAnalemma,
-  computeBearings,
+  bearingsFromYear,
   computeEot,
   computeSolarDay,
   computeSolarYear,
@@ -38,6 +38,7 @@ import {
 import { hourTag } from '../../src/next/charts/sun-path.js';
 import { clockWords } from '../../src/next/charts/analemma.js';
 import { localDay } from '../../src/next/charts/windows.js';
+import { computeYear } from '../../src/next/charts/year-data.js';
 import { setHourCycle } from '../../src/next/shell/format.js';
 
 const engine = new MockEngine();
@@ -232,9 +233,11 @@ describe('the sky projection of the analemma', () => {
 });
 
 describe('sunrise and sunset bearings, equation of time, solar panel', () => {
-  it('lays each local day of the year out with its rise, set and solar noon', () => {
-    const data = computeBearings(engine, { observer: PHILLY, year: 2026, offsetH: -5, options: OPTIONS });
+  it('lays each local day of the year out with its rise, set and solar noon: rise_set_azimuths’ numbers', () => {
+    const year = computeYear(engine, { observer: PHILLY, zone: NEW_YORK, year: 2026, options: OPTIONS });
+    const data = bearingsFromYear(2026, year.days);
     expect(data.days).toHaveLength(365);
+    expect(data.missing).toBe(0);
     expect(data.days.map((d) => d.index)).toEqual(Array.from({ length: 365 }, (_, i) => i));
     for (const d of data.days) {
       expect(d.rise!.az).toBeGreaterThan(0);
@@ -242,11 +245,31 @@ describe('sunrise and sunset bearings, equation of time, solar panel', () => {
       expect(d.set!.az).toBeGreaterThan(180);
       expect(d.transit!.alt).toBeGreaterThan(20);
     }
-    const raw = data.raw.days[100]!;
-    expect(data.days[100]!.rise).toEqual({ jd: raw.rises[0]!.jd_utc, az: raw.rises[0]!.az_deg });
     expect(data.riseRange!.min).toBeLessThan(65);
     expect(data.riseRange!.max).toBeGreaterThan(115);
     expect(data.setRange!.max).toBeGreaterThan(295);
+    // The same event finder as rise_set_azimuths: the same sunrises, on every day.
+    const rsa = engine.riseSetAzimuths(PHILLY, { body: 'Sun', year: 2026, utc_offset_hours: -5, options: OPTIONS });
+    let worstS = 0;
+    let worstAz = 0;
+    for (const d of data.days) {
+      const other = rsa.days.flatMap((x) => x.rises).find((r) => Math.abs(r.jd_utc - d.rise!.jd) < 0.01);
+      expect(other).toBeDefined();
+      worstS = Math.max(worstS, Math.abs(other!.jd_utc - d.rise!.jd) * 86_400);
+      worstAz = Math.max(worstAz, Math.abs(other!.az_deg - d.rise!.az));
+    }
+    expect(worstS).toBeLessThan(1);
+    expect(worstAz).toBeLessThan(0.01);
+  });
+
+  it('leaves out the days the engine cannot compute, and counts them', () => {
+    const data = bearingsFromYear(2026, [
+      { day: { key: '2026-01-01', date: { year: 2026 } }, events: [], alwaysAbove: false, alwaysBelow: false, error: 'outside' },
+      { day: { key: '2026-01-02', date: { year: 2026 } }, events: [{ kind: 'rise', jd: 1, az: 120, alt: -0.83 }, { kind: 'set', jd: 1.4, az: 240, alt: -0.83 }, { kind: 'set', jd: 1.9, az: 250, alt: -0.83 }], alwaysAbove: false, alwaysBelow: false, error: null },
+    ]);
+    expect(data.missing).toBe(1);
+    expect(data.days).toHaveLength(1);
+    expect(data.days[0]).toMatchObject({ index: 1, rise: { jd: 1, az: 120 }, set: { jd: 1.9, az: 250 }, transit: null });
   });
 
   it('keeps the equation of time’s four turning points', () => {

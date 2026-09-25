@@ -15,8 +15,6 @@ import type {
   EquationOfTime,
   EventOptions,
   Observer,
-  RiseSetAzimuths,
-  RiseSetDay,
   SolarDay,
   SolarPanel,
   SolarYear,
@@ -363,64 +361,66 @@ export interface BearingDay {
   readonly alwaysBelow: boolean;
 }
 
-export interface BearingInput {
-  readonly observer: Observer;
-  readonly year: number;
-  /** The clock the dates are on: the display zone's standard time. */
-  readonly offsetH: number;
-  readonly options: EventOptions;
-}
-
 export interface BearingData {
-  readonly input: BearingInput;
-  readonly raw: RiseSetAzimuths;
+  readonly year: number;
   readonly days: readonly BearingDay[];
   /** Extremes of the year's sunrise and sunset bearings (northernmost and southernmost). */
   readonly riseRange: { readonly min: number; readonly max: number } | null;
   readonly setRange: { readonly min: number; readonly max: number } | null;
-  readonly timing: { readonly engineMs: number };
+  /** Days the engine could not compute (outside its coverage). */
+  readonly missing: number;
 }
 
-/** The first rise and the last set of each local day (two only happen for the Moon). */
-export function bearingDays(days: readonly RiseSetDay[]): BearingDay[] {
-  return days.map((d) => {
-    const rise = d.rises[0] ?? null;
-    const set = d.sets.length ? d.sets[d.sets.length - 1]! : null;
-    return {
-      index: dayOfYearOf(d.date),
-      date: d.date,
-      rise: rise ? { jd: rise.jd_utc, az: rise.az_deg } : null,
-      set: set ? { jd: set.jd_utc, az: set.az_deg } : null,
-      transit: d.transit ? { jd: d.transit.jd_utc, alt: d.transit.alt_deg } : null,
-      alwaysAbove: d.always_above,
-      alwaysBelow: d.always_below,
-    };
-  });
+/** What `bearingsFromYear` reads from the Year chart's days (year-data.ts `YearDay`). */
+export interface EventDay {
+  readonly day: { readonly key: string; readonly date: { readonly year: number } };
+  readonly events: readonly { readonly kind: string; readonly jd: number; readonly az: number; readonly alt: number }[];
+  readonly alwaysAbove: boolean;
+  readonly alwaysBelow: boolean;
+  readonly error: string | null;
+}
+
+/**
+ * Sunrise and sunset bearings through the year from the Year chart's own day events
+ * (`day_events_batch` over the local days of the display zone, shared and memoised): the
+ * event finder's rise and set (the upper limb on the horizon) and transit, exactly what
+ * `rise_set_azimuths` gives, which is the same finder over the year split into days.
+ * The first rise and the last set of each day.
+ */
+export function bearingsFromYear(year: number, days: readonly EventDay[]): BearingData {
+  const out: BearingDay[] = [];
+  let missing = 0;
+  for (const d of days) {
+    if (d.error) {
+      missing += 1;
+      continue;
+    }
+    const rise = d.events.find((e) => e.kind === 'rise') ?? null;
+    const sets = d.events.filter((e) => e.kind === 'set');
+    const set = sets.length ? sets[sets.length - 1]! : null;
+    const transit = d.events.find((e) => e.kind === 'transit') ?? null;
+    out.push({
+      index: dayOfYearOf(d.day.key),
+      date: d.day.key,
+      rise: rise ? { jd: rise.jd, az: rise.az } : null,
+      set: set ? { jd: set.jd, az: set.az } : null,
+      transit: transit ? { jd: transit.jd, alt: transit.alt } : null,
+      alwaysAbove: d.alwaysAbove,
+      alwaysBelow: d.alwaysBelow,
+    });
+  }
+  return {
+    year,
+    days: out,
+    riseRange: range(out.flatMap((d) => (d.rise ? [d.rise.az] : []))),
+    setRange: range(out.flatMap((d) => (d.set ? [d.set.az] : []))),
+    missing,
+  };
 }
 
 function range(values: number[]): { min: number; max: number } | null {
   if (!values.length) return null;
   return { min: Math.min(...values), max: Math.max(...values) };
-}
-
-export function computeBearings(engine: SunToolsEngine, input: BearingInput): BearingData {
-  const t0 = now();
-  const raw = engine.riseSetAzimuths(input.observer, {
-    body: 'Sun',
-    year: input.year,
-    utc_offset_hours: input.offsetH,
-    options: input.options,
-  });
-  const engineMs = now() - t0;
-  const days = bearingDays(raw.days);
-  return {
-    input,
-    raw,
-    days,
-    riseRange: range(days.flatMap((d) => (d.rise ? [d.rise.az] : []))),
-    setRange: range(days.flatMap((d) => (d.set ? [d.set.az] : []))),
-    timing: { engineMs },
-  };
 }
 
 // ---------------------------------------------------------------------------------------
