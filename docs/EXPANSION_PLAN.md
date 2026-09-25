@@ -127,6 +127,22 @@ The seven principles of `EXPLORER_PLAN.md` §3 stand. Three are extended:
   looser cut only affects the labelled tier's published figures (Venus 0.06′, Mars 0.15′,
   Neptune 0.06′) and is stated in ACCURACY. If the module grows past the budget again, the
   order of remedies is `opt-level = "z"` (polish), then moving the labelled tier into a pack.
+- **Verifier decisions 2026-09-25 (VERIFICATION_2, findings left to the planner).**
+  V13: a CI job now runs the web typecheck and tests against the built core. V24: the
+  ELP/MPP02 lunar series stays: it is a published scientific solution (Chapront & Francou
+  2003, A&A 404, 735) distributed by its authors without a licence statement, mirrored
+  byte-identically with pinned hashes, and shipped as our own re-fitted, re-truncated binary;
+  the acknowledgement is in the documentation, as the credit policy allows, and the residual
+  risk (no explicit licence) is recorded in THIRD_PARTY. V25: the meteor-shower table stays:
+  32 rows of published facts (IAU Meteor Data Center working list, IMO calendar) compiled and
+  restated in our own form (solar longitude), acknowledged in the documentation; the residual
+  risk (EU database right on a substantial extraction; ours is not substantial) is recorded.
+  V18: adopted. The ± chip follows the quantity's real sensitivity to ΔT (VERIFICATION_2 §8):
+  Sun rise, set, transit and twilight times carry no chip when ΔT moves them by under a
+  second, the Moon's times carry the scaled value, phases, seasons and conjunctions carry the
+  full σ, and the Moon's shown position at far dates gains a chip; CONVENTIONS 15.1–15.2 and
+  every chip placement change accordingly (work package `chip2`). V26–V28 go to the
+  documentation pass.
 - **Offline first → optional packs.** Data beyond the core ships as packs under
   `web/public/data/packs/`, content-hashed, listed in a precached manifest, stored by the
   app in its own cache (`skyfix-lab-packs-<schema>@<site>`), never in the precache and never
