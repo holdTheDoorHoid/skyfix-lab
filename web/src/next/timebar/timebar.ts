@@ -1,29 +1,44 @@
 /**
- * The time bar: the date (a day back or forward, a calendar), the clock in the display
- * zone with UTC beside it, the day's sky-phase ribbon with the selected body's rise,
- * highest point and set and a handle to drag, and Now, Play and the playback speed.
- * OWNER: shell-design agent.
+ * The time bar: the date (a day back or forward, a calendar with a year field), the clock in
+ * the display zone with UTC (or UT) beside it and the ±ΔT chip, the day's sky-phase ribbon
+ * with the golden and blue hours, the selected body's rise, highest point and set and a
+ * handle to drag, and Now, Play and the playback speed. OWNER: time-ui agent (from the
+ * shell-design agent's first version).
  *
  * Keys (EXPLORER_PLAN §2) work anywhere on the page (playback.ts `bindTimeKeys`); on the
  * handle, which is a slider, they are handled here, plus Home and End for the start and
  * end of the day. Dragging moves only the handle's position style each frame; the rest
  * of the page redraws at most once a frame (component.ts `watch`).
+ *
+ * Deep time (CONVENTIONS 15): dates are in the display calendar with a "Julian" (or "ISO")
+ * tag before 1582-10-15, years as Settings writes them (585 BC), the zone is local mean
+ * time before 1850 for a zone that follows the place, the second clock is UT outside
+ * 1972-2035, and the chip shows how far the clock can be trusted when the Earth's rotation
+ * is uncertain (time/chip.ts). Faster than two days a second, the day's events are not
+ * computed while time runs (they cost 10-40 ms a day): the ribbon shows the hours only,
+ * and the day is drawn in full as soon as time stops or slows.
  */
 
 import './timebar.css';
+import '../time/time.css';
 import { h } from '../../dom.js';
 import { disposer, watch, type Ctx } from '../component.js';
-import type { SkyEvent } from '../engine/types.js';
-import { MONTH_S, PLAYBACK_SPEEDS, goNow, setPlaying, setSpeed, setTime, stepTime, timeKeyAction, togglePlay } from '../playback.js';
+import { isSunToolsEngine, type SkyEvent, type SunLightWindow } from '../engine/types.js';
+import { MONTH_S, PLAYBACK_SPEEDS, YEAR_S, applyStepIn, goNow, setPlaying, setSpeed, setTime, stepTime, timeKeyAction, togglePlay } from '../playback.js';
 import { aroundToday, dayOf, setAttr, setText, sunToday } from '../shell/derived.js';
 import { bearing3, clock, clockParts, clockSeconds, compassPoint, dateLong, dateShort, endOfDay, eventTime, formatAngle, parseClock } from '../shell/format.js';
 import { PHASE_LABEL, PHASE_MEANING, clipPhases, segmentAt } from '../shell/sky.js';
-import { displayZone, placeZone, shallowEqual, type ExplorerState } from '../state.js';
+import { displayZone, engineObserver, placeZone, shallowEqual, type ExplorerState } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { button, iconButton, menu, popover, segmented } from '../theme/primitives.js';
 import { UTC_ZONE, jdFromWallClock, jdNow, wallClock, zoneShortName, type Zone } from '../time.js';
+import { setUncertaintyChip, timeInfoAt, uncertaintyChip, type ChipInfo } from '../time/chip.js';
+import { calendarName, calendarTag, calendarTip, formatYear, yearForms } from '../time/format.js';
+import { scaleLabel } from '../time/scale.js';
+import { tierAt } from '../time/tier.js';
+import { zoneTooltip } from '../time/zones.js';
 import { calendar, type CalendarDate } from './calendar.js';
-import { createRibbon, type RibbonHour, type RibbonMark, type RibbonModel } from './ribbon.js';
+import { createRibbon, type RibbonBand, type RibbonHour, type RibbonMark, type RibbonModel } from './ribbon.js';
 
 const SHORT_SPEED: Record<number, string> = {
   1: '×1',
@@ -34,9 +49,19 @@ const SHORT_SPEED: Record<number, string> = {
   86400: '1 d/s',
   604800: '1 wk/s',
   [MONTH_S]: '1 mo/s',
+  [YEAR_S]: '1 yr/s',
+  [10 * YEAR_S]: '10 yr/s',
 };
 
+/** Faster than this (simulated seconds per second) the day's events wait until time slows. */
+export const FAST_PLAYBACK_S = 2 * 86_400;
+
 const WORDS: Record<string, [string, string]> = { Sun: ['Sunrise', 'Sunset'], Moon: ['Moonrise', 'Moonset'] };
+
+/** True while time runs so fast that a new day comes every frame or two. */
+export function fastPlayback(s: ExplorerState): boolean {
+  return s.time.playing && Math.abs(s.time.speed) > FAST_PLAYBACK_S;
+}
 
 /** Ticks on the hour, labelled every three hours, on the zone's clock (23 or 25 of them on a clock-change day). */
 export function hourTicks(a: number, b: number, zone: Zone): RibbonHour[] {
@@ -51,6 +76,34 @@ export function hourTicks(a: number, b: number, zone: Zone): RibbonHour[] {
   return out;
 }
 
+/** Evenly spaced hour ticks, with no zone arithmetic: for a day seen for one frame while time runs fast. */
+export function evenHourTicks(a: number, b: number): RibbonHour[] {
+  const out: RibbonHour[] = [];
+  for (let i = 0; i <= 24; i += 1) {
+    const labelled = i % 3 === 0;
+    out.push({ jd: a + ((b - a) * i) / 24, label: labelled ? String(i) : '', major: labelled });
+  }
+  return out;
+}
+
+const BAND_WORDS: Record<SunLightWindow['kind'], [string, string]> = {
+  golden: ['Golden hour', 'the Sun between 6° above and 4° below the horizon: warm, low light and long shadows'],
+  blue: ['Blue hour', 'the Sun 4° to 6° below the horizon: a deep blue sky and soft, even light'],
+};
+
+/** The golden and blue hours of the day shown, as ribbon bands with their tooltips. */
+export function sunBands(windows: readonly SunLightWindow[], a: number, b: number, zone: Zone): RibbonBand[] {
+  const z = zoneShortName((a + b) / 2, zone);
+  return windows
+    .filter((w) => w.jd_end > a && w.jd_start < b)
+    .map((w) => {
+      const [name, meaning] = BAND_WORDS[w.kind];
+      const from = w.jd_start <= a ? 'from midnight' : eventTime(w.jd_start, zone);
+      const to = w.jd_end >= b ? endOfDay(zone) : eventTime(w.jd_end, zone);
+      return { kind: w.kind, jd_start: w.jd_start, jd_end: w.jd_end, tip: `${name} ${from}–${to} ${z}: ${meaning}.` };
+    });
+}
+
 export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const { store } = ctx;
   const d = disposer();
@@ -62,16 +115,20 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const yearText = h('span', { class: 'sf-tb-date__year' });
   const dateButton = h(
     'button',
-    { type: 'button', class: 'sf-tb-date__label', 'data-tip': 'Choose a date (Page Up / Page Down: a month)' },
+    { type: 'button', class: 'sf-tb-date__label', 'data-tip': 'Choose a date or a year (Page Up / Page Down: a month; Ctrl: a century)' },
     icon('calendar'),
     h('span', {}, dateText, yearText),
   );
+  // "Julian" before 15 October 1582 (or "ISO" for a proleptic Gregorian date): the calendar in use.
+  const calTag = h('span', { class: 'sf-cal-tag sf-tb-date__cal', tabindex: 0, hidden: true });
   const local = h('span', {});
   const seconds = h('span', { class: 'sf-tb-clock__sec' });
   // AM or PM on the 12-hour clock: its own element, so it stays when phones hide the seconds.
   const ampm = h('span', { class: 'sf-tb-clock__ampm' });
   const zoneName = h('span', { class: 'sf-tb-clock__zone' });
   const other = h('output', { class: 'sf-tb-clock__utc' });
+  const chip = uncertaintyChip(null);
+  chip.classList.add('sf-tb-clock__chip');
   const clockButton = h(
     'button',
     { type: 'button', class: 'sf-tb-clock', 'data-tip': 'Type a time' },
@@ -80,7 +137,12 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   );
   prevDay.addEventListener('click', () => stepTime(store, { unit: 'day', count: -1 }));
   nextDay.addEventListener('click', () => stepTime(store, { unit: 'day', count: 1 }));
-  const when = h('div', { class: 'sf-tb-when' }, h('div', { class: 'sf-tb-date' }, prevDay, dateButton, nextDay), clockButton);
+  const when = h(
+    'div',
+    { class: 'sf-tb-when' },
+    h('div', { class: 'sf-tb-date' }, prevDay, dateButton, nextDay, calTag),
+    h('div', { class: 'sf-tb-clockline' }, clockButton, chip),
+  );
 
   // --- ribbon ----------------------------------------------------------------------------
   const s0 = store.get();
@@ -122,6 +184,18 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     const s = store.get();
     const zone = displayZone(s);
     const [a, b] = dayOf(s);
+    const jd = s.time.jd_utc;
+    if (fastPlayback(s)) {
+      // A new day every frame or two: draw the hours and the handle, and the day in full
+      // once time stops or slows (the watch below includes `fastPlayback`).
+      phases = [];
+      marks = [];
+      ribbon.update({ window: [a, b], phases, bands: [], hours: evenHourTicks(a, b), marks, jd, glyph: 'sun', valueText: valueText(s), bubbleText: bubbleText(s), nowJd: jdNow() });
+      el.classList.remove('sf-timebar--nodata');
+      el.classList.add('sf-timebar--fast');
+      return;
+    }
+    el.classList.remove('sf-timebar--fast');
     const day = sunToday(ctx, s);
     phases = day ? clipPhases(day.phases, a, b) : [];
     const body = s.selection.body ?? 'Sun';
@@ -129,6 +203,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     const events: SkyEvent[] = around?.bodies.find((x) => x.body === body)?.events ?? [];
     const [riseWord, setWord] = WORDS[body] ?? [`${body} rises`, `${body} sets`];
     const z = zoneShortName((a + b) / 2, zone);
+    const u = scaleLabel((a + b) / 2);
     marks = events
       .filter((e) => (e.kind === 'rise' || e.kind === 'transit' || e.kind === 'set') && e.jd_utc >= a && e.jd_utc < b)
       .map((e) => {
@@ -136,20 +211,20 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
         const t = eventTime(e.jd_utc, zone);
         const tip =
           kind === 'transit'
-            ? `${body} highest ${t} ${z} (${eventTime(e.jd_utc, UTC_ZONE)} UTC), ${formatAngle(e.alt_deg, s.settings.angleFormat, 'coarse')} up`
-            : `${kind === 'rise' ? riseWord : setWord} ${t} ${z} (${eventTime(e.jd_utc, UTC_ZONE)} UTC), toward ${bearing3(e.az_deg)} ${compassPoint(e.az_deg)}`;
+            ? `${body} highest ${t} ${z} (${eventTime(e.jd_utc, UTC_ZONE)} ${u}), ${formatAngle(e.alt_deg, s.settings.angleFormat, 'coarse')} up`
+            : `${kind === 'rise' ? riseWord : setWord} ${t} ${z} (${eventTime(e.jd_utc, UTC_ZONE)} ${u}), toward ${bearing3(e.az_deg)} ${compassPoint(e.az_deg)}`;
         return { kind, jd: e.jd_utc, label: t, tip };
       });
-    const jd = s.time.jd_utc;
     ribbon.update({
       window: [a, b],
       phases,
+      bands: day ? goldenAndBlue(s, a, b, zone) : [],
       hours: hourTicks(a, b, zone),
       marks,
       jd,
       glyph: glyphAt(jd),
       valueText: valueText(s),
-      bubbleText: `${clock(jd, zone)} ${zoneShortName(jd, zone)}`,
+      bubbleText: bubbleText(s),
       nowJd: jdNow(),
       phaseTip: (p) =>
         `${PHASE_LABEL[p.phase]}, ${eventTime(p.jd_start, zone)}–${p.jd_end >= b ? endOfDay(zone) : eventTime(p.jd_end, zone)}. ${PHASE_MEANING[p.phase]}`,
@@ -157,10 +232,33 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     el.classList.toggle('sf-timebar--nodata', !day);
   };
 
+  /** The golden and blue hours from the sun tools, when this engine has them (one call a day, memoised). */
+  const goldenAndBlue = (s: ExplorerState, a: number, b: number, zone: Zone): RibbonBand[] => {
+    const engine = ctx.engine;
+    if (!isSunToolsEngine(engine)) return [];
+    try {
+      return sunBands(engine.sunHours(engineObserver(s), a, b).windows, a, b, zone);
+    } catch {
+      return [];
+    }
+  };
+
   const glyphAt = (jd: number): 'sun' | 'moon' => (segmentAt(phases, jd)?.phase === 'day' ? 'sun' : phases.length ? 'moon' : 'sun');
   const valueText = (s: ExplorerState): string => {
     const zone = displayZone(s);
-    return `${clock(s.time.jd_utc, zone)} ${zoneShortName(s.time.jd_utc, zone)}, ${dateLong(s.time.jd_utc, zone)}`;
+    const w = wallClock(s.time.jd_utc, zone);
+    const tag = calendarTag(w);
+    return `${clock(s.time.jd_utc, zone)} ${zoneShortName(s.time.jd_utc, zone)}, ${dateLong(s.time.jd_utc, zone)}${tag ? ` (${calendarName(w)})` : ''}`;
+  };
+  const bubbleText = (s: ExplorerState): string => {
+    const zone = displayZone(s);
+    return `${clock(s.time.jd_utc, zone)} ${zoneShortName(s.time.jd_utc, zone)}`;
+  };
+
+  /** What the chip needs: σ(ΔT) for the day (it changes by well under a second a day) and the tier now. */
+  const chipInfo = (jd: number): ChipInfo | null => {
+    const info = timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5);
+    return info ? { delta_t_sigma_s: info.delta_t_sigma_s, tier: tierAt(ctx, jd) } : null;
   };
 
   // --- the moving part: handle, clock, buttons -------------------------------------------------
@@ -169,11 +267,19 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     const zone = displayZone(s);
     const jd = s.time.jd_utc;
     const w = wallClock(jd, zone);
-    ribbon.setHandle(jd, valueText(s), `${clock(jd, zone)} ${zoneShortName(jd, zone)}`, glyphAt(jd));
+    ribbon.setHandle(jd, valueText(s), bubbleText(s), glyphAt(jd));
     ribbon.setNow(jdNow());
     setText(dateText, dateShort(jd, zone));
-    setText(yearText, ` ${w.year}`);
-    setAttr(dateButton, 'aria-label', `Date: ${dateLong(jd, zone)}. Choose a date`);
+    setText(yearText, ` ${formatYear(w.year)}`);
+    // Beyond the years 1000-9999 phones keep the year beside the date (it is the news).
+    setAttr(dateButton, 'data-far', w.year < 1000 || w.year > 9999 ? '' : null);
+    setAttr(yearText, 'data-tip', w.year < 1000 || w.year > 9999 ? yearForms(w.year) : null);
+    const tag = calendarTag(w);
+    setText(calTag, tag);
+    if (calTag.hidden === Boolean(tag)) calTag.hidden = !tag;
+    setAttr(calTag, 'data-tip', tag ? calendarTip(w) : null);
+    setAttr(calTag, 'aria-label', tag ? calendarName(w) : null);
+    setAttr(dateButton, 'aria-label', `Date: ${dateLong(jd, zone)}${tag ? `, ${calendarName(w)}` : ''}. Choose a date or a year`);
     const full = clockSeconds(jd, zone);
     // Big hours and minutes, small seconds (and AM/PM on the 12-hour clock).
     const partsNow = clockParts(jd, zone);
@@ -181,11 +287,14 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     setText(seconds, partsNow.seconds);
     setText(ampm, partsNow.suffix);
     setText(zoneName, zoneShortName(jd, zone));
-    // UTC beside the display zone; when UTC is the display zone, the place's own clock.
+    setAttr(zoneName, 'data-tip', zoneTooltip(jd, zone, s.observer.lon_deg));
+    // UTC (UT outside 1972-2035) beside the display zone; when that is the display zone, the place's own clock.
     const placeZ = placeZone(s);
-    const utcShown = !(zone.kind === 'fixed' && zone.offsetMs === 0);
-    setText(other, utcShown ? `${clock(jd, UTC_ZONE)} UTC` : `${clock(jd, placeZ)} ${zoneShortName(jd, placeZ)}`);
+    const utcShown = !(zone.kind === 'fixed' && zone.offsetMs === 0 && zone.name === 'UTC');
+    setText(other, utcShown ? `${clock(jd, UTC_ZONE)} ${scaleLabel(jd)}` : `${clock(jd, placeZ)} ${zoneShortName(jd, placeZ)}`);
+    setAttr(other, 'data-tip', utcShown ? zoneTooltip(jd, UTC_ZONE, s.observer.lon_deg) : zoneTooltip(jd, placeZ, s.observer.lon_deg));
     setAttr(clockButton, 'aria-label', `Time: ${full} ${zoneShortName(jd, zone)}. Type a time`);
+    setUncertaintyChip(chip, chipInfo(jd));
     setAttr(nowButton, 'aria-pressed', String(s.time.live));
     setAttr(nowButton, 'data-tip', s.time.live ? 'Following the clock (N)' : 'Back to now, and follow the clock (N)');
     const playing = s.time.playing;
@@ -207,7 +316,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       ctx,
       (s) => {
         const [a, b] = dayOf(s);
-        return [a, b, s.observer, s.selection.body, s.settings.horizon, s.settings.height_of_eye_m, s.settings.timeDisplay, s.settings.angleFormat] as const;
+        return [a, b, s.observer, s.selection.body, s.settings.horizon, s.settings.height_of_eye_m, s.settings.timeDisplay, s.settings.angleFormat, fastPlayback(s)] as const;
       },
       renderDay,
       { equals: shallowEqual },
@@ -271,12 +380,34 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
   const calHost = h('div', {});
   let view = { year: 2000, month: 1 };
   let focus: CalendarDate | undefined;
-  const chooseDate = (date: CalendarDate): void => {
+  /** The date and the clock time shown now, in the display zone. */
+  const shownWall = () => {
     const s = store.get();
     const zone = displayZone(s);
-    const w = wallClock(s.time.jd_utc, zone);
+    return { s, zone, w: wallClock(s.time.jd_utc, zone) };
+  };
+  const chooseDate = (date: CalendarDate): void => {
+    const { zone, w } = shownWall();
     setTime(store, jdFromWallClock({ ...date, hour: w.hour, minute: w.minute, second: w.second, millisecond: w.millisecond }, zone));
     calPop.close();
+  };
+  /** After a year step or a typed year: the calendar shows the new month and keeps the popover open. */
+  const followTime = (): void => {
+    const { w } = shownWall();
+    view = { year: w.year, month: w.month };
+    focus = undefined;
+    drawCalendar();
+  };
+  const stepYears = (years: number): void => {
+    const s = store.get();
+    setTime(store, applyStepIn(s, s.time.jd_utc, { unit: 'year', count: years }));
+    followTime();
+  };
+  /** A typed year: the same month, day and clock time in that year (a step of whole years). */
+  const goToYear = (year: number): void => {
+    const { w } = shownWall();
+    stepYears(year - w.year);
+    calHost.querySelector<HTMLElement>('.sf-cal__day[tabindex="0"]')?.focus();
   };
   const drawCalendar = (): void => {
     const s = store.get();
@@ -303,6 +434,8 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
           drawCalendar();
           calHost.querySelector<HTMLElement>(`[data-date="${date.year}-${date.month}-${date.day}"]`)?.focus();
         },
+        onYearStep: stepYears,
+        onGoToYear: goToYear,
       }),
     );
   };
@@ -342,7 +475,7 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
     const s = store.get();
     const zone = displayZone(s);
     const w = wallClock(s.time.jd_utc, zone);
-    setTime(store, jdFromWallClock({ year: w.year, month: w.month, day: w.day, hour: m.hour, minute: m.minute, second: m.second }, zone));
+    setTime(store, jdFromWallClock({ year: w.year, month: w.month, day: w.day, calendar: w.calendar, hour: m.hour, minute: m.minute, second: m.second }, zone));
     timePop.close();
   });
   const timePop = popover(clockButton, timeForm, {
@@ -352,7 +485,8 @@ export function timebar(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       const s = store.get();
       const zone = displayZone(s);
       timeInput.value = clockSeconds(s.time.jd_utc, zone);
-      timeZoneNote.textContent = `On the clock of ${zoneShortName(s.time.jd_utc, zone)}. UTC is always shown beside it.`;
+      const z = zoneShortName(s.time.jd_utc, zone);
+      timeZoneNote.textContent = `On the clock of ${z}. ${scaleLabel(s.time.jd_utc)} is always shown beside it.`;
       timeInput.focus();
     },
   });

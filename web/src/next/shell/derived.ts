@@ -1,13 +1,15 @@
 /**
  * Engine results the chrome shares, asked the same way by every section so the memoised
  * engine answers each question once per frame (`memoEngine`, component.ts). Failures
- * become one keyed notice instead of an exception. OWNER: shell-design agent.
+ * become one keyed notice instead of an exception. OWNER: shell-design agent; coverage
+ * gating: time-ui agent (the tiers themselves are time/tier.ts `tierAt`: `covered` is true
+ * in the validated and the labelled tier, where the engine answers).
  */
 
 import type { Ctx } from '../component.js';
 import type { BodyEvents, BodyState, DayEvents, ExplorerEngine, PhaseSegment, SkyEvent, SkyState } from '../engine/types.js';
-import { currentDayWindow, engineObserver, eventOptions, type ExplorerState } from '../state.js';
-import { jdFromIso } from '../time.js';
+import { currentDayWindow, displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
+import { jdFromIso, type Zone } from '../time.js';
 import { isUp, passageNow, type Passage } from './sky.js';
 
 function errorText(error: unknown): string {
@@ -86,13 +88,19 @@ export function skySelected(ctx: Ctx, s: ExplorerState): SkyState | null {
 
 let lastDay: { key: string; window: [number, number] } | null = null;
 
+function zoneId(zone: Zone): string {
+  return zone.kind === 'iana' ? zone.zone : `${zone.name}${zone.offsetMs}`;
+}
+
 /**
  * `currentDayWindow` (state.ts), remembered: the local day only changes when the time
  * crosses a midnight or the zone changes, and working it out goes through `Intl` several
  * times. Every section asks for it on every change of state.
  */
 export function dayOf(s: ExplorerState): [number, number] {
-  const key = `${s.settings.timeDisplay}|${JSON.stringify(s.observer.zone)}|${s.observer.lon_deg}`;
+  // The zone itself, resolved at the time shown: before 1850 a zone that follows the place
+  // is local mean time (time.ts `resolveZone`), so the same choice can mean another clock.
+  const key = `${s.settings.timeDisplay}|${JSON.stringify(s.observer.zone)}|${s.observer.lon_deg}|${zoneId(displayZone(s))}`;
   const jd = s.time.jd_utc;
   if (lastDay && lastDay.key === key && jd >= lastDay.window[0] && jd < lastDay.window[1]) return lastDay.window;
   const window = currentDayWindow(s);

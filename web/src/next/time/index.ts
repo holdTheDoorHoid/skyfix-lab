@@ -12,6 +12,8 @@
  *                notices' sentences, the Deep time pack a date needs.
  * - `chip.ts`    the ±ΔT chip (`uncertaintyChip`, `setUncertaintyChip`,
  *                `uncertaintyText`) and a cheap `timeInfoAt`.
+ * - `zones.ts`   words about a zone: `lmtReason` (local mean time before 1850) and
+ *                `zoneTooltip` (with the tz database's caution before 1970).
  *
  * Rules for views (brief2-wave2-common): show every time through the display calendar
  * (`wallClock`, `formatCivilDate`); put the chip beside any time shown; never offer sights
@@ -27,3 +29,4 @@ export * from './format.js';
 export * from './scale.js';
 export * from './tier.js';
 export * from './chip.js';
+export * from './zones.js';

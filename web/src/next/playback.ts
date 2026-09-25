@@ -1,6 +1,7 @@
 /**
  * Moving through time: the playback clock, "Now", stepping, and the keyboard shortcuts
- * of EXPLORER_PLAN section 2:
+ * of EXPLORER_PLAN section 2. OWNER: time-ui agent (from the shell-design agent's first
+ * version).
  *
  * | key | step |
  * |---|---|
@@ -8,17 +9,23 @@
  * | `Shift` + `←` / `→` | ∓/± 1 hour |
  * | `Alt` + `←` / `→` | ∓/± 1 day (calendar day in the display zone) |
  * | `PgUp` / `PgDn` | − / + 1 month (`Shift`: 1 year), as in WAI-ARIA date pickers |
+ * | `Ctrl` + `PgUp` / `PgDn` | − / + 100 years (`Ctrl` + `Shift`: 1000 years) |
  * | `Space` | play / pause |
  * | `N` | now (follow the wall clock) |
  *
  * `live` (following the wall clock) and `playing` are never both on. Any manual change
  * of the time turns `live` off; playing continues from the new time.
+ *
+ * Calendar steps keep the clock time in the display calendar (Julian before 1582-10-15
+ * unless Settings chose ISO; time/civil.ts) and in the zone of the instant they land on,
+ * which differs from the zone they start in when a step crosses 1850 (local mean time
+ * before it, for a zone that follows the place).
  */
 
 import type { FrameScheduler } from './component.js';
-import type { ExplorerStore } from './state.js';
-import { displayZone } from './state.js';
-import { addCalendar, addDuration, jdNow, type Zone } from './time.js';
+import type { ExplorerState, ExplorerStore } from './state.js';
+import { displayZoneAt } from './state.js';
+import { addCalendar, addDuration, jdFromWallClock, jdNow, wallClock, type Zone } from './time.js';
 
 // ---------------------------------------------------------------------------
 // Speeds
@@ -27,7 +34,13 @@ import { addCalendar, addDuration, jdNow, type Zone } from './time.js';
 /** Mean Gregorian month, seconds (365.2425 / 12 days). */
 export const MONTH_S = 2_629_746;
 
-/** Simulated seconds per real second, from real time to a month per second. */
+/** Mean Gregorian year, seconds (365.2425 days). */
+export const YEAR_S = 31_556_952;
+
+/**
+ * Simulated seconds per real second, from real time to ten years per second (time-ui agent:
+ * a year and ten years a second, so 2000 BC to AD 3000 is a few minutes of playback).
+ */
 export const PLAYBACK_SPEEDS: readonly { speed: number; label: string }[] = [
   { speed: 1, label: 'Real time' },
   { speed: 60, label: '1 minute per second' },
@@ -37,9 +50,11 @@ export const PLAYBACK_SPEEDS: readonly { speed: number; label: string }[] = [
   { speed: 86_400, label: '1 day per second' },
   { speed: 7 * 86_400, label: '1 week per second' },
   { speed: MONTH_S, label: '1 month per second' },
+  { speed: YEAR_S, label: '1 year per second' },
+  { speed: 10 * YEAR_S, label: '10 years per second' },
 ];
 
-export const MAX_SPEED = MONTH_S;
+export const MAX_SPEED = 10 * YEAR_S;
 
 // ---------------------------------------------------------------------------
 // Actions
@@ -79,10 +94,33 @@ export function setTime(store: ExplorerStore, jd: number): void {
   store.patch({ time: { jd_utc: jd, live: false } });
 }
 
+/**
+ * A step in the display zone of the state, keeping the clock time of the zone the step
+ * lands in: when the zone there differs (a step across 1850, local mean time before it), the
+ * step is taken again in that zone, so 12:00 stays 12:00 on the clock shown.
+ */
+export function applyStepIn(state: ExplorerState, jd: number, step: TimeStep): number {
+  const from = displayZoneAt(state, jd);
+  const landed = applyStep(jd, step, from);
+  if (step.unit === 'minute' || step.unit === 'hour') return landed;
+  const to = displayZoneAt(state, landed);
+  if (sameZone(from, to)) return landed;
+  // The same date and clock time, read on the clock of the zone the step lands in.
+  const w = wallClock(landed, from);
+  const again = jdFromWallClock(w, to);
+  // At the very edge of 1850 the new zone may not hold at the corrected instant: keep the first.
+  return sameZone(displayZoneAt(state, again), to) ? again : landed;
+}
+
+function sameZone(a: Zone, b: Zone): boolean {
+  if (a.kind === 'iana' || b.kind === 'iana') return a.kind === 'iana' && b.kind === 'iana' && a.zone === b.zone;
+  return a.offsetMs === b.offsetMs && a.name === b.name;
+}
+
 /** Step the shown time; calendar steps use the display zone unless one is given. */
 export function stepTime(store: ExplorerStore, step: TimeStep, zone?: Zone): void {
   const state = store.get();
-  setTime(store, applyStep(state.time.jd_utc, step, zone ?? displayZone(state)));
+  setTime(store, zone ? applyStep(state.time.jd_utc, step, zone) : applyStepIn(state, state.time.jd_utc, step));
 }
 
 export function setPlaying(store: ExplorerStore, playing: boolean): void {
@@ -93,7 +131,7 @@ export function togglePlay(store: ExplorerStore): void {
   setPlaying(store, !store.get().time.playing);
 }
 
-/** Set the playback speed (simulated seconds per real second), clamped to ± a month per second. */
+/** Set the playback speed (simulated seconds per real second), clamped to ± ten years per second. */
 export function setSpeed(store: ExplorerStore, speed: number): void {
   if (!Number.isFinite(speed) || speed === 0) return;
   store.patch({ time: { speed: Math.max(-MAX_SPEED, Math.min(MAX_SPEED, speed)) } });
@@ -117,8 +155,16 @@ export interface KeyLike {
   metaKey?: boolean;
 }
 
-/** Map a key press to a time action, or null. Ctrl/Cmd combinations are left to the browser. */
+/**
+ * Map a key press to a time action, or null. Ctrl/Cmd combinations are left to the browser,
+ * except Ctrl + Page Up / Page Down: a century (with Shift, a millennium). Browsers with tabs
+ * may keep that one for switching tabs; the calendar's ±100 and ±1000 buttons do the same.
+ */
 export function timeKeyAction(e: KeyLike): TimeKeyAction | null {
+  if (e.ctrlKey && !e.metaKey && !e.altKey && (e.key === 'PageUp' || e.key === 'PageDown')) {
+    const sign = e.key === 'PageDown' ? 1 : -1;
+    return { kind: 'step', step: { unit: 'year', count: sign * (e.shiftKey ? 1000 : 100) } };
+  }
   if (e.ctrlKey || e.metaKey) return null;
   switch (e.key) {
     case 'ArrowLeft':
