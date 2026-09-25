@@ -10,10 +10,17 @@ import type { AssumedPositionRole, HorizonName, Session, SessionKind } from '../
 import { horizonName } from '../../types.js';
 import { disposer, type Mounted } from '../component.js';
 import { badge } from '../theme/primitives.js';
+import { UTC_ZONE } from '../time.js';
+import { setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../time/chip.js';
+import { formatCivilDate } from '../time/format.js';
 import { angleFormat, type NavCtx } from './context.js';
+import { dut1Instant, dut1Line } from './dut1.js';
 import { fmtArcmin, fmtPosition, positionInputText } from './format.js';
+import { logSummary } from './logs.js';
+import { logEditor } from './logs-panel.js';
 import { patchSession, type SessionPatch } from './model.js';
 import { parseNumber, parseOptionalNumber, parsePosition, type Parsed } from './parse.js';
+import { shoreDistanceField } from './shore.js';
 import { horizonFromSelect, horizonOptions, horizonSummary, horizonText, ROLE_TEXT } from './text.js';
 import { btn, field, onChange, para, parsedField, selectInput, textInput, type ParsedField } from './ui.js';
 
@@ -112,6 +119,12 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     const chosen = horizonFromSelect(horizon.value, session().instrument.horizon);
     if (chosen) patch({ instrument: { horizon: chosen } });
   });
+  // navigate2: a shoreline nearer than the sea horizon needs its distance (dip short).
+  const shoreDistance = shoreDistanceField({
+    read: () => session().instrument.horizon,
+    heightOfEyeM: () => session().observer.height_of_eye_m,
+    commit: (hz) => patch({ instrument: { horizon: hz } }),
+  });
   const clockSigma = num('Clock uncertainty (s, 1 sigma)', undefined, 'Propagated into an east-west term of the position uncertainty, never estimated: for star sights a clock error and a longitude error are the same unknown.', () => session().clock.uncertainty_s, (v) => patch({ clock: { uncertainty_s: v } }), 0, 's');
   const clockCorrection = num('Known watch correction (s)', 'chronometer correction, added', 'Added to every recorded time before use.', () => session().clock.correction_s, (v) => patch({ clock: { correction_s: v } }));
   // UT1 − UTC (expansion programme, moonshape): the session's `clock.dut1_s`. Blank means
@@ -126,6 +139,18 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     read: () => session().clock.dut1_s ?? null,
     commit: (v) => patch({ clock: { dut1_s: v } }),
   });
+  // navigate2: blank = automatic, and the field says what automatic means for these sights
+  // (the IERS history, a prediction, or 0 assumed with its ±0.9 s), from the engine.
+  const dut1Auto = h('p', { class: 'sfn-note sfn-dut1-auto', 'aria-live': 'polite' });
+  // The ±ΔT chip beside the sentence's date (time-ui): shown when the Earth's rotation then is
+  // uncertain by more than 30 s, which UT1 − UTC cannot help with.
+  const dut1Words = document.createTextNode('');
+  const dut1Chip = uncertaintyChip(null);
+  dut1Auto.append(dut1Words, ' ', dut1Chip);
+
+  // navigate2: the index-error log and the watch log (CONVENTIONS section 10).
+  const indexLog = logEditor(nc, 'index', d.add);
+  const watchLog = logEditor(nc, 'watch', d.add);
 
   const mode = selectInput<'auto' | 'supplied'>(
     [
@@ -152,8 +177,8 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     ),
     group('Assumed position', position.el, h('div', { class: 'sfn-inline' }, usePlace), h('div', { class: 'sfn-grid-2' }, roleField.el, priorSigma.el)),
     group('Observer', h('div', { class: 'sfn-grid-3' }, hoe.el, pressure.el, temperature.el)),
-    group('Instrument', h('div', { class: 'sfn-grid-3' }, field('Name', instrumentName).el, ic.el, horizonField.el)),
-    group('Clock', h('div', { class: 'sfn-grid-2' }, clockSigma.el, clockCorrection.el), dut1.el),
+    group('Instrument', h('div', { class: 'sfn-grid-3' }, field('Name', instrumentName).el, ic.el, horizonField.el), shoreDistance.el, indexLog.el),
+    group('Clock', h('div', { class: 'sfn-grid-2' }, clockSigma.el, clockCorrection.el), dut1.el, dut1Auto, watchLog.el),
     group('Almanac', modeField.el),
   );
 
@@ -172,9 +197,10 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
         s.observer.assumed_position
           ? `DR ${fmtPosition(s.observer.assumed_position, f)} (${r.role === 'prior' ? `prior, ${r.sigma_nm} NM` : r.role === 'disabled' ? 'not used' : 'starting point only'})`
           : 'No assumed position',
-        ` · eye ${s.observer.height_of_eye_m} m · IC ${fmtArcmin(s.instrument.index_correction_arcmin, 1)} · ${horizonSummary(s.instrument.horizon)}` +
+        ` · eye ${s.observer.height_of_eye_m} m · IC ${s.instrument.index_error_log?.length ? 'from the log' : fmtArcmin(s.instrument.index_correction_arcmin, 1)} · ${horizonSummary(s.instrument.horizon)}` +
           (s.clock.uncertainty_s ? ` · clock ±${s.clock.uncertainty_s} s` : '') +
           (typeof s.clock.dut1_s === 'number' ? ` · UT1 − UTC ${s.clock.dut1_s} s` : '') +
+          (logSummary(s) ? ` · ${logSummary(s)}` : '') +
           (store.get().mode === 'supplied' ? ' · typed directions only' : ''),
       ),
       h('span', { class: 'sfn-session__edit' }, 'Session settings'),
@@ -194,18 +220,32 @@ export function sessionPanel(host: HTMLElement, nc: NavCtx): Mounted {
     horizon.value = horizonName(s.instrument.horizon);
     horizonField.setHelp(horizonText(s.instrument.horizon).explain);
     schema.textContent = s.schema;
-    dut1.parts.setHelp(
-      typeof s.clock.dut1_s === 'number'
-        ? `Every Greenwich hour angle uses UT1 = UTC ${s.clock.dut1_s < 0 ? '−' : '+'} ${Math.abs(s.clock.dut1_s)} s. Leave blank for automatic.`
-        : 'Unknown: ±0.9 s, up to ±0.23′ of longitude. Blank means automatic; type the DUT1 your time signal gives to remove it.',
-    );
+    renderDut1();
+    shoreDistance.refresh();
     mode.value = store.get().mode;
     for (const f2 of fields) f2.refresh();
+  }
+
+  /** The DUT1 field's sentence: what automatic means at the session's first sight. */
+  function renderDut1(): void {
+    const s = session();
+    const at = dut1Instant(s, nc.ctx.store.get().time.jd_utc);
+    const info = timeInfoAt(nc.ctx, at.jd);
+    // The date through the display calendar (Julian before 1582-10-15, years as the settings write them).
+    const when = `${formatCivilDate(at.jd, UTC_ZONE, 'day-month-year', { calendar: true })}${at.from === 'sights' ? ' (the first sight)' : ' (the time bar)'}`;
+    const line = dut1Line(typeof s.clock.dut1_s === 'number' ? s.clock.dut1_s : null, info, when);
+    dut1.parts.setHelp(null);
+    if (dut1Words.data !== line.text) dut1Words.data = line.text;
+    setUncertaintyChip(dut1Chip, info);
+    dut1Auto.classList.toggle('sfn-dut1-auto--caution', line.level === 'caution');
   }
 
   d.add(onChange(store, (w) => w.session, render));
   d.add(onChange(store, (w) => w.mode, render));
   d.add(onChange(nc.ctx.store, (s) => s.settings.angleFormat, render));
+  // With no sights, "automatic" is read at the time bar's date: once a day is enough.
+  d.add(onChange(nc.ctx.store, (s) => Math.floor(s.time.jd_utc + 0.5), renderDut1));
+  d.add(onChange(nc.ctx.store, (s) => `${s.settings.calendar}|${s.settings.yearStyle}`, renderDut1));
   render();
   if (!session().observer.assumed_position) details.open = true;
   body.append(para('Nothing here leaves this browser. The assumed position is used as the method says above, and never written into the address bar.', 'sfn-note sfn-muted'));

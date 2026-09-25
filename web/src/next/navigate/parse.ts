@@ -12,7 +12,9 @@
  */
 
 import { parseLatLon, parseLongitude } from '../geo/coords.js';
-import { jdFromIso } from '../time.js';
+import { isoYear, jdFromIso } from '../time.js';
+import { civilFromJdn, isGapDate, isValidDate, jdnFromDate } from '../time/civil.js';
+import { parseYear } from '../time/format.js';
 
 /**
  * A parsed value, or one sentence saying what is wrong. `warning`, on a value that was
@@ -79,25 +81,47 @@ export function parseAngle(text: string, rule: AngleRule): Parsed<number> {
 }
 
 const UTC_PATTERN =
-  /^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s]+)(\d{1,2}):(\d{2})(?::(\d{2})(?:[.,](\d{1,6}))?)?\s*(?:Z|UTC|GMT|UT)?$/i;
+  /^([+\-−]?\d{1,6})-(\d{1,2})-(\d{1,2})(?:[T\s]+)(\d{1,2}):(\d{2})(?::(\d{2})(?:[.,](\d{1,6}))?)?\s*(?:Z|UTC|GMT|UT)?$/i;
+
+const pad2 = (n: number): string => String(n).padStart(2, '0');
 
 /**
- * An instant in UTC, returned as RFC 3339 with a trailing `Z` (CONVENTIONS section 6):
- * `2026-10-01 01:30:05`, `2026-10-01T01:30:05Z`, `2026-10-01 01:30` (seconds 0, with
- * [`SECONDS_OMITTED_WARNING`]), `2026-10-01 01:30:05.5`. A time with a zone offset is
- * refused: this field is UTC.
+ * An instant on the app's clock (UTC, or UT outside 1972-2035), returned as RFC 3339 with a
+ * trailing `Z` (CONVENTIONS section 6): `2026-10-01 01:30:05`, `2026-10-01T01:30:05Z`,
+ * `2026-10-01 01:30` (seconds 0, with [`SECONDS_OMITTED_WARNING`]), `2026-10-01 01:30:05.5`.
+ * A time with a zone offset is refused: this field is the clock.
+ *
+ * The date is read in the **display calendar** (time/civil.ts, CONVENTIONS 15.3): in the
+ * default historical calendar a date before 1582-10-15 is Julian, as people wrote it then,
+ * and the ten dates the reform skipped are refused; in the ISO setting it is proleptic
+ * Gregorian. The value returned is on the wire, which is proleptic Gregorian, so Julian
+ * 1550-03-01 comes back as `1550-03-11T…Z` (`utcInputText` turns it back). Years may have
+ * any number of digits and a sign, astronomical as ISO 8601 writes them (`-0584` is 585 BC,
+ * `0079` or `79` is AD 79, `+12345`), read by the calendar formatter's `parseYear`.
  */
 export function parseUtcInput(text: string): Parsed<string> {
   const raw = text.trim();
   if (!raw) return fail('The time is empty. Type the UTC date and time, for example 2026-10-01 01:30:05.');
-  if (/[+-]\d{2}:?\d{2}$/.test(raw) && !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+  if (/[+-]\d{2}:?\d{2}$/.test(raw) && !/^[+\-−]?\d{1,6}-\d{2}-\d{2}$/.test(raw)) {
     return fail('This field is UTC: remove the zone offset and give the time in UTC, for example 2026-10-01 01:30:05.');
   }
   const m = UTC_PATTERN.exec(raw);
   if (!m) return fail('Type the UTC date and time as year-month-day hours:minutes:seconds, for example 2026-10-01 01:30:05.');
-  const p = (s: string | undefined, n = 2) => (s ?? '0').padStart(n, '0');
+  const year = parseYear(m[1]!);
+  if (year === null) return fail(`${m[1]} is not a year this field can read: use up to five digits, with a minus sign for years before AD 1 (-0584 is 585 BC).`);
+  const [month, day, hour, minute] = [m[2], m[3], m[4], m[5]].map(Number) as [number, number, number, number];
+  const second = m[6] === undefined ? 0 : Number(m[6]);
+  const date = { year, month, day };
+  if (isGapDate(date)) {
+    return fail(`${m[1]}-${pad2(month)}-${pad2(day)} is one of the ten dates the 1582 reform skipped: Thursday 4 October 1582 (Julian) was followed by Friday 15 October (Gregorian).`);
+  }
+  if (!isValidDate(date) || hour > 23 || minute > 59 || second > 59) {
+    return fail(`${raw} is not a real date and time (check the month, day, hour and minute).`);
+  }
+  // The display calendar's date, as the wire's proleptic Gregorian one; the clock time as typed.
+  const g = civilFromJdn('gregorian', jdnFromDate(date));
   const frac = m[7] ? `.${m[7]}` : '';
-  const iso = `${m[1]}-${p(m[2])}-${p(m[3])}T${p(m[4])}:${m[5]}:${p(m[6])}${frac}Z`;
+  const iso = `${isoYear(g.year)}-${pad2(g.month)}-${pad2(g.day)}T${pad2(hour)}:${m[5]}:${pad2(second)}${frac}Z`;
   if (jdFromIso(iso) === null) return fail(`${raw} is not a real date and time (check the month, day, hour and minute).`);
   return m[6] === undefined ? { ok: true, value: iso, warning: SECONDS_OMITTED_WARNING } : ok(iso);
 }

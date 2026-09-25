@@ -452,3 +452,16 @@ select.sf-input optgroup {
   justify-self: start;
   margin: 2px 0 6px;
 }
+
+/* tonight agent (expansion programme Q2): the Help menu's first row, the tour and About
+   (About left the tab strip for this menu). */
+.sf-help__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 2px 0 6px;
+}
+
+.sf-help__actions .sf-help__tour {
+  margin: 0;
+}

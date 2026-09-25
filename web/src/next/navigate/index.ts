@@ -30,6 +30,7 @@
 
 import '../theme/index.js';
 import './navigate.css';
+import './extras.css';
 import type { SkyfixApi } from '../../api/adapter.js';
 import { fromCsv, toCsv } from '../../csv.js';
 import { h } from '../../dom.js';
@@ -42,6 +43,8 @@ import { EXAMPLES, exampleById } from './examples.js';
 import { takeNavigateHandoff } from './handoff.js';
 import { fileStem } from './gpx.js';
 import { averageMethod } from './methods/average.js';
+import { compassMethod } from './methods/compass.js';
+import { passageMethod } from './methods/passage.js';
 import { fixMethod } from './methods/fix.js';
 import { lunarMethod } from './methods/lunar.js';
 import { noonMethod } from './methods/noon.js';
@@ -55,6 +58,8 @@ import { sessionPanel } from './session-panel.js';
 import { sightsPanel } from './sights.js';
 import { AUTOSAVE_TEXT, HONESTY, METHODS, type MethodId } from './text.js';
 import { btn, download, errorText, kids, notice, para, pickFile, uid, warningList } from './ui.js';
+import { installPassage } from './passage/page.js';
+import { dateWords, rotationCaution, sightTierAt } from './tier.js';
 import { seedFromExplorer, workingFor, type WorkingOptions } from './working.js';
 
 export interface NavigateOptions {
@@ -74,6 +79,9 @@ const METHOD_MOUNT: Record<MethodId, (host: HTMLElement, nc: NavCtx) => Mounted>
   average: averageMethod,
   lunar: lunarMethod,
   plan: planMethod,
+  // Expansion programme (navigate2 agent).
+  compass: compassMethod,
+  passage: passageMethod,
 };
 
 export function navigateView(options: NavigateOptions = {}): Component {
@@ -90,6 +98,8 @@ export function navigateView(options: NavigateOptions = {}): Component {
     root.append(h('p', { class: 'sfn-loading', role: 'status' }, 'Loading the navigation tools…'));
     const workingOptions: WorkingOptions = options.storage === undefined ? {} : { storage: options.storage };
     const working = workingFor(ctx.store, workingOptions);
+    // navigate2: the passage's page-level pieces (the measuring tool's "Add as a leg", the route on the map).
+    installPassage(ctx);
     let destroyed = false;
     d.add(() => {
       destroyed = true;
@@ -120,8 +130,12 @@ export function navigateView(options: NavigateOptions = {}): Component {
         reductions: reductions.store,
         overlays: overlayServiceFor(ctx),
         bodies: sightBodiesFor(ctx, nav),
-        say(text, level = 'info') {
-          statusLine.replaceChildren(notice(level, text));
+        say(text, level = 'info', undo) {
+          const button = undo ? btn('Undo', () => {
+            undo();
+            statusLine.replaceChildren(notice('info', 'Undone.'));
+          }, { variant: 'outline' }) : null;
+          statusLine.replaceChildren(notice(level, text, ...(button ? [' ', button] : [])));
         },
       };
 
@@ -263,12 +277,41 @@ export function navigateView(options: NavigateOptions = {}): Component {
       const left = h('div', { class: 'sfn-col sfn-col--sights' });
       const right = h('div', { class: 'sfn-col sfn-col--method', role: 'tabpanel', id: panelId, tabindex: '-1' });
       const nav404 = nc.navMissing ? notice('caution', nc.navMissing) : null;
+      // navigate2: the time bar outside the validated tier: say so once, at the top (tier.ts, on
+      // the shared `tierAt`). The page's own notice (time-ui) says why the date is an estimate or
+      // not covered, so this line says only what it means here; the sight form, Tonight's sights
+      // and the planner give the whole sentence where they refuse. Inside the tier, when the
+      // Earth's rotation then is uncertain by more than the ±ΔT chip's 30 s, it says what that
+      // does to a fix.
+      const tierLine = h('div', { class: 'sfn-tierline', role: 'status' });
+      const renderTierLine = (): void => {
+        const jd = ctx.store.get().time.jd_utc;
+        const t = sightTierAt(ctx, jd);
+        const caution = rotationCaution(t);
+        tierLine.replaceChildren(
+          ...(t.offered
+            ? caution
+              ? [notice('caution', h('strong', {}, 'Clock times here carry the Earth’s rotation’s uncertainty. '), caution)]
+              : []
+            : [
+                notice(
+                  'caution',
+                  h('strong', {}, 'The time bar is outside the validated span. '),
+                  `Navigate offers no sights, predicted readings or plans for ${dateWords(jd)}; sights you have entered are still worked at their own times.`,
+                ),
+              ]),
+        );
+      };
+      // Hourly, and again when the calendar or the way years are written changes (the sentence writes a date).
+      d.add(ctx.store.select((s) => `${Math.floor(s.time.jd_utc * 24)}|${s.settings.calendar}|${s.settings.yearStyle}`, renderTierLine));
+      renderTierLine();
       const autosave = h('div', { class: 'sfn-autosave' });
       root.append(
         ...kids(
           header,
           ctx.engine.kind === 'mock' ? notice('caution', h('strong', {}, 'Mock engine. '), 'Every number here is illustrative, from low-precision formulas; nothing comes from the SkyFix Lab core.') : null,
           nav404,
+          tierLine,
           h('nav', { class: 'sfn-methods', 'aria-label': 'Method' }, tablist),
           statusLine,
           h('div', { class: 'sfn-grid' }, left, right),

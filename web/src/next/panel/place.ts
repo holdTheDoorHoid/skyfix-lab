@@ -1,7 +1,8 @@
 /**
  * The panel's Place section: the place's name, its coordinates in the chosen format, its
  * time zone (guessed from the place, with the reason, or pinned), and the height of eye.
- * "Edit" opens exact entry of all of them. OWNER: shell-design agent.
+ * "Edit" opens exact entry of all of them. OWNER: shell-design agent; the site elevation, and
+ * the zone's words under local mean time (from the time-ui helpers): navigate2 agent.
  */
 
 import { h } from '../../dom.js';
@@ -13,7 +14,8 @@ import { zoneChoiceFromGuess, type PlaceService } from '../shell/place.js';
 import { placeZone, shallowEqual, zonePinned, type ExplorerState } from '../state.js';
 import { icon } from '../theme/icons.js';
 import { button, popover, section } from '../theme/primitives.js';
-import { formatOffset, msFromJd, zoneLabel, zoneOffsetMs, zoneShortName, type ZoneChoice } from '../time.js';
+import { formatOffset, isLmtZone, msFromJd, zoneOffsetMs, zoneShortName, type Zone, type ZoneChoice } from '../time.js';
+import { lmtReason, zoneTooltip } from '../time/zones.js';
 
 function capitalise(text: string): string {
   return text ? text[0]!.toUpperCase() + text.slice(1) : text;
@@ -26,7 +28,7 @@ export function placeName(s: ExplorerState, place: PlaceService): string {
   return described ? capitalise(described) : 'A position you chose';
 }
 
-function zoneReason(s: ExplorerState, place: PlaceService): string {
+function zoneReason(s: ExplorerState, place: PlaceService, zone: Zone): string {
   const o = s.observer;
   if (o.zone.kind === 'utc') return 'You chose UTC. It stays when you change the place.';
   if (zonePinned(o.zone)) {
@@ -34,6 +36,9 @@ function zoneReason(s: ExplorerState, place: PlaceService): string {
       ? 'You chose nautical zone time. It stays when you change the place.'
       : `You chose ${o.zone.zone}. It stays when you change the place.`;
   }
+  // Before 1850 a zone that follows the place is local mean time (time-ui, CONVENTIONS 15.3):
+  // say that, not the reason for the zone it replaces (navigate2, from the time-ui agent's finding).
+  if (zone.kind === 'fixed' && isLmtZone(zone)) return lmtReason(s.time.jd_utc, o.lon_deg, zone.offsetMs);
   const guess = place.guess(o.lat_deg, o.lon_deg);
   if (guess) return guess.source === 'sea' ? guess.reason : `From the place: ${guess.reason}`;
   if (o.zone.kind === 'nautical') {
@@ -76,7 +81,10 @@ export function placeSection(ctx: Ctx, place: PlaceService): { el: HTMLElement; 
     h('span', { class: 'sf-kv__k' }, 'Height of eye'),
     eyeValue,
   );
-  sec.body.append(name, coords, zoneRow, reason, eyeRow);
+  // navigate2: the site's elevation, shown when it is set (edited in the editor).
+  const elevValue = h('span', { class: 'sf-kv__v' });
+  const elevRow = h('div', { class: 'sf-kv', 'data-tip': 'Your site above sea level: small effects on the Moon, eclipse times and the magnetic field' }, icon('eyeheight'), h('span', { class: 'sf-kv__k' }, 'Site elevation'), elevValue);
+  sec.body.append(name, coords, zoneRow, reason, eyeRow, elevRow);
 
   const render = (): void => {
     const s = store.get();
@@ -87,16 +95,19 @@ export function placeSection(ctx: Ctx, place: PlaceService): { el: HTMLElement; 
     setText(lon, formatLon(o.lon_deg, f));
     const zone = placeZone(s);
     const jd = s.time.jd_utc;
-    const offset = formatOffset(zoneOffsetMs(msFromJd(jd), zone));
+    // The offset from the clock in its own word: `UT−5:00:40` outside 1972-2035 (time-ui).
+    const offset = formatOffset(zoneOffsetMs(msFromJd(jd), zone), jd);
     const short = zoneShortName(jd, zone);
     zoneValue.replaceChildren(short, ...(short === offset ? [] : [' ', h('small', {}, offset)]));
-    setAttr(zoneValue, 'data-tip', zoneLabel(jd, zone));
+    setAttr(zoneValue, 'data-tip', zoneTooltip(jd, zone, o.lon_deg));
     const pinned = zonePinned(o.zone);
     setAttr(pin, 'aria-pressed', String(pinned));
     setAttr(pin, 'aria-label', pinned ? 'Unpin the time zone: follow the place again' : 'Pin the time zone: keep it when the place changes');
     setAttr(pin, 'data-tip', pinned ? 'Pinned. Press to follow the place’s time zone again.' : 'Keep this time zone when the place changes');
-    setText(reason, zoneReason(s, place));
+    setText(reason, zoneReason(s, place, zone));
     setText(eyeValue, formatLength(s.settings.height_of_eye_m, s.settings.units));
+    elevRow.hidden = !o.height_m;
+    setText(elevValue, formatLength(o.height_m, s.settings.units));
   };
   d.add(
     watch(ctx, (s) => [s.observer, s.settings.angleFormat, s.settings.units, s.settings.height_of_eye_m, Math.floor(s.time.jd_utc * 24)] as const, render, {
@@ -135,6 +146,12 @@ function placeEditor(ctx: Ctx, place: PlaceService, done: () => void): { el: HTM
   const zone = h('select', { class: 'sf-input', id: 'sf-edit-zone' });
   const eye = h('input', { class: 'sf-input sf-num', id: 'sf-edit-eye', type: 'number', min: 0, max: 500, step: 'any', inputmode: 'decimal' });
   const eyeUnit = h('span', { class: 'sf-editor__unit' });
+  // navigate2 (expansion programme): the site's elevation (the engine observer's height_m).
+  const elev = h('input', { class: 'sf-input sf-num', id: 'sf-edit-elev', type: 'number', min: -500, max: 9000, step: 'any', inputmode: 'decimal' });
+  const elevUnit = h('span', { class: 'sf-editor__unit' });
+  const elevNote = h('p', { class: 'sf-editor__hint', 'aria-live': 'polite' });
+  const gps = button({ label: 'From this device', variant: 'ghost', size: 'sm', tip: 'The height your device’s location service reports, if it gives one; used in this page only' });
+  let elevShown = '';
   const horizon = h('select', { class: 'sf-input', id: 'sf-edit-horizon' });
   horizon.append(
     h('option', { value: 'standard' }, 'Sea-level horizon'),
@@ -153,6 +170,8 @@ function placeEditor(ctx: Ctx, place: PlaceService, done: () => void): { el: HTM
     field('sf-edit-name', 'Name', label),
     field('sf-edit-zone', 'Time zone', zone),
     field('sf-edit-eye', 'Height of eye', h('div', { class: 'sf-editor__with-unit' }, eye, eyeUnit), 'Your eye above the sea: it sets the dip of the horizon.'),
+    field('sf-edit-elev', 'Site elevation', h('div', { class: 'sf-editor__with-unit' }, elev, elevUnit, gps), ELEVATION_TEXT),
+    elevNote,
     field('sf-edit-horizon', 'Rise and set', horizon),
     h('div', { class: 'sf-editor__actions' }, cancel, apply),
   );
@@ -176,6 +195,10 @@ function placeEditor(ctx: Ctx, place: PlaceService, done: () => void): { el: HTM
     if (!zone.value) zone.value = 'follow';
     eye.value = String(Number(metresToUnits(s.settings.height_of_eye_m, s.settings.units).toFixed(2)));
     eyeUnit.textContent = s.settings.units === 'imperial' ? 'ft' : 'm';
+    elev.value = String(Number(metresToUnits(o.height_m, s.settings.units).toFixed(1)));
+    elevShown = elev.value;
+    elevUnit.textContent = s.settings.units === 'imperial' ? 'ft' : 'm';
+    elevNote.textContent = '';
     horizon.value = s.settings.horizon;
   };
 
@@ -203,9 +226,13 @@ function placeEditor(ctx: Ctx, place: PlaceService, done: () => void): { el: HTM
     // The old name no longer applies to a new position unless the person typed one.
     const typed = label.value.trim();
     const nextLabel = moved && typed === s.observer.label ? '' : typed;
+    // The elevation: as typed when it was changed; else unknown (0) at a new position.
+    const elevM = lengthToMetres(Number(elev.value), s.settings.units);
+    const elevTyped = elev.value !== elevShown && elev.value.trim() !== '' && Number.isFinite(elevM) && elevM >= -500 && elevM <= 9000;
+    const height = elevTyped ? { height_m: Number(elevM.toFixed(1)) } : moved ? { height_m: 0 } : {};
     store.batch(() => {
       store.patch({
-        observer: { lat_deg, lon_deg, ...(moved ? { height_m: 0 } : {}), label: nextLabel, zone: nextZone },
+        observer: { lat_deg, lon_deg, ...height, label: nextLabel, zone: nextZone },
       });
       store.patch({
         settings: {
@@ -217,5 +244,37 @@ function placeEditor(ctx: Ctx, place: PlaceService, done: () => void): { el: HTM
     done();
   });
   cancel.addEventListener('click', done);
+  gps.addEventListener('click', () => {
+    const geo = globalThis.navigator?.geolocation;
+    if (!geo) {
+      elevNote.textContent = 'This browser cannot give its location, so type the elevation.';
+      return;
+    }
+    elevNote.textContent = 'Asking the device…';
+    geo.getCurrentPosition(
+      (pos) => {
+        const { altitude, altitudeAccuracy } = pos.coords;
+        if (altitude === null || !Number.isFinite(altitude)) {
+          elevNote.textContent = 'The device gave a position but no height (many do not). Type the elevation.';
+          return;
+        }
+        const units = store.get().settings.units;
+        elev.value = String(Number(metresToUnits(altitude, units).toFixed(1)));
+        elevNote.textContent = `From this device: ${formatLength(altitude, units)} above the WGS84 ellipsoid${altitudeAccuracy !== null && Number.isFinite(altitudeAccuracy) ? `, to within about ${formatLength(altitudeAccuracy, units)}` : ''}. Apply to use it; it stays in this page.`;
+      },
+      () => {
+        elevNote.textContent = 'The device did not give its height. Type the elevation.';
+      },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+    );
+  });
   return { el: form, fill };
 }
+
+/**
+ * What the site's elevation changes, measured with the engine (navigate2, 2026-09-25): at
+ * 1000 m the Moon stands 0.45″ lower, the 2024-04-08 eclipse's contacts over Texas come up
+ * to 0.67 s later, the magnetic field is 25 nT (0.05 %) weaker.
+ */
+export const ELEVATION_TEXT =
+  'Your site above sea level (strictly, above the WGS84 ellipsoid, as a GPS reports it). Its effects are small: at 1000 m the Moon stands 0.5″ lower, eclipse contacts shift by under a second, the magnetic field is 0.05 % weaker. It is not your height of eye, which sets the dip.';

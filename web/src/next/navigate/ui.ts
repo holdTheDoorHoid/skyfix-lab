@@ -40,6 +40,8 @@ export interface FieldParts {
   el: HTMLElement;
   setError(message: string | null): void;
   setHelp(text: string | null): void;
+  /** Change the label's words (navigate2: "(UTC)" or "(UT)" after the clock's scale). */
+  setLabel(text: string): void;
 }
 
 export interface FieldOptions {
@@ -47,6 +49,11 @@ export interface FieldOptions {
   term?: string;
   help?: string | null;
   class?: string;
+  /**
+   * Shown beside the label, outside it (navigate2: the ±ΔT chip beside a time), so it is not
+   * read as part of the control's name.
+   */
+  aside?: HTMLElement;
 }
 
 /** A labelled field around `control` with help and error text linked to it. */
@@ -58,16 +65,21 @@ export function field(labelText: string, control: HTMLElement, options: FieldOpt
   const help = h('p', { class: 'sfn-help', id: helpId, hidden: !options.help }, options.help ?? '');
   const error = h('p', { class: 'sfn-error', id: errorId, hidden: true });
   control.setAttribute('aria-describedby', `${helpId} ${errorId}`);
+  const words = document.createTextNode(labelText);
+  const label = h('label', { for: id }, words, options.term ? h('span', { class: 'sfn-term' }, ` · ${options.term}`) : null);
   const el = h(
     'div',
     { class: `sfn-field${options.class ? ` ${options.class}` : ''}` },
-    h('label', { for: id }, labelText, options.term ? h('span', { class: 'sfn-term' }, ` · ${options.term}`) : null),
+    options.aside ? h('div', { class: 'sfn-field__head' }, label, options.aside) : label,
     control,
     help,
     error,
   );
   return {
     el,
+    setLabel(text) {
+      if (words.data !== text) words.data = text;
+    },
     setError(message) {
       error.textContent = message ?? '';
       error.hidden = !message;

@@ -20,10 +20,10 @@ agreement with reference data is not field accuracy — see
 
 ![The explorer's Map view: a compass centred on the observer, the time ribbon across the top, and the side panel showing the place, the Sun's height and direction, and today's sunrise and sunset.](design/app-light.png)
 
-On your first visit a short tour — four cards beside the parts they explain: the place,
-the time bar, the views, and what the numbers are — points the way. It never blocks the
-page; skip it, or close it, and it stays closed on that device. **Show the tour** in the
-**?** Help menu, or on the About view, brings it back.
+On your first visit a short tour — five cards beside the parts they explain: the place,
+the time bar, the views, the Tonight tab, and what the numbers are — points the way. It
+never blocks the page; skip it, or close it, and it stays closed on that device. **Show the
+tour** in the **?** Help menu, or on the About view, brings it back.
 
 ## Setting a place
 
@@ -220,8 +220,9 @@ compares the definitions.
 ## The views
 
 The tabs along the top of the side panel (or, on a phone, along the top of the bottom
-sheet — see below) switch between eight views. The place, the time and the selected body
-are shared across all of them.
+sheet — see below) switch between eight views: Map, Sky, Tonight, Charts, Navigate,
+Almanac, Events and Learn. The place, the time and the selected body are shared across all
+of them. [About](#about) has no tab: it opens from the **?** Help menu.
 
 ### Map and Globe
 
@@ -255,6 +256,80 @@ is for display only — see [Third-party sources](THIRD_PARTY.md), "Star field a
 constellations" — and never affects a fix.
 
 ![The Sky dome at night over Philadelphia: stars, constellation figures, the ecliptic, and the Sun's position well below the horizon.](design/sky-night-philadelphia-dome.png)
+
+### Tonight
+
+One page for the night at your place, for anyone going out to look: when it gets dark,
+the Moon, the planets, the best deep-sky objects, meteor showers, the Milky Way, the next
+two weeks' events, the nearest tide station and the photographers' golden and blue hours.
+
+**Which night.** A night runs from one local noon to the next (noon by the Sun at your
+longitude, as the deep-sky engine counts it). The page shows the night the explorer's time
+belongs to: in the afternoon and evening, the night ahead; after midnight, the night still
+going on while it is dark, and the coming one as soon as its darkness is over — at
+astronomical dawn, when the Sun climbs back above 18° below the horizon. Where the Sun
+never gets that low (summer at high latitudes) the switch comes when the darkest stretch
+ends, with no darkness at all at sunrise, and in the midnight sun at local midnight.
+(The deep-sky engine on its own switches at sunrise; the page chooses the night itself and
+asks the engine about that night.) A moment chosen on the page keeps its night: a planet
+best seen "as dawn comes" takes you past astronomical dawn, and coming back you still see
+the night you chose it from, until the time is moved some other way. **◀ ▶** step a night — they move the explorer's time,
+so every other view follows — and **Tonight** comes back to the real night, following the
+clock. The heading says "Tonight", "Tomorrow night" or "Last night" against the real date,
+and "The night of" otherwise.
+
+- **The summary** under the date says it in sentences: "Clear-sky darkness 20:25–05:21
+  (8 h 56 min). The Moon, a day before full (97% lit), sets at 05:37. Planets: Mars and
+  Jupiter in the morning; Saturn from 20:21." An eclipse seen from your place is named
+  with what you would see of it (a partial solar eclipse "7% of the Sun covered here").
+  "Clear-sky" because the weather is not known here.
+- **The night** is a bar from an hour before sunset to an hour after sunrise: the sky's
+  twilight bands, golden and blue hour, when the Moon is up, when the Milky Way's core is
+  10° or more up in full darkness, and the moonless darkness best for faint objects.
+  Click anywhere on it to move the explorer's time there; **Every moment of the night**
+  lists sunset, each twilight, moonrise and moonset, the core's best moment and the rest
+  as times you can press (the way to use the bar from the keyboard).
+- **Moon**: its phase drawn as it looks from your place (south up south of the equator),
+  how much of it is lit and how far from the nearest quarter, its rise and set, its
+  distance, the moonless part of the darkness, a note when the nearest new or full Moon is
+  a supermoon or a micromoon, and, while it is up at night, the named craters and ranges
+  best seen along the line between lunar day and night. **See it up close** opens the Sky
+  view on it.
+- **Planets**: each planet 10° or more up while the Sun is 6° down, where to look and
+  when — "Jupiter, east, rises 22:10, highest 03:40 at 61°, magnitude −2.7" — with the
+  moments of Jupiter's moons you can watch (a moon passing behind the planet or into its
+  shadow) and how far Saturn's rings are open. Press one to see it in the Sky view.
+- **Deep sky**: the eight best-placed clusters, nebulae and galaxies tonight, then eight
+  more at a time, each with its type, brightness, constellation, best time and height,
+  what to see it with (naked eye, binoculars, a small telescope, a camera), a line about
+  it and how much the Moon washes it out. **Your sky** sets how dark your sky is, from a
+  dark site (Bortle 1) to a city centre (Bortle 9), and the ranking follows; it is kept
+  while the page is open. **Show in Sky** opens the Sky view at the object's best moment.
+- **Meteor showers** active tonight: the rate you might see under your sky (an estimate:
+  the shower's ZHR, cut by the radiant's height and by the faint meteors your sky and the
+  Moon hide), the best time, where the radiant is, and whether the Moon is up then.
+- **Milky Way**: when the core is up in full darkness, its best moment and where the arch
+  of the Milky Way runs across the sky then. **Plan a photo** goes to that moment and
+  opens the Milky Way planner on the panel's Selected card (the best nights of the month).
+- **Coming up**: the next fourteen days — Moon phases (and supermoons), the Moon at its
+  closest and farthest, eclipses and what your place sees of them, the Moon and planets
+  passing close to each other or to bright stars (the moment they are best seen from your
+  place), the Moon hiding a star or a planet, meteor-shower peaks, oppositions, a planet
+  standing still before or after its backward loop, equinoxes and solstices, the Earth
+  closest to or farthest from the Sun, transits of Mercury and Venus. Press one to open
+  Events at that moment.
+- **Tides**: where a NOAA tide station may be within 100 nautical miles, the nearest
+  station's high and low water through the night — predicted, not observed. The stations
+  come in the optional US tides data pack; the card offers it with its size, and nothing
+  is downloaded unless you ask (see [Working offline](#working-offline)). **Tides chart**
+  opens the station's curve in Charts.
+- **Photography**: golden hour and blue hour this evening and tomorrow morning.
+
+**Print** makes a one-page sheet of the night (the explanations and buttons stay on the
+screen). Every time on the page is on your display clock with UTC in its tooltip; for dates
+whose clock time is uncertain (far in the past or future) the ± chip beside a time says by
+how much. Rankings, meteor rates and limiting magnitudes are estimates from stated rules,
+and the page says so where it shows them.
 
 ### Charts
 
@@ -329,13 +404,46 @@ anywhere.
 
 ### Almanac
 
-Daily pages laid out the way a printed nautical almanac's are: GHA and declination for
-Aries, the Sun, the Moon and the four navigational planets at every hour, the 57
-navigational stars plus Polaris, meridian passages, and the rise/set/twilight table across
-31 standard latitudes. Step a day at a time or jump to **Today**; **Print** produces a
-clean printable page. This is the same computation as `skyfix almanac` on the command
-line ([Command line](CLI.md)) and is normative in
-[Accuracy and limitations](ACCURACY.md), "Almanac pages".
+The printed Nautical Almanac, computed for any date the explorer covers and laid out the
+way the book lays it out. Five tabs:
+
+- **Daily pages.** **Three dates** shows an *opening* of the printed almanac: two facing
+  pages covering three days (7, 8 and 9 March; the book groups each year in threes from
+  1 January). The left page has GHA and declination for Aries and the four navigational
+  planets at every hour of the three days, the 57 navigational stars plus Polaris, and
+  the planets' SHA; the right page the Sun and the Moon every hour (with the Moon's v, d
+  and HP), twilight, sunrise and sunset for the middle day and moonrise and moonset for
+  four days across 31 standard latitudes, and the equation of time, meridian passages and
+  the Moon's age and phase for each day. **One date** shows a single day on two pages,
+  larger on screen. The row of the explorer's current hour is marked. The date box takes
+  any year: type `1066`, or `585` with **BC** chosen (or `585 BC`, `−584`); dates before
+  15 October 1582 are in the Julian calendar, as in the time bar, and the calendar box
+  can force either calendar. Before 1767, the year of the first Nautical Almanac, the page
+  says it shows what the book *would* have printed. On estimated years the ± chip beside
+  the heading gives the uncertainty of every clock time on the page.
+- **Increments.** Increments and Corrections, two minutes to a page as printed: what to
+  add to the hour's GHA for the minutes and seconds after it (Sun and planets, Aries, the
+  Moon), and the v and d corrections. **Look up** takes a time such as `58:27` and a v or
+  d and gives the numbers a navigator would read.
+- **Altitude corrections.** The book's inside-cover tables: the Sun (October–March and
+  April–September), stars and planets, and dip for 10° to 90°; the table for 0° to 10°;
+  the extra correction for unusual temperature and pressure with its zone chart (type a
+  temperature and pressure for your zone and the exact corrections); Venus and Mars for
+  the year shown; and the Moon's two-part table.
+- **Polaris.** The Pole Star tables for the year shown: a0, a1, a2 and Polaris' bearing.
+  **Look up** takes LHA Aries, your latitude and the month and adds the three terms:
+  latitude = observed altitude − 1° + a0 + a1 + a2.
+- **Arc to time.** Degrees and minutes of arc as hours, minutes and seconds.
+
+Every table has a sentence on how to use it and a worked example, most of them the
+examples in *The American Practical Navigator* (Bowditch). **Print** prints the tab's
+pages black on white, one page to a sheet, on A4 or US Letter, whatever the theme; on the
+Increments tab **Print all 30 pages** prints the whole table. The tables are computed with
+the project's own corrections, so a navigator using them gets what Navigate gets; where
+the printed book's own formulas differ, an entry can differ from the book's by 0.1′
+([Accuracy and limitations](ACCURACY.md), "Almanac pages" and "Almanac tables and
+three-day pages"). The daily pages are the same computation as `skyfix almanac` on the
+command line ([Command line](CLI.md)).
 
 ![A daily almanac page: GHA and declination for Aries, the four navigational planets and every navigational star, at every hour of the day.](design/almanac-screen.png)
 
@@ -344,10 +452,10 @@ line ([Command line](CLI.md)) and is normative in
 Where you actually work out a position, the way the whole project is really about. Enter
 sights body-first — pick the body, which edge of the disc you brought to the horizon, the
 time, the sextant reading and how sure you are — and every correction (index error, dip,
-refraction, semidiameter, parallax) is worked out live beside it, never hidden. Seven
-methods, each explained in plain words as you open it:
+refraction, semidiameter, parallax) is worked out live beside it, never hidden. Nine
+tabs, each explained in plain words as you open it:
 
-| method | what it gives you |
+| tab | what it gives you |
 |---|---|
 | **Fix** | your position from several sights, by weighted least squares, with the honest 95 % ellipse, conditioning and every result kind (unique, ambiguous, underdetermined, failed) |
 | **Noon sight** | latitude from a body's highest point, and a weak longitude from when it happened |
@@ -355,7 +463,9 @@ methods, each explained in plain words as you open it:
 | **Running fix** | sights taken on the move, brought to one instant along your course and speed |
 | **Average a run** | several quick sights of one body turned into one good one |
 | **Lunar distance** | Greenwich time — and so longitude — from the angle between the Moon and another body, with no chronometer |
-| **Plan sights** | tonight's evening and morning twilight windows, which bodies to shoot and in what order, predicted readings included |
+| **Plan sights** | tonight's evening and morning twilight windows, which bodies to shoot and in what order, predicted readings included, and the **star finder** |
+| **Compass** | the magnetic variation here and today, and your compass's error from a bearing of the Sun, the Moon, a planet or a star, split into variation and deviation; a deviation table |
+| **Passage** | a route of waypoints sailed by great circle or rhumb line, with distances, courses and arrival times, drawn on the map; where you will be (dead reckoning) |
 
 The Fix's chart has a **Fit map** switch: it shades every nearby position by how well it
 fits your sights — darker is worse — with the 95 % and 3-sigma lines drawn on it and a
@@ -363,12 +473,67 @@ caption saying what the shading can and cannot show (a biased sextant or a wrong
 moves the whole picture without widening it). It is off to start; with it on, **Show on
 the map** takes those lines to the map too.
 
-The fix (and the circles of position behind it) draws directly on the Map view. Sessions
-save automatically **in this browser only** — nothing is kept until you enter a sight, and
-nothing is ever sent anywhere or written into the address bar — and you can import or
-export a session as JSON or CSV, or save a fix as a GPX waypoint. A handful of worked
-examples are built in if you want to see a method with real numbers before typing your
-own. This view now does everything the original workbench did, and more.
+**The session's settings** hold what stays the same from sight to sight. Leave **UT1 −
+UTC** blank and the view says what it uses instead: the IERS value for the date, a
+prediction, or 0 with its ±0.9 s (up to 0.23′ of longitude) where nothing is known; type
+your time signal's value to replace it. If your index error or your watch drifts, log them:
+the **index-error log** and the **watch log** take a value at each check, and every sight
+then uses the value at its own time (in between two checks, the straight line between
+them; outside the log, the nearest check held, never extrapolated), and its workings say
+which. The **horizon** can be a shoreline nearer than the sea horizon: give its distance and
+the dip of the sea short of the horizon is used (Bowditch's Table 14), with a sentence
+saying how much it is — and, when the shore is beyond the sea horizon and so hidden, that
+the ordinary dip applies.
+
+**What did I shoot?** Under the sight form, give a rough bearing (true, magnetic or by
+compass) and the time and reading you typed are enough to list the bodies that fit, closest
+first, with how far each is from your sight; **Use** puts one in the form.
+
+**Compass.** The variation (declination) comes from the WMM2025 or IGRF-14 model with its
+uncertainty and yearly change; before 1900 and after 2030 no model is good enough, and the
+view says so instead of guessing. Take the bearing of a body **by azimuth** (any time — note
+the time to the second) or **by amplitude** (as it rises or sets, on the visible or the
+celestial horizon), and the view gives "Compass error 14.4° W; variation 11.8° W; deviation
+2.6° W" with every figure behind it. Give the ship's heading and the deviation goes into the
+**deviation table**; with headings all round (a swing takes eight), the table fits the
+classic deviation curve (coefficients A to E) and prints a card every 15°.
+
+**Passage.** Type waypoints, add the DR or the map's place, or measure on the map and choose
+**Add as a leg of the passage**. Each leg is sailed by great circle (shortest, its course
+turning — with points every 5° of longitude to steer between) or by rhumb line (one course).
+With a speed and a departure time you get the time of every waypoint, the dead-reckoning
+position at the time bar's time (**DR now**, which can become your session's DR), marks every
+few hours on the map, and a GPX route. **Use in the running fix** hands the passage's legs,
+over the hours of your sights, to the running fix. **Where will I be?** works one leg of
+dead reckoning forward (or back) from any position.
+
+**Printing.** **Print worksheets and plotting sheet** in the Fix tab gives a universal
+plotting sheet centred on your DR, with each sight's intercept and line of position and the
+fix, and one worksheet per sight in the six classic steps (time, altitude, almanac, hour
+angle, computed altitude, intercept), with an empty column for your own figures; each sight's
+workings print its worksheet alone. The **star finder** in Plan sights is a 2102-D-style
+disc of the navigational stars with the altitude-azimuth template for your latitude laid over
+it, turned to LHA ♈ as the time bar moves; it prints on two sheets (the template on
+transparency). Everything prints black on white; on screen the night theme stays red.
+
+Sights are offered only between 1990 and 2060 today, the span the almanac is validated for
+(1550–2650 once the deep-time work is merged); outside it the sight form says why and does
+not add the sight, and Tonight's sights, the planner and the Compass tab's bearings say the
+same. Type a sight's date in the calendar the page shows: before 15 October 1582 that is the
+Julian calendar (unless Settings → Calendar says ISO). Times read **UTC** from 1972 to 2035
+and **UT** outside, and a **± chip** beside a sight's time means the Earth's rotation then is
+known only that well: every fix's longitude moves with it, 15″ for each second.
+
+The fix (and the circles of position behind it) draws directly on the Map view, and so does
+a passage. Sessions save automatically **in this browser only** — nothing is kept until you
+enter something of your own, and nothing is ever sent anywhere or written into the address
+bar — and you can import or export a session as JSON or CSV, save a fix as a GPX waypoint or
+a passage as a GPX route. A handful of worked examples are built in if you want to see a
+method with real numbers before typing your own.
+
+**Settings → Sights** holds the index correction used by tonight's sights and by new
+sessions; the **Place** editor holds your site's elevation (it barely matters: at 1000 m the
+Moon stands 0.5″ lower) as well as your height of eye (which sets the dip).
 
 ![The Navigate view's Fix method: five star sights with their corrections, tonight's recommended bodies in the side panel, the solved position with its 95% ellipse, and the circles of position plotted on a chart.](design/navigate-fix-light.png)
 
@@ -486,7 +651,8 @@ trusted in each age (the uncertainty in the Earth's rotation, from an hour at 20
 under a second today). It also explains, in one
 place, what happens to your chosen place (nothing, unless you press Share), links this
 manual and the source code, and credits the map, star and font data. The **?** Help menu
-has the same two links.
+has the same two links. About has no tab of its own: **About SkyFix Lab** in the **?** Help
+menu opens it, and so does the address `#about`.
 
 ## Themes, including night vision
 

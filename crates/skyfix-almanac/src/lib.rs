@@ -30,3 +30,9 @@ pub(crate) mod planet_geometry;
 pub mod rings;
 pub mod satellites;
 pub mod transits;
+
+// Expansion programme Q7 (almanac2 agent): the almanac's tables beyond the daily pages
+// (increments and corrections, altitude corrections, Polaris, arc to time).
+pub mod tables;
+// The printed almanac's three-date openings built from the daily pages (almanac2 agent).
+pub mod opening;

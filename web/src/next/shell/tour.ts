@@ -1,6 +1,7 @@
 /**
- * A short first-run tour: four cards pointing at the place, the time bar, the views and
- * the honesty banner. OWNER: shell-design agent (added by the polish pass).
+ * A short first-run tour: five cards pointing at the place, the time bar, the views, the
+ * Tonight tab (tonight agent) and the honesty banner. OWNER: shell-design agent (added by
+ * the polish pass).
  *
  * Rules
  * - It never blocks the page: no backdrop, no focus trap; a card beside what it explains,
@@ -42,8 +43,15 @@ export const TOUR_STEPS: readonly TourStep[] = [
   },
   {
     title: 'Ways to look',
-    text: 'Map, Sky, Charts, Navigate, Almanac, Events and Learn all show the same place and moment. Choose the Sun, the Moon, a planet or a star in the panel’s Selected card and every view follows it.',
+    text: 'Map, Sky, Tonight, Charts, Navigate, Almanac, Events and Learn all show the same place and moment. Choose the Sun, the Moon, a planet or a star in the panel’s Selected card and every view follows it.',
     target: '.sf-views',
+    side: 'right',
+  },
+  // tonight agent (expansion programme Q2): the Tonight view's card.
+  {
+    title: 'Tonight',
+    text: 'The night ahead at your place on one page: when it is dark, the Moon, the planets, the best deep-sky sights, meteors, the Milky Way and the next two weeks. Every time on it moves the explorer there.',
+    target: '.sf-views__tab[data-view="tonight"]',
     side: 'right',
   },
   {

@@ -2163,3 +2163,77 @@ skyfield` with sources already recorded in this document: Skyfield 1.55 and JPL 
 (section "Reference data"), NAIF's DE440 lunar orientation kernels
 `moon_pa_de440_200625.bpc` and `moon_de440_250416.tf` (section "The Moon in detail:
 reference data"), and the raw LDEM_16 grid above. Nothing from the Rust code enters it.
+
+## Expansion programme — the almanac's tables and three-day pages (almanac2 agent, Q7, 2026-09-25)
+
+Owner: almanac2 agent (`crates/skyfix-almanac/src/tables/`, `opening.rs`,
+`crates/skyfix-wasm/src/almanac_tables.rs`, `web/src/next/almanac/`,
+`tools/reference/gen_almanac_tables.py`). **No third-party data is added to the site or
+the core.** The tables are formulas (CONVENTIONS 13.9.1) evaluated on the project's own
+ephemeris; the layouts follow the printed Nautical Almanac's, which are facts of
+arrangement; no text or figure of any almanac is reproduced.
+
+#### Development-time references
+
+- **The American Practical Navigator (Bowditch), NGA Pub. No. 9, 2019 edition, volume 1,
+  chapter 19 "Sight Reduction"**, sections 1906-1912 and figure 1912c (the Nautical
+  Almanac 2016's Polaris page, LHA Aries 120°-239°, with its illustration). **What is
+  used:** the numbers the worked examples read from the printed increments, altitude
+  correction, Moon and Polaris tables, and the 516 entries (a0, a1, a2, azimuth) of the
+  figure's Polaris page, typed with the book's rounding into
+  `fixtures/reference/almanac_tables_published.json` (test data only). **URL:**
+  <https://msi.nga.mil/Publications/APN>; read from the copy at
+  <https://thenauticalalmanac.com/2019_Bowditch-_American_Practical_Navigator/Volume-_1/05-%20Part%203-%20Celestial%20Navigation/Chapter%2019-%20Sight%20Reductions.pdf>
+  (SHA-256 `74dba460…53544dc1f`). **Retrieved:** 2026-09-25.
+- **The same, 2024 edition, volume 2, chapter 6 "Sextant Altitude Corrections"**, sections
+  604-625: the worked examples' readings of the Nautical Almanac 2024's tables A2, A3, A4
+  and the Moon's, and of the book's own Tables 27 and 28 (temperature and pressure).
+  Typed into the same fixture. Read from
+  <https://thenauticalalmanac.com/2024_Bowditch-_American_Practical_Navigator/Volume_2/09_Volume_2_Calculations_For_Navigation/Chapter_6_Sextant_Altitude_Corrections.pdf>
+  (SHA-256 `181261d8…faa2e9`). **Retrieved:** 2026-09-25.
+- **Licence (both):** works of the U.S. Government (National Geospatial-Intelligence
+  Agency), not subject to copyright in the United States (17 U.S.C. 105). No credit is
+  required; cited as the source of the test values.
+- **The independent computation** (`tools/reference/gen_almanac_tables.py`) uses only the
+  development-time inputs already listed under "Reference data (development-time only)":
+  Skyfield 1.55 (MIT) and JPL DE440s. It adds no source.
+## Expansion programme — Navigate's tools (navigate2 agent, wave 2, 2026-09-25)
+
+No data is added: the Compass and Passage tabs, the sight form's extras, the printables and
+the star finder show the engines' numbers (their sources are recorded above, under the
+geomag and sailings agents).
+
+- **The deviation curve's approximate coefficients** (A to E, `web/src/next/navigate/compass/deviation.ts`):
+  the classic form of compass deviation, `A + B sin θ + C cos θ + D sin 2θ + E cos 2θ`, and
+  the textbook's averages over a swing, as the U.S. Navy and NGA compass-adjustment texts
+  give them (Bowditch's magnetic-compass chapter; NGA Pub. No. 226, *Handbook of Magnetic
+  Compass Adjustment*), works of the U.S. Government, not subject to copyright in the United
+  States (17 U.S.C. 105). Facts and formulas only; neither was fetched for this work, and the
+  tests check the formulas' algebra, not a printed example. Acknowledged here; no credit
+  required.
+- **The universal plotting sheet and the sight-reduction worksheet** follow the classic
+  layout navigators use (the steps of Bowditch's sight reduction, vol. 1 ch. 20); no text or
+  figure is reproduced.
+- **The star finder** draws the sailings agent's geometry (above: the 2102-D was consulted
+  for how the instrument is built and set; nothing from it is used).
+- **The device's height** (the Place editor's "From this device") is the browser's
+  Geolocation API reading, used in the page only and never sent or stored.
+
+## Expansion programme — the Tonight view (tonight agent, 2026-09-25)
+
+The Tonight view (`web/src/next/tonight/`) shows the engines' results and adds one small
+table of its own:
+
+- **Tide-station cells** (`web/src/next/tonight/tide-cells.ts`, `TIDE_CELLS`): the 485
+  one-degree cells of latitude and longitude that hold at least one of the 3 499 stations of
+  the committed `tides-us` pack (NOAA CO-OPS, public domain as a U.S. Government work; see
+  "Tides (optional `tides-us` pack)" above for the source, retrieval date and processing).
+  Only the cells are kept (their numbers, delta-coded in base 36: 1 100 characters), written by
+  `web/src/next/tonight/dev/tide-cells.mjs` from the pack file itself; no station name,
+  position or constant is copied. They let the view offer the pack only where a station may
+  lie within 100 nautical miles, without downloading it. `web/test/next/tonight-tides.test.ts`
+  fails when the table and the committed pack disagree.
+
+Nothing else is added: the deep-sky descriptions, constellation names, meteor-shower table,
+Moon features and every number are the engines' (their sources are listed in their own
+sections above).

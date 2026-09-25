@@ -97,6 +97,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use skyfix_core::calendar::{self, Calendar};
 use skyfix_core::time::{civil_to_jd, format_utc, parse_utc};
 use skyfix_core::types::GeocentricDirection;
 use skyfix_core::units::{norm_180, norm_360};
@@ -558,34 +559,38 @@ pub struct UtDate {
 }
 
 impl UtDate {
-    /// Parse `YYYY-MM-DD` (exactly that form).
+    /// Parse `YYYY-MM-DD`, proleptic Gregorian, with ISO 8601 expanded years outside
+    /// 0000-9999 (a sign and at least four digits: `-0584-05-28`, `+12345-01-01`), as
+    /// the wire writes dates (EXPLORER_API "Dates and years on the wire"; the any-year
+    /// extension of the almanac2 agent).
     pub fn parse(text: &str) -> Result<UtDate, AlmanacError> {
         let t = text.trim();
         let bad = || {
             AlmanacError::Invalid(format!(
-                "date must be a UT calendar date written YYYY-MM-DD, got {text:?}"
+                "date must be a UT calendar date written YYYY-MM-DD (years outside 0000-9999 \
+                 with a sign and at least four digits, e.g. -0584-05-28), got {text:?}"
             ))
         };
-        let b = t.as_bytes();
-        if !t.is_ascii() || b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
+        let (signed, rest) = match t.as_bytes().first() {
+            Some(b'+' | b'-') => (true, &t[1..]),
+            _ => (false, t),
+        };
+        let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+        let tail = rest.as_bytes().get(digits..).unwrap_or_default();
+        let shaped = t.is_ascii()
+            && digits >= 4
+            && (signed || digits == 4)
+            && tail.len() == 6
+            && tail[0] == b'-'
+            && tail[3] == b'-'
+            && [1, 2, 4, 5].iter().all(|&i| tail[i].is_ascii_digit());
+        if !shaped {
             return Err(bad());
         }
-        let digits = |s: &str| -> Option<u32> {
-            s.bytes()
-                .all(|c| c.is_ascii_digit())
-                .then(|| s.parse().ok())
-                .flatten()
-        };
-        let year = digits(&t[0..4]).ok_or_else(bad)?;
-        let month = digits(&t[5..7]).ok_or_else(bad)?;
-        let day = digits(&t[8..10]).ok_or_else(bad)?;
-        if !(1..=12).contains(&month) || day < 1 || day > days_in_month(year as i32, month) {
-            return Err(AlmanacError::Invalid(format!(
-                "{text:?} is not a calendar date"
-            )));
-        }
+        let (year, month, day) = skyfix_core::time::parse_date_in(t, Calendar::Gregorian)
+            .ok_or_else(|| AlmanacError::Invalid(format!("{text:?} is not a calendar date")))?;
         Ok(UtDate {
-            year: year as i32,
+            year: i32::try_from(year).map_err(|_| bad())?,
             month,
             day,
         })
@@ -616,37 +621,26 @@ impl UtDate {
 }
 
 impl std::fmt::Display for UtDate {
+    /// `YYYY-MM-DD`, with ISO 8601 expanded years outside 0000-9999.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:04}-{:02}-{:02}", self.year, self.month, self.day)
+        write!(
+            f,
+            "{}-{:02}-{:02}",
+            calendar::format_year(i64::from(self.year)),
+            self.month,
+            self.day
+        )
     }
 }
 
-fn days_in_month(year: i32, month: u32) -> u32 {
-    let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0;
-    match month {
-        2 if leap => 29,
-        2 => 28,
-        4 | 6 | 9 | 11 => 30,
-        _ => 31,
-    }
-}
-
-/// The UT date containing `jd` (Fliegel & Van Flandern, inverse of `civil_to_jd`).
-fn from_jd(jd: f64) -> UtDate {
-    let l0 = (jd + 0.5).floor() as i64 + 68_569;
-    let n = 4 * l0 / 146_097;
-    let l1 = l0 - (146_097 * n + 3) / 4;
-    let i = 4000 * (l1 + 1) / 1_461_001;
-    let l2 = l1 - 1461 * i / 4 + 31;
-    let j = 80 * l2 / 2447;
-    let day = l2 - 2447 * j / 80;
-    let l3 = j / 11;
-    let month = j + 2 - 12 * l3;
-    let year = 100 * (n - 49) + i + l3;
+/// The UT date containing `jd` (proleptic Gregorian, any year).
+pub(crate) fn from_jd(jd: f64) -> UtDate {
+    let (year, month, day) =
+        calendar::civil_from_jdn(Calendar::Gregorian, (jd + 0.5).floor() as i64);
     UtDate {
         year: year as i32,
-        month: month as u32,
-        day: day as u32,
+        month,
+        day,
     }
 }
 
