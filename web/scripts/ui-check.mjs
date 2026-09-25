@@ -974,8 +974,9 @@ async function main() {
       }
       summary.almanac.timings.openingMs = times;
       console.log(`info  an opening (three daily pages) in the browser, click to pages: ${times.join(', ')} ms`);
+    }
 
-    // 9. The Tonight view (tonight agent).
+    // 10. The Tonight view (tonight agent).
     if (ONLY.has('tonight')) {
       await viewport(1440, 900, false);
       summary.tonight = {};
