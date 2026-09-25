@@ -250,7 +250,10 @@ What you would actually see, looking up: a **Dome** (the whole sky at once, zeni
 middle) or a **Panorama** (drag to turn toward any compass point, scroll to zoom), with
 roughly 9,000 stars sized by brightness and tinted by colour, the 88 constellation
 figures, the planets, the Moon with its correct phase, and the sky's own colour following
-the Sun. A **South up** switch flips the dome for the southern hemisphere. Everything on
+the Sun. A **South up** switch flips the dome for the southern hemisphere. **Zoom the dome**
+with the mouse wheel, a pinch, the **+** and **−** buttons or keys, and drag to move around
+a zoomed chart; fainter stars get their names and fainter deep-sky objects appear as you
+zoom in, and **Whole sky** (or the 0 key) goes back. Everything on
 this view is for looking and finding — see [Third-party sources](THIRD_PARTY.md), "Star
 field and constellations" and "Deep sky" — and none of it ever affects a fix.
 
