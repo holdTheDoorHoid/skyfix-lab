@@ -28,6 +28,7 @@ import { startRouter } from './router.js';
 import { stage } from './stage.js';
 import { startThemeController } from './themes.js';
 import { createTour, tourDismissed } from './tour.js';
+import { onRevealPanel } from '../panel/reveal.js';
 
 export const shell: Component = (host, ctx) => {
   const { store } = ctx;
@@ -82,13 +83,25 @@ export const shell: Component = (host, ctx) => {
     d.add(() => cancelAnimationFrame(id));
   }
 
-  toggle.addEventListener('click', () => {
-    const closing = app.dataset.panel !== 'closed';
-    app.dataset.panel = closing ? 'closed' : 'open';
-    toggle.setAttribute('aria-expanded', String(!closing));
-    toggle.setAttribute('aria-label', closing ? 'Show the panel' : 'Hide the panel');
-    toggle.dataset.tip = closing ? 'Show the panel' : 'Hide the panel';
-  });
+  const setPanelOpen = (open: boolean): void => {
+    app.dataset.panel = open ? 'open' : 'closed';
+    toggle.setAttribute('aria-expanded', String(open));
+    toggle.setAttribute('aria-label', open ? 'Hide the panel' : 'Show the panel');
+    toggle.dataset.tip = open ? 'Hide the panel' : 'Show the panel';
+  };
+  toggle.addEventListener('click', () => setPanelOpen(app.dataset.panel === 'closed'));
+  // A view asks for the panel (panel/reveal.ts; polish2): open it on a laptop, raise the
+  // phone's sheet from its smallest rest (never lower it).
+  d.add(
+    onRevealPanel(store, (to) => {
+      if (matchMedia('(max-width: 767px)').matches) {
+        const now = sheet?.state();
+        if (now === 'min' || (to === 'full' && now === 'peek')) sheet?.set(to);
+      } else if (app.dataset.panel === 'closed') {
+        setPanelOpen(true);
+      }
+    }),
+  );
 
   d.add(
     watch(ctx, (s) => s.settings.navigatorTerms, (on) => {

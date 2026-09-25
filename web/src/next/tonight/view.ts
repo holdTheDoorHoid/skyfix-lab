@@ -639,7 +639,7 @@ const view: Component = (host, ctx) => {
     tidesCard.el.hidden = false;
     if (t.kind === 'loading') {
       const text = tideAsking
-        ? 'Getting the tides pack: the card at the bottom of the view asks before anything is downloaded, and shows its progress.'
+        ? 'Getting the tides pack: the card at the bottom of the view shows its progress.'
         : 'Loading the tides pack saved on this device…';
       return void fill(body, para(text, 'sft-p sft-muted'));
     }
@@ -654,7 +654,7 @@ const view: Component = (host, ctx) => {
         size: 'sm',
         variant: 'secondary',
         tip: 'Downloaded once and saved on this device; nothing about you is sent',
-        onClick: () => getTides(t.declined),
+        onClick: () => getTides(),
       });
       fill(
         body,
@@ -845,7 +845,7 @@ const view: Component = (host, ctx) => {
     drawTides(s, fmtOf(s));
   };
 
-  const getTides = (declined: boolean): void => {
+  const getTides = (): void => {
     tidePending = true;
     tideAsking = true;
     refreshTides();
@@ -856,8 +856,10 @@ const view: Component = (host, ctx) => {
       refreshTides();
       tidesCard.body.querySelector<HTMLElement>('button, .sft-time')?.focus();
     };
-    // Declined once this session: the service will not ask again, so this is the explicit Get.
-    void (declined ? ctx.packs.get(TIDES_PACK) : ctx.packs.ensure(TIDES_PACK, TIDES_REASON)).then(done, () => done(false));
+    // The card's button (which states the size) is the question: the download starts at once,
+    // with its progress card, and no second prompt (polish2, list item 40); an explicit Get
+    // overrides this session's "Not now".
+    void ctx.packs.ensure(TIDES_PACK, TIDES_REASON, { asked: true }).then(done, () => done(false));
   };
 
   /** Work out the night now (generation-guarded; the later stages each in their own task). */
@@ -960,12 +962,14 @@ const view: Component = (host, ctx) => {
     request(true);
   };
 
-  /** The best moment, then the photo agent's Milky Way planner on the Selected card (the panel shown first). */
+  /**
+   * The best moment, then the photo agent's Milky Way planner on the Selected card, which
+   * brings the panel into view itself (panel/reveal.ts: a hidden panel opens, a phone's
+   * sheet rises).
+   */
   const planPhoto = (jd: number): void => {
     pinAt(jd);
     setTime(store, jd);
-    const app = document.querySelector<HTMLElement>('.sf-app');
-    if (app?.dataset.panel === 'closed') document.querySelector<HTMLElement>('.sf-panel-toggle')?.click();
     openMilkyWayPlanner(ctx);
   };
 

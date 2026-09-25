@@ -60,6 +60,7 @@ import {
   timeRange,
 } from './sun-tools.js';
 import { rangeWords } from '../time/tier.js';
+import { revealPanel } from './reveal.js';
 
 // ---------------------------------------------------------------------------------
 // Waiting for the time to settle
@@ -689,6 +690,9 @@ const pendingOpen = new WeakSet<object>();
  * view's "Plan a photo" (tonight agent). Works before the panel has mounted.
  */
 export function openMilkyWayPlanner(ctx: Pick<Ctx, 'store'>): void {
+  // The planner is on the panel: bring it into view first (a phone's sheet at its smallest
+  // rest hid it; polish2, list item 38).
+  revealPanel(ctx.store);
   const p = planners.get(ctx.store);
   if (p) p.open();
   else pendingOpen.add(ctx.store);
