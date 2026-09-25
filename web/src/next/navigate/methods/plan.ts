@@ -17,6 +17,7 @@ import { parsePosition, type Parsed } from '../parse.js';
 import { PLANNER_DISCLOSURES } from '../text.js';
 import { tonightSights } from '../tonight.js';
 import { btn, card, errorText, field, kids, notice, para, parsedField, selectInput } from '../ui.js';
+import { starFinderCard } from '../starfinder/card.js';
 import { autoRun, methodFrame, numberField, optionalUtcField } from './common.js';
 
 function metricsRow(label: string, m: PlanMetrics): HTMLElement {
@@ -41,6 +42,10 @@ function metricsRow(label: string, m: PlanMetrics): HTMLElement {
 export function planMethod(host: HTMLElement, nc: NavCtx): Mounted {
   const f = methodFrame(host, nc, 'plan');
   f.chart.el.hidden = true;
+  // navigate2 (expansion programme): the star finder, turned to LHA ♈ (starfinder/card.ts).
+  const finder = starFinderCard(nc);
+  host.append(finder.el);
+  f.track(() => finder.destroy());
   const store = nc.working.store;
   const set = (patch: Partial<PlannerForm>): void => store.patch({ planner: { ...store.get().planner, ...patch } });
 

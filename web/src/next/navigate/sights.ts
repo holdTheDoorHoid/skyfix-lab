@@ -38,6 +38,7 @@ import { starIdPanel } from './starid.js';
 import { DEFAULT_SHORE_NM, horizonFromSelect, horizonOptions, horizonText, KIND_TEXT, LIMB_TEXT } from './text.js';
 import { sightTierAt } from './tier.js';
 import { btn, card, checkbox, debounce, errorText, field, notice, para, selectInput, textInput, uid, warningList, type FieldParts } from './ui.js';
+import { openSightWorksheet } from './print/open.js';
 import { sightWorkings } from './workings.js';
 
 const OTHER = '__other__';
@@ -674,7 +675,15 @@ export function sightsPanel(host: HTMLElement, nc: NavCtx): SightsPanel {
       ),
       h('div', { class: 'sfn-sight__line' }, reading, ' ', outcome),
       expanded
-        ? h('div', { class: 'sfn-sight__details', id: detailsId }, entry?.status === 'ok' ? sightWorkings(entry.sight, f) : entry?.status === 'error' ? notice('error', entry.message) : para('Working it out…'))
+        ? h(
+            'div',
+            { class: 'sfn-sight__details', id: detailsId },
+            entry?.status === 'ok' ? sightWorkings(entry.sight, f) : entry?.status === 'error' ? notice('error', entry.message) : para('Working it out…'),
+            // navigate2: the worksheet of this sight, print-clean (print/worksheet.ts).
+            entry?.status === 'ok'
+              ? h('div', { class: 'sfn-export' }, btn('Print the worksheet', () => openSightWorksheet(nc, o, entry.sight), { variant: 'outline', icon: 'list', tip: 'This sight in the six classic steps, with a column for your own figures' }))
+              : null,
+          )
         : null,
     );
   }
