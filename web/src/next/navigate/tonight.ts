@@ -236,6 +236,8 @@ export function tonightSights(options: TonightOptions = {}): Component {
       return { destroy: () => d.dispose() };
     }
     let lastKey = '';
+    /** The time of the last request, to tell a moving time from a still one (verify2). */
+    let lastJd = Number.NaN;
     let lastRun = 0;
     let firstPending = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
@@ -289,7 +291,18 @@ export function tonightSights(options: TonightOptions = {}): Component {
       const inputs = inputsFor(ctx, from);
       const st = ctx.store.get().settings;
       const key = JSON.stringify([inputs.observer, inputs.instrument, Math.floor(inputs.jdStart * 24), st.angleFormat, st.timeDisplay, st.hourCycle, ctx.store.get().observer.zone, st.calendar, st.yearStyle]);
-      if (key === lastKey) return;
+      const moved = inputs.jdStart !== lastJd;
+      lastJd = inputs.jdStart;
+      if (key === lastKey) {
+        // The same hour, but the time still moving: a plan waiting for it to settle keeps
+        // waiting, up to MAX_WAIT_MS (verify2: at an hour a second the hour changed every
+        // second, the timer fired between, and a plan of 100-150 ms was made every second).
+        if (timer !== null && moved && lastRun !== 0 && Date.now() - firstPending < MAX_WAIT_MS) {
+          clearTimeout(timer);
+          timer = setTimeout(compute, SETTLE_MS);
+        }
+        return;
+      }
       lastKey = key;
       // A plan takes tens of milliseconds of the page's time. While the time keeps moving
       // (the time bar dragged, or playing) it waits for the time to settle, so it never makes
