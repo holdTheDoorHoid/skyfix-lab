@@ -2407,3 +2407,23 @@ engines (`docs/VERIFICATION_2.md` says what each was used for).
 The lunar-limb pack's ring was also read by a separate Python decoder for the independent
 contact computation of ACCURACY 19; no new data.
 <!-- /verify2 -->
+
+<!-- verify2: shipped -->
+## Verification (verify2 agent, 2026-09-25): shipped, and the on-screen credits removed
+
+Nothing on screen credits anything but OpenStreetMap (EXPANSION_PLAN, "Data credit"). The
+verifier removed the lines that did, keeping each source's provenance here and in its own
+section above:
+
+- the Sky view's "Add from orbital elements…" example said "Example values: Source: Minor
+  Planet Center.", and every body pasted in an MPC format carried "Source: Minor Planet
+  Center" on its card and list row (the sky2 paragraph above describes this; it no longer
+  holds). The example's values are now JPL's (the row below), which asks no credit, and
+  elements a person pastes are theirs: the explorer does not ship them.
+- the Moon close-up's "Feature positions: USGS/IAU Gazetteer of Planetary Nomenclature
+  (public domain)."
+
+| what | where it ships | retrieved | licence basis | hash (SHA-256) | processing |
+|---|---|---|---|---|---|
+| JPL Small-Body Database API, (1) Ceres (`https://ssd-api.jpl.nasa.gov/sbdb.api?sstr=1&full-prec=true&phys-par=true`): orbit solution JPL 48 (2021-04-13), epoch JD 2461200.5 TDB, and H, G | `web/src/next/sky/custom.ts` `CUSTOM_EXAMPLE`, the add dialog's worked example (nine numbers) | 2026-09-25 | facts (a body's orbital elements), from NASA/JPL; no credit asked | `85e8822bd0d99e41d5b043f94e7583adb741ac3ce3bad884a6a2eda26717b378` (the API's JSON response, 5 088 bytes) | q, e, i, node, peri rounded to the digits of the example they replace (they agree with the MPC's to every one); tp is JPL's next perihelion passage, 2461599.841467; H 3.34, G 0.12 |
+<!-- /verify2: shipped -->
