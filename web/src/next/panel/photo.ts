@@ -59,6 +59,7 @@ import {
   rayPoints,
   timeRange,
 } from './sun-tools.js';
+import { rangeWords } from '../time/tier.js';
 
 // ---------------------------------------------------------------------------------
 // Waiting for the time to settle
@@ -362,7 +363,8 @@ export function lightTableView(ctx: Ctx): LightTableView {
     if (!hours) {
       body.replaceChildren();
       note.hidden = false;
-      setText(note, span ? `Golden and blue hour: not computed (${error}).` : `Golden and blue hour: ${outsideWords(ctx, 'this day')}`);
+      const years = rangeWords(error);
+      setText(note, span ? (years ? `Golden and blue hour: worked out only for ${years}.` : `Golden and blue hour: not computed (${error}).`) : `Golden and blue hour: ${outsideWords(ctx, 'this day')}`);
       return;
     }
     chip.set(ctx, a, b);

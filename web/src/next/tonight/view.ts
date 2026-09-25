@@ -70,6 +70,7 @@ import { UTC_ZONE, zoneShortName } from '../time.js';
 import { eventsTargetFor, showEvents } from '../events/link.js';
 import { skyConditions } from '../sky/conditions.js';
 import { skyChoiceSelect } from '../sky/sky-choice.js';
+import { rangeWords } from '../time/tier.js';
 
 // -------------------------------------------------------------------------------------
 // The view's own memory (per explorer, while the page lives)
@@ -602,7 +603,7 @@ const view: Component = (host, ctx) => {
     if (!comingDone) notes.push(para('Looking two weeks ahead…', 'sft-p sft-muted'));
     else if (!items.length) notes.push(para('Nothing notable in the next two weeks beyond the Moon’s phases.', 'sft-p sft-muted'));
     if (comingMissing.length) notes.push(para(`Not in this build of the engine: ${comingMissing.join(', ')}.`, 'sft-p sft-muted sft-small'));
-    for (const e of comingErrors) notes.push(para(`Could not work out ${e}.`, 'sft-p sft-muted sft-small'));
+    for (const e of comingErrors) notes.push(para(e, 'sft-p sft-muted sft-small'));
     fill(body, items.length ? list : '', ...notes);
   };
 
@@ -798,7 +799,9 @@ const view: Component = (host, ctx) => {
       try {
         coming!.set(source.id, source.run(ctx, q, f));
       } catch (error) {
-        comingErrors.push(`${source.label}: ${error instanceof Error ? error.message : String(error)}`);
+        const text = error instanceof Error ? error.message : String(error);
+        const years = rangeWords(text);
+        comingErrors.push(years ? `${source.label.charAt(0).toUpperCase()}${source.label.slice(1)}: worked out only for ${years}.` : `Could not work out ${source.label}: ${text}.`);
       }
     }
     later(() => runComing(gen, q, f, index + 1));
