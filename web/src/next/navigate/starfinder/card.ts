@@ -102,17 +102,26 @@ export function starFinderCard(nc: NavCtx): Mounted & { el: HTMLElement } {
     const key = `${band}|${day}`;
     if (geom && geom.key === key) return;
     let g: StarFinderGeometry;
+    let dateText = formatDate(day, UTC_ZONE);
+    let placesNote = `Star places of ${dateText} (apparent).`;
     try {
       g = engine.starFinderGeometry(band, day);
-    } catch (error) {
-      figure.replaceChildren(notice('error', String(error)));
-      geom = null;
-      return;
+    } catch {
+      // A date the almanac does not place stars for: the catalogue (J2000.0) places, said so.
+      try {
+        g = engine.starFinderGeometry(band);
+        dateText = 'J2000.0 (catalogue)';
+        placesNote = `The time bar’s date is outside this build’s star places, so the stars are drawn at their J2000.0 catalogue places: close enough for a finder over a few decades, not over centuries (precession moves them about 1.4° a century).`;
+      } catch (error) {
+        figure.replaceChildren(notice('error', String(error)));
+        geom = null;
+        return;
+      }
     }
     const { svg, setLha } = starFinderSvg(g, 600, lha);
     figure.replaceChildren(svg);
-    geom = { key, g, dateText: formatDate(day, UTC_ZONE), setLha };
-    notes.replaceChildren(...g.notes.map((n) => h('li', {}, n)), h('li', {}, `Star places of ${geom.dateText} (apparent).`));
+    geom = { key, g, dateText, setLha };
+    notes.replaceChildren(...g.notes.map((n) => h('li', {}, n)), h('li', {}, placesNote));
     turnFromTime();
   };
 
