@@ -76,7 +76,7 @@ use crate::geometry::{
     geographic_position, initial_bearing, tangent_row, two_circle_intersections,
 };
 use crate::linalg;
-use crate::sights::wgs84::EarthShape;
+use crate::sights::wgs84::{EarthShape, SiteOffsets};
 use crate::types::{FixCandidate, FixResult, LatLon, Sight, SolveOptions};
 use crate::uncertainty;
 use crate::units::{CHI2_95_2DOF, NM_M, nm_to_rad, norm_180, rad_to_arcmin, rad_to_deg, rad_to_nm};
@@ -797,6 +797,7 @@ impl<'a> Model<'a> {
         let mut d = vec![0.0; n];
         for (&lat, out_row) in lat_rad.iter().zip(out.chunks_exact_mut(n_lon)) {
             let (sphi, cphi) = lat.sin_cos();
+            let site = SiteOffsets::new(sphi, cphi);
             for (r, t) in rows.iter_mut().zip(&self.terms) {
                 *r = RowCoef {
                     sphi_sdec: sphi * t.sdec,
@@ -809,13 +810,13 @@ impl<'a> Model<'a> {
                 *cell = if self.bias {
                     for ((r, c), (t, dk)) in rows.iter().zip(col).zip(self.terms.iter().zip(&mut d))
                     {
-                        *dk = t.ho - model_altitude(t, r, c, sphi, cphi);
+                        *dk = t.ho - model_altitude(t, r, c, &site);
                     }
                     self.profiled(&d)
                 } else {
                     let mut acc = 0.0;
                     for ((r, c), t) in rows.iter().zip(col).zip(&self.terms) {
-                        let dk = t.ho - model_altitude(t, r, c, sphi, cphi);
+                        let dk = t.ho - model_altitude(t, r, c, &site);
                         acc += t.wn * dk * dk;
                     }
                     acc
@@ -827,6 +828,7 @@ impl<'a> Model<'a> {
     /// `Ho - Hc` for every sight at `p`, with the grid's arithmetic.
     fn departures(&self, p: Point) -> Vec<f64> {
         let (sphi, cphi) = p.lat.sin_cos();
+        let site = SiteOffsets::new(sphi, cphi);
         self.terms
             .iter()
             .map(|t| {
@@ -841,7 +843,7 @@ impl<'a> Model<'a> {
                     clha,
                     east: -t.cdec * slha,
                 };
-                t.ho - model_altitude(t, &r, &c, sphi, cphi)
+                t.ho - model_altitude(t, &r, &c, &site)
             })
             .collect()
     }
@@ -1038,16 +1040,16 @@ fn altitude(r: &RowCoef, c: &ColCoef) -> f64 {
 }
 
 /// The model altitude of term `t` at a node: [`altitude`], plus the Moon's Earth-shape
-/// term from the same components when the sight carries it (CONVENTIONS 15.4).
-/// `sphi`, `cphi`: the node's latitude.
+/// term from the same components when the sight carries it (CONVENTIONS 15.4). `site`:
+/// the node's latitude, computed once per row.
 #[inline(always)]
-fn model_altitude(t: &Term<'_>, r: &RowCoef, c: &ColCoef, sphi: f64, cphi: f64) -> f64 {
+fn model_altitude(t: &Term<'_>, r: &RowCoef, c: &ColCoef, site: &SiteOffsets) -> f64 {
     let h = altitude(r, c);
     match &t.shape {
         Some(shape) => {
             let up = r.sphi_sdec + r.cphi_cdec * c.clha;
             let north = r.cphi_sdec - r.sphi_cdec * c.clha;
-            h + shape.term_rad_from_components(sphi, cphi, up, north, c.east)
+            h + shape.term_rad_at_site(site, up, north, c.east)
         }
         None => h,
     }

@@ -642,3 +642,75 @@ fn a_moon_run_averages_to_the_real_earths_altitude() {
     println!("Moon run averaged: {err:.2e}' from the model altitude at the truth");
     assert!(err.abs() < 1e-4, "{err}'");
 }
+
+#[test]
+fn a_misfit_grid_with_moon_sights_keeps_its_budget() {
+    // The Earth-shape term is evaluated at every node for a Moon sight. Ten sights round
+    // Philadelphia, one of them the Moon on the real Earth, 200 x 200 nodes: the 30 ms
+    // budget of the misfit grid holds in an optimised build (`cargo test --release -p
+    // skyfix-core --test moon_earth_shape -- --nocapture`); a debug build prints only.
+    use skyfix_core::types::Sight;
+    let truth = Point::from_deg(39.9526, -75.1652);
+    let sights: Vec<Sight> = (0..10)
+        .map(|k| {
+            let zn = (17.0 + 36.0 * k as f64).to_radians();
+            let alt = 25.0 + (k * 37 % 41) as f64;
+            let gp = skyfix_core::geometry::destination(truth, zn, (90.0 - alt).to_radians());
+            let (gha, dec) = (norm_360(-gp.lon_deg()).to_radians(), gp.lat);
+            let moon = k == 0;
+            let hp = moon.then_some(58.0);
+            let term = hp.map_or(0.0, |hp| {
+                EarthShape::new(hp)
+                    .unwrap()
+                    .term_rad(truth.lat, truth.lon, gha, dec)
+            });
+            Sight {
+                id: format!("s{k}"),
+                body: if moon { "Moon" } else { "star" }.to_string(),
+                gha_rad: gha,
+                dec_rad: dec,
+                ho_rad: alt.to_radians() + term,
+                sigma_rad: (1.0f64 / 60.0).to_radians(),
+                gha_rate_rad_per_s: 0.0,
+                moon_hp_arcmin: hp,
+            }
+        })
+        .collect();
+    let options = SolveOptions::default();
+    let result = solve(&sights, &options);
+    assert!(miss_m(unique(&result).position, truth) < 0.05);
+    let bounds = misfit::default_bounds(&sights, &result, None)
+        .unwrap()
+        .bounds;
+    let time = |sights: &[Sight]| {
+        let mut ms: Vec<f64> = (0..9)
+            .map(|_| {
+                let t = std::time::Instant::now();
+                let g = misfit::grid_for_solve(sights, &options, &result, Some(bounds), 200, 200)
+                    .unwrap();
+                std::hint::black_box(&g);
+                t.elapsed().as_secs_f64() * 1000.0
+            })
+            .collect();
+        ms.sort_by(f64::total_cmp);
+        ms[0]
+    };
+    let with_moon = time(&sights);
+    let mut plain = sights.clone();
+    for s in &mut plain {
+        s.moon_hp_arcmin = None;
+    }
+    let without = time(&plain);
+    println!(
+        "misfit grid 200 x 200, 10 sights of which one the Moon: {with_moon:.2} ms with the \
+         term, {without:.2} ms without ({} build)",
+        if cfg!(debug_assertions) {
+            "debug"
+        } else {
+            "release"
+        }
+    );
+    if !cfg!(debug_assertions) {
+        assert!(with_moon <= 30.0, "{with_moon} ms");
+    }
+}

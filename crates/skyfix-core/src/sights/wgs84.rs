@@ -167,12 +167,14 @@ pub const WGS84_E2: f64 = WGS84_F * (2.0 - WGS84_F);
 /// The Moon is placed at `d = 6378.14 km / sin HP` along its apparent geocentric
 /// direction (the radius the providers' HP refers to, [`HP_RADIUS_KM`]), `h_t` is the
 /// altitude of `d u - o` (`o` the site on the ellipsoid) above the geodetic horizon, and
-/// both altitudes are taken with `atan2`, so the difference keeps full precision up to
-/// the zenith. [`EarthShape::term_rad_from_components`] is that vector computation with
-/// the dot products written out: `u . up = sin Hc_sphere`, `o . up = a^2 / N`,
-/// `o . north = -N e^2 sin phi cos phi`, `o . east = 0`. [`earth_shape_arcmin`] does it
-/// with explicit vectors ([`Site`], [`earth_fixed_unit`]) and is the reference the tests
-/// hold it to.
+/// the altitudes are taken with `atan2`, so the term keeps full precision up to the
+/// zenith. [`EarthShape::term_rad_from_components`] is that vector computation with the
+/// dot products written out (`u . up = sin Hc_sphere`, `o . up = a^2 / N`,
+/// `o . north = -N e^2 sin phi cos phi`, `o . east = 0`), the difference of the two
+/// altitudes taken as one small angle and the small arcsine and arctangent by their
+/// series, so the misfit grid can afford it at every node (about 30 ns).
+/// [`earth_shape_arcmin`] does it with explicit vectors ([`Site`], [`earth_fixed_unit`])
+/// and library `atan2`/`asin`, and is the reference the tests hold it to (1.5e-12').
 ///
 /// Left out, and why: the observer's height above the sea (30 m changes the Moon's
 /// parallax by 0.0003'), polar motion and the deflection of the vertical (ACCURACY.md
@@ -215,22 +217,29 @@ impl EarthShape {
         north: f64,
         east: f64,
     ) -> f64 {
-        let w = (1.0 - WGS84_E2 * sin_lat * sin_lat).sqrt();
-        // The site vector o along up (a^2 / N = a w) and along north (-N e^2 sin cos),
-        // divided by the Moon's distance: v / d = u - o / d.
-        let up_t = up - self.inv_distance_km * WGS84_A_KM * w;
-        let north_t =
-            north + self.inv_distance_km * (WGS84_A_KM / w) * WGS84_E2 * sin_lat * cos_lat;
-        // Plain square roots rather than `hypot`: every component is at most about 1,
-        // so nothing can overflow, and the misfit grid evaluates this at every node.
-        let horizontal_t = (north_t * north_t + east * east).sqrt();
-        let h_t = up_t.atan2(horizontal_t);
-        let cos_h_t = horizontal_t / (up_t * up_t + horizontal_t * horizontal_t).sqrt();
-        let parallax = (self.sin_hp * cos_h_t).clamp(-1.0, 1.0).asin();
-        let hc_sphere = up.atan2((north * north + east * east).sqrt());
-        (h_t - hc_sphere) + parallax
+        self.term_rad_at_site(&SiteOffsets::new(sin_lat, cos_lat), up, north, east)
     }
 
+    /// [`EarthShape::term_rad_from_components`] with the site's part computed once for its
+    /// latitude (the misfit grid shares it along a row of nodes).
+    #[inline]
+    pub fn term_rad_at_site(&self, site: &SiteOffsets, up: f64, north: f64, east: f64) -> f64 {
+        // v / d = u - o / d: the site vector along up (a^2 / N) and north (-N e^2 s c).
+        let up_t = up - self.inv_distance_km * site.up_km;
+        let north_t = north + self.inv_distance_km * site.north_km;
+        // Plain square roots rather than `hypot`: every component is at most about 1,
+        // so nothing can overflow, and the misfit grid evaluates this at every node.
+        let horizontal = (north * north + east * east).sqrt();
+        let horizontal_t = (north_t * north_t + east * east).sqrt();
+        // h_t - Hc_sphere as one angle: the angle between the two (horizontal, up)
+        // vectors, full precision up to the zenith. It is about the parallax, small.
+        let h_t_minus_hc = atan2_small(
+            up_t * horizontal - horizontal_t * up,
+            horizontal_t * horizontal + up_t * up,
+        );
+        let cos_h_t = horizontal_t / (up_t * up_t + horizontal_t * horizontal_t).sqrt();
+        h_t_minus_hc + asin_small(self.sin_hp * cos_h_t)
+    }
     /// The term in radians for an observer at geodetic `lat`, east `lon` and a body at
     /// apparent geocentric `gha` (west-positive) and `dec`, all radians.
     pub fn term_rad(&self, lat: f64, lon: f64, gha: f64, dec: f64) -> f64 {
@@ -250,6 +259,50 @@ impl EarthShape {
     pub fn term_arcmin(&self, lat: f64, lon: f64, gha: f64, dec: f64) -> f64 {
         crate::units::rad_to_arcmin(self.term_rad(lat, lon, gha, dec))
     }
+}
+
+/// The part of [`EarthShape`] that depends only on the site's geodetic latitude: the
+/// sea-level site vector's components along the local up (`a^2 / N`) and north
+/// (`-N e^2 sin phi cos phi`, stored with its sign flipped) axes, km.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct SiteOffsets {
+    up_km: f64,
+    north_km: f64,
+}
+
+impl SiteOffsets {
+    pub fn new(sin_lat: f64, cos_lat: f64) -> SiteOffsets {
+        let w = (1.0 - WGS84_E2 * sin_lat * sin_lat).sqrt();
+        SiteOffsets {
+            up_km: WGS84_A_KM * w,
+            north_km: (WGS84_A_KM / w) * WGS84_E2 * sin_lat * cos_lat,
+        }
+    }
+}
+
+/// `asin(x)` for the parallax's small argument (`|x| <= sin HP`, 0.018 for the Moon) by
+/// its series to `x^9`, which is exact to rounding there (the next term is under 1e-18
+/// below 0.03) and several times faster than `asin`; `asin` itself beyond 0.03.
+#[inline]
+fn asin_small(x: f64) -> f64 {
+    if x.abs() > 0.03 {
+        return x.clamp(-1.0, 1.0).asin();
+    }
+    let x2 = x * x;
+    x * (1.0 + x2 * (1.0 / 6.0 + x2 * (3.0 / 40.0 + x2 * (5.0 / 112.0 + x2 * (35.0 / 1152.0)))))
+}
+
+/// `atan2(y, x)` for a small angle (`|y / x| <= 0.03` with `x > 0`: the difference of
+/// the two altitudes, about the parallax) by the series of `atan(y / x)` to the ninth
+/// power, exact to rounding there; `atan2` itself otherwise.
+#[inline]
+fn atan2_small(y: f64, x: f64) -> f64 {
+    let z = y / x;
+    if !(x > 0.0 && z.abs() <= 0.03) {
+        return y.atan2(x);
+    }
+    let z2 = z * z;
+    z * (1.0 - z2 * (1.0 / 3.0 - z2 * (1.0 / 5.0 - z2 * (1.0 / 7.0 - z2 * (1.0 / 9.0)))))
 }
 
 /// The Moon's Earth-shape term (CONVENTIONS 15.4), arcminutes, for an observer at
@@ -511,13 +564,43 @@ mod tests {
         // vectors, no code shared with this module), 2026-09-24.
         for (lat, lon, gha, dec, hp, want) in [
             (54.7, 0.0, 0.0, 0.0, 61.5, 0.22332381215033395),
-            (39.9526, -75.1652, 352.0833, 26.305, 59.341, 0.05668299809180458),
+            (
+                39.9526,
+                -75.1652,
+                352.0833,
+                26.305,
+                59.341,
+                0.05668299809180458,
+            ),
             (-33.9, 151.2, 200.0, -20.0, 55.0, 0.15560159358638626),
             (12.0, -40.0, 80.0, 5.0, 57.3, 0.01216113580316577),
         ] {
             let got = earth_shape_arcmin(lat, lon, gha, dec, hp);
             assert!((got - want).abs() < 1e-11, "{lat} {lon}: {got} vs {want}");
         }
+    }
+
+    #[test]
+    fn the_small_angle_arcsine_is_the_arcsine() {
+        for k in 0..=2000 {
+            let x = -0.06 + 0.12 * k as f64 / 2000.0;
+            let diff = (asin_small(x) - x.asin()).abs();
+            assert!(diff < 4e-18 + 1e-16 * x.abs(), "{x}: {diff:e}");
+        }
+    }
+
+    #[test]
+    fn the_small_angle_arctangent_is_the_arctangent() {
+        for k in 0..=2000 {
+            let z = -0.06 + 0.12 * k as f64 / 2000.0;
+            for x in [0.97, 1.0, 1.02] {
+                let y = z * x;
+                let diff = (atan2_small(y, x) - y.atan2(x)).abs();
+                assert!(diff < 1e-16 * (1.0 + y.abs()), "{y} {x}: {diff:e}");
+            }
+        }
+        // Outside the small-angle range it is atan2 itself.
+        assert_eq!(atan2_small(1.0, -1.0), 1.0f64.atan2(-1.0));
     }
 
     #[test]
