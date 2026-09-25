@@ -30,7 +30,7 @@ import { darknessOf, nightMiddle, type NightCore, type NightDetail } from './dat
 import {
   cap,
   clock,
-  clockOn,
+  clockOnPlain,
   clockRange,
   dayTitle,
   degrees,
@@ -210,6 +210,8 @@ export function visiblePlanets(core: NightCore): PlanetTonight[] {
 export function planetsSentence(core: NightCore, f: Fmt): string | null {
   if (!core.tonight) return null;
   const window = planetWindow(core);
+  // With no dark at all the darkness sentence has said it; nothing to add.
+  if (!window) return null;
   const bright = visiblePlanets(core).filter((p) => (BRIGHT_PLANETS as readonly string[]).includes(p.body));
   if (!bright.length) return 'No bright planet is up in the dark.';
   // Group planets that share a phrase: "Jupiter and Saturn all night".
@@ -234,24 +236,35 @@ export function showersSentence(core: NightCore): string | null {
   return `Meteors: ${listWords(parts)}.`;
 }
 
-export function eclipseSentence(detail: NightDetail | null): string | null {
-  const e = detail?.eclipses[0];
-  if (!e) return null;
-  const kind = e.eclipse.kind === 'lunar' ? 'of the Moon' : 'of the Sun';
-  const type = e.eclipse.type === 'penumbral' ? 'A penumbral eclipse' : `A ${e.eclipse.type} eclipse`;
-  const seen =
-    !e.local || e.local.visibility === 'none'
-      ? 'not seen from here'
-      : e.local.visibility === 'below_horizon'
-        ? `below the horizon here`
-        : e.local.visibility === 'partly_below_horizon'
-          ? 'partly seen from here'
-          : 'seen from here';
-  return `${type} ${kind}, ${seen}.`;
+/**
+ * An eclipse in the night's window, in words for this place: a solar one only when some of it
+ * is seen from here (its local type and how much of the Sun is covered), a lunar one with its
+ * greatest moment. Null when there is none to see.
+ */
+export function eclipseSentence(detail: NightDetail | null, f: Fmt): string | null {
+  for (const { eclipse: e, local } of detail?.eclipses ?? []) {
+    if (!local || local.visibility === 'none' || local.visibility === 'below_horizon') continue;
+    if (local.kind === 'solar' && e.kind === 'solar') {
+      const vm = local.visible_max;
+      if (!vm || local.local_type === 'none') continue;
+      const here = local.local_type;
+      const covered = percentLit(vm.obscuration ?? local.obscuration);
+      const elsewhere = here === 'partial' && e.type !== 'partial' ? ` (${e.type} elsewhere)` : '';
+      const part = local.visibility === 'partly_below_horizon' ? ', the Sun rising or setting during it' : '';
+      return `A ${here} eclipse of the Sun, at its most at ${clock(vm.jd_utc, f)}: ${covered} of the Sun covered here${elsewhere}${part}. Never look at the Sun without proper eye protection.`;
+    }
+    if (local.kind === 'lunar' && e.kind === 'lunar') {
+      const max = local.events.find((x) => x.kind === 'max');
+      const type = e.type === 'penumbral' ? 'penumbral eclipse of the Moon (a faint shading)' : `${e.type} eclipse of the Moon`;
+      const seen = local.visibility === 'visible' ? 'seen from here from start to end' : 'partly seen from here';
+      return `A ${type} tonight${max ? `, greatest at ${clock(max.jd_utc, f)}` : ''}, ${seen}.`;
+    }
+  }
+  return null;
 }
 
 export function headerModel(core: NightCore, detail: NightDetail | null, f: Fmt, nowJd: number, realNight: number | null): HeaderModel {
-  const sentences = [darknessSentence(core, f), eclipseSentence(detail), moonSentence(core, detail, f), planetsSentence(core, f), showersSentence(core)].filter(
+  const sentences = [darknessSentence(core, f), eclipseSentence(detail, f), moonSentence(core, detail, f), planetsSentence(core, f), showersSentence(core)].filter(
     (x): x is string => Boolean(x),
   );
   return { kicker: relativeNight(core.q.n, realNight), date: eveningDate(core, f, nowJd), sentences };
@@ -290,7 +303,8 @@ export function moonModel(core: NightCore, detail: NightDetail | null, f: Fmt): 
   const evening = sunsetSunrise(core).set ?? core.q.n + 0.25;
   for (const e of moonBody?.events ?? []) {
     if (e.kind !== 'rise' && e.kind !== 'set') continue;
-    rows.push({ key: e.kind === 'rise' ? 'Moonrise' : 'Moonset', value: clockOn(e.jd_utc, evening, f), jd: e.jd_utc });
+    // A time button's text: the chip beside the button carries any uncertainty.
+    rows.push({ key: e.kind === 'rise' ? 'Moonrise' : 'Moonset', value: clockOnPlain(e.jd_utc, evening, f), jd: e.jd_utc });
   }
   if (!rows.length) rows.push({ key: 'Rise and set', value: moonBody?.always_above ? 'Up all night' : moonBody?.always_below ? 'Down all night' : 'Neither tonight' });
   const o = detail?.orientation;
@@ -320,18 +334,37 @@ export function moonModel(core: NightCore, detail: NightDetail | null, f: Fmt): 
     const extra = z.largest_of_year ? ', the largest full Moon of the year' : z.smallest_of_year ? ', the smallest full Moon of the year' : '';
     note = `${weekdayOf(z.jd_utc, f)}’s ${what} (${clock(z.jd_utc, f)}) is a ${z.supermoon ? 'supermoon' : 'micromoon'}${extra}: ${distanceText(z.distance_km, f.units)} away, ${size}.`;
   }
-  const t = detail?.features?.tonight.slice(0, 4) ?? [];
-  const terminator = t.length ? `Along the terminator tonight: ${listWords(t)}.` : null;
+  const t = featuresMoment(core) !== null ? (detail?.features?.tonight.slice(0, 4) ?? []) : [];
+  const terminator = t.length ? `Good relief along the terminator, the line between day and night on the Moon: ${listWords(t)}.` : null;
+  const repeat = words !== null && name.toLowerCase().includes(words.replace(/^at /, ''));
   return {
     name,
     illuminated: k,
-    lit: `${percentLit(k)} lit${words ? ` · ${words}` : ''}`,
+    lit: `${percentLit(k)} lit${words && !repeat ? ` · ${words}` : ''}`,
     waxing,
     rows,
     moonless,
     note,
     terminator,
   };
+}
+
+/**
+ * When to name the features along the terminator: the middle of the Moon's longest time above
+ * the horizon between sunset and sunrise, when it is between 3% and 97% lit (a new Moon shows
+ * no relief, a full one no terminator). Null otherwise.
+ */
+export function featuresMoment(core: NightCore): number | null {
+  const k = core.tonight?.night.moon.illuminated_fraction ?? null;
+  if (k === null || k < 0.03 || k > 0.97) return null;
+  const { set, rise } = sunsetSunrise(core);
+  const night: Span = [set ?? core.q.n + 0.25, rise ?? core.q.n + 0.75];
+  let best: Span | null = null;
+  for (const u of moonUp(core)) {
+    const s = intersect(u, night);
+    if (s && (!best || s[1] - s[0] > best[1] - best[0])) best = s;
+  }
+  return best ? (best[0] + best[1]) / 2 : null;
 }
 
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -392,29 +425,37 @@ export function planetLine(core: NightCore, p: PlanetTonight, f: Fmt): string {
   return parts.join(', ');
 }
 
-const GALILEAN_WORDS: Record<GalileanPhenomenon['kind'], [string, string]> = {
-  transit: ['crosses Jupiter’s disc', 'crossing the disc'],
-  shadow_transit: ['’s shadow crosses Jupiter', 'shadow on the disc'],
-  occultation: ['is hidden behind Jupiter', 'behind the planet'],
-  eclipse: ['is in Jupiter’s shadow', 'in eclipse'],
+const GALILEAN_EDGES: Record<GalileanPhenomenon['kind'], [string, string]> = {
+  transit: ['begins to cross Jupiter’s disc', 'leaves Jupiter’s disc'],
+  shadow_transit: ['’s shadow falls on Jupiter', '’s shadow leaves Jupiter'],
+  occultation: ['disappears behind Jupiter', 'reappears from behind Jupiter'],
+  eclipse: ['disappears into Jupiter’s shadow', 'reappears from Jupiter’s shadow'],
 };
 
-/** Jupiter's moons' events while Jupiter is up in the dark, in words. */
-export function galileanLines(core: NightCore, detail: NightDetail | null, f: Fmt): string[] {
+/**
+ * Jupiter's moons' moments that can be watched tonight: a start or end of a transit, shadow
+ * transit, occultation or eclipse that the Earth can see happen (`observable`) while Jupiter
+ * is 10° up with the Sun 6° down (the deep-sky engine's `up_from`–`up_until`), in time order.
+ */
+export function galileanMoments(core: NightCore, detail: NightDetail | null): { jd: number; text: string }[] {
   const jupiter = core.tonight?.planets.find((p) => p.body === 'Jupiter');
   if (!detail?.galilean || !jupiter?.up_from || !jupiter.up_until) return [];
-  const span: Span = [jupiter.up_from.jd_utc, jupiter.up_until.jd_utc];
-  const out: string[] = [];
+  const a = jupiter.up_from.jd_utc;
+  const b = jupiter.up_until.jd_utc;
+  const out: { jd: number; text: string }[] = [];
   for (const e of detail.galilean.phenomena) {
-    const seen = intersect([e.start.jd_utc, e.end.jd_utc], span);
-    if (!seen) continue;
-    const [verb] = GALILEAN_WORDS[e.kind];
-    const who = e.kind === 'shadow_transit' ? `${e.moon}${verb}` : `${e.moon} ${verb}`;
-    const start = e.start.observable ? clock(e.start.jd_utc, f) : `(${clock(e.start.jd_utc, f)}, unseen)`;
-    const end = e.end.observable ? clock(e.end.jd_utc, f) : `(${clock(e.end.jd_utc, f)}, unseen)`;
-    out.push(`${who} ${start}–${end}`);
+    const [begin, end] = GALILEAN_EDGES[e.kind];
+    for (const [edge, words] of [[e.start, begin], [e.end, end]] as const) {
+      if (!edge.observable || edge.jd_utc < a || edge.jd_utc > b) continue;
+      out.push({ jd: edge.jd_utc, text: words.startsWith('’') ? `${e.moon}${words}` : `${e.moon} ${words}` });
+    }
   }
-  return out;
+  return out.sort((x, y) => x.jd - y.jd);
+}
+
+/** `Jupiter's moons: 21:14 Io reappears from Jupiter's shadow; …` */
+export function galileanLines(core: NightCore, detail: NightDetail | null, f: Fmt): string[] {
+  return galileanMoments(core, detail).map((m) => `${clock(m.jd, f)} ${m.text}`);
 }
 
 export function ringsLine(rings: SaturnRings | null): string | null {
@@ -542,6 +583,9 @@ export function milkyWayModel(core: NightCore, f: Fmt): MilkyWayModel | null {
   const g = core.galactic;
   if (g) {
     const ws = g.windows;
+    if (!ws.length && !darknessOf(core)) {
+      return { headline: 'The sky does not get dark tonight: no Milky Way to see.', lines: [], best: null };
+    }
     if (!ws.length) {
       const c = core.tonight?.milky_way_core;
       const low = c?.best ? ` At best it is ${degrees(c.best.alt_deg)} up in the ${directionWords(c.best.direction, c.best.az_deg)}.` : '';

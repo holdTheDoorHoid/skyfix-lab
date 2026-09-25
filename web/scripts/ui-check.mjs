@@ -686,7 +686,8 @@ async function main() {
 
       // A moment of the night sets the explorer's time.
       const sunset = await evaluate(`(() => { const b = [...document.querySelectorAll('.sft-moment')].find((m) => /Sunset/.test(m.textContent))?.querySelector('.sft-time'); b?.click(); return b?.textContent ?? ''; })()`);
-      await sleep(500);
+      // The time bar redraws in the next frame; a loaded machine can make that late.
+      await waitFor(`(${timeLabel}).includes(${JSON.stringify(`Time: ${sunset}`)})`, 10000);
       const after = await evaluate(timeLabel);
       check('Tonight: a moment of the night moves the explorer there', sunset && after.includes(`Time: ${sunset}`), `${sunset} -> ${after}`);
 
@@ -698,6 +699,7 @@ async function main() {
       await evaluate(`document.querySelector('.sft-head__nav button[aria-label="The night before"]').click(); true`);
       await waitFor(`/^Wednesday 23 September/.test(document.querySelector('.sft-title')?.textContent ?? '')`, 20000);
       const prevDate = await evaluate(`document.querySelector('.sft-title').textContent.trim()`);
+      await waitFor(`/Wednesday 23 September/.test(${timeLabel})`, 10000);
       const bar = await evaluate(timeLabel);
       check('Tonight: ▶ and ◀ step a night and the time bar follows', /^Friday 25 September/.test(nextDate) && /^Wednesday 23 September/.test(prevDate) && /Wednesday 23 September/.test(bar), `${nextDate} · ${prevDate} · ${bar}`);
 

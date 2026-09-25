@@ -24,7 +24,6 @@ import { h } from '../../dom.js';
 import { disposer, watch, type Component } from '../component.js';
 import { isDeepSkyEngine, type Dso } from '../engine/types.js';
 import { setTime } from '../playback.js';
-import { addCalendar } from '../time.js';
 import { displayZone, shallowEqual, type ExplorerState, type ExplorerStore } from '../state.js';
 import { bearing3, compassPoint, formatLat, formatLon } from '../shell/format.js';
 import { bodyGlyph, phaseDisc } from '../theme/glyphs.js';
@@ -34,6 +33,7 @@ import { limbFromUp } from '../charts/disc.js';
 import {
   chooseNight,
   DEFAULT_SKY,
+  stepNightTime,
   loadCore,
   loadDetail,
   loadFeatures,
@@ -49,7 +49,9 @@ import { COMING_SOURCES, groupByDay, mergeComing, type ComingItem, type ComingRe
 import { clock, clockPlain, dayTitle, type Fmt } from './format.js';
 import {
   dsoRows,
+  featuresMoment,
   headerModel,
+  relativeNight,
   lightRows,
   milkyWayModel,
   moonModel,
@@ -57,12 +59,12 @@ import {
   showerRows,
   type DsoRow,
 } from './model.js';
-import { MINUTE } from './night.js';
 import { showInSky } from './sky-link.js';
 import { datumWords, markDeclined, stationWhere, tideCard, tideHeight, TIDES_PACK, TIDES_REASON, type TideCard } from './tides.js';
 import { formatBytes } from '../packs/manifest.js';
 import { timelineModel, timelineView, type TimelineModel } from './timeline.js';
 import { timeInfoForSpan, uncertaintyChip, type ChipInfo } from '../time/chip.js';
+import { formatCivilDate } from '../time/format.js';
 import { scaleLabel } from '../time/scale.js';
 import { UTC_ZONE, zoneShortName } from '../time.js';
 
@@ -74,6 +76,8 @@ interface Remembered {
   sky: SkyChoice;
   /** Deep-sky objects shown (8, then more). */
   shown: number;
+  /** The list of the night's moments is open (open at first on a wide screen). */
+  moments: boolean | null;
 }
 
 const memory = new WeakMap<ExplorerStore, Remembered>();
@@ -81,7 +85,7 @@ const memory = new WeakMap<ExplorerStore, Remembered>();
 function remembered(store: ExplorerStore): Remembered {
   let m = memory.get(store);
   if (!m) {
-    m = { sky: { ...DEFAULT_SKY }, shown: DSO_FIRST };
+    m = { sky: { ...DEFAULT_SKY }, shown: DSO_FIRST, moments: null };
     memory.set(store, m);
   }
   return m;
@@ -182,7 +186,13 @@ const view: Component = (host, ctx) => {
   const timeline = timelineView((jd) => setTime(store, Math.round(jd * 1440) / 1440));
   const tl = card('timeline', 'The night', 'clock');
   const tlMoments = h('ol', { class: 'sft-moments' });
-  const tlTable = h('details', { class: 'sft-details' }, h('summary', {}, 'Every moment of the night'), tlMoments);
+  // Every moment as a button: the timeline's keyboard route (and its words). Open at first on
+  // a wide screen, where it takes three lines; the person's choice is kept while the page lives.
+  const wide = typeof matchMedia === 'function' && matchMedia('(min-width: 768px)').matches;
+  const tlTable = h('details', { class: 'sft-details', open: mem.moments ?? wide }, h('summary', {}, 'Every moment of the night'), tlMoments);
+  tlTable.addEventListener('toggle', () => {
+    if (!printing) mem.moments = tlTable.open;
+  });
   tl.body.append(timeline.el, tlTable);
 
   const moonCard = card('moon', 'Moon', 'moon');
@@ -229,12 +239,15 @@ const view: Component = (host, ctx) => {
 
   // The sheet prints every moment of the night (a closed <details> would print closed).
   let wasOpen = false;
+  let printing = false;
   const beforePrint = (): void => {
     wasOpen = tlTable.open;
+    printing = true;
     tlTable.open = true;
   };
   const afterPrint = (): void => {
     tlTable.open = wasOpen;
+    printing = false;
   };
   window.addEventListener('beforeprint', beforePrint);
   window.addEventListener('afterprint', afterPrint);
@@ -294,9 +307,11 @@ const view: Component = (host, ctx) => {
     placeEl.textContent = `${o.label || 'Your place'} · ${formatLat(o.lat_deg, s.settings.angleFormat)} ${formatLon(o.lon_deg, s.settings.angleFormat)}${zoneName}`;
     if (!core) return;
     if (!core.covered) {
-      kicker.textContent = 'Tonight';
-      dateEl.textContent = 'Outside the years the core covers';
-      fill(summaryEl, para('Nothing can be worked out for this night. Choose a date inside the engine’s years, or press Now.'));
+      // Nothing to compute: the night's date (the calendar works without the engine) and why.
+      kicker.textContent = relativeNight(core.q.n, realNight);
+      dateEl.replaceChildren(formatCivilDate(core.q.n + 0.25, f.zone, 'long', { calendar: true }));
+      tonightBtn.hidden = false;
+      fill(summaryEl, para('This night is outside the years the SkyFix Lab core covers, so nothing can be worked out for it. Choose another date, or press Tonight.', 'sft-lead'));
       return;
     }
     const m = headerModel(core, detail, f, Date.now() / 86_400_000 + 2_440_587.5, realNight);
@@ -340,7 +355,7 @@ const view: Component = (host, ctx) => {
     const rows = h(
       'dl',
       { class: 'sft-rows' },
-      ...m.rows.flatMap((r) => [h('dt', {}, r.key), h('dd', { title: r.tip ?? '' }, r.jd !== undefined ? timeButton(r.jd, f) : r.value)]),
+      ...m.rows.flatMap((r) => [h('dt', {}, r.key), h('dd', { title: r.tip ?? '' }, r.jd !== undefined ? timeButton(r.jd, f, r.value) : r.value)]),
     );
     const upClose = button({
       label: 'See it up close',
@@ -703,6 +718,10 @@ const view: Component = (host, ctx) => {
     const s = store.get();
     const f = fmtOf(s);
     root.dataset.mock = engine.kind === 'mock' ? 'true' : 'false';
+    // Outside the core's years only the header speaks: empty cards would say nothing.
+    const outside = core !== null && !core.covered;
+    tl.el.hidden = outside;
+    grid.hidden = outside;
     drawHeader(s, f);
     drawTimeline(f);
     drawMoon(s, f);
@@ -746,7 +765,7 @@ const view: Component = (host, ctx) => {
     if (gen !== generation || !core) return;
     refreshTides();
     if (detail && core.covered) {
-      detail.features = loadFeatures(ctx, core);
+      detail.features = loadFeatures(ctx, core, featuresMoment(core));
       drawMoon(store.get(), fmtOf(store.get()));
     }
   };
@@ -785,6 +804,7 @@ const view: Component = (host, ctx) => {
     const s = store.get();
     const n = nightOf(s);
     const gen = ++generation;
+    realNight = realNightNow(s);
     root.removeAttribute('data-stale');
     root.dataset.coming = 'pending';
     status.textContent = '';
@@ -807,7 +827,6 @@ const view: Component = (host, ctx) => {
     comingDone = false;
     comingErrors = [];
     comingMissing = [];
-    realNight = realNightNow(s);
     drawAll();
     root.dataset.stage = 'core';
     // What the engines took for the night's core, and what the page took to draw it (ui-check).
@@ -865,14 +884,8 @@ const view: Component = (host, ctx) => {
   });
 
   const stepNight = (dir: -1 | 1): void => {
-    const s = store.get();
-    const n = core?.covered ? core.q.n : nightOf(s);
-    if (n === null) return;
-    const target = n + dir;
-    // The same clock time a day away when it belongs to the target night, else that night's evening.
-    const candidate = addCalendar(s.time.jd_utc, displayZone(s), { days: dir });
-    const nc = chooseNight(ctx, s, candidate);
-    const jd = nc !== null && Math.abs(nc - target) < MINUTE ? candidate : target + 0.3;
+    const jd = stepNightTime(ctx, store.get(), dir);
+    if (jd === null) return;
     setTime(store, jd);
     request(true);
   };

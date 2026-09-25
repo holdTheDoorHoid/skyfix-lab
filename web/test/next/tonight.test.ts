@@ -16,11 +16,14 @@ import { hasTab, TABS, VIEW_META } from '../../src/next/shell/views.js';
 import { createExplorerStore, VIEW_IDS } from '../../src/next/state.js';
 import { jdFromIso, UTC_ZONE, type Zone } from '../../src/next/time.js';
 import { COMING_SOURCES, conjunctionTitle, mergeComing, yearsOf, type ComingResult } from '../../src/next/tonight/coming.js';
-import { chooseNight, darknessOf, loadCore, loadDetail, nightQuery, queryKey, sunWindow, type NightCore } from '../../src/next/tonight/data.js';
+import { chooseNight, darknessOf, loadCore, loadDetail, nightQuery, queryKey, stepNightTime, sunWindow, type NightCore } from '../../src/next/tonight/data.js';
 import { clock, clockRange, degrees, duration, percentLit, type Fmt } from '../../src/next/tonight/format.js';
 import {
   darknessSentence,
   dsoRows,
+  eclipseSentence,
+  featuresMoment,
+  galileanMoments,
   headerModel,
   lightRows,
   milkyWayModel,
@@ -136,6 +139,28 @@ describe('which night a moment belongs to', () => {
     expect(deep.tonight(PHILLY, between).night.start.jd_utc).toBeCloseTo(N24, 6);
     // …so the view asks just after the chosen night's noon.
     expect(deep.tonight(PHILLY, nightProbe(n)).night.start.jd_utc).toBeCloseTo(N25, 6);
+  });
+
+  it('steps to the neighbouring night from any moment, keeping the clock time when it can', () => {
+    const iso = (t: number): string => new Date(Math.round((t - 2440587.5) * 86400000)).toISOString();
+    let kept = 0;
+    let evenings = 0;
+    const dawn = sunWindow(ctx, PHILLY, N24).sun!.events.find((e) => e.kind === 'astronomical_dawn')!.jd_utc;
+    // Every hour for two days, and just after a dawn (where the same clock time a day later
+    // is still before the next dawn: autumn mornings get later).
+    for (const t of [...Array.from({ length: 48 }, (_, i) => N24 + i / 24), dawn + 30 / 86400]) {
+      const { s } = state(iso(t));
+      const n = chooseNight(ctx, s)!;
+      for (const dir of [-1, 1] as const) {
+        const jd = stepNightTime(ctx, s, dir)!;
+        const { s: after } = state(iso(jd));
+        expect(chooseNight(ctx, after), `${iso(t)} ${dir}`).toBeCloseTo(n + dir, 9);
+        if (Math.abs(Math.abs(jd - t) - 1) < 0.05) kept += 1;
+        else evenings += 1;
+      }
+    }
+    expect(kept).toBeGreaterThan(90);
+    expect(evenings).toBeGreaterThan(0);
   });
 
   it('names the night against the real one', () => {
@@ -340,6 +365,87 @@ describe('planets: when and where, from the engine’s ranking', () => {
     const m = planetsModel(core, null, F)!;
     expect(m.rows.map((r) => r.body)).toEqual(['Jupiter', 'Saturn', 'Venus', 'Mars', 'Uranus']);
     expect(m.others).toBe('Not up in the dark tonight: Mercury.');
+  });
+});
+
+describe('the events of a night, in words for this place', () => {
+  const core = coreFor(N24);
+  const detail = loadDetail(ctx, core);
+  const instant = (jd: number, observable = true) => ({ jd_utc: jd, utc: '', observable });
+
+  it('lists the moments of Jupiter’s moons that can be watched while Jupiter is up in the dark', () => {
+    const w = planetWindow(core)!;
+    const jupiter: PlanetTonight = {
+      body: 'Jupiter',
+      magnitude: -2.5,
+      best: { jd_utc: (w[0] + w[1]) / 2, utc: '', alt_deg: 50, az_deg: 150, direction: 'SSE' },
+      up_from: { jd_utc: w[0] + 0.05, utc: '' },
+      up_until: { jd_utc: w[1] - 0.05, utc: '' },
+      hours_up: 6,
+      reason: '',
+    };
+    const c: NightCore = { ...core, tonight: { ...core.tonight!, planets: [jupiter] } as Tonight };
+    const mid = (w[0] + w[1]) / 2;
+    const d = {
+      ...detail,
+      galilean: {
+        jd_start: core.q.n,
+        jd_end: core.q.n + 1,
+        truncated: false,
+        conventions: '',
+        phenomena: [
+          // Begins in daylight, ends in the dark: only the end is listed.
+          { moon: 'Io' as const, kind: 'eclipse' as const, start: instant(w[0] - 0.1), end: instant(mid), jupiter_elongation_deg: 120 },
+          // Both edges in the dark, the end hidden (in the shadow): only the start.
+          { moon: 'Europa' as const, kind: 'occultation' as const, start: instant(mid + 0.01), end: instant(mid + 0.05, false), jupiter_elongation_deg: 120 },
+          { moon: 'Ganymede' as const, kind: 'shadow_transit' as const, start: instant(mid + 0.02), end: instant(mid + 0.06), jupiter_elongation_deg: 120 },
+        ],
+      },
+    };
+    const m = galileanMoments(c, d);
+    expect(m.map((x) => x.text)).toEqual([
+      'Io reappears from Jupiter’s shadow',
+      'Europa disappears behind Jupiter',
+      'Ganymede’s shadow falls on Jupiter',
+      'Ganymede’s shadow leaves Jupiter',
+    ]);
+    expect(m[0]!.jd).toBe(mid);
+  });
+
+  it('names an eclipse by what this place sees of it', () => {
+    const solar = {
+      kind: 'solar',
+      id: '2026-08-12-solar',
+      type: 'total',
+      greatest: { jd_utc: 2461265.24 },
+    } as unknown as NonNullable<typeof detail>['eclipses'][number]['eclipse'];
+    const local = {
+      kind: 'solar',
+      visibility: 'visible',
+      local_type: 'partial',
+      obscuration: 0.0698,
+      visible_max: { kind: 'max', jd_utc: 2461265.2457883, obscuration: 0.0698 },
+      events: [],
+    } as unknown as NonNullable<typeof detail>['eclipses'][number]['local'];
+    const text = eclipseSentence({ ...detail, eclipses: [{ eclipse: solar, local }] }, F)!;
+    expect(text).toBe(`A partial eclipse of the Sun, at its most at ${clock(2461265.2457883, F)}: 7% of the Sun covered here (total elsewhere). Never look at the Sun without proper eye protection.`);
+    // Not seen from here: not in the night's words.
+    const away = { ...local!, visibility: 'none' } as typeof local;
+    expect(eclipseSentence({ ...detail, eclipses: [{ eclipse: solar, local: away }] }, F)).toBeNull();
+    const lunar = { kind: 'lunar', id: '2026-08-28-lunar', type: 'partial' } as unknown as typeof solar;
+    const seen = { kind: 'lunar', visibility: 'visible', events: [{ kind: 'max', jd_utc: 2461280.6756 }] } as unknown as typeof local;
+    expect(eclipseSentence({ ...detail, eclipses: [{ eclipse: lunar, local: seen }] }, F)).toBe(
+      `A partial eclipse of the Moon tonight, greatest at ${clock(2461280.6756, F)}, seen from here from start to end.`,
+    );
+  });
+
+  it('names the terminator’s features only while a crescent to gibbous Moon is up at night', () => {
+    const t = featuresMoment(core);
+    const k = core.tonight!.night.moon.illuminated_fraction;
+    if (k < 0.03 || k > 0.97) expect(t).toBeNull();
+    else if (t !== null) expect(moonUp(core).some((u) => t >= u[0] && t <= u[1])).toBe(true);
+    const newMoon: NightCore = { ...core, tonight: { ...core.tonight!, night: { ...core.tonight!.night, moon: { ...core.tonight!.night.moon, illuminated_fraction: 0.01 } } } };
+    expect(featuresMoment(newMoon)).toBeNull();
   });
 });
 

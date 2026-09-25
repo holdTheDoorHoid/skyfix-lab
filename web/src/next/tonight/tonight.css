@@ -185,7 +185,8 @@
     inset 0 0 0 1px var(--stage-line);
 }
 
-.sft-card[hidden] {
+.sft-card[hidden],
+.sft-grid[hidden] {
   display: none;
 }
 

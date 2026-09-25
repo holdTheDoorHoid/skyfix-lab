@@ -41,8 +41,9 @@ import {
   type Tonight,
 } from '../engine/types.js';
 import { covered } from '../shell/derived.js';
-import { engineObserver, eventOptions, type ExplorerState } from '../state.js';
-import { darkRun, nightProbe, nightStartFor, type SunWindow } from './night.js';
+import { displayZone, engineObserver, eventOptions, type ExplorerState } from '../state.js';
+import { addCalendar } from '../time.js';
+import { darkRun, MINUTE, nightProbe, nightStartFor, type SunWindow } from './night.js';
 
 export function errorText(error: unknown): string {
   const text = error instanceof Error ? error.message : String(error);
@@ -105,6 +106,21 @@ export function chooseNight(ctx: Pick<Ctx, 'engine'>, s: ExplorerState, jd: numb
   } catch {
     return null;
   }
+}
+
+/**
+ * Where ◀ ▶ put the explorer's time: the same clock time a day away when that moment belongs
+ * to the neighbouring night (the usual case), else that night's evening (18:00 local mean
+ * time), since dawn moves by a minute or two a day and the same clock time can fall on the
+ * other side of the switch. Null when the engine cannot say which night it is.
+ */
+export function stepNightTime(ctx: Pick<Ctx, 'engine'>, s: ExplorerState, dir: -1 | 1): number | null {
+  const n = chooseNight(ctx, s);
+  if (n === null) return null;
+  const target = n + dir;
+  const candidate = addCalendar(s.time.jd_utc, displayZone(s), { days: dir });
+  const nc = chooseNight(ctx, s, candidate);
+  return nc !== null && Math.abs(nc - target) < MINUTE ? candidate : target + 0.25;
 }
 
 export function nightQuery(s: ExplorerState, n: number, sky: SkyChoice): NightQuery {
@@ -223,12 +239,15 @@ export function loadDetail(ctx: Pick<Ctx, 'engine'>, core: NightCore): NightDeta
   return detail;
 }
 
-/** The named features along the terminator (a separate call: tens of milliseconds in WebAssembly). */
-export function loadFeatures(ctx: Pick<Ctx, 'engine'>, core: NightCore): MoonFeatures | null {
+/**
+ * The named features along the terminator at `jd` (a separate call: tens of milliseconds in
+ * WebAssembly), or null without a moment (model.ts `featuresMoment`: the Moon must be up).
+ */
+export function loadFeatures(ctx: Pick<Ctx, 'engine'>, core: NightCore, jd: number | null): MoonFeatures | null {
   const { engine } = ctx;
-  if (!core.covered || !isMoonDetailEngine(engine)) return null;
+  if (jd === null || !core.covered || !isMoonDetailEngine(engine)) return null;
   try {
-    return engine.moonFeatures(core.q.observer, nightMiddle(core));
+    return engine.moonFeatures(core.q.observer, jd);
   } catch {
     return null;
   }

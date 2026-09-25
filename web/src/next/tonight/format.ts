@@ -35,10 +35,15 @@ export function clock(jd: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
   return withUncertainty(eventTime(jd, f.zone), f.dt);
 }
 
-/** `18:40`, with the weekday when it falls on another local date than `ref`: `01:10 Fri`. */
-export function clockOn(jd: number, ref: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
+/** `18:40`, with the weekday when it falls on another local date than `ref`: `01:10 Fri`. No uncertainty. */
+export function clockOnPlain(jd: number, ref: number, f: Pick<Fmt, 'zone'>): string {
   const day = otherDay(jd, ref, f.zone);
-  return withUncertainty(day ? `${clockPlain(jd, f)} ${day}` : clockPlain(jd, f), f.dt);
+  return day ? `${clockPlain(jd, f)} ${day}` : clockPlain(jd, f);
+}
+
+/** `clockOnPlain` with the night's uncertainty when it has one: for sentences. */
+export function clockOn(jd: number, ref: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
+  return withUncertainty(clockOnPlain(jd, ref, f), f.dt);
 }
 
 /** `20:12–05:02` (one uncertainty for the pair). */
