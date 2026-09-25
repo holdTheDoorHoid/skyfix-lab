@@ -25,7 +25,7 @@ pub mod native {
     use skyfix_ephemeris::tiers::TierPolicy;
 
     /// The provider of the almanac pages and tables: the explorer's display sky, answering
-    /// the labelled tier too (2000 BC to AD 3000; polish2, after the deeptime merge): an
+    /// the labelled tier too (2001 BC to AD 3000; polish2, after the deeptime merge): an
     /// almanac is for display, never a sight, and the interface puts the ±ΔT chip and the
     /// estimate's note on a labelled page. DUT1 = 0: the pages' argument is UT1.
     pub fn sky() -> Sky {
