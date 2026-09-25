@@ -31,11 +31,17 @@ a fact you expect is not where you thought, it has moved, not gone.
 | Meeus, *Astronomical Algorithms* | Stellar aberration's low-accuracy Sun, equation of time, Moon/planet angle formulas, the mock engine | Published formulas (facts); book copyrighted, not reproduced | None |
 | Hipparcos catalogue, 58 navigational stars + Polaris | Star positions used for real sight reduction | CDS/VizieR `CC-BY-NC-3.0 IGO` on the *served* extract; kept, with attribution — [owner's decision](#hipparcos-licence-vs-the-projects-mitapache-20-licence--decided) | None on screen; credited in this document |
 | VSOP87A (the Earth, for the Sun, and the seven planets), with corrections this project fitted to JPL DE440/DE441 | Sun and the seven planets' positions, 2000 BC to AD 3000 (deeptime agent; VSOP87D retired) | CDS/VizieR, free with acknowledgement; no CC tag; the corrections are this project's own | None |
-| ELP/MPP02 (Chapront & Francou 2003), secular terms refitted by this project | Moon's position, 2000 BC to AD 3000 (deeptime agent; ELP 2000-82B retired) | SYRTE/Paris Observatory files fetched from a verbatim mirror; published solution, no licence declared; credited here | None |
+| ELP/MPP02 (Chapront & Francou 2003), secular terms refitted by this project | Moon's position, 2000 BC to AD 3000 (deeptime agent; ELP 2000-82B retired) | SYRTE/Paris Observatory files fetched from a verbatim mirror; published solution, no licence declared; credited here — [kept, residual risk recorded](#elpmpp02-and-the-meteor-shower-table-kept-with-the-residual-risk-recorded-planner-2026-09-25) | None |
 | Vondrák, Capitaine & Wallace (2011) long-term precession, via ERFA's published test values | The frame of date outside 1550-2650 | Published model (facts); ERFA BSD-3-Clause, no code copied | None |
 | SIMBAD radial velocities (58 stars) | The stars' space motion | Facts compiled by CDS from the literature; SIMBAD acknowledgement given here | None |
 | USNO Sixth Catalog of Orbits of Visual Binary Stars (alpha Cen AB) and Akeson et al. (2021) masses | Rigil Kentaurus (alpha Cen A) on its orbit | U.S. Government work (USNO); published elements are facts | None |
 | NASA HEASARC Bright Star Catalogue (BSC5P), ~9,095 stars | The Sky view's naked-eye star field (display only) | U.S. Government Work (public domain) | None |
+| Deep-sky objects (213: 110 Messier + 103 others), positions from Wikidata, cross-checked against SIMBAD and Corwin (2004); sizes and integrated magnitudes from SIMBAD, NASA HEASARC (`globclust`, `rc3`) and Wikidata | Sky view and Tonight's object lists (display only) | Wikidata **CC0**; NASA HEASARC and Corwin (2004) U.S. Government/facts; SIMBAD facts, acknowledged in this document; selection, types and descriptions this project's own | None |
+| Milky Way outline, four isophotes of NASA COBE/DIRBE's 1.25 µm all-sky map | Sky view background (display only) | U.S. Government work (NASA); processing (smoothing, simplification) this project's own | None |
+| Meteor showers (32), compiled from the IAU Meteor Data Center's working list and the IMO's calendars; radiants, ZHR and dates restated in this project's own form (solar longitude) | Events, Tonight and the Sky view (display only, labelled estimates) | Facts compiled by this project; residual database-right risk recorded — [kept, residual risk recorded](#elpmpp02-and-the-meteor-shower-table-kept-with-the-residual-risk-recorded-planner-2026-09-25) | None |
+| IAU Working Group on Star Names (WGSN) list, 641 names | Star names in the Sky view and search (display only) | IAU facts; this project's own catalogue join | None |
+| Sgr A* and the galactic pole (Reid & Brunthaler 2004; IAU 1958 system) | The Milky Way planner's galactic-centre window (Sun tools) | A published position (a fact); cited | None |
+| Geoscience Australia's GDA technical manual worked example (Flinders Peak to Buninyong) | Test-only check of the bearing-to-a-map-point tool (Selected card) | Australian Government publication; a worked example (facts), typed as test data; never shipped | None |
 | Constellation figures | Sky view drawing | This project's own work | — |
 | Constellation boundaries (IAU, Delporte 1930) | "Which constellation is this body in" | Public domain by age | None |
 | Natural Earth vector data | Offline world map (basemap) | Public domain | None |
@@ -50,7 +56,7 @@ a fact you expect is not where you thought, it has moved, not gone.
 | World Magnetic Model WMM2025 (NOAA NCEI and BGS), 90 coefficient rows | Magnetic variation, dip and field 2025-2030; compass error | U.S. Government work, public domain ("not licensed or under copyright", NCEI) | None |
 | International Geomagnetic Reference Field IGRF-14 (IAGA), 195 coefficient rows × 27 columns | Magnetic variation 1900-2024 | **CC BY 4.0** (IAGA's Zenodo record); credited in this document — [see the licence note](#igrf-14-is-cc-by-40-credited-in-the-documentation) | None on screen; credited here |
 | WMM2025 official test values and technical report (NCEI), IAGA's pyIGRF14 test values, the BGS IGRF-14 calculator, NOAA's Geomag 7.0 sample output, Bowditch ch. 15 | Development-time checks of the magnetic models and the compass-error method | U.S. Government works; MIT (pyIGRF14); BGS web-service outputs as test data; **never shipped** | None |
-| NAIF lunar orientation kernels (DE440), published occultation predictions (BAA; IOTA via EarthSky and Astronomy) | Development-time truth for the Moon in detail (`docs/ACCURACY.md` section 14) | US Government works; published times are facts, transcribed; **never shipped** | None (not in the runtime at all) |
+| NAIF lunar orientation kernels (DE440), published occultation predictions (BAA; IOTA via EarthSky and Astronomy) | Development-time truth for the Moon in detail (`docs/ACCURACY.md` section 18) | US Government works; published times are facts, transcribed; **never shipped** | None (not in the runtime at all) |
 | NOAA CO-OPS tide stations, harmonic constants, datums and subordinate offsets (3 499 stations) | Tide predictions, the optional `tides-us` pack (downloaded when turned on) | U.S. Government work (public domain); NOS *requests* attribution, a docs line here | None |
 | Schureman (1958), *Manual of Harmonic Analysis and Prediction of Tides* (USC&GS Special Publication 98) | Node factors, equilibrium arguments, constituent definitions of the tides engine | U.S. Government work (public domain); formulas transcribed | None |
 | LRO LOLA gridded topography LDEM_16 (NASA PDS, LRO-L-LOLA-4-GDR-V1.0), resampled around the mean limb | The lunar limb profile, the optional `lunar-limb` pack: limb-corrected eclipse contacts, the drawn limb, Baily's beads | U.S. Government work (NASA mission data in the PDS, no reuse restriction); the PDS asks publications to cite the product: [cited here](#lunar-limb-profile-optional-lunar-limb-pack) | None |
@@ -144,19 +150,31 @@ Cited in the source; no licence attaches to a published scientific model.
   Données astronomiques de Strasbourg and of ESA 1997, *The Hipparcos and Tycho
   Catalogues*, ESA SP-1200. The identification of HIP numbers with Nautical Almanac
   star names is this project's own.
-- **Processing applied:** catalogue positions are given at epoch **J1991.25**. They were
-  propagated to epoch **J2000.0** with the tabulated proper motions by the unit-vector
-  method (no radial velocity, so no perspective acceleration). Proper motions,
-  parallaxes and magnitudes are the catalogue values, unchanged. Spot check: the
-  resulting Vega position, 279.23473511 deg / +38.78369180 deg, agrees with the
-  published J2000 place 18h36m56.336s / +38d47'01.28" to better than 0.01".
-- **Status: PROVISIONAL.** `generator.provisional` is `true`. This file is a stand-in
-  until the reference-fixtures agent delivers the authoritative Skyfield-generated
-  file. The loader accepts either: same schema, same field names. **If the replacement
-  carries positions at the Hipparcos epoch rather than J2000.0, it must say so in
-  `generator.epoch` (`"J1991.25"`, a Julian year such as `1991.25`, or a Julian date);
-  the loader propagates to J2000.0 itself.** When `generator.epoch` is absent the
-  loader assumes J2000.0, which is what this file provides.
+- **Processing applied (original, 2026-09-23):** catalogue positions are given at epoch
+  **J1991.25**. They were propagated to epoch **J2000.0** with the tabulated proper
+  motions by the unit-vector method (no radial velocity, so no perspective
+  acceleration). Proper motions, parallaxes and magnitudes are the catalogue values,
+  unchanged. Spot check: the resulting Vega position, 279.23473511 deg / +38.78369180
+  deg, agrees with the published J2000 place 18h36m56.336s / +38d47'01.28" to better
+  than 0.01".
+- **Superseded (deeptime agent, 2026-09-25): stars now move rigorously, with radial
+  velocity.** "No radial velocity, so no perspective acceleration" no longer holds: the
+  file gained SIMBAD's radial velocity for each of the 58 stars and the file's own
+  epoch is now the working epoch for rectilinear space motion (CONVENTIONS §7), rather
+  than a one-time propagation to J2000.0. Rigil Kentaurus additionally carries alpha
+  Centauri A's orbit about the A-B barycentre. Both additions are recorded under
+  "Runtime: the star catalogue's additions" in "Expansion programme — deep time" below;
+  this section's own fields (position, proper motion, parallax, magnitude) are
+  unchanged.
+- **Status: no longer provisional.** `generator.provisional` was `true` when this file
+  was a stand-in for an authoritative Skyfield-generated replacement; the deeptime
+  agent's radial-velocity and orbit additions above are made directly to this file, so it
+  is now the shipped input the star providers are built from, not a placeholder. The
+  loader still accepts either schema: same field names, and **a replacement carrying
+  positions at the Hipparcos epoch rather than J2000.0 must say so in
+  `generator.epoch`** (`"J1991.25"`, a Julian year such as `1991.25`, or a Julian date);
+  the loader propagates to J2000.0 itself. When `generator.epoch` is absent the loader
+  assumes J2000.0, which is what this file provides.
 
 **Licence note:** the Hipparcos extract's CC-BY-NC-3.0 IGO tag, and how it sits beside
 this project's MIT/Apache-2.0 licence, is a judgement call, not just a fact — see
@@ -526,9 +544,11 @@ Owner: eclipse agent (`crates/skyfix-almanac/src/eclipses.rs` and `eclipses/`,
 `fixtures/reference/eclipses_*.json`). Added 2026-09-24.
 
 **No third-party data is embedded in the runtime.** The engine computes every eclipse
-from the project's own Sun (VSOP87D) and Moon (ELP 2000-82B) providers, listed above.
-What follows is either a published method used as an algorithm, a published constant,
-or a development-time reference fixture that only the tests read.
+from the project's own Sun and Moon providers, listed above (VSOP87A with this
+project's DE440/DE441 corrections, and ELP/MPP02 with its own; VSOP87D and
+ELP 2000-82B are retired, "Expansion programme — deep time" below). What follows is
+either a published method used as an algorithm, a published constant, or a
+development-time reference fixture that only the tests read.
 
 #### Methods and constants
 
@@ -981,7 +1001,7 @@ a test re-parses both files and compares every number.
   Geomagnetism and Aeronomy (2024), *IGRF-14*, Zenodo,
   <https://doi.org/10.5281/zenodo.14012302>.
 - **Retrieved:** 2026-09-24.
-- **Licence:** **CC BY 4.0**, as the Zenodo record declares. Attribution, as the record asks
+- **Licence:** **CC BY 4.0** (<https://creativecommons.org/licenses/by/4.0/>), as the Zenodo record declares. Attribution, as the record asks
   it to be cited: **"International Association of Geomagnetism and Aeronomy (2024), IGRF-14,
   Zenodo, https://doi.org/10.5281/zenodo.14012302; described in Beggan et al.,
   International geomagnetic reference field: the fourteenth generation, Earth Planets Space
@@ -1004,6 +1024,7 @@ never contains it.
 | Publisher | NOAA National Ocean Service, Center for Operational Oceanographic Products and Services (CO-OPS), tidesandcurrents.noaa.gov |
 | Endpoints | `https://api.tidesandcurrents.noaa.gov/mdapi/prod/webapi/stations.json?type=tidepredictions&expand=tidepredoffsets` (the station list with the subordinate offsets) and `.../mdapi/prod/webapi/stations/<id>.json?expand=harcon,datums,disclaimers,notices&units=metric` (each harmonic station) |
 | Retrieved | 2026-09-25 (UTC), 1 258 requests; URL, time, size and SHA-256 of every response in the git-ignored cache manifest (`tools/tides/cache/manifest.json`) |
+| Pack hash (verify2, 2026-09-25) | The shipped pack itself: `web/public/data/packs/tides-us-8fd019a61b7290b2.bin`, SHA-256 `8fd019a61b7290b2f3b40d16bba59d7261fb2757ae180cf61b81178a3de41666` (the `rev` in its filename is this hash's first 16 hex digits, CONVENTIONS 15.5); recorded in its own sidecar `tides-us.json` and confirmed here by hashing the committed file |
 | Licence basis | U.S. Government work. NOAA's disclaimer (tidesandcurrents.noaa.gov/disclaimers.html): "The information on government servers are in the public domain, unless specifically annotated otherwise, and may be used freely by the public." None of the records used is annotated otherwise (the 52 station disclaimers are about the observations' provenance and leveling). |
 | Attribution | "NOS requests that attribution be given whenever NOS material is reproduced and re-disseminated" — a request, met by this entry and the pack's sidecar `source` field; no on-screen credit (the owner's no-credit preference is kept). The disclaimer also asks that the information not "be modified in content and then presented as official government material": the app presents its own predictions, labelled "predictions, not observations", never as NOAA's. |
 | Used for | 1 256 harmonic stations' constants (37 constituents, Anchorage 120), their datums (MHHW, MHW, MTL, MSL, MLW, MLLW, LAT, HAT, NAVD88) and 2 243 subordinate stations' reference, time and height differences |
@@ -1020,6 +1041,8 @@ Geodetic Survey Special Publication 98, revised edition 1940, reprinted 1958 (a 
 Government work, public domain), as scanned by NOAA:
 `https://tidesandcurrents.noaa.gov/publications/SpecialPubNo98.pdf` (25 449 366 bytes,
 retrieved 2026-09-25, read by the agent for the formulas; not stored in the repository).
+**Hash not recorded** (verify2, 2026-09-25): the PDF was read and not kept, so no SHA-256
+was taken at retrieval; a future refresh should hash it before discarding the copy.
 Transcribed into `crates/skyfix-tides/src/schureman.rs`: the astronomical elements of
 Table 1; I, ν, ξ (p. 156), ν′ and 2ν″ (formulas 224, 232); the node factors of formulas
 73-78, 149, 197/207 (M1), 213-215 (L2), 227 (K1), 235 (K2); the arguments V and angles u of
@@ -1683,7 +1706,7 @@ Options, cheapest first:
    extract is not protected.
 2. Replace the six catalogue columns with a source whose terms are
    unambiguously permissive. The Nautical Almanac's own SHA/Dec tables are a US
-   Government work; Gaia DR3 is published by ESA under CC BY 4.0 (but does not
+   Government work; Gaia DR3 is published by ESA under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>; but does not
    contain most of these stars, which are too bright for Gaia). The cost is that
    proper motion and parallax would have to come from somewhere too, and the
    `name → HIP` mapping is itself the useful part of the file.
@@ -1747,6 +1770,52 @@ This is a standing, accepted risk rather than a settled fact — confirm with US
 redistributing any `usno_*.json` fixture outside the project, exactly as first recorded
 under "US Naval Observatory API" above.
 
+### IGRF-14 is CC BY 4.0: credited in the documentation
+
+**For the owner to confirm (geomag agent, 2026-09-24).** The programme's rule is credit-free
+data first, a documentation-only acknowledgement when nothing credit-free exists, and
+nothing that needs an on-screen credit or share-alike. For magnetic variation before 2025
+there is no credit-free equivalent of IGRF-14: WMM2025 (public domain) starts in 2025, and
+the older World Magnetic Models, also public domain, are five-year predictions that
+neither reach back to 1900 nor were revised with the later data the IGRF's definitive
+models use. IAGA publishes IGRF-14 under CC BY 4.0 (<https://creativecommons.org/licenses/by/4.0/>), which asks for attribution "in any
+reasonable manner based on the medium, means, and context" and allows it to be given by a
+link to a page carrying it; it requires no share-alike and no on-screen credit. The
+attribution above, in this document that the site links as its manual, is therefore taken
+as the reasonable manner for data compiled into the engine, as it is for VSOP87 and
+ELP 2000-82B. If the owner prefers the credit also in the explorer's About/Help, it is one
+line there; if the owner prefers no CC BY data at all, variation before 2025 has to go
+(the engine would answer 2025-2030 only).
+
+### ELP/MPP02 and the meteor-shower table: kept, with the residual risk recorded (planner, 2026-09-25)
+
+Two of verify2's findings (V24, V25) asked for an owner-level licence decision; the planner
+recorded both in `docs/EXPANSION_PLAN.md` §3 ("Verifier decisions 2026-09-25"), on the same
+credit-free-first basis as every decision above:
+
+- **ELP/MPP02** ("Moon model" above) **stays.** It is a published scientific solution
+  (Chapront & Francou 2003, *A&A* 404, 735) distributed by its authors without a stated
+  licence, mirrored byte-identical from a third-party copy with every file's hash pinned
+  (above), and shipped as this project's own re-fitted, re-truncated binary
+  (`series.bin`). The acknowledgement above is the documentation-only credit the
+  programme's rules allow when nothing credit-free exists. **Residual risk, recorded, not
+  resolved:** SYRTE states no licence for the files, and the byte-identical mirror is a
+  third party's copy of them, not SYRTE's own distribution; if SYRTE (or a rights holder)
+  objects, the remedy is refitting from a licensed source (Skyfield's own ELP/MPP02
+  constants, or a fresh fetch once SYRTE's server is reachable again) rather than
+  removing the deep-time Moon.
+- **The meteor-shower table** ("Expansion programme — deep sky" below, "Meteor showers")
+  **stays.** Its 32 rows compile published facts (the IAU Meteor Data Center's working
+  list and the IMO's calendars) restated in this project's own form (solar longitude
+  rather than a calendar date), which the programme's "facts compiled by this project"
+  basis covers, acknowledged in the documentation. **Residual risk, recorded, not
+  resolved:** a systematic extraction of a database can carry its own *sui generis*
+  database right in some jurisdictions (the EU's, in particular) independent of
+  copyright in the individual facts; the planner's judgement, recorded here, is that 32
+  rows restated in the project's own units is not a substantial extraction of either
+  source, so the risk is low but not zero, and no further remedy is planned unless a
+  rights holder disagrees.
+
 ## Expansion programme — sun tools (suntools agent, 2026-09-24)
 
 Owner: suntools agent (`crates/skyfix-almanac/src/sun_tools/`,
@@ -1776,7 +1845,7 @@ where it is used and in CONVENTIONS 13.10.
   `gen_events.dut1_zero_timescale`): equation of time, the galactic centre and the arch
   (Skyfield's `framelib.galactic_frame`), bearing crossings, Manhattan's sunsets, an
   analemma, and the clear-sky formulas evaluated in Python from their printed form. The
-  generator is not yet listed in `generate_all.py` (owned by another agent); run it alone.
+  generator is listed in `generate_all.py` (`sun_tools_skyfield`), alongside the rest.
 - **Meeus, *Astronomical Algorithms*, 2nd edition, example 28.a** (test code only):
   the equation of time on 1992 October 13.0 TD, +13m 42.6s (3.427351°), typed into
   `tests/sun_tools_reference.rs` as a published number.
@@ -1785,24 +1854,7 @@ where it is used and in CONVENTIONS 13.10.
   retrieved 2026-09-24): four dates quoted as facts in `docs/ACCURACY.md` section 14 and
   in a test comment for comparison; nothing is copied.
 
-### IGRF-14 is CC BY 4.0: credited in the documentation
-
-**For the owner to confirm (geomag agent, 2026-09-24).** The programme's rule is credit-free
-data first, a documentation-only acknowledgement when nothing credit-free exists, and
-nothing that needs an on-screen credit or share-alike. For magnetic variation before 2025
-there is no credit-free equivalent of IGRF-14: WMM2025 (public domain) starts in 2025, and
-the older World Magnetic Models, also public domain, are five-year predictions that
-neither reach back to 1900 nor were revised with the later data the IGRF's definitive
-models use. IAGA publishes IGRF-14 under CC BY 4.0, which asks for attribution "in any
-reasonable manner based on the medium, means, and context" and allows it to be given by a
-link to a page carrying it; it requires no share-alike and no on-screen credit. The
-attribution above, in this document that the site links as its manual, is therefore taken
-as the reasonable manner for data compiled into the engine, as it is for VSOP87 and
-ELP 2000-82B. If the owner prefers the credit also in the explorer's About/Help, it is one
-line there; if the owner prefers no CC BY data at all, variation before 2025 has to go
-(the engine would answer 2025-2030 only).
-
-### Time scales: Delta-T, UT1 − UTC and calendars (timescales agent)
+## Time scales: Delta-T, UT1 − UTC and calendars (timescales agent)
 
 Owner: timescales agent (`crates/skyfix-core/src/{time, deltat, calendar}.rs`,
 `crates/skyfix-core/src/deltat/data.rs` generated by `tools/timescales/gen_timescales.py`,
@@ -1830,7 +1882,8 @@ document); IERS / USNO open data, U.S. Government work | None.*
   day (lod)" (260597), doi:10.6084/m9.figshare.29920388,
   <https://ndownloader.figshare.com/files/57211556>, 5 860 bytes, sha256
   `94f1201cd1c2242b9a7652db0a85720f121f5cc7e3bcede3dfbecaa1dfdff475`. Identical, value for
-  value, to the copy Skyfield 1.55 bundles (the generator checks). **Licence: CC BY 4.0**;
+  value, to the copy Skyfield 1.55 bundles (the generator checks). **Licence: CC BY 4.0**
+  (<https://creativecommons.org/licenses/by/4.0/>);
   credit is given here, in the source header and in `docs/ACCURACY.md`, which the
   programme's rules accept as a documentation-only acknowledgement; no on-screen credit.
   Processing: the coefficients are used unchanged; the last segment used (1971-1974) has
@@ -1898,7 +1951,7 @@ document); IERS / USNO open data, U.S. Government work | None.*
   from the committed sources (byte-identical). **Refreshing** UT1 − UTC: download a current
   <https://maia.usno.navy.mil/ser7/finals2000A.all> to `tools/timescales/sources/` (the
   owner's approval first), set `FINALS_RETRIEVED` in the generator, run it (it writes a new
-  `finals2000A-ut1-<date>.txt`), review the diff and `docs/ACCURACY.md` section 14, record
+  `finals2000A-ut1-<date>.txt`), review the diff and `docs/ACCURACY.md` section 17, record
   the new file here and commit the extract, never the full file. 1962-1972 would need IERS
   EOP 20 C04 (<https://hpiers.obspm.fr/iers/eop/eopc04/eopc04.1962-now>, about 5.2 MB).
 
@@ -2082,7 +2135,10 @@ Government works or facts; their acknowledgements are made here.
   Mechanics and Dynamical Astronomy* 130:22), as NAIF distributes them in
   `pck00011.tpc` (<https://naif.jpl.nasa.gov/pub/naif/generic_kernels/pck/pck00011.tpc>,
   NASA JPL, U.S. Government work): the poles, prime meridians and their periodic terms of
-  Mercury to Neptune, and the IAU radii already listed under "Physical constants".
+  Mercury to Neptune, and the IAU radii already listed under "Physical constants". **Hash
+  not recorded** (verify2, 2026-09-25): the kernel was read for its printed constants and
+  not kept in the repository or a development-time cache; a future refresh should record
+  its SHA-256 here as the deep-time section's kernels do.
   Jupiter's Systems I and II (`67.1° + 877.900°/d`, `43.3° + 870.270°/d`, IAU 1976, as the
   *Explanatory Supplement to the Astronomical Almanac* gives them). Transcribed by hand;
   the Saturn pole is checked against the planet provider's own constant.
@@ -2199,10 +2255,15 @@ IAU rotation models). It uses these facts, compiled by this project:
 | Typical true fields of view: naked eye about 50°, 7×50 binoculars 7.1°, 10×50 binoculars 6.5°, a small telescope about 1° | common figures, stated on screen as typical ("the one printed on your binoculars … is the one to trust") | facts; this project's wording |
 | Camera sensor sizes: full frame 36 × 24 mm, APS-C 23.5 × 15.6 mm (Canon's 22.3 × 14.9 mm), Micro Four Thirds 17.3 × 13 mm, 1-inch 13.2 × 8.8 mm | the formats' nominal dimensions | facts |
 
-The "Add from orbital elements…" example fills in (1) Ceres with the values of the API
-document's `parse_orbits` example, which are the Minor Planet Center's (MPCORB), and says
-"Source: Minor Planet Center" beside them, as the MPC asks; bodies the person pastes in an
-MPC format carry the same line on their card.
+The "Add from orbital elements…" example fills in (1) Ceres. Before verify2 (2026-09-25)
+its values were the Minor Planet Center's (MPCORB), shown with "Source: Minor Planet
+Center", and a body pasted in an MPC format carried the same line on its card and list
+row. The programme's rule is nothing on screen but OpenStreetMap's credit, so both credits
+were removed (see "Verification (verify2 agent, 2026-09-25): shipped, and the on-screen
+credits removed" below): the example now holds JPL Small-Body Database elements for (1)
+Ceres, which ask for no credit and agree with the MPC's to every digit shown but the
+perihelion passage and G; elements a person pastes are theirs and are never shipped by the
+explorer, credited or not.
 
 ## Expansion programme — the almanac's tables and three-day pages (almanac2 agent, Q7, 2026-09-25)
 
@@ -2358,13 +2419,24 @@ file's SHA-256.
   literature; SIMBAD asks for an acknowledgement: *This research has made use of the SIMBAD
   database, operated at CDS, Strasbourg, France* (Wenger et al. 2000, *A&AS* 143, 9).
   Rigil Kentaurus takes the system's value (SIMBAD "* alf Cen", -22.3 +/- 0.9 km/s,
-  1979IAUS...30...57E) rather than alpha Cen A's single-epoch one.
+  1979IAUS...30...57E) rather than alpha Cen A's single-epoch one. **SIMBAD's conditions**
+  (verify2, 2026-09-25): CDS operates SIMBAD and states no separate machine-readable
+  licence for query results beyond the acknowledgement above (its stated basis
+  throughout this document); it publishes no share-alike or no-commercial-use term for
+  this kind of extract, unlike a VizieR catalogue with its own CDS licence tag (compare
+  Hipparcos, "Licence decisions" below). **Hash not recorded**: the TAP response was not
+  kept after the fixture was built, unlike the deep-sky agent's SIMBAD fetch below, which
+  is (`1774b51702fc2f2920462b0247b8f187c18b01a98a540da483e1af89d7d07dce`); regenerating
+  this file should keep the response and record its SHA-256 here.
 - **alpha Centauri A's orbit**: the elements of WDS 14396-6050 RHD 1AB from the USNO Sixth
   Catalog of Orbits of Visual Binary Stars (ORB6, `https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.txt`,
   1 075 370 bytes, retrieved 2026-09-25; orbit by Akeson et al. 2021, *AJ* 162, 14, grade 2)
   and the component masses of Akeson et al. 2021 (M_A 1.0788, M_B 0.9092 solar masses).
   ORB6's ephemeris file (`orb6ephem.txt`, 599 964 bytes, same date) is the check. USNO
-  products are works of the U.S. Government; published elements are facts.
+  products are works of the U.S. Government; published elements are facts. **Hash not
+  recorded** (verify2, 2026-09-25): neither file was kept after the elements were read
+  out; regenerating should keep both and record their SHA-256 here, as the deep-time
+  section above does for its own downloads.
 
 ### Development time only (never shipped)
 
@@ -2380,7 +2452,7 @@ several centuries into the past") is why the labelled tier uses DE441. On the pa
 the Moon's tidal acceleration with Delta T: Stephenson, Morrison & Hohenkerk's Delta T
 assumes -25.85"/cy^2 and ELP/MPP02's DE405 constants carry -25.858"/cy^2, the same to the
 precision that matters; the secular terms this project refitted to DE441/DE440 absorb
-whatever of the lunar longitude's quadratic term differs from JPL's (ACCURACY section 21).
+whatever of the lunar longitude's quadratic term differs from JPL's (ACCURACY section 31).
 
 Also consulted, all facts: USNO's Celestial Navigation Data at 15 dates 1800-2050 for
 Rigil Kentaurus (to establish that USNO extrapolates A's Hipparcos motion linearly);
@@ -2397,16 +2469,16 @@ engines (`docs/VERIFICATION_2.md` says what each was used for).
 |---|---|---|---|---|---|
 | JPL Horizons API (`https://ssd.jpl.nasa.gov/api/horizons.api`): apparent RA and Dec of date (quantity 2, airless) of Jupiter (599) and Io to Callisto (501-504) from the geocentre at 400 TT instants of 1600-2200 | **committed**: `fixtures/reference/galilean_horizons.json` (108 355 bytes), written by `tools/reference/gen_galilean_horizons.py`; read by `crates/skyfix-almanac/tests/galilean_horizons.rs` | 2026-09-25 | NASA/JPL, U.S. Government work | `7b7c1d8f95945029a0945524d4a613fb30917fcacc58358f473434900de56a9e` (the fixture) | each moon's offset from Jupiter on the gnomonic tangent plane at Jupiter's direction, east and north, arcseconds, 4 decimals |
 | Akeson et al. (2021), "Precision Millimeter Astrometry of the α Centauri AB System", *AJ* 162, 14; e-print `https://arxiv.org/e-print/2104.10086` (1 596 907 bytes) | **committed as 9 rows typed into** `crates/skyfix-ephemeris/tests/acen_alma.rs` (Table 2, ALMA's measured ICRS positions of α Cen A) | 2026-09-25 | facts (measured positions) from a published paper | `919f1cd2b59afdcfacc6ca7dd13cd6e89a96a29f3ccae670d774b76a639a2d54` (the e-print) | none: the published degrees; the test adds annual parallax to the engine's direction |
-| NOAA CO-OPS predictions API, Anchorage 9455920, hourly, MLLW, GMT, metric, 2026 and 2027 (`api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions…`) | not committed: the σ1 analysis (ACCURACY 16) | 2026-09-25 | U.S. Government work (NOAA/NOS) | 2026: `bbeaf4656a9ad0a2c9d06c27ec78da08dd45e36a53c636771c25c3886ff023fd`; 2027: `7057eec92c48d3ccc80dc55c5550f119d82534740d37bf8440ea4b2e958d0cbd` | residual against the engine, least squares at the 120 constituents' speeds |
+| NOAA CO-OPS predictions API, Anchorage 9455920, hourly, MLLW, GMT, metric, 2026 and 2027 (`api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=predictions…`) | not committed: the σ1 analysis (ACCURACY 20) | 2026-09-25 | U.S. Government work (NOAA/NOS) | 2026: `bbeaf4656a9ad0a2c9d06c27ec78da08dd45e36a53c636771c25c3886ff023fd`; 2027: `7057eec92c48d3ccc80dc55c5550f119d82534740d37bf8440ea4b2e958d0cbd` | residual against the engine, least squares at the 120 constituents' speeds |
 | NOAA CO-OPS predictions API, high and low waters (`interval=hilo`), MLLW, GMT, metric, all of 2026, Pensacola 8729840 (diurnal) and Galveston Pier 21 8771450 (mixed) | not committed: the diurnal-station check (VERIFICATION_2 section 11), `tools/verify2/tides_hilo.py` | 2026-09-25 | U.S. Government work (NOAA/NOS) | 8729840: `aa2c752672ab870d2ae7dbb3098335dceed3af206a4d39462f4be2b9431014db`; 8771450: `fad3af5a831138f57ff5cb3ab78e5d96db8b89c3408a38fe9d0c86bd9ffe2a20` | each NOAA extreme matched to the engine's nearest of the same kind |
-| NASA GSFC eclipse pages (Espenak): "Uncertainty in Delta T" (`SEhelp/uncertainty2004.html`), "Polynomial Expressions for Delta T" (`SEhelp/deltatpoly2004.html`), the Mercury transit catalogue (`transit/catalog/MercuryCatalog.html`, fetched again), the 2024-04-08 and 2023-10-14 eclipse pages (`SEsearch/SEsearchmap.php`, their stated Delta T) | not committed: ACCURACY 17, 19, 21 | 2026-09-25 | U.S. Government work (NASA) | `10735159…67af`, `a6ec749c…9687`, `e29ff3e1…ba40`, `8b6e52ea…28e8ad`, `88c9a21e…6626a` | read |
-| NASA SVS item 5073 page (`https://svs.gsfc.nasa.gov/5073/`), for what it states about its method | not committed: ACCURACY 19 | 2026-09-25 | U.S. Government work (NASA) | `3e19c65b0522aa94add2f5bf36e74cbea01f6a36cf4b903eee65b54851338343` | read |
-| Stephenson, Morrison & Hohenkerk (2016), *Proc. R. Soc. A* 472: 20160404, full text from Europe PMC (PMC5247521, `fullTextXML`) | not committed: the tidal acceleration they adopt (ACCURACY 21) | 2026-09-25 | open-access article (CC BY 4.0) | `543c1466ed45225a16eb4f5935dbb67658d37bfa25c7fab0d9db0cce99a715bd` | read |
+| NASA GSFC eclipse pages (Espenak): "Uncertainty in Delta T" (`SEhelp/uncertainty2004.html`), "Polynomial Expressions for Delta T" (`SEhelp/deltatpoly2004.html`), the Mercury transit catalogue (`transit/catalog/MercuryCatalog.html`, fetched again), the 2024-04-08 and 2023-10-14 eclipse pages (`SEsearch/SEsearchmap.php`, their stated Delta T) | not committed: ACCURACY 21, 25, 31 | 2026-09-25 | U.S. Government work (NASA) | `10735159…67af`, `a6ec749c…9687`, `e29ff3e1…ba40`, `8b6e52ea…28e8ad`, `88c9a21e…6626a` | read |
+| NASA SVS item 5073 page (`https://svs.gsfc.nasa.gov/5073/`), for what it states about its method | not committed: ACCURACY 25 | 2026-09-25 | U.S. Government work (NASA) | `3e19c65b0522aa94add2f5bf36e74cbea01f6a36cf4b903eee65b54851338343` | read |
+| Stephenson, Morrison & Hohenkerk (2016), *Proc. R. Soc. A* 472: 20160404, full text from Europe PMC (PMC5247521, `fullTextXML`) | not committed: the tidal acceleration they adopt (ACCURACY 31) | 2026-09-25 | open-access article (CC BY 4.0, <https://creativecommons.org/licenses/by/4.0/>) | `543c1466ed45225a16eb4f5935dbb67658d37bfa25c7fab0d9db0cce99a715bd` | read |
 | Bowditch 2024, vol. 2, chapter 6 (the copy the almanac2 fixture cites) | not committed: the tables' standard conditions | 2026-09-25 | U.S. Government work (NGA) | `181261d80e7a4ecda1ba2e402aafbbcaba6625981fb3a1f76dcaf1772efaa2e9` (identical to the fixture's `copy_sha256`) | read |
 | pyerfa 2.0.1.5 (ERFA, the SOFA algorithms) from PyPI, installed in a private directory, never in the shared venv | not committed: an independent long-term precession (eraLtpb, eraLtpecl, eraLtpequ) and IAU 2000A nutation for the labelled-tier checks, and `eraRefco` for refraction | 2026-09-25 | BSD-3-Clause | the PyPI wheel as installed | used as a library |
 
 The lunar-limb pack's ring was also read by a separate Python decoder for the independent
-contact computation of ACCURACY 19; no new data.
+contact computation of ACCURACY 25; no new data.
 <!-- /verify2 -->
 
 <!-- verify2: shipped -->
