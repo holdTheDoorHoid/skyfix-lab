@@ -392,6 +392,14 @@ the solver or the CLI `solve` command.
 `skyfix_core::types::Warning` is the single enum for machine-readable caveats. Add
 variants there, never ad-hoc strings, so the CLI, WASM adapter and UI show them the same way.
 
+(polish2, expansion programme.) The warnings are about a **sight**: something the solver
+or the reduction did with it. The compass method's caveats (`notes` in the compass error
+result, `skyfix_core::methods::compass`: a body below the horizon at the time given, how
+fast the bearing was changing, the time between the amplitude and the moment given, a
+shallow meeting with the horizon, no variation from the magnetic model, a variation still
+to give) are plain sentences, not `Warning` variants: they explain a bearing, which is
+never a sight (section 14.2), and are shown as the result gives them.
+
 ## 13. Explorer: bodies, topocentric display values, events and display-only data
 
 Wire formats are in `docs/EXPLORER_API.md`; the program plan is `docs/EXPLORER_PLAN.md`.
@@ -490,6 +498,11 @@ the meteor-shower table, the Milky Way outline, the IAU WGSN star names and ever
 built on them (extinction, limiting magnitude, moonlight, the instrument guide, meteor
 rates, the "tonight" ranking) are display-only too, and live in `skyfix-starfield`
 (`dso`, `showers`, `milkyway`, `names`, `search`, `extinction`, `tonight`, `observe`).
+(polish2: **which night** — `tonight(jd)` answers the night `jd` belongs to, the 24 hours
+from the local mean noon at or before it, or the next ones once the Sun has risen that
+morning (`Night::containing`). The Tonight view chooses its night itself, the next one from
+astronomical dawn (`web/src/next/tonight/night.ts`), and asks the engine with an instant
+inside that night (`nightProbe`), so the page shows one rule: its own.)
 For the Sun, Moon and planets they use the engine, so `skyfix-starfield` now depends on
 `skyfix-almanac` (events and body sampling) as well as `skyfix-ephemeris`; the dependency
 runs one way only, and `crates/skyfix-starfield/tests/crate_boundary.rs` still keeps
