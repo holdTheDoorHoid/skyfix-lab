@@ -1,0 +1,351 @@
+/*
+ * The Selected card's tools for photographers and astronomers, the Moon's details, the sky
+ * position and the magnetic bearing, and the Place section's tides line (panel/photo.ts,
+ * moon-tools.ts, alignment.ts, when.ts). OWNER: photo agent (expansion programme Q8).
+ * Design tokens only: the light, dark and night themes follow from theme/tokens.css.
+ */
+
+/* --- Shared words -------------------------------------------------------------------- */
+
+.sf-photo__intro,
+.sf-photo__note,
+.sf-photo__sub,
+.sf-photo__status {
+  margin: 0;
+  color: var(--chrome-ink-3);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+.sf-photo__status {
+  color: var(--chrome-ink-2);
+}
+
+.sf-photo__sub {
+  margin: -4px 0 4px 26px;
+}
+
+.sf-photo__line {
+  margin: 0;
+  color: var(--chrome-ink-2);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.sf-photo__head {
+  margin: 0 0 2px;
+  color: var(--chrome-ink);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.sf-photo__subhead {
+  margin: 6px 0 2px;
+  color: var(--chrome-ink-2);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+}
+
+.sf-photo__lines {
+  display: grid;
+  gap: 3px;
+}
+
+.sf-photo__body {
+  display: grid;
+  gap: 6px;
+  padding-bottom: 8px;
+}
+
+/* A row waiting for the time to settle (the time bar is being dragged). */
+.sf-panel [data-stale] {
+  opacity: 0.55;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sf-panel [data-stale],
+  .sf-photo-light,
+  .sf-photo__list,
+  .sf-photo-moon__terminator {
+    transition: opacity var(--dur) var(--ease);
+  }
+}
+
+/* --- Golden and blue hour (the Sun card) ------------------------------------------------ */
+
+.sf-photo-light {
+  margin-top: -2px;
+}
+
+.sf-photo-light .sf-table td {
+  white-space: nowrap;
+}
+
+.sf-photo__time {
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--chrome-ink-3);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.sf-photo__time:hover {
+  color: var(--accent-ink);
+}
+
+/* --- Inputs in the tools -------------------------------------------------------------------- */
+
+.sf-photo__ask {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.sf-photo__label {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: var(--chrome-ink-2);
+  font-size: var(--text-sm);
+}
+
+.sf-input.sf-photo__input {
+  width: 8ch;
+  height: 30px;
+  padding: 0 8px;
+  text-align: right;
+}
+
+.sf-photo__unit {
+  color: var(--chrome-ink-2);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+.sf-photo__pickrow {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sf-photo__pick[aria-pressed='true'] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.sf-photo__year {
+  min-width: 4ch;
+  color: var(--chrome-ink);
+  font-size: var(--text-md);
+  text-align: center;
+}
+
+.sf-photo__find {
+  justify-self: start;
+}
+
+.sf-photo__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* --- Lists of days and nights: press one to show it -------------------------------------- */
+
+.sf-photo__list {
+  display: grid;
+  gap: 1px;
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-photo__row {
+  display: grid;
+  grid-template-columns: 8.5ch auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  color: var(--chrome-ink);
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sf-photo__row:hover {
+  background: var(--chrome-raised);
+}
+
+.sf-photo__row--best {
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.sf-photo__date {
+  font-weight: var(--weight-semibold);
+  white-space: nowrap;
+}
+
+.sf-photo__what {
+  min-width: 0;
+  color: var(--chrome-ink-2);
+}
+
+.sf-photo__badge {
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: var(--text-2xs);
+  font-weight: var(--weight-semibold);
+  line-height: 18px;
+}
+
+/* --- Sky position and the magnetic bearing ------------------------------------------------- */
+
+.sf-photo-coord .sf-kv__v {
+  font-size: var(--text-sm);
+}
+
+.sf-photo-coord__lab {
+  color: var(--chrome-ink-3);
+  font-family: var(--font-ui);
+  font-size: var(--text-xs);
+}
+
+.sf-photo-coord__term {
+  margin: -4px 0 2px 26px;
+  color: var(--chrome-ink-3);
+  font-size: var(--text-xs);
+}
+
+.sf-photo-mag {
+  margin-top: 1px;
+  color: var(--chrome-ink-2);
+  font-size: var(--text-xs);
+  line-height: 1.3;
+  cursor: help;
+}
+
+.sf-photo-mag--none {
+  color: var(--chrome-ink-3);
+  font-family: var(--font-ui);
+}
+
+/* --- The Moon ------------------------------------------------------------------------------------ */
+
+.sf-photo-moon {
+  display: grid;
+  gap: 2px;
+  margin-top: 2px;
+}
+
+.sf-photo-moon__lib {
+  margin: 2px 0 4px 26px;
+}
+
+.sf-photo__press {
+  margin: 0 -6px;
+  padding: 0 6px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.sf-photo__press:hover {
+  background: var(--chrome-raised);
+}
+
+.sf-photo__press:focus-visible {
+  outline: var(--focus-width) solid var(--focus);
+  outline-offset: -2px;
+}
+
+.sf-photo-moon__super {
+  margin: 2px 0 2px 26px;
+  color: var(--chrome-ink);
+}
+
+.sf-photo-moon__terminator {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin: 4px 0 2px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  background: var(--chrome-bg-0);
+}
+
+.sf-photo-moon__terminator .sf-photo__subhead {
+  margin: 0;
+}
+
+.sf-photo-moon__feats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sf-photo-moon__feat {
+  padding: 1px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--chrome-raised);
+  color: var(--chrome-ink);
+  font-size: var(--text-xs);
+  line-height: 20px;
+}
+
+/* --- The predicted sextant reading (Navigator's details) ---------------------------------- */
+
+.sf-photo-predict {
+  margin: 4px 0 2px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--chrome-line);
+}
+
+.sf-photo-predict .sf-photo__sub {
+  margin-top: -2px;
+}
+
+/* --- The tides line (the Place section) ----------------------------------------------------- */
+
+.sf-photo-tide {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--chrome-line);
+}
+
+.sf-photo-tide[hidden] {
+  display: none;
+}
+
+.sf-photo-tide .sf-kv__v {
+  font-size: var(--text-sm);
+}
+
+.sf-photo-tide__where {
+  margin: 0 0 2px 26px;
+  color: var(--chrome-ink-3);
+  font-size: var(--text-xs);
+  line-height: 1.45;
+}
+
+/* --- "When is it at…?": height or bearing ------------------------------------------------------- */
+
+.sf-when__modes {
+  display: flex;
+}
+
+.sf-when__pick[aria-pressed='true'] {
+  color: var(--accent-ink);
+  background: var(--accent-soft);
+}
+
+.sf-when__ask[hidden] {
+  display: none;
+}
