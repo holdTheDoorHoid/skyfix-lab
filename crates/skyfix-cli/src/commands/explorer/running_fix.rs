@@ -46,10 +46,14 @@ pub struct Args {
     )]
     pub legs: Vec<RunningFixLeg>,
     /// When the track stops, RFC 3339 UTC.
-    #[arg(long = "end-utc", value_name = "RFC3339")]
+    #[arg(long = "end-utc", value_name = "RFC3339", allow_hyphen_values = true)]
     pub end_utc: Option<String>,
     /// The instant the fix is for, RFC 3339 UTC. Default: the last sight.
-    #[arg(long = "reference-utc", value_name = "RFC3339")]
+    #[arg(
+        long = "reference-utc",
+        value_name = "RFC3339",
+        allow_hyphen_values = true
+    )]
     pub reference_utc: Option<String>,
     /// 1-sigma error of the speed made good, knots. Leave all three motion sigmas out
     /// and the run between the sights is treated as exact, which the report says.

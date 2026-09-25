@@ -21,6 +21,15 @@ skyfix-sim = { path = "../skyfix-sim" }
 skyfix-almanac = { path = "../skyfix-almanac" }
 skyfix-motion = { path = "../skyfix-motion" }
 skyfix-starfield = { path = "../skyfix-starfield" }
+# The expansion programme's commands (cli3 agent): the magnetic field and the tides-us
+# pack's types, and the WASM adapter's native layer. Each `skyfix-wasm::<module>::native`
+# function takes the export's own arguments and returns what the export serialises, so a
+# command that calls it prints the JSON the browser receives by construction — the wire
+# structs, candidate lists, pack registry and producers live there once instead of being
+# copied here (docs/CLI.md, "The expansion programme's engines").
+skyfix-geomag = { path = "../skyfix-geomag" }
+skyfix-tides = { path = "../skyfix-tides" }
+skyfix-wasm = { path = "../skyfix-wasm" }
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

@@ -20,8 +20,19 @@ use crate::report;
 
 /// `--format text` prints the two pages laid out in columns; `--format json` the
 /// `AlmanacDay` document (docs/EXPLORER_API.md) with raw and printed values.
+///
+/// The date is typed as every CLI date is (CONVENTIONS 15.3: Julian before 1582-10-15
+/// unless `--calendar` says otherwise) and handed to the engine as the wire's proleptic
+/// Gregorian date, as the site does (cli3 agent).
 pub fn run(date: &str, format: OutputFormat) -> Result<u8> {
-    let day = almanac_day(&Sky::new(), date).map_err(|e| anyhow!("{e}"))?;
+    let typed = crate::commands::explorer::args::parse_date(date).map_err(|e| anyhow!(e))?;
+    let wire = skyfix_core::calendar::CivilDateTime::from_jd(
+        typed.jd0(),
+        skyfix_core::calendar::Calendar::Gregorian,
+    )
+    .map(|c| c.date_string())
+    .ok_or_else(|| anyhow!("{date:?} cannot be written as a date"))?;
+    let day = almanac_day(&Sky::new(), &wire).map_err(|e| anyhow!("{e}"))?;
     match format {
         OutputFormat::Json => report::emit_line(&serde_json::to_string_pretty(&day)?)?,
         OutputFormat::Text => report::emit(&render(&day))?,

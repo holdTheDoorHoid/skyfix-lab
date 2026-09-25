@@ -1,0 +1,12 @@
+SEASONS -584
+  -0584-03-27T04:49:57 UT (Julian)  March equinox
+  -0584-06-29T08:31:08 UT (Julian)  June solstice
+  -0584-09-29T08:00:36 UT (Julian)  September equinox
+  -0584-12-26T20:19:21 UT (Julian)  December solstice
+
+The instants at which the Sun's apparent geocentric ecliptic longitude is 0, 90, 180 and
+270 degrees (CONVENTIONS 13.5), to the nearest second; --format json carries the
+milliseconds.
+A historical or far-future estimate (the labelled tier, CONVENTIONS 15.1): every time
+here carries Delta-T's standard uncertainty, 3 min at -0584-03-27T04:49:57 UT (Julian)
+(skyfix time-info), and nothing is offered for sights.

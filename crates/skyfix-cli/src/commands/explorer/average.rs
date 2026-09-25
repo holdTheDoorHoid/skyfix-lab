@@ -25,7 +25,11 @@ pub struct Args {
     pub session: PathBuf,
     /// The instant of the averaged sight, RFC 3339 UTC. Default: the weighted mean time
     /// of the sights used, where the sigma is smallest.
-    #[arg(long = "reference-utc", value_name = "RFC3339")]
+    #[arg(
+        long = "reference-utc",
+        value_name = "RFC3339",
+        allow_hyphen_values = true
+    )]
     pub reference_utc: Option<String>,
     /// DR position LAT,LON[,SIGMA_NM]: where the slope is predicted. Default: the
     /// session's assumed position. Required one way or the other.

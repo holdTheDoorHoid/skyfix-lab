@@ -1,0 +1,20 @@
+ALIGNMENT DAYS 2026
+Observer   40 45.48' N, 073 59.13' W (40.758000, -73.985500), 0 m above the WGS84 ellipsoid
+Question   the days Sun sets within 0.3 degrees of 299 00.0 true
+Clock      UTC-04:00
+Searched   365 set(s) from 2026-01-01T04:00:00Z to 2027-01-01T04:00:00Z
+
+  date        event  local     UTC                         Az  off deg       alt
+  2026-05-24  set    20:14:45  2026-05-25T00:14:45Z  298 56.2    -0.06  - 0 50.0  best of its run
+  2026-05-25  set    20:15:37  2026-05-26T00:15:37Z  299 11.2    +0.19  - 0 50.0
+  2026-07-17  set    20:24:41  2026-07-18T00:24:41Z  299 07.7    +0.13  - 0 50.0
+  2026-07-18  set    20:24:00  2026-07-19T00:24:00Z  298 52.7    -0.12  - 0 50.0  best of its run
+
+Closest of the year
+  date        event  local     UTC                         Az  off deg       alt
+  2026-05-24  set    20:14:45  2026-05-25T00:14:45Z  298 56.2    -0.06  - 0 50.0
+
+Rise and set are the upper limb on the sea-level horizon with the standard 34' of
+refraction (CONVENTIONS 13.3); an at-altitude event is the centre at that apparent
+altitude. Az is true; off deg is Az minus the bearing; alt is geometric. A skyline
+raises the horizon, and with it moves the bearing a body rises or sets on.

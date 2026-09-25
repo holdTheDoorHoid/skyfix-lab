@@ -1,5 +1,9 @@
 //! `skyfix phases` and `skyfix seasons`. OWNER: cli agent.
 //!
+//! The astronomy is the explorer's display sky (`skyfix_wasm::explorer::native::sky`,
+//! both coverage tiers, CONVENTIONS 15.1), as the exports use it: 585 BC's phases and
+//! seasons are answered, in the labelled tier.
+//!
 //! `skyfix_almanac::events::moon_phases` and `::seasons` (EXPLORER_API.md; definitions in
 //! CONVENTIONS 13.5): the instants when the Moon's apparent geocentric ecliptic longitude
 //! minus the Sun's is 0, 90, 180 and 270 degrees, and when the Sun's own is. `--format
@@ -14,7 +18,6 @@
 
 use anyhow::{Result, anyhow};
 use skyfix_almanac::events::{self, MoonPhaseKind, SeasonKind};
-use skyfix_ephemeris::body::Sky;
 
 use super::args::{FormatArgs, When, parse_when, window};
 use super::text;
@@ -26,11 +29,11 @@ use crate::report;
 pub struct PhasesArgs {
     /// Start: YYYY-MM-DD (local midnight that day in --zone, UTC by default) or an RFC
     /// 3339 UTC instant.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub from: When,
     /// End: YYYY-MM-DD (through the END of that day in --zone) or an RFC 3339 UTC
     /// instant.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub to: When,
     #[command(flatten)]
     pub zone: ZoneArgs,
@@ -40,8 +43,17 @@ pub struct PhasesArgs {
 
 #[derive(clap::Args, Debug)]
 pub struct SeasonsArgs {
-    /// The calendar year, inside the Sun's coverage (1990 to 2060).
-    #[arg(long, value_name = "YEAR")]
+    // The span comes from the engine (`explorer_coverage`), not a literal.
+    #[arg(
+        long,
+        value_name = "YEAR",
+        allow_negative_numbers = true,
+        help = format!(
+            "The calendar year (astronomical: 0 is 1 BC, -584 is 585 BC), inside the \
+             coverage: {}",
+            super::wire::display_span()
+        )
+    )]
     pub year: i32,
     #[command(flatten)]
     pub zone: ZoneArgs,
@@ -71,7 +83,8 @@ pub fn run_phases(a: &PhasesArgs) -> Result<u8> {
     let zone = a.zone.resolve()?;
     // A date is a date in the zone: local midnight to local midnight.
     let (start, end) = window(a.from, a.to, zone.offset_minutes)?;
-    let phases = events::moon_phases(&Sky::new(), start, end).map_err(|e| anyhow!("{e}"))?;
+    let phases = events::moon_phases(&skyfix_wasm::explorer::native::sky(), start, end)
+        .map_err(|e| anyhow!("{e}"))?;
     if a.format.is_json() {
         report::emit_line(&serde_json::to_string_pretty(&phases)?)?;
         return Ok(exit::OK);
@@ -92,13 +105,15 @@ pub fn run_phases(a: &PhasesArgs) -> Result<u8> {
     );
     note.push_str(&zone_note(&zone, true));
     push_wrapped(&mut out, &note);
+    super::wire::push_tier_note(&mut out, start, end);
     report::emit(&out)?;
     Ok(exit::OK)
 }
 
 pub fn run_seasons(a: &SeasonsArgs) -> Result<u8> {
     let zone = a.zone.resolve()?;
-    let seasons = events::seasons(&Sky::new(), a.year).map_err(|e| anyhow!("{e}"))?;
+    let seasons = events::seasons(&skyfix_wasm::explorer::native::sky(), a.year)
+        .map_err(|e| anyhow!("{e}"))?;
     if a.format.is_json() {
         report::emit_line(&serde_json::to_string_pretty(&seasons)?)?;
         return Ok(exit::OK);
@@ -119,6 +134,9 @@ pub fn run_seasons(a: &SeasonsArgs) -> Result<u8> {
     );
     note.push_str(&zone_note(&zone, false));
     push_wrapped(&mut out, &note);
+    if let (Some(first), Some(last)) = (seasons.first(), seasons.last()) {
+        super::wire::push_tier_note(&mut out, first.jd_utc, last.jd_utc);
+    }
     report::emit(&out)?;
     Ok(exit::OK)
 }
@@ -140,7 +158,7 @@ fn table(rows: &[(f64, &str)], zone: &ResolvedZone, what: &str, empty: &str) -> 
         out.push_str(&format!(
             "  {}{}{what}\n",
             report::pad("local", 21),
-            report::pad("UTC", 22)
+            report::pad(text::scale_word(rows[0].0), 22)
         ));
     }
     if rows.is_empty() {

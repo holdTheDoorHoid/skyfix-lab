@@ -1,0 +1,27 @@
+M31, Andromeda Galaxy
+Object     spiral galaxy in And, magnitude 3.4, 200' x 71'; RA 10.6847, Dec +41.2687
+           (J2000). The nearest large galaxy, 2.5 million light-years away
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 0 m above the WGS84
+           ellipsoid
+Night      2026-09-24T17:00:40Z to 2026-09-25T17:00:40Z (local mean noon to noon), times
+           below in UTC-04:00
+Darkness   night (the Sun below -18 deg) from 20:24 to 05:20, 8 h 56 min
+Sun        set 18:54, civil dusk 19:21, nautical dusk 19:52, astronomical dusk 20:24,
+           astronomical dawn 05:20, nautical dawn 05:52, civil dawn 06:24, rise 06:51
+Moon       full, 97% lit, rises 17:54, sets 05:36; up 8 h 56 min of the dark window,
+           down 0 h 00 min
+Sky        naked-eye limit 6.3 at the zenith (Bortle 4), extinction k = 0.25 mag per air
+           mass, sky 21.34 mag/arcsec2 (from --bortle)
+
+Best       01:28 at +88 32.1, 0 00.0 N (highest in the dark window)
+Transit    01:28 at +88 32.1, 0 00.0 N
+High       8 h 56 min above 20 deg in the dark window
+Moonlight  the Moon 52.3 deg away at altitude +38 08.9, brightening the sky there by
+           2.67 mag
+Limit      stars to magnitude 4.5 at the object at its best
+See it     with binoculars (10x50) (a rule of thumb)
+
+Altitudes are apparent (refracted), azimuths true with a compass word. The instrument
+guide compares the object's magnitude, spread by its size, with the limiting magnitude
+at it (EXPLORER_API.md, "Deep sky"): an estimate to argue with. --format json has the
+altitude every 10 minutes of the night.

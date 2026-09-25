@@ -1,0 +1,22 @@
+GOLDEN AND BLUE HOUR
+Observer   39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84 ellipsoid
+Day        2026-09-24 in UTC-04:00: 2026-09-24T04:00:00Z to 2026-09-25T04:00:00Z
+
+  light        period   from      from UTC              until           lasts
+  blue hour    morning  06:23:15  2026-09-24T10:23:15Z  06:33:43  10 min 28 s
+  golden hour  morning  06:33:43  2026-09-24T10:33:43Z  07:26:00  52 min 17 s
+  golden hour  evening  18:18:38  2026-09-24T22:18:38Z  19:10:49  52 min 12 s
+  blue hour    evening  19:10:49  2026-09-24T23:10:49Z  19:21:16  10 min 26 s
+
+The Sun this day (UTC-04:00): lower transit 00:52:47, astronomical dawn 05:19:36,
+nautical dawn 05:51:41, civil dawn 06:23:15, rise 06:50:15, transit 12:52:37, set
+18:54:19, civil dusk 19:21:16, nautical dusk 19:52:45, astronomical dusk 20:24:44.
+Sky phases: night from 00:00:00, astronomical twilight from 05:19:36, nautical twilight
+from 05:51:41, civil twilight from 06:23:15, day from 06:50:15, civil twilight from
+18:54:19, nautical twilight from 19:21:16, astronomical twilight from 19:52:45, night
+from 20:24:44.
+
+Golden hour: the Sun's centre between -4 and +6 degrees of geometric altitude; blue
+hour: between -6 and -4, so it ends exactly at civil dusk (CONVENTIONS 13.10). A window
+cut by the day's edge runs to midnight; --format json says so (open_start, open_end) and
+carries every crossing of the three altitudes.

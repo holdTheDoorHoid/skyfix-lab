@@ -1,0 +1,26 @@
+PERIGEE, APOGEE AND SUPERMOONS  2026-01-01T00:00:00Z to 2026-04-01T00:00:00Z
+
+Perigees and apogees
+  UTC                                km  diameter '  vs mean
+  2026-01-01T21:44:26Z  perigee  360348       33.16    +6.7%
+  2026-01-13T20:47:08Z  apogee   405438       29.47    -5.2%
+  2026-01-29T21:46:00Z  perigee  365871       32.66    +5.1%
+  2026-02-10T16:51:44Z  apogee   404576       29.54    -5.0%
+  2026-02-24T23:14:15Z  perigee  370135       32.29    +3.9%
+  2026-03-10T13:43:00Z  apogee   404384       29.55    -4.9%
+  2026-03-22T11:39:57Z  perigee  366857       32.57    +4.8%
+
+New and full Moons
+  UTC                                  km  diameter '  to perigee
+  2026-01-03T10:02:55Z  full moon  362312       32.98         96%  supermoon
+  2026-01-18T19:51:59Z  new moon   395417       30.22         25%
+  2026-02-01T22:09:15Z  full moon  371387       32.18         86%
+  2026-02-17T12:01:09Z  new moon   384492       31.08         58%
+  2026-03-03T11:37:54Z  full moon  382613       31.23         64%
+  2026-03-19T01:23:29Z  new moon   373320       32.01         83%
+
+Distances are centre to centre, geometric. to perigee: how near to perigee the Moon is,
+0% at apogee and 100% at perigee. A new or full Moon at least 90 % of the way from
+apogee to perigee: (apogee - d) / (apogee - perigee) >= 0.9, with the perigee and the
+apogee on either side of it in time (Nolle 1979). A new or full Moon at least 90 % of
+the way to apogee: the same fraction <= 0.1.

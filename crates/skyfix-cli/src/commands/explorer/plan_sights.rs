@@ -28,11 +28,11 @@ pub struct Args {
     #[command(flatten)]
     pub position: PositionArgs,
     /// Start of the search: YYYY-MM-DD (00:00 UTC that day) or an RFC 3339 UTC instant.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub from: When,
     /// End of the search: YYYY-MM-DD (through the end of that day, UTC) or an RFC 3339
     /// UTC instant. At most 7 days after --from.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub to: When,
     #[command(flatten)]
     pub optics: SightOpticsArgs,

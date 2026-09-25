@@ -1,0 +1,16 @@
+[
+  {
+    "name": "(1) Ceres",
+    "designation": "(1)",
+    "class": "asteroid",
+    "epoch_jd_tt": 2461200.5,
+    "perihelion_distance_au": 2.545159,
+    "eccentricity": 0.079692,
+    "inclination_deg": 10.58803,
+    "ascending_node_deg": 80.24863,
+    "argument_of_perihelion_deg": 73.2942,
+    "perihelion_jd_tt": 2459919.988326,
+    "magnitude": {"model": "hg", "h": 3.34, "g": 0.15},
+    "source": "mpcorb"
+  }
+]

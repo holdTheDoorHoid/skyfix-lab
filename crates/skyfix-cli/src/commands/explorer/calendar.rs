@@ -56,12 +56,12 @@ const WEEKDAYS: [&str; 7] = [
 ];
 
 /// The weekday of the day that contains `jd` (JD 0.5, the start of JDN 1, was a Tuesday).
-fn weekday(jd: f64) -> &'static str {
+pub fn weekday(jd: f64) -> &'static str {
     let jdn = (jd + 0.5).floor() as i64;
     WEEKDAYS[(jdn + 1).rem_euclid(7) as usize]
 }
 
-fn the_jd(a: &Args) -> Result<f64> {
+pub fn the_jd(a: &Args) -> Result<f64> {
     match (&a.date, a.jd) {
         (_, Some(jd)) if jd.is_finite() => Ok(jd),
         (_, Some(jd)) => Err(anyhow!("--jd {jd} is not a finite number")),
@@ -92,7 +92,7 @@ pub fn run(a: &Args) -> Result<u8> {
     Ok(exit::OK)
 }
 
-fn civil_line(c: &CivilDate) -> String {
+pub fn civil_line(c: &CivilDate) -> String {
     let dt = CivilDateTime {
         calendar: c.calendar,
         year: c.year,
@@ -117,7 +117,7 @@ fn civil_line(c: &CivilDate) -> String {
     )
 }
 
-fn seconds_text(s: f64) -> String {
+pub fn seconds_text(s: f64) -> String {
     if s.abs() < 120.0 {
         format!("{s:.3} s")
     } else {
@@ -132,7 +132,7 @@ fn seconds_text(s: f64) -> String {
     }
 }
 
-fn sigma_text(s: f64) -> String {
+pub fn sigma_text(s: f64) -> String {
     if s < 1.0 {
         format!("{s:.3} s")
     } else if s < 120.0 {
@@ -144,7 +144,7 @@ fn sigma_text(s: f64) -> String {
     }
 }
 
-fn display_name(c: skyfix_core::calendar::Calendar) -> &'static str {
+pub fn display_name(c: skyfix_core::calendar::Calendar) -> &'static str {
     match c {
         skyfix_core::calendar::Calendar::Julian => "Julian",
         skyfix_core::calendar::Calendar::Gregorian => "Gregorian",

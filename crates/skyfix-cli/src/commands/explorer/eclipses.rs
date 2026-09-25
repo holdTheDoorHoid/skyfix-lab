@@ -70,16 +70,18 @@ impl KindChoice {
 pub struct Args {
     /// Start: YYYY-MM-DD (00:00 UTC that day) or an RFC 3339 UTC instant. An eclipse is
     /// listed when its greatest eclipse falls in the window.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub from: When,
     /// End: YYYY-MM-DD (through the END of that day, UTC) or an RFC 3339 UTC instant.
-    #[arg(long, value_name = "WHEN", value_parser = parse_when)]
+    #[arg(long, value_name = "WHEN", value_parser = parse_when, allow_hyphen_values = true)]
     pub to: When,
     /// Which eclipses to list.
     #[arg(long, value_enum, default_value_t = KindChoice::All, value_name = "KIND")]
     pub kind: KindChoice,
     #[command(flatten)]
     pub observer: OptionalSiteArgs,
+    #[command(flatten)]
+    pub dut1: super::args::Dut1Args,
     #[command(flatten)]
     pub format: FormatArgs,
 }
@@ -101,7 +103,7 @@ pub fn list(engine: &Eclipses, start: f64, end: f64, kind: KindChoice) -> Result
     let mut list = engine.find(start, end).map_err(|e| anyhow!("{e}"))?;
     if list.jd_start > list.jd_end {
         bail!(
-            "{} to {} is outside the eclipses' coverage, {} to {} (the Moon's)",
+            "{} to {} is outside the eclipses' coverage, {} to {}, the years checked against NASA's canon",
             text::utc(start),
             text::utc(end),
             list.coverage_start_utc,
@@ -114,7 +116,9 @@ pub fn list(engine: &Eclipses, start: f64, end: f64, kind: KindChoice) -> Result
 
 pub fn run(a: &Args) -> Result<u8> {
     let (start, end) = window(a.from, a.to, 0)?;
-    let engine = Eclipses::new();
+    // The site's DUT1 field (`set_dut1`): the flag, else the IERS history.
+    super::wire::set_explorer_dut1(a.dut1.dut1)?;
+    let engine = Eclipses::with_user_dut1(skyfix_wasm::timescale::user_dut1());
     let list = list(&engine, start, end, a.kind)?;
     let site = a.observer.site();
     let local = match &site {

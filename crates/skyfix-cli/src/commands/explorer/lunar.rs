@@ -140,7 +140,7 @@ pub fn render(r: &LunarDistanceResult, input: &LunarDistanceInput) -> String {
     out.push('\n');
 
     labelled(
-        "UTC",
+        text::scale_word(r.jd_utc),
         &format!("{}  sigma {:.1} s", text::utc(r.jd_utc), r.sigma_s),
         &mut out,
     );

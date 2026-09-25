@@ -121,6 +121,15 @@ pub fn utc(jd_utc: f64) -> String {
     s
 }
 
+/// The clock's word at `jd_utc`, for a table heading over times [`utc`] prints: `UTC`
+/// from 1972 to 2035, `UT` outside (CONVENTIONS 15.2).
+pub fn scale_word(jd_utc: f64) -> &'static str {
+    match time::scale_at(round_to_second(jd_utc)) {
+        ClockScale::Utc => "UTC",
+        ClockScale::Ut => "UT",
+    }
+}
+
 /// The time of day `HH:MM:SS` at `offset_minutes` from UTC (0 for UTC itself), to the
 /// nearest second.
 pub fn clock(jd_utc: f64, offset_minutes: i32) -> String {
@@ -273,6 +282,14 @@ mod tests {
             local_datetime(t("+12345-01-01T00:00:00Z"), 0),
             "+12345-01-01 00:00:00"
         );
+    }
+
+    #[test]
+    fn a_heading_names_the_clock_of_its_times() {
+        let t = |s: &str| skyfix_core::time::parse_utc(s).unwrap();
+        assert_eq!(scale_word(t("2026-10-01T00:00:00Z")), "UTC");
+        assert_eq!(scale_word(t("1971-06-01T00:00:00Z")), "UT");
+        assert_eq!(scale_word(t("-0584-05-28T12:00:00Z")), "UT");
     }
 
     #[test]

@@ -6,7 +6,8 @@ Gamma      +0.3431: the shadow's axis passes 0.3431 Earth radii north of the Ear
            centre
 Saros      139 (lunation 300)
 Path       197.5 km wide at greatest eclipse, where totality lasts 4 min 28 s
-Delta-T    69.201 s (TT - UT1), assumed by every place and local time here
+Delta-T    69.201 s (TT - UT1), standard uncertainty 0.001 s, assumed by every place and
+           local time here
 
 The shadow on the Earth
   p1  2024-04-08T15:42:14Z  the partial eclipse begins: the penumbra first touches the Earth

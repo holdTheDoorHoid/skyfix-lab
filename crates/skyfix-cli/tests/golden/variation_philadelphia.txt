@@ -1,0 +1,22 @@
+MAGNETIC VARIATION
+Place      39 57.16' N, 075 09.91' W (39.952600, -75.165200), 12 m above the WGS84 ellipsoid
+Time       2026-09-24T12:00:00Z
+Model      WMM2025, decimal year 2026.7301, a forecast (after 2025.0)
+
+Variation 11.8° W ±0.4° (WMM2025), changing 1.6′ E a year.
+
+  element                         value      sigma  change a year
+  declination (variation)  -11.8053 deg  0.364 deg    +0.0267 deg
+  inclination (dip)         65.1704 deg  0.200 deg    -0.1039 deg
+  horizontal H               21219.2 nT     133 nT       +36.0 nT
+  north X                    20770.4 nT     137 nT       +37.3 nT
+  east Y                     -4341.2 nT      89 nT        +2.3 nT
+  down Z                     45860.4 nT     141 nT      -140.4 nT
+  total F                    50531.5 nT     138 nT      -112.3 nT
+
+Zone       normal
+
+Declination (the navigator's variation) is east positive: -11.8053 is 11.8° W.
+Inclination is down positive. sigma: WMM2025 error model (NOAA NCEI): one standard
+deviation between a measurement and the model, crustal and disturbance fields included;
+declination sqrt(0.26^2 + (5417/H)^2) degrees

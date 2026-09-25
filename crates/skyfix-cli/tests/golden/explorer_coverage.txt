@@ -1,0 +1,22 @@
+THE EXPLORER'S COVERAGE
+Display    -2000-01-01T00:00:00Z to 3000-12-31T23:59:59Z: the sky, the day's events, the
+           Moon's phases, the seasons and the sun tools answer both tiers
+Validated  1550-01-01T00:00:00Z to 2650-01-22T00:00:00Z: sights, predicted readings, the
+           planner and the other engines answer this tier only
+Packs      none loaded (no pack is needed for either tier)
+
+  group    tier       from                   to                    worst '  sights
+  Sun      validated  1550-01-01T00:00:00Z   2650-01-22T00:00:00Z     0.01  offered
+           labelled   -2000-01-01T00:00:00Z  3000-12-31T23:59:59Z     0.02  no
+  Moon     validated  1550-01-01T00:00:00Z   2650-01-22T00:00:00Z     0.02  offered
+           labelled   -2000-01-01T00:00:00Z  3000-12-31T23:59:59Z     0.05  no
+  Planets  validated  1550-01-01T00:00:00Z   2650-01-22T00:00:00Z     0.03  offered
+           labelled   -2000-01-01T00:00:00Z  3000-12-31T23:59:59Z      0.7  no
+  Stars    validated  1550-01-01T00:00:00Z   2650-01-22T00:00:00Z     0.03  offered
+           labelled   -2000-01-01T00:00:00Z  3000-12-31T23:59:59Z      0.2  no
+
+worst ' is the worst direction error measured over the tier (GHA or Dec, arcminutes):
+against JPL DE440 in the validated tier, per century against DE441 in the labelled one
+(docs/ACCURACY.md, "Historical accuracy"). In the labelled tier every time shown carries
+the Delta-T uncertainty (skyfix time-info), and nothing there is offered for sights. The
+groups' providers and notes are in --format json.

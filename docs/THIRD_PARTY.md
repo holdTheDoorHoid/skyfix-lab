@@ -2278,6 +2278,20 @@ Nothing else is added: the deep-sky descriptions, constellation names, meteor-sh
 Moon features and every number are the engines' (their sources are listed in their own
 sections above).
 
+<!-- cli3 agent (expansion programme, command-line parity), 2026-09-25 -->
+## Expansion programme — the command line (cli3 agent, 2026-09-25)
+
+No data ships with the command-line work: every command reads the engine's own tables,
+and `--pack` loads the site's committed packs (`tides-us`, `lunar-limb`, listed above by
+their producers) as they are.
+
+### Development-time references (never shipped)
+
+| Source | Used for | Terms |
+|---|---|---|
+| The Minor Planet Center's `MPCORB.DAT` elements of (1) Ceres, as `parse_orbits` reads them (the `parse_orbits` example of `docs/EXPLORER_API.md`, the same line as `planetdetail_orbits.json`): `crates/skyfix-cli/tests/data/ceres.elements.json` and `crates/skyfix-cli/tests/parity.rs` | the `orbit` command's parity test and its example in `docs/CLI.md` | the MPC permits redistribution with the source stated: **"Source: Minor Planet Center"**, as `docs/CLI.md` and the command's own report state |
+<!-- end cli3 -->
+
 ## Expansion programme — deep time (deeptime agent, 2026-09-25)
 
 What the Sun, Moon, planet and star providers are built from since the coverage became

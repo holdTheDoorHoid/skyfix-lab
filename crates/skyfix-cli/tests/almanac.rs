@@ -24,7 +24,11 @@ fn almanac_prints_both_pages_with_every_section() {
         .expect_stdout("N 72    03 10  04 39   05 47    18 06  17 31")
         .expect_stdout("SUN   Eqn. of Time 00h  07 48   12h  07 59   Mer. Pass. 11 52")
         .expect_stdout("Age 13 d   95 % illuminated")
-        .expect_stdout_flat("UT is UTC with DUT1 = 0");
+        // pages::NOTES[0], the almanac owner's wording of CONVENTIONS 15.2.
+        .expect_stdout_flat(
+            "UT is UT1, as in the printed almanac: enter the tables with UTC + DUT1, the time \
+             signal's correction (CONVENTIONS 15.2). Outside 1972-2035 the clock is UT itself.",
+        );
 }
 
 #[test]

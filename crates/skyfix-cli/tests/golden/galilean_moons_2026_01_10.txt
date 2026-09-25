@@ -1,0 +1,15 @@
+JUPITER'S GALILEAN MOONS
+Time       2026-01-10T00:00:00Z
+Jupiter    4.2318 au away (light 2112 s), disc 46.59" x 43.57", pole at PA 10.00 deg,
+           179.5 deg from the Sun
+
+  moon        x Rj    y Rj  east "  north "
+  Io        +5.492  -0.056  -126.2    +20.9  in front
+  Europa    +0.157  +0.166    -2.9     +4.4  behind, hidden behind Jupiter, in Jupiter's shadow
+  Ganymede  +8.956  +0.324  -204.1    +43.6  behind
+  Callisto  -3.740  -0.522   +83.7    -27.1  in front
+
+x is along Jupiter's equator, positive WEST, and y toward its north pole, in Jupiter's
+equatorial radius (Rj): draw the view from these. east and north are the same offsets in
+arcseconds of sky. Lieske E5 (Meeus, Astronomical Algorithms, chapter 44, higher
+accuracy), Jupiter and the Earth from VSOP87A (worst offset against JPL 0.5").
