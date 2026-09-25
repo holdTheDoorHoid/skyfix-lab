@@ -2844,3 +2844,44 @@ test/next/navigate-passage.test.ts test/next/navigate-print.test.ts
 test/next/navigate-sightextras.test.ts`, and in a browser `npm run build --prefix web &&
 ONLY=navigate2 node web/scripts/ui-check.mjs`.
 
+## Interface: what the Tonight view works out itself (tonight agent, wave 2)
+
+Every number on the Tonight view is an engine's (the deep-sky engine's `tonight`, the
+events, sun-tools, Moon-detail, planet-detail, eclipse and tides exports), shown as it
+answers; the view makes no accuracy claim of its own. What it works out from those answers,
+and the tests that hold it (`web/test/next/tonight.test.ts`, `tonight-tides.test.ts`, run
+with the mock engine through the same contract):
+
+- **Which night.** Local mean noon is the engine's formula (`floor(jd + lon/360) − lon/360`,
+  17:00:40 UT at Philadelphia); the darkness is the engine's rule (the longest run of sky
+  phases at least as dark as night, then astronomical, then nautical twilight), and the
+  night switches at the end of that darkness after local mean midnight (else sunrise, else
+  midnight, else noon). Tested: the switch falls within a minute either side of
+  astronomical dawn; the engine asked at a moment between dawn and sunrise gives the ending
+  night while the view's probe gives the coming one; ◀ ▶ land in the neighbouring night
+  from every hour of two days and from just after a dawn.
+- **Stretches.** Moonless darkness is the engine's darkness less the Moon's rise-to-set
+  spans (its rise and set on the person's horizon, CONVENTIONS 13.3); the planets' "all
+  night", "in the evening", "in the morning" compare the engine's first and last moment 10°
+  up with the stretch of the Sun 6° down (20 minutes' grace). Tested: the moonless and
+  moon-up parts of the darkness add up to the darkness to 10⁻⁹ day; each phrase for
+  synthetic planets.
+- **Words and times.** Every time in the cards is the engine's instant on the display
+  clock, rounded to the minute; the tests compare each card's text with the engine's
+  instants, heights, hours and rates (darkness, rise and set, golden and blue hours, the
+  Milky Way's windows, the deep-sky ranking, meteor rates). Where time-ui's ΔT chip applies,
+  the same ± follows every time.
+- **The tides offer.** A place is offered the tides pack when a one-degree cell holding a
+  station lies within 100 NM, measured exactly on the sphere to the cell's nearest point:
+  never missing a station (4 000 places around random stations out to 150 NM: every one
+  with a station within 100 NM, 3 777 of them, gets the offer), generous by at most a cell's
+  width (203 of the 3 980 offers, 5 %, went to places whose nearest station is 100 to 144 NM
+  away). Once the pack is loaded the stations themselves decide.
+- **Speed.** In Chrome (`web/scripts/ui-check.mjs`, group 9, `ONLY=tonight`) the page draws
+  its first stage 12 to 54 ms after the engines answer (six runs; budget 300 ms); the
+  engines' own time for the night's core is reported, not judged (75 to 390 ms in headless
+  Chrome on a shared, loaded machine; `tonight` alone 65 ms in Node). The deep-sky
+  catalogue's descriptions and the constellations' names come in the second stage (on a
+  first visit they cost the first draw 260 ms). A time change inside the night costs the
+  view about nothing per frame (the median frame's work is the same with About mounted
+  instead, 1.5-1.9 ms).

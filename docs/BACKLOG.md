@@ -236,3 +236,13 @@ This file is the single list; the completion report links here.
 | A printed passage plan (legs, courses, times, steering points) | unstarted | the table is on screen and in the GPX |
 | Importing a GPX route into the Passage tab | unstarted | export only |
 
+## Expansion programme — the Tonight view (tonight agent, wave 2 Q2)
+
+| item | status | notes |
+|---|---|---|
+| The Tonight tab (eight tabs; About in the Help menu and at `#about`), the night's rule, the summary, the night's timeline, Moon, planets, deep sky, meteor showers, Milky Way, the next 14 days, tides, photography, the one-page print | completed | `web/src/next/tonight/`; `EXPLORER_GUIDE.md` "Tonight"; ui-check group `tonight`; `docs/ACCURACY.md`, "Interface: what the Tonight view works out itself" |
+| "Show in Sky" centring the Sky view on an object, a radiant or the Milky Way's core, and the Moon, Jupiter and Saturn "up close" | waiting (sky2) | the view posts the target on `skyTargets(ctx)` (`tonight/sky-link.ts`: a per-explorer channel like `sky/highlight.ts`, set before the Sky view mounts); until the Sky view reads it, it opens at the object's best moment with the body ringed and selected |
+| "Plan a photo" opening the Milky Way planner on the Selected card | completed | the best moment, then `openMilkyWayPlanner(ctx)` (`panel/photo.ts`, photo agent); on a phone the planner opens inside the bottom sheet as the sheet stands (views cannot raise the sheet) |
+| "Coming up" opening Events on the right tab | waiting (events2) | an item sets the time, selects its body and opens Events, which shows its remembered tab; Events has no tab for conjunctions, occultations, apsides or meteor showers yet, and no way to be asked for one |
+| The sky's darkness (Bortle class) kept between visits | open | kept while the page is open (per explorer); a setting in `state.ts` would keep it, shared with the Sky view's magnitude limit when sky2 adds one |
+| Tides beyond the night | open | the card lists the high and low water from an hour before sunset to an hour after sunrise; "next high and low" after the explorer's time is the Place section's tides line (photo) |

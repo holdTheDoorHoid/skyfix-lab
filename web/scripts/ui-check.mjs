@@ -43,6 +43,11 @@
  *      print preview of the worksheets and plotting sheet (navigate2, expansion programme):
  *      each works, lays out without overlap or cut-off text, keeps the console clean, and in
  *      the night theme shows no blue, green or white light (the preview's paper included).
+ *   9. the Tonight view (tonight agent): eight tabs with Tonight and without About, About
+ *      from the Help menu and at #about; the night of the moment with every card filled in,
+ *      drawn within 300 ms of the engines' answer (the engines' own time reported); a moment
+ *      of the night and ◀ ▶ moving the explorer's time; a planet opening the Sky view; the
+ *      printed sheet on one page of Letter and of A4.
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
  * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
@@ -55,6 +60,7 @@
  *   ONLY=almanac node web/scripts/ui-check.mjs        # the Almanac's tabs, screenshots and printed sheets
  *   ONLY=almanac ALMANAC_SCREEN=0 node web/scripts/ui-check.mjs   # its printed sheets only
  *   ONLY=views,night node web/scripts/ui-check.mjs    # some of: views,night,leaks,keys,privacy,scrub,charts,time,photo,navigate2
+ *   ONLY=tonight node web/scripts/ui-check.mjs        # the Tonight view's own checks (9)
  *
  * Environment: SITE (default web/dist), PREFIX (/skyfix-lab/), CHROME (google-chrome),
  * OUT (docs/design/local), VIEWS, THEMES, SIZES, SWITCHES (default 50).
@@ -77,10 +83,10 @@ const CHROME = process.env.CHROME ?? 'google-chrome';
 const OUT = resolve(process.env.OUT ?? join(REPO, 'docs/design/local'));
 const PORT = Number(process.env.PORT ?? 9100 + Math.floor(Math.random() * 400));
 const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
-const VIEWS = (process.env.VIEWS ?? 'map,sky,charts,navigate,almanac,events,learn,about').split(',');
+const VIEWS = (process.env.VIEWS ?? 'map,sky,tonight,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,photo,almanac,navigate2').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,photo,almanac,navigate2,tonight').split(','));
 /** charts2: the Charts view's tabs and sub-views, `tab` or `tab/sub`. */
 const CHART_VIEWS = (process.env.CHARTS ?? 'day,year,sun/path,sun/analemma,sun/bearings,sun/eot,sun/solar,moon/phases,moon/year,planets,tides').split(',');
 const SWITCHES = Number(process.env.SWITCHES ?? 50);
@@ -391,7 +397,7 @@ async function main() {
     // 3. Switching views: nothing left behind.
     if (ONLY.has('leaks')) {
       await open('map');
-      const order = ['sky', 'charts', 'navigate', 'almanac', 'events', 'learn', 'about', 'globe', 'map'];
+      const order = ['sky', 'tonight', 'charts', 'navigate', 'almanac', 'events', 'learn', 'about', 'globe', 'map'];
       const cycle = async (n) => {
         for (let i = 0; i < n; i++) {
           const v = order[i % order.length];
@@ -408,7 +414,10 @@ async function main() {
         const dom = JSON.parse(await evaluate(`JSON.stringify({ canvases: document.querySelectorAll('canvas').length, maps: document.querySelectorAll('.maplibregl-map').length, popovers: document.querySelectorAll('.sf-popover').length })`));
         return { listeners: m.JSEventListeners, nodes: m.Nodes, heapMB: +(m.JSHeapUsedSize / 1e6).toFixed(1), ...dom };
       };
-      await cycle(order.length);
+      // Two rounds first: a view's first visit loads its code and may read data once (the
+      // Tonight view reads the site's pack list, which fills Settings → Data packs); on a slow
+      // machine a view can be left before it has mounted, so one round may not be enough.
+      await cycle(order.length * 2);
       const a = await measure();
       messages.length = 0;
       await cycle(SWITCHES);
@@ -965,6 +974,90 @@ async function main() {
       }
       summary.almanac.timings.openingMs = times;
       console.log(`info  an opening (three daily pages) in the browser, click to pages: ${times.join(', ')} ms`);
+
+    // 9. The Tonight view (tonight agent).
+    if (ONLY.has('tonight')) {
+      await viewport(1440, 900, false);
+      summary.tonight = {};
+      const filled = `document.querySelector('.sft')?.dataset.coming === 'done'`;
+      const timeLabel = `[...document.querySelectorAll('.sf-timebar button')].map((b) => b.getAttribute('aria-label') || '').filter((l) => /^(Date|Time):/.test(l)).join(' / ')`;
+      messages.length = 0;
+      await open(`${MOMENT}&view=tonight`);
+      await waitFor(filled, 60000);
+      const T = JSON.parse(await evaluate(`JSON.stringify((() => {
+        const q = (s) => document.querySelector(s);
+        const all = (s) => [...document.querySelectorAll(s)];
+        const r = q('.sft');
+        return {
+          tabs: all('.sf-views__tab').map((b) => b.dataset.view),
+          current: q('.sf-views__tab[aria-current=page]')?.dataset.view ?? '',
+          date: q('.sft-title')?.textContent.trim() ?? '',
+          sentences: all('.sft-lead').length,
+          moments: all('.sft-moment .sft-time').length,
+          dso: all('.sft-dso').length,
+          planets: all('.sft-card--planets .sft-row').length,
+          coming: all('.sft-coming__item').length,
+          light: all('.sft-lightrow').length,
+          coreMs: Number(r?.dataset.coreMs ?? NaN),
+          drawMs: Number(r?.dataset.drawMs ?? NaN),
+        };
+      })())`));
+      summary.tonight.page = T;
+      check('Tonight: eight tabs, Tonight among them and About not', T.tabs.length === 8 && T.tabs.includes('tonight') && !T.tabs.includes('about') && T.current === 'tonight', T.tabs.join(','));
+      check('Tonight at noon EDT on 24 September 2026 is the night of Thursday 24 September, with its summary', /^Thursday 24 September/.test(T.date) && T.sentences >= 2, `${T.date} · ${T.sentences} sentences`);
+      check('Tonight: every card is filled in', T.moments >= 8 && T.dso === 8 && T.planets >= 2 && T.coming >= 3 && T.light === 4, JSON.stringify(T));
+      check('Tonight: drawn within 300 ms of the engines answering', T.drawMs < 300, `${T.drawMs} ms to draw; the engines took ${T.coreMs} ms for the night's core (reported, not judged)`);
+      console.log(`info  Tonight: the engines took ${T.coreMs} ms for the night's core, the page ${T.drawMs} ms to draw it`);
+      check('Tonight: console clean', !messages.some((m) => /^(error|warning|warn|exception)/.test(m)), messages.slice(0, 3).join(' | '));
+
+      // A moment of the night sets the explorer's time.
+      const sunset = await evaluate(`(() => { const b = [...document.querySelectorAll('.sft-moment')].find((m) => /Sunset/.test(m.textContent))?.querySelector('.sft-time'); b?.click(); return b?.textContent ?? ''; })()`);
+      // The time bar redraws in the next frame; a loaded machine can make that late.
+      await waitFor(`(${timeLabel}).includes(${JSON.stringify(`Time: ${sunset}`)})`, 10000);
+      const after = await evaluate(timeLabel);
+      check('Tonight: a moment of the night moves the explorer there', sunset && after.includes(`Time: ${sunset}`), `${sunset} -> ${after}`);
+
+      // ◀ ▶ step a night, moving the explorer's time.
+      await evaluate(`document.querySelector('.sft-head__nav button[aria-label="The night after"]').click(); true`);
+      await waitFor(`/^Friday 25 September/.test(document.querySelector('.sft-title')?.textContent ?? '')`, 20000);
+      const nextDate = await evaluate(`document.querySelector('.sft-title').textContent.trim()`);
+      await evaluate(`document.querySelector('.sft-head__nav button[aria-label="The night before"]').click(); true`);
+      await evaluate(`document.querySelector('.sft-head__nav button[aria-label="The night before"]').click(); true`);
+      await waitFor(`/^Wednesday 23 September/.test(document.querySelector('.sft-title')?.textContent ?? '')`, 20000);
+      const prevDate = await evaluate(`document.querySelector('.sft-title').textContent.trim()`);
+      await waitFor(`/Wednesday 23 September/.test(${timeLabel})`, 10000);
+      const bar = await evaluate(timeLabel);
+      check('Tonight: ▶ and ◀ step a night and the time bar follows', /^Friday 25 September/.test(nextDate) && /^Wednesday 23 September/.test(prevDate) && /Wednesday 23 September/.test(bar), `${nextDate} · ${prevDate} · ${bar}`);
+
+      // A planet opens the Sky view with it selected.
+      await open(`${MOMENT}&view=tonight`);
+      await waitFor(filled, 60000);
+      const planet = await evaluate(`(() => { const b = document.querySelector('.sft-card--planets .sft-row[data-body]'); b?.click(); return b?.dataset.body ?? ''; })()`);
+      const sky = await waitFor(`/^Sky/.test(document.title)`, 20000);
+      check('Tonight: a planet opens the Sky view with it selected', planet && sky, `${planet} · ${await evaluate('document.title')}`);
+
+      // About: from the Help menu, and at #about.
+      await open(`${MOMENT}&view=tonight`);
+      await evaluate(`document.querySelector('button[aria-label="Help and keys"]').click(); true`);
+      await sleep(400);
+      await evaluate(`document.querySelector('.sf-help__about').click(); true`);
+      const aboutFromHelp = await waitFor(`/^About/.test(document.title) && !!document.querySelector('.sf-about')`, 20000);
+      await open('about');
+      const aboutAtHash = await waitFor(`/^About/.test(document.title) && !!document.querySelector('.sf-about')`, 20000);
+      const tabbable = await evaluate(`[...document.querySelectorAll('.sf-views__tab')].filter((b) => b.tabIndex === 0).length`);
+      check('About opens from the Help menu and at #about, and the tab strip stays in the Tab order', aboutFromHelp && aboutAtHash && tabbable === 1, `help ${aboutFromHelp}, #about ${aboutAtHash}, tabbable ${tabbable}`);
+
+      // The printed sheet: one page of Letter and one of A4.
+      await open(`${MOMENT}&view=tonight`);
+      await waitFor(filled, 60000);
+      const pages = {};
+      for (const [paper, [w, h]] of Object.entries({ letter: [8.5, 11], a4: [8.27, 11.69] })) {
+        const pdf = Buffer.from((await send('Page.printToPDF', { paperWidth: w, paperHeight: h, printBackground: true })).data, 'base64');
+        writeFileSync(join(OUT, `ui-tonight-sheet-${paper}.pdf`), pdf);
+        pages[paper] = (pdf.toString('latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length;
+      }
+      summary.tonight.sheet = pages;
+      check('Tonight: the printed sheet is one page of Letter and one of A4', pages.letter === 1 && pages.a4 === 1, JSON.stringify(pages));
     }
   } finally {
     page.close();

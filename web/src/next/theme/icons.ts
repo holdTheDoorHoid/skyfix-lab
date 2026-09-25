@@ -223,6 +223,12 @@ const ICONS = {
     ['path', 'M3 18.5c1.5-1 3-1 4.5 0s3 1 4.5 0 3-1 4.5 0 3 1 4.5 0'],
     ['path', 'M12 3.5v9M9.5 6 12 3.5 14.5 6M9.5 10 12 12.5 14.5 10'],
   ],
+  // tonight agent (expansion programme Q2): the Tonight tab, a crescent under a star.
+  tonight: [
+    ['path', 'M16.4 17.9A6.9 6.9 0 0 1 7.5 9a6.9 6.9 0 1 0 8.9 8.9Z'],
+    ['path', 'M17.4 3.4v4.4M15.2 5.6h4.4'],
+    ['dot', 12.6, 8.4, 1],
+  ],
 } satisfies Record<string, Shape[]>;
 
 export type IconName = keyof typeof ICONS;

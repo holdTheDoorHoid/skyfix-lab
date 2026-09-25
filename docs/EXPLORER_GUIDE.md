@@ -20,10 +20,10 @@ agreement with reference data is not field accuracy — see
 
 ![The explorer's Map view: a compass centred on the observer, the time ribbon across the top, and the side panel showing the place, the Sun's height and direction, and today's sunrise and sunset.](design/app-light.png)
 
-On your first visit a short tour — four cards beside the parts they explain: the place,
-the time bar, the views, and what the numbers are — points the way. It never blocks the
-page; skip it, or close it, and it stays closed on that device. **Show the tour** in the
-**?** Help menu, or on the About view, brings it back.
+On your first visit a short tour — five cards beside the parts they explain: the place,
+the time bar, the views, the Tonight tab, and what the numbers are — points the way. It
+never blocks the page; skip it, or close it, and it stays closed on that device. **Show the
+tour** in the **?** Help menu, or on the About view, brings it back.
 
 ## Setting a place
 
@@ -220,8 +220,9 @@ compares the definitions.
 ## The views
 
 The tabs along the top of the side panel (or, on a phone, along the top of the bottom
-sheet — see below) switch between eight views. The place, the time and the selected body
-are shared across all of them.
+sheet — see below) switch between eight views: Map, Sky, Tonight, Charts, Navigate,
+Almanac, Events and Learn. The place, the time and the selected body are shared across all
+of them. [About](#about) has no tab: it opens from the **?** Help menu.
 
 ### Map and Globe
 
@@ -255,6 +256,80 @@ is for display only — see [Third-party sources](THIRD_PARTY.md), "Star field a
 constellations" — and never affects a fix.
 
 ![The Sky dome at night over Philadelphia: stars, constellation figures, the ecliptic, and the Sun's position well below the horizon.](design/sky-night-philadelphia-dome.png)
+
+### Tonight
+
+One page for the night at your place, for anyone going out to look: when it gets dark,
+the Moon, the planets, the best deep-sky objects, meteor showers, the Milky Way, the next
+two weeks' events, the nearest tide station and the photographers' golden and blue hours.
+
+**Which night.** A night runs from one local noon to the next (noon by the Sun at your
+longitude, as the deep-sky engine counts it). The page shows the night the explorer's time
+belongs to: in the afternoon and evening, the night ahead; after midnight, the night still
+going on while it is dark, and the coming one as soon as its darkness is over — at
+astronomical dawn, when the Sun climbs back above 18° below the horizon. Where the Sun
+never gets that low (summer at high latitudes) the switch comes when the darkest stretch
+ends, with no darkness at all at sunrise, and in the midnight sun at local midnight.
+(The deep-sky engine on its own switches at sunrise; the page chooses the night itself and
+asks the engine about that night.) A moment chosen on the page keeps its night: a planet
+best seen "as dawn comes" takes you past astronomical dawn, and coming back you still see
+the night you chose it from, until the time is moved some other way. **◀ ▶** step a night — they move the explorer's time,
+so every other view follows — and **Tonight** comes back to the real night, following the
+clock. The heading says "Tonight", "Tomorrow night" or "Last night" against the real date,
+and "The night of" otherwise.
+
+- **The summary** under the date says it in sentences: "Clear-sky darkness 20:25–05:21
+  (8 h 56 min). The Moon, a day before full (97% lit), sets at 05:37. Planets: Mars and
+  Jupiter in the morning; Saturn from 20:21." An eclipse seen from your place is named
+  with what you would see of it (a partial solar eclipse "7% of the Sun covered here").
+  "Clear-sky" because the weather is not known here.
+- **The night** is a bar from an hour before sunset to an hour after sunrise: the sky's
+  twilight bands, golden and blue hour, when the Moon is up, when the Milky Way's core is
+  10° or more up in full darkness, and the moonless darkness best for faint objects.
+  Click anywhere on it to move the explorer's time there; **Every moment of the night**
+  lists sunset, each twilight, moonrise and moonset, the core's best moment and the rest
+  as times you can press (the way to use the bar from the keyboard).
+- **Moon**: its phase drawn as it looks from your place (south up south of the equator),
+  how much of it is lit and how far from the nearest quarter, its rise and set, its
+  distance, the moonless part of the darkness, a note when the nearest new or full Moon is
+  a supermoon or a micromoon, and, while it is up at night, the named craters and ranges
+  best seen along the line between lunar day and night. **See it up close** opens the Sky
+  view on it.
+- **Planets**: each planet 10° or more up while the Sun is 6° down, where to look and
+  when — "Jupiter, east, rises 22:10, highest 03:40 at 61°, magnitude −2.7" — with the
+  moments of Jupiter's moons you can watch (a moon passing behind the planet or into its
+  shadow) and how far Saturn's rings are open. Press one to see it in the Sky view.
+- **Deep sky**: the eight best-placed clusters, nebulae and galaxies tonight, then eight
+  more at a time, each with its type, brightness, constellation, best time and height,
+  what to see it with (naked eye, binoculars, a small telescope, a camera), a line about
+  it and how much the Moon washes it out. **Your sky** sets how dark your sky is, from a
+  dark site (Bortle 1) to a city centre (Bortle 9), and the ranking follows; it is kept
+  while the page is open. **Show in Sky** opens the Sky view at the object's best moment.
+- **Meteor showers** active tonight: the rate you might see under your sky (an estimate:
+  the shower's ZHR, cut by the radiant's height and by the faint meteors your sky and the
+  Moon hide), the best time, where the radiant is, and whether the Moon is up then.
+- **Milky Way**: when the core is up in full darkness, its best moment and where the arch
+  of the Milky Way runs across the sky then. **Plan a photo** goes to that moment and
+  opens the Milky Way planner on the panel's Selected card (the best nights of the month).
+- **Coming up**: the next fourteen days — Moon phases (and supermoons), the Moon at its
+  closest and farthest, eclipses and what your place sees of them, the Moon and planets
+  passing close to each other or to bright stars (the moment they are best seen from your
+  place), the Moon hiding a star or a planet, meteor-shower peaks, oppositions, a planet
+  standing still before or after its backward loop, equinoxes and solstices, the Earth
+  closest to or farthest from the Sun, transits of Mercury and Venus. Press one to open
+  Events at that moment.
+- **Tides**: where a NOAA tide station may be within 100 nautical miles, the nearest
+  station's high and low water through the night — predicted, not observed. The stations
+  come in the optional US tides data pack; the card offers it with its size, and nothing
+  is downloaded unless you ask (see [Working offline](#working-offline)). **Tides chart**
+  opens the station's curve in Charts.
+- **Photography**: golden hour and blue hour this evening and tomorrow morning.
+
+**Print** makes a one-page sheet of the night (the explanations and buttons stay on the
+screen). Every time on the page is on your display clock with UTC in its tooltip; for dates
+whose clock time is uncertain (far in the past or future) the ± chip beside a time says by
+how much. Rankings, meteor rates and limiting magnitudes are estimates from stated rules,
+and the page says so where it shows them.
 
 ### Charts
 
@@ -506,7 +581,8 @@ trusted in each age (the uncertainty in the Earth's rotation, from an hour at 20
 under a second today). It also explains, in one
 place, what happens to your chosen place (nothing, unless you press Share), links this
 manual and the source code, and credits the map, star and font data. The **?** Help menu
-has the same two links.
+has the same two links. About has no tab of its own: **About SkyFix Lab** in the **?** Help
+menu opens it, and so does the address `#about`.
 
 ## Themes, including night vision
 

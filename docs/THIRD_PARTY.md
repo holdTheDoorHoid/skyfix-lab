@@ -2219,3 +2219,21 @@ geomag and sailings agents).
 - **The device's height** (the Place editor's "From this device") is the browser's
   Geolocation API reading, used in the page only and never sent or stored.
 
+## Expansion programme — the Tonight view (tonight agent, 2026-09-25)
+
+The Tonight view (`web/src/next/tonight/`) shows the engines' results and adds one small
+table of its own:
+
+- **Tide-station cells** (`web/src/next/tonight/tide-cells.ts`, `TIDE_CELLS`): the 485
+  one-degree cells of latitude and longitude that hold at least one of the 3 499 stations of
+  the committed `tides-us` pack (NOAA CO-OPS, public domain as a U.S. Government work; see
+  "Tides (optional `tides-us` pack)" above for the source, retrieval date and processing).
+  Only the cells are kept (their numbers, delta-coded in base 36: 1 100 characters), written by
+  `web/src/next/tonight/dev/tide-cells.mjs` from the pack file itself; no station name,
+  position or constant is copied. They let the view offer the pack only where a station may
+  lie within 100 nautical miles, without downloading it. `web/test/next/tonight-tides.test.ts`
+  fails when the table and the committed pack disagree.
+
+Nothing else is added: the deep-sky descriptions, constellation names, meteor-shower table,
+Moon features and every number are the engines' (their sources are listed in their own
+sections above).
