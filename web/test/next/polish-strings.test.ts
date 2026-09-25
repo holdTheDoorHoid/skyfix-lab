@@ -94,3 +94,16 @@ describe('the interface’s own words', () => {
     expect(offending(/Deep time pack|deep-time pack|'deep-time'/)).toEqual([]);
   });
 });
+
+describe('the tab strip’s descriptions', () => {
+  // Each view's tab tip names what the view now holds (polish2: the Navigate, Almanac and
+  // Events tips predated the expansion programme's tools, tables and lists).
+  it('name what each view holds', async () => {
+    const { VIEW_META } = await import('../../src/next/shell/views.js');
+    const tip = (id: string) => (VIEW_META as Record<string, { tip: string }>)[id]!.tip.toLowerCase();
+    for (const word of ['fix', 'noon', 'polaris', 'lunar', 'compass', 'passage']) expect(tip('navigate')).toContain(word);
+    for (const word of ['daily pages', 'tables', 'print']) expect(tip('almanac')).toContain(word);
+    for (const word of ['eclipses', 'moon', 'planet', 'meteor', 'seasons']) expect(tip('events')).toContain(word);
+    for (const word of ['moon', 'planets', 'deep sky', 'meteors']) expect(tip('tonight')).toContain(word);
+  });
+});
