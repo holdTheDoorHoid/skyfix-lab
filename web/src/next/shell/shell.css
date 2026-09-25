@@ -286,6 +286,11 @@
   font-size: var(--text-md);
 }
 
+/* Settings → Sights, Air: pressure and temperature on one row (polish2). */
+.sf-settings__air .sf-input {
+  width: 72px;
+}
+
 .sf-editor__actions {
   display: flex;
   justify-content: flex-end;

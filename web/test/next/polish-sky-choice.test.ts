@@ -34,3 +34,18 @@ describe('the shared sky choice', () => {
     expect(nightQuery(store.get(), 2_461_310, skyConditions(store.get().settings)).conditions).toEqual({ nelm: 6.1 });
   });
 });
+
+// polish2 (list item 24): one air for every refraction the page works out.
+describe('the air in Settings', () => {
+  it('reaches the engine only when it differs from the almanac’s, and survives a reload', async () => {
+    const { engineObserver, sanitizeSettings, DEFAULT_SETTINGS } = await import('../../src/next/state.js');
+    const { seedFromExplorer } = await import('../../src/next/navigate/working.js');
+    const store = createExplorerStore({ storage: null });
+    expect(engineObserver(store.get())).not.toHaveProperty('pressure_hpa');
+    store.patch({ settings: { pressure_hpa: 980, temperature_c: -5 } });
+    expect(engineObserver(store.get())).toMatchObject({ pressure_hpa: 980, temperature_c: -5 });
+    const w = seedFromExplorer(store);
+    expect(w.session.observer).toMatchObject({ pressure_hpa: 980, temperature_c: -5 });
+    expect(sanitizeSettings({ pressure_hpa: 5000, temperature_c: 'hot' })).toMatchObject({ pressure_hpa: DEFAULT_SETTINGS.pressure_hpa, temperature_c: 10 });
+  });
+});

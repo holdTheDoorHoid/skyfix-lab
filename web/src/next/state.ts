@@ -390,6 +390,15 @@ export interface Settings {
   skyBortle: number;
   /** Naked-eye limiting magnitude at the zenith, 1 to 8, used when `skyQuality` is `nelm`. */
   skyNelm: number;
+  // --- polish2 (expansion programme, list item 24): the air, for refraction ---
+  /**
+   * Air pressure, hPa, and temperature, °C, at the observer (CONVENTIONS 5: they scale the
+   * refraction). One pair for every consumer: the heights on every view (`engineObserver`),
+   * the Selected card's predicted sextant reading, tonight's sights and a new Navigate
+   * session. The almanac's 1010 hPa and 10 °C by default.
+   */
+  pressure_hpa: number;
+  temperature_c: number;
 }
 
 /** How the Sky view limits the stars it draws (sky2 agent). */
@@ -463,6 +472,9 @@ export const DEFAULT_SETTINGS: Settings = {
   skyQuality: 'auto',
   skyBortle: 5,
   skyNelm: 6,
+  // --- polish2 ---
+  pressure_hpa: 1010,
+  temperature_c: 10,
 };
 
 export function defaultState(nowMs: number = Date.now()): ExplorerState {
@@ -483,7 +495,11 @@ export function defaultState(nowMs: number = Date.now()): ExplorerState {
 /** The engine's observer (EXPLORER_API "Common rules"). */
 export function engineObserver(state: ExplorerState): Observer {
   const o = state.observer;
-  return { lat_deg: o.lat_deg, lon_deg: o.lon_deg, height_m: o.height_m };
+  const a = state.settings;
+  // polish2: the air from Settings → Sights, only when it differs from the standard one (so
+  // every request, and every memo key, stays as it was by default).
+  const air = a.pressure_hpa !== 1010 || a.temperature_c !== 10 ? { pressure_hpa: a.pressure_hpa, temperature_c: a.temperature_c } : {};
+  return { lat_deg: o.lat_deg, lon_deg: o.lon_deg, height_m: o.height_m, ...air };
 }
 
 /**
@@ -575,6 +591,9 @@ export function sanitizeSettings(raw: unknown): Settings {
     skyQuality: pick(r.skyQuality, SKY_QUALITIES, d.skyQuality),
     skyBortle: Number.isInteger(r.skyBortle) ? finiteIn(r.skyBortle, 1, 9, d.skyBortle) : d.skyBortle,
     skyNelm: finiteIn(r.skyNelm, 1, 8, d.skyNelm),
+    // --- polish2 ---
+    pressure_hpa: finiteIn(r.pressure_hpa, 800, 1100, d.pressure_hpa),
+    temperature_c: finiteIn(r.temperature_c, -60, 60, d.temperature_c),
   };
 }
 

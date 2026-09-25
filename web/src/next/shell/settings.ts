@@ -143,6 +143,21 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
     else ic.value = String(store.get().settings.index_correction_arcmin);
   });
 
+  // The air (polish2, list item 24): one pressure and temperature for every refraction the
+  // page works out (the heights shown, the predicted reading, tonight's sights, a new session).
+  const pressure = h('input', { class: 'sf-input sf-num', type: 'number', min: 800, max: 1100, step: 1, inputmode: 'decimal', id: 'sf-set-hpa' });
+  const temperature = h('input', { class: 'sf-input sf-num', type: 'number', min: -60, max: 60, step: 1, inputmode: 'decimal', id: 'sf-set-temp' });
+  pressure.addEventListener('change', () => {
+    const v = Number(pressure.value);
+    if (pressure.value.trim() !== '' && Number.isFinite(v) && v >= 800 && v <= 1100) set('pressure_hpa', Math.round(v * 10) / 10);
+    else pressure.value = String(store.get().settings.pressure_hpa);
+  });
+  temperature.addEventListener('change', () => {
+    const v = Number(temperature.value);
+    if (temperature.value.trim() !== '' && Number.isFinite(v) && v >= -60 && v <= 60) set('temperature_c', Math.round(v * 10) / 10);
+    else temperature.value = String(store.get().settings.temperature_c);
+  });
+
   const row = (label: string, control: HTMLElement, hint?: string): HTMLElement =>
     h('div', { class: 'sf-settings__row' }, h('span', { class: 'sf-settings__label' }, label), control, hint ? h('span', { class: 'sf-settings__hint' }, hint) : null);
   const el = h(
@@ -171,7 +186,22 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
       h('label', { class: 'sf-settings__label', for: 'sf-set-ic' }, 'Index correction'),
       h('div', { class: 'sf-editor__with-unit' }, ic, h('span', { class: 'sf-editor__unit' }, '′ added')),
     ),
+    h(
+      'div',
+      { class: 'sf-settings__row' },
+      h('label', { class: 'sf-settings__label', for: 'sf-set-hpa' }, 'Air'),
+      h(
+        'div',
+        { class: 'sf-editor__with-unit sf-settings__air' },
+        pressure,
+        h('span', { class: 'sf-editor__unit' }, 'hPa'),
+        h('label', { class: 'sf-sr', for: 'sf-set-temp' }, 'Air temperature'),
+        temperature,
+        h('span', { class: 'sf-editor__unit' }, '°C'),
+      ),
+    ),
     h('p', { class: 'sf-settings__note' }, 'Index correction: on the arc 1.5′ → −1.5. Used by tonight’s sights and new sessions in Navigate.'),
+    h('p', { class: 'sf-settings__note' }, 'Air: pressure and temperature scale the refraction in every height shown, the predicted sextant reading, tonight’s sights and new sessions; the almanac’s 1010 hPa and 10 °C unless you change them.'),
     h('div', { class: 'sf-popover__title' }, 'Sky'),
     row('Your sky', skyChoice.el),
     h('p', { class: 'sf-settings__note' }, 'How dark your sky is: the Sky view draws the stars you could see, and Tonight and the meteor showers rank and estimate for it. The Sky view’s Layers can also take the faintest star you see.'),
@@ -198,6 +228,8 @@ export function settingsPanel(ctx: Ctx): { el: HTMLElement; refresh(): void; des
         terms.setAttribute('aria-checked', String(s.navigatorTerms));
         if (document.activeElement !== eye) eye.value = String(Number(metresToUnits(s.height_of_eye_m, s.units).toFixed(2)));
         if (document.activeElement !== ic) ic.value = String(s.index_correction_arcmin);
+        if (document.activeElement !== pressure) pressure.value = String(s.pressure_hpa);
+        if (document.activeElement !== temperature) temperature.value = String(s.temperature_c);
         eyeUnit.textContent = s.units === 'imperial' ? 'ft' : 'm';
         skyChoice.sync(store.get());
       },

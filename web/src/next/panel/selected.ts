@@ -435,7 +435,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     let p: PredictedSight;
     try {
       p = nav.predictSextant(
-        { lat_deg: s.observer.lat_deg, lon_deg: s.observer.lon_deg, height_of_eye_m: s.settings.height_of_eye_m },
+        { lat_deg: s.observer.lat_deg, lon_deg: s.observer.lon_deg, height_of_eye_m: s.settings.height_of_eye_m, pressure_hpa: s.settings.pressure_hpa, temperature_c: s.settings.temperature_c },
         { index_correction_arcmin: s.settings.index_correction_arcmin, horizon: 'sea' },
         b.body,
         limb,

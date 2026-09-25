@@ -245,6 +245,9 @@ export interface SessionSeed {
   position?: LatLon | null;
   heightOfEyeM?: number;
   indexCorrectionArcmin?: number;
+  /** The air from Settings → Sights (polish2); 1010 hPa and 10 °C otherwise. */
+  pressureHpa?: number;
+  temperatureC?: number;
 }
 
 /** A new, empty session: a real one (the person's own sights), sea horizon. */
@@ -254,8 +257,8 @@ export function emptySession(seed: SessionSeed = {}): Session {
     meta: { name: seed.name ?? 'My sights', notes: '', kind: 'real' },
     observer: {
       height_of_eye_m: seed.heightOfEyeM ?? 2,
-      pressure_hpa: 1010,
-      temperature_c: 10,
+      pressure_hpa: seed.pressureHpa ?? 1010,
+      temperature_c: seed.temperatureC ?? 10,
       assumed_position: seed.position ? { lat_deg: seed.position.lat_deg, lon_deg: seed.position.lon_deg } : null,
       assumed_position_role: { role: 'initializer' },
     },
