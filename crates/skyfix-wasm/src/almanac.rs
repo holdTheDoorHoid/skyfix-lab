@@ -118,9 +118,10 @@ mod tests {
     fn bad_dates_are_refused_with_the_reason() {
         let e = almanac_day("24/09/2026").unwrap_err();
         assert!(e.contains("YYYY-MM-DD"), "{e}");
-        let e = almanac_day("1989-12-31").unwrap_err();
+        // Outside the validated tier (1550-01-01 to 2650-01-22, deeptime agent).
+        let e = almanac_day("1549-12-31").unwrap_err();
         assert!(e.contains("coverage"), "{e}");
-        let e = almanac_day("2061-01-01").unwrap_err();
+        let e = almanac_day("2650-01-23").unwrap_err();
         assert!(e.contains("coverage"), "{e}");
         assert!(almanac_day("2026-02-29").is_err());
     }
@@ -129,17 +130,19 @@ mod tests {
     /// outside it is `n/a`, and the page says why.
     #[test]
     fn the_coverage_edges_make_pages_with_honest_gaps() {
-        let first = almanac_day("1990-01-01").unwrap();
+        // deeptime agent: the validated tier, 1550-01-01T00:00Z to 2650-01-22T00:00Z;
+        // 2650-01-21 is the last date with all its hours.
+        let first = almanac_day("1550-01-01").unwrap();
         assert!(first.moon.as_ref().unwrap().age_days.is_none());
         assert_eq!(first.moon.as_ref().unwrap().printed.age, "--");
         assert!(!first.errors.is_empty());
-        let last = almanac_day("2060-12-31").unwrap();
+        let last = almanac_day("2650-01-21").unwrap();
         assert_eq!(last.hours.len(), 24);
         for row in &last.rise_set.rows {
             assert_eq!(row.moonrise[1].printed, "n/a", "{}", row.label);
         }
         assert!(last.errors.iter().any(|e| e.message.contains("n/a")));
-        // The last hour's v and d are still computed (over 23 h 59 m 59 s).
+        // The last hour's v and d are still computed (up to the coverage end).
         let m = last.hours[23].moon.as_ref().unwrap();
         assert!(m.v_arcmin > 0.0 && m.v_arcmin < 20.0, "{}", m.v_arcmin);
     }

@@ -22,13 +22,14 @@ reproduce each row are in the numbered section named.
 
 | what | headline result | target | section |
 |---|---|---|---|
-| Sun (GHA/Dec vs Skyfield + JPL DE421/DE440s, 58 epochs) | worst GHA 0.0026′, Dec 0.0012′ | 0.05′ | 2 |
-| Stars, 58 navigational (vs Skyfield, 3364 cases) | worst 0.0011′ separation | 0.05′ | 2 |
-| Moon (geocentric, vs Skyfield + DE440s, 1757 instants) | worst GHA 0.0149′, Dec 0.0064′, HP 0.00009′ | 0.1′ GHA/Dec, 0.05′ HP | 7 |
-| Planets, all seven (vs Skyfield + DE440s) | worst GHA 0.040′ (Neptune); the navigational four inside target by 15× or more | 0.1′ | 2, "Planets" |
+| Sun (GHA/Dec vs Skyfield + JPL DE421/DE440s, 58 epochs) | worst GHA 0.0004′ (0.023″), Dec 0.0002′ | 0.05′ | 2 |
+| Stars, 58 navigational (vs Skyfield, 3364 cases; radial velocities, Rigil Kentaurus on its orbit) | worst 0.0003′ separation | 0.05′ | 2 |
+| Moon (geocentric, vs Skyfield + DE440s, 1757 instants) | worst GHA 0.0022′ (0.13″), Dec 0.0017′, HP 0.00012′ | 0.1′ GHA/Dec, 0.05′ HP | 7 |
+| Planets, all seven (vs Skyfield + DE440s) | worst GHA 0.0122′ (Saturn); every planet inside target by 8× or more | 0.1′ | 2, "Planets" |
+| Coverage tiers (vs JPL DE440 per half-century of 1550–2650, DE441 per century of 2000 BC–AD 3000; 1240 epochs) | validated: Sun 0.03″, Moon 0.36″, planets 0.44–0.91″, stars 0.02″ (model; the catalogue's own 1σ reaches 1.7″ at the edges); labelled: Sun 0.44″, Moon 1.5″, planets 0.66″ (Mercury) to 34″ (Saturn), stars 0.06″ + the catalogue's 11″ | validated 0.01′ Sun, 0.02′ Moon and planets (Uranus 0.03′), 0.03′ stars; labelled measured and published, display only | 17 |
 | Topocentric altitude/azimuth (any body, WGS84 site) | stars worst 0.0052′; the Sun's larger figure is the parallax itself being restored, residual 0.0034′ | 0.1′ | 2, "Spherical model…" |
 | Events: rise, set, twilight, transits (vs Skyfield, same threshold / vs USNO) | worst 0.420 s vs Skyfield; worst 29.4 s vs USNO's own 1-minute rounding | 10 s / 1 min | 9 |
-| Star field, display only (9,095 stars, apparent places vs Skyfield) | worst 0.307″ = 0.0051′; separately, BSC5P vs Hipparcos catalogue positions can disagree by up to 8.6″ = 0.14′ (Rigil Kentaurus, proper motion, at the edges of 1990-2060) | 0.1′ (exceeded for this one star; display only, never reaches a sight) | 8 |
+| Star field, display only (9,095 stars, apparent places vs Skyfield) | worst 0.307″ = 0.0051′; separately, BSC5P vs Hipparcos catalogue positions can disagree by up to 9.6″ = 0.16′ (Rigil Kentaurus: the BSC's straight line against alpha Cen A's orbit, at the edges of 1990-2060) | 0.1′ (exceeded for this one star; display only, never reaches a sight) | 8 |
 | Moon and planet sights (raw sextant readings vs Skyfield) | on the real (WGS84) Earth every reduced Ho within 0.0064′ of its model altitude, the Moon's with its Earth-shape term (0.22′ in this sample, median 0.09′; CONVENTIONS 15.4); WGS84 Moon sessions fix 2.6 m and 5.1 m from the truth; the Moon's parallax through the model within 0.0004′ of USNO's | matches ephemeris tolerance | 10 |
 | Lunar distance (UTC recovered, vs Skyfield) | within 0.74 s (altitudes computed from the DR) / 0.63 s (observed) / 2.1 s (one observed, one computed) | 5 s | 10 |
 | Almanac pages, tabulated values (vs Skyfield) | 99.2 % of printed values exact to the last digit; worst raw value 0.0197′ (a star's SHA) | 0.1′ angles/v/d/HP/SD, 1 min times | 11 |
@@ -275,14 +276,17 @@ Caveats recorded in the file itself:
   not dRA/dt.
 * `parallax_mas` can be negative where measurement noise exceeded the parallax;
   published values are left as published.
-* Radial velocity is not in `hip_main.dat` and is taken as zero, so there is no
-  perspective-acceleration term. For the fast, nearby Rigil Kentaurus
-  (−22 km/s) that is a real approximation over decades.
+* Radial velocity is not in `hip_main.dat`. Since the expansion programme each star
+  carries SIMBAD's (`rv_km_s`, with its source), and positions move by rigorous space
+  motion with the perspective acceleration (section 17). Before, it was taken as zero.
 * **Acrux** (HIP 60718) is α¹ Crucis; the Almanac tabulates the combined image
   of a close pair, a difference of about 4″. **Rigil Kentaurus** (HIP 71683) is
-  α Centauri A; the Almanac's is the A+B photocentre, which orbits with an
-  80-year period and can differ by several arcseconds. These two are the reason
-  the star file's tolerance is 0.05′ rather than something tighter.
+  α Centauri A, and so is the Almanac's (USNO's celnav, which follows the Almanac, is
+  this entry moved in a straight line, to 0.2″ at 15 dates 1800–2050). A moves on an
+  80-year orbit about the A–B barycentre, so its 1991 proper motion is a tangent: the
+  catalogue now carries the orbit (`orbit`), and the provider follows it (section 17,
+  "Rigil Kentaurus"). These two are the reason the star file's tolerance is 0.05′
+  rather than something tighter.
 * **Betelgeuse** is a semiregular variable (V ≈ 0.0 to 1.3); its catalogue
   magnitude is one epoch, not a prediction.
 
@@ -296,8 +300,13 @@ with that column to 1e-8 degrees.
 
 | provider | cases | worst GHA | worst Dec | tolerance |
 |---|---|---|---|---|
-| stars (IAU 2006/2000B, Hipparcos) | 3364 | 0.0011' (0.07") separation | included in separation | 0.05' |
-| Sun (VSOP87D, 1020 terms) | 58 | 0.0026' (0.16") | 0.0012' (0.07") | 0.05' |
+| stars (IAU 2006/2000B, Hipparcos with radial velocities; Rigil Kentaurus on its orbit) | 3364 | 0.0003' (0.02") separation | included in separation | 0.05' |
+| Sun (the VSOP87A Earth with fitted corrections; section 17) | 58 | 0.0004' (0.023") | 0.0002' (0.010") | 0.05' |
+
+(Before the expansion programme: stars 0.0011′ with the linear catalogue motion, Sun
+0.0026′ and 0.0012′ with a VSOP87D series truncated for 1990–2060. The fixture was
+regenerated with the stars' radial velocities and alpha Cen A's orbit, on the app's clock;
+section 17.)
 
 With the fixture's own DUT1 applied through `StarProvider::with_dut1`, the star GHA agrees
 with the DUT1-inclusive column to 0.027' worst case; the difference from the DUT1 = 0
@@ -306,9 +315,10 @@ term (up to 0.23' for |DUT1| < 0.9 s) rather than folding into the model accurac
 
 Each provider also declares its own, rounder, documented figure through
 `skyfix coverage` — the number a caller sees without reading this document:
-**0.01 arcminutes for the Sun, 0.02 arcminutes for the stars**, explicitly
-*not* including the DUT1 term. Section 4 uses the more conservative, measured
-worst cases above.
+**0.01 arcminutes for the Sun, 0.03 arcminutes for the stars** (the worst over the
+whole validated tier 1550–2650, the catalogue's own proper-motion errors included;
+section 17), explicitly *not* including the DUT1 term. Section 4 uses the more
+conservative, measured worst cases above.
 
 What these numbers are not: field accuracy. They say the Rust astronomy reproduces an
 independent implementation of the same IAU models to well under an arcsecond; sextant
@@ -316,62 +326,62 @@ sights are a hundred to a thousand times noisier than that.
 
 ### Planets
 
-Owner: planets agent. `skyfix_ephemeris::planets::PlanetProvider`, Mercury to Neptune,
-apparent geocentric of date (CONVENTIONS section 7): truncated VSOP87A heliocentric
-positions of the planet and the Earth, light-time, deflection by the Sun, relativistic
-annual aberration, then the same IAU 2006/2000B frame rotation and sidereal time as
-the Sun and the stars. Provenance of the series is in `docs/THIRD_PARTY.md`, "Planet
-model".
+Owner: planets agent; the series since the expansion programme: deeptime agent.
+`skyfix_ephemeris::planets::PlanetProvider`, Mercury to Neptune, apparent geocentric of
+date (CONVENTIONS section 7): VSOP87A heliocentric positions of the planet and the Earth,
+truncated per coverage tier and corrected by fits to JPL DE440 and DE441 (section 17),
+light-time, deflection by the Sun, relativistic annual aberration, then the same frame
+rotation and sidereal time as the Sun and the stars. Provenance of the series is in
+`docs/THIRD_PARTY.md`, "Planet model" and "Expansion programme — deep time".
 
 **The reference.** `fixtures/reference/planets_<planet>.json`, generated by
 `tools/reference/gen_planets.py` from Skyfield 1.55 with JPL **DE440s** (DE421 as a
-cross-check where it covers, to 2053-10-08). Each file has 322-338 epochs over
-1990-2060: a regular grid with the time of day varying, plus the events where a model
-is most easily wrong — every inferior conjunction of Venus and every other one of
-Mercury, superior conjunctions, greatest elongations, every opposition and conjunction
-of Mars to Neptune, stations, and Saturn's 11 ring-plane crossings.
-`crates/skyfix-ephemeris/tests/planets_reference.rs` asserts every epoch.
-
-**Between the fixture epochs.** `tools/reference/gen_vsop87a.py` also compares the
-embedded series with DE440s **every day** of the window (25 936 epochs), as geometric
-geocentric directions. The rest of the chain agrees with Skyfield to about 0.001", so
-this daily figure is the provider's error between fixture epochs. It matters: Venus's
-worst day (0.0041') falls between fixture epochs (0.0031'). The published figures are
-the larger of the two, rounded up.
+cross-check where it covers, to 2053-10-08), on the app's clock with SkyFix Lab's own
+Delta T (each case records its TT and UT1, and the test checks the provider's clock gives
+the same TT). Each file has 322-338 epochs over 1990-2060: a regular grid with the time
+of day varying, plus the events where a model is most easily wrong — every inferior
+conjunction of Venus and every other one of Mercury, superior conjunctions, greatest
+elongations, every opposition and conjunction of Mars to Neptune, stations, and Saturn's
+11 ring-plane crossings. `crates/skyfix-ephemeris/tests/planets_reference.rs` asserts
+every epoch. Over the whole validated tier the planets are measured against DE440 per
+half-century (section 17).
 
 GHA with DUT1 = 0 against `gha_deg_dut1_zero`, and Dec, arcminutes:
 
-| planet | epochs | worst GHA | worst Dec | daily RA / Dec | published | vs DE421 GHA / Dec |
-|---|---|---|---|---|---|---|
-| Mercury | 330 | 0.0022 | 0.0010 | 0.0023 / 0.0014 | 0.005 | 0.0021 / 0.0011 |
-| Venus | 329 | 0.0031 | 0.0024 | 0.0041 / 0.0024 | 0.005 | 0.0031 / 0.0024 |
-| Mars | 322 | 0.0032 | 0.0016 | 0.0034 / 0.0017 | 0.005 | 0.0032 / 0.0016 |
-| Jupiter | 325 | 0.0063 | 0.0040 | 0.0064 / 0.0041 | 0.01 | 0.0063 / 0.0042 |
-| Saturn | 338 | 0.0061 | 0.0016 | 0.0061 / 0.0016 | 0.01 | 0.0061 / 0.0016 |
-| Uranus | 330 | 0.029 | 0.0055 | 0.029 / 0.0055 | 0.035 | 0.032 / 0.0072 |
-| Neptune | 333 | 0.040 | 0.012 | 0.040 / 0.012 | 0.045 | 0.041 / 0.013 |
+| planet | epochs | worst GHA | worst Dec | worst elongation | vs DE421 GHA / Dec | worst over 1550–2650 vs DE440 | published (1550–2650) |
+|---|---|---|---|---|---|---|---|
+| Mercury | 330 | 0.0100 | 0.0051 | 0.0050 | 0.0063 / 0.0051 | 0.0091 | 0.02 |
+| Venus | 329 | 0.0073 | 0.0059 | 0.0063 | 0.0073 / 0.0059 | 0.0073 | 0.02 |
+| Mars | 322 | 0.0069 | 0.0052 | 0.0088 | 0.0069 / 0.0052 | 0.0116 | 0.02 |
+| Jupiter | 325 | 0.0084 | 0.0037 | 0.0082 | 0.0081 / 0.0037 | 0.0084 | 0.02 |
+| Saturn | 338 | 0.0122 | 0.0061 | 0.0109 | 0.0122 / 0.0061 | 0.0107 | 0.02 |
+| Uranus | 330 | 0.0104 | 0.0042 | 0.0101 | 0.0119 / 0.0055 | 0.0158 | 0.03 |
+| Neptune | 333 | 0.0081 | 0.0020 | 0.0074 | 0.0081 / 0.0022 | 0.0073 | 0.02 |
 
-**Every planet meets the 0.1' target of CONVENTIONS 13.7**, the navigational four
-(Venus, Mars, Jupiter, Saturn) by a factor of 15 or more. The provider reports
-`accuracy_arcmin = 0.05` (Neptune, rounded up), so the explorer marks the planets
-validated. With each epoch's own DUT1 supplied, GHA agrees with the DUT1-inclusive
-column to the same figures, which checks that `with_dut1_s` is applied.
+**Every planet meets the 0.1′ target of CONVENTIONS 13.7** by a factor of 8 or more. The
+provider reports `accuracy_arcmin = 0.03` (Uranus over the validated tier, rounded up),
+so the explorer marks the planets validated. With each epoch's own DUT1 supplied, GHA
+agrees with the DUT1-inclusive column to the same figures, which checks that
+`with_dut1_s` is applied. Before the expansion programme (a truncation for 1990-2060 and
+no corrections) Mercury to Saturn were 0.002-0.006′ and Uranus and Neptune 0.029′ and
+0.040′: the inner planets now spend part of the 1″ budget their longer truncation allows,
+and the outer ones lost the error of VSOP87 itself.
 
 **Where the error comes from.**
 
 | source | size | notes |
 |---|---|---|
-| VSOP87 itself | 0.08-0.12" Mercury to Mars, 0.3-0.4" Jupiter and Saturn, 1.5" Uranus, 2.2" Neptune | the series were fitted to DE200 (1988); DE200's outer-planet orbits are that far from DE440's. Measured with the full, untruncated series |
-| truncation | at most 0.23" (Venus at inferior conjunction), measured every 6 hours | the planet's and the Earth's dropped terms together |
-| frame tie | about 0.03" | VSOP87's J2000 frame is DE200's, used as the ICRS |
-| deflection by Jupiter and Saturn | under 0.0003" | Skyfield applies it; this provider does not |
-| nutation IAU 2000B vs 2000A | about 0.001" | shared with the Sun and stars |
-| system barycentre vs centre of the disc | up to 0.08" (Jupiter), 0.05" (Saturn) | in both VSOP87 and DE440s for Mars to Neptune, so not in the table; real, and not modelled |
-| DUT1 = 0 | up to 0.23' of GHA | CONVENTIONS section 6; not in `accuracy_arcmin`, stated in the coverage notes |
+| VSOP87 itself, after the fitted corrections | 0.1-0.5″ | VSOP87 was fitted to DE200 (1988): Mars, Uranus and Neptune drift 9-10″ from DE440 across 1550-2650 without the corrections (section 17) |
+| truncation | at most 1″ at closest approach, over the whole tier | the planet's and the Earth's dropped terms together, judged on a 12 000-epoch grid |
+| frame tie | about 0.03″ | VSOP87's J2000 frame is DE200's, used as the ICRS; the corrections' constant terms, fitted against DE440's ICRS positions, absorb part of it |
+| deflection by Jupiter and Saturn | under 0.0003″ | Skyfield applies it; this provider does not |
+| nutation IAU 2000B vs 2000A | about 0.001″ | shared with the Sun and stars |
+| system barycentre vs centre of the disc | up to 0.08″ (Jupiter), 0.05″ (Saturn) | in both VSOP87 and DE440s for Mars to Neptune, so not in the table; real, and not modelled |
+| DUT1 = 0 | up to 0.23′ of GHA | CONVENTIONS section 6; not in `accuracy_arcmin`, stated in the coverage notes |
 
 The reference itself is not the limit, except for Uranus: **DE421 and DE440s disagree
-by up to 2.84" on Uranus** over these epochs (0.20" on Neptune, 0.02" on Jupiter, under
-0.01" elsewhere). JPL's own Uranus moved between the two releases by more than this
+by up to 2.84″ on Uranus** over these epochs (0.20″ on Neptune, 0.02″ on Jupiter, under
+0.01″ elsewhere). JPL's own Uranus moved between the two releases by more than this
 provider's Uranus error.
 
 **Planets hidden behind the Sun.** 42 of the 2 307 epochs (mostly conjunctions) put the
@@ -416,17 +426,17 @@ extrapolations; Saturn has no magnitude outside phase angle 6.5 deg or ring tilt
 where Skyfield returns NaN, the paper's own geocentric formula (eq. 16, no phase term,
 at most 0.015 mag) is used.
 
-**Speed.** One planet, release build, x86-64: 32 µs (Neptune) to 64 µs (Mars). All seven
-at one instant: 206 µs, because the Earth's series and the precession-nutation matrix
-are computed once per instant and each planet's series is summed once (the light-time
-is estimated from its leading terms and finished with a linear step, held by a unit
-test to 1e-5" of the full iteration). `cargo test --release -p skyfix-ephemeris --test
+**Speed.** One planet, release build, x86-64, timed back to back with the
+previous build (main at 3f4fe4e) on the shared 8-core machine under heavy load (load
+average about 50), two runs each: 125-460 µs per position here against 52-210 µs before,
+1.3 to 3 times slower (the validated tier's series are cut for eleven centuries rather
+than seventy years, the fitted corrections are evaluated with them, and far from J2000 the
+light-time takes a second full evaluation). Unloaded, the old figures were 32-64 µs. `cargo test --release -p skyfix-ephemeris --test
 planets_provider -- --ignored --nocapture` prints the timings.
 
 **Reproduce.** `tools/reference/.venv/bin/python -m tools.reference.gen_planets`
-regenerates the fixtures (about 2 minutes), and
-`python -m tools.reference.gen_vsop87a --source DIR` the series and the daily DE440s
-comparison (about 9 minutes, needs the VI/81 files; see `tools/reference/README.md`).
+regenerates the fixtures (about 3 minutes), and `make -C tools/reference series` the
+series with their fits to DE440 and DE441 (about ten minutes; section 17).
 `cargo test -p skyfix-ephemeris --test planets_reference -- --nocapture` prints every
 figure in this section.
 
@@ -670,52 +680,58 @@ stated as a target on *clean synthetic geometry*, not a field-accuracy number.
 
 ## 7. Moon
 
-Owner: Moon agent. The provider is `skyfix_ephemeris::moon::MoonProvider`: ELP 2000-82B
-(CDS VI/79, 2023 of 37 872 terms) through the project's IAU 2006/2000B frame chain; see
-the module documentation for the model and `docs/THIRD_PARTY.md`, "Moon model", for the
-data. It declares **`accuracy_arcmin` = 0.02′**, excluding (like the Sun and the stars)
-the DUT1 of CONVENTIONS section 6 (0 unless the session or the caller gives it), which
-is worth up to 0.23′ of GHA when unknown.
+Owner: Moon agent; the lunar theory since the expansion programme: deeptime agent. The
+provider is `skyfix_ephemeris::moon::MoonProvider`: ELP/MPP02 (Chapront & Francou 2003;
+2150 of its 35 901 terms in the validated tier, 2858 stored for the labelled one) with its
+secular terms refitted to JPL DE441 and DE440, through the project's frame chain; see the
+module documentation for the model, section 17 for both tiers and `docs/THIRD_PARTY.md`,
+"Expansion programme — deep time", for the data. It declares **`accuracy_arcmin` =
+0.02′** over 1550-2650 (0.05′ over the labelled tier), excluding (like the Sun and the
+stars) the DUT1 of CONVENTIONS section 6 (0 unless the session or the caller gives it),
+which is worth up to 0.23′ of GHA when unknown. Until 2026-09-25 it was ELP 2000-82B
+truncated for 1990-2060; the figures below are the new model's, with the old ones where
+they help.
 
 ### Geocentric, against Skyfield + JPL DE440s
 
 `fixtures/reference/moon_geocentric.json`: 1757 instants over 1990-2060 — 1200 random,
 100 perigees, 100 apogees, 353 declination extremes (every northern and southern extreme
 beyond 28.3°, i.e. the major standstills around 2006, 2024-25 and 2043, plus 100 of
-each spread over the window) and 4 fixed instants. DE421 and DE440s agree on the Moon to 0.0061″ in
-direction and 0.9 m in distance over the 1515 instants both cover, so the reference is
-not a limiting factor. GHA is compared with the DUT1 = 0 column.
+each spread over the window) and 4 fixed instants, on the app's clock with SkyFix Lab's
+own Delta T (each case records its TT, which the test checks against the clock's). DE421
+and DE440s agree on the Moon to 0.0061″ in direction and 0.9 m in distance over the 1515
+instants both cover, so the reference is not a limiting factor. GHA is compared with the
+DUT1 = 0 column.
 
 | quantity | worst | target (CONVENTIONS 13.7) | where |
 |---|---|---|---|
-| GHA (DUT1 = 0) | **0.0149′** (0.89″) | 0.1′ | 2060-12-08, northern declination extreme |
-| GHA × cos Dec (on the sky) | 0.0131′ (0.79″) | | same |
-| Dec | **0.0064′** (0.38″) | 0.1′ | 2060-12-31 |
-| RA of date | 0.0149′ | | 2060-12-08 |
-| apparent ecliptic longitude / latitude of date | 0.0133′ / 0.0026′ | | 2060 |
-| horizontal parallax | **0.00009′** (0.005″) | 0.05′ | a perigee, 2039 |
+| GHA (DUT1 = 0) | **0.0022′** (0.13″; was 0.89″) | 0.1′ | 2014-01-01 |
+| GHA × cos Dec (on the sky) | 0.0020′ (0.12″) | | same |
+| Dec | **0.0017′** (0.10″; was 0.38″) | 0.1′ | 2040-01-11 |
+| RA of date | 0.0022′ | | 2014-01-01 |
+| apparent ecliptic longitude / latitude of date | 0.0021′ / 0.0016′ | | |
+| horizontal parallax | **0.00012′** (0.007″) | 0.05′ | 2022 |
 | semidiameter | 0.00006′ | | |
-| geocentric distance | 0.31 km | | |
+| geocentric distance | 0.52 km | | |
 | illuminated fraction | **0.00007** | 0.001 | |
-| elongation | 0.00018° (0.63″) | | |
-| bright-limb position angle (elongation 5°-175°) | 0.0013° (4.6″) | | |
-| phase angle | 0.0115° (41.5″) | | definition, see below |
-| GHA with each instant's own DUT1 (176 instants) | 0.0149′ | | |
+| elongation | 0.00003° (0.11″) | | |
+| bright-limb position angle (elongation 5°-175°) | 0.00035° (1.3″) | | |
+| phase angle | 0.0115° (41.3″) | | definition, see below |
+| GHA with each instant's own DUT1 (176 instants) | 0.0022′ | | |
 
-Worst on-sky error by instant set: random 0.76″, perigees 0.80″, apogees 0.57″,
-northern extremes 0.79″, southern extremes 0.77″. Every worst case falls in 2060. To
-check that the samples do not miss a larger error between them, a dense development-time
-scan of the last 121 days of 2060 at 3-hour steps (968 instants against Skyfield +
-DE440s, not committed) found worst GHA 0.90″ and worst Dec 0.42″: the declared 0.02′
-(1.2″) holds with a quarter of it to spare.
+Worst on-sky error by instant set: random 0.13″, perigees 0.11″, apogees 0.08″, northern
+extremes 0.09″, southern extremes 0.08″. With ELP 2000-82B every worst case fell in 2060
+(0.8″, its DE200 mean longitude drifting); now none dominates. Over the whole validated
+tier against DE440 the worst is 0.36″ (1550-1600; section 17), which the declared 0.02′
+(1.2″) covers three times over.
 
 **Where the error comes from**, largest first:
 
 | source | size |
 |---|---|
-| ELP 2000-82B itself: its mean longitude was fitted to DE200 in the 1980s and drifts from DE440 by about `+0.02″ + 0.37″ t + 0.99″ t²` (t in centuries from J2000; measured with the complete theory, geometric, 4000 epochs) | 0.72″ by 2061, 0.1″ in the 2020s |
-| truncation to 2023 terms (measured over 20 000 epochs) | 0.13″ |
-| frame tie of the theory's J2000 ecliptic to the GCRS | ~0.02″ |
+| ELP/MPP02 with the DE405 constants and this project's refitted secular terms, against DE440 | 0.1″ in 1990-2060, 0.36″ at the tier's ends (section 17) |
+| truncation to 2150 terms in the validated tier (the thresholds 0.002″ and 0.02 km) | ~0.1″ |
+| frame tie of the theory's J2000 ecliptic to the ICRS (the note's Table 7, JPL405 rotation) | ~0.01″ |
 | IAU 2000B instead of 2000A nutation; TT used for TDB | ~0.001″ each |
 | light-time applied as `p − τ ṗ` | < 0.0001″ |
 
@@ -743,8 +759,8 @@ refraction) against Skyfield's `altaz()` without refraction:
 
 | body | cases | worst altitude | worst azimuth × cos(alt) | worst raw azimuth below 70° |
 |---|---|---|---|---|
-| Moon | 600 | 0.0105′ (0.63″) | 0.0117′ (0.70″) | 0.0142′ (0.85″) |
-| Sun | 307 | 0.0050′ (0.30″) | 0.0060′ (0.36″) | 0.0147′ (0.88″) |
+| Moon | 600 | 0.0063′ (0.38″; was 0.63″) | 0.0061′ (0.37″) | 0.0156′ (0.93″) |
+| Sun | 307 | 0.0056′ (0.34″) | 0.0057′ (0.34″) | 0.0155′ (0.93″) |
 | stars | 1322 | 0.0040′ (0.24″) | 0.0055′ (0.33″) | 0.0121′ (0.73″) |
 
 Target: 0.1′. The Sun and star residuals are diurnal aberration (0.32″ at most), which
@@ -754,32 +770,34 @@ Skyfield applies and the display model does not; the Moon's add its geocentric e
 ### USNO: an independent check, and a finding about it
 
 The USNO Celestial Navigation Data response stored for 2026-10-01T01:30Z also carries
-the Moon. Against it this provider is **+0.108′ in GHA and −0.017′ in Dec** off, and
-Skyfield + DE440s is +0.112′ and −0.018′ off: USNO disagrees with both by the same
-amount. The whole difference is the Moon's own motion over **10.36 s**: Skyfield's
+the Moon. Against it this provider is **+0.1125′ in GHA and −0.0183′ in Dec** off (with
+ELP 2000-82B: +0.108′ and −0.017′), and Skyfield + DE440s is +0.112′ and −0.018′ off:
+USNO disagrees with both by the same amount. The whole difference is the Moon's own motion over **10.36 s**: Skyfield's
 apparent Moon with its time argument 10.36 s later (sidereal time unchanged) reproduces
 USNO's GHA and Dec to **0.003″**. USNO's API therefore evaluates the lunar ephemeris
 about 10 s late; the stars and GHA Aries, which agree with USNO to 0.006″, cannot show
 it because 10 s moves them by microarcseconds. Allowing for it, this provider and USNO
-agree to −0.004′ in GHA and +0.001′ in Dec (`tests/moon_reference.rs` pins both
+agree to +0.0004′ in GHA and +0.0001′ in Dec (`tests/moon_reference.rs` pins both
 numbers). Only one instant is available, so whether the offset is constant is unknown;
 **anyone validating a Moon against USNO's API should allow for about 0.1′ of GHA.**
 
 ### Speed
 
-Release build, x86-64, measured on a shared 8-core machine under load
-(`cargo test --release -p skyfix-ephemeris --test moon_reference -- --ignored --nocapture`):
-**43 µs per `MoonProvider::position`**, 74 µs per `apparent_state` (which adds the Sun
-for the illumination quantities), plus about 2 ms once per process to parse the
-embedded series. The main problem's arguments are built from tabulated multiples of the
-four Delaunay angles, so only the 1237 perturbation terms cost a sine each. The embedded
-data is 125 kB of the release WASM module's 1.55 MB.
+Release build, x86-64, timed back to back with the previous build (main at 3f4fe4e) on
+the shared 8-core machine under heavy load (load average about 50), two runs each
+(`cargo test --release -p skyfix-ephemeris --test moon_reference -- --ignored
+--nocapture`): **137-148 µs per `MoonProvider::position`** against 115-215 µs with ELP
+2000-82B, and 336-516 µs per `apparent_state` against 237-289 µs (it adds the Sun, now
+the VSOP87A Earth with its corrections), plus 2-5 ms once per process to decode the
+embedded series (all bodies, both tiers). Unloaded, the old figures were 43 µs and 74 µs.
+The main problem's arguments are built from tabulated multiples of the four Delaunay
+angles, so only the perturbation terms cost a sine each.
 
 ### Reproduce
 
-- `tools/reference/.venv/bin/python -m tools.reference.gen_moon` (about a minute)
-  regenerates both fixtures; `tools/reference/.venv/bin/python -m
-  tools.reference.build_moon_series --fetch` rebuilds the embedded series from the CDS.
+- `tools/reference/.venv/bin/python -m tools.reference.gen_moon` (a few minutes)
+  regenerates both fixtures; `make -C tools/reference series` rebuilds the embedded
+  series (ELP/MPP02 from its files, fitted to DE441 and DE440; section 17).
 - `cargo test -p skyfix-ephemeris --test moon_reference --test topocentric_reference
   -- --nocapture` prints every number above.
 
@@ -818,8 +836,9 @@ some stars, tens of mas/yr from Hipparcos's. Against the Hipparcos places
 except Rigil Kentaurus (6.4″ at J2000, 3.6″ in 2026: the catalogues place α Cen A
 differently along its 80-year orbit about B). Away from J2000 the proper motions tell
 (the verifier's check, apparent places of both at 1990.0, J2000, 2026.0 and the end of
-2060): Rigil Kentaurus reaches **8.6″ (0.14′) at the end of 2060** and 8.3″ in 1990,
-beyond the 0.1′ that CONVENTIONS 13.7 sets for star-field places; Ankaa 3.8″ and Dubhe
+2060): Rigil Kentaurus reaches **9.6″ (0.16′)** (8.6″ before the ephemeris began to
+follow alpha Cen A's orbit, section 17), beyond the 0.1′ that CONVENTIONS 13.7 sets for
+star-field places; Ankaa 3.8″ and Dubhe
 2.9″ in 2060 (their catalogue proper motions are 52 and 36 mas/yr from Hipparcos's);
 every other navigational star stays under 1.5″. At display scale none of this is
 visible, and none of it reaches a sight (CONVENTIONS 13.6).
@@ -876,9 +895,12 @@ stays under the 2 MB budget.
   dome draws two stars a few arcseconds apart.
 - **310 stars have no B−V** (NaN on the wire); the Sky view must choose a neutral colour.
 - **Completeness**: the catalogue reaches about V 6.5, with some fainter entries.
-- **Range**: the functions answer for 1800–2200 and are validated for 1990–2060. Outside
-  the validated window the models (IAU 2006 precession, IAU 2000B nutation, linear proper
-  motion) are still good to about an arcsecond for most stars.
+- **Range**: the functions answer for the ephemeris's validated tier, 1550-01-01 to
+  2650-01-22 (1800–2200 until the expansion programme), and are validated against Skyfield
+  for 1990–2060. The frame is the providers' own at every date (the long-term precession
+  outside 1550–2650 is never reached here). Far from 2000 the catalogue's older proper
+  motions tell: a star whose BSC motion differs from Hipparcos's by 52 mas a year (Ankaa)
+  is 34″ off by 1550, still far below a drawn star's size.
 - **Label positions** are a heuristic (the figure's centre, moved at least 1.5° inside
   the boundary where the centre is outside or too close, as for Eridanus and Serpens).
 
@@ -2264,3 +2286,258 @@ base commit 28131c5 (2.06 MB / 849 KB before, 2.15 MB / 885 KB with tides).
   perf -- --ignored --nocapture` for the timings.
 - The data and fixtures: `tools/tides/README.md` (NOAA's API, about 4 800 requests,
   cached).
+
+## 17. Coverage tiers and historical accuracy (expansion programme, deeptime agent, 2026-09-25)
+
+The Sun, the Moon, the planets and the stars now answer two tiers (CONVENTIONS 15.1):
+**validated**, 1550-01-01 to 2650-01-22 (JPL DE440's span), where the figures below are
+published as `accuracy_arcmin` and the bodies are offered for sights; and **labelled**,
+2000 BC to AD 3000, display only, measured against JPL DE441. Both ship in the core
+module (there is no `deep-time` pack: see "Size" below). The models:
+
+- **Sun and planets**: VSOP87A (one Earth for both), truncated per tier by measured
+  error, plus corrections this project fitted to DE440 (validated) and DE441 (labelled)
+  on each body's heliocentric longitude, latitude and radius. VSOP87 was fitted to DE200
+  in 1988: without the corrections Mars, Uranus and Neptune drift 9-10" from DE440 inside
+  1550-2650 and Saturn 110" from DE441 at 2000 BC.
+- **Moon**: ELP/MPP02 (Chapront & Francou 2003) with its DE405 constants, and the secular
+  parts of W1, W2 and W3 refitted by this project to DE441 and DE440 (13 coefficients).
+  The complete theory with the note's own corrections is already within 1.2" of DE440
+  over 1550-2650, but drifts to 220" from DE441 by 2000 BC; after the refit the stored
+  series are within 0.4" (validated) and 1.5" (labelled). ELP 2000-82B, which it
+  replaces, was fitted to DE200 and drifted 18" by 1550 and 43" by 2650.
+- **Frame**: IAU 2006/2000B inside the validated tier with the full nutation arguments,
+  the Vondrák-Capitaine-Wallace long-term precession outside (CONVENTIONS 7).
+- **Stars**: rigorous space motion with SIMBAD radial velocities; Rigil Kentaurus on
+  alpha Cen A's orbit (below).
+
+### How it was measured
+
+`fixtures/reference/deeptime_bodies.json` (`tools/reference/gen_deeptime.py`): 20 epochs
+per half-century of the validated tier (DE440) and per century of the labelled tier
+(DE441), 1 240 in all, each an instant on the app's clock with SkyFix Lab's own Delta T,
+recording its TT and UT1. The reference is Skyfield's apparent place (light-time,
+deflection, aberration); inside the validated tier its IAU 2006/2000A frame of date,
+outside it the long-term precession of `tools/reference/ltp.py` (pinned to ERFA's test
+values) with Skyfield's IAU 2000A nutation and the GMST of the same precession. The Rust
+test `crates/skyfix-ephemeris/tests/deeptime_reference.rs` evaluates each provider at the
+fixture's own TT and UT1 (`position_at`), so Delta T is not part of any figure below, and
+asserts every case against the provider's published figure for its tier.
+
+### The historical table
+
+Worst on-sky direction error per bin, arcseconds (Moon: geometric distance compared
+geometric to geometric; the others at their light-time distance):
+
+| years | Sun | Moon | Mercury | Venus | Mars | Jupiter | Saturn | Uranus | Neptune |
+|---|---|---|---|---|---|---|---|---|---|
+| 1550–1600 | 0.02 | 0.36 | 0.17 | 0.21 | 0.12 | 0.23 | 0.22 | 0.66 | 0.44 |
+| 1600–1650 | 0.03 | 0.24 | 0.31 | 0.29 | 0.20 | 0.21 | 0.26 | 0.28 | 0.26 |
+| 1650–1700 | 0.03 | 0.20 | 0.52 | 0.30 | 0.24 | 0.35 | 0.26 | 0.25 | 0.36 |
+| 1700–1750 | 0.02 | 0.17 | 0.15 | 0.19 | 0.19 | 0.22 | 0.39 | 0.34 | 0.24 |
+| 1750–1800 | 0.02 | 0.17 | 0.27 | 0.39 | 0.19 | 0.31 | 0.31 | 0.70 | 0.21 |
+| 1800–1850 | 0.03 | 0.13 | 0.15 | 0.21 | 0.19 | 0.27 | 0.45 | 0.45 | 0.34 |
+| 1850–1900 | 0.01 | 0.11 | 0.22 | 0.22 | 0.10 | 0.33 | 0.40 | 0.32 | 0.35 |
+| 1900–1950 | 0.02 | 0.06 | 0.12 | 0.25 | 0.06 | 0.45 | 0.36 | 0.50 | 0.34 |
+| 1950–2000 | 0.03 | 0.06 | 0.20 | 0.10 | 0.46 | 0.33 | 0.43 | 0.54 | 0.40 |
+| 2000–2050 | 0.02 | 0.10 | 0.32 | 0.11 | 0.23 | 0.26 | 0.61 | 0.52 | 0.34 |
+| 2050–2100 | 0.02 | 0.08 | 0.51 | 0.17 | 0.35 | 0.49 | 0.23 | 0.51 | 0.16 |
+| 2100–2150 | 0.03 | 0.12 | 0.20 | 0.34 | 0.14 | 0.45 | 0.30 | 0.48 | 0.21 |
+| 2150–2200 | 0.02 | 0.12 | 0.24 | 0.44 | 0.29 | 0.27 | 0.29 | 0.74 | 0.39 |
+| 2200–2250 | 0.03 | 0.15 | 0.21 | 0.38 | 0.14 | 0.30 | 0.48 | 0.70 | 0.39 |
+| 2250–2300 | 0.02 | 0.14 | 0.20 | 0.33 | 0.17 | 0.29 | 0.36 | 0.69 | 0.45 |
+| 2300–2350 | 0.02 | 0.12 | 0.20 | 0.22 | 0.15 | 0.24 | 0.38 | 0.54 | 0.38 |
+| 2350–2400 | 0.03 | 0.17 | 0.19 | 0.10 | 0.21 | 0.36 | 0.34 | 0.91 | 0.22 |
+| 2400–2450 | 0.03 | 0.09 | 0.21 | 0.15 | 0.28 | 0.43 | 0.38 | 0.33 | 0.33 |
+| 2450–2500 | 0.02 | 0.08 | 0.19 | 0.18 | 0.71 | 0.22 | 0.50 | 0.65 | 0.29 |
+| 2500–2550 | 0.03 | 0.10 | 0.20 | 0.22 | 0.35 | 0.32 | 0.38 | 0.85 | 0.35 |
+| 2550–2600 | 0.03 | 0.09 | 0.32 | 0.28 | 0.32 | 0.24 | 0.31 | 0.71 | 0.26 |
+| 2600–2650 | 0.02 | 0.17 | 0.12 | 0.18 | 0.37 | 0.47 | 0.26 | 0.76 | 0.40 |
+| -2000–-1900 | 0.42 | 1.46 | 0.66 | 0.83 | 1.65 | 9.45 | 19.88 | 6.40 | 1.61 |
+| -1900–-1800 | 0.44 | 1.22 | 0.45 | 1.12 | 1.23 | 9.51 | 21.34 | 2.67 | 1.23 |
+| -1800–-1700 | 0.24 | 0.96 | 0.43 | 0.92 | 3.61 | 6.52 | 14.82 | 0.95 | 0.70 |
+| -1700–-1600 | 0.33 | 1.13 | 0.45 | 0.37 | 1.60 | 8.57 | 24.04 | 1.98 | 0.89 |
+| -1600–-1500 | 0.28 | 0.73 | 0.43 | 1.55 | 1.11 | 8.71 | 34.34 | 2.65 | 0.91 |
+| -1500–-1400 | 0.35 | 0.90 | 0.31 | 0.93 | 1.28 | 4.70 | 21.04 | 3.43 | 1.58 |
+| -1400–-1300 | 0.20 | 1.06 | 0.26 | 0.27 | 1.59 | 5.86 | 5.32 | 3.84 | 1.11 |
+| -1300–-1200 | 0.39 | 0.74 | 0.65 | 1.07 | 0.62 | 4.61 | 4.34 | 3.86 | 1.22 |
+| -1200–-1100 | 0.30 | 0.76 | 0.39 | 0.97 | 1.90 | 2.41 | 4.03 | 4.05 | 0.86 |
+| -1100–-1000 | 0.18 | 0.74 | 0.42 | 0.16 | 1.71 | 3.55 | 10.50 | 3.81 | 0.93 |
+| -1000–-900 | 0.28 | 0.67 | 0.57 | 0.57 | 1.16 | 5.37 | 13.05 | 3.02 | 0.45 |
+| -900–-800 | 0.13 | 0.66 | 0.39 | 0.51 | 1.73 | 3.64 | 7.86 | 2.01 | 0.71 |
+| -800–-700 | 0.18 | 0.50 | 0.31 | 1.27 | 2.46 | 6.62 | 12.92 | 1.89 | 0.67 |
+| -700–-600 | 0.10 | 0.48 | 0.18 | 0.21 | 1.30 | 5.02 | 15.82 | 2.41 | 0.70 |
+| -600–-500 | 0.15 | 0.47 | 0.25 | 0.74 | 1.22 | 3.06 | 4.82 | 2.01 | 1.00 |
+| -500–-400 | 0.13 | 0.46 | 0.25 | 0.20 | 0.53 | 4.21 | 4.56 | 2.24 | 0.88 |
+| -400–-300 | 0.11 | 0.53 | 0.15 | 0.12 | 0.91 | 3.20 | 3.36 | 2.10 | 0.85 |
+| -300–-200 | 0.14 | 0.58 | 0.15 | 0.17 | 1.46 | 1.81 | 3.51 | 2.69 | 0.83 |
+| -200–-100 | 0.20 | 0.43 | 0.24 | 0.32 | 2.77 | 1.05 | 3.54 | 2.85 | 0.75 |
+| -100–0 | 0.16 | 0.35 | 0.29 | 0.31 | 4.18 | 1.06 | 3.72 | 3.09 | 0.83 |
+| 0–100 | 0.23 | 0.34 | 0.43 | 0.51 | 3.30 | 3.27 | 5.84 | 3.09 | 0.62 |
+| 100–200 | 0.24 | 0.27 | 0.56 | 0.48 | 3.27 | 3.44 | 5.46 | 3.14 | 0.62 |
+| 200–300 | 0.21 | 0.26 | 0.39 | 0.49 | 3.75 | 3.07 | 4.70 | 2.87 | 0.71 |
+| 300–400 | 0.19 | 0.22 | 0.27 | 0.36 | 1.94 | 1.96 | 2.61 | 2.53 | 0.26 |
+| 400–500 | 0.10 | 0.15 | 0.21 | 0.16 | 1.67 | 1.30 | 2.79 | 1.85 | 0.32 |
+| 500–600 | 0.06 | 0.19 | 0.20 | 0.08 | 0.87 | 0.73 | 2.44 | 2.01 | 0.33 |
+| 600–700 | 0.07 | 0.17 | 0.17 | 0.27 | 1.01 | 0.92 | 1.89 | 2.09 | 0.35 |
+| 700–800 | 0.10 | 0.13 | 0.31 | 0.16 | 1.80 | 1.35 | 2.98 | 2.41 | 0.39 |
+| 800–900 | 0.10 | 0.16 | 0.27 | 0.37 | 1.78 | 1.67 | 2.27 | 2.62 | 0.44 |
+| 900–1000 | 0.12 | 0.19 | 0.42 | 0.64 | 4.18 | 3.51 | 6.08 | 2.46 | 0.68 |
+| 1000–1100 | 0.14 | 0.27 | 0.24 | 0.62 | 2.16 | 4.71 | 8.59 | 2.55 | 0.53 |
+| 1100–1200 | 0.14 | 0.24 | 0.30 | 0.32 | 4.03 | 3.34 | 8.52 | 2.54 | 0.86 |
+| 1200–1300 | 0.14 | 0.26 | 0.35 | 0.54 | 2.94 | 0.92 | 3.25 | 2.24 | 0.67 |
+| 1300–1400 | 0.13 | 0.26 | 0.29 | 0.20 | 2.04 | 1.02 | 1.46 | 2.27 | 0.68 |
+| 1400–1500 | 0.11 | 0.18 | 0.22 | 0.34 | 2.64 | 0.49 | 1.74 | 1.92 | 0.68 |
+| 1500–1550 | 0.07 | 0.12 | 0.20 | 0.24 | 1.19 | 0.30 | 1.76 | 1.98 | 0.45 |
+| 2650–2700 | 0.03 | 0.18 | 0.33 | 0.17 | 0.37 | 0.36 | 1.03 | 1.69 | 0.69 |
+| 2700–2800 | 0.06 | 0.14 | 0.21 | 0.28 | 1.29 | 1.93 | 4.23 | 1.76 | 0.69 |
+| 2800–2900 | 0.07 | 0.28 | 0.29 | 0.20 | 2.34 | 3.39 | 5.97 | 3.04 | 0.49 |
+| 2900–3000 | 0.08 | 0.36 | 0.30 | 0.22 | 2.60 | 1.97 | 4.94 | 8.06 | 1.29 |
+
+Worst of GHA and Dec over each tier, arcminutes (arcseconds on the sky), against the
+figure each provider publishes for that tier (`explorer_coverage` → `tiers`):
+
+| body | validated 1550–2650 | published | labelled 2000 BC–AD 3000 | published |
+|---|---|---|---|---|
+| Sun | 0.0006′ (0.03″) | 0.01′ | 0.0076′ (0.44″) | 0.02′ |
+| Moon | 0.0064′ (0.36″) | 0.02′ | 0.0234′ (1.46″) | 0.05′ |
+| Mercury | 0.0091′ (0.52″) | 0.02′ | 0.0115′ (0.66″) | 0.02′ |
+| Venus | 0.0073′ (0.44″) | 0.02′ | 0.0270′ (1.55″) | 0.05′ |
+| Mars | 0.0116′ (0.71″) | 0.02′ | 0.0795′ (4.18″) | 0.1′ |
+| Jupiter | 0.0084′ (0.49″) | 0.02′ | 0.1733′ (9.51″) | 0.25′ |
+| Saturn | 0.0107′ (0.61″) | 0.02′ | 0.5328′ (34.3″) | 0.7′ |
+| Uranus | 0.0158′ (0.91″) | 0.03′ | 0.1449′ (8.06″) | 0.2′ |
+| Neptune | 0.0073′ (0.45″) | 0.02′ | 0.0254′ (1.61″) | 0.05′ |
+| stars (model) | 0.019″ | | 0.057″ | |
+| stars (model + catalogue 1σ, Rigil Kentaurus apart) | 1.67″ (0.028′) | 0.03′ | 10.9″ (0.18′) | 0.2′ |
+
+The brief's expectations for the validated tier (Sun ≤ 0.3″, planets ≤ 2″, Moon ≤ 5″,
+stars ≤ 1″ from the model) are met with room. Distances agree to 3e-6 (validated) and
+1e-4 (labelled, Saturn) relative. In the labelled tier the planets' errors are
+VSOP87's own far from its fitting span, less what the fitted corrections (a polynomial,
+three harmonics of the orbital longitude, and for Jupiter and Saturn their great
+inequality, all with time-dependent amplitudes) take out; the largest, Saturn's 34″
+(1600–1500 BC), is what they do not. These figures are the ephemeris against DE441;
+in practice every time shown there carries Delta T's uncertainty (CONVENTIONS 15.2: an
+hour at 2000 BC), which moves the sky by far more than any of them.
+
+### The stars across the tiers
+
+The first epoch of each bin carries the 58 stars (Skyfield with the same catalogue,
+radial velocities and orbit) and the catalogue's own formal 1σ at that epoch (Hipparcos
+proper-motion errors times the interval, and the radial velocity's and parallax's errors
+through the perspective acceleration):
+
+| epoch (first of its bin) | model vs Skyfield, worst | catalogue 1σ, worst of 57 | Rigil Kentaurus 1σ |
+|---|---|---|---|
+| 1950–2100 | 0.004–0.009″ | 0.03–0.16″ | 0.02–0.12″ |
+| 1550 | 0.017″ | 1.20″ (Betelgeuse) | 0.99″ |
+| 2600 | 0.014″ | 1.66″ (Betelgeuse) | 1.52″ |
+| 900 | 0.009″ | 2.97″ | 3.7″ |
+| 2900 | 0.012″ | 2.48″ | 2.8″ |
+| 2000 BC | 0.041″ (0.057″ worst in the tier) | 10.9″ (Betelgeuse; Antares 9.6″, Sirius 8.0″) | 41″ |
+
+The stars' published figures are therefore the catalogue's, not the model's: 0.03′ over
+the validated tier and 0.2′ over the labelled one. Rigil Kentaurus has, besides its
+formal errors, the uncertainty of its barycentre's proper motion (next).
+
+### Rigil Kentaurus
+
+- **Which body.** The Nautical Almanac's Rigil Kentaurus is **alpha Centauri A**
+  (HIP 71683), not the A+B light centre. USNO's Celestial Navigation Data, queried at 15
+  dates from 1800 to 2050, is HIP 71683 moved by linear space motion with a radial
+  velocity, to 0.2″: the Almanac's own convention, and the body this provider matches.
+- **What the catalogue's proper motion is.** Hipparcos measured A's motion in 1991,
+  which includes A's orbital motion about the A–B barycentre (0.22″ a year). Extrapolated
+  in a straight line, as the Almanac and USNO do, A leaves its real path by 0.6″ in 2000,
+  5.8″ in 2026 and 17″ in 2060; 111″ in 1550 and about 900″ at 2000 BC.
+- **What this provider does.** A follows its orbit: the ORB6 elements of Akeson et al.
+  (2021; reproducing ORB6's published ephemeris for 2026 and 2029 to 0.002″ in
+  separation) and their masses, the barycentre moving in a straight line with A's
+  catalogue proper motion less A's orbital velocity at J1991.25. At the catalogue epoch
+  the model is the catalogue exactly (unit test). Against USNO this is a deliberate
+  difference: 5.8″ (0.1′) in 2026, 17″ (0.28′) in 2060, and
+  `crates/skyfix-almanac/tests/almanac_usno.rs` checks that the page minus USNO is
+  exactly the orbit's departure from USNO's line (0.0977′ at 2026-09-24).
+- **What remains uncertain.** The barycentre's own proper motion: published values
+  differ by 15–30 mas a year, 1–2″ by 2060, about 10″ at the validated tier's edges
+  and a minute or two of arc at 2000 BC; its radial velocity's 0.9 km/s adds 41″ (1σ) at
+  2000 BC. A sextant sees the A+B light centre, 0.23 of the separation from A toward B
+  (about 2″ in 2026); not modelled. The 1990–2060 reference fixtures were regenerated
+  with the orbit, so Rigil Kentaurus meets the 0.05′ fixture tolerance there (worst
+  0.0003′); against the previous, straight-line fixture it would differ by up to 15.4″
+  (2055).
+
+### What changed inside 1990–2060
+
+The in-window fixtures (regenerated on the app's clock with SkyFix Lab's own Delta T,
+recording each case's TT and UT1; section 2 and section 7 give the full tables):
+
+| body | before (VSOP87D / ELP 2000-82B / 1990-2060 truncations) | after |
+|---|---|---|
+| Sun GHA / Dec | 0.0026′ / 0.0012′ (0.16″ / 0.07″) | 0.0004′ / 0.0002′ (0.023″ / 0.010″) |
+| Moon GHA / Dec | 0.0149′ / 0.0064′ (0.89″ / 0.38″) | 0.0022′ / 0.0017′ (0.13″ / 0.10″) |
+| stars (separation) | 0.0011′ | 0.0003′ (the fixture now carries radial velocities and alpha Cen A's orbit) |
+| Mercury, Venus, Mars GHA | 0.0022′, 0.0031′, 0.0032′ | 0.0100′, 0.0073′, 0.0069′ |
+| Jupiter, Saturn GHA | 0.0063′, 0.0061′ | 0.0084′, 0.0122′ |
+| Uranus, Neptune GHA | 0.029′, 0.040′ | 0.0104′, 0.0081′ |
+
+The inner planets are a few thousandths of an arcminute worse inside 1990–2060: their
+series are now cut for 1550–2650 at a 1″ budget at closest approach (the old cut was for
+70 years), and their corrections are fitted over eleven centuries rather than tuned to
+this one. Every planet stays at a sixth of the 0.1′ target or better, and Uranus and
+Neptune, whose VSOP87 errors dominated before, are four times better.
+
+### Delta T and the Moon's tidal acceleration
+
+Delta T comes from the timescales agent's model (Stephenson, Morrison & Hohenkerk splines,
+the IERS table, the long-term parabola; CONVENTIONS 15.2), which assumes the Moon's
+tidal acceleration −25.85″/cy². ELP/MPP02's DE405 constants carry −25.858″/cy², so the
+pair is consistent to the precision that matters, and the refitted secular terms put the
+Moon's longitude on DE441/DE440's. The historical table above leaves Delta T out on
+purpose (each case at its own TT and UT1): the Moon's position at a given clock time
+long ago is uncertain by Delta T's σ times the Moon's 0.55″ a second: about half a
+degree at 2000 BC, where σ is an hour. The interface shows that as a band of time, not
+as a position error.
+
+### Size
+
+The whole two-tier series set is one file, `crates/skyfix-ephemeris/data/series.bin`:
+**151 625 bytes** (116 307 gzipped), against 477 494 bytes (149 573 gzipped) for the three
+one-tier JSON files it replaced (VSOP87D Sun, VSOP87A planets, ELP 2000-82B Moon, all cut
+for 1990–2060). The encoding (EXPLORER_API "Series payload") stores each body's VSOP87
+frequencies once, amplitudes and phases in 32 or 16 bits where the budget allows, and
+keeps the generator's checkpoints out of the shipped bytes (`series_checks.json`, read by
+the tests).
+
+The core WASM module (`npm run wasm`, gzip -9), measured on the same machine:
+
+| build | raw | gzipped |
+|---|---|---|
+| main at 3f4fe4e (the ten merged engines, one tier) | 2 806 209 | 1 154 427 |
+| this branch (main merged, both tiers) | 2 480 063 | 1 123 474 |
+| change | −326 146 (−11.6 %) | −30 953 (−2.7 %) |
+
+Both tiers therefore ship in the core, inside the budget (EXPANSION_PLAN §3: 3 MB raw,
+1.25 MB gzipped) and smaller than before; the `deep-time` pack of the plan was not built
+(the planner's rule: both tiers in the core if the module stays within budget).
+
+### Speed
+
+A Moon position costs about what it did; a planet's costs 1.3 to 3 times more, and the
+Moon's apparent state, which adds the Sun (now the planets' VSOP87A Earth with its
+corrections), rose from 237-289 to 336-516 µs under the same load (the series are cut
+for eleven centuries, and the corrections are evaluated with them); section 2
+"Planets" and section 7 "Speed" have the timings. The explorer's
+own speed targets (EXPLORER_PLAN 3.7) and every engine's timing test still pass. Decoding
+the series file takes 2-5 ms once per process.
+
+### Reproduce
+
+```console
+make -C tools/reference series      # series.bin and series_checks.json (VSOP87A, ELP/MPP02, DE440, DE441; about 10 min)
+make -C tools/reference deeptime    # fixtures/reference/deeptime_bodies.json (about 2 min)
+cargo test --release -p skyfix-ephemeris --test deeptime_reference -- --nocapture
+```
+
+The last prints both tables above.

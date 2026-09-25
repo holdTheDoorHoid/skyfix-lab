@@ -11,6 +11,12 @@ conventions against the institution that publishes the Nautical Almanac.
 
 Network is required to regenerate this file. If the API is unreachable the
 existing file is left alone and the generator says so; it never fabricates.
+
+    tools/reference/.venv/bin/python -m tools.reference.gen_usno \
+        [--window 2026-10-01..2026-10-02] [--kernel de421]
+
+The query is one instant: `--window` must contain it; `--kernel` names the ephemeris
+of the Skyfield side of the comparison.
 """
 
 from __future__ import annotations
@@ -93,7 +99,7 @@ def _to_num(o):
 
 def compare(raw):
     ts = c.load_timescale()
-    eph = c.load_ephemeris()
+    eph = c.run_ephemeris()
     earth = eph["earth"]
     df = c.load_hipparcos_frame()
     stars, _rows, _problems = c.build_stars(df)
@@ -337,7 +343,9 @@ def _fmt(n):
     return c._fmt_num(n)
 
 
-def main():
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "2026-10-01..2026-10-02", "de421")
+    c.require_in_window(c.jd_from_gregorian(*QUERY_TIME[:3], 1.5), "the USNO query")
     try:
         doc = build()
     except (urllib.error.URLError, TimeoutError, OSError) as e:

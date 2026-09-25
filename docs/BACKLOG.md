@@ -137,3 +137,16 @@ This file is the single list; the completion report links here.
 | Tides outside NOAA's list | unstarted | Other agencies' constants are licensed (UKHO, SHOM, CHS, BoM: not usable) or mixed-provenance CC BY (TICON-4); only a per-agency open source (Rijkswaterstaat CC0, a few CC BY) could add stations, each needing its own licence check (data audit, section 6) |
 | Tidal currents | unstarted | NOAA publishes current predictions (a separate harmonic product) the same way; not in this programme |
 | Anchorage's last centimetre | unstarted | 0.7 cm rms from NOAA in the diurnal band near σ1/2Q1 at the one station with NOAA's 120-constituent set; no constituent convention tried removes it (`tools/tides/README.md`) |
+
+## Expansion programme — deep time (deeptime agent)
+
+| item | status | notes |
+|---|---|---|
+| Coverage tiers in the core: validated 1550–2650, labelled 2000 BC–AD 3000 | completed | `skyfix_ephemeris::tiers`, `explorer_coverage` tiers, `tier_at` (`crates/skyfix-wasm/src/coverage.rs`); both tiers in the core module, so the planned `deep-time` pack was not built (EXPLORER_API "coverage tiers as built"); the historical table in `docs/ACCURACY.md` section 17 |
+| Series: VSOP87A with fitted corrections, ELP/MPP02 with refitted secular terms, long-term precession, full nutation arguments | completed | one compact file, `series.bin` (151 625 bytes); validated tier Sun 0.03″, Moon 0.36″, planets ≤ 0.91″ against DE440 |
+| Stars: radial velocities; Rigil Kentaurus on alpha Cen A's orbit | completed | the Almanac's Rigil Kentaurus is A; USNO extrapolates A in a straight line (5.8″ from the orbit in 2026) |
+| Other engines on the labelled tier | unstarted | The almanac pages, eclipses (1990–2060 against NASA's canon), planet events, the Moon in detail, deep sky and sailings keep the validated tier or their own range; each opens with one line (`.with_policy(TierPolicy::WithLabelled)`) once its owner has checked its own numbers there (the eclipse canon covers 2000 BC to AD 3000) |
+| Star field in the labelled tier | unstarted | `skyfix-starfield` answers the validated tier (it was 1800–2200); its frame already works at any date and its catalogue's linear proper motions stay within about a minute of arc at 2000 BC, so the Sky view could draw it there too (display only) |
+| Rigil Kentaurus's light centre and barycentre | unstarted | A sextant sees the A+B light centre (about 2″ from A in 2026); the barycentre's proper motion is uncertain by 15–30 mas a year (about 10″ at the validated tier's edges). a modern determination of the system's barycentric motion from both components' astrometry would tighten the second |
+| The mock engine's `deep-time` pack entry | unstarted | `web/src/next/engine/mock/packs.ts` (packs agent) still lists a `deep-time` pack; there is none |
+| The almanac page for 2650-01-22 | unstarted | The validated tier ends at 00:00 of that date, so its page is accepted with every hour clamped to one instant; `pages.rs` could refuse a date whose 24 hours are not all covered |

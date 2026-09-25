@@ -891,6 +891,14 @@ def in_window(jd_clock):
     return RUN.window[0] <= jd_clock < RUN.window[1]
 
 
+def require_in_window(jd_clock, what):
+    """For a generator built around one fixed instant: refuse a `--window` that does not
+    contain it, saying which instant (the file would otherwise be empty)."""
+    if not in_window(jd_clock):
+        raise SystemExit("%s is at %s, outside --window %s; this generator has nothing "
+                         "else to write" % (what, iso_utc(jd_clock), RUN.window_text))
+
+
 def window_years():
     """(first year, last year) of this run's window, whole years touched."""
     y0 = gregorian_from_jd(RUN.window[0])[0]
@@ -929,15 +937,20 @@ def kernel_label(name=None):
 # and the ITRS rotation of every generator are the app's model at any date; inside the
 # tier it changes nothing. Nutation stays Skyfield's IAU 2000A throughout.
 
-#: The validated tier's bounds as Julian dates (TT), crates/skyfix-ephemeris/src/tiers.rs.
+#: The validated tier's bounds as Julian dates, crates/skyfix-ephemeris/src/tiers.rs, and
+#: how far outside them (days of TT) the models switch (`MODEL_SWITCH_MARGIN_DAYS`), so
+#: that no switch falls inside the tier on the app's clock.
 JD_VALIDATED = (2_287_185.5, 2_688_973.5)
+MODEL_SWITCH_MARGIN_DAYS = 1.0
 
 
 def outside_validated(jd_tt):
+    """Where the app uses its labelled-tier frame: TT more than a day outside the tier."""
     import numpy as np
 
     jd = np.asarray(jd_tt, dtype=float)
-    return (jd < JD_VALIDATED[0]) | (jd > JD_VALIDATED[1])
+    return ((jd < JD_VALIDATED[0] - MODEL_SWITCH_MARGIN_DAYS)
+            | (jd > JD_VALIDATED[1] + MODEL_SWITCH_MARGIN_DAYS))
 
 
 def use_app_frame():
@@ -1015,7 +1028,8 @@ def app_frame_facts():
                                    "(ltp.ltpb, ERFA eraLtpb), its mean obliquity, and GMST = "
                                    "ERA + the long-term accumulated precession "
                                    "(ltp.gmst_minus_era_samples); IAU 2000A nutation"),
-        "switch": "by TT at 1550-01-01 and 2650-01-22 (JD 2287185.5 and 2688973.5), as the Rust side",
+        "switch": ("by TT one day outside 1550-01-01 and 2650-01-22 (JD 2287184.5 and "
+                   "2688974.5), as the Rust side (tiers::MODEL_SWITCH_MARGIN_DAYS)"),
     }
 
 

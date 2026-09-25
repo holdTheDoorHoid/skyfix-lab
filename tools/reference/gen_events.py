@@ -27,10 +27,11 @@ supplying the astronomy:
   2000B (within 1 mas of 2000A, under 0.0001 s of any event), as Skyfield's own
   almanac searches do, because it is about twenty times cheaper on their
   one-minute grids.
-* **Time**: UT1 = UTC (DUT1 = 0, CONVENTIONS 6), by giving Skyfield a Delta-T
-  function equal to TT - UTC: `32.184 s + (TAI - UTC)` from its own leap-second
-  table. Every Julian date written is `jd_utc` in the project's sense (the UTC
-  calendar, 86 400 s per day).
+* **Time**: the app's clock (CONVENTIONS 15.2: UTC 1972-2035, UT outside) with UT1
+  = UTC on the UTC scale (DUT1 = 0, CONVENTIONS 6) and SkyFix Lab's own Delta T
+  (`common.load_timescale(dut1_zero=True)`; before the expansion programme this was
+  TT = UTC + 32.184 s + (TAI - UTC) with UTC continued past 2035). Every Julian date
+  written is `jd_utc`, the clock's (86 400 s per day).
 * **Search**: `skyfield.searchlib.find_discrete` on a one-minute grid,
   refined to Skyfield's 1 ms epsilon. A body that dips below (or climbs above)
   its threshold for less than about a minute can therefore be missed here;
@@ -46,7 +47,11 @@ seasons for a year), differenced against this file's Skyfield values. USNO
 rounds to the minute. Network is needed for that part; with --offline it is
 skipped and an existing file is left alone.
 
-    tools/reference/.venv/bin/python -m tools.reference.gen_events [--offline | --usno-only]
+    tools/reference/.venv/bin/python -m tools.reference.gen_events [--offline | --usno-only] \
+        [--window 1990..2060] [--kernel de440s]
+
+`--window` keeps the dates inside it and sets the span of the seasons and Moon phases;
+`--kernel` names the ephemeris.
 """
 
 from __future__ import annotations
@@ -161,24 +166,10 @@ PHASES = ["night", "astronomical", "nautical", "civil", "day"]
 
 
 def dut1_zero_timescale():
-    """A Skyfield timescale with UT1 = UTC (CONVENTIONS section 6).
-
-    Skyfield derives UT1 from Delta-T; DUT1 = 32.184 + (TAI - UTC) - Delta-T.
-    Giving it Delta-T = 32.184 + (TAI - UTC) from its own leap-second table
-    therefore makes DUT1 exactly zero, leap seconds included.
-    """
-    from skyfield.api import load
-
-    ts = load.timescale(builtin=True)
-    leap_tai, leap_offsets = ts._leap_tai, ts._leap_offsets
-
-    def delta_t(tt):
-        tt = np.asarray(tt, dtype=float)
-        tai_s = (tt - 32.184 / 86400.0) * 86400.0
-        return 32.184 + np.interp(tai_s, leap_tai, leap_offsets)
-
-    ts.delta_t_function = delta_t
-    return ts
+    """The app's clock with UT1 = UTC on the UTC scale (CONVENTIONS sections 6 and
+    15.2): `common.load_timescale(dut1_zero=True)`. On the UT part of the clock (before
+    1972, after 2035) the clock is UT1 itself and TT follows from SkyFix Lab's Delta T."""
+    return c.load_timescale(dut1_zero=True)
 
 
 def jd_list(t):
@@ -330,7 +321,7 @@ def load():
     from skyfield.api import wgs84
 
     ts = dut1_zero_timescale()
-    eph = c.load_ephemeris(c.EPHEMERIS_CROSSCHECK_FILE)
+    eph = c.run_ephemeris()
     topos = {n: wgs84.latlon(la, lo, elevation_m=h) for n, la, lo, h in SITES}
     return ts, eph, topos
 
@@ -345,12 +336,16 @@ def generator(description, extra=None):
             "within 10 s of this file for rise, set and twilight with the same h0, "
             "and within 1 min for Moon phases and seasons."
         ),
+        timescale=c.project_timescale_facts(),
         extra={
-            "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+            "run": c.RUN.facts(),
+            "frame_of_date": c.app_frame_facts(),
+            "ephemeris": c.run_kernel_facts(),
             "time": (
-                "UT1 = UTC (DUT1 = 0, CONVENTIONS 6): Skyfield is given Delta-T = "
-                "32.184 s + (TAI - UTC). Julian dates are jd_utc (UTC calendar, "
-                "86 400 s per day), 9 decimals (86 microseconds)."
+                "The app's clock (CONVENTIONS 15.2): UTC 1972-2035 with UT1 = UTC (DUT1 = 0, "
+                "CONVENTIONS 6), UT (= UT1) outside, TT from SkyFix Lab's own Delta T. "
+                "Julian dates are jd_utc, the clock's (86 400 s per day), 9 decimals "
+                "(86 microseconds)."
             ),
             "search": (
                 "skyfield.searchlib.find_discrete on a one-minute grid "
@@ -527,8 +522,9 @@ def cross_check(ts, a, b):
 
 def build_seasons_phases(ts, eph):
     eph421 = c.load_ephemeris(c.EPHEMERIS_FILE)
-    seasons = quarters(ts, eph, sun_lon, (1990, 1, 1), (2061, 1, 1), 20.0)
-    phases = quarters(ts, eph, moon_minus_sun, (1990, 1, 1), (2061, 1, 1), 1.0)
+    y0, y1 = c.window_years()
+    seasons = quarters(ts, eph, sun_lon, (y0, 1, 1), (y1 + 1, 1, 1), 20.0)
+    phases = quarters(ts, eph, moon_minus_sun, (y0, 1, 1), (y1 + 1, 1, 1), 1.0)
     # DE421 (ends 2053-10-08) as an independent cross-check of the ephemeris.
     s421 = quarters(ts, eph421, sun_lon, (1990, 1, 1), (2053, 1, 1), 20.0)
     p421 = quarters(ts, eph421, moon_minus_sun, (1990, 1, 1), (2053, 1, 1), 1.0)
@@ -672,7 +668,18 @@ def build_usno():
 
 
 def main(argv=None):
+    import argparse
+
     argv = sys.argv[1:] if argv is None else argv
+    ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    ap.add_argument("--offline", action="store_true", help="skip the USNO query")
+    ap.add_argument("--usno-only", action="store_true", help="only the USNO query (network)")
+    c.setup(argv, None, "1990..2060", "de440s", parser=ap)
+    if "--usno-only" in argv:
+        main_usno_only()
+        return
+    for dates in (DATES, STAR_DATES, PLANET_DATES):
+        dates[:] = [d for d in dates if c.in_window(_civil_jd(*d))]
     ts, eph, topos = load()
     t = _time.time()
     c.write_json(os.path.join(c.FIX_REFERENCE, OUT_SUN), build_sun(ts, eph, topos))
@@ -695,6 +702,8 @@ def main_offline():
 
 def main_usno_only():
     """Query USNO and rewrite events_usno.json; on failure leave it alone."""
+    if c.RUN.kernel is None:
+        c.setup([], None, "1990..2060", "de440s")
     try:
         doc = build_usno()
     except (OSError, subprocess.CalledProcessError, KeyError, ValueError) as e:
@@ -705,7 +714,4 @@ def main_usno_only():
 
 
 if __name__ == "__main__":
-    if "--usno-only" in sys.argv[1:]:
-        main_usno_only()
-    else:
-        main()
+    main()

@@ -4,10 +4,14 @@ coverage tiers, for the historical accuracy table (docs/ACCURACY.md).
 Development-time only (CONVENTIONS section 11). Run from the repository root:
 
     tools/reference/.venv/bin/python -m tools.reference.gen_deeptime \
-        [--window -2000..3001] [--kernel auto] [--per-bin 20]
+        [--window -2000..3001] [--kernel auto] [--per-bin 20] [--stars-per-bin 1]
 
 What it records, per epoch: the instant on the app's clock and in UT1 and TT, and for
-every body the apparent RA and Dec of date, the GHA and the distance.
+every body the apparent RA and Dec of date, the GHA and the distance. The first
+`--stars-per-bin` epochs of each bin also carry the 58 navigational stars' apparent RA
+and Dec (Hipparcos with SIMBAD radial velocities, Rigil Kentaurus on its orbit:
+`common.build_stars`) and each star's formal catalogue uncertainty at that epoch
+(`catalogue_sigma`, below).
 
 * **Bins.** Every half-century of the validated tier (1550-01-01 .. 2650-01-22) and
   every century of the labelled tier outside it (2000 BC .. AD 3000), `--per-bin`
@@ -125,11 +129,50 @@ def _rot3(a):
     return np.array([[ca, sa, 0.0], [-sa, ca, 0.0], [0.0, 0.0, 1.0]])
 
 
+def catalogue_sigma():
+    """{name: f(years since J1991.25) -> 1-sigma arcsec}: the Hipparcos formal errors of
+    the proper motion (hip_main.dat fields e_pmRA, e_pmDE) times the interval, and the
+    radial velocity's and the parallax's errors through the perspective acceleration
+    (mu * v_r / d * t^2), added in quadrature. What the catalogue itself allows, not a
+    model error; Rigil Kentaurus's barycentric proper motion is uncertain beyond this
+    (ACCURACY "Rigil Kentaurus")."""
+    from .gen_stars import RADIAL_VELOCITIES
+
+    rows = {}
+    with open(c.HIPPARCOS_FILE) as f:
+        for line in f:
+            p = line.split("|")
+            try:
+                rows[int(p[1])] = p
+            except ValueError:
+                continue
+    out = {}
+    for name, hip, *_ in c.NAV_STARS:
+        p = rows[hip]
+        plx, pmra, pmde = float(p[11]), float(p[12]), float(p[13])
+        eplx, epmra, epmde = float(p[16]), float(p[17]), float(p[18])
+        rv, erv = RADIAL_VELOCITIES[hip][0], RADIAL_VELOCITIES[hip][1]
+        mu = math.hypot(pmra, pmde) / 1000.0
+        d_au = 206264.806 * 1000.0 / plx
+
+        def f(dt, mu=mu, d_au=d_au, epm=math.hypot(epmra, epmde) / 1000.0, rv=rv, erv=erv,
+              rel=eplx / plx):
+            s_pm = abs(dt) * epm
+            s_rv = mu * (erv / 4.740470 / d_au) * dt * dt
+            s_px = mu * (abs(rv) / 4.740470 / d_au) * dt * dt * rel
+            return math.sqrt(s_pm ** 2 + s_rv ** 2 + s_px ** 2)
+
+        out[name] = f
+    return out
+
+
 def main(argv=None):
     global _TS
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     c.add_window_kernel_args(ap, "-2000..3000", "auto")
     ap.add_argument("--per-bin", type=int, default=20, help="epochs per bin (default %(default)s)")
+    ap.add_argument("--stars-per-bin", type=int, default=1,
+                    help="epochs per bin that also carry the 58 stars (default %(default)s)")
     ap.add_argument("--out", default=OUT)
     args = ap.parse_args(argv)
     j0, j1 = c.parse_window(args.window)
@@ -150,12 +193,15 @@ def main(argv=None):
     rng = np.random.default_rng(20260924)
     cases = []
     t_ltp = L.gmst_minus_era_samples()  # (t centuries, g arcsec) on a quarter-year grid
+    stars, _rows, problems = c.build_stars(c.load_hipparcos_frame())
+    assert not problems, problems
+    sigma = catalogue_sigma()
     for tier, label, a, b in bins(j0, j1):
         n = args.per_bin
         # Stratified in the bin: one random clock instant in each of n equal slices.
         edges = np.linspace(a, b, n + 1)
         clocks = np.sort(edges[:-1] + rng.uniform(0.0, 1.0, n) * np.diff(edges))
-        for jd_clock in clocks:
+        for i_case, jd_clock in enumerate(clocks):
             jd_clock = float(jd_clock)
             kname, k = kernel_for(jd_clock)
             in_utc = c.jd_from_gregorian(1972, 1, 1) <= jd_clock < c.jd_from_gregorian(2036, 1, 1)
@@ -203,6 +249,20 @@ def main(argv=None):
                     geo = (eph["moon"] - eph["earth"]).at(t)
                     body["geometric_distance_km"] = c.Num(float(geo.distance().km), 3)
                 case["bodies"][name] = c.Inline(body)
+            if i_case < args.stars_per_bin:
+                dt_years = (float(t.tt) - 2448349.0625) / 365.25  # from J1991.25
+                case["stars"] = {}
+                for name in c.STAR_NAMES:
+                    app = earth.at(t).observe(stars[name]).apparent()
+                    if tier == "validated":
+                        ra, dec, _ = app.radec(epoch="date")
+                        ra_deg, dec_deg = float(ra._degrees), float(dec.degrees)
+                    else:
+                        v = m @ app.position.au
+                        ra_deg = math.degrees(math.atan2(v[1], v[0])) % 360.0
+                        dec_deg = math.degrees(math.asin(v[2] / np.linalg.norm(v)))
+                    case["stars"][name] = c.Inline(
+                        [c.deg(ra_deg), c.deg(dec_deg), c.Num(sigma[name](dt_years), 3)])
             cases.append(case)
         print("   %-9s %-12s %d epochs (%s)" % (tier, label, len(clocks), kname), flush=True)
 
@@ -234,6 +294,13 @@ def main(argv=None):
                                  "directly, so Delta T is not part of the comparison"),
                 "calendar": "proleptic Gregorian, astronomical year numbering, ISO 8601 expanded years",
                 "per_bin": args.per_bin,
+                "stars_per_bin": args.stars_per_bin,
+                "stars": ("the first stars_per_bin epochs of each bin: {name: [apparent RA of "
+                          "date deg, Dec deg, catalogue_sigma arcsec]} (Hipparcos + SIMBAD radial "
+                          "velocities, rigorous space motion, Rigil Kentaurus on its ORB6 orbit); "
+                          "catalogue_sigma is the 1-sigma position uncertainty the catalogue's "
+                          "own formal errors allow at that epoch (proper motion x interval, "
+                          "radial velocity and parallax through the perspective acceleration)"),
                 "claimed_arcmin": {k: c.Inline([c.Num(v[0], 3), c.Num(v[1], 3)]) for k, v in CLAIMED.items()},
             },
             timescale=c.project_timescale_facts(),

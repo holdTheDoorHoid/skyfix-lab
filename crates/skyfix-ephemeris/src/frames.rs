@@ -6,12 +6,12 @@
 //!
 //! | step | model | residual vs a rigorous reference |
 //! |---|---|---|
-//! | frame bias + precession | IAU 2006 (P03) Fukushima-Williams angles, `eraPfw06` polynomials | exact (same model) |
-//! | nutation | IAU 2000B, 77 luni-solar terms + the fixed planetary offsets, adjusted to P03 | <= 1 mas (0.001") |
-//! | mean obliquity | IAU 2006, `eraObl06` polynomial | exact (same model) |
+//! | frame bias + precession | IAU 2006 (P03) Fukushima-Williams angles, `eraPfw06` polynomials, inside the validated tier; the Vondrak-Capitaine-Wallace 2011 long-term precession (`eraLtpb`) outside it (deeptime agent) | exact (same models; the two differ by 7 mas at 1550 and 15 mas at 2650) |
+//! | nutation | IAU 2000B, 77 luni-solar terms + the fixed planetary offsets, adjusted to P03, with the full Simon et al. polynomial arguments | <= 1 mas (0.001") |
+//! | mean obliquity | IAU 2006, `eraObl06` polynomial; outside the validated tier the long-term model's | exact (same model) |
 //! | annual aberration | relativistic vector aberration with a Keplerian Earth velocity | see below |
 //! | annual parallax | same Keplerian Earth position (cheap, so it is included) | see below |
-//! | proper motion | unit-vector space motion from J2000, no radial velocity | <= 0.6" by 2060 (Rigil Kentaurus) |
+//! | proper motion | rigorous space motion from the catalogue epoch with the radial velocity ([`space_motion`]); the legacy unit-vector motion from J2000 without it ([`proper_motion_from_j2000`], the star field's) differs by <= 0.6" by 2060 (Rigil Kentaurus) | exact (the model Skyfield and ERFA use) |
 //! | light deflection by the Sun | included, point-mass Sun, source at infinity | <= 0.001" |
 //!
 //! The last three rows are checked together rather than separately: the whole chain

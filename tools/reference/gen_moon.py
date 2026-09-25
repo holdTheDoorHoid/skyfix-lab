@@ -435,7 +435,7 @@ def main(argv=None):
                         "illuminated_fraction": c.Num(TOLERANCE_ILLUMINATED_FRACTION, 4),
                     }
                 ),
-                "ephemeris": eph440.facts(),
+                "ephemeris": c.run_kernel_facts(),
                 "ephemeris_crosscheck": {
                     "file": c.file_facts(c.EPHEMERIS_FILE, c.EPHEMERIS_URL),
                     "instants_compared": worst_421["n"],
@@ -519,7 +519,7 @@ def main(argv=None):
             extra={
                 "run": c.RUN.facts(),
                 "frame_of_date": c.app_frame_facts(),
-                "ephemeris": eph440.facts(),
+                "ephemeris": c.run_kernel_facts(),
                 "catalogue": c.file_facts(c.HIPPARCOS_FILE, c.HIPPARCOS_URL),
                 "sites": [
                     c.Inline({"name": n, "lat_deg": c.deg(la), "lon_deg": c.deg(lo), "height_m": c.metres(h)})

@@ -485,8 +485,9 @@ mod tests {
         let s = Sky::new();
         assert!(moon_apsides(&m, &s, 2_461_000.0, 2_460_000.0).is_err());
         assert!(moon_apsides(&m, &s, f64::NAN, 2_460_000.0).is_err());
-        let r = moon_apsides(&m, &s, civil_to_jd(1980, 1, 1), civil_to_jd(1990, 3, 1)).unwrap();
-        assert!(r.truncated && r.jd_start >= civil_to_jd(1990, 1, 1));
+        // The Moon's coverage starts 1550-01-01 (the validated tier, deeptime agent).
+        let r = moon_apsides(&m, &s, civil_to_jd(1540, 1, 1), civil_to_jd(1550, 3, 1)).unwrap();
+        assert!(r.truncated && r.jd_start >= civil_to_jd(1550, 1, 1));
         assert!(!r.apsides.is_empty());
     }
 }

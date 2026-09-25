@@ -41,8 +41,8 @@
 //! | term | size | note |
 //! |---|---|---|
 //! | DUT1 assumed 0 | up to 0.23' | `|DUT1| < 0.9 s`; supply it with [`StarProvider::with_dut1`] |
-//! | model chain (space motion, nutation, aberration, parallax, deflection) | 0.00027' measured | see below |
-//! | catalogue position, proper-motion and radial-velocity error | ~0.001' in 1990-2060 | Hipparcos formal errors, SIMBAD's RV errors |
+//! | model chain (space motion, nutation, aberration, parallax, deflection) | 0.00027' measured; 0.019" against Skyfield over 1550-2650, 0.057" over 2000 BC-AD 3000 | see below and `tests/deeptime_reference.rs` |
+//! | catalogue position, proper-motion and radial-velocity error (formal 1 sigma) | 0.03" in 1990-2060; 1.7" at the validated tier's edges (Betelgeuse, 2650); 10.9" at 2000 BC | Hipparcos formal errors, SIMBAD's RV errors, through the space motion |
 //! | Rigil Kentaurus's barycentric proper motion | 1-2" by 2060, ~10" at the tier edges | published values differ by 15-30 mas/yr |
 //!
 //! The model row is measured, not asserted: the reduction reproduces ERFA's
@@ -51,14 +51,16 @@
 //! and Meeus's example 23.a to 0.073". Those two checks live in
 //! `tests/apparent_place_reference.rs` and print their residuals.
 //!
-//! [`crate::Coverage::accuracy_arcmin`] reports **0.02'**, the worst case over the
-//! whole coverage window (the Rigil Kentaurus proper-motion term at 2060 plus
-//! catalogue error), not the 0.0003' measured mid-window: a provider should quote the
-//! bound it can defend everywhere, not its best epoch. The DUT1 term is excluded from
-//! that figure because it is a *time* assumption the caller can remove, and it is
-//! called out separately in the coverage notes exactly as CONVENTIONS section 6
-//! requires. The Skyfield reference fixture, once it lands, is what can tighten or
-//! refute this number (`tests/reference_fixtures.rs`).
+//! [`crate::Coverage::accuracy_arcmin`] reports **0.03'** ([`STAR_ACCURACY_ARCMIN`]),
+//! the worst case over the whole validated tier: the model plus the catalogue's formal
+//! 1-sigma error, which grows with the distance from the catalogue epoch J1991.25 to
+//! 1.7" (0.028') at 2650; Rigil Kentaurus's barycentric motion is stated apart in the
+//! notes. Not the 0.0003' measured mid-window: a provider should quote the bound it can
+//! defend everywhere, not its best epoch. The DUT1 term is excluded from that figure
+//! because it is a *time* assumption the caller can remove, and it is called out
+//! separately in the coverage notes exactly as CONVENTIONS section 6 requires. The
+//! Skyfield fixtures that back these numbers are `tests/reference_fixtures.rs`
+//! (1995-2055) and `tests/deeptime_reference.rs` (both tiers).
 
 use std::cell::Cell;
 
@@ -84,11 +86,14 @@ pub const COVERAGE_START_UTC: &str = tiers::VALIDATED_START_UTC;
 pub const COVERAGE_END_UTC: &str = tiers::VALIDATED_END_UTC;
 
 /// Documented worst-case error of GHA (DUT1 = 0) and Dec over the validated tier,
-/// arcminutes (Rigil Kentaurus's barycentric-motion caveat is in the notes).
-pub const STAR_ACCURACY_ARCMIN: f64 = 0.02;
-/// The same over the labelled tier (catalogue errors carried over millennia), rounded
-/// up; Rigil Kentaurus is labelled separately in the notes.
-pub const STAR_LABELLED_ACCURACY_ARCMIN: f64 = 0.1;
+/// arcminutes: the model (0.019" against Skyfield) plus the catalogue's formal 1-sigma
+/// error at the tier's edges (1.67" measured), rounded up. Rigil Kentaurus's
+/// barycentric-motion caveat is in the notes.
+pub const STAR_ACCURACY_ARCMIN: f64 = 0.03;
+/// The same over the labelled tier, where the catalogue's formal errors carried over
+/// four millennia dominate (10.9" at 2000 BC, Betelgeuse), rounded up; Rigil
+/// Kentaurus is labelled separately in the notes.
+pub const STAR_LABELLED_ACCURACY_ARCMIN: f64 = 0.2;
 
 /// Apparent geocentric directions for the 57 Nautical Almanac navigational stars plus
 /// Polaris, over the validated tier (and the labelled one with

@@ -22,6 +22,11 @@ Mars, and the Rust test evaluates the providers at t + 10.36 s before comparing.
 
 Network is required. If the API is unreachable the existing file is left alone; the
 generator never fabricates a response.
+
+    tools/reference/.venv/bin/python -m tools.reference.gen_usno_sights \
+        [--window 2026-02-01..2027-07-01] [--kernel de440s]
+
+`--window` keeps the instants inside it; `--kernel` names the Skyfield side's ephemeris.
 """
 
 from __future__ import annotations
@@ -232,12 +237,18 @@ def moon_case(sky, stamp, offset):
     }
 
 
-def main():
+def _inside(stamp):
+    y, mo, d = int(stamp[:4]), int(stamp[5:7]), int(stamp[8:10])
+    return c.in_window(c.jd_from_gregorian(y, mo, d, int(stamp[11:13])))
+
+
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "2026-02-01..2027-07-01", "de440s")
     sky = m.Sky()
     try:
-        venus = [planet_case(sky, "Venus", s) for s in VENUS_INSTANTS]
-        mars = [planet_case(sky, "Mars", s) for s in MARS_INSTANTS]
-        moon = [moon_case(sky, s, off) for s, off in MOON_CASES]
+        venus = [planet_case(sky, "Venus", s) for s in VENUS_INSTANTS if _inside(s)]
+        mars = [planet_case(sky, "Mars", s) for s in MARS_INSTANTS if _inside(s)]
+        moon = [moon_case(sky, s, off) for s, off in MOON_CASES if _inside(s)]
     except (OSError, subprocess.CalledProcessError, json.JSONDecodeError, RuntimeError) as exc:
         print("   USNO unreachable or unexpected (%s); %s left as it was" % (exc, OUT))
         return
@@ -272,7 +283,8 @@ def main():
                 "api": API,
                 "documentation": "https://aa.usno.navy.mil/data/celnav",
                 "retrieved_utc": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+                "run": c.RUN.facts(),
+                "ephemeris": c.run_kernel_facts(),
                 "usno_lag_s": c.Num(USNO_LAG_S, 2),
                 "venus_fit": fit_block(venus_fit),
                 "mars_fit": fit_block(mars_fit),

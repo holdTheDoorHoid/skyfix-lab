@@ -10,17 +10,23 @@
 //! Each case is asserted against the provider's published accuracy for the case's tier
 //! (`SUN_ACCURACY_ARCMIN`, `SUN_LABELLED_ACCURACY_ARCMIN`, `MOON_*`,
 //! `planets::{ACCURACY_BY_PLANET_ARCMIN, LABELLED_ACCURACY_BY_PLANET_ARCMIN}`), so the
-//! numbers `explorer_coverage` reports for each tier are backed here. Run with
-//! `-- --nocapture` for the per-bin table that `docs/ACCURACY.md`, "Historical
-//! accuracy", quotes.
+//! numbers `explorer_coverage` reports for each tier are backed here. The stars (the
+//! first epoch of each bin) are held to the model's own agreement with Skyfield, and
+//! their published figures to that plus the catalogue's formal uncertainty the fixture
+//! records. Run with `-- --nocapture` for the per-bin tables that `docs/ACCURACY.md`,
+//! "Historical accuracy", quotes.
 
 use std::collections::BTreeMap;
 
 use serde::Deserialize;
 use skyfix_core::units::norm_180;
+use skyfix_ephemeris::catalog;
 use skyfix_ephemeris::moon::{MOON_ACCURACY_ARCMIN, MOON_LABELLED_ACCURACY_ARCMIN, MoonProvider};
 use skyfix_ephemeris::planets::{
     ACCURACY_BY_PLANET_ARCMIN, LABELLED_ACCURACY_BY_PLANET_ARCMIN, Planet, PlanetProvider,
+};
+use skyfix_ephemeris::stars::{
+    STAR_ACCURACY_ARCMIN, STAR_LABELLED_ACCURACY_ARCMIN, apparent_radec_of_star,
 };
 use skyfix_ephemeris::sun::{SUN_ACCURACY_ARCMIN, SUN_LABELLED_ACCURACY_ARCMIN, SunProvider};
 use skyfix_ephemeris::tiers::TierPolicy;
@@ -42,6 +48,9 @@ struct Case {
     jd_ut1: f64,
     jd_tt: f64,
     bodies: BTreeMap<String, Body>,
+    /// `{name: [ra_deg, dec_deg, catalogue_sigma_arcsec]}` on the first epoch of a bin.
+    #[serde(default)]
+    stars: Option<BTreeMap<String, [f64; 3]>>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -234,5 +243,74 @@ fn every_body_meets_its_tier_accuracy_over_both_tiers() {
         "{} failures, first: {:#?}",
         failures.len(),
         &failures[..failures.len().min(12)]
+    );
+}
+
+/// The 58 stars over both tiers: the model against Skyfield with the same catalogue
+/// (radial velocities, alpha Cen A's orbit), and what the catalogue's own formal errors
+/// allow at each epoch. The published figures must cover both, Rigil Kentaurus aside
+/// (its barycentric proper motion is uncertain beyond its formal errors: ACCURACY.md,
+/// "Rigil Kentaurus").
+#[test]
+fn the_stars_follow_skyfield_and_their_catalogue_over_both_tiers() {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../..")
+        .join(FIXTURE);
+    let text = std::fs::read_to_string(&path).unwrap();
+    let file: File = serde_json::from_str(&text).unwrap();
+    // bin -> (worst model error ", worst catalogue sigma " without alpha Cen, alpha Cen's).
+    let mut rows: Vec<(String, String, f64, f64, f64)> = Vec::new();
+    let mut worst_model = [0.0f64; 2];
+    let mut worst_total = [0.0f64; 2];
+    let mut n = 0;
+    for c in &file.cases {
+        let Some(stars) = &c.stars else { continue };
+        let labelled = c.tier == "labelled";
+        let (mut model, mut sigma, mut acen) = (0.0f64, 0.0f64, 0.0f64);
+        for (name, [ra, dec, sig]) in stars {
+            let entry = catalog::find(name).unwrap_or_else(|| panic!("{name}"));
+            let (r, d) = apparent_radec_of_star(entry, c.jd_tt);
+            let dra = norm_180(r - ra) * dec.to_radians().cos();
+            let sep = dra.hypot(d - dec) * 3600.0;
+            model = model.max(sep);
+            if name == "Rigil Kentaurus" {
+                acen = *sig;
+            } else {
+                sigma = sigma.max(*sig);
+                let k = usize::from(labelled);
+                worst_total[k] = worst_total[k].max(sep + sig);
+            }
+            n += 1;
+        }
+        let k = usize::from(labelled);
+        worst_model[k] = worst_model[k].max(model);
+        rows.push((c.bin.clone(), c.tier.clone(), model, sigma, acen));
+    }
+    assert!(n > 3000, "{n} star cases");
+    println!(
+        "| bin | tier | model vs Skyfield | catalogue 1-sigma (57 stars) | Rigil Kentaurus 1-sigma |"
+    );
+    println!("|---|---|---|---|---|");
+    for (bin, tier, m, s, a) in &rows {
+        println!("| {bin} | {tier} | {m:.3} | {s:.2} | {a:.2} |");
+    }
+    println!(
+        "stars: model worst {:.3}\" validated, {:.3}\" labelled; model + catalogue 1-sigma \
+         worst {:.2}\" validated, {:.2}\" labelled",
+        worst_model[0], worst_model[1], worst_total[0], worst_total[1]
+    );
+    // The model reproduces Skyfield's apparent place to far better than the claims.
+    assert!(
+        worst_model[0] < 0.1 && worst_model[1] < 0.5,
+        "{worst_model:?}"
+    );
+    // The published figures cover model plus the catalogue's 1-sigma, alpha Cen aside.
+    assert!(
+        worst_total[0] <= STAR_ACCURACY_ARCMIN * 60.0,
+        "{worst_total:?}"
+    );
+    assert!(
+        worst_total[1] <= STAR_LABELLED_ACCURACY_ARCMIN * 60.0,
+        "{worst_total:?}"
     );
 }

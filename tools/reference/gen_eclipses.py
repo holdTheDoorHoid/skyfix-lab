@@ -27,7 +27,13 @@ Four files, each independent of the Rust code:
 Network is needed for the first three (``--offline`` keeps the files already there).
 Never regenerated from Rust output (CONVENTIONS section 11).
 
-    tools/reference/.venv/bin/python -m tools.reference.gen_eclipses [--offline]
+    tools/reference/.venv/bin/python -m tools.reference.gen_eclipses [--offline] \
+        [--window 1990..2060] [--kernel de440s]
+
+`--window` sets the years of the NASA canon extract and keeps the detailed eclipses
+and Skyfield cases whose date is inside it; `--kernel` names the Skyfield side's
+ephemeris. Skyfield instants are on the app's clock with UT1 = UTC on the UTC scale
+(`common.load_timescale(dut1_zero=True)`).
 """
 
 from __future__ import annotations
@@ -228,7 +234,7 @@ def parse_solar(text):
             continue
         g = m.groups()
         y, mo, d = int(g[1]), MON[g[2]], int(g[3])
-        if not 1990 <= y <= 2060:
+        if not window_year(y):
             continue
         hh, mi, ss = int(g[4]), int(g[5]), int(g[6])
         dur = None
@@ -266,7 +272,7 @@ def parse_lunar(text):
             continue
         g = m.groups()
         y, mo, d = int(g[1]), MON[g[2]], int(g[3])
-        if not 1990 <= y <= 2060:
+        if not window_year(y):
             continue
         hh, mi, ss = int(g[4]), int(g[5]), int(g[6])
 
@@ -491,6 +497,8 @@ ID_OF = {
 def build_paths():
     sources, eclipses = [], []
     for e in DETAIL_ECLIPSES:
+        if not window_id("%s-%02d-%s" % (e[:4], MON[e[4:7]], e[7:9])):
+            continue
         purl = "%s/SEpath/SEpath2001/SE%spath.html" % (NASA, e)
         burl = "%s/SEbeselm/SEbeselm2001/SE%sbeselm.html" % (NASA, e)
         praw, braw = fetch(purl), fetch(burl)
@@ -602,17 +610,19 @@ def build_usno():
 
 class Sky:
     def __init__(self):
-        from skyfield.api import load, load_file
-
-        self.eph = load_file(c.EPHEMERIS_CROSSCHECK_FILE)
+        self.eph = c.run_ephemeris()  # --kernel, DE440s by default
         self.earth, self.sun, self.moon = self.eph["earth"], self.eph["sun"], self.eph["moon"]
-        # UT1 = UTC exactly for every instant from 2017 (TAI - UTC = 37 s).
-        self.ts = load.timescale(delta_t=32.184 + 37.0)
+        # The app's clock with UT1 = UTC on the UTC scale (CONVENTIONS 6 and 15.2).
+        self.ts = c.load_timescale(dut1_zero=True)
 
     def t(self, jd_utc):
-        """A Time at UTC-based Julian date(s); with this timescale UT1 = UTC."""
+        """A Time at Julian date(s) on the app's clock (UT1 = UTC on the UTC scale)."""
         jd = np.atleast_1d(np.asarray(jd_utc, dtype=float))
-        return self.ts.tt_jd(jd + 69.184 / 86400.0)
+        since_2017 = (jd >= 2457754.5) & (jd < c.UTC_SCALE_JD[1])
+        if since_2017.all():
+            # TAI - UTC = 37 s throughout: TT = clock + 69.184 s, exactly as clock_time.
+            return self.ts.tt_jd(jd + 69.184 / 86400.0)
+        return self.ts.tt_jd(np.array([float(c.clock_time(self.ts, j).tt) for j in jd]))
 
     def topo(self, lat, lon, h):
         from skyfield.api import wgs84
@@ -937,9 +947,10 @@ def limit_crossing(sky, eid, cone, lon):
 
 def build_skyfield():
     sky = Sky()
-    solar = [solar_local(sky, *s) for s in SOLAR_SITES]
-    lunar = [lunar_case(sky, eid, LUNAR_SITES) for eid in ("2022-11-08-lunar", "2025-03-14-lunar")]
-    limits = [limit_crossing(sky, *m) for m in LIMIT_MERIDIANS]
+    solar = [solar_local(sky, *s) for s in SOLAR_SITES if window_id(s[0])]
+    lunar = [lunar_case(sky, eid, LUNAR_SITES) for eid in ("2022-11-08-lunar", "2025-03-14-lunar")
+             if window_id(eid)]
+    limits = [limit_crossing(sky, *m) for m in LIMIT_MERIDIANS if window_id(m[0])]
     return {
         "schema": "skyfix.reference/1",
         "generator": {
@@ -953,10 +964,12 @@ def build_skyfield():
             ),
             "generated_utc": c.generated_utc(),
             "versions": c.versions(),
-            "ephemeris": c.file_facts(c.EPHEMERIS_CROSSCHECK_FILE, c.EPHEMERIS_CROSSCHECK_URL),
+            "run": c.RUN.facts(),
+            "ephemeris": c.run_kernel_facts(),
             "timescale": (
-                "load.timescale(delta_t=69.184): UT1 = UTC exactly (TAI - UTC = 37 s for every "
-                "instant here), the CONVENTIONS section 6 assumption; jd_utc is UTC-based."
+                "the app's clock with UT1 = UTC on the UTC scale (common.load_timescale("
+                "dut1_zero=True); TT = UTC + 69.184 s for every instant from 2017), the "
+                "CONVENTIONS section 6 assumption; jd_utc is the clock's."
             ),
             "geometry": {
                 "earth_equatorial_radius_km": c.Num(WGS84_A_KM, 3),
@@ -993,11 +1006,23 @@ def build_skyfield():
     }
 
 
+def window_year(y):
+    """Whether any of year `y` is inside --window (the canon lists whole years)."""
+    y0, y1 = c.window_years()
+    return y0 <= y <= y1
+
+
+def window_id(eclipse_id):
+    """Whether an eclipse id's date ("YYYY-MM-DD-solar") is inside --window."""
+    y, m, d = (int(x) for x in eclipse_id[:10].split("-"))
+    return c.in_window(c.jd_from_gregorian(y, m, d, 12.0))
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--offline", action="store_true", help="skip NASA and USNO (keep existing files)")
     ap.add_argument("--network-only", action="store_true", help="only NASA and USNO, not Skyfield")
-    args = ap.parse_args(argv)
+    args = c.setup(argv, None, "1990..2060", "de440s", parser=ap)
     ref = c.FIX_REFERENCE
     if not args.offline:
         c.write_json(os.path.join(ref, "eclipses_nasa_canon.json"), build_canon())

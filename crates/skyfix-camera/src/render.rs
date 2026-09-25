@@ -814,10 +814,10 @@ mod tests {
             )
             .is_err()
         );
-        // Outside the provider's coverage.
+        // Outside the provider's coverage (the validated tier starts 1550-01-01).
         assert!(
             render(
-                "1899-01-01T00:00:00Z",
+                "1549-01-01T00:00:00Z",
                 philadelphia(),
                 &att,
                 &k,

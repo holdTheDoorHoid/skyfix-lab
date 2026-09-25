@@ -241,7 +241,8 @@ describe.skipIf(!hasPackage)('the built WebAssembly package (src/wasm-pkg)', () 
     expect(day.aries.mer_pass.printed).toBe('23 44.7');
     expect(day.rise_set.rows[0]!.nautical_dawn.printed).toBe('03 10');
     expect(day.moon?.printed).toEqual({ sd: '15.4', age: '13', illuminated: '95' });
-    expect(() => engine!.almanacDay('2061-01-01')).toThrow(/coverage/);
+    // Past the validated tier (2650-01-22, deeptime agent).
+    expect(() => engine!.almanacDay('2651-01-01')).toThrow(/coverage/);
     console.info(`almanac_day in WebAssembly under node: ${ms.toFixed(0)} ms`);
   });
 });

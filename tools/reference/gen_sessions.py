@@ -32,6 +32,12 @@ most useful number in this directory:
     error at all is a solver bug.
 
 Both are generated, both measured, and the expected files say which is which.
+
+    tools/reference/.venv/bin/python -m tools.reference.gen_sessions \
+        [--window 2026-10-01..2026-10-02] [--kernel de421]
+
+The sessions are at one instant: `--window` must contain it; `--kernel` names the
+ephemeris.
 """
 
 from __future__ import annotations
@@ -70,7 +76,7 @@ TRUTH_LAT, TRUTH_LON, TRUTH_ELEV = c.PHILADELPHIA[1], c.PHILADELPHIA[2], c.PHILA
 def survey():
     """Everything the four sessions need, computed once."""
     ts = c.load_timescale()
-    eph = c.load_ephemeris()
+    eph = c.run_ephemeris()
     earth = eph["earth"]
     df = c.load_hipparcos_frame()
     stars, _rows, problems = c.build_stars(df)
@@ -140,7 +146,7 @@ def session(name, title, bodies, data, altitude_key, notes):
             "index_correction_arcmin": c.arcmin(0.0),
             "horizon": "sea",
         },
-        "clock": {"uncertainty_s": c.secs(0.0), "correction_s": c.secs(0.0)},
+        "clock": {"uncertainty_s": c.secs(0.0), "correction_s": c.secs(0.0), "dut1_s": 0},
         "observations": [
             observation(i + 1, b, data[b], altitude_key, OBS_NOTE[altitude_key])
             for i, b in enumerate(bodies)
@@ -344,7 +350,9 @@ def expected_doc(
     return doc
 
 
-def main():
+def main(argv=None):
+    c.setup(argv, __doc__.splitlines()[0], "2026-10-01..2026-10-02", "de421")
+    c.require_in_window(c.jd_from_gregorian(*SESSION_TIME[:3], 1.5), "the Philadelphia sessions")
     t, data, above, problems = survey()
     print(
         "   %d navigational stars above %.0f deg at Philadelphia %s"

@@ -627,7 +627,7 @@ def build_session(sky, spec, earth_model):
             "index_correction_arcmin": c.arcmin(spec["index_correction_arcmin"]),
             "horizon": "sea",
         },
-        "clock": {"uncertainty_s": c.secs(0.0), "correction_s": c.secs(0.0)},
+        "clock": {"uncertainty_s": c.secs(0.0), "correction_s": c.secs(0.0), "dut1_s": 0},
         "observations": obs,
     }
     truth = {

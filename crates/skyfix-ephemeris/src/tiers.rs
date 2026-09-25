@@ -23,11 +23,13 @@
 //!
 //! Two clocks meet here. The *tier* of an instant is decided on the app's clock
 //! (`jd_utc`, UTC or UT per CONVENTIONS 15.2). The *model switches* (the longer series
-//! prefix, the long-term precession, the planet-correction blend) are keyed on TT at the
-//! same Julian dates, so they fall a few minutes (1550) to about half an hour (2650) of
-//! Delta T away from the tier edges; each switch moves a position by far less than the
-//! tier's accuracy (the largest, the precession model, by 7 mas at 1550 and 15 mas at
-//! 2650).
+//! prefix, the long-term precession) are keyed on TT, [`MODEL_SWITCH_MARGIN_DAYS`]
+//! outside the tier's dates: Delta T is a few minutes at 1550 and under an hour at 2650,
+//! so no switch falls inside the validated tier on the app's clock, and a search or an
+//! interpolation there never meets one. A switch moves a position by far less than the
+//! labelled tier's accuracy (the precession model by 7 mas at 1550 and 15 mas at 2650,
+//! the series prefix by the validated truncation, a few tenths of an arcsecond); the
+//! planet corrections do not switch but blend smoothly over 50 years.
 
 use serde::{Deserialize, Serialize};
 
@@ -83,10 +85,17 @@ pub fn tier_at(jd_utc: f64) -> Tier {
     }
 }
 
+/// How far outside the validated tier's dates, in days of TT, the models switch to
+/// their labelled-tier form (see the module documentation).
+pub const MODEL_SWITCH_MARGIN_DAYS: f64 = 1.0;
+
 /// True when the model should use its validated-tier form at `jd_tt` (Terrestrial
-/// Time): the shorter series prefix, IAU 2006 precession, the DE440 corrections.
+/// Time): the shorter series prefix, IAU 2006 precession and sidereal time. It covers the
+/// validated tier with [`MODEL_SWITCH_MARGIN_DAYS`] to spare on each side, so every
+/// instant of the tier on the app's clock gets the validated models whatever Delta T is.
 pub fn validated_model_at_tt(jd_tt: f64) -> bool {
-    (JD_VALIDATED_START..=JD_VALIDATED_END).contains(&jd_tt)
+    (JD_VALIDATED_START - MODEL_SWITCH_MARGIN_DAYS..=JD_VALIDATED_END + MODEL_SWITCH_MARGIN_DAYS)
+        .contains(&jd_tt)
 }
 
 /// Which tiers a provider instance answers for.
@@ -221,6 +230,21 @@ mod tests {
             serde_json::to_string(&Tier::Labelled).unwrap(),
             "\"labelled\""
         );
+    }
+
+    #[test]
+    fn the_models_switch_outside_the_validated_tier_on_any_clock() {
+        // Delta T at the tier's ends is minutes (1550) to under an hour (2650).
+        for (jd, dt_days) in [
+            (JD_VALIDATED_START, 180.0 / 86_400.0),
+            (JD_VALIDATED_END, 3_600.0 / 86_400.0),
+        ] {
+            assert!(validated_model_at_tt(jd + dt_days));
+            assert!(validated_model_at_tt(jd - dt_days));
+        }
+        assert!(!validated_model_at_tt(JD_VALIDATED_START - 1.01));
+        assert!(!validated_model_at_tt(JD_VALIDATED_END + 1.01));
+        assert!(!validated_model_at_tt(f64::NAN));
     }
 
     #[test]

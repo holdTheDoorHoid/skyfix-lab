@@ -188,6 +188,24 @@ impl StarEntry {
     }
 }
 
+impl StarEntry {
+    /// How far an orbiting star is from the straight line its catalogue proper motion
+    /// draws (the line the Nautical Almanac and USNO's celnav extrapolate): `(north,
+    /// east)` arcseconds on the sky at `jd_tt`, zero at the catalogue epoch; `None` for
+    /// a star without an orbit. For Rigil Kentaurus: 5.8" in 2026, 17" in 2060.
+    pub fn orbit_departure_arcsec(&self, jd_tt: f64) -> Option<[f64; 2]> {
+        let o = self.orbit.as_ref()?;
+        let (epoch, year) = (julian_year(self.epoch_jd), julian_year(jd_tt));
+        let (now, then) = (
+            o.primary_offset_arcsec(year),
+            o.primary_offset_arcsec(epoch),
+        );
+        let v = o.primary_velocity_arcsec_yr(epoch);
+        let dt = year - epoch;
+        Some([now[0] - then[0] - v[0] * dt, now[1] - then[1] - v[1] * dt])
+    }
+}
+
 fn julian_year(jd: f64) -> f64 {
     2000.0 + (jd - JD_J2000) / 365.25
 }
@@ -645,6 +663,16 @@ mod tests {
             (c[0] * c[0] + c[1] * c[1] + c[2] * c[2]).sqrt() / skyfix_core::units::ARCSEC
         };
         assert!((sep - 5.78).abs() < 0.05, "{sep}\"");
+        // orbit_departure_arcsec says the same, and nothing for a star without an orbit.
+        let d = s.orbit_departure_arcsec(jd_2026).unwrap();
+        assert!((d[0].hypot(d[1]) - sep).abs() < 0.02, "{d:?} vs {sep}");
+        assert_eq!(s.orbit_departure_arcsec(s.epoch_jd), Some([0.0, 0.0]));
+        assert!(
+            find("Vega")
+                .unwrap()
+                .orbit_departure_arcsec(jd_2026)
+                .is_none()
+        );
     }
 
     #[test]

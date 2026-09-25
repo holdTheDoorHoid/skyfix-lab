@@ -30,8 +30,11 @@ a fact you expect is not where you thought, it has moved, not gone.
 | Published IAU models (precession, nutation, sidereal time, light deflection, aberration), via ERFA's published values | Every apparent position: Sun, Moon, planets, stars | Published models (facts); ERFA itself BSD-3-Clause, no code copied | None |
 | Meeus, *Astronomical Algorithms* | Stellar aberration's low-accuracy Sun, equation of time, Moon/planet angle formulas, the mock engine | Published formulas (facts); book copyrighted, not reproduced | None |
 | Hipparcos catalogue, 58 navigational stars + Polaris | Star positions used for real sight reduction | CDS/VizieR `CC-BY-NC-3.0 IGO` on the *served* extract; kept, with attribution — [owner's decision](#hipparcos-licence-vs-the-projects-mitapache-20-licence--decided) | None on screen; credited in this document |
-| VSOP87D (Sun) and VSOP87A (planets) | Sun and the seven planets' positions | CDS/VizieR, free with acknowledgement; no CC tag | None |
-| ELP 2000-82B | Moon's position | CDS, no catalogue-specific licence declared; general VizieR terms | None |
+| VSOP87A (the Earth, for the Sun, and the seven planets), with corrections this project fitted to JPL DE440/DE441 | Sun and the seven planets' positions, 2000 BC to AD 3000 (deeptime agent; VSOP87D retired) | CDS/VizieR, free with acknowledgement; no CC tag; the corrections are this project's own | None |
+| ELP/MPP02 (Chapront & Francou 2003), secular terms refitted by this project | Moon's position, 2000 BC to AD 3000 (deeptime agent; ELP 2000-82B retired) | SYRTE/Paris Observatory files fetched from a verbatim mirror; published solution, no licence declared; credited here | None |
+| Vondrák, Capitaine & Wallace (2011) long-term precession, via ERFA's published test values | The frame of date outside 1550-2650 | Published model (facts); ERFA BSD-3-Clause, no code copied | None |
+| SIMBAD radial velocities (58 stars) | The stars' space motion | Facts compiled by CDS from the literature; SIMBAD acknowledgement given here | None |
+| USNO Sixth Catalog of Orbits of Visual Binary Stars (alpha Cen AB) and Akeson et al. (2021) masses | Rigil Kentaurus (alpha Cen A) on its orbit | U.S. Government work (USNO); published elements are facts | None |
 | NASA HEASARC Bright Star Catalogue (BSC5P), ~9,095 stars | The Sky view's naked-eye star field (display only) | U.S. Government Work (public domain) | None |
 | Constellation figures | Sky view drawing | This project's own work | — |
 | Constellation boundaries (IAU, Delporte 1930) | "Which constellation is this body in" | Public domain by age | None |
@@ -43,7 +46,7 @@ a fact you expect is not where you thought, it has moved, not gone.
 | `maplibre-gl` | Map and globe rendering | BSD-3-Clause | None |
 | Service worker, web app manifest, icons | Offline reload and install; written for this project, no library copied | This project's own work | None |
 | OpenStreetMap standard tiles (optional street layer, off by default) | Online street map, only while switched on | ODbL 1.0 | **Yes — "© OpenStreetMap contributors", shown only while the layer is on** |
-| JPL DE421 / DE440s, Skyfield, the USNO API, NASA's eclipse canon, Bowditch | Development-time-only independent truth for every accuracy check in `docs/ACCURACY.md` | Various (US Government works, MIT, or public domain); **never shipped** | None (not in the runtime at all) |
+| JPL DE421 / DE440s / DE440 / DE441, Skyfield, the USNO API, NASA's eclipse canon, Bowditch | Development-time-only independent truth for every accuracy check in `docs/ACCURACY.md` | Various (US Government works, MIT, or public domain); **never shipped** | None (not in the runtime at all) |
 | World Magnetic Model WMM2025 (NOAA NCEI and BGS), 90 coefficient rows | Magnetic variation, dip and field 2025-2030; compass error | U.S. Government work, public domain ("not licensed or under copyright", NCEI) | None |
 | International Geomagnetic Reference Field IGRF-14 (IAGA), 195 coefficient rows × 27 columns | Magnetic variation 1900-2024 | **CC BY 4.0** (IAGA's Zenodo record); credited in this document — [see the licence note](#igrf-14-is-cc-by-40-credited-in-the-documentation) | None on screen; credited here |
 | WMM2025 official test values and technical report (NCEI), IAGA's pyIGRF14 test values, the BGS IGRF-14 calculator, NOAA's Geomag 7.0 sample output, Bowditch ch. 15 | Development-time checks of the magnetic models and the compass-error method | U.S. Government works; MIT (pyIGRF14); BGS web-service outputs as test data; **never shipped** | None |
@@ -165,6 +168,12 @@ Owner: ephemeris agent (`crates/skyfix-ephemeris/src/{sun,fixture_pack}.rs`,
 
 #### VSOP87D — the Earth's heliocentric motion
 
+> **Superseded (deeptime agent, 2026-09-25).** The Sun is now computed from the VSOP87A
+> Earth the planets use (with corrections fitted to JPL DE440/DE441) and the VSOP87D series
+> and `vsop87_sun_terms.json` are no longer shipped; see "Expansion programme — deep time"
+> at the end of this document. This entry is kept as the record of what shipped before.
+
+
 - **What is used:** the coefficients of the VSOP87 version D series for the Earth
   (heliocentric spherical `L`, `B`, `R`, referred to the mean dynamical ecliptic and
   equinox *of date*), truncated for the 1990-2060 coverage window and embedded in
@@ -260,6 +269,11 @@ Owner: Moon agent (`crates/skyfix-ephemeris/src/moon.rs`,
 
 #### ELP 2000-82B — the lunar theory
 
+> **Superseded (deeptime agent, 2026-09-25).** The Moon is now ELP/MPP02 with this
+> project's secular corrections, embedded in `series.bin`; ELP 2000-82B and
+> `elp82b_moon_terms.json` are no longer shipped. See "Expansion programme — deep time".
+
+
 - **What is used:** the series of the semi-analytical lunar theory ELP 2000-82B with the
   constants its authors fitted to JPL DE200/LE200: the 36 files `ELP1` … `ELP36` (main
   problem; Earth-figure, planetary (tables 1 and 2), tidal, Moon-figure, relativistic
@@ -347,6 +361,13 @@ Owner: planets agent (`crates/skyfix-ephemeris/src/planets.rs`,
 2026-09-24.
 
 #### VSOP87A — heliocentric Mercury to Neptune, and the Earth
+
+> **Updated (deeptime agent, 2026-09-25).** VSOP87A is now truncated per coverage tier
+> (1550-2650 and 2000 BC to AD 3000), corrected by fits to JPL DE440/DE441, and embedded
+> with the Moon's series in `crates/skyfix-ephemeris/data/series.bin`;
+> `vsop87a_planets.json` and `gen_vsop87a.py` are gone. The source files and their SHA-256
+> are unchanged. See "Expansion programme — deep time".
+
 
 - **What is used:** the coefficients of the VSOP87 version A series (heliocentric
   rectangular X, Y, Z in au, dynamical ecliptic and equinox J2000, argument TT) for the
@@ -2041,3 +2062,96 @@ B.E. (1991), *PASP* 103, 1033. Sky classes: Bortle, J.E. (2001), *Sky & Telescop
 February, 126 (the limiting-magnitude range of each class, a fact). Meteor rates: the
 standard ZHR conversion (IMO). Each is written from the publication's equations and
 checked by hand evaluation (`docs/ACCURACY.md`, "Deep sky").
+
+## Expansion programme — deep time (deeptime agent, 2026-09-25)
+
+What the Sun, Moon, planet and star providers are built from since the coverage became
+1550-2650 (validated) and 2000 BC to AD 3000 (labelled), and what checked them. Runtime
+data first; development-time references after. No new runtime crate, npm package or
+network access.
+
+### Runtime: `crates/skyfix-ephemeris/data/series.bin` (151 625 bytes, embedded)
+
+Written by `tools/reference/build_series.py`; its `META` section records every source
+file's SHA-256.
+
+- **VSOP87A** (Bretagnon & Francou 1988, *A&A* 202, 309; CDS VI/81): the Earth and the
+  seven planets, heliocentric rectangular, ecliptic and equinox J2000. Same files as the
+  planet model above (`VSOP87A.ear` … `VSOP87A.nep`, `vsop87.chk`, `vsop87.txt`, SHA-256 in
+  `tools/reference/vsop87.py`), retrieved 2026-09-24. Truncated separately for each tier
+  by measured error (the Earth to 0.05" of the Sun's direction, each planet to 1" of
+  geocentric direction at its closest approach). Licence: CDS/VizieR, free with
+  acknowledgement (acknowledged here, as before).
+- **Corrections to VSOP87A**: coefficients of a small linear model per body (longitude,
+  latitude, log-radius) fitted by this project to JPL DE440 (1500-2700) and DE441
+  (2000 BC to AD 3000). They are this project's own numbers, derived from JPL's kernels
+  (U.S. Government works); nothing of JPL's is shipped.
+- **ELP/MPP02** (Chapront J., Francou G., 2003, *A&A* 404, 735): the six series files and
+  the constants of the note (DE405 set, `icor = 1`, with its Table 6), truncated per tier,
+  plus additive corrections to the secular parts of W1, W2 and W3 fitted by this project
+  to DE441 and DE440. SYRTE's directory
+  `ftp://cyrano-se.obspm.fr/pub/2_lunar_solutions/2_elpmpp02/` was unreachable on
+  2026-09-24; the files were fetched from the verbatim mirror
+  `https://raw.githubusercontent.com/THRASTRO/ephem.js/develop/src/elpmpp02/data/`
+  (byte sizes match the archived 2025 listing of the official directory) and are pinned:
+
+  | file | bytes | SHA-256 |
+  |---|---|---|
+  | `ELP_MAIN.S1` | 103 360 | `3602147c43b77f86394c9034ea0e66807c6a674eeac87ada2a23aecd328706f1` |
+  | `ELP_MAIN.S2` | 92 755 | `c06fca782f973a5365a4a19dd8b8a2a5ce711063e007ad929be6206686e459b8` |
+  | `ELP_MAIN.S3` | 71 141 | `22f2cebde62d7451bc984ea67716b32091848c6f33ce746a9d1ba5de76074a56` |
+  | `ELP_PERT.S1` | 1 209 918 | `222b2895f476370e93b05c50bc207d5f637ca3cd7002f848054ff44b9f1742ba` |
+  | `ELP_PERT.S2` | 668 038 | `0fd9af9d5e79fb9315c2ea295c8abe8f1ca385401fa93c8a032d64eb45c7d209` |
+  | `ELP_PERT.S3` | 1 281 928 | `15123e2eb0683ebffacc2b67339693532060a4db1f9c26eba502e0dad941d216` |
+  | `ELPMPP02.for` | 28 063 | `b7b9709329f35a6fb6c0e534d3fbebd091ff82edd4e06ab34be70f6dba43db5a` |
+  | `README.TXT` | 4 445 | `aee2edbd7cc679fd6f1e871fb017493f075a6befc7f720f4f6bb8ee2b56e7fd8` |
+  | `elpmpp02.pdf` | 215 008 | `08b988dda14deb8850f82ea4077115a6d44251c325dd48de137b15bc5c0c2c93` |
+
+  Basis: a published scientific solution (numbers and formulas are facts); SYRTE states
+  no licence for the files. No code was copied: `tools/reference/elpmpp02.py` is an
+  independent port of the published Fortran's statements, checked against the note's
+  Table 8 to its printed 1e-5 km, and `series.rs` evaluates the stored series. No
+  converted copy from a third party (for example the GPL-licensed ports) was used.
+- **The frame models** (CONVENTIONS 7): IAU 2006/2000B inside the validated tier, and
+  the long-term precession of Vondrák J., Capitaine N., Wallace P. (2011, *A&A* 534, A22;
+  erratum 2012, *A&A* 541, C1) outside, coded from the paper's tables and checked against
+  the test values ERFA publishes for `eraLtpecl`, `eraLtpequ`, `eraLtp`, `eraLtpb` (ERFA:
+  BSD-3-Clause; no code copied). Nutation's fundamental arguments are Simon et al. (1994,
+  *A&A* 282, 663), as IERS Conventions 2010 give them.
+
+### Runtime: the star catalogue's additions (`fixtures/reference/navigational_stars_hip.json`)
+
+- **Radial velocities** for the 58 stars: SIMBAD's `rvz_radvel`, `rvz_err`, `rvz_qual` and
+  `rvz_bibcode`, fetched with its TAP service on 2026-09-25 (query in
+  `tools/reference/README.md`); the bibcode of each value is in the file. Facts from the
+  literature; SIMBAD asks for an acknowledgement: *This research has made use of the SIMBAD
+  database, operated at CDS, Strasbourg, France* (Wenger et al. 2000, *A&AS* 143, 9).
+  Rigil Kentaurus takes the system's value (SIMBAD "* alf Cen", -22.3 +/- 0.9 km/s,
+  1979IAUS...30...57E) rather than alpha Cen A's single-epoch one.
+- **alpha Centauri A's orbit**: the elements of WDS 14396-6050 RHD 1AB from the USNO Sixth
+  Catalog of Orbits of Visual Binary Stars (ORB6, `https://crf.usno.navy.mil/data_products/WDS/orb6/orb6orbits.txt`,
+  1 075 370 bytes, retrieved 2026-09-25; orbit by Akeson et al. 2021, *AJ* 162, 14, grade 2)
+  and the component masses of Akeson et al. 2021 (M_A 1.0788, M_B 0.9092 solar masses).
+  ORB6's ephemeris file (`orb6ephem.txt`, 599 964 bytes, same date) is the check. USNO
+  products are works of the U.S. Government; published elements are facts.
+
+### Development time only (never shipped)
+
+| file | bytes | SHA-256 | role |
+|---|---|---|---|
+| `de440.bsp` (NAIF `spk/planets/`) | 119 799 808 | `a4ce9bf9b3282becc9f4b2ac3cebe03a2ae7599981aabd7265fd8482fff7c4b5` | the validated tier's truth (1550-2650): the series' corrections and ELP fit, `deeptime_bodies.json` |
+| `de441_part-1.bsp` | 1 651 119 104 | `13757827f5db41b835a24bbd637488636ce79a8ca754062fed17844f7d5b618e` | the labelled tier's truth before 1969 |
+| `de441_part-2.bsp` | 1 656 830 976 | `3abb17dae2d78dd34880377544aacb54892104a0d4462b322cb9f4454d4887f6` | the labelled tier's truth after 1969 |
+
+NASA JPL / NAIF, U.S. Government works distributed for unrestricted use (Park et al.
+2021, *AJ* 161, 105). JPL's note on DE440 ("not suitable for extrapolation more than
+several centuries into the past") is why the labelled tier uses DE441. On the pairing of
+the Moon's tidal acceleration with Delta T: Stephenson, Morrison & Hohenkerk's Delta T
+assumes -25.85"/cy^2 and ELP/MPP02's DE405 constants carry -25.858"/cy^2, the same to the
+precision that matters; the secular terms this project refitted to DE441/DE440 absorb
+whatever of the lunar longitude's quadratic term differs from JPL's (ACCURACY section 17).
+
+Also consulted, all facts: USNO's Celestial Navigation Data at 15 dates 1800-2050 for
+Rigil Kentaurus (to establish that USNO extrapolates A's Hipparcos motion linearly);
+NASA's Besselian elements (already in `eclipses_nasa_paths.json`) to measure the eclipse
+floor. NASA's Besselian CSV the planner offered as an oracle was not needed.

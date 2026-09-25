@@ -251,7 +251,7 @@ def build():
             extra={
                 "run": c.RUN.facts(),
                 "frame_of_date": c.app_frame_facts(),
-                "ephemeris": eph421.facts(),
+                "ephemeris": c.run_kernel_facts(),
                 "ephemeris_crosscheck": {
                     "file": eph440.facts(),
                     "epochs_compared": n_cross,
