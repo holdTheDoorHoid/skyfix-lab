@@ -82,3 +82,13 @@ This file is the single list; the completion report links here.
 | WMMHR2025 (degree 133, crustal field) | unstarted | NCEI recommends it where systems can take the coefficients; about 18 000 of them (a pack, not the core). WMM2025 meets the navigation specification, and its uncertainty is stated beside every value |
 | Grid variation for polar navigation (GV) | unstarted | Declination relative to a polar-stereographic grid north; only meaningful with a polar chart grid, which the map does not draw |
 | Magnetic variation before 1900 | not planned | No standard model reaches before 1900 with a stated uncertainty (historical field models such as gufm1 exist, with their own licences and far larger errors); the programme's rule is that variation is not shown for deep time |
+
+## Time scales (expansion programme, timescales agent, 2026-09-24)
+
+| item | status | notes |
+|---|---|---|
+| ΔT model with uncertainty, UTC/UT clock, IERS DUT1 history, Julian/Gregorian calendars, expanded years, `time_info`, `set_dut1`, `calendar_convert`, `skyfix calendar`, saros for any epoch | completed | CONVENTIONS 15.2-15.3; `docs/ACCURACY.md` section 14; `docs/EXPLORER_API.md`, "Time scales, Delta-T and calendars" |
+| Refresh the IERS UT1 − UTC table from a current `finals2000A.all` or EOP 20 C04 | unstarted | The table uses what was on disk: observed to 2026-01-23 (Skyfield 1.55's bundle) and 2026-09-18..24 (Bulletin A), a corrected prediction between (σ up to 0.05 s), and no 1962-1972 values (the splines stand there, σ 0.11 s). Needs the owner's approval to download (`tools/timescales/gen_timescales.py` docstring) |
+| Regenerate the Moon, planet, topocentric and almanac-page fixtures on the CONVENTIONS 15.2 scale | unstarted | Generated with TT = UTC + 69.184 s after 2035; their tests evaluate the fixtures' own TT and UT1 through `time::legacy_fixture_instant` and leave out the four almanac pages after 2035. Regenerate with `tools/timescales/skyfield_timescale.py`, then drop the shim (deeptime agent's generators) |
+| Almanac page exactly at UT1 hours | considered | The page keeps DUT1 = 0 so each row's instant is its UT1, as printed; TT is then off by DUT1 (≤ 0.5″ of the Moon). Exact would need `pages.rs` to evaluate at UTC = hour − DUT1 |
+| CLI polish for far dates | unstarted | The eclipse text prints ΔT without its σ; `--format geojson` lacks `delta_t_sigma_s`; `skyfix almanac --date` takes four-digit years only (its parser is `pages::UtDate`); table headers still say "UTC" where rows now say "UT" (cli3) |

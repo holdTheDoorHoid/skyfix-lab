@@ -2402,3 +2402,33 @@ export function isGeomagEngine(engine: unknown): engine is GeomagEngine {
     typeof e.compassError === 'function'
   );
 }
+
+// ---------------------------------------------------------------------------------
+// Timescales agent (expansion wave 1): additive fields by declaration merging. See
+// EXPLORER_API.md, "Time scales, Delta-T and calendars (timescales agent)".
+// ---------------------------------------------------------------------------------
+
+/**
+ * Standard uncertainty of `delta_t_s`, seconds (CONVENTIONS 15.2): DUT1's on the UTC
+ * scale (0.001 s from the IERS table, 0.05 s for a value the user set, 0.9 s when
+ * unknown), the Delta-T model's on the UT scale. Every eclipse output from this core
+ * on carries it; an older build does not, hence optional.
+ */
+export interface SolarEclipse {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipse {
+  delta_t_sigma_s?: number;
+}
+export interface SolarEclipseLocal {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipseLocal {
+  delta_t_sigma_s?: number;
+}
+export interface SolarEclipsePath {
+  delta_t_sigma_s?: number;
+}
+export interface LunarEclipsePath {
+  delta_t_sigma_s?: number;
+}

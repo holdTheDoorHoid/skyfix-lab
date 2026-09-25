@@ -20,7 +20,7 @@ use skyfix_motion::request::{
     MotionUncertaintyInput, RunningFixLeg, RunningFixOutput, RunningFixRequest, running_fix_session,
 };
 
-use super::args::{Dut1Args, FormatArgs, parse_instant, parse_leg};
+use super::args::{Dut1Args, FormatArgs, parse_leg, wire_instant};
 use super::methods::{self, labelled};
 use super::text;
 use crate::cli::SolveFlags;
@@ -28,6 +28,7 @@ use crate::commands::solve;
 use crate::exit;
 use crate::provider;
 use crate::report;
+use skyfix_core::time::parse_utc;
 
 #[derive(clap::Args, Debug)]
 pub struct Args {
@@ -78,19 +79,20 @@ pub struct Args {
 /// The request the flags describe, with the solver options `skyfix solve` would build
 /// for this session.
 pub fn request(a: &Args, session: &skyfix_core::types::Session) -> Result<RunningFixRequest> {
-    for (flag, value) in [
-        ("--end-utc", &a.end_utc),
-        ("--reference-utc", &a.reference_utc),
-    ] {
-        if let Some(u) = value {
-            parse_instant(u).map_err(|e| anyhow!("{flag}: {e}"))?;
+    // As the engine's wire strings: the flags may be typed in the Julian calendar.
+    let wire = |flag: &str, value: &Option<String>| -> Result<Option<String>> {
+        match value {
+            Some(u) => Ok(Some(wire_instant(u).map_err(|e| anyhow!("{flag}: {e}"))?)),
+            None => Ok(None),
         }
-    }
+    };
+    let end_utc = wire("--end-utc", &a.end_utc)?;
+    let reference_utc = wire("--reference-utc", &a.reference_utc)?;
     let flags = a.solve.to_flags(false, a.require_unique);
     Ok(RunningFixRequest {
-        reference_utc: a.reference_utc.clone(),
+        reference_utc,
         legs: a.legs.clone(),
-        end_utc: a.end_utc.clone(),
+        end_utc,
         motion_uncertainty: MotionUncertaintyInput {
             speed_sigma_kn: a.speed_sigma,
             course_sigma_deg: a.course_sigma,
@@ -159,7 +161,8 @@ pub fn render(r: &RunningFixOutput, request: &RunningFixRequest, options: &Solve
     );
     for (i, leg) in request.legs.iter().enumerate() {
         let from = match &leg.start_utc {
-            Some(u) => parse_instant(u).map_or_else(|_| u.clone(), text::utc),
+            // The request carries wire strings (proleptic Gregorian).
+            Some(u) => parse_utc(u).map_or_else(|_| u.clone(), text::utc),
             None => "the first sight".to_string(),
         };
         labelled(
@@ -177,7 +180,7 @@ pub fn render(r: &RunningFixOutput, request: &RunningFixRequest, options: &Solve
             "",
             &format!(
                 "ends {}: stationary after it",
-                parse_instant(end).map_or_else(|_| end.clone(), text::utc)
+                parse_utc(end).map_or_else(|_| end.clone(), text::utc)
             ),
             &mut out,
         );

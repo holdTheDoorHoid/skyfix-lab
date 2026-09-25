@@ -16,7 +16,7 @@
 //! Run with `-- --nocapture` to see the worst deviation of every quantity.
 
 use serde::Deserialize;
-use skyfix_core::time::parse_utc;
+use skyfix_core::time::{legacy_fixture_instant, parse_utc};
 use skyfix_core::units::norm_180;
 use skyfix_ephemeris::AstroProvider;
 use skyfix_ephemeris::body::BodyEphemeris;
@@ -151,6 +151,11 @@ fn compare(text: &str, label: &str, provider: &MoonProvider) -> Result<Report, S
                 case.utc, case.jd_utc
             ));
         }
+        // timescales agent: the fixture took TT = UTC + 69.184 s and UT1 = UTC after 2035;
+        // the clock is UT there now (CONVENTIONS 15.2). Evaluate the fixture's own TT and
+        // UT1 (identical up to 2035) until the fixture is regenerated on the new scale.
+        let (jd, shift) = legacy_fixture_instant(jd);
+        let provider = &MoonProvider::with_dut1_s(provider.dut1_s() + shift);
         let st = provider
             .apparent_state("Moon", jd)
             .map_err(|e| format!("{label} case {}: {e}", case.utc))?;
@@ -219,7 +224,7 @@ fn compare(text: &str, label: &str, provider: &MoonProvider) -> Result<Report, S
         }
 
         if i % 10 == 0 {
-            let with = MoonProvider::with_dut1_s(case.dut1_s)
+            let with = MoonProvider::with_dut1_s(case.dut1_s + shift)
                 .position(jd)
                 .map_err(|e| format!("{label} case {}: {e}", case.utc))?;
             let d = norm_180(with.gha_deg - m.gha_deg) * 60.0;
