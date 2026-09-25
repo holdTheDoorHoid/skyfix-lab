@@ -229,8 +229,13 @@ export interface SkyMounted extends Mounted {
 /** Time steps up to this size (days) glide instead of jumping. */
 const EASE_MAX_DAYS = 0.25;
 const EASE_MS = 260;
-/** The Milky Way's raster is made again when the sky has turned this far (radians of rotation, about 0.1°). */
-const MW_TURN = 1.8e-3;
+/**
+ * The Milky Way's raster is made again when the sky has turned about half a degree: the
+ * largest change in any element of the rotation, 8.7e-3, is a turn of 0.5° to 1°, less
+ * than one of the raster's texels (1.2–2.4° on a 1 440 × 840 dome) in a glow blurred by
+ * 1°. While time plays at an hour a second that is every second to fourth frame.
+ */
+const MW_TURN = 8.7e-3;
 /** How many texels the Milky Way's raster may have (its cost per frame is about 40 ns each). */
 const MW_TEXELS = 22_000;
 /** How long the time must be still before the night's estimates are made again, ms. */

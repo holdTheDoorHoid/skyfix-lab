@@ -2721,7 +2721,7 @@ measured levers; `opt-level = "z"` alone saves about 5 %).
 Display only (CONVENTIONS 13.6): nothing on the Sky view reaches a sight, and every
 estimate it shows (the magnitude limit, extinction, a deep-sky object's best time and
 instrument, meteor rates, the ranking) is the deep-sky engine's, labelled on screen as an
-estimate (section 15). What the view computes itself is geometry, and each piece is held
+estimate (the "Deep sky" section). What the view computes itself is geometry, and each piece is held
 to the engine that it rests on by a test in `web/test/next/sky2-layers.test.ts` and
 `sky2-render.test.ts`:
 
@@ -2748,7 +2748,24 @@ The budget (brief Q3): 9 000 stars plus the deep-sky objects and the Milky Way i
 frame; a search under 5 ms. What costs what, per frame: the stars' dimmed magnitudes and
 the per-frame grouping by them (a counting sort over the stars on screen), the 213
 deep-sky objects' rotation and projection, and the Milky Way's raster, remade only when
-the sky has turned 0.1° (every frame while time plays at an hour a second; at most ten
-times a second faster than a week a second) and drawn scaled up in one `drawImage`. The
-Milky Way's grid is filled once per page, away from the frame (about 10 ms).
+the sky has turned half a degree to a degree (under one of its texels; every second to
+fourth frame while time plays at an hour a second; at most ten times a second faster than
+a week a second) and drawn scaled up in one `drawImage`. The Milky Way's grid is filled once per page, away from the frame (about 10 ms).
+
+Measured on 2026-09-25 on a machine running seven other agents' builds (load average 28
+on 8 cores), so the figures are upper bounds: with the WebAssembly core in Node (V8, the
+browser's JavaScript engine), a frame's JavaScript — the engine's calls, every star's
+place, extinction and grouping, the deep-sky pass, the raster and building every path
+the canvas fills, against a context that paints nothing — takes 5.55 ms for the view
+without the new layers and 7.08 ms with all of them, the raster remade every frame (the
+fastest frame of 80, in eight interleaved runs of ten; 9 095 stars, a 1 440 × 840 dome);
+the raster alone 0.83 ms. In the browser pane (a real GPU, the same loaded machine) the
+whole frame, painting included, was 9.7 ms at the median without the new layers and
+11.2 ms with them. So the layers add about 1.5 ms to a frame; the view before them was
+built to draw 9 000 stars in 8 ms (EXPLORER_PLAN §3.7), which with the layers is 9.5 ms,
+inside the 10 ms budget, but that absolute figure could not be measured on this loaded
+machine and is in the backlog to confirm on a quiet one. `sky_search`, the fastest of 20:
+5.3 ms in Node and 6.4 ms in the browser under that load; the engine's own native timing
+is 2.5 ms (the "Deep sky" section, "Speed and size"), and the search box asks after
+typing pauses (80 ms), never during a frame.
 
