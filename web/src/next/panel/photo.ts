@@ -923,6 +923,7 @@ export function coordRow(): CoordRow {
   const dec = h('span', { class: 'sf-num' });
   const sha = h('span', { class: 'sf-num' });
   const dt = uncertaintyChip(null);
+  const dtRow = h('div', { class: 'sf-photo-coord__dt', hidden: true }, dt);
   const el = h(
     'div',
     { class: 'sf-photo-coord', 'data-tip': COORD_TIP },
@@ -931,8 +932,11 @@ export function coordRow(): CoordRow {
       { class: 'sf-kv' },
       icon('target'),
       h('span', { class: 'sf-kv__k' }, 'Sky position'),
-      h('span', { class: 'sf-kv__v sf-photo-coord__v' }, h('span', { class: 'sf-photo-coord__lab' }, 'RA '), ra, h('span', { class: 'sf-photo-coord__lab' }, ' Dec '), dec, ' ', dt),
+      h('span', { class: 'sf-kv__v sf-photo-coord__v' }, h('span', { class: 'sf-photo-coord__lab' }, 'RA '), ra, h('span', { class: 'sf-photo-coord__lab' }, ' Dec '), dec),
     ),
+    // chip2: the place's chip on its own line under the numbers, where it squeezes no label and
+    // shows whether or not the navigator's terms are.
+    dtRow,
     h('div', { class: 'sf-photo-coord__term', 'data-term': '' }, 'right ascension, declination · SHA ', sha),
   );
   return {
@@ -943,6 +947,7 @@ export function coordRow(): CoordRow {
       setText(dec, t.dec);
       setText(sha, t.sha);
       setUncertaintyChip(dt, chip);
+      if (dtRow.hidden !== dt.hidden) dtRow.hidden = dt.hidden;
     },
   };
 }

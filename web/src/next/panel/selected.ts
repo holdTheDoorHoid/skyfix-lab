@@ -253,7 +253,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     const today = sunToday(ctx, s);
     const day = today ? sunDay(today.sun?.events ?? [], today.window[0], today.window[1]) : null;
     // chip2: twilight is set by the Earth's turning: the Sun's share of σ(ΔT), under a second
-    // except before about 1000 BC and after about AD 2800 (time/chip.ts `turning`).
+    // except before about 850 BC and after about AD 2400 (time/chip.ts `turning`).
     const twilightChip = uncertaintyChip(today ? dtChip(ctx, (today.window[0] + today.window[1]) / 2, turning('Sun'), timeInfoForSpan(ctx, today.window[0], today.window[1])) : null);
     const row = (name: string, phase: 'civil' | 'nautical' | 'astronomical', pair: [SkyEvent | null, SkyEvent | null] | undefined, highlight: boolean): HTMLElement =>
       h(

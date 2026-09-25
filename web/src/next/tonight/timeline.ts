@@ -17,7 +17,7 @@ import { axisTime } from '../shell/format.js';
 import { jdFromWallClock, MS_PER_HOUR, msFromJd, wallClock, jdFromMs } from '../time.js';
 import { darknessOf, type NightCore } from './data.js';
 import { clock, clockPlain, duration, MOON_SUN_TURNING, MOON_TURNING, percentLit, SUN_TURNING, type Fmt } from './format.js';
-import { bodyEvents, moonlessDark, moonUp, sunsetSunrise } from './model.js';
+import { bodyEvents, galacticTurning, moonlessDark, moonUp, sunsetSunrise } from './model.js';
 import { intersect, type Span } from './night.js';
 
 const HOUR = 1 / 24;
@@ -37,6 +37,8 @@ export interface Moment {
   term?: string;
   lane: Lane | 'tide';
   key: string;
+  /** What sets its time, for its ± chip (chip2); absent: the lane's (`momentSubject`). */
+  chip?: ChipSubject;
 }
 
 export interface TimelineModel {
@@ -47,6 +49,8 @@ export interface TimelineModel {
   moon: Band[];
   moonLabel: string;
   core: (Band & { moonUp: boolean })[];
+  /** What sets the core's times (chip2 `galacticTurning`): darkness, and the Moon where it splits them. */
+  coreBy: ChipSubject;
   deep: Band[];
   moments: Moment[];
   ticks: { jd: number; label: string; odd: boolean }[];
@@ -55,11 +59,12 @@ export interface TimelineModel {
 }
 
 /**
- * What sets a moment's time, for its ± chip (chip2): the Sun's turning for the sky's and the
- * light's lanes, the Moon's for moonrise and moonset (and the tides, which follow it), the
- * faster of both where darkness meets the Moon (the Milky Way core, moonless darkness).
+ * What sets a moment's time, for its ± chip (chip2): its own when it says (the Milky Way core's
+ * best), else the Sun's turning for the sky's and the light's lanes, the Moon's for moonrise and
+ * moonset (and the tides, which follow it), the faster of both where darkness meets the Moon.
  */
-export function momentSubject(m: Pick<Moment, 'lane'>): ChipSubject {
+export function momentSubject(m: Pick<Moment, 'lane' | 'chip'>): ChipSubject {
+  if (m.chip) return m.chip;
   return m.lane === 'sky' || m.lane === 'light' ? SUN_TURNING : m.lane === 'moon' || m.lane === 'tide' ? MOON_TURNING : MOON_SUN_TURNING;
 }
 
@@ -139,9 +144,10 @@ export function timelineModel(core: NightCore, f: Fmt): TimelineModel {
     moments.push({ jd: e.jd_utc, label: e.kind === 'rise' ? 'Moonrise' : 'Moonset', lane: 'moon', key: `moon-${e.kind}-${e.jd_utc}` });
   }
   const g = core.galactic?.windows ?? [];
+  const coreBy = galacticTurning(g);
   if (g.length) {
     const best = g.reduce((a, w) => (w.best.alt_deg > a.best.alt_deg ? w : a), g[0]!);
-    moments.push({ jd: best.best.jd_utc, label: 'Milky Way core at its best', lane: 'core', key: 'core-best' });
+    moments.push({ jd: best.best.jd_utc, label: 'Milky Way core at its best', lane: 'core', key: 'core-best', chip: coreBy });
   }
   moments.sort((a, b) => a.jd - b.jd);
 
@@ -161,6 +167,7 @@ export function timelineModel(core: NightCore, f: Fmt): TimelineModel {
     moon,
     moonLabel: k === null ? 'Moon up' : `Moon up · ${percentLit(k)} lit`,
     core: coreBands.filter((b): b is Band & { moonUp: boolean } => b !== null),
+    coreBy,
     deep,
     moments,
     ticks: hourTicks(span, f),
@@ -292,7 +299,7 @@ export function timelineView(onPick: (jd: number) => void): TimelineView {
       if (!m.moon.length) moon.append(h('span', { class: 'sft-tl__empty' }, 'The Moon is down'));
       const core = lanes.get('core')!;
       for (const b of m.core) {
-        core.append(bandEl(b, m, `sft-tl__band--core${b.moonUp ? ' is-moonlit' : ''}`, b.moonUp ? 'Core up, moonlit' : 'Core up', `The Milky Way’s core 10° or more up in darkness ${clock(b.start, f, MOON_SUN_TURNING)}–${clock(b.end, f, MOON_SUN_TURNING)}${b.moonUp ? ', with the Moon up' : ''}`));
+        core.append(bandEl(b, m, `sft-tl__band--core${b.moonUp ? ' is-moonlit' : ''}`, b.moonUp ? 'Core up, moonlit' : 'Core up', `The Milky Way’s core 10° or more up in darkness ${clock(b.start, f, m.coreBy)}–${clock(b.end, f, m.coreBy)}${b.moonUp ? ', with the Moon up' : ''}`));
       }
       if (!m.core.length) core.append(h('span', { class: 'sft-tl__empty' }, 'The core is not up in the dark'));
       const deep = lanes.get('deep')!;

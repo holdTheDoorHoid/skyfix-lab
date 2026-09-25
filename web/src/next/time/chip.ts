@@ -5,7 +5,7 @@
  *
  * The engine's time scale TT runs evenly; the clock (UT) follows the Earth's rotation, which is
  * measured only since the 1600s and predicted only roughly. ΔT = TT − UT carries a standard
- * uncertainty σ (`time_info.delta_t_sigma_s`): 15 s in AD 1000, 2.5 min in 585 BC, an hour at
+ * uncertainty σ (`time_info.delta_t_sigma_s`): 15 s in AD 1000, 2.6 min in 585 BC, an hour at
  * 2000 BC, 10 s in 2060, 15 min in 2650. What σ moves depends on the quantity shown, and the
  * chip follows it (`dtChip`, the one place a chip's size is worked out):
  *
@@ -19,13 +19,15 @@
  *   a height or a bearing reached): the clock follows that turning, so only the body's own
  *   motion across the sky moves it, σ × k with k = α̇ / (θ̇ − α̇), the body's rate in right
  *   ascension over the Earth's rotation relative to it (the Sun about 0.27 %, the Moon 3.2 to
- *   5 %): the fastest of the bodies named. Shown when it reaches 1 s, so never for the Sun's
- *   times between about 1000 BC and AD 2800. No body, or only stars and deep-sky objects
- *   (fixed on the sky): none.
+ *   5 %): the fastest of the bodies named. Shown when it reaches 1 s: never for the Sun's times
+ *   between about 850 BC and AD 2400 (0.44 s at 585 BC, 10.6 s at 2000 BC), the Moon's before
+ *   about AD 700 and after about 2090 (6 s at 585 BC). No body, or only stars and deep-sky
+ *   objects (fixed on the sky): none.
  * - `position(body)`, the body's place at the time shown (altitude and azimuth, right ascension
  *   and declination, GHA), where it is printed to the arcminute or finer: its angular speed
- *   among the stars × σ, in arcminutes, at a far date when it exceeds 0.1′. The Moon 1.4′ at
- *   585 BC and 34′ at 2000 BC; the Sun 0.1′ and 2.6′; stars never.
+ *   among the stars × σ, in arcminutes, at a far date when it exceeds 0.1′. The Moon 1.5′ at
+ *   585 BC (1.4′ at the verifier's σ of 150 s) and 34′ at 2000 BC; the Sun 0.1′ and 2.5′;
+ *   stars never.
  *
  * The rates are the engine's own: the body's apparent geocentric right ascension, declination
  * and GHA from `sky_state` an hour apart (`bodyRates`), asked only where a chip could show

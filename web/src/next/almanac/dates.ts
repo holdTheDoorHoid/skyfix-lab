@@ -192,7 +192,7 @@ export function timeInfoAt(ctx: Ctx, jd: number): TimeInfo | null {
  * `jd`, the explorer's instant on the page's (middle) date: a body's place every hour
  * (`position`: the Moon's 1.5′ at 585 BC, the planets' when over 0.1′) and the Sun's, the
  * Moon's and the planets' turning in the rise, set and meridian-passage tables (`turning`,
- * under a second for the Sun before about 1000 BC). A page heading carries none: what the
+ * under a second for the Sun between about 850 BC and AD 2400). A page heading carries none: what the
  * Earth's rotation moves differs from column to column, and no chip speaks for the page. A
  * chip that does not show is left out, so a heading carries no empty element.
  */

@@ -235,6 +235,17 @@
   font-size: var(--text-xs);
 }
 
+/* chip2: the place's ± chip under the right ascension and declination, at far dates. */
+.sf-photo-coord__dt {
+  margin: -4px 0 6px;
+  text-align: right;
+  line-height: 17px;
+}
+
+.sf-photo-coord__dt[hidden] {
+  display: none;
+}
+
 .sf-photo-coord__term {
   margin: -4px 0 2px 26px;
   color: var(--chrome-ink-3);

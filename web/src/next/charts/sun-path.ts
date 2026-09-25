@@ -57,6 +57,7 @@ import {
   type SunPathInput,
 } from './sun-data.js';
 import { localDateOf, zoneKey } from './windows.js';
+import { dtChip, position, timeInfoAt, uncertaintyText } from '../time/chip.js';
 
 export type SunPathVariant = 'polar' | 'across';
 type Variant = SunPathVariant;
@@ -231,11 +232,15 @@ export const sunPathChart: ChartComponent = (host, ctx, ui) => {
       }
     }
     const when = clockWithUtc(jd, zone);
+    // chip2: at a far date the Sun's place at the time shown moves with the Earth's uncertain
+    // rotation (time/chip.ts `position`; 2.5′ at 2000 BC, under 0.1′ at 585 BC).
+    const place = sunAlt === null ? '' : uncertaintyText(dtChip(ctx, jd, position('Sun'), timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5)));
+    const known = place ? ` (at this date its place is known to ${place})` : '';
     if (sunAlt === null || sunAz === null) readout.textContent = `${when}: the Sun cannot be computed at this time.`;
     else if (sunAlt >= 0) {
-      readout.textContent = `${when}: the Sun is ${altitude(sunAlt, st.settings.angleFormat)} above the horizon, bearing ${bearing(sunAz)}.`;
+      readout.textContent = `${when}: the Sun is ${altitude(sunAlt, st.settings.angleFormat)} above the horizon, bearing ${bearing(sunAz)}${known}.`;
     } else {
-      readout.textContent = `${when}: the Sun is below the horizon (${altitude(sunAlt, st.settings.angleFormat)}), bearing ${bearing(sunAz)}.`;
+      readout.textContent = `${when}: the Sun is below the horizon (${altitude(sunAlt, st.settings.angleFormat)}), bearing ${bearing(sunAz)}${known}.`;
     }
     if (!inDay) readout.textContent += ' (The app’s time is on another day.)';
   }

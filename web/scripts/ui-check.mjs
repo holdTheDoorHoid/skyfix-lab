@@ -74,7 +74,15 @@
  *      a laptop (dark) and a phone (night): no overlap, cut-off text or sideways scroll (the
  *      notices take their own band), no literal "UTC" on a UT date, no "1990"/"2060" and no
  *      raw engine message on screen, no control without a name, every labelled-tier time on
- *      the Selected card with its ± chip, and no blue or white light at night.
+ *      the Selected card with its ± chip, and no blue or white light at night;
+ *  16. (chip2, chip2 agent) the ± chip follows what the Earth's uncertain rotation moves
+ *      (CONVENTIONS 15.2, VERIFICATION_2 V18) at 28 May 585 BC and 1 June 2000 BC in
+ *      Philadelphia, on a laptop (dark) and a phone (night): the clock's chip is time_info's
+ *      σ; the Sun's rising, highest and setting carry none at 585 BC and about 11 s at
+ *      2000 BC; the Moon's a few seconds and about 2 min; the Moon's place 1.5′ and 34′ (the
+ *      built core's rates and σ, worked out here); the Almanac's column heads (no page-heading
+ *      chip), Tonight's moonrise and sunset, the Events phases (the whole σ); no overlap,
+ *      cut-off text or sideways scroll, a clean console, no blue or white light at night.
  *
  * The blocks run in that order. Screenshots and a JSON summary go to docs/design/local/
  * (git-ignored). Development tool only: Node built-ins and a local Chrome, no npm
@@ -83,7 +91,7 @@
  *   npm run build --prefix web && node web/scripts/ui-check.mjs
  *   SITE=site node web/scripts/ui-check.mjs          # the assembled Pages site
  *   ONLY=views,night node web/scripts/ui-check.mjs    # some blocks, by the names in brackets above:
- *        views,night,leaks,keys,privacy,scrub,charts,time,almanac,navigate2,photo,tonight,sky2,events,far
+ *        views,night,leaks,keys,privacy,scrub,charts,time,almanac,navigate2,photo,tonight,sky2,events,far,chip2
  *   ONLY=charts CHARTS=sun/path,tides node web/scripts/ui-check.mjs      # some charts (tab or tab/sub)
  *   ONLY=charts FULL=1 node web/scripts/ui-check.mjs  # every chart in every theme and size
  *   ONLY=almanac ALMANAC_SCREEN=0 node web/scripts/ui-check.mjs          # the Almanac's printed sheets only
@@ -101,7 +109,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { dirname, extname, join, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { inflateSync } from 'node:zlib';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -115,7 +123,7 @@ const BASE = `http://127.0.0.1:${PORT}${PREFIX}`;
 const VIEWS = (process.env.VIEWS ?? 'map,sky,tonight,charts,navigate,almanac,events,learn,about').split(',');
 const THEMES = (process.env.THEMES ?? 'light,dark,night').split(',');
 const SIZES = (process.env.SIZES ?? 'desktop,phone').split(',');
-const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,almanac,navigate2,photo,tonight,sky2,events,far').split(','));
+const ONLY = new Set((process.env.ONLY ?? 'views,night,leaks,keys,privacy,scrub,charts,time,almanac,navigate2,photo,tonight,sky2,events,far,chip2').split(','));
 /** events2: the Events view's tabs and sub-lists, `tab` or `tab/sub`. */
 const EVENT_VIEWS = (process.env.EVENTS ?? 'eclipses,moon/phases,moon/apsides,moon/occultations,planets/events,planets/conjunctions,planets/retrograde,planets/transits,planets/jupiter,meteors,seasons').split(',');
 /**
@@ -1410,6 +1418,9 @@ async function main() {
       }
       await viewport(1440, 900, false);
     }
+
+    // 16. The ± chip follows what the Earth's uncertain rotation moves (chip2).
+    if (ONLY.has('chip2')) await chipChecks({ evaluate, waitFor, messages, open, shot, viewport, summary });
   } finally {
     page.close();
     server.close();
@@ -1846,6 +1857,221 @@ async function skyChecks({ send, evaluate, waitFor, messages, open, shot, viewpo
   check('sky2: phone: console clean', noise().length === 0, noise().slice(0, 3).join(' | '));
 
   summary.sky2 = out;
+}
+
+// ---------------------------------------------------------------------------------
+// 16. The ± chip's sensitivity rule (chip2)
+// ---------------------------------------------------------------------------------
+
+const CHIP_PLACE = 'v=1&lat=39.9526&lon=-75.1652&place=Philadelphia&tz=America%2FNew_York';
+/**
+ * The verifier's dates (tools/verify2/dt_events.py: proleptic Gregorian), at 16:00 UT (11:00
+ * local mean time); `sky` is a moment the Moon is up, for the Sky view's card.
+ */
+const CHIP_DATES = [
+  { label: '585 BC', iso: '-0584-05-28T16:00:00Z', sky: '-0584-05-28T20:00:00Z', clock: /^±3 min$/, sun: null, moon: /^±[4-8] s$/, place: [1.3, 1.7], instant: /^±3 min$/ },
+  { label: '2000 BC', iso: '-1999-06-01T16:00:00Z', sky: '-1999-06-01T20:00:00Z', clock: /^±1 h$/, sun: /^±(9|1[0-2]) s$/, moon: /^±[23] min$/, place: [32, 37], instant: /^±1 h$/ },
+];
+
+/** time/chip.ts `sigmaText` and `arcminText`, written again from their specification. */
+function chipSeconds(s) {
+  if (s < 89.5) return `±${Math.max(1, Math.round(s))} s`;
+  if (s < 59.5 * 60) return `±${Math.round(s / 60)} min`;
+  const h = s / 3600;
+  return `±${h < 9.95 ? h.toFixed(1).replace(/\.0$/, '') : String(Math.round(h))} h`;
+}
+function chipArcmin(a) {
+  if (a < 9.95) return `±${Math.max(0.1, a).toFixed(1)}′`;
+  if (a < 59.5) return `±${Math.round(a)}′`;
+  return `±${(a / 60).toFixed(1)}°`;
+}
+
+/**
+ * What the page should show, from the built core itself (web/src/wasm-pkg): the day's σ from
+ * `time_info`, and the Moon's angular speed from `sky_state` over the hour the instant falls in
+ * (as time/chip.ts `bodyRates` takes it).
+ */
+async function chipExpected(iso) {
+  const pkg = resolve(REPO, 'web/src/wasm-pkg');
+  const glue = await import(pathToFileURL(join(pkg, 'skyfix_wasm.js')).href);
+  glue.initSync({ module: readFileSync(join(pkg, 'skyfix_wasm_bg.wasm')) });
+  glue.init?.();
+  const m = /^(-?\d+)-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(iso);
+  const [y, mo, d, hh, mm] = m.slice(1).map(Number);
+  const a = Math.floor((14 - mo) / 12);
+  const yy = y + 4800 - a;
+  const m2 = mo + 12 * a - 3;
+  const jd = d + Math.floor((153 * m2 + 2) / 5) + 365 * yy + Math.floor(yy / 4) - Math.floor(yy / 100) + Math.floor(yy / 400) - 32045 - 0.5 + (hh + mm / 60) / 24;
+  const sigma = glue.time_info(Math.floor(jd - 0.5) + 0.5).delta_t_sigma_s;
+  /** Arcseconds a second of the body's angular speed, over the hour `jd` falls in. */
+  const speed = (body) => {
+    const at = (t) => glue.sky_state(JSON.stringify({ lat_deg: 0, lon_deg: 0 }), t, JSON.stringify([body])).bodies[0];
+    const t0 = Math.floor(jd * 24) / 24;
+    const p = at(t0);
+    const q = at(t0 + 1 / 24);
+    const ra = (((((q.ra_deg - p.ra_deg + 180) % 360) + 360) % 360) - 180) * 24;
+    const dec = (q.dec_deg - p.dec_deg) * 24;
+    const cosDec = Math.cos((((p.dec_deg + q.dec_deg) / 2) * Math.PI) / 180);
+    return Math.hypot(ra * cosDec, dec) / 24;
+  };
+  const arcmin = (speed('Moon') * sigma) / 60;
+  // The Almanac's SUN column: its chip only above 0.1′ (0.10-0.11′ at 585 BC: on the line).
+  const sunArcmin = (speed('Sun') * glue.time_info(jd).delta_t_sigma_s) / 60;
+  return { jd, sigma, clock: chipSeconds(sigma), place: chipArcmin(arcmin), placeArcmin: arcmin, sunHead: sunArcmin > 0.1 ? `SUN ${chipArcmin(sunArcmin)}` : 'SUN', sunArcmin };
+}
+
+async function chipChecks({ evaluate, waitFor, messages, open, shot, viewport, summary }) {
+  const js = (v) => JSON.stringify(v);
+  const noise = () => messages.filter((m) => /^(error|warning|warn|exception)/.test(m));
+  // The Selected card's rising and setting in view for the screenshot (a laptop's panel scrolls).
+  const scrollPanelTo = (sel) =>
+    evaluate(`(() => { const s = document.querySelector('.sf-panel__scroll'); const el = document.querySelector(${js(sel)}); if (!s || !el) return false; s.scrollTop += el.getBoundingClientRect().top - s.getBoundingClientRect().top - 8; return true; })()`);
+  const chipOf = (sel) => `(() => { const c = document.querySelector(${js(sel)}); return c && !c.hidden ? c.textContent.trim() : ''; })()`;
+  const chipsIn = (sel) => `[...document.querySelectorAll(${js(sel)})].map((c) => (c.hidden ? '' : c.textContent.trim()))`;
+  const SELECTED = String.raw`JSON.stringify({
+    clock: ${chipOf('.sf-tb-clock__chip')},
+    clockTip: document.querySelector('.sf-tb-clock__chip')?.dataset.tip ?? '',
+    cards: [...document.querySelectorAll('.sf-selected .sf-evcard')].filter((c) => !c.classList.contains('sf-evcard--none')).map((c) => { const k = c.querySelector('.sf-dt-chip'); return k && !k.hidden ? k.textContent.trim() : ''; }),
+    place: ${chipOf('.sf-selected > .sf-section__body > .sf-dt-place .sf-dt-chip')},
+    placeLine: (() => { const p = document.querySelector('.sf-selected > .sf-section__body > .sf-dt-place'); return p && !p.hidden ? p.textContent.trim() : ''; })(),
+    placeTip: document.querySelector('.sf-selected .sf-dt-place .sf-dt-chip')?.dataset.tip ?? '',
+    coords: ${chipOf('.sf-photo-coord .sf-dt-chip')},
+    twilight: ${chipOf('.sf-twilight .sf-table thead .sf-dt-chip')},
+    cardTip: [...document.querySelectorAll('.sf-selected .sf-evcard .sf-dt-chip')].map((k) => k.dataset.tip ?? '').find(Boolean) ?? '',
+  })`;
+  const out = [];
+  for (const d of CHIP_DATES) {
+    const want = await chipExpected(d.iso);
+    const row = { date: d.label, want };
+    for (const [size, theme] of [['desktop', 'dark'], ['phone', 'night']]) {
+      const [w, h, mobile] = DIMS[size];
+      await viewport(w, h, mobile);
+      const tag = `chip2 ${d.label} (${size}, ${theme})`;
+      const layout = [];
+      const light = [];
+      const look = async (where, name) => {
+        const L = JSON.parse(await evaluate(LAYOUT));
+        if (L.hscroll || L.overlaps.length || L.clipped.length || (mobile && L.underSheet > 0)) layout.push(`${where}: ${[...L.overlaps, ...L.clipped, L.hscroll ? 'sideways scroll' : '', mobile && L.underSheet > 0 ? `${L.underSheet}px under the sheet` : ''].filter(Boolean).join('; ')}`);
+        const png = await shot(`chip2-${d.label.replace(' ', '')}-${size}-${theme}-${name}`);
+        if (theme === 'night') {
+          const n = lightNotRed(decodePng(png));
+          if (n.count >= 50) light.push(`${where}: ${n.count} px, worst ${js(n.worst)}`);
+        }
+      };
+      messages.length = 0;
+
+      // The Moon on the Selected card (the time bar's clock, the rising, highest and setting, its place).
+      await open(`${CHIP_PLACE}&t=${d.iso}&body=Moon&view=about`, { theme });
+      await evaluate(`(() => { const x = document.querySelector('.sf-selected details.sf-details[data-term]'); if (x) x.open = true; return true; })()`);
+      await sleep(400);
+      const moon = JSON.parse(await evaluate(SELECTED));
+      if (!mobile) await scrollPanelTo('.sf-selected');
+      await sleep(200);
+      await look('Selected: the Moon', 'moon');
+      check(`${tag}: the clock's chip is time_info's σ (${want.clock})`, moon.clock === want.clock && d.clock.test(moon.clock) && /Earth’s rotation at this date is known only to/.test(moon.clockTip), js({ got: moon.clock, want: want.clock }));
+      check(`${tag}: the Moon's rising, highest and setting carry its share of σ (${d.moon})`, moon.cards.length >= 2 && moon.cards.every((t) => d.moon.test(t)) && /only the Moon’s own motion across the sky/.test(moon.cardTip), js(moon.cards));
+      check(`${tag}: the Moon's place carries its angular speed × σ (${want.place}; the verifier ${d.label === '585 BC' ? '1.4′ at σ 150 s' : '34′'})`, moon.place === want.place && want.placeArcmin >= d.place[0] && want.placeArcmin <= d.place[1] && /^At this date its place is known to ±/.test(moon.placeLine) && moon.coords === want.place && /the Moon’s place among the stars is uncertain by/.test(moon.placeTip), js({ place: moon.place, coords: moon.coords, want: want.place, arcmin: want.placeArcmin.toFixed(2) }));
+      row[`${size} moon`] = moon;
+
+      // The Sun: its times are the Earth's turning, under a second at 585 BC.
+      await open(`${CHIP_PLACE}&t=${d.iso}&body=Sun&view=about`, { theme });
+      await sleep(300);
+      const sun = JSON.parse(await evaluate(SELECTED));
+      if (!mobile) await scrollPanelTo('.sf-selected');
+      await sleep(200);
+      await look('Selected: the Sun', 'sun');
+      check(
+        `${tag}: the Sun's rising, highest, setting and twilight ${d.sun ? `carry ${d.sun}` : 'carry no chip (under a second)'}`,
+        sun.cards.length === 3 && (d.sun ? sun.cards.every((t) => d.sun.test(t)) && d.sun.test(sun.twilight) : sun.cards.every((t) => t === '') && sun.twilight === ''),
+        js({ cards: sun.cards, twilight: sun.twilight }),
+      );
+      row[`${size} sun`] = sun;
+
+      // The Sky view's card for the Moon (a laptop): its height and its right ascension carry
+      // the place's chip, its tooltip says what moves it.
+      if (!mobile) {
+        const wantSky = await chipExpected(d.sky);
+        await open(`${CHIP_PLACE}&t=${d.sky}&body=Moon&view=sky`, { theme });
+        // The Sky view's search answers only 1550-2650 (the star field), so the Moon is reached
+        // with the keyboard: ↓ through what is drawn until the Moon has the focus, then Enter.
+        await evaluate(`document.querySelector('.sky canvas')?.focus(); true`);
+        for (let i = 0; i < 60; i++) {
+          await evaluate(`document.querySelector('.sky canvas')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true })); true`);
+          await sleep(60);
+          if (/^Moon\./.test(await evaluate(`document.querySelector('.sky-sr')?.textContent ?? ''`))) break;
+        }
+        await evaluate(`document.querySelector('.sky canvas')?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); true`);
+        await waitFor(`document.querySelector('.sky-card__title')?.textContent === 'Moon'`, 10000);
+        await sleep(500);
+        const card = JSON.parse(
+          await evaluate(`JSON.stringify([...document.querySelectorAll('.sky-card .sky-card__line')].map((l) => [l.querySelector('.sky-card__k')?.textContent ?? '', (() => { const c = l.querySelector('.sf-dt-chip'); return c && !c.hidden ? c.textContent.trim() : ''; })()]))`),
+        );
+        await look('Sky: the Moon’s card', 'sky');
+        const withChip = card.filter(([, c]) => c);
+        const title = await evaluate(`document.querySelector('.sky-card__title')?.textContent ?? ''`);
+        check(`${tag}: the Sky view's card gives the Moon's height and right ascension with the place's chip (${wantSky.place} at ${d.sky.replace(/^.*T(\d\d:\d\d).*$/, '$1')} UT)`, title === 'Moon' && withChip.length === 2 && withChip.every(([, c]) => c === wantSky.place) && /^Height/.test(withChip[0][0]) && /^Right ascension/.test(withChip[1][0]), js({ title, card }));
+      }
+
+      // The Almanac: the chips stand on the column heads they belong to, none on the page heading.
+      await open(`${CHIP_PLACE}&t=${d.iso}&view=almanac`, { theme });
+      await waitFor(`document.querySelectorAll('.alm-spread .alm-page').length >= 2 && !document.querySelector('.alm-spread[aria-busy]')`, 60000);
+      await sleep(300);
+      const alm = JSON.parse(
+        await evaluate(`JSON.stringify({
+          heading: ${chipsIn('.alm-spread .alm-head-date .sf-dt-chip')},
+          heads: [...document.querySelectorAll('.alm-spread .alm-hourly-right thead th.alm-body')].map((t) => t.textContent.trim()),
+          rise: [...document.querySelectorAll('.alm-spread .alm-rise thead th')].map((t) => t.textContent.trim()).filter((t) => /±/.test(t)),
+          planets: [...document.querySelectorAll('.alm-spread .alm-hourly-left thead th.alm-body')].map((t) => t.textContent.trim()),
+        })`),
+      );
+      await look('Almanac', 'almanac');
+      // The right-hand page (the Sun and the Moon every hour, rising and setting), for the picture.
+      if (!mobile) {
+        await evaluate(`(() => { const p = document.querySelector('.alm-spread .alm-page-right'); const s = document.querySelector('.sf-stage__view'); if (!p) return false; p.scrollIntoView({ block: 'start' }); return true; })()`);
+        await sleep(300);
+        await look('Almanac, the right-hand page', 'almanac-right');
+      }
+      const moonHead = alm.heads.find((t) => t.startsWith('MOON')) ?? '';
+      const sunHead = alm.heads.find((t) => t.startsWith('SUN')) ?? '';
+      check(
+        `${tag}: the Almanac's MOON column carries the Moon's place (${want.place}) and its moonrise and moonset their share; no chip on the page heading`,
+        alm.heading.length === 0 && moonHead.endsWith(want.place) && alm.rise.some((t) => /^Moonrise ±/.test(t)) && alm.rise.some((t) => /^Moonset ±/.test(t)) && sunHead === want.sunHead && (!d.sun || /^SUN ±2\.\d′$/.test(sunHead)),
+        js({ ...alm, sunWant: want.sunHead, sunArcmin: want.sunArcmin.toFixed(3) }),
+      );
+
+      // Tonight: moonrise and moonset carry the Moon's share, sunset the Sun's (none at 585 BC).
+      await open(`${CHIP_PLACE}&t=${d.iso}&view=tonight`, { theme });
+      await waitFor(`!!document.querySelector('.sft-card--moon .sft-rows') && !!document.querySelector('.sft-moment')`, 60000);
+      await sleep(300);
+      const tn = JSON.parse(
+        await evaluate(`JSON.stringify({
+          date: ${chipOf('.sft-title .sf-dt-chip')},
+          moon: [...document.querySelectorAll('.sft-card--moon .sft-rows dd .sf-dt-chip')].map((c) => c.textContent.trim()),
+          sunset: (() => { const m = [...document.querySelectorAll('.sft-moment')].find((x) => /Sunset/.test(x.textContent)); const c = m?.querySelector('.sf-dt-chip'); return c && !c.hidden ? c.textContent.trim() : ''; })(),
+        })`),
+      );
+      await look('Tonight', 'tonight');
+      check(`${tag}: Tonight's date carries the clock's σ, moonrise and moonset the Moon's share, sunset ${d.sun ? 'the Sun’s' : 'none'}`, tn.date === want.clock && tn.moon.length > 0 && tn.moon.every((t) => d.moon.test(t)) && (d.sun ? d.sun.test(tn.sunset) : tn.sunset === ''), js(tn));
+
+      // Events: the Moon's phases are instants of its own motion: the whole σ.
+      await open(`${CHIP_PLACE}&t=${d.iso}&view=events`, { theme });
+      await evaluate(`document.querySelector('.sfe-tabs [id$="-moon"]')?.click(); true`);
+      await waitFor(`!!document.querySelector('.sfe-subtabs [data-sub="phases"]')`, 10000);
+      await evaluate(`document.querySelector('.sfe-subtabs [data-sub="phases"]')?.click(); true`);
+      await waitFor(`document.querySelectorAll('.sfe-phases .sf-dt-chip').length > 0`, 60000);
+      await sleep(300);
+      const phases = JSON.parse(await evaluate(`JSON.stringify(${chipsIn('.sfe-phases .sf-dt-chip')})`));
+      await look('Events: phases', 'phases');
+      check(`${tag}: the Events phases carry the whole σ (${want.clock})`, phases.length > 4 && phases.every((t) => d.instant.test(t)), js(phases.slice(0, 6)));
+
+      check(`${tag}: no sideways scroll, overlap or cut-off text`, !layout.length, layout.slice(0, 3).join(' || '));
+      if (theme === 'night') check(`${tag}: no blue, green or white light`, !light.length, light.slice(0, 2).join(' || '));
+      check(`${tag}: console clean`, noise().length === 0, noise().slice(0, 3).join(' | '));
+    }
+    out.push(row);
+  }
+  await viewport(1440, 900, false);
+  summary.chip2 = out;
 }
 
 main().catch((error) => {
