@@ -441,6 +441,15 @@ async function main() {
           check(`${FAR.slice(0, 5)}, tonight: the Moon card’s distance is not denied by its note`, !/The Moon’s distance: worked out only/.test(all) && /The Moon’s distance from here: worked out only/.test(all), '');
         }
         if (view === 'events') says('the eclipse list says the years it covers', /Eclipses are computed for 1990 to 2060/);
+        if (view === 'map') {
+          // The Selected card for a planet at the far date: no sights offered, and its rows
+          // say the years they answer rather than a bare dash.
+          await open(`${PLACE.replace('body=Moon', 'body=Jupiter')}&t=${FAR}&view=map`);
+          await sleep(2500);
+          const card = await evaluate(`(() => { const t = document.querySelector('.sf-panel')?.innerText ?? ''; const i = t.indexOf('SELECTED'); return t.slice(i, i + 1400); })()`);
+          check(`${FAR.slice(0, 5)}, the Selected card (Jupiter) offers no sights`, !/Offered for sights/.test(card) && /Not offered for sights at this date/.test(card), JSON.stringify((card.match(/(Not )?[Oo]ffered for sights[^\n]*/) ?? [''])[0]).slice(0, 160));
+          check(`${FAR.slice(0, 5)}, the Selected card's size and constellation say their years`, /Size in the sky\s*\n\s*only for/.test(card) && /Constellation\s*\n\s*only for/.test(card), JSON.stringify((card.match(/Size in the sky[^]*?Constellation\s*\n[^\n]*/) ?? [''])[0]).slice(0, 200));
+        }
         const whole = await evaluate(`document.body.innerText`);
         const raw = /jd_utc|\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z|provider|is outside [A-Z]|OutOfCoverage/.exec(whole);
         check(`${FAR.slice(0, 5)}, ${view}: no engine message as it came (with every folded tool open)`, !raw, raw ? JSON.stringify(whole.slice(Math.max(0, raw.index - 120), raw.index + 120)) : '');

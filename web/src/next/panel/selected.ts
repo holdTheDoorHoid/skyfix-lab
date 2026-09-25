@@ -37,7 +37,7 @@ import { bodyGlyph, moonPhaseName, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { kv, popover, section, swatch } from '../theme/primitives.js';
 import { UTC_ZONE, formatHours, wallClock, zoneShortName, type Zone } from '../time.js';
-import { scaleLabel, setUncertaintyChip, sightsOffered, sightsOnlyText, timeInfoAt, uncertaintyChip, type ChipInfo } from '../time/index.js';
+import { rangeWords, scaleLabel, setUncertaintyChip, sightsOffered, sightsOnlyText, timeInfoAt, uncertaintyChip, validatedYears, type ChipInfo } from '../time/index.js';
 import { alignmentTool } from './alignment.js';
 import { distanceWords, moonTools } from './moon-tools.js';
 import { coordRow, lightTableView, magneticLine, milkyWayTool, Motion, outsideWords, Settler } from './photo.js';
@@ -381,7 +381,10 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       setText(lit, b.illuminated_fraction === null ? '—' : `${Math.round(b.illuminated_fraction * 100)}%`);
       setText(elong, b.elongation_deg === null ? '—' : `${Math.round(b.elongation_deg)}°`);
       setText(dist, formatDistance(b.distance_km, st.settings.units));
-      setText(con, b.constellation ?? '—');
+      // verify2: a bare dash said nothing at a far date, where the star field's boundaries are
+      // not worked out.
+      const years = validatedYears(ctx);
+      setText(con, b.constellation ?? (sightsOffered(ctx, st.time.jd_utc) ? '—' : `only for ${years.from} to ${years.to}`));
       if (!planetDisc || !sizeRow || !isPlanetDetailEngine(engine)) return;
       const q = Math.floor(st.time.jd_utc * 96) / 96;
       discSettler.request(
@@ -397,8 +400,10 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
               'data-tip',
               `${sizeTip} Now ${disc.equatorial_diameter_arcsec.toFixed(1)}″ across the equator and ${disc.polar_diameter_arcsec.toFixed(1)}″ pole to pole, ${disc.distance_au.toFixed(3)} AU away (light takes ${Math.round(disc.light_time_s / 60)} min).`,
             );
-          } catch {
-            setText(size, '—');
+          } catch (error) {
+            // The years planet detail answers, in words, rather than a bare dash (verify2).
+            const years = rangeWords(error instanceof Error ? error.message : String(error));
+            setText(size, years ? `only for ${years}` : '—');
           }
         },
         () => sizeRow.setAttribute('data-stale', ''),
@@ -612,17 +617,22 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
 
     setText(magValue, formatMagnitude(b.magnitude));
 
-    // Offered for sights, and why
+    // Offered for sights, and why. At a date outside the validated years no body is (the
+    // tier's own sentence; verify2: at 585 BC the card said "Offered for sights: its
+    // positions are validated to 0.03′").
     if (info) {
       const group = coverageGroupFor(info, coverage);
-      const offered = offeredForSights(info, coverage);
+      const inTier = sightsOffered(ctx, jd);
+      const offered = offeredForSights(info, coverage) && inTier;
       setText(
         sights,
         offered
           ? `Offered for sights: its positions are validated${group?.accuracy_arcmin ? ` to ${group.accuracy_arcmin}′` : ''}.`
           : !info.navigational
             ? 'Shown only: navigators do not use it for sights.'
-            : 'Shown only: its positions are not yet validated for sights.',
+            : !inTier
+              ? `Not offered for sights at this date. ${sightsOnlyText(ctx)}`
+              : 'Shown only: its positions are not yet validated for sights.',
       );
       sights.classList.toggle('sf-selected__sights--no', !offered);
     }
