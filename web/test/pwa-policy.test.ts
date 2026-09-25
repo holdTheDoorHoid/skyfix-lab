@@ -6,33 +6,48 @@
 import { describe, expect, it } from 'vitest';
 import { revisionOf } from '../plugins/precache.ts';
 import {
+  PACKS_SCHEMA,
   RUNTIME_SCHEMA,
   cacheNames,
+  forwardPageHtml,
   inParallel,
   isStaleCache,
   offlinePageHtml,
+  packsCacheName,
   precacheIndex,
   precacheKey,
   revision,
   route,
+  type FragmentMap,
   type RequestFacts,
 } from '../src/sw/policy.ts';
 
 const ROOT = 'https://holdthedoorhoid.github.io/skyfix-lab/';
 const WORKER = `${ROOT}sw.js`;
-// The layout since the switch-over: the explorer at the root, the original workbench at
-// classic/, and next/ (the explorer's address while it was built) moved to the root.
+// The layout since the retirement of the original workbench: the explorer at the root;
+// next/ (the explorer's address while it was built) and classic/ (the workbench) moved to
+// the root, classic/'s views mapped to the explorer's; the data packs are network-only
+// except their manifest, which is precached.
+const CLASSIC: FragmentMap = {
+  map: { observations: 'navigate', corrections: 'navigate', fix: 'navigate', planner: 'navigate', simulator: 'learn', about: 'about' },
+  fallback: 'navigate',
+};
 const INDEX = precacheIndex(
   ROOT,
   [
     { url: 'index.html', rev: 'aaaa' },
-    { url: 'classic/index.html', rev: 'bbbb' },
     { url: 'assets/explorer-Ab12Cd34.js', rev: 'cccc' },
     { url: 'assets/skyfix_wasm_bg-D-fngT_p.wasm', rev: 'dddd' },
     { url: 'data/basemap/land-110m.geojson', rev: 'eeee' },
+    { url: 'data/packs/manifest.json', rev: '9999' },
+    { url: 'docs/index.html', rev: '8888' },
     { url: 'manifest.webmanifest', rev: 'ffff' },
   ],
-  [{ from: 'next/', to: './' }],
+  [
+    { from: 'next/', to: './' },
+    { from: 'classic/', to: './', fragments: CLASSIC },
+  ],
+  ['data/packs/'],
 );
 
 const get = (url: string, extra: Partial<RequestFacts> = {}): RequestFacts => ({ url, method: 'GET', mode: 'cors', ...extra });
@@ -83,16 +98,13 @@ describe('route: the precache', () => {
     expect(route(nav(`${ROOT}index.html`), INDEX, WORKER)).toEqual(explorer);
     expect(route(nav(`${ROOT}?engine=mock`), INDEX, WORKER)).toEqual(explorer);
     expect(route(nav(`${ROOT}?harness#v=1&lat=1&lon=2`), INDEX, WORKER)).toEqual(explorer);
-    const classic = { kind: 'precache', key: `${ROOT}classic/index.html?__rev=bbbb` };
-    expect(route(nav(`${ROOT}classic/`), INDEX, WORKER)).toEqual(classic);
-    expect(route(nav(`${ROOT}classic/#fix`), INDEX, WORKER)).toEqual(classic);
   });
 
-  it('redirects a page address without its trailing slash, keeping the query', () => {
-    expect(route(nav(`${ROOT}classic`), INDEX, WORKER)).toEqual({ kind: 'redirect', location: `${ROOT}classic/` });
-    expect(route(nav(`${ROOT}classic?api=mock`), INDEX, WORKER)).toEqual({
+  it('redirects a precached directory page’s address without its trailing slash, keeping the query', () => {
+    expect(route(nav(`${ROOT}docs`), INDEX, WORKER)).toEqual({ kind: 'redirect', location: `${ROOT}docs/` });
+    expect(route(nav(`${ROOT}docs?search=moon`), INDEX, WORKER)).toEqual({
       kind: 'redirect',
-      location: `${ROOT}classic/?api=mock`,
+      location: `${ROOT}docs/?search=moon`,
     });
   });
 
@@ -143,6 +155,115 @@ describe('route: pages that moved (next/ went to the site root)', () => {
     expect(() => precacheIndex(ROOT, [], [{ from: 'next', to: './' }])).toThrow(/directory/);
     expect(() => precacheIndex(ROOT, [], [{ from: './', to: 'classic/' }])).toThrow(/directory/);
     expect(() => precacheIndex(ROOT, [{ url: 'next/index.html', rev: 'x' }], [{ from: 'next/', to: './' }])).toThrow(/precached/);
+    expect(() => precacheIndex(ROOT, [{ url: 'classic/index.html', rev: 'x' }], [{ from: 'classic/', to: './', fragments: CLASSIC }])).toThrow(
+      /precached/,
+    );
+  });
+});
+
+describe('route: the retired workbench (classic/ went to the site root, its views to the explorer’s)', () => {
+  const forward = { kind: 'forward', target: ROOT, fragments: CLASSIC };
+
+  it('answers every spelling of classic/ with a forwarding page, not a redirect', () => {
+    expect(route(nav(`${ROOT}classic/`), INDEX, WORKER)).toEqual(forward);
+    expect(route(nav(`${ROOT}classic/index.html`), INDEX, WORKER)).toEqual(forward);
+    expect(route(nav(`${ROOT}classic`), INDEX, WORKER)).toEqual(forward);
+    // The fragment never reaches the worker; the page maps it.
+    expect(route(nav(`${ROOT}classic/#fix`), INDEX, WORKER)).toEqual(forward);
+    expect(route(nav(`${ROOT}classic/?api=mock`), INDEX, WORKER)).toEqual(forward);
+  });
+
+  it('only for page loads', () => {
+    expect(route(get(`${ROOT}classic/`), INDEX, WORKER)).toEqual({ kind: 'network-first', key: `${ROOT}classic/`, navigate: false });
+  });
+
+  it('refuses a fragment map that is not plain names', () => {
+    expect(() => precacheIndex(ROOT, [], [{ from: 'old/', to: './', fragments: { map: { 'a b': 'x' }, fallback: 'x' } }])).toThrow(/plain name/);
+    expect(() => precacheIndex(ROOT, [], [{ from: 'old/', to: './', fragments: { map: {}, fallback: '"><script>' } }])).toThrow(/plain name/);
+  });
+});
+
+/**
+ * Run a forwarding page's script against a fake `location`, the way the browser would:
+ * where does `classic/<search><hash>` end up?
+ */
+function forwardFrom(html: string, pageUrl: string): string {
+  const script = /<script>([\s\S]*?)<\/script>/.exec(html)?.[1];
+  if (!script) throw new Error('no inline script');
+  const url = new URL(pageUrl);
+  let target = '';
+  const location = { hash: url.hash, search: url.search, href: url.href, replace: (to: string) => (target = new URL(to, url).href) };
+  new Function('location', script)(location);
+  return target;
+}
+
+describe('the forwarding page', () => {
+  const cases: [string, string][] = [
+    ['', '#navigate'],
+    ['#observations', '#navigate'],
+    ['#corrections', '#navigate'],
+    ['#fix', '#navigate'],
+    ['#planner', '#navigate'],
+    ['#simulator', '#learn'],
+    ['#about', '#about'],
+    ['#something-else', '#navigate'],
+    ['#constructor', '#navigate'],
+    ['#__proto__', '#navigate'],
+  ];
+
+  it('maps each old view to the explorer’s and keeps the query, from the worker (absolute target)', () => {
+    const html = forwardPageHtml(ROOT, CLASSIC);
+    for (const [from, to] of cases) {
+      expect(forwardFrom(html, `${ROOT}classic/${from}`), from).toBe(`${ROOT}${to}`);
+      expect(forwardFrom(html, `${ROOT}classic${from}`), `classic${from}`).toBe(`${ROOT}${to}`);
+    }
+    expect(forwardFrom(html, `${ROOT}classic/?engine=mock#simulator`)).toBe(`${ROOT}?engine=mock#learn`);
+  });
+
+  it('works without scripts (a refresh to the fallback) and escapes what it embeds', () => {
+    const html = forwardPageHtml(ROOT, CLASSIC);
+    expect(html).toContain(`<noscript><meta http-equiv="refresh" content="0; url=${ROOT}#navigate"></noscript>`);
+    expect(html).toContain('<meta name="robots" content="noindex">');
+    const hostile = forwardPageHtml('./</script><b>', { map: { a: 'b' }, fallback: 'c' });
+    expect(hostile).not.toContain('</script><b>');
+    expect(hostile).toContain('\\u003c/script>');
+  });
+
+  it('is the page classic/index.html serves before a worker is installed', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { resolve } = await import('node:path');
+    const { CLASSIC_VIEWS } = await import('../vite.config.ts');
+    expect(CLASSIC_VIEWS).toEqual(CLASSIC);
+    const page = readFileSync(resolve(import.meta.dirname, '../classic/index.html'), 'utf8');
+    for (const [from, to] of cases) {
+      expect(forwardFrom(page, `${ROOT}classic/${from}`), from).toBe(`${ROOT}${to}`);
+      expect(forwardFrom(page, `${ROOT}classic/index.html?q=1${from}`), from).toBe(`${ROOT}?q=1${to}`);
+    }
+    // The script runs before the no-script refresh, which would drop the mapping.
+    expect(page.indexOf('location.replace')).toBeLessThan(page.indexOf('http-equiv="refresh"'));
+    expect(page).toContain('<noscript><meta http-equiv="refresh" content="0; url=../#navigate" /></noscript>');
+    expect(page).not.toMatch(/type="module"|src=/);
+  });
+});
+
+describe('route: the data packs', () => {
+  it('leaves a pack file to the network: the page stores packs itself, never the worker', () => {
+    expect(route(get(`${ROOT}data/packs/deep-time-0123456789abcdef.bin`), INDEX, WORKER)).toEqual({ kind: 'pass' });
+    expect(route(get(`${ROOT}data/packs/tides-us-fedcba9876543210.bin?x=1`), INDEX, WORKER)).toEqual({ kind: 'pass' });
+  });
+
+  it('answers the packs’ manifest from the precache: the page knows offline what exists', () => {
+    expect(route(get(`${ROOT}data/packs/manifest.json`), INDEX, WORKER)).toEqual({ kind: 'precache', key: `${ROOT}data/packs/manifest.json?__rev=9999` });
+  });
+
+  it('leaves other data files as they were', () => {
+    expect(route(get(`${ROOT}data/other.bin`), INDEX, WORKER)).toEqual({ kind: 'network-first', key: `${ROOT}data/other.bin`, navigate: false });
+    expect(route(get(`${ROOT}data/packsuite.bin`), INDEX, WORKER)).toEqual({ kind: 'network-first', key: `${ROOT}data/packsuite.bin`, navigate: false });
+  });
+
+  it('refuses a network-only prefix outside the site, or the whole site', () => {
+    expect(() => precacheIndex(ROOT, [], [], ['/data/packs/'])).toThrow(/relative/);
+    expect(() => precacheIndex(ROOT, [], [], ['./'])).toThrow(/whole site/);
   });
 });
 
@@ -193,7 +314,20 @@ describe('cache names', () => {
   });
 
   it('key a file by URL and revision', () => {
-    expect(precacheKey(`${ROOT}classic/index.html`, 'abc')).toBe(`${ROOT}classic/index.html?__rev=abc`);
+    expect(precacheKey(`${ROOT}data/gazetteer.json`, 'abc')).toBe(`${ROOT}data/gazetteer.json?__rev=abc`);
+  });
+
+  it('give the page its own cache for data packs, which no worker ever deletes', () => {
+    expect(PACKS_SCHEMA).toBe(1);
+    expect(packsCacheName(ROOT)).toBe('skyfix-lab-packs-1@/skyfix-lab/');
+    expect(packsCacheName('http://localhost:4173/')).toBe('skyfix-lab-packs-1@/');
+    // Whatever the worker's version, and whatever the packs' schema: never stale for it.
+    for (const version of ['v1', 'v2', 'b0b0b0b0b0b0b0b0']) {
+      const n = cacheNames(ROOT, version);
+      expect(isStaleCache(packsCacheName(ROOT), n)).toBe(false);
+      expect(isStaleCache(packsCacheName(ROOT, 2), n)).toBe(false);
+      expect(isStaleCache(packsCacheName(ROOT, 0), n)).toBe(false);
+    }
   });
 });
 
@@ -235,17 +369,11 @@ describe('inParallel', () => {
 });
 
 describe('offline page', () => {
-  it('links the app pages by absolute address and escapes their labels', () => {
-    const html = offlinePageHtml(
-      [
-        { url: './', label: 'SkyFix Lab explorer' },
-        { url: 'classic/', label: 'A <b>workbench</b>' },
-      ],
-      ROOT,
-    );
+  it('links the app pages and the manual by absolute address and escapes their labels', () => {
+    const html = offlinePageHtml([{ url: './', label: 'SkyFix Lab explorer' }], ROOT, [{ url: 'docs/', label: 'The <b>manual</b>' }]);
     expect(html).toContain(`href="${ROOT}"`);
-    expect(html).toContain(`href="${ROOT}classic/"`);
-    expect(html).toContain('A &#60;b&#62;workbench&#60;/b&#62;');
+    expect(html).toContain(`href="${ROOT}docs/"`);
+    expect(html).toContain('The &#60;b&#62;manual&#60;/b&#62;');
     expect(html).toContain('Not a navigation instrument.');
     expect(html).not.toMatch(/<script|https?:\/\/(?!holdthedoorhoid)/);
   });
