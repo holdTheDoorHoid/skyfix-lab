@@ -944,6 +944,7 @@ fn predict_json_is_the_library_prediction_and_reduces_back_to_hc() {
             name: String::new(),
             index_correction_arcmin: -2.0,
             horizon: skyfix_core::types::HorizonMode::Sea,
+            index_error_log: Vec::new(),
         },
         "Moon",
         Limb::Lower,

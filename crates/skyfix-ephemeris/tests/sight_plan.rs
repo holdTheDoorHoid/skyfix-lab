@@ -131,6 +131,7 @@ fn instrument() -> Instrument {
         name: "test".into(),
         index_correction_arcmin: -1.2,
         horizon: HorizonMode::Sea,
+        index_error_log: Vec::new(),
     }
 }
 

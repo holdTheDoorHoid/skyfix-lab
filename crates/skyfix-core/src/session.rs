@@ -185,6 +185,8 @@ fn validate_inner(
         });
     }
     finite("clock.correction_s", session.clock.correction_s)?;
+    // Index-error and watch logs (sailings agent): parseable times, finite values.
+    warnings.extend(crate::error_logs::validate_logs(session)?);
 
     // --- observations -------------------------------------------------------
     if session.observations.is_empty() {
@@ -442,6 +444,19 @@ pub fn to_csv(session: &Session) -> String {
     );
     head("clock.uncertainty_s", num(session.clock.uncertainty_s));
     head("clock.correction_s", num(session.clock.correction_s));
+    // The error logs ride as one JSON array each (serde_json round-trips every f64).
+    if !session.instrument.index_error_log.is_empty() {
+        head(
+            "instrument.index_error_log",
+            serde_json::to_string(&session.instrument.index_error_log).unwrap_or_default(),
+        );
+    }
+    if !session.clock.watch_log.is_empty() {
+        head(
+            "clock.watch_log",
+            serde_json::to_string(&session.clock.watch_log).unwrap_or_default(),
+        );
+    }
 
     out.push_str(&CSV_COLUMNS.join(","));
     out.push('\n');
@@ -787,6 +802,20 @@ fn apply_header(session: &mut Session, key: &str, value: &str) -> Result<(), Sky
         }
         "clock.uncertainty_s" => session.clock.uncertainty_s = number_here(value)?,
         "clock.correction_s" => session.clock.correction_s = number_here(value)?,
+        "instrument.index_error_log" => {
+            session.instrument.index_error_log =
+                serde_json::from_str(value).map_err(|e| SkyfixError::InvalidField {
+                    field: field.clone(),
+                    message: format!("expected a JSON array of {{utc, ic_arcmin, note}}: {e}"),
+                })?;
+        }
+        "clock.watch_log" => {
+            session.clock.watch_log =
+                serde_json::from_str(value).map_err(|e| SkyfixError::InvalidField {
+                    field: field.clone(),
+                    message: format!("expected a JSON array of {{utc, correction_s, note}}: {e}"),
+                })?;
+        }
         other => {
             return Err(SkyfixError::InvalidField {
                 field: format!("# {other}"),

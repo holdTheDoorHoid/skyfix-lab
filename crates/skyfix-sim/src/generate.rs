@@ -304,10 +304,12 @@ pub fn simulate_detailed(
             name: "simulated".to_string(),
             index_correction_arcmin,
             horizon: scenario.altitude_kind.horizon(),
+            index_error_log: Vec::new(),
         },
         clock: Clock {
             uncertainty_s: scenario.reported_clock_uncertainty_s,
             correction_s: 0.0,
+            watch_log: Vec::new(),
         },
         observations,
     };

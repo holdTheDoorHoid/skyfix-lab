@@ -87,7 +87,10 @@ pub fn reduce_observation(
 
     // --- time (section 6) ----------------------------------------------------
     let jd_recorded = crate::time::parse_utc(&obs.utc)?;
-    let correction_s = session.clock.correction_s;
+    // The single chronometer correction, or the watch log's value at the recorded time
+    // (CONVENTIONS section 10; crate::error_logs).
+    let (correction_s, clock_log) =
+        crate::error_logs::effective_clock_correction(&session.clock, jd_recorded)?;
     if !correction_s.is_finite() {
         return Err(SkyfixError::NonFinite {
             field: "clock.correction_s".to_string(),
@@ -118,7 +121,10 @@ pub fn reduce_observation(
 
     // --- correction chain (section 5) ---------------------------------------
     let horizon = obs.horizon.unwrap_or(session.instrument.horizon);
-    let breakdown = corrections::correct_sight(
+    // The single index correction, or the index-error log's value at the sight's time.
+    let (index_correction_arcmin, index_log) =
+        crate::error_logs::effective_index_correction(&session.instrument, jd_utc)?;
+    let mut breakdown = corrections::correct_sight(
         obs.altitude_deg,
         obs.altitude_kind,
         obs.sigma_arcmin,
@@ -127,7 +133,7 @@ pub fn reduce_observation(
             is_sun: is_sun(&obs.body),
             limb: obs.limb,
             horizon,
-            index_correction_arcmin: session.instrument.index_correction_arcmin,
+            index_correction_arcmin,
             height_of_eye_m: session.observer.height_of_eye_m,
             pressure_hpa: session.observer.pressure_hpa,
             temperature_c: session.observer.temperature_c,
@@ -135,6 +141,28 @@ pub fn reduce_observation(
         },
         corrections::sight_body(&obs.body),
     )?;
+    if let Some(log) = &index_log {
+        // Say where the index correction came from, in the step that applied it.
+        if let Some(step) = breakdown
+            .steps
+            .iter_mut()
+            .find(|s| s.kind == crate::types::CorrectionKind::IndexCorrection && s.applied)
+        {
+            step.note.push_str(&format!(" ({})", log.note));
+        }
+        warnings.extend(crate::error_logs::outside_warning(
+            id,
+            crate::error_logs::LogKind::IndexError,
+            log,
+        ));
+    }
+    if let Some(log) = &clock_log {
+        warnings.extend(crate::error_logs::outside_warning(
+            id,
+            crate::error_logs::LogKind::Watch,
+            log,
+        ));
+    }
     warnings.extend(breakdown.warnings.iter().cloned());
 
     // --- sight reduction at the assumed position (section 3) ----------------
@@ -172,6 +200,8 @@ pub fn reduce_observation(
         zn_deg,
         intercept_nm,
         warnings,
+        index_correction_from_log: index_log,
+        clock_correction_from_log: clock_log,
     })
 }
 

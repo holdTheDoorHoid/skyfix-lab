@@ -21,9 +21,11 @@
 //! - [`methods`]    noon sight, Polaris latitude, averaging a run (docs/NAVIGATION_METHODS.md)
 //! - [`sailings`]   great-circle, rhumb-line and composite sailing, dead reckoning, routes
 //!   (expansion programme, sailings agent; docs/NAVIGATION_METHODS.md section 9)
+//! - [`error_logs`] index-error and watch logs interpolated at a sight's time (section 10)
 
 pub mod corrections;
 pub mod error;
+pub mod error_logs;
 pub mod geometry;
 pub mod linalg;
 pub mod methods;

@@ -88,6 +88,21 @@ pub fn lunar_distance(
     input: &LunarDistanceInput,
     source: &dyn DirectionSource,
 ) -> Result<LunarDistanceResult, SkyfixError> {
+    // An index-error log gives the correction at the watch's estimate (CONVENTIONS
+    // section 10; the index error does not change over the hours of the search).
+    let resolved;
+    let input = if input.instrument.index_error_log.is_empty() {
+        input
+    } else {
+        let mut copy = input.clone();
+        copy.instrument.index_correction_arcmin = crate::error_logs::effective_index_correction(
+            &input.instrument,
+            parse_utc(&input.utc_estimate)?,
+        )?
+        .0;
+        resolved = copy;
+        &resolved
+    };
     let ctx = Context::new(input)?;
     let jd0 = parse_utc(&input.utc_estimate)?;
     let half = input.search_hours / 24.0;

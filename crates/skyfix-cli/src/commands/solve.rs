@@ -563,6 +563,7 @@ mod tests {
             clock: Clock {
                 uncertainty_s: clock_s,
                 correction_s: 0.0,
+                watch_log: Vec::new(),
             },
             observations: Vec::new(),
         }

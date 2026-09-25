@@ -65,6 +65,13 @@ pub fn predict_sextant(
             field: "instrument.index_correction_arcmin".to_string(),
         });
     }
+    // An index-error log gives the correction at this instant, as the reducer takes it
+    // (CONVENTIONS section 10), so a prediction and a reduction never disagree.
+    let instrument = &Instrument {
+        index_correction_arcmin: crate::error_logs::effective_index_correction(instrument, jd_utc)?
+            .0,
+        ..instrument.clone()
+    };
 
     let class = corrections::sight_body(body);
     let position = Point::from_deg(observer.lat_deg, observer.lon_deg);
@@ -337,6 +344,7 @@ mod tests {
                 name: String::new(),
                 index_correction_arcmin: -1.3,
                 horizon,
+                index_error_log: Vec::new(),
             };
             for (body, dir, limb) in [
                 ("Moon", moon, Limb::Lower),

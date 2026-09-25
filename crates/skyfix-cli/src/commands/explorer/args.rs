@@ -149,6 +149,7 @@ impl SightOpticsArgs {
             name: String::new(),
             index_correction_arcmin: self.ic,
             horizon: self.horizon.into(),
+            index_error_log: Vec::new(),
         }
     }
 }
