@@ -1,8 +1,9 @@
 /**
- * The mock engine's data packs (EXPLORER_API "Packs"): the registry the real core will
- * have once the producers land (deep-time, tides-us, lunar-limb), and a `loadPack` that
- * accepts any bytes, so the interface can be worked on before any pack exists. Nothing is
- * installed: the mock's numbers do not change. OWNER: packs agent.
+ * The mock engine's data packs (EXPLORER_API "Packs"): the registry the real core has
+ * (tides-us, lunar-limb; polish2: no deep-time pack since the deeptime merge put both tiers
+ * in the core), and a `loadPack` that accepts any bytes, so the interface can be worked on
+ * without the real files. Nothing is installed: the mock's numbers do not change.
+ * OWNER: packs agent.
  */
 
 import type { PackInfo, PackStatus } from '../types.js';
@@ -14,9 +15,8 @@ interface MockPack {
   provides: string[];
 }
 
-/** The packs of EXPANSION_PLAN §3, as their producers describe them. */
+/** The packs of EXPANSION_PLAN §3 the real core installs, as their producers describe them. */
 export const MOCK_PACKS: readonly MockPack[] = [
-  { name: 'deep-time', label: 'Deep time', description: 'Positions from 2000 BC to AD 3000', provides: ['ephemeris:-2000..3000'] },
   { name: 'tides-us', label: 'US tides', description: 'Tide predictions for NOAA stations in the United States', provides: ['tides:us'] },
   { name: 'lunar-limb', label: 'Lunar limb', description: "The mountains and valleys at the Moon's edge, for eclipse contact times and Baily's beads", provides: ['eclipses:lunar-limb'] },
 ];

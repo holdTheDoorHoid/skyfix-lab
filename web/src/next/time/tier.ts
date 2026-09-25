@@ -4,7 +4,7 @@
  *
  * - **validated** (1550-01-01 to 2650-01-22, the span of JPL DE440): the accuracy figures
  *   hold; sights are offered.
- * - **labelled** (2000 BC to AD 3000, with the Deep time pack): estimates, shown with the
+ * - **labelled** (2000 BC to AD 3000, in the core since the deeptime merge): estimates, shown with the
  *   Earth-rotation uncertainty (time/chip.ts); no sights.
  * - **outside**: nothing is computed, and the page says why.
  *
@@ -14,8 +14,8 @@
  * an engine, so views and plain functions can call it alike.
  */
 
-import type { CoverageTier, ExplorerCoverage, ExplorerEngine, PackService, PackState } from '../engine/types.js';
-import { isCoverageTierEngine, isTimeEngine } from '../engine/types.js';
+import type { CoverageTier, ExplorerCoverage, ExplorerEngine, PackService, PackState, PackStatus } from '../engine/types.js';
+import { isCoverageTierEngine, isPackEngine, isTimeEngine } from '../engine/types.js';
 import { jdFromIso, msFromJd } from '../time.js';
 import { gregorianDateOfMs } from './civil.js';
 import { formatYear, MONTHS_LONG } from './format.js';
@@ -187,7 +187,10 @@ export function tierNotice(
   const { from, to } = validatedYears(source);
   if (tier === 'labelled') {
     const before = b ? jd < b.validatedStart : wireYear(jd) < 1550;
-    const loaded = b?.packsLoaded.length ? ` from the ${packWords(b.packsLoaded)}` : '';
+    // Only a pack that supplies positions is named (polish2: `packs_loaded` lists every loaded
+    // pack, and "the positions from the US tides pack" was said with the tides pack saved).
+    const suppliers = ephemerisPackLabels(source, b?.packsLoaded ?? []);
+    const loaded = suppliers.length ? ` from the ${packWords(suppliers)}` : '';
     const text = before
       ? `Historical estimate: before ${from} the positions${loaded} are estimates, checked against JPL’s long ephemeris DE441 but not to the accuracy of ${from} to ${to}, and every clock time carries the uncertainty in the Earth’s rotation shown beside it (±). Sights are offered only between ${from} and ${to}.`
       : `Far-future estimate: after ${to} the positions${loaded} are estimates, and the Earth’s rotation cannot be predicted exactly, so every clock time carries the uncertainty shown beside it (±). Sights are offered only between ${from} and ${to}.`;
@@ -202,13 +205,32 @@ export function tierNotice(
   return { level: 'caution', text, persistent: false, side: b && jd < b.start ? 'before' : 'after' };
 }
 
-function packWords(names: readonly string[]): string {
-  const words = names.map((n) => (n === 'deep-time' ? 'Deep time pack' : `${n} pack`));
+/** `Far ephemeris pack`, `A pack, B pack and C pack`: packs by the labels the registry gives them. */
+function packWords(labels: readonly string[]): string {
+  const words = labels.map((l) => `${l} pack`);
   return words.length === 1 ? words[0]! : `${words.slice(0, -1).join(', ')} and ${words.at(-1)}`;
 }
 
+/**
+ * The labels of the loaded packs that supply positions (a `provides` entry `ephemeris:a..b`),
+ * from the engine's own registry; none when the engine keeps no registry. polish2: both tiers
+ * are in the core since the deeptime merge, so no pack supplies positions today.
+ */
+function ephemerisPackLabels(source: EngineSource, loaded: readonly string[]): string[] {
+  if (!loaded.length) return [];
+  const engine = engineOf(source);
+  if (!isPackEngine(engine)) return [];
+  let registry: PackStatus[];
+  try {
+    registry = engine.packs();
+  } catch {
+    return [];
+  }
+  return registry.filter((p) => loaded.includes(p.name) && p.provides.some((e) => providedYears(e) !== null)).map((p) => p.label || p.name);
+}
+
 // ---------------------------------------------------------------------------------
-// The Deep time pack
+// A pack that would extend the years (none ships today: both tiers are in the core)
 // ---------------------------------------------------------------------------------
 
 /** Years an entry of a pack's `provides` covers: `ephemeris:-2000..3000` -> [-2000, 3000]. */
@@ -224,8 +246,9 @@ export function providedYears(entry: string): [number, number] | null {
  * A pack that would let the engine answer at `jd`: this build can install it, the site
  * offers it (or a copy is saved on this device), it is not loaded yet, and it provides an
  * ephemeris span holding the date's year. Null when none (nothing to offer: the date is
- * covered, or no pack reaches it, or packs are not in this build or on this site). The
- * deep-time pack is the one the contract plans.
+ * covered, or no pack reaches it, or packs are not in this build or on this site). Since the
+ * deeptime merge both tiers are in the core and no pack provides an ephemeris, so this finds
+ * nothing and no view prompts; the mechanism stays for a pack that one day extends the years.
  */
 export function packForDate(packs: Pick<PackService, 'status'> | null | undefined, jd: number): PackState | null {
   if (!packs || !Number.isFinite(jd)) return null;
@@ -246,13 +269,20 @@ export function packForDate(packs: Pick<PackService, 'status'> | null | undefine
   return null;
 }
 
-/** Why a view needs the pack, the sentence its prompt opens with. */
-export function packReason(jd: number, source: EngineSource): string {
+/**
+ * Why a view needs `pack` (from `packForDate`), the sentence its prompt opens with: the edge
+ * of the years the engine answers now, and how far the pack's own `provides` span reaches.
+ */
+export function packReason(jd: number, source: EngineSource, pack: Pick<PackState, 'label' | 'provides'>): string {
   const b = coverageBounds(source);
   const { from, to } = validatedYears(source);
   const before = b ? jd < b.start : wireYear(jd) < 1550;
+  const edge = b ? formatYear(wireYear(before ? b.start : b.end), 'era', { era: 'always' }) : before ? from : to;
+  const year = wireYear(jd);
+  const span = pack.provides.map(providedYears).find((x): x is [number, number] => x !== null && year >= x[0] && year <= x[1]);
+  const reach = span ? formatYear(before ? span[0] : span[1], 'era', { era: 'always' }) : '';
   return before
-    ? `Positions before ${from} need the Deep time pack, which extends the explorer back to ${formatYear(-1999)}.`
-    : `Positions after ${to} need the Deep time pack, which extends the explorer to ${formatYear(3000, 'era', { era: 'always' })}.`;
+    ? `Positions before ${edge} need the ${pack.label} pack${reach ? `, which extends the explorer back to ${reach}` : ''}.`
+    : `Positions after ${edge} need the ${pack.label} pack${reach ? `, which extends the explorer to ${reach}` : ''}.`;
 }
 

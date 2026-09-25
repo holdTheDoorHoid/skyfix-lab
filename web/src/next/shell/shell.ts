@@ -39,7 +39,7 @@ export const shell: Component = (host, ctx) => {
   d.add(store.select((s) => s.settings.hourCycle, setHourCycle));
   // Deep time (time-ui agent): the calendar and year style kept in step the same way, the
   // tier notice (outside the years the core covers, or a historical / far-future estimate)
-  // and the Deep time pack when a date needs it (time/services.ts).
+  // and a pack when one would extend the years to the date (time/services.ts; none ships today).
   d.add(startTimeServices(ctx));
   const place = startPlaceService(store, ctx.notices);
   d.add(place.destroy);

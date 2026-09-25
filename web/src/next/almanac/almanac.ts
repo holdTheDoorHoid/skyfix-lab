@@ -108,13 +108,13 @@ interface TabMounted extends Mounted {
 }
 
 /**
- * Offer the pack a date needs (the Deep time pack, when this build and site have it) and
+ * Offer the pack a date needs (a pack that extends the years, when this site offers one) and
  * redraw once it is loaded. The pack service asks once and remembers a "Not now".
  */
 async function offerPack(env: Env, jd: number, redraw: () => void): Promise<void> {
   const pack = packForDate(env.ctx.packs, jd);
   if (!pack) return;
-  if (await env.ctx.packs.ensure(pack.name, packReason(jd, env.ctx))) redraw();
+  if (await env.ctx.packs.ensure(pack.name, packReason(jd, env.ctx, pack))) redraw();
 }
 
 function message(text: string, role: 'alert' | 'status' = 'alert'): HTMLElement {
@@ -268,7 +268,7 @@ function mountPages(panel: HTMLElement, env: Env): TabMounted {
       return;
     }
     if (tierAt(ctx, jd) === 'outside') {
-      // Nothing to ask the engine: say so, and offer the Deep time pack when it covers the date.
+      // Nothing to ask the engine: say so, and offer a pack when one covers the date.
       const pack = packForDate(ctx.packs, jd);
       const notice = tierNotice(ctx, jd, { dateText: dayMonthYear(sd), pack });
       spread.replaceChildren(message(notice?.text ?? `No almanac page for ${yearText(sd.year)}.`));

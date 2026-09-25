@@ -1,7 +1,7 @@
 /**
  * The coverage table of About / Help (time-ui agent; CONVENTIONS 15.1): for each group of
  * bodies, the years whose positions are validated against JPL's DE440 and the years shown
- * as estimates (with the Deep time pack), each with how closely it is checked; a banner
+ * as estimates (both in the core since the deeptime merge), each with how closely it is checked; a banner
  * when the time shown lies outside the validated years; and how far a clock time can be
  * trusted in each age (the uncertainty in the Earth's rotation, ΔT), from the engine.
  *
