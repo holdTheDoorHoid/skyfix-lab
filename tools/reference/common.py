@@ -44,6 +44,24 @@ EPHEMERIS_CROSSCHECK_URL = (
 )
 HIPPARCOS_URL = "https://cdsarc.cds.unistra.fr/ftp/cats/I/239/hip_main.dat"
 
+# The long-span kernels (expansion programme, deeptime agent). All four JPL kernels
+# live in tools/reference/data/ (git-ignored); KERNELS maps the --kernel names to them.
+NAIF_PLANETS = "https://naif.jpl.nasa.gov/pub/naif/generic_kernels/spk/planets/"
+KERNELS = {
+    "de421": {"files": ["de421.bsp"], "url": NAIF_PLANETS + "a_old_versions/de421.bsp",
+              "span": "1899-07-29 .. 2053-10-09"},
+    "de440s": {"files": ["de440s.bsp"], "url": NAIF_PLANETS + "de440s.bsp",
+               "span": "1849-12-26 .. 2150-01-22"},
+    "de440": {"files": ["de440.bsp"], "url": NAIF_PLANETS + "de440.bsp",
+              "span": "1549-12-31 .. 2650-01-25"},
+    # NAIF splits DE441 at 1969: part 1 is -13200 .. 1969-07-30, part 2 1969-06-28 .. 17191.
+    "de441": {"files": ["de441_part-1.bsp", "de441_part-2.bsp"],
+              "url": NAIF_PLANETS + "de441_part-1.bsp and de441_part-2.bsp",
+              "span": "-13200 .. 17191"},
+}
+#: Where DE441 changes file: dates before this Julian date (TDB) use part 1.
+DE441_SPLIT_JD = 2440400.5
+
 # ---------------------------------------------------------------------------
 # Constants used by the fixtures (all from CONVENTIONS.md or the Almanac)
 # ---------------------------------------------------------------------------
@@ -458,6 +476,153 @@ def load_ephemeris(path=None):
     from skyfield.api import load_file
 
     return load_file(path or EPHEMERIS_FILE)
+
+
+# ---------------------------------------------------------------------------
+# --window and --kernel (expansion programme): every generator takes both
+# ---------------------------------------------------------------------------
+#
+# A window is written `START..END` with proleptic-Gregorian dates or bare years in
+# astronomical numbering (year 0 = 1 BC): `1990..2060`, `1550-01-01..2650-01-22`,
+# `-2000..3000`. A bare START year means January 1 of it; a bare END year means the
+# end of December 31 of it. The kernel is `auto` (the choice of EXPANSION_PLAN 4.6:
+# DE440s inside 1849-2150, DE440 inside 1550-2650, DE441 outside) or one of KERNELS.
+
+
+def jd_from_gregorian(year, month=1, day=1, hour=0.0):
+    """Julian date of a proleptic-Gregorian civil date, any integer year
+    (astronomical numbering). Fliegel & Van Flandern with floor division."""
+    a = (14 - month) // 12
+    y = year + 4800 - a
+    m = month + 12 * a - 3
+    jdn = day + (153 * m + 2) // 5 + 365 * y + y // 4 - y // 100 + y // 400 - 32045
+    return jdn - 0.5 + hour / 24.0
+
+
+def gregorian_from_jd(jd):
+    """(year, month, day, hour) of a Julian date, proleptic Gregorian, any year."""
+    z = math.floor(jd + 0.5)
+    frac = jd + 0.5 - z
+    a = z + 32044
+    b = (4 * a + 3) // 146097
+    cc = a - 146097 * b // 4
+    d = (4 * cc + 3) // 1461
+    e = cc - 1461 * d // 4
+    m = (5 * e + 2) // 153
+    day = e - (153 * m + 2) // 5 + 1
+    month = m + 3 - 12 * (m // 10)
+    year = 100 * b + d - 4800 + m // 10
+    return int(year), int(month), int(day), frac * 24.0
+
+
+def iso_utc(jd):
+    """ISO 8601 text of a Julian date: four-digit years inside 0000-9999, a sign and
+    at least four digits outside (EXPLORER_API "Dates and years on the wire")."""
+    y, mo, d, h = gregorian_from_jd(jd)
+    secs = round(h * 3600.0)
+    if secs >= 86400:
+        y, mo, d, _ = gregorian_from_jd(math.floor(jd + 0.5) + 0.5)
+        secs = 0
+    hh, rem = divmod(secs, 3600)
+    mm, ss = divmod(rem, 60)
+    year = "%04d" % y if 0 <= y <= 9999 else ("%+05d" % y)
+    return "%s-%02d-%02dT%02d:%02d:%02dZ" % (year, mo, d, hh, mm, ss)
+
+
+def _parse_window_end(text, end):
+    text = text.strip()
+    sign = -1 if text.startswith("-") else 1
+    body = text[1:] if text[:1] in "+-" else text
+    parts = body.split("-")
+    year = sign * int(parts[0])
+    if len(parts) == 1:
+        return jd_from_gregorian(year + 1, 1, 1) if end else jd_from_gregorian(year, 1, 1)
+    month = int(parts[1])
+    day = int(parts[2]) if len(parts) > 2 else 1
+    return jd_from_gregorian(year, month, day)
+
+
+def parse_window(text):
+    """`START..END` -> (jd_start, jd_end)."""
+    if ".." not in text:
+        raise ValueError("a window is START..END, e.g. 1550..2650 or -2000..3000: %r" % text)
+    a, b = text.split("..", 1)
+    j0, j1 = _parse_window_end(a, False), _parse_window_end(b, True)
+    if not j1 > j0:
+        raise ValueError("window %r is empty" % text)
+    return j0, j1
+
+
+def kernel_for_window(jd_start, jd_end):
+    """EXPANSION_PLAN 4.6: DE440s inside 1849-2150, DE440 inside 1550-2650, else DE441."""
+    if jd_start >= jd_from_gregorian(1849, 12, 27) and jd_end <= jd_from_gregorian(2150, 1, 21):
+        return "de440s"
+    if jd_start >= jd_from_gregorian(1550, 1, 1) and jd_end <= jd_from_gregorian(2650, 1, 22):
+        return "de440"
+    return "de441"
+
+
+class KernelSet:
+    """One JPL kernel, possibly split over several files (DE441), behind one lookup.
+
+    `segment(jd_tdb)` returns the Skyfield ephemeris object whose file covers that
+    date, so generators can keep using Skyfield's own `observe().apparent()` chain;
+    `position_km(target, jd_tdb, center)` evaluates arrays across the split."""
+
+    def __init__(self, name):
+        from skyfield.api import load_file
+
+        if name not in KERNELS:
+            raise ValueError("unknown kernel %r (known: %s)" % (name, ", ".join(KERNELS)))
+        self.name = name
+        self.paths = [os.path.join(DATA, f) for f in KERNELS[name]["files"]]
+        for p in self.paths:
+            if not os.path.exists(p):
+                raise SystemExit("missing %s -- see tools/reference/README.md, 'Kernels'" % p)
+        self.files = [load_file(p) for p in self.paths]
+
+    def segment(self, jd_tdb):
+        if len(self.files) == 1:
+            return self.files[0]
+        return self.files[0] if jd_tdb < DE441_SPLIT_JD else self.files[1]
+
+    def position_km(self, ts, target, jd_tdb, center="earth"):
+        import numpy as np
+
+        jd = np.atleast_1d(np.asarray(jd_tdb, dtype=float))
+        out = np.zeros((3, jd.size))
+        groups = [np.ones(jd.size, bool)] if len(self.files) == 1 else [
+            jd < DE441_SPLIT_JD, jd >= DE441_SPLIT_JD]
+        for eph, sel in zip(self.files if len(self.files) > 1 else self.files, groups):
+            if sel.any():
+                t = ts.tdb_jd(jd[sel])
+                out[:, sel] = (eph[target] - eph[center]).at(t).position.km
+        return out
+
+    def facts(self):
+        return {"kernel": self.name, "span": KERNELS[self.name]["span"],
+                "files": [file_facts(p, KERNELS[self.name]["url"]) for p in self.paths]}
+
+
+def load_kernel(name):
+    return KernelSet(name)
+
+
+def add_window_kernel_args(parser, default_window, default_kernel="auto"):
+    """The two arguments every generator takes (tools/reference/README.md)."""
+    parser.add_argument("--window", default=default_window,
+                        help="START..END, proleptic Gregorian or years (default %(default)s)")
+    parser.add_argument("--kernel", default=default_kernel,
+                        choices=["auto"] + sorted(KERNELS),
+                        help="JPL kernel; auto picks by window (default %(default)s)")
+    return parser
+
+
+def resolve_window_kernel(args):
+    """(jd_start, jd_end, kernel name) from parsed --window/--kernel."""
+    j0, j1 = parse_window(args.window)
+    k = kernel_for_window(j0, j1) if args.kernel == "auto" else args.kernel
+    return j0, j1, k
 
 
 def load_hipparcos_frame():

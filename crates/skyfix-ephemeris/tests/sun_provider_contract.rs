@@ -4,7 +4,6 @@
 use skyfix_core::time::parse_utc;
 use skyfix_ephemeris::sun::{
     COVERAGE_END_UTC, COVERAGE_START_UTC, JD_COVERAGE_END, JD_COVERAGE_START, SunProvider,
-    vsop87_self_check,
 };
 use skyfix_ephemeris::{AstroProvider, EphemerisError};
 
@@ -18,7 +17,7 @@ fn coverage_declares_the_window_the_bodies_and_the_assumptions() {
     assert_eq!(parse_utc(&c.end_utc).unwrap(), JD_COVERAGE_END);
     // The notes are shown to the user verbatim, so they must name the model, the
     // truncation and the DUT1 assumption.
-    for needle in ["VSOP87D", "IAU 2000B", "DUT1", "0.23'", "959.63", "8.794"] {
+    for needle in ["VSOP87A", "IAU 2000B", "DUT1", "0.23'", "959.63", "8.794"] {
         assert!(
             c.notes.contains(needle),
             "coverage notes should mention {needle:?}: {}",
@@ -157,14 +156,13 @@ fn dut1_shifts_gha_only() {
     );
 }
 
-/// The embedded VSOP87 series still reproduces the checkpoints it shipped with,
-/// including the value published in the catalogue's own `vsop87.chk`.
+/// The embedded series (the Sun's Earth is VSOP87A's, shared with the planets) still
+/// reproduces the checkpoints the generator computed from the same stored numbers.
 #[test]
-fn embedded_series_still_matches_its_published_checkpoint() {
-    let (dl, db, dr) = vsop87_self_check().unwrap();
-    assert!(dl < 0.02, "heliocentric longitude off by {dl}\"");
-    assert!(db < 0.02, "heliocentric latitude off by {db}\"");
-    assert!(dr < 1e-7, "radius vector off by {dr} au");
+fn embedded_series_still_matches_its_checkpoints() {
+    let c = skyfix_ephemeris::series::self_check().unwrap();
+    assert!(c.checkpoints > 0);
+    assert!(c.vsop_au < 1e-12 && c.corrected_au < 1e-12, "{c:?}");
 }
 
 /// The provider must be able to run with no filesystem and no network — that is the

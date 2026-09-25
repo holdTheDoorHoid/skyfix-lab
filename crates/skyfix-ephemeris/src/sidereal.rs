@@ -35,18 +35,26 @@ pub fn era_deg(jd_ut1: f64) -> f64 {
     )
 }
 
-/// Greenwich mean sidereal time, IAU 2006 (`eraGmst06`), degrees in `[0, 360)`.
+/// Greenwich mean sidereal time, degrees in `[0, 360)`: IAU 2006 (`eraGmst06`) inside
+/// the validated tier, and outside it the Earth rotation angle plus the accumulated
+/// precession of the long-term model ([`crate::frames::ltp_gmst_minus_era_arcsec`]),
+/// so that sidereal time and the precession matrix stay one consistent pair
+/// (CONVENTIONS section 7). The two agree to 7 mas at 1550 and 3 mas at 2650.
 ///
-/// The Earth rotation angle comes from UT1; the accumulated-precession polynomial is
-/// a function of TT. Passing `jd_tt == jd_ut1` costs at most 0.0001" over the
-/// provider's coverage, but the honest two-argument form is cheap, so it is required.
+/// The Earth rotation angle comes from UT1; the accumulated-precession term is a
+/// function of TT. Passing `jd_tt == jd_ut1` costs at most 0.0001" over 1990-2060,
+/// but the honest two-argument form is cheap, so it is required.
 pub fn gmst_deg(jd_ut1_val: f64, jd_tt_val: f64) -> f64 {
-    let tc = centuries_since_j2000(jd_tt_val);
-    // Arcseconds, IAU 2006. The leading 0.014506" is a constant, not a `t` term.
-    let precession_arcsec = 0.014_506
-        + tc * (4_612.156_534
-            + tc * (1.391_581_7
-                + tc * (-0.000_000_44 + tc * (-0.000_029_956 + tc * -0.000_000_036_8))));
+    let precession_arcsec = if crate::tiers::validated_model_at_tt(jd_tt_val) {
+        let tc = centuries_since_j2000(jd_tt_val);
+        // Arcseconds, IAU 2006. The leading 0.014506" is a constant, not a `t` term.
+        0.014_506
+            + tc * (4_612.156_534
+                + tc * (1.391_581_7
+                    + tc * (-0.000_000_44 + tc * (-0.000_029_956 + tc * -0.000_000_036_8))))
+    } else {
+        crate::frames::ltp_gmst_minus_era_arcsec(jd_tt_val)
+    };
     norm_360(era_deg(jd_ut1_val) + precession_arcsec / 3600.0)
 }
 

@@ -12,11 +12,12 @@
 //!
 //! 1. **Heliocentric positions** of the planet and of the **Earth** (not the Earth-Moon
 //!    barycentre, which is up to 4 700 km away) from VSOP87A — rectangular, dynamical
-//!    ecliptic and equinox J2000, argument TT — embedded from
-//!    `../data/vsop87a_planets.json`, truncated for 1990-2060 by
-//!    `tools/reference/gen_vsop87a.py` (provenance, rule and measured error in that
-//!    file and in `docs/THIRD_PARTY.md`). The Earth's velocity is the analytical
-//!    derivative of the same series.
+//!    ecliptic and equinox J2000, argument TT — with this project's corrections fitted
+//!    to JPL DE440 inside the validated tier and DE441 outside it ([`crate::series`];
+//!    the series and the corrections are embedded in `../data/series.bin`, written by
+//!    `tools/reference/build_series.py`; provenance in `docs/THIRD_PARTY.md`). The same
+//!    Earth serves the Sun provider. The Earth's velocity is the analytical derivative
+//!    of the (uncorrected) series; the corrections change it by under 1e-5 of itself.
 //! 2. **Equatorial axes**: the VSOP87A-to-equator-J2000 rotation published in the
 //!    catalogue's `vsop87.txt`. That frame is DE200's J2000 frame, within about 0.03"
 //!    of the ICRS, and is used as the ICRS.
@@ -69,28 +70,37 @@
 //!
 //! # Accuracy
 //!
-//! Measured two ways against JPL DE440s: the whole pipeline against
-//! `fixtures/reference/planets_*.json` (Skyfield 1.55, 322-338 epochs per planet over
-//! 1990-2060 including conjunctions, oppositions, greatest elongations and stations)
-//! by `tests/planets_reference.rs`, and the embedded series against DE440s every day
-//! of the window by the generator. The published figures are
-//! [`ACCURACY_BY_PLANET_ARCMIN`] and [`ACCURACY_ARCMIN`]; `docs/ACCURACY.md`,
-//! "Planets", has the tables. The error is VSOP87 itself (fitted to DE200 in 1988:
-//! up to 2.4" for Neptune and 1.8" for Uranus, a few tenths for Jupiter and Saturn,
-//! under 0.1" for Mercury to Mars) plus the truncation (at most 0.23" per planet at
-//! its closest approach, measured).
+//! Measured against JPL DE440 over the validated tier (1550-2650) and DE441 over the
+//! labelled tier (2000 BC to AD 3000): the whole pipeline against
+//! `fixtures/reference/planets_*.json` (Skyfield + DE440s, 1990-2060) by
+//! `tests/planets_reference.rs`, and against `fixtures/reference/deeptime_*.json`
+//! (Skyfield + DE440/DE441, per half-century and per century) by
+//! `tests/deeptime_reference.rs`. The published figures are
+//! [`ACCURACY_BY_PLANET_ARCMIN`] (validated tier) and
+//! [`LABELLED_ACCURACY_BY_PLANET_ARCMIN`]; `docs/ACCURACY.md`, "Planets" and
+//! "Historical accuracy", has the tables. What is left is VSOP87's own error after
+//! the corrections (under 1" everywhere in the validated tier; beyond VSOP87's stated
+//! span for Jupiter and Saturn before about AD 0) plus the truncation (1" at a
+//! planet's closest approach, by construction).
+//!
+//! # Tiers
+//!
+//! [`PlanetProvider::new`] answers the validated tier only, as every navigation path
+//! needs; [`PlanetProvider::with_policy`] with [`TierPolicy::WithLabelled`] answers the
+//! labelled tier too (the explorer's display path). The series prefix, the correction
+//! fit and the precession model switch on TT at the tier edges (CONVENTIONS 15.1).
 
-use std::sync::OnceLock;
+use std::cell::Cell;
 
-use serde::Deserialize;
 use skyfix_core::time::{JD_J2000, jd_tt, jd_ut1};
 use skyfix_core::types::GeocentricDirection;
 use skyfix_core::units::norm_360;
 
 use crate::body::{AU_KM, ApparentState, BodyEphemeris, BodyKind, PLANETS};
 use crate::frames::{apply_annual_aberration, bias_precession_nutation_matrix, radec_from_vector};
+use crate::series::{EARTH, SeriesSet, vsop_time};
 use crate::sidereal::gast_deg;
-use crate::stars::{COVERAGE_END_UTC, COVERAGE_START_UTC};
+use crate::tiers::{self, CoverageTier, TierPolicy};
 use crate::{AstroProvider, Coverage, EphemerisError};
 
 // ---------------------------------------------------------------------------
@@ -104,14 +114,13 @@ const SUN_SCHWARZSCHILD_RADIUS_AU: f64 =
     2.0 * 1.327_124_400_41e20 / (299_792_458.0 * 299_792_458.0) / 149_597_870_700.0;
 /// Nominal solar radius (IAU 2015 Resolution B3, 695 700 km), au.
 const SUN_RADIUS_AU: f64 = 695_700.0 / 149_597_870.700;
-/// Days per VSOP87 time unit (a thousand Julian years).
-const DAYS_PER_TJY: f64 = 365_250.0;
 /// Light-time convergence, days (Skyfield's own criterion).
 const LIGHT_TIME_TOLERANCE_DAYS: f64 = 1e-12;
 
 /// `vsop87.txt`, REFERENCE SYSTEM: VSOP87A dynamical ecliptic J2000 to the equator
-/// J2000 (the catalogue says FK5; it is DE200's frame, within 0.03" of the ICRS).
-const VSOP87A_TO_EQUATOR: [[f64; 3]; 3] = [
+/// J2000 (the catalogue says FK5; it is DE200's frame, within 0.03" of the ICRS, and
+/// the fitted corrections absorb what is left against DE440's ICRS).
+pub const VSOP87A_TO_EQUATOR: [[f64; 3]; 3] = [
     [1.000_000_000_000, 0.000_000_440_360, -0.000_000_190_919],
     [-0.000_000_479_966, 0.917_482_137_087, -0.397_776_982_902],
     [0.000_000_000_000, 0.397_776_982_902, 0.917_482_137_087],
@@ -124,9 +133,6 @@ const VSOP87A_TO_EQUATOR: [[f64; 3]; 3] = [
 /// magnitude formula's resolution.
 const SATURN_POLE: [f64; 3] = [0.085_478_83, 0.073_235_76, 0.993_644_75];
 const URANUS_POLE: [f64; 3] = [-0.211_999_58, -0.941_559_16, -0.261_768_09];
-
-const VSOP87A_JSON: &str = include_str!("../data/vsop87a_planets.json");
-const VSOP87A_SCHEMA: &str = "skyfix.vsop87a_trunc/1";
 
 // ---------------------------------------------------------------------------
 // The planets
@@ -172,6 +178,11 @@ impl Planet {
         self as usize
     }
 
+    /// Index of this planet in the series file ([`crate::series::BODY_NAMES`]).
+    fn series_index(self) -> usize {
+        self.index() + 1
+    }
+
     /// Equatorial radius, km: IAU WGCCRE 2015 (Archinal et al. 2018, table 1). For
     /// the giant planets this is the 1-bar level.
     pub fn equatorial_radius_km(self) -> f64 {
@@ -188,157 +199,15 @@ impl Planet {
 }
 
 // ---------------------------------------------------------------------------
-// Embedded VSOP87A series
+// The series: crate::series, on equatorial axes
 // ---------------------------------------------------------------------------
-
-#[derive(Debug, Deserialize)]
-struct RawFile {
-    schema: String,
-    truncation: RawTruncation,
-    bodies: std::collections::BTreeMap<String, RawBody>,
-    checkpoints: Vec<RawCheckpoint>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RawTruncation {
-    terms_kept: usize,
-    terms_total: usize,
-    bodies: std::collections::BTreeMap<String, RawBodyTruncation>,
-}
-
-#[derive(Debug, Clone, Deserialize)]
-struct RawBodyTruncation {
-    terms_kept: usize,
-    measured_max_error_au: f64,
-}
-
-/// `x[n]` is the `T**n` series of X; each term is `[A, B, C]` for `A cos(B + C T)`.
-#[derive(Debug, Deserialize)]
-struct RawBody {
-    x: Vec<Vec<[f64; 3]>>,
-    y: Vec<Vec<[f64; 3]>>,
-    z: Vec<Vec<[f64; 3]>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct RawCheckpoint {
-    body: String,
-    jd_tt: f64,
-    xyz_au: [f64; 3],
-    source: String,
-}
-
-/// One coordinate: all terms contiguous, with the `[start, end)` range of each power.
-#[derive(Debug)]
-struct Coordinate {
-    terms: Vec<[f64; 3]>,
-    powers: Vec<(usize, usize)>,
-}
-
-impl Coordinate {
-    fn new(raw: &[Vec<[f64; 3]>]) -> Coordinate {
-        let mut terms = Vec::with_capacity(raw.iter().map(Vec::len).sum());
-        let mut powers = Vec::with_capacity(raw.len());
-        for p in raw {
-            let start = terms.len();
-            terms.extend_from_slice(p);
-            powers.push((start, terms.len()));
-        }
-        Coordinate { terms, powers }
-    }
-
-    /// Value at `t` (thousands of Julian years of TT from J2000), Horner over powers.
-    fn value(&self, t: f64) -> f64 {
-        let mut total = 0.0;
-        for &(a, b) in self.powers.iter().rev() {
-            let mut s = 0.0;
-            for term in &self.terms[a..b] {
-                s += term[0] * (term[1] + term[2] * t).cos();
-            }
-            total = total * t + s;
-        }
-        total
-    }
-
-    /// Value and derivative per thousand Julian years.
-    fn value_and_rate(&self, t: f64) -> (f64, f64) {
-        // X = sum_n t^n S_n(t): Horner for the value (p), for the derivative of the
-        // polynomial with S_n held fixed (q), and for sum_n t^n S_n'(t) (r).
-        let (mut p, mut q, mut r) = (0.0, 0.0, 0.0);
-        for &(a, b) in self.powers.iter().rev() {
-            let (mut s, mut ds) = (0.0, 0.0);
-            for term in &self.terms[a..b] {
-                let (sin, cos) = (term[1] + term[2] * t).sin_cos();
-                s += term[0] * cos;
-                ds -= term[0] * term[2] * sin;
-            }
-            q = q * t + p;
-            p = p * t + s;
-            r = r * t + ds;
-        }
-        (p, q + r)
-    }
-
-    /// Value and rate from only the leading `k` terms of the `T^0` and `T^1` series
-    /// (the file keeps each series in decreasing amplitude): good to about 1e-3 au,
-    /// enough to estimate a light-time to 1e-5 day before the one full evaluation.
-    fn leading_value_and_rate(&self, t: f64, k: usize) -> (f64, f64) {
-        let (mut p, mut q, mut r) = (0.0, 0.0, 0.0);
-        for &(a, b) in self.powers.iter().take(2).rev() {
-            let (mut s, mut ds) = (0.0, 0.0);
-            for term in &self.terms[a..b.min(a + k)] {
-                let (sin, cos) = (term[1] + term[2] * t).sin_cos();
-                s += term[0] * cos;
-                ds -= term[0] * term[2] * sin;
-            }
-            q = q * t + p;
-            p = p * t + s;
-            r = r * t + ds;
-        }
-        (p, q + r)
-    }
-}
 
 /// Leading terms per series used for the light-time estimate.
 const LEADING_TERMS: usize = 16;
 
-#[derive(Debug)]
-struct BodySeries {
-    xyz: [Coordinate; 3],
-    truncation: RawBodyTruncation,
-}
-
-impl BodySeries {
-    /// Heliocentric position, au, VSOP87A ecliptic axes.
-    fn position(&self, t: f64) -> [f64; 3] {
-        [
-            self.xyz[0].value(t),
-            self.xyz[1].value(t),
-            self.xyz[2].value(t),
-        ]
-    }
-
-    /// Heliocentric position (au) and velocity (au/day), VSOP87A ecliptic axes.
-    fn position_velocity(&self, t: f64) -> ([f64; 3], [f64; 3]) {
-        let (x, dx) = self.xyz[0].value_and_rate(t);
-        let (y, dy) = self.xyz[1].value_and_rate(t);
-        let (z, dz) = self.xyz[2].value_and_rate(t);
-        (
-            [x, y, z],
-            [dx / DAYS_PER_TJY, dy / DAYS_PER_TJY, dz / DAYS_PER_TJY],
-        )
-    }
-
-    /// [`Coordinate::leading_value_and_rate`] for all three coordinates, au and au/day.
-    fn leading_position_velocity(&self, t: f64) -> ([f64; 3], [f64; 3]) {
-        let (x, dx) = self.xyz[0].leading_value_and_rate(t, LEADING_TERMS);
-        let (y, dy) = self.xyz[1].leading_value_and_rate(t, LEADING_TERMS);
-        let (z, dz) = self.xyz[2].leading_value_and_rate(t, LEADING_TERMS);
-        (
-            [x, y, z],
-            [dx / DAYS_PER_TJY, dy / DAYS_PER_TJY, dz / DAYS_PER_TJY],
-        )
-    }
+/// Whether `jd_tt` uses the labelled tier's longer series prefix.
+fn full_series(jd_tt: f64) -> bool {
+    !tiers::validated_model_at_tt(jd_tt)
 }
 
 /// What every planet at one instant shares: the Earth's heliocentric position and
@@ -355,161 +224,62 @@ thread_local! {
     /// The last [`EarthFrame`] computed. The explorer asks for all seven planets at the
     /// same instant, so the Earth's series is summed once instead of seven times. A
     /// pure cache: the key is the exact `jd_tt`, so results never depend on it.
-    static LAST_EARTH_FRAME: std::cell::Cell<Option<EarthFrame>> =
-        const { std::cell::Cell::new(None) };
+    static LAST_EARTH_FRAME: Cell<Option<EarthFrame>> = const { Cell::new(None) };
 }
 
-fn earth_frame(s: &Series, jd_tt: f64) -> EarthFrame {
-    if let Some(f) = LAST_EARTH_FRAME.with(std::cell::Cell::get)
+fn earth_frame(s: &SeriesSet, jd_tt: f64) -> EarthFrame {
+    if let Some(f) = LAST_EARTH_FRAME.with(Cell::get)
         && f.jd_tt.to_bits() == jd_tt.to_bits()
     {
         return f;
     }
-    let (e, v) = s.earth.position_velocity(vsop_time(jd_tt));
+    let (earth, earth_vel) = earth_state(s, jd_tt);
     let f = EarthFrame {
         jd_tt,
-        earth: to_equator(e),
-        earth_vel: to_equator(v),
+        earth,
+        earth_vel,
         bpn: bias_precession_nutation_matrix(jd_tt),
     };
     LAST_EARTH_FRAME.with(|c| c.set(Some(f)));
     f
 }
 
-struct Series {
-    earth: BodySeries,
-    /// Indexed by [`Planet::index`].
-    planets: Vec<BodySeries>,
-    terms_kept: usize,
-    terms_total: usize,
-    checkpoints: Vec<RawCheckpoint>,
-}
-
-impl Series {
-    fn body(&self, name: &str) -> Option<&BodySeries> {
-        if name == "Earth" {
-            Some(&self.earth)
-        } else {
-            Planet::from_name(name).map(|p| &self.planets[p.index()])
-        }
-    }
-}
-
-static SERIES: OnceLock<Result<Series, String>> = OnceLock::new();
-
-fn parse_series() -> Result<Series, String> {
-    let raw: RawFile =
-        serde_json::from_str(VSOP87A_JSON).map_err(|e| format!("malformed JSON: {e}"))?;
-    if raw.schema != VSOP87A_SCHEMA {
-        return Err(format!(
-            "schema is {:?}, expected {VSOP87A_SCHEMA:?}",
-            raw.schema
-        ));
-    }
-    let take = |name: &str| -> Result<BodySeries, String> {
-        let b = raw
-            .bodies
-            .get(name)
-            .ok_or_else(|| format!("no series for {name}"))?;
-        if [&b.x, &b.y, &b.z]
-            .iter()
-            .any(|c| c.iter().all(Vec::is_empty))
-        {
-            return Err(format!("{name}: every coordinate needs at least one term"));
-        }
-        let truncation = raw
-            .truncation
-            .bodies
-            .get(name)
-            .cloned()
-            .ok_or_else(|| format!("no truncation record for {name}"))?;
-        let kept: usize = [&b.x, &b.y, &b.z]
-            .iter()
-            .map(|c| c.iter().map(Vec::len).sum::<usize>())
-            .sum();
-        if kept != truncation.terms_kept {
-            return Err(format!(
-                "{name}: {kept} terms present, the truncation record says {}",
-                truncation.terms_kept
-            ));
-        }
-        Ok(BodySeries {
-            xyz: [
-                Coordinate::new(&b.x),
-                Coordinate::new(&b.y),
-                Coordinate::new(&b.z),
-            ],
-            truncation,
-        })
-    };
-    let earth = take("Earth")?;
-    let planets = PLANETS
-        .iter()
-        .map(|p| take(p))
-        .collect::<Result<Vec<_>, _>>()?;
-    Ok(Series {
-        earth,
-        planets,
-        terms_kept: raw.truncation.terms_kept,
-        terms_total: raw.truncation.terms_total,
-        checkpoints: raw.checkpoints,
-    })
-}
-
-fn series() -> Result<&'static Series, EphemerisError> {
-    SERIES
-        .get_or_init(parse_series)
-        .as_ref()
-        .map_err(|e| EphemerisError::Data(format!("embedded VSOP87A data is unusable: {e}")))
-}
-
-/// VSOP87 time argument: thousands of Julian years of TT from J2000.
-fn vsop_time(jd_tt: f64) -> f64 {
-    (jd_tt - JD_J2000) / DAYS_PER_TJY
+/// The Earth's corrected heliocentric position (au) and velocity (au/day),
+/// equatorial J2000 axes.
+fn earth_state(s: &SeriesSet, jd_tt: f64) -> ([f64; 3], [f64; 3]) {
+    let full = full_series(jd_tt);
+    let (_, v) = s.vsop[EARTH].position_velocity(vsop_time(jd_tt), full);
+    let e = s.heliocentric_ecliptic(EARTH, jd_tt, full);
+    (to_equator(e), to_equator(v))
 }
 
 /// Heliocentric position of `body` ("Earth" or a planet name) in au, on the
-/// equatorial J2000 axes this module treats as the ICRS (model step 2). `jd_tt` is
-/// Terrestrial Time. No coverage check: the series are truncated for 1990-2060 and
-/// degrade outside it.
+/// equatorial J2000 axes this module treats as the ICRS (model step 2), corrected.
+/// `jd_tt` is Terrestrial Time. No coverage check beyond the series' own: the
+/// labelled tier's prefix is used outside the validated one.
 pub fn heliocentric_position_au(body: &str, jd_tt: f64) -> Result<[f64; 3], EphemerisError> {
-    let s = series()?;
-    let b = s.body(body).ok_or_else(|| {
-        EphemerisError::UnknownBody(body.to_string(), PlanetProvider::NAME.to_string())
-    })?;
-    Ok(to_equator(b.position(vsop_time(jd_tt))))
+    let s = crate::series::series()?;
+    let idx = if body.trim().eq_ignore_ascii_case("Earth") {
+        EARTH
+    } else {
+        Planet::from_name(body)
+            .ok_or_else(|| {
+                EphemerisError::UnknownBody(body.to_string(), PlanetProvider::NAME.to_string())
+            })?
+            .series_index()
+    };
+    Ok(to_equator(s.heliocentric_ecliptic(
+        idx,
+        jd_tt,
+        full_series(jd_tt),
+    )))
 }
 
-/// Re-evaluate the embedded series at the checkpoints shipped with the data file and
-/// return the worst deviation in au, over every body.
-///
-/// One checkpoint per body is the catalogue's own published `vsop87.chk` value at
-/// J2000, so this also checks the series against a source outside this repository.
-/// The deviations are the truncation error, bounded by each body's
-/// `measured_max_error_au`; a value far above that means the embedded file has been
-/// damaged. Returns `(worst deviation, worst deviation / that body's bound)`.
-pub fn vsop87a_self_check() -> Result<(f64, f64), EphemerisError> {
-    let s = series()?;
-    let mut worst = (0.0f64, 0.0f64);
-    for c in &s.checkpoints {
-        let b = s.body(&c.body).ok_or_else(|| {
-            EphemerisError::Data(format!("checkpoint for unknown body {:?}", c.body))
-        })?;
-        let p = b.position(vsop_time(c.jd_tt));
-        let d = ((p[0] - c.xyz_au[0]).powi(2)
-            + (p[1] - c.xyz_au[1]).powi(2)
-            + (p[2] - c.xyz_au[2]).powi(2))
-        .sqrt();
-        if !d.is_finite() {
-            return Err(EphemerisError::Data(format!(
-                "VSOP87A evaluation is not finite for {} at jd_tt {} ({})",
-                c.body, c.jd_tt, c.source
-            )));
-        }
-        worst.0 = worst.0.max(d);
-        worst.1 = worst.1.max(d / b.truncation.measured_max_error_au);
-    }
-    Ok(worst)
+/// The Earth's heliocentric position (au) and velocity (au per day) on the equatorial
+/// J2000 axes, from the same corrected series the planets use: what the Sun provider
+/// is built on ([`crate::sun`]).
+pub fn earth_heliocentric_state(jd_tt: f64) -> Result<([f64; 3], [f64; 3]), EphemerisError> {
+    Ok(earth_state(crate::series::series()?, jd_tt))
 }
 
 // ---------------------------------------------------------------------------
@@ -611,20 +381,45 @@ fn deflect_by_sun(p: [f64; 3], e: [f64; 3]) -> [f64; 3] {
 ///
 /// The full series is summed once, cosines only: `tau` is first estimated from the
 /// series' leading terms (good to about 1e-3 au, so to about 1e-5 day), the series is
-/// evaluated at that retarded instant, and the iteration is finished by moving along
-/// the leading-term velocity; its error times the 1e-5 day that remains is about
-/// 1e-10 au, a millionth of an arcsecond from the Earth.
+/// evaluated (and corrected) at that retarded instant, and the iteration is finished
+/// by moving along the leading-term velocity; its error times the 1e-5 day that
+/// remains is about 1e-10 au, a millionth of an arcsecond from the Earth.
 /// `tests::fast_light_time_equals_the_full_iteration` holds it to 1e-5".
-fn retarded_position(body: &BodySeries, t: f64, earth: [f64; 3]) -> ([f64; 3], f64) {
-    let (q_ecl, qv_ecl) = body.leading_position_velocity(t);
+fn retarded_position(
+    s: &SeriesSet,
+    body: usize,
+    jd_tt: f64,
+    full: bool,
+    earth: [f64; 3],
+) -> ([f64; 3], f64) {
+    let (q_ecl, qv_ecl) = s.vsop[body].leading_position_velocity(vsop_time(jd_tt), LEADING_TERMS);
     let (q, qv) = (to_equator(q_ecl), to_equator(qv_ecl));
     let mut tau0 = norm(sub(q, earth)) / C_AU_PER_DAY;
     for _ in 0..3 {
         tau0 = norm(sub(sub(q, scale(qv, tau0)), earth)) / C_AU_PER_DAY;
     }
-    let p0 = to_equator(body.position(t - tau0 / DAYS_PER_TJY));
-    let at = |tau: f64| sub(p0, scale(qv, tau - tau0));
+    let mut p0 = to_equator(s.heliocentric_ecliptic(body, jd_tt - tau0, full));
     let mut tau = tau0;
+    // Far from J2000 the leading terms leave the first estimate up to about 1e-3 day
+    // out; one more full evaluation at the improved instant brings the step along the
+    // leading-term velocity back under 1e-6 day (inside 1990-2060 it never runs).
+    for _ in 0..2 {
+        let at = |tau: f64| sub(p0, scale(qv, tau - tau0));
+        for _ in 0..8 {
+            let next = norm(sub(at(tau), earth)) / C_AU_PER_DAY;
+            let done = (next - tau).abs() < LIGHT_TIME_TOLERANCE_DAYS;
+            tau = next;
+            if done {
+                break;
+            }
+        }
+        if (tau - tau0).abs() < 1e-6 {
+            return (at(tau), tau);
+        }
+        tau0 = tau;
+        p0 = to_equator(s.heliocentric_ecliptic(body, jd_tt - tau0, full));
+    }
+    let at = |tau: f64| sub(p0, scale(qv, tau - tau0));
     for _ in 0..8 {
         let next = norm(sub(at(tau), earth)) / C_AU_PER_DAY;
         let done = (next - tau).abs() < LIGHT_TIME_TOLERANCE_DAYS;
@@ -821,10 +616,11 @@ impl PlanetPosition {
     }
 }
 
-/// Apparent geocentric Mercury to Neptune from truncated VSOP87A, 1990-2060.
+/// Apparent geocentric Mercury to Neptune from VSOP87A with this project's corrections.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct PlanetProvider {
     dut1_s: f64,
+    policy: TierPolicy,
 }
 
 impl Default for PlanetProvider {
@@ -833,49 +629,76 @@ impl Default for PlanetProvider {
     }
 }
 
-/// The accuracy published for each planet, arcminutes: the worst GHA or Dec error
-/// against JPL DE440s, rounded up.
+/// The accuracy published for each planet over the **validated tier** (1550-2650),
+/// arcminutes: the worst GHA or Dec error against JPL DE440 at the reference epochs,
+/// rounded up.
 ///
-/// Two measurements back each figure. `tests/planets_reference.rs` runs the whole
+/// Two fixture sets back each figure: `tests/planets_reference.rs` runs the whole
 /// apparent-place pipeline against `fixtures/reference/planets_*.json` (Skyfield +
-/// DE440s, 322-338 epochs per planet) and asserts every epoch against it. Between
-/// those epochs, `tools/reference/gen_vsop87a.py` compares the embedded (truncated)
-/// series with DE440s every day of the window, geometrically; the rest of the
-/// pipeline agrees with Skyfield to about 0.001", so that daily figure is the
-/// provider's error. Worst values, daily / fixtures, arcminutes: Mercury 0.0023 /
-/// 0.0022, Venus 0.0041 / 0.0031, Mars 0.0034 / 0.0032, Jupiter 0.0064 / 0.0063,
-/// Saturn 0.0061 / 0.0061, Uranus 0.029 / 0.029, Neptune 0.040 / 0.040.
+/// DE440s, 322-338 epochs per planet over 1990-2060) and `tests/deeptime_reference.rs`
+/// against `fixtures/reference/deeptime_planets.json` (Skyfield + DE440, every
+/// half-century of 1550-2650). Both assert every epoch against these numbers.
 pub const ACCURACY_BY_PLANET_ARCMIN: [(Planet, f64); 7] = [
-    (Planet::Mercury, 0.005),
-    (Planet::Venus, 0.005),
-    (Planet::Mars, 0.005),
-    (Planet::Jupiter, 0.01),
-    (Planet::Saturn, 0.01),
-    (Planet::Uranus, 0.035),
-    (Planet::Neptune, 0.045),
+    (Planet::Mercury, 0.02),
+    (Planet::Venus, 0.02),
+    (Planet::Mars, 0.02),
+    (Planet::Jupiter, 0.02),
+    (Planet::Saturn, 0.02),
+    (Planet::Uranus, 0.03),
+    (Planet::Neptune, 0.02),
 ];
 
-/// The accuracy this provider reports in its coverage, arcminutes: the worst planet
-/// (Neptune), rounded up. Inside the CONVENTIONS 13.7 target of 0.1', so the explorer
-/// offers the navigational planets for sights. It does not include the DUT1 = 0
-/// assumption (up to 0.23' of GHA), which the coverage notes state separately.
-pub const ACCURACY_ARCMIN: f64 = 0.05;
+/// The accuracy each planet reaches over the **labelled tier** (2000 BC to AD 3000),
+/// arcminutes, against JPL DE441 (`tests/deeptime_reference.rs`, per century). Jupiter
+/// and Saturn are beyond VSOP87's stated span before about AD 0, which is where their
+/// figures come from.
+pub const LABELLED_ACCURACY_BY_PLANET_ARCMIN: [(Planet, f64); 7] = [
+    (Planet::Mercury, 0.02),
+    (Planet::Venus, 0.05),
+    (Planet::Mars, 0.1),
+    (Planet::Jupiter, 0.25),
+    (Planet::Saturn, 0.7),
+    (Planet::Uranus, 0.2),
+    (Planet::Neptune, 0.05),
+];
+
+/// The accuracy this provider reports in its coverage (validated tier), arcminutes:
+/// the worst planet, rounded up. Inside the CONVENTIONS 13.7 target of 0.1', so the
+/// explorer offers the navigational planets for sights. It does not include the
+/// DUT1 = 0 assumption (up to 0.23' of GHA), which the coverage notes state
+/// separately.
+pub const ACCURACY_ARCMIN: f64 = 0.03;
+
+/// The labelled tier's figure for the whole group: the worst planet.
+pub const LABELLED_ACCURACY_ARCMIN: f64 = 0.7;
 
 impl PlanetProvider {
-    pub const NAME: &'static str = "skyfix-planets (VSOP87A, IAU 2006/2000B)";
+    pub const NAME: &'static str = "skyfix-planets (VSOP87A + corrections, IAU 2006/2000B)";
 
-    /// DUT1 = 0 (CONVENTIONS section 6).
+    /// DUT1 = 0 (CONVENTIONS section 6), validated tier only.
     pub fn new() -> Self {
         Self::with_dut1_s(0.0)
     }
 
     /// A known DUT1 = UT1 - UTC in seconds, removing up to 0.23' of GHA error.
     pub fn with_dut1_s(dut1_s: f64) -> Self {
-        PlanetProvider { dut1_s }
+        PlanetProvider {
+            dut1_s,
+            policy: TierPolicy::ValidatedOnly,
+        }
+    }
+
+    /// The same provider answering the tiers `policy` allows.
+    pub fn with_policy(self, policy: TierPolicy) -> Self {
+        PlanetProvider { policy, ..self }
     }
 
     pub fn dut1_s(&self) -> f64 {
         self.dut1_s
+    }
+
+    pub fn policy(&self) -> TierPolicy {
+        self.policy
     }
 
     fn resolve(&self, body: &str) -> Result<Planet, EphemerisError> {
@@ -883,37 +706,33 @@ impl PlanetProvider {
             .ok_or_else(|| EphemerisError::UnknownBody(body.to_string(), Self::NAME.to_string()))
     }
 
-    fn check_coverage(&self, jd_utc: f64) -> Result<(), EphemerisError> {
-        if !jd_utc.is_finite() {
-            return Err(EphemerisError::Data(
-                "jd_utc is not a finite Julian date".to_string(),
-            ));
-        }
-        let start = skyfix_core::time::civil_to_jd(1990, 1, 1);
-        let end = skyfix_core::time::civil_to_jd(2060, 12, 31) + 86_399.0 / 86_400.0;
-        if jd_utc < start || jd_utc > end {
-            return Err(EphemerisError::OutOfCoverage {
-                provider: Self::NAME.to_string(),
-                jd_utc,
-                coverage: format!("{COVERAGE_START_UTC} .. {COVERAGE_END_UTC}"),
-            });
-        }
-        Ok(())
-    }
-
     /// The full apparent place and physical ephemeris of `planet` at `jd_utc`.
     pub fn position(&self, planet: Planet, jd_utc: f64) -> Result<PlanetPosition, EphemerisError> {
-        self.check_coverage(jd_utc)?;
-        let s = series()?;
-        let jd_tt_v = jd_tt(jd_utc);
-        let jd_ut1_v = jd_ut1(jd_utc, self.dut1_s);
-        let t = vsop_time(jd_tt_v);
+        self.policy.check(Self::NAME, jd_utc)?;
+        self.position_at(planet, jd_utc, jd_tt(jd_utc), jd_ut1(jd_utc, self.dut1_s))
+    }
+
+    /// [`PlanetProvider::position`] with the time scales given: `jd_tt` for the
+    /// positions and `jd_ut1` for the hour angle, whatever Delta T the caller uses (the
+    /// historical-accuracy fixtures build both from one Delta T, so Delta T never
+    /// counts as ephemeris error). `jd_utc` is only echoed. Refused outside the
+    /// labelled tier's span (in TT, with a day's margin).
+    pub fn position_at(
+        &self,
+        planet: Planet,
+        jd_utc: f64,
+        jd_tt_v: f64,
+        jd_ut1_v: f64,
+    ) -> Result<PlanetPosition, EphemerisError> {
+        check_model_span(Self::NAME, jd_tt_v)?;
+        let s = crate::series::series()?;
+        let full = full_series(jd_tt_v);
 
         // 1-2. Earth (shared by every planet at this instant) and the planet,
         // heliocentric, equatorial J2000 axes; 3. light-time.
         let frame = earth_frame(s, jd_tt_v);
         let (earth, earth_vel) = (frame.earth, frame.earth_vel);
-        let (planet_helio, tau) = retarded_position(&s.planets[planet.index()], t, earth);
+        let (planet_helio, tau) = retarded_position(s, planet.series_index(), jd_tt_v, full, earth);
         let astrometric = sub(planet_helio, earth);
         let distance_au = norm(astrometric);
 
@@ -991,14 +810,41 @@ impl PlanetProvider {
     }
 }
 
+/// Refuse a TT instant outside what the embedded series answer: the labelled tier's
+/// span, with a day either side for light-time and Delta T.
+pub(crate) fn check_model_span(provider: &str, jd_tt: f64) -> Result<(), EphemerisError> {
+    if !jd_tt.is_finite() {
+        return Err(EphemerisError::Data(
+            "jd_tt is not a finite Julian date".to_string(),
+        ));
+    }
+    if jd_tt < tiers::JD_LABELLED_START - 1.0 || jd_tt > tiers::JD_LABELLED_END + 1.0 {
+        return Err(EphemerisError::OutOfCoverage {
+            provider: provider.to_string(),
+            jd_utc: jd_tt,
+            coverage: format!(
+                "{} .. {} (TT)",
+                tiers::LABELLED_START_UTC,
+                tiers::LABELLED_END_UTC
+            ),
+        });
+    }
+    Ok(())
+}
+
 impl AstroProvider for PlanetProvider {
     fn name(&self) -> &str {
         Self::NAME
     }
 
     fn coverage(&self) -> Coverage {
-        let (kept, total) = match series() {
-            Ok(s) => (s.terms_kept, s.terms_total),
+        let (stored, validated) = match crate::series::series() {
+            Ok(s) => s.vsop.iter().skip(1).fold((0, 0), |acc, b| {
+                b.xyz.iter().fold(acc, |(a, v), c| {
+                    let (n, m) = c.counts();
+                    (a + n, v + m)
+                })
+            }),
             Err(_) => (0, 0),
         };
         let per_planet = ACCURACY_BY_PLANET_ARCMIN
@@ -1015,34 +861,43 @@ impl AstroProvider for PlanetProvider {
         };
         let mut notes = format!(
             "Apparent geocentric Mercury to Neptune of date from VSOP87A (CDS VI/81, \
-             Bretagnon & Francou 1988; Earth series, not the Earth-Moon barycentre), \
-             {kept} of {total} terms kept for 1990-2060 (the truncation costs at most \
-             0.23\" at a planet's closest approach, measured); light-time, deflection by \
-             the Sun (capped at its limb value for a planet hidden behind the Sun), \
-             relativistic annual aberration, then the shared IAU 2006/2000B bias, \
-             precession and nutation and GAST in skyfix_ephemeris::frames and ::sidereal. \
-             Positions are of each planet's system barycentre (Jupiter's disc centre can \
-             be 0.08\" away). Accuracy per planet, the worst GHA or Dec error against JPL \
-             DE440s (at 322-338 Skyfield reference epochs each, and daily between them) \
-             rounded up: {per_planet}; accuracy_arcmin is the worst planet. Uranus and \
-             Neptune are limited by VSOP87 itself (fitted to DE200 in 1988), not by the \
-             truncation. All seven meet the 0.1' target. {dut1}. "
+             Bretagnon & Francou 1988; the Earth series, not the Earth-Moon barycentre) \
+             with corrections fitted by this project to JPL DE440 inside 1550-2650 and \
+             DE441 outside (VSOP87 was fitted to DE200 and drifts by up to 10\" from DE440 \
+             within the tier without them); {validated} planet terms for the validated \
+             tier, {stored} for the labelled one, each truncated to 1\" at the planet's \
+             closest approach; light-time, deflection by the Sun (capped at its limb value \
+             for a planet hidden behind the Sun), relativistic annual aberration, then the \
+             shared bias, precession (IAU 2006 in the validated tier, Vondrak, Capitaine & \
+             Wallace 2011 outside) and IAU 2000B nutation, and GAST in \
+             skyfix_ephemeris::frames and ::sidereal. Positions are of each planet's \
+             system barycentre (Jupiter's disc centre can be 0.08\" away). Accuracy per \
+             planet over the validated tier, the worst GHA or Dec error against JPL DE440 \
+             rounded up: {per_planet}; accuracy_arcmin is the worst planet. {dut1}. "
         );
         notes.push_str(
             "Semidiameter from the IAU 2015 equatorial radii; horizontal parallax from the \
              WGS84 equatorial radius. Magnitudes by Mallama & Hilton (2018) with the true \
-             Sun (Skyfield's planetary_magnitude treats the solar-system barycentre as the \
-             Sun, which moves Mercury's magnitude by up to 0.2 when it is a thin \
-             crescent); Mars's rotational and seasonal terms (about 0.06 mag) are not \
-             applied.",
+             Sun; Mars's rotational and seasonal terms (about 0.06 mag) are not applied; \
+             outside roughly 1950-2100 the modern-era empirical terms (Neptune's \
+             brightening, Saturn's rings) are extrapolations.",
         );
         Coverage {
-            start_utc: COVERAGE_START_UTC.to_string(),
-            end_utc: COVERAGE_END_UTC.to_string(),
+            start_utc: self.policy.start_utc().to_string(),
+            end_utc: self.policy.end_utc().to_string(),
             bodies: PLANETS.iter().map(|p| p.to_string()).collect(),
             notes,
             accuracy_arcmin: ACCURACY_ARCMIN,
         }
+    }
+
+    fn tiers(&self) -> Vec<CoverageTier> {
+        tiers::coverage_tiers(
+            self.policy,
+            ACCURACY_ARCMIN,
+            LABELLED_ACCURACY_ARCMIN,
+            tiers::LABELLED_NOTE,
+        )
     }
 
     fn geocentric(&self, body: &str, jd_utc: f64) -> Result<GeocentricDirection, EphemerisError> {
@@ -1084,32 +939,15 @@ mod tests {
     use super::*;
     use skyfix_core::time::parse_utc;
 
-    #[test]
-    fn embedded_series_parse_and_match_their_checkpoints() {
-        let s = series().expect("embedded VSOP87A data must parse");
-        assert!(s.terms_kept > 1000 && s.terms_kept < s.terms_total);
-        // One catalogue check value and eight full-series values per body.
-        assert_eq!(s.checkpoints.len(), 8 * 9);
-        assert_eq!(
-            s.checkpoints
-                .iter()
-                .filter(|c| c.source.contains("vsop87.chk"))
-                .count(),
-            8
-        );
-        let (worst_au, worst_ratio) = vsop87a_self_check().unwrap();
-        // The deviations ARE the truncation error: inside each body's measured bound
-        // (with room for f64 summation order), and far inside an arcsecond.
-        assert!(worst_ratio <= 1.0 + 1e-6, "ratio {worst_ratio}");
-        assert!(worst_au < 3e-5, "{worst_au} au");
-    }
+    use crate::series::{DAYS_PER_TJY, series};
 
     #[test]
     fn the_earth_series_is_the_earth_not_the_barycentre() {
         // vsop87.chk: VSOP87A EARTH at J2000 is x -0.1771354586, y 0.9672416237;
-        // the EMB is x -0.1771591440, y 0.9672192891 -- 4 800 km away.
+        // the EMB is x -0.1771591440, y 0.9672192891 -- 4 800 km away. Uncorrected
+        // series, validated prefix: the truncation moves it by under 3e-7 au.
         let s = series().unwrap();
-        let p = s.earth.position(0.0);
+        let p = s.vsop[EARTH].position(0.0, false);
         assert!((p[0] + 0.177_135_458_6).abs() < 3e-7, "{p:?}");
         assert!((p[1] - 0.967_241_623_7).abs() < 3e-7, "{p:?}");
     }
@@ -1117,27 +955,30 @@ mod tests {
     #[test]
     fn earth_velocity_matches_the_catalogue_check_value() {
         // vsop87.chk: EARTH J2000 x' -.0172076240 y' -.0031587881 z' .0000001069 au/d.
-        // Truncation moves the velocity by at most 2.8e-8 au/day over the window (5 cm/s,
-        // 0.00003" of aberration; the generator records the worst case).
         let s = series().unwrap();
-        let (_, v) = s.earth.position_velocity(0.0);
-        let want = [-0.017_207_624_0, -0.003_158_788_1, 0.000_000_106_9];
-        for k in 0..3 {
-            assert!((v[k] - want[k]).abs() < 1e-8, "{v:?}");
+        for full in [false, true] {
+            let (_, v) = s.vsop[EARTH].position_velocity(0.0, full);
+            let want = [-0.017_207_624_0, -0.003_158_788_1, 0.000_000_106_9];
+            for k in 0..3 {
+                assert!((v[k] - want[k]).abs() < 1e-8, "{v:?}");
+            }
+            let error = ((v[0] - want[0]).powi(2) + (v[1] - want[1]).powi(2)).sqrt();
+            assert!(error / C_AU_PER_DAY < 0.01 / 206_264.8, "{error} au/day");
         }
-        let error = ((v[0] - want[0]).powi(2) + (v[1] - want[1]).powi(2)).sqrt();
-        assert!(error / C_AU_PER_DAY < 0.01 / 206_264.8, "{error} au/day");
     }
 
     /// The light-time the Skyfield way: sum the full series at every iteration.
     fn retarded_position_by_full_iteration(
-        body: &BodySeries,
-        t: f64,
+        s: &SeriesSet,
+        body: usize,
+        jd_tt: f64,
+        full: bool,
         earth: [f64; 3],
     ) -> ([f64; 3], f64) {
-        let mut tau = norm(sub(to_equator(body.position(t)), earth)) / C_AU_PER_DAY;
+        let pos = |jd: f64| to_equator(s.heliocentric_ecliptic(body, jd, full));
+        let mut tau = norm(sub(pos(jd_tt), earth)) / C_AU_PER_DAY;
         for _ in 0..10 {
-            let p = to_equator(body.position(t - tau / DAYS_PER_TJY));
+            let p = pos(jd_tt - tau);
             let next = norm(sub(p, earth)) / C_AU_PER_DAY;
             if (next - tau).abs() < 1e-14 {
                 return (p, next);
@@ -1151,13 +992,19 @@ mod tests {
     fn fast_light_time_equals_the_full_iteration() {
         let s = series().unwrap();
         let (mut worst_arcsec, mut worst_tau) = (0.0f64, 0.0f64);
-        for i in 0..40 {
-            let jd = 2_447_893.0 + f64::from(i) * 647.3;
-            let t = vsop_time(jd);
-            let earth = to_equator(s.earth.position(t));
-            for body in &s.planets {
-                let (fast, tau_fast) = retarded_position(body, t, earth);
-                let (slow, tau_slow) = retarded_position_by_full_iteration(body, t, earth);
+        // Both tiers: 1990-2060 and a few far epochs.
+        let epochs = (0..40).map(|i| 2_447_893.0 + f64::from(i) * 647.3).chain([
+            1_100_000.5,
+            2_000_000.5,
+            2_750_000.5,
+        ]);
+        for jd in epochs {
+            let full = full_series(jd);
+            let (earth, _) = earth_state(s, jd);
+            for body in 1..8 {
+                let (fast, tau_fast) = retarded_position(s, body, jd, full, earth);
+                let (slow, tau_slow) =
+                    retarded_position_by_full_iteration(s, body, jd, full, earth);
                 // As an angle seen from the Earth: what the difference does to the sky.
                 let angle = norm(sub(fast, slow)) / norm(sub(slow, earth)) * 206_264.806;
                 worst_arcsec = worst_arcsec.max(angle);
@@ -1171,14 +1018,14 @@ mod tests {
     #[test]
     fn rates_are_the_derivative_of_the_values() {
         let s = series().unwrap();
-        for b in std::iter::once(&s.earth).chain(s.planets.iter()) {
+        for (b, full) in s.vsop.iter().flat_map(|b| [(b, false), (b, true)]) {
             let t = 0.0237;
             // 1e-8 thousand years is 5 minutes: small enough that the central
             // difference's own error (h^2 / 6 times the third derivative) stays under
             // 1e-9 au/day even for Mercury.
             let h = 1e-8;
-            let (_, v) = b.position_velocity(t);
-            let (a, c) = (b.position(t - h), b.position(t + h));
+            let (_, v) = b.position_velocity(t, full);
+            let (a, c) = (b.position(t - h, full), b.position(t + h, full));
             for k in 0..3 {
                 let num = (c[k] - a[k]) / (2.0 * h) / DAYS_PER_TJY;
                 assert!((num - v[k]).abs() < 1e-9, "{num} vs {}", v[k]);
@@ -1421,8 +1268,8 @@ mod tests {
     #[test]
     fn coverage_is_enforced() {
         let p = PlanetProvider::new();
-        let before = parse_utc("1989-12-31T23:59:59Z").unwrap();
-        let after = parse_utc("2061-01-01T00:00:00Z").unwrap();
+        let before = tiers::JD_VALIDATED_START - 1.0 / 86_400.0;
+        let after = tiers::JD_VALIDATED_END + 1.0 / 86_400.0;
         for jd in [before, after] {
             assert!(matches!(
                 p.position(Planet::Mars, jd),
@@ -1430,12 +1277,37 @@ mod tests {
             ));
         }
         assert!(p.position(Planet::Mars, f64::NAN).is_err());
-        let first = parse_utc("1990-01-01T00:00:00Z").unwrap();
-        let last = parse_utc("2060-12-31T23:59:59Z").unwrap();
-        for jd in [first, last] {
+        for jd in [tiers::JD_VALIDATED_START, tiers::JD_VALIDATED_END] {
             for planet in Planet::ALL {
                 assert!(p.position(planet, jd).is_ok(), "{planet:?} at {jd}");
             }
         }
+        // The labelled tier answers only when asked for.
+        let l = p.with_policy(TierPolicy::WithLabelled);
+        for jd in [
+            before,
+            after,
+            tiers::JD_LABELLED_START,
+            tiers::JD_LABELLED_END,
+        ] {
+            for planet in Planet::ALL {
+                assert!(l.position(planet, jd).is_ok(), "{planet:?} at {jd}");
+            }
+        }
+        for jd in [
+            tiers::JD_LABELLED_START - 1.0 / 86_400.0,
+            tiers::JD_LABELLED_END + 1.0 / 86_400.0,
+        ] {
+            assert!(matches!(
+                l.position(Planet::Mars, jd),
+                Err(EphemerisError::OutOfCoverage { .. })
+            ));
+        }
+        let first = parse_utc("2000-01-01T00:00:00Z").unwrap();
+        assert!(p.position(Planet::Venus, first).is_ok());
+        assert_eq!(p.coverage().start_utc, tiers::VALIDATED_START_UTC);
+        assert_eq!(l.coverage().end_utc, tiers::LABELLED_END_UTC);
+        assert_eq!(p.tiers().len(), 1);
+        assert_eq!(l.tiers().len(), 2);
     }
 }

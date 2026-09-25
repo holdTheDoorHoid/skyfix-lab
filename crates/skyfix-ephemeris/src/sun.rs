@@ -1,65 +1,50 @@
-//! OWNER: ephemeris agent. See lib.rs.
+//! OWNER: ephemeris agent; the expansion programme's deeptime agent rebuilt the model
+//! chain on the planets' Earth. See lib.rs.
 //!
-//! Apparent geocentric place of the Sun, offline, for any instant in 1990-2060.
+//! Apparent geocentric place of the Sun, offline, from 2000 BC to AD 3000 in two tiers
+//! (CONVENTIONS 15.1): validated 1550-2650, labelled outside it.
 //!
 //! # Model chain
 //!
-//! 1. **Earth, heliocentric** — VSOP87D (spherical L, B, R; mean dynamical ecliptic
-//!    and equinox *of date*), truncated for this coverage window. Coefficients are
-//!    embedded from `../data/vsop87_sun_terms.json`, generated from the CDS catalogue
-//!    VI/81 file `VSOP87D.ear`; provenance and the truncation rule are recorded in that
-//!    file and in `docs/THIRD_PARTY.md`.
-//! 2. **Geocentric** — `theta = L + 180`, `beta = -B`.
-//! 3. **VSOP87 dynamical frame -> FK5** — Meeus, *Astronomical Algorithms* (25.9):
-//!    `-0.09033"` in longitude, `+0.03916" (cos L' - sin L')` in latitude.
-//! 4. **Aberration / light-time** — `-20.4898" / R` in longitude (CONVENTIONS section 7
-//!    requires the Sun's light-time to be included; this first-order form *is* that
-//!    correction).
-//! 5. **Nutation in longitude** — [`crate::frames::nutation_2000b_p03`], giving the
-//!    *apparent* longitude referred to the true equinox of date.
-//! 6. **Obliquity** — [`crate::frames::true_obliquity_rad`] (IAU 2006 mean obliquity
-//!    plus that nutation).
-//! 7. **RA / Dec** — the usual ecliptic-to-equatorial rotation with the *true* obliquity.
-//! 8. **GHA** — `GAST - RA` with [`crate::sidereal::gast_deg`], normalised to `[0, 360)`.
+//! 1. **Earth, heliocentric** — VSOP87A (rectangular, dynamical ecliptic and equinox
+//!    J2000, argument TT) with this project's corrections fitted to JPL DE440 inside the
+//!    validated tier and DE441 outside, from [`crate::series`]: **the same Earth the
+//!    planet provider uses** ([`crate::planets::earth_heliocentric_state`]). Until the
+//!    expansion programme the Sun had its own VSOP87D series (spherical, ecliptic of
+//!    date); keeping one Earth removes 1 454 duplicated terms and, more important, puts
+//!    the Sun on the same precession as everything else outside 1550-2650, where
+//!    VSOP87D's built-in precession of date would differ from the long-term model by
+//!    arcseconds. Equatorial J2000 axes through the catalogue's rotation, as for the
+//!    planets.
+//! 2. **Geocentric** — the Sun is at the origin of the heliocentric frame, so its
+//!    geometric geocentric vector is `-E`. Working heliocentrically needs no light-time:
+//!    the Sun's barycentric motion enters light-time and aberration with opposite signs
+//!    and cancels to first order (under 0.01", as for the planets).
+//! 3. **Aberration** — relativistic vector aberration
+//!    ([`crate::frames::apply_annual_aberration`]) with the Earth's heliocentric
+//!    velocity: this *is* the Sun's classical `-20.49"/R` in longitude, with the
+//!    Earth's orbital eccentricity and the second-order terms included.
+//! 4. **Frame bias, precession and nutation** —
+//!    [`crate::frames::bias_precession_nutation_matrix`]: IAU 2006 with IAU 2000B in the
+//!    validated tier, the Vondrak-Capitaine-Wallace long-term precession outside it.
+//!    RA and Dec of date follow; the apparent ecliptic longitude and latitude are the
+//!    same vector rotated by the true obliquity.
+//! 5. **GHA** — `GAST - RA` with [`crate::sidereal::gast_deg`], normalised to `[0, 360)`.
 //!
-//! Steps 5, 6 and 8 are the *shared* frame model: the Sun and the navigational stars
-//! are reduced with the same nutation, the same obliquity and the same sidereal time,
-//! so a change to any of them moves both together. Only steps 1-4 are specific to the
-//! Sun.
+//! Steps 4 and 5 are the *shared* frame model: the Sun, the Moon, the planets and the
+//! navigational stars are reduced with the same matrix and the same sidereal time.
 //!
 //! Semidiameter `959.63" / R` and horizontal parallax `8.794" / R`, both reported in
 //! arcminutes as CONVENTIONS section 5 steps 4 and 5 require.
 //!
 //! # Accuracy
 //!
-//! **Measured against the independent reference.**
-//! `tests/reference_fixtures_sun.rs` compares this provider with
-//! `fixtures/reference/geocentric_sun_stars.json` (Skyfield + JPL DE421/DE440s) at 58
-//! epochs spanning 1995-2055 plus an hourly run through 2026-10-01. Worst deviation:
-//!
-//! | quantity | worst | where |
-//! |---|---|---|
-//! | GHA (DUT1 = 0) | 0.0026' = 0.16" | 2055-01-01 |
-//! | GHA (the epoch's DUT1 supplied) | 0.0026' = 0.16" | 2055-01-01 |
-//! | Dec | 0.0012' = 0.07" | 2028-02-29 |
-//! | RA | 0.0026' = 0.16" | 2055-01-01 |
-//! | semidiameter | 0.00005' | 2027-01-01 |
-//! | horizontal parallax | 0.00005' | 2003-01-01 |
-//! | radius vector | 6.2e-8 au | 2023-01-01 |
-//!
-//! That is 19x inside the fixture's own 0.05' tolerance and 38x inside the 0.1' target.
-//! The GHA and RA figures are identical, so the whole GHA error is the apparent place;
-//! sidereal time contributes less than that.
-//!
-//! **Where the remaining error comes from.** The terms that make up the 0.16":
-//!
-//! | source | bound |
-//! |---|---|
-//! | VSOP87D itself (Earth, `p0 = 0.6e-8`), growing with epoch | ~0.0012" at J2000 |
-//! | series truncation, measured over 1990-2060 | 0.0073" in L, 0.0135" in B |
-//! | IAU 2000B nutation vs IAU 2000A | ~0.001" |
-//! | FK5/ICRS frame residual after step 3 | ~0.02" |
-//! | first-order aberration vs the rigorous form | ~0.02" |
+//! **Measured against the independent reference.** `tests/reference_fixtures_sun.rs`
+//! compares this provider with `fixtures/reference/geocentric_sun_stars.json` (Skyfield
+//! with JPL DE421/DE440s) at 58 epochs spanning 1995-2055 plus an hourly run through
+//! 2026-10-01, and `tests/deeptime_reference.rs` with `fixtures/reference/deeptime_*`
+//! (Skyfield with DE440 per half-century of 1550-2650, DE441 per century outside). The
+//! published figure is [`SUN_ACCURACY_ARCMIN`]; `docs/ACCURACY.md` has the tables.
 //!
 //! **GHA additionally carries the DUT1 = 0 assumption** (CONVENTIONS section 6):
 //! |DUT1| < 0.9 s is up to 13.5" = 0.23' of GHA, two orders above the model error and
@@ -71,175 +56,51 @@
 //!
 //! VSOP87's argument is dynamical time, which the catalogue notice states may be taken
 //! as TT; `skyfix_core::time::jd_tt` supplies it. TDB - TT < 2 ms, i.e. < 0.0001" of
-//! solar motion, and is ignored.
+//! solar motion, and is ignored. [`SunProvider::position_at`] takes TT and UT1 directly,
+//! so a caller with its own Delta T (the historical fixtures) can keep Delta T out of
+//! the comparison.
 
-use std::sync::OnceLock;
-
-use serde::Deserialize;
 use skyfix_core::time::{centuries_since_j2000, jd_tt, jd_ut1};
 use skyfix_core::types::GeocentricDirection;
 use skyfix_core::units::{norm_180, norm_360};
 
+use crate::frames::{
+    apply_annual_aberration, bias_precession_nutation_matrix, radec_from_vector, true_obliquity_rad,
+};
+use crate::planets::{C_AU_PER_DAY, earth_heliocentric_state};
+use crate::tiers::{self, CoverageTier, TierPolicy};
 use crate::{AstroProvider, Coverage, EphemerisError};
 
 // ---------------------------------------------------------------------------
 // Coverage and physical constants
 // ---------------------------------------------------------------------------
 
-/// First instant covered: 1990-01-01T00:00:00Z.
-pub const JD_COVERAGE_START: f64 = 2_447_892.5;
-/// Last instant covered: 2061-01-01T00:00:00Z (so the whole of 2060 is inside).
-pub const JD_COVERAGE_END: f64 = 2_473_825.5;
-pub const COVERAGE_START_UTC: &str = "1990-01-01T00:00:00Z";
-pub const COVERAGE_END_UTC: &str = "2061-01-01T00:00:00Z";
+/// First instant [`SunProvider::new`] answers: the validated tier's start,
+/// 1550-01-01T00:00:00Z. The labelled tier starts at [`tiers::LABELLED_START_UTC`].
+pub const JD_COVERAGE_START: f64 = tiers::JD_VALIDATED_START;
+/// Last instant [`SunProvider::new`] answers: the validated tier's end,
+/// 2650-01-22T00:00:00Z.
+pub const JD_COVERAGE_END: f64 = tiers::JD_VALIDATED_END;
+pub const COVERAGE_START_UTC: &str = tiers::VALIDATED_START_UTC;
+pub const COVERAGE_END_UTC: &str = tiers::VALIDATED_END_UTC;
 
 /// Solar semidiameter at one astronomical unit, arcseconds (IAU / Astronomical Almanac).
 pub const SUN_SEMIDIAMETER_UNIT_ARCSEC: f64 = 959.63;
 /// Solar equatorial horizontal parallax at one astronomical unit, arcseconds.
 pub const SUN_PARALLAX_UNIT_ARCSEC: f64 = 8.794;
-/// Constant applied as `-SUN_ABERRATION_ARCSEC / R` to the geometric longitude.
+/// The classical constant of solar aberration, `20.4898" / R` in longitude. Kept for
+/// callers and documentation; the provider applies the vector form (step 3), which
+/// reduces to this with the eccentricity terms added.
 pub const SUN_ABERRATION_ARCSEC: f64 = 20.4898;
 
-const VSOP87_JSON: &str = include_str!("../data/vsop87_sun_terms.json");
-const VSOP87_SCHEMA: &str = "skyfix.vsop87_trunc/1";
+/// Documented worst-case error of GHA (DUT1 = 0) and Dec over the validated tier,
+/// arcminutes, against JPL DE440 (the historical fixtures) and DE440s/DE421 (the
+/// 1995-2055 fixtures), rounded up. Excludes the DUT1 = 0 assumption.
+pub const SUN_ACCURACY_ARCMIN: f64 = 0.01;
+/// The same over the labelled tier against DE441, rounded up.
+pub const SUN_LABELLED_ACCURACY_ARCMIN: f64 = 0.02;
 
 const ARCSEC_PER_DEG: f64 = 3600.0;
-
-// ---------------------------------------------------------------------------
-// Embedded VSOP87D series
-// ---------------------------------------------------------------------------
-
-#[derive(Debug, Deserialize)]
-struct Vsop87Data {
-    schema: String,
-    truncation: Vsop87Truncation,
-    series: Vsop87Series,
-    checkpoints: Vec<Vsop87Checkpoint>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Vsop87Truncation {
-    measured_max_error_l_arcsec: f64,
-    measured_max_error_b_arcsec: f64,
-    measured_max_error_r_au: f64,
-    terms_kept: usize,
-    terms_total: usize,
-}
-
-/// `series.l[n]` is the `T**n` series; each term is `[A, B, C]` for `A cos(B + C tau)`.
-#[derive(Debug, Deserialize)]
-struct Vsop87Series {
-    l: Vec<Vec<[f64; 3]>>,
-    b: Vec<Vec<[f64; 3]>>,
-    r: Vec<Vec<[f64; 3]>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct Vsop87Checkpoint {
-    jd_tt: f64,
-    l_rad: f64,
-    b_rad: f64,
-    r_au: f64,
-    source: String,
-}
-
-static VSOP87: OnceLock<Result<Vsop87Data, String>> = OnceLock::new();
-
-fn vsop87() -> Result<&'static Vsop87Data, EphemerisError> {
-    let parsed = VSOP87.get_or_init(|| {
-        let data: Vsop87Data =
-            serde_json::from_str(VSOP87_JSON).map_err(|e| format!("malformed JSON: {e}"))?;
-        if data.schema != VSOP87_SCHEMA {
-            return Err(format!(
-                "schema is {:?}, expected {VSOP87_SCHEMA:?}",
-                data.schema
-            ));
-        }
-        if data.series.l.is_empty() || data.series.b.is_empty() || data.series.r.is_empty() {
-            return Err("series l, b and r must all be present".to_string());
-        }
-        Ok(data)
-    });
-    parsed
-        .as_ref()
-        .map_err(|e| EphemerisError::Data(format!("embedded VSOP87 data is unusable: {e}")))
-}
-
-/// Sum one `A cos(B + C tau)` series family, Horner in `tau` over the powers.
-fn sum_series(powers: &[Vec<[f64; 3]>], tau: f64) -> f64 {
-    let mut total = 0.0;
-    for terms in powers.iter().rev() {
-        let mut s = 0.0;
-        for t in terms {
-            s += t[0] * (t[1] + t[2] * tau).cos();
-        }
-        total = total * tau + s;
-    }
-    total
-}
-
-/// Earth's heliocentric longitude and latitude (radians) and radius vector (au) in the
-/// VSOP87D frame — the mean dynamical ecliptic and equinox of date.
-///
-/// `jd_tt` is Terrestrial Time as a Julian date. No coverage check: callers that need
-/// one use [`SunProvider::position`].
-pub fn earth_heliocentric(jd_tt: f64) -> Result<(f64, f64, f64), EphemerisError> {
-    let d = vsop87()?;
-    let tau = (jd_tt - skyfix_core::time::JD_J2000) / 365_250.0;
-    Ok((
-        sum_series(&d.series.l, tau),
-        sum_series(&d.series.b, tau),
-        sum_series(&d.series.r, tau),
-    ))
-}
-
-/// Re-evaluate the embedded series at the checkpoints shipped with the data file and
-/// return the worst deviation as `(l_arcsec, b_arcsec, r_au)`.
-///
-/// The first checkpoint is the value published in the catalogue's own `vsop87.chk`, so
-/// this also checks the series against a source outside this repository. The deviations
-/// are the *truncation* error, bounded by the data file's `truncation` block; a value
-/// far above that means the embedded file has been corrupted.
-pub fn vsop87_self_check() -> Result<(f64, f64, f64), EphemerisError> {
-    let d = vsop87()?;
-    let mut worst = (0.0f64, 0.0f64, 0.0f64);
-    for c in &d.checkpoints {
-        let (l, b, r) = earth_heliocentric(c.jd_tt)?;
-        if !l.is_finite() || !b.is_finite() || !r.is_finite() {
-            return Err(EphemerisError::Data(format!(
-                "VSOP87 evaluation is not finite at jd_tt {} ({})",
-                c.jd_tt, c.source
-            )));
-        }
-        worst.0 = worst
-            .0
-            .max((l - c.l_rad).abs() / skyfix_core::units::ARCSEC);
-        worst.1 = worst
-            .1
-            .max((b - c.b_rad).abs() / skyfix_core::units::ARCSEC);
-        worst.2 = worst.2.max((r - c.r_au).abs());
-    }
-    Ok(worst)
-}
-
-// ---------------------------------------------------------------------------
-// Frame quantities: shared with the star provider via `crate::frames`
-// ---------------------------------------------------------------------------
-//
-// Nutation (IAU 2000B, scaled for IAU 2006 precession), the mean and true obliquity
-// and Greenwich apparent sidereal time all come from `crate::frames` and
-// `crate::sidereal`, so the Sun and the stars are reduced in exactly the same frame.
-// Until those modules existed this file carried its own 77-term IAU 2000B series, a
-// copy of the IAU 2006 obliquity polynomial and an interim GAST; all three are gone.
-
-/// Nutation in longitude and obliquity, **arcseconds**, from the shared frame model.
-fn nutation_arcsec(jd_tt: f64) -> (f64, f64) {
-    let n = crate::frames::nutation_2000b_p03(jd_tt);
-    (
-        n.dpsi_rad / skyfix_core::units::ARCSEC,
-        n.deps_rad / skyfix_core::units::ARCSEC,
-    )
-}
 
 // ---------------------------------------------------------------------------
 // The Sun
@@ -288,10 +149,12 @@ impl SunPosition {
     }
 }
 
-/// Offline Sun provider: VSOP87D + IAU 2000B nutation + IAU 2006 obliquity, 1990-2060.
+/// Offline Sun provider: the corrected VSOP87A Earth, the shared precession-nutation
+/// matrix and sidereal time.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SunProvider {
     dut1_s: f64,
+    policy: TierPolicy,
 }
 
 impl Default for SunProvider {
@@ -304,89 +167,88 @@ impl SunProvider {
     /// The name this provider reports, e.g. for the CLI's "direction from:" line.
     pub const NAME: &'static str = "SunProvider";
 
-    /// DUT1 = 0, the CONVENTIONS section 6 default.
+    /// DUT1 = 0, the CONVENTIONS section 6 default; the validated tier only.
     pub fn new() -> Self {
-        SunProvider { dut1_s: 0.0 }
+        Self::with_dut1_s(0.0)
     }
 
     /// Supply a known DUT1 = UT1 - UTC in seconds, removing the 0.23' GHA term.
     pub fn with_dut1_s(dut1_s: f64) -> Self {
-        SunProvider { dut1_s }
+        SunProvider {
+            dut1_s,
+            policy: TierPolicy::ValidatedOnly,
+        }
+    }
+
+    /// The same provider answering the tiers `policy` allows.
+    pub fn with_policy(self, policy: TierPolicy) -> Self {
+        SunProvider { policy, ..self }
     }
 
     pub fn dut1_s(&self) -> f64 {
         self.dut1_s
     }
 
-    fn check_coverage(&self, jd_utc: f64) -> Result<(), EphemerisError> {
-        if !jd_utc.is_finite() {
-            return Err(EphemerisError::Data(
-                "jd_utc is not a finite Julian date".to_string(),
-            ));
-        }
-        if jd_utc < JD_COVERAGE_START || jd_utc > JD_COVERAGE_END {
-            return Err(EphemerisError::OutOfCoverage {
-                provider: Self::NAME.to_string(),
-                jd_utc,
-                coverage: format!("{COVERAGE_START_UTC} .. {COVERAGE_END_UTC}"),
-            });
-        }
-        Ok(())
+    pub fn policy(&self) -> TierPolicy {
+        self.policy
     }
 
     /// Full apparent place of the Sun at `jd_utc`.
     pub fn position(&self, jd_utc: f64) -> Result<SunPosition, EphemerisError> {
-        self.check_coverage(jd_utc)?;
-        let jd_tt_v = jd_tt(jd_utc);
-        let jd_ut1_v = jd_ut1(jd_utc, self.dut1_s);
+        self.policy.check(Self::NAME, jd_utc)?;
+        self.position_at(jd_utc, jd_tt(jd_utc), jd_ut1(jd_utc, self.dut1_s))
+    }
 
-        // 1-2. Earth heliocentric -> Sun geocentric, mean ecliptic and equinox of date.
-        let (l_rad, b_rad, r_au) = earth_heliocentric(jd_tt_v)?;
-        let mut theta_deg = l_rad.to_degrees() + 180.0;
-        let mut beta_deg = -b_rad.to_degrees();
+    /// [`SunProvider::position`] with the time scales given: `jd_tt` for the position,
+    /// `jd_ut1` for the hour angle; `jd_utc` is only echoed. Refused outside the
+    /// labelled tier's span in TT.
+    pub fn position_at(
+        &self,
+        jd_utc: f64,
+        jd_tt_v: f64,
+        jd_ut1_v: f64,
+    ) -> Result<SunPosition, EphemerisError> {
+        crate::planets::check_model_span(Self::NAME, jd_tt_v)?;
 
-        // 3. VSOP87 dynamical frame -> FK5 (Meeus 25.9). T is centuries, not millennia.
-        let t = centuries_since_j2000(jd_tt_v);
-        let lambda_p = (theta_deg - 1.397 * t - 0.000_31 * t * t).to_radians();
-        theta_deg += -0.090_33 / ARCSEC_PER_DEG;
-        beta_deg += 0.039_16 * (lambda_p.cos() - lambda_p.sin()) / ARCSEC_PER_DEG;
+        // 1-3. The Earth, the geocentric Sun and its aberration, equatorial J2000 axes.
+        let (earth, earth_vel) = earth_heliocentric_state(jd_tt_v)?;
+        let r_au = (earth[0] * earth[0] + earth[1] * earth[1] + earth[2] * earth[2]).sqrt();
+        let geometric = [-earth[0] / r_au, -earth[1] / r_au, -earth[2] / r_au];
+        let v_c = earth_vel.map(|v| v / C_AU_PER_DAY);
+        let apparent = apply_annual_aberration(geometric, v_c);
 
-        // 4-5. Aberration (which is the Sun's light-time to this order) and nutation.
-        let (dpsi_as, deps_as) = nutation_arcsec(jd_tt_v);
-        let aberration_as = -SUN_ABERRATION_ARCSEC / r_au;
-        let apparent_longitude_deg =
-            norm_360(theta_deg + (dpsi_as + aberration_as) / ARCSEC_PER_DEG);
+        // 4. True equator and equinox of date.
+        let m = bias_precession_nutation_matrix(jd_tt_v);
+        let q = [
+            m[0][0] * apparent[0] + m[0][1] * apparent[1] + m[0][2] * apparent[2],
+            m[1][0] * apparent[0] + m[1][1] * apparent[1] + m[1][2] * apparent[2],
+            m[2][0] * apparent[0] + m[2][1] * apparent[1] + m[2][2] * apparent[2],
+        ];
+        let (ra_deg, dec_deg) = radec_from_vector(q);
 
-        // 6-7. True obliquity, then RA and Dec.
-        let true_obliquity_deg = crate::frames::true_obliquity_rad(jd_tt_v).to_degrees();
-        let (lam, bet, eps) = (
-            apparent_longitude_deg.to_radians(),
-            beta_deg.to_radians(),
-            true_obliquity_deg.to_radians(),
-        );
-        let (sin_lam, cos_lam) = lam.sin_cos();
-        let (sin_eps, cos_eps) = eps.sin_cos();
-        let (sin_bet, cos_bet) = bet.sin_cos();
-        let ra_deg = norm_360(
-            (sin_lam * cos_eps - (sin_bet / cos_bet) * sin_eps)
-                .atan2(cos_lam)
-                .to_degrees(),
-        );
-        let dec_deg = (sin_bet * cos_eps + cos_bet * sin_eps * sin_lam)
-            .asin()
-            .to_degrees();
+        // Apparent ecliptic coordinates of date: the same vector, true obliquity.
+        let eps = true_obliquity_rad(jd_tt_v);
+        let (se, ce) = eps.sin_cos();
+        let ye = q[1] * ce + q[2] * se;
+        let ze = -q[1] * se + q[2] * ce;
+        let apparent_longitude_deg = norm_360(ye.atan2(q[0]).to_degrees());
+        let apparent_latitude_deg = ze.clamp(-1.0, 1.0).asin().to_degrees();
+        let nut = crate::frames::nutation_2000b_p03(jd_tt_v);
+        let dpsi_as = nut.dpsi_rad / skyfix_core::units::ARCSEC;
+        let deps_as = nut.deps_rad / skyfix_core::units::ARCSEC;
+        let true_obliquity_deg = eps.to_degrees();
 
-        // 8. Hour angle, from the same sidereal time the star provider uses.
+        // 5. Hour angle, from the same sidereal time the other providers use.
         let gast_deg = crate::sidereal::gast_deg(jd_ut1_v, jd_tt_v);
         let gha_deg = norm_360(gast_deg - ra_deg);
 
         // Equation of time (Meeus 28.1) from the Sun's mean longitude. This route
         // never touches sidereal time, so comparing it with `gha_deg` is an
         // independent check of the whole hour-angle chain (see
-        // `tests/sun_equation_of_time.rs`). The two disagree by a steady +0.0034 min
-        // (+3.1" of arc, +0.21 s of time) because they use different mean suns; see
-        // the note on `equation_of_time_min` below.
-        let tau = t / 10.0;
+        // `tests/sun_equation_of_time.rs`); the two definitions of "the mean sun" differ
+        // by a steady few hundredths of a second of time (see the note on
+        // `equation_of_time_min` below).
+        let tau = centuries_since_j2000(jd_tt_v) / 10.0;
         let mean_longitude_deg = 280.466_456_7
             + tau
                 * (360_007.698_277_9
@@ -404,7 +266,7 @@ impl SunProvider {
             jd_tt: jd_tt_v,
             jd_ut1: jd_ut1_v,
             apparent_longitude_deg,
-            apparent_latitude_deg: beta_deg,
+            apparent_latitude_deg,
             radius_au: r_au,
             ra_deg,
             dec_deg,
@@ -426,16 +288,6 @@ impl AstroProvider for SunProvider {
     }
 
     fn coverage(&self) -> Coverage {
-        let (kept, total, el, eb, er) = match vsop87() {
-            Ok(d) => (
-                d.truncation.terms_kept,
-                d.truncation.terms_total,
-                d.truncation.measured_max_error_l_arcsec,
-                d.truncation.measured_max_error_b_arcsec,
-                d.truncation.measured_max_error_r_au,
-            ),
-            Err(_) => (0, 0, f64::NAN, f64::NAN, f64::NAN),
-        };
         let dut1 = if self.dut1_s == 0.0 {
             "DUT1 assumed 0 (CONVENTIONS section 6), which puts up to 0.23' of unmodelled \
              error into GHA and nothing into Dec"
@@ -444,25 +296,36 @@ impl AstroProvider for SunProvider {
             format!("DUT1 supplied as {:+.4} s", self.dut1_s)
         };
         Coverage {
-            start_utc: COVERAGE_START_UTC.to_string(),
-            end_utc: COVERAGE_END_UTC.to_string(),
+            start_utc: self.policy.start_utc().to_string(),
+            end_utc: self.policy.end_utc().to_string(),
             bodies: vec!["Sun".to_string()],
             notes: format!(
-                "Apparent geocentric Sun from VSOP87D (CDS VI/81, Bretagnon & Francou 1988), \
-                 {kept} of {total} Earth terms kept for this window (truncation error measured \
-                 over 1990-2060: {el:.4}\" in L, {eb:.4}\" in B, {er:.2e} au in R); IAU 2000B \
-                 nutation and IAU 2006 mean obliquity from ERFA; aberration -20.4898\"/R; \
-                 semidiameter 959.63\"/R and horizontal parallax 8.794\"/R. {dut1}. \
-                 Nutation, obliquity and sidereal time are the shared IAU 2006/2000B frame \
-                 model in skyfix_ephemeris::frames and ::sidereal, the same one the star \
-                 provider uses. Verified against Skyfield with JPL DE421/DE440s at 58 epochs \
-                 spanning 1995-2055: worst GHA 0.0026' (0.16\"), worst Dec 0.0012' (0.07\")."
+                "Apparent geocentric Sun from the Earth of VSOP87A (CDS VI/81, Bretagnon & \
+                 Francou 1988) with corrections fitted by this project to JPL DE440 inside \
+                 1550-2650 and DE441 outside, the same Earth the planet provider uses, \
+                 truncated to 0.05\" of the Sun's direction; relativistic vector aberration \
+                 with the Earth's velocity (the -20.49\"/R of aberration); precession IAU \
+                 2006 in the validated tier and Vondrak, Capitaine & Wallace 2011 outside, \
+                 IAU 2000B nutation (full fundamental arguments) and GAST: the shared frame \
+                 model in skyfix_ephemeris::frames and ::sidereal. Semidiameter 959.63\"/R \
+                 and horizontal parallax 8.794\"/R. {dut1}. Verified against Skyfield with \
+                 JPL DE440 over 1550-2650 and DE421/DE440s at 58 epochs 1995-2055: worst \
+                 GHA or Dec under {SUN_ACCURACY_ARCMIN}'."
             ),
-            // The model alone, rounded up from the 0.0026' measured against the
-            // independent reference. The DUT1 term above is reported separately because
-            // it is an input assumption, not a model error, and a caller can remove it.
-            accuracy_arcmin: 0.01,
+            // The model alone, rounded up from the measured worst case. The DUT1 term
+            // above is reported separately because it is an input assumption, not a
+            // model error, and a caller can remove it.
+            accuracy_arcmin: SUN_ACCURACY_ARCMIN,
         }
+    }
+
+    fn tiers(&self) -> Vec<CoverageTier> {
+        tiers::coverage_tiers(
+            self.policy,
+            SUN_ACCURACY_ARCMIN,
+            SUN_LABELLED_ACCURACY_ARCMIN,
+            tiers::LABELLED_NOTE,
+        )
     }
 
     fn geocentric(&self, body: &str, jd_utc: f64) -> Result<GeocentricDirection, EphemerisError> {
@@ -490,10 +353,10 @@ impl AstroProvider for SunProvider {
 /// Computed by Meeus (28.1) from the Sun's mean longitude, which is a route through
 /// the ephemeris that never touches sidereal time. **It is therefore not identical to
 /// `gha_deg / 15 + 12 h - UT1`**: those two definitions of "the mean sun" differ by a
-/// steady +0.0034 min (+3.1" of arc, +0.21 s of time) across 1990-2060, varying by
-/// under 0.00001 min within any one year. `tests/sun_equation_of_time.rs` pins that
-/// offset; it is below the resolution at which the equation of time is displayed, and
-/// it does not touch `gha_deg` or `dec_deg`.
+/// steady few hundredths of a second of time across 1990-2060, varying by under
+/// 0.00001 min within any one year. `tests/sun_equation_of_time.rs` pins that offset;
+/// it is below the resolution at which the equation of time is displayed, and it does
+/// not touch `gha_deg` or `dec_deg`.
 pub fn equation_of_time_min(jd_utc: f64) -> Result<f64, EphemerisError> {
     Ok(SunProvider::new().position(jd_utc)?.equation_of_time_min)
 }
@@ -514,36 +377,13 @@ mod tests {
     use approx::assert_relative_eq;
     use skyfix_core::time::{civil_to_jd, parse_utc};
 
-    #[test]
-    fn embedded_series_parses_and_matches_its_checkpoints() {
-        let d = vsop87().expect("embedded VSOP87 data must parse");
-        assert_eq!(d.schema, VSOP87_SCHEMA);
-        assert_eq!(d.truncation.terms_kept, 1020);
-        assert_eq!(d.truncation.terms_total, 2425);
-        assert!(d.checkpoints.len() >= 8);
-        // The first checkpoint is the catalogue's own published check value.
-        assert!(d.checkpoints[0].source.contains("vsop87.chk"));
-
-        let (dl, db, dr) = vsop87_self_check().unwrap();
-        // The deviations ARE the truncation error, so they must sit inside the bound
-        // the generator measured, with a little room for f64 summation order.
-        assert!(
-            dl <= d.truncation.measured_max_error_l_arcsec + 1e-6,
-            "L off by {dl}\", bound {}\"",
-            d.truncation.measured_max_error_l_arcsec
-        );
-        assert!(
-            db <= d.truncation.measured_max_error_b_arcsec + 1e-6,
-            "B off by {db}\", bound {}\"",
-            d.truncation.measured_max_error_b_arcsec
-        );
-        assert!(
-            dr <= d.truncation.measured_max_error_r_au + 1e-12,
-            "R off by {dr} au, bound {} au",
-            d.truncation.measured_max_error_r_au
-        );
-        // And the whole point: the truncation is far inside the 0.1' = 6" target.
-        assert!(dl < 0.05 && db < 0.05, "truncation error too large");
+    /// Nutation in longitude and obliquity, arcseconds, from the shared frame model.
+    fn nutation_arcsec(jd_tt: f64) -> (f64, f64) {
+        let n = crate::frames::nutation_2000b_p03(jd_tt);
+        (
+            n.dpsi_rad / skyfix_core::units::ARCSEC,
+            n.deps_rad / skyfix_core::units::ARCSEC,
+        )
     }
 
     /// Meeus, *Astronomical Algorithms*, Example 22.a: 1987 April 10 at 0h TD gives
@@ -554,10 +394,6 @@ mod tests {
     /// differs from Meeus's Laskar expression by about 0.04". The tolerances below are
     /// those model differences, not slack: an error in any of the large nutation terms
     /// would be tens of arcseconds.
-    ///
-    /// This is the Sun's view of the shared frame model. `crate::frames` has its own
-    /// tests; this one guards the specific quantities `position` consumes, so a change
-    /// there that moved the Sun would fail here too.
     #[test]
     fn nutation_and_obliquity_match_meeus_22a() {
         let jd_tt = civil_to_jd(1987, 4, 10);
@@ -622,5 +458,39 @@ mod tests {
             (17.0..17.6).contains(&max_ee_arcsec),
             "max |equation of the equinoxes| = {max_ee_arcsec}\", expected ~17.3\""
         );
+    }
+
+    /// The vector aberration is the classical `-20.4898"/R` in longitude to within the
+    /// eccentricity terms the classical constant leaves out (about 0.34").
+    #[test]
+    fn aberration_is_the_classical_constant_to_first_order() {
+        let jd_tt = 2_461_310.5;
+        let (earth, vel) = earth_heliocentric_state(jd_tt).unwrap();
+        let r = (earth[0].powi(2) + earth[1].powi(2) + earth[2].powi(2)).sqrt();
+        let g = earth.map(|x| -x / r);
+        let a = apply_annual_aberration(g, vel.map(|v| v / C_AU_PER_DAY));
+        let shift = (1.0 - (g[0] * a[0] + g[1] * a[1] + g[2] * a[2]).powi(2))
+            .sqrt()
+            .asin()
+            / skyfix_core::units::ARCSEC;
+        assert!((shift - SUN_ABERRATION_ARCSEC / r).abs() < 0.4, "{shift}\"");
+    }
+
+    #[test]
+    fn the_labelled_tier_is_answered_only_when_asked_for() {
+        let jd = civil_to_jd(-500, 3, 21);
+        assert!(matches!(
+            SunProvider::new().position(jd),
+            Err(EphemerisError::OutOfCoverage { .. })
+        ));
+        let p = SunProvider::new()
+            .with_policy(TierPolicy::WithLabelled)
+            .position(jd)
+            .unwrap();
+        // Near the March equinox of 501 BC (proleptic Gregorian; the Julian date is
+        // three days later): the Sun's longitude is near 0 or 360 degrees.
+        let l = p.apparent_longitude_deg;
+        assert!(!(10.0..350.0).contains(&l), "{l}");
+        assert!((0.98..1.02).contains(&p.radius_au), "{}", p.radius_au);
     }
 }

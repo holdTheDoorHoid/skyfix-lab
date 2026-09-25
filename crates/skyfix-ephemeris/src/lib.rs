@@ -12,11 +12,14 @@ pub mod catalog;
 pub mod fixture_pack;
 pub mod frames;
 pub mod moon;
+pub mod pack;
 pub mod planets;
+pub mod series;
 pub mod sidereal;
 pub mod sights;
 pub mod stars;
 pub mod sun;
+pub mod tiers;
 pub mod topocentric;
 pub mod visibility;
 
@@ -51,6 +54,14 @@ pub trait AstroProvider {
     fn name(&self) -> &str;
     fn coverage(&self) -> Coverage;
     fn geocentric(&self, body: &str, jd_utc: f64) -> Result<GeocentricDirection, EphemerisError>;
+
+    /// The coverage tiers this provider answers (CONVENTIONS 15.1): the validated tier
+    /// and, when the provider was built to answer it, the labelled tier, each with its
+    /// measured accuracy. Empty for a provider that predates tiers (its coverage is then
+    /// just `coverage()`).
+    fn tiers(&self) -> Vec<tiers::CoverageTier> {
+        Vec::new()
+    }
 }
 
 /// Adapter so any provider can feed `skyfix_core::reduce`.
