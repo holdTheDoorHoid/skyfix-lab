@@ -248,7 +248,15 @@ export function occultationItem(o: Occultation, w: Words): EventItem {
     );
   }
   if (o.graze) parts.push('It runs along the edge, where the Moon’s mountains may hide and show it several times; the times are for the mean edge.');
-  if (o.kind === 'planet' && d && d.crossing_s > 0) parts.push(`The planet’s disc takes ${formatDuration(d.crossing_s)} to disappear.`);
+  // The times are those of the planet's centre (EXPLORER_API "occultations"): its disc goes in
+  // and comes out around them (verify2: the sentence gave only the first, and not that).
+  if (o.kind === 'planet' && ((d && d.crossing_s > 0) || (r && r.crossing_s > 0))) {
+    const goes = [
+      d && d.crossing_s > 0 ? `${formatDuration(d.crossing_s)} to disappear` : null,
+      r && r.crossing_s > 0 ? `${formatDuration(r.crossing_s)} to reappear` : null,
+    ].filter(Boolean);
+    parts.push(`The planet’s disc takes ${goes.join(' and ')}; the times are those of its centre, halfway through.`);
+  }
   const first = d ?? r;
   return {
     id: occultationId(o),
