@@ -141,7 +141,15 @@ function pathDrawing(t: PlanetTransit, zoneTime: (jd: number) => string): { el: 
     const at = transitPosition(path, c.jd_utc);
     if (!at) continue;
     svg.append(svgEl('circle', { cx: X(at.east).toFixed(1), cy: Y(at.north).toFixed(1), r: r.toFixed(1), class: 'sfe-tr__contact' }));
-    const label = svgEl('text', { x: X(at.east).toFixed(1), y: (Y(at.north) - r - R * 0.05).toFixed(1), class: 'sfe-tr__label', 'text-anchor': 'middle' });
+    // I and IV above the path, II and III below it: a small planet's contacts I and II (and
+    // III and IV) are only a minute or two apart, so their labels would sit on each other.
+    const outer = c.kind === 'c1' || c.kind === 'c4';
+    const label = svgEl('text', {
+      x: X(at.east).toFixed(1),
+      y: (outer ? Y(at.north) - r - R * 0.05 : Y(at.north) + r + R * 0.14).toFixed(1),
+      class: 'sfe-tr__label',
+      'text-anchor': 'middle',
+    });
     label.textContent = roman[c.kind] ?? '';
     svg.append(label);
     described.push(`contact ${roman[c.kind]} at ${zoneTime(c.jd_utc)}`);

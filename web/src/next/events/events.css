@@ -1100,6 +1100,16 @@
   flex: 1 1 32em;
 }
 
+/* The contacts' details wrap inside the card rather than scrolling out of it. */
+.sfe-card--occ .sf-table td,
+.sfe-card--occ .sf-table th {
+  white-space: normal;
+}
+
+.sfe-card--occ .sfe-ev__term {
+  max-width: 16em;
+}
+
 .sfe-occ__disc {
   flex: 0 0 auto;
   overflow: visible;
@@ -1362,6 +1372,11 @@
   fill: var(--stage-ink-2);
   font-family: var(--font-ui);
   font-size: 10.5px;
+  /* A halo in the stage's colour, so a name reads over the activity bars. */
+  paint-order: stroke;
+  stroke: var(--stage-bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
 }
 
 .sfe-strip__legend {
