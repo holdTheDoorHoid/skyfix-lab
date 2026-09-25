@@ -119,9 +119,9 @@ describe('the tide-station cells', () => {
       if (may) offered += 1;
       if (may && nearest > 100) generous += 1;
     }
-    expect(near).toBeGreaterThan(1000);
-    // Generous at most by a cell's width: rarely beyond the radius.
-    expect(generous / offered).toBeLessThan(0.25);
+    expect(near).toBeGreaterThan(3000);
+    // Generous at most by a cell's width: rarely beyond the radius (5 % measured, 2026-09-25).
+    expect(generous / offered).toBeLessThan(0.1);
   });
 
   it('offer tides on US coasts and islands, and not inland or abroad', () => {

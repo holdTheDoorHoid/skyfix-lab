@@ -2099,3 +2099,22 @@ Government works or facts; their acknowledgements are made here.
 | Meeus, *Astronomical Algorithms*, 2nd ed., table 38.C (perihelion and aphelion 1991-2010, as transcribed in `soniakeys/meeus`, `perihelion/pp_test.go`, MIT) and examples 43.a, 44.b, 45.a | apsides, central meridians, E5, rings | published facts |
 | The Minor Planet Center's `MPCORB.DAT` (six lines, by byte range) and `CometEls.txt` (<https://minorplanetcenter.net/iau/MPCORB/>, retrieved 2026-09-25): twelve lines kept verbatim as test input in `planetdetail_orbits.json` and two in `web/test/next/planetdetail-engine.test.ts` | orbits (`planetdetail_orbits.rs`, the web tests) | the MPC permits redistribution with the source stated: **"Source: Minor Planet Center"**, as the fixture and the test carry |
 | Skyfield 1.55 (`skyfield.data.mpc`, `almanac`, `searchlib`) with `de440s.bsp` and `hip_main.dat` (all listed under "Reference data" above) | conjunctions, stations, apsides, orbits, transit contacts | MIT (Skyfield); JPL and ESA terms as listed above |
+
+## Expansion programme — the Tonight view (tonight agent, 2026-09-25)
+
+The Tonight view (`web/src/next/tonight/`) shows the engines' results and adds one small
+table of its own:
+
+- **Tide-station cells** (`web/src/next/tonight/tide-cells.ts`, `TIDE_CELLS`): the 485
+  one-degree cells of latitude and longitude that hold at least one of the 3 499 stations of
+  the committed `tides-us` pack (NOAA CO-OPS, public domain as a U.S. Government work; see
+  "Tides (optional `tides-us` pack)" above for the source, retrieval date and processing).
+  Only the cells are kept (their numbers, delta-coded in base 36: 1 100 characters), written by
+  `web/src/next/tonight/dev/tide-cells.mjs` from the pack file itself; no station name,
+  position or constant is copied. They let the view offer the pack only where a station may
+  lie within 100 nautical miles, without downloading it. `web/test/next/tonight-tides.test.ts`
+  fails when the table and the committed pack disagree.
+
+Nothing else is added: the deep-sky descriptions, constellation names, meteor-shower table,
+Moon features and every number are the engines' (their sources are listed in their own
+sections above).
