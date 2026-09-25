@@ -39,7 +39,8 @@
  *      scroll, the view ending where the sheet begins, a clean console, no blue or white light
  *      in the night theme; the occultation, transit and shower cards with their drawings; the
  *      Save menu writing a real calendar file (RFC 5545 basics) and table; a background search
- *      that waits while the time bar is dragged and finishes once it is let go.
+ *      that waits while the time bar is dragged and finishes once it is let go; a solar eclipse
+ *      card offering the Lunar limb pack once and, with it, limb-corrected.
  *
  * Screenshots and a JSON summary go to docs/design/local/ (git-ignored). Development tool
  * only: Node built-ins and a local Chrome, no npm dependency. OWNER: polish pass.
@@ -789,6 +790,39 @@ async function main() {
       const E = JSON.parse(await evaluate(`JSON.stringify({ status: document.querySelector('.sfe-eclipses .sfe-status')?.textContent ?? '', rows: document.querySelectorAll('.sfe-eclipses .sfe-row').length, more: document.querySelector('.sfe-eclipses .sfe-more')?.textContent ?? '' })`));
       await shot('events-eclipses-century');
       check('events: the eclipse list reaches a century, in pages of rows, and says which years it holds', reached && /\d+ eclipses (in the next 100 years|from .+ to .+ \(the years computed\))/.test(E.status) && E.rows > 0 && E.rows <= 120 && (E.rows < 120 || /^Show (the other \d+|\d+ more of \d+)$/.test(E.more)), JSON.stringify(E));
+
+      // The lunar limb (P12) on a solar eclipse card: the pack offered once; with it, the
+      // corrected contacts labelled and the beads approximate; once saved, used without asking.
+      const DALLAS_2024 = 'v=1&lat=32.7767&lon=-96.797&place=Dallas&tz=America%2FChicago&t=2024-03-20T15:00:00Z&body=Sun&view=events';
+      const limbCard = `JSON.stringify({ limb: document.querySelector('.sfe-card .sfe-limb')?.innerText ?? '', time: [...document.querySelectorAll('.sfe-card th')].map((t) => t.innerText).join(' | '), beads: document.querySelector('.sfe-card .sfe-beads')?.previousElementSibling?.innerText ?? '', prompt: document.querySelector('.sf-packs-prompt')?.innerText ?? '' })`;
+      for (const theme of ['light', 'night']) {
+        messages.length = 0;
+        await open(DALLAS_2024, { theme });
+        await openEvents('eclipses');
+        await evaluate(`document.querySelector('.sfe-row[data-eclipse="2024-04-08-solar"]')?.click(); true`);
+        const asked = await waitFor(`/Lunar limb/.test(document.querySelector('.sf-packs-prompt')?.innerText ?? '')`, theme === 'light' ? 15000 : 4000);
+        if (theme === 'light') {
+          const mean = JSON.parse(await evaluate(limbCard));
+          check('events: a solar eclipse card offers the Lunar limb pack, and says its times are the mean limb\'s', asked && /^Mean limb/.test(mean.limb) && !/limb-corrected/.test(mean.time), JSON.stringify(mean).slice(0, 300));
+          await evaluate(`[...document.querySelectorAll('.sf-packs-prompt button')].find((b) => /^Get/.test(b.innerText.trim()))?.click(); true`);
+        } else {
+          check('events: once saved, the Lunar limb pack is used without asking again', !asked, asked ? 'the prompt came back' : '');
+        }
+        const corrected = await waitFor(`/^Limb-corrected/.test(document.querySelector('.sfe-card .sfe-limb')?.innerText ?? '')`, 120000);
+        await waitFor(`!document.querySelector('.sf-packs-prompt')`, 10000);
+        await evaluate(`document.querySelector('.sfe-card .sfe-limb')?.scrollIntoView({ block: 'start' }); true`);
+        await sleep(400);
+        const C = JSON.parse(await evaluate(limbCard));
+        const L = JSON.parse(await evaluate(LAYOUT));
+        const png = await shot(`events-card-eclipse-limb-${theme}`);
+        check(`events: with the pack the eclipse card is limb-corrected, its beads approximate (${theme})`, corrected && /limb-corrected/.test(C.time) && /approximate/i.test(C.beads), JSON.stringify(C).slice(0, 300));
+        check(`events: the limb-corrected card has no overlap or cut-off text (${theme})`, !L.hscroll && !L.overlaps.length && !L.clipped.length, [...L.overlaps, ...L.clipped].join('; '));
+        check(`events: the limb-corrected card keeps the console clean (${theme})`, !messages.some((m) => /^(error|warning|warn|exception)/.test(m)), messages.slice(0, 3).join(' | '));
+        if (theme === 'night') {
+          const n = lightNotRed(decodePng(png));
+          check('events: the limb-corrected card shows no blue, green or white light', n.count < 50, n.count ? `${n.count} px, worst ${JSON.stringify(n.worst)}` : '');
+        }
+      }
 
       // A background search waits while the time bar is dragged, and finishes once it is let go.
       await open(`${EV_MOMENT}&view=events`, { theme: 'dark' });
