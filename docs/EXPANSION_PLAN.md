@@ -2,17 +2,15 @@
 
 ## Outcome
 
-All twelve wave-1 engines, all nine wave-2 interface packages and the wave-3 release
-trio (`verify2`, `docs3`, `polish2`) are done (§5 below has each one's status; two
-deviated from the plan by a recorded decision — no `deep-time` pack, and P10's own
-object list rather than the official Caldwell catalogue). `verify2`'s adversarial pass
-found 28 issues and fixed 21 on its own branch; the seven left for the planner are
-recorded in §3 ("Verifier decisions 2026-09-25"). The planner's own completion report —
-the full account of what shipped, against the owner's original request in §1 — is still
-to be written, most naturally as a further part of `docs/COMPLETION_REPORT.md` (which
-already holds the redesign programme's, as Part 1, and the original sprint's, as Part
-2). Until that lands, this plan plus §5's status column and `docs/BACKLOG.md`'s
-consolidated table are the record of what this programme actually delivered.
+All twelve wave-1 engines, all nine wave-2 interface packages and the wave-3 packages
+(`verify2`, `docs3`, `polish2`, and `chip2` for the ± chip rule) are done (§5 below has each
+one's status; two deviated from the plan by a recorded decision — no `deep-time` pack, and
+P10's own object list rather than the official Caldwell catalogue). `verify2`'s adversarial
+pass found 28 issues and fixed 21 on its own branch; the seven left for the planner are
+recorded in §3 ("Verifier decisions 2026-09-25"). The planner's completion report, the full
+account of what shipped against the owner's request in §1, is **Part 1 of
+`docs/COMPLETION_REPORT.md`** (the redesign's report is its Part 2 and the original sprint's
+its Part 3); `docs/BACKLOG.md`'s consolidated table records what is left.
 
 Status: **plan, 2026-09-24**. Written by the planner (the main session, Claude Fable 5.1)
 from the owner's interview of 2026-09-24 and three audits (accuracy and coverage, feature
