@@ -376,9 +376,11 @@ export function lightTableView(ctx: Ctx): LightTableView {
       setText(note, span ? (years ? `Golden and blue hour: worked out only for ${years}.` : `Golden and blue hour: not computed (${error}).`) : `Golden and blue hour: ${outsideWords(ctx, 'this day')}`);
       return;
     }
-    // Golden and blue hour are set by the Earth's turning: the Sun's share of σ(ΔT) (chip2).
+    // Golden and blue hour are set by the Earth's turning: the Sun's share of σ(ΔT) (chip2),
+    // one value for the day, in the chip at the table's head; the cells keep their times alone
+    // (they do not wrap, and a ± after each pushed the evening column out of the panel).
     chip.set(ctx, turning('Sun'), a, b);
-    const model = lightTable(hours, zone, deltaTNote(ctx, (a + b) / 2, turning('Sun')));
+    const model = lightTable(hours, zone);
     body.replaceChildren(
       ...model.rows.map((r) =>
         h(

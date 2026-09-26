@@ -82,6 +82,11 @@
   white-space: nowrap;
 }
 
+/* chip2: at a far date the head's ± chip goes under its words, not past the evening column. */
+.sf-photo-light .sf-table thead th:first-child {
+  white-space: normal;
+}
+
 .sf-photo__time {
   padding: 0;
   color: inherit;

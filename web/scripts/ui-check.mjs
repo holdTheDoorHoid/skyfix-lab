@@ -1977,9 +1977,27 @@ async function chipChecks({ evaluate, waitFor, messages, open, shot, viewport, s
       await open(`${CHIP_PLACE}&t=${d.iso}&body=Sun&view=about`, { theme });
       await sleep(300);
       const sun = JSON.parse(await evaluate(SELECTED));
+      // The golden and blue hour table keeps its evening column's text inside the panel with the
+      // chip at its head (every cell's text, measured, against the panel's own right edge).
+      const fits = JSON.parse(
+        await evaluate(`JSON.stringify((() => {
+          const t = document.querySelector('.sf-selected .sf-photo-light table');
+          const panel = document.querySelector('.sf-panel__scroll') ?? document.querySelector('#sf-panel');
+          if (!t || !panel) return { ok: false };
+          const edge = panel.getBoundingClientRect().right;
+          let right = 0;
+          for (const cell of t.querySelectorAll('th, td')) {
+            const r = document.createRange();
+            r.selectNodeContents(cell);
+            right = Math.max(right, r.getBoundingClientRect().right);
+          }
+          return { ok: right > 0 && right <= edge + 0.5, text: Math.round(right), panel: Math.round(edge) };
+        })())`),
+      );
       if (!mobile) await scrollPanelTo('.sf-selected');
       await sleep(200);
       await look('Selected: the Sun', 'sun');
+      check(`${tag}: the Sun card's golden and blue hour table keeps its text inside the panel with its chip`, fits.ok, js(fits));
       check(
         `${tag}: the Sun's rising, highest, setting and twilight ${d.sun ? `carry ${d.sun}` : 'carry no chip (under a second)'}`,
         sun.cards.length === 3 && (d.sun ? sun.cards.every((t) => d.sun.test(t)) && d.sun.test(sun.twilight) : sun.cards.every((t) => t === '') && sun.twilight === ''),
