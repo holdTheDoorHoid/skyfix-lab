@@ -1,13 +1,278 @@
 # Completion report
 
-This report has two parts. **Part 1** is the explorer redesign of 2026-09-24. **Part 2**
-is the original sprint of 2026-09-23/24, kept as it was written. Every number can be
-reproduced with a command listed in `ACCURACY.md`, `DEMOS.md` or "Reproduce" below.
+Three parts, newest first. **Part 1** is the expansion programme of 2026-09-24/25 (deep
+time, accuracy, astronomy and navigation features). **Part 2** is the explorer redesign of
+2026-09-24 (the SunCalc-style site). **Part 3** is the original sprint of 2026-09-23/24 (the
+workbench, now at `/classic/`). Each part was written by the planner at the end of its
+programme from the agents' reports and the merged tree, and each names its verifier's
+report. The site is https://holdthedoorhoid.github.io/skyfix-lab/.
 
-**Everything in this repository is a simulation and analysis tool. No real sextant sight
-has been taken with it. Numerical agreement with reference data is not field accuracy.**
+## Part 1 — The expansion programme (2026-09-24 to 2026-09-25)
 
-## Part 1 — The explorer redesign (2026-09-24)
+Status: **complete. Every package is merged, verified on main and live**. Written by the planner (the main session, Claude Fable 5.1) from the
+agents' final reports, the verifier's `VERIFICATION_2.md`, and the merged tree at
+`b21fce1`. The site is live at https://holdthedoorhoid.github.io/skyfix-lab/.
+
+### 1. What the owner asked for, and what was decided
+
+> "Further expand and improve on this project. … The Moon sights ignore the Earth's slight
+> flattening: is that worth improving? Can we make it more accurate? … I want to calculate out
+> farther than 2060. Review the project and website and analyze for any features that are
+> missing: useful to users, not only celestial navigation, but people interested in astronomy
+> and similar events. Use Fable 5.1 for project management and Opus 5.5 for agent tasks."
+
+| Question | Decision (interview, 2026-09-24) | Outcome |
+|---|---|---|
+| How far in time | 2000 BC to AD 3000; full accuracy 1550–2650 validated against JPL DE440; a labelled band outside it with its uncertainty on screen; Julian calendar before 1582-10-15 | Done. Validated tier 1550-01-01 to 2650-01-22; labelled tier 2001 BC to AD 3000, display only; both in the core module, no download |
+| Astronomy features | all four bundles: Tonight and deep sky; Moon and planets in detail; photography and Sun tools; calendar, export and sharing | Done |
+| Navigation features | all four bundles: tides; compass and variation; sailings and passage planning; sight extras | Done |
+| Extra data | optional packs, small core; the first visit stays about 1 MB | Packs for tides (345 KB) and the lunar limb (2.2 MB); the core module is 1.15 MB gzipped (it was 0.85 MB before the programme and 1.29 MB at its peak) |
+| Data credit | credit-free preferred; documentation acknowledgement when nothing credit-free exists; on-screen credit only as a last resort | Nothing on screen but OpenStreetMap's credit while the street layer is on; every source in THIRD_PARTY |
+| Models | Fable plans and integrates; Opus builds; Sonnet documents | As done: 25 agent packages |
+
+The planner's own accuracy decisions (the owner asked "is it worth it?"): the Earth's shape
+in Moon sight reduction (yes: the term reaches 0.2′), DUT1 no longer assumed zero, a ΔT model
+with an uncertainty, a refraction uncertainty term near the horizon, and the eclipse lunar
+limb as an optional pack. All five are built.
+
+### 2. What exists now
+
+**For anyone looking up.** A **Tonight** tab: the night's timeline (twilight, golden and blue
+hour, Moon up, Milky Way core, moonless darkness), the Moon, the planets with Jupiter's moon
+events and Saturn's ring tilt, the best deep-sky objects for the sky quality you choose, meteor
+showers, the Milky Way, the next fortnight's events from eleven sources, tides and photography
+hours, on one printable page. The **Sky** view draws 213 deep-sky objects, the Milky Way, an
+RA/Dec grid, fields of view for binoculars, telescopes and cameras, meteor radiants, and close-
+ups of the Moon (with tonight's terminator features named), Jupiter with its moons, Saturn with
+its rings and the other planets; it searches any star or object by name, takes comets and
+asteroids from orbital elements, zooms to 12×, and saves a picture. **Events** adds lunar
+perigee and apogee with supermoons, Earth's perihelion and aphelion, planetary stations and
+retrogrades, conjunctions, lunar occultations seen from your place, transits of Mercury and
+Venus with local circumstances, meteor showers and Galilean events, with calendar (ICS) and
+CSV export; the eclipse card can correct its contact times for the Moon's mountains and
+valleys and show approximate Baily's beads. The time bar goes from 2001 BC to AD 3000, in the
+Julian calendar before 1582, at up to ten years a second, with a ± chip stating the Earth's
+rotation uncertainty where it matters.
+
+**For photographers and the Sun-minded.** Golden and blue hour, "when is it at" a bearing, an
+alignment finder (pick a bearing on the map; get the days the Sun or Moon rises or sets along
+it), a Milky Way planner, and a Charts → Sun tab with sun path, analemma, sunrise and sunset
+bearings, the equation of time and a clear-sky solar-panel helper; every chart saves as PNG,
+CSV and print.
+
+**For navigators.** Tides for 3 499 NOAA stations (high and low water, curves, tables, datums)
+behind a 345 KB pack; magnetic variation anywhere and compass error by the Sun's azimuth or
+amplitude; great-circle and rhumb-line passages on the map with dead reckoning feeding the
+running fix; DUT1, site elevation, air pressure and temperature, an index-error log and a
+watch log; shoreline horizon; star identification from a sextant altitude and bearing;
+printable sight worksheets, a plotting sheet and a rotating star finder; the Nautical
+Almanac's three-day openings and its Increments and Corrections, altitude-correction, Polaris
+and arc-to-time tables, for any year. The Moon's sight reduction now uses the exact
+topocentric position, which removed a systematic error of up to 0.2 nautical miles.
+
+**Everywhere.** 84 command-line subcommands reproduce every number the site shows, as JSON
+identical to the WASM exports. Three themes, phone layouts, offline after the first visit.
+
+### 3. How closely it was checked
+
+The full table is `ACCURACY.md` (At-a-glance). Headlines, every one backed by a test file:
+
+| Engine | Reference | Result | Target |
+|---|---|---|---|
+| Sun, Moon, planets, 1550–2650 | JPL DE440 | Sun 0.01″, Moon 0.36″, Mars 0.71″, Uranus 0.91″ | 0.02′ (1.2″) per body |
+| Sun, Moon, planets, 2001 BC–3000 (labelled) | JPL DE441 | Sun 0.48″, Moon 1.43″; planets within 5″ (Mars 0.15′) | labelled, shown with its ± |
+| ΔT (Earth's rotation) | NASA Five Millennium Canon | within the stated σ at −2000 and 2999; the SMH 2016 revision explains 1000 and −500 | honest σ |
+| Moon sights | own topocentric model, WGS84 | Moon sessions 2.6 / 5.1 m fix error (18 / 35 m before) | remove the 0.2′ term |
+| Tides, 3 499 stations | NOAA's own predictions | 1.36 min and 0.99 cm worst over 39 120 extremes; Anchorage 0.19 cm | 2 min, 5 cm |
+| Eclipse contacts with the lunar limb | NASA SVS, 48 cities; an independent implementation | second contact 1.2 s; third contact 1.1 s earlier than SVS (their definition); 0.44 s vs the independent code | 2 s |
+| Planet discs, rings, Galilean moons | JPL Horizons | 0.0005°, 0.00005°, 0.33″; 336 moon events within 23–97 s | 1″ |
+| Transits of Mercury and Venus | Skyfield, NASA | 4.4 s; 2004/2012 contacts 5.1 s; 101 city contacts 5.7 s | 30 s |
+| Conjunctions and stations, 1990–2060 | Skyfield | 3 223 and 2 300 matched one for one; stations within 96 s | 5 min |
+| Deep-sky positions (213) | SIMBAD; Corwin | median 0.003′; all within 0.37′ | size-based |
+| Meteor showers (32) | IMO calendar | every 2026 and 2027 peak on the IMO's date | 1 day |
+| Almanac tables | independent Python; Bowditch | 6 274 values identical; 36 of 46 book values identical, 10 within 0.1′ (the book's own formulas) | 0.1′ |
+| Alignment finder geometry | Geoscience Australia's Vincenty example | 1 mm, 0.5″ | — |
+| Rigil Kentaurus (α Cen A's orbit) | ALMA (Akeson 2021) | 0.10–0.12″ (the Almanac's straight line: 4.4–4.6″) | — |
+| Sky view vs engine | the engine | positions to 1e-9° | — |
+
+### 4. The verifier's findings
+
+An independent adversarial pass (`VERIFICATION_2.md`) found **28 problems: 6 high, 8 medium,
+14 low**, fixed 21 on its branch and left 7 decisions to the planner (all now taken, §7).
+Nothing found would have given a navigator a wrong fix without warning. The ones worth knowing:
+NOAA treats the σ1 tide constituent as a compound of O1 and P1 (Anchorage went from 1.08 cm to
+0.19 cm); BC eclipse ids lost their day; the occultation track near a coverage end was wrong by
+up to 1.9 km; every view kept asking the engine for positions it did not draw during
+ten-years-a-second playback (50–78 % of busy time, now zero); the memoised engine had two
+latent faults; Jupiter's close-up printed a raw engine message at far dates; the Selected card
+claimed "offered for sights" at 585 BC. It also settled the planner's questions: the eclipse
+third-contact offset is NASA SVS's contact definition, not ours (their stated ΔT would move it
+the other way); the ± chip on rise and set times overstated ΔT's effect while the Moon's
+shown position carried none (the rule was changed, §7).
+
+### 5. Discoveries worth knowing
+Things the programme learned that are true of the outside world, not of this code:
+
+- **NASA's eclipse visualisation (SVS) uses its own third-contact definition.** Its second
+  contact agrees with ours and with an independent implementation to 0.2 s, but its third
+  contact is 1.1–1.2 s later for both the 2024 total and the 2023 annular eclipse, and NASA's
+  stated ΔT would move it the other way. Its 2021 Antarctic path table was already known to be
+  2.3 km off. Two rows of NASA's transit catalogue are misprinted.
+- **NOAA's tide conventions, recovered from its own predictions:** node factors at mid-year and
+  V0 at 1 January; M1 as Schureman's formula 201 advanced at formula 194's speed; σ1 treated as
+  a compound of O1 and P1; subordinate offsets in feet; a high and a low less than two hours and
+  0.1 ft apart are both dropped from the tables. With these, 3 499 stations reproduce to about a
+  minute and a centimetre.
+- **The mean-limb annular eclipse is too long.** For 2023 the smooth Moon made annularity 7–18 s
+  longer than the real limb; San Antonio gained 15 s of totality in 2024 from the limb (NASA: 18 s).
+- **Rigil Kentaurus is not where a straight-line proper motion puts it.** α Cen A orbits the
+  pair's barycentre; the Nautical Almanac's linear motion is already 4.4–4.6″ from ALMA's
+  measured positions and drifts to 17″ by 2060. The engine follows the USNO orbit (0.1″).
+- **The Moon's secular acceleration** in the current ΔT literature is −25.82″/cy², not the
+  −25.85 some sources still quote; and the SMH 2016 ΔT revision differs from NASA's Five
+  Millennium Canon by 88 s at AD 1000 and 186 s at 500 BC.
+- **The Galilean-moon theory (E5 as given by Meeus) drifts to 0.9″ by 1650**; its accuracy is now
+  stated by era. Jupiter's Great Red Spot cannot be tracked from a stored longitude: it drifts
+  tens of degrees a year.
+- **Wikidata's deep-sky data needs checking:** NGC 6357's position is 22′ off both references,
+  and its V magnitude is sometimes a galaxy's nucleus or a nebula's central star, so magnitudes
+  came from the HEASARC catalogues where they exist.
+- **Skyfield's `PlanetaryConstants.read_binary` keeps only the last kernel segment per body**,
+  which matters when a lunar-orientation kernel spans several segments.
+- **The IMO's meteor calendar revises activity dates between years** (two 2027 start dates
+  changed); the table follows the published values at retrieval and says so.
+
+### 6. Data and licences
+Everything shipped is listed in `THIRD_PARTY.md` with its URL, retrieval date, hash, licence
+basis and processing. The policy held: **nothing on screen credits anything but OpenStreetMap**,
+and only while the street layer is on; a source-scan test fails if a credit string returns.
+
+| Shipped data | Basis |
+|---|---|
+| NOAA tide constants, datums and offsets (3 499 stations) | public domain; NOAA requests attribution, given in the documentation |
+| LRO LOLA LDEM_16 heights (the lunar-limb pack) | U.S. Government work |
+| IGRF-14 and WMM2025 coefficients | free with documentation credit (IAGA); U.S. Government work (NOAA/NCEI, USGS) |
+| IERS EOP tables (DUT1, ΔT history) | free |
+| Wikidata deep-sky objects | CC0 |
+| HEASARC globular-cluster and RC3 galaxy tables | U.S. Government works |
+| SIMBAD sizes and one magnitude | documentation acknowledgement |
+| IAU Meteor Data Center and IMO calendar values (32 showers) | published facts compiled and restated in our own form; documentation acknowledgement; the residual risk (EU database right on a substantial extraction; ours is not) is recorded |
+| NASA COBE/DIRBE (the Milky Way isophotes) | NASA data, documentation acknowledgement |
+| IAU WGSN star names (220 added) | facts |
+| ELP/MPP02 lunar series (re-fitted, re-truncated, binary) | a published scientific solution (Chapront & Francou 2003) distributed by its authors without a licence statement, mirrored byte-identically with pinned hashes; documentation acknowledgement; the residual risk is recorded |
+| VSOP87A planetary series (with DE-fitted corrections) | CDS VI/81, free with acknowledgement |
+| JPL Small-Body Database elements for Ceres (the paste-box example) | facts; JPL asks no credit |
+| IAU 2015 rotation models, NASA fact-sheet ring radii, Schureman SP 98, Bowditch, Vincenty | facts and public-domain works |
+| Inter and JetBrains Mono | SIL OFL; the licence texts now ship beside the fonts as the OFL requires |
+
+Development-time only, never shipped: JPL DE440/DE441, Horizons, the JPL satellite ephemeris,
+NASA's eclipse and transit pages, NASA SVS city times, USNO, NOAA's predictions, the Minor
+Planet Center, Corwin's NGC/IC positions, ALMA positions from Akeson et al. 2021, Skyfield
+(MIT), pyerfa and fontTools (private tools).
+
+### 7. Deviations from the plan and decisions taken
+- **The labelled tier is cut more coarsely than planned** (5″ per planet, Earth 0.3″) so that
+  both tiers fit in the core module; it is display only and its published figures say so.
+  There is **no deep-time pack**.
+- **The module budget** was raised from 1 MB / 2.5 MB to 1.25 MB gzipped / 3 MB raw when nine
+  engines had landed (peak 1.29 MB / 3.12 MB), then brought back to **1.15 MB / 2.55 MB** by the
+  binary ephemeris tables and `opt-level = "z"`. A first visit downloads 4.1 MB gzipped in all
+  (the map, fonts and code); the offline copy is 4.6 MB.
+- **The ± chip rule changed** after the verifier showed the whole ΔT uncertainty on rise and set
+  times overstated ΔT's effect a hundredfold while the Moon's shown position carried none: the
+  chip now scales with each quantity's real sensitivity (`chip2`; CONVENTIONS 15.1–15.2).
+- **Eclipses and planet events still cover 1990–2060** although the Moon and planets now reach
+  1550–2650; widening the searches is in the backlog, and the views say so in words (the eclipse
+  of 585 BC is not listed).
+- **Third contact against NASA SVS** misses the 2 s target at three of 48 cities for the reason
+  in §5; against an independent implementation the engine is within 0.44 s.
+- **The almanac tables follow the project's own correction chain**, so ten of 46 values differ
+  from the printed book by 0.1′ (the book's refraction formula, Moon radius and temperature
+  tables); the pages say which chain they use.
+- **Names:** three deep-sky exports were renamed from the plan's sketch (`meteor_showers`,
+  `sky_search`, `extinction_table`) because every export shares one namespace; `tide_now` takes
+  a datum; `dso_visibility` takes an instant.
+- **Small omissions by decision:** the Lobster Nebula (bad reference position), two revised IMO
+  2027 dates, the double-star bonus, star charts beside the star list, the Great Red Spot.
+- **The labelled tier starts at astronomical year −2000, which is 2001 BC**; the plan's
+  "2000 BC" was corrected in every on-screen and documentary mention.
+
+### 8. Known gaps and backlog
+`BACKLOG.md` has the full table. The items a user would notice first:
+
+- Eclipses and planet events beyond 1990–2060; the star field, Tonight's deep sky and showers at
+  labelled-tier dates (each refuses in words today).
+- Speed: a year of meteor showers with an observer (0.2 s), the Moon's year series (0.3–0.5 s),
+  an almanac opening (0.2 s, with a "working out" state); Events searches and the year-long
+  charts could move to a worker thread; the Sky view's slowest draws exceed 10 ms under load
+  (median 4.6–5.1 ms on a quiet machine).
+- The alignment finder covers the Sun and Moon only; added comets and asteroids are not kept
+  between visits (owner's call); the pack prompt covers the Tides controls on a phone.
+- Two size levers not pulled because they change contracts: serde code (738 KB) and repeated
+  sort copies (115 KB).
+- Navigation extras not built: composite sailing, automatic deviation from the table, a plotting
+  sheet for the running fix, a printed passage plan, GPX import, `--zone lmt` and `--request
+  FILE` on the command line.
+- Drawing limits: galaxies drawn level, the Milky Way not refracted, Saturn's ring shadows and
+  Jupiter's markings not drawn, the Moon's seas as ellipses, no limb drawing on the eclipse card.
+- **Two behaviours for the owner to confirm:** the rise and set cards go blank while playing
+  faster than a month per second; the phone time bar is two lines at a fixed height.
+
+### 9. How it was built
+25 agent packages ran in their own git worktrees on their own branches, never pushing;
+the planner merged each into main, ran the full Rust and web suites on main before every push,
+watched every Pages deploy, and smoke-checked the live site in a browser. Wave 1 built twelve
+engines in parallel (sun tools, the Moon's shape and DUT1, geomagnetism, data packs, time scales,
+sailings, Moon detail, deep sky, planet detail, tides, the lunar limb, deep time); wave 2 built
+eight interface packages (time and calendars, Charts, the Selected card, Almanac, Navigate,
+Tonight, Sky, Events) as the engines landed; then command-line parity, the polish pass, the
+verifier, the documentation pass (Claude Sonnet 5; everything else Claude Opus 5.5) and the
+chip rule. Engineers wrote their own validation against independent references before
+reporting; the verifier re-derived a sample of every claim with its own code.
+
+What went wrong, and the rule each incident left: the account's usage limit stopped eight
+agents mid-task (they resumed from their transcripts with nothing lost); the Claude Code process
+exited twice, once when seven parallel builds exhausted the machine's 15 GB (agents now build
+with `-j 3` and test with two workers, never both suites at once); the session's scratch
+directory was wiped, taking the briefs with it (they now live outside `/tmp`); an agent's
+`run:` line ending in `::` made the Pages workflow invalid YAML, so four pushes deployed nothing
+while CI passed (CI now parses every workflow file); one agent's `pkill` killed other agents'
+test runs (stop only your own processes); one agent's browser script ran in another session's
+tab (own headless browser only); and every merge of a file that several agents had appended to
+lost a closing brace at the seam at least once (typecheck and `node --check` after every merge).
+
+### 10. Size and counts
+| Measure | Value |
+|---|---|
+| Commits on main since the redesign's report | 397 (before this report) |
+| Agent packages / merges | 25 / 26 |
+| Rust | 114 718 source and 39 211 test lines across 12 crates |
+| TypeScript | 104 653 source and 26 006 test lines |
+| Python (development-time reference tools) | 24 645 lines |
+| Documentation | 21 334 lines across `docs/*.md` |
+| Rust tests | 1 548 passed, 0 failed, 14 ignored, across 129 test binaries (606 at the end of the original sprint, 1 066 after the redesign) |
+| Web tests | 1 631 passed in 106 files (991 after the redesign) |
+| Browser checks | 1 190 in `ui-check.mjs`, 79 in `verify2-check.mjs`, 53 offline checks |
+| Command-line subcommands | 84 (26 before the programme) |
+| Core module | 2 551 154 bytes raw, 1 152 888 gzipped (`opt-level = "z"`); 851 KB gzipped before the programme |
+| Optional packs | `tides-us` 345 KB; `lunar-limb` 2.2 MB |
+| A first visit / the offline copy | 4.1 MB / 4.6 MB gzipped, all files |
+
+### 11. Reproduce
+```
+cargo fmt --all -- --check && cargo clippy --workspace --all-targets -- -D warnings && cargo test --workspace
+cargo test --release -p skyfix-ephemeris --test deeptime_reference -- --nocapture
+cargo test --release -p skyfix-almanac --test eclipse_limb --test planetdetail_galilean --test planetdetail_transits -- --nocapture
+TIDES_FULL_SWEEP=1 cargo test -p skyfix-tides -- --nocapture
+cargo test -p skyfix-starfield --test dso_reference --test showers_reference
+cargo test -p skyfix-cli --test parity --test explorer_golden
+cd web && npm run wasm && npm run typecheck && npx vitest run --maxWorkers=2
+npm run build && node scripts/ui-check.mjs && node scripts/verify2-check.mjs && node scripts/core-bench.mjs
+cd .. && SKIP_WASM=1 SKIP_INSTALL=1 web/scripts/pages-site.sh && node web/scripts/offline-check.mjs
+tools/reference/.venv/bin/python -m tools.reference.generate_all --list
+```
+
+## Part 2 — The explorer redesign (2026-09-24)
 
 ### What the owner asked for
 
@@ -178,7 +443,7 @@ cargo run --release -p skyfix-cli -- eclipse 2024-04-08-solar --lat 32.78 --lon 
 mdbook build docs
 ```
 
-## Part 2 — The original sprint (2026-09-23/24)
+## Part 3 — The original sprint (2026-09-23/24)
 
 Sprint of 2026-09-23/24, planned and integrated by Claude Fable 5.1 with parallel Opus
 engineering agents and one Sonnet documentation agent, from the brief in `BRIEF.md`.
