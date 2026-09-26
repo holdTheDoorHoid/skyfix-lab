@@ -1372,11 +1372,12 @@ Normative for every view under `web/src/next/`; the helpers are in `web/src/next
   longitude, to the second, named "LMT" (`resolveZone(choice, lon, jd)`; `lmtReason` gives
   the sentence); a zone the person pinned stays as chosen. The tooltip of an IANA zone before
   1970 says its offset may be approximate (tz database) (`zoneTooltip`).
-- **Uncertainty:** the ±ΔT chip (`uncertaintyChip`, `uncertaintyText`) stands beside a clock
-  time when the standard uncertainty of ΔT at that date exceeds 30 s (half the precision of a
-  time to the minute), and always in the labelled tier, written ±s below 90 s, ±min below an
-  hour, ±h above. It concerns clock times of events at a place and eclipse paths, never
-  positions on the sky, and says so.
+- **Uncertainty:** every ±ΔT chip comes from one helper, `dtChip(source, jd, subject)` in
+  `time/chip.ts`, whose rule is 15.2's: a clock or an instant (a phase, a season, a
+  conjunction, an eclipse) carries the whole σ(ΔT); a turning time (rise, set, transit,
+  twilight, golden hour, an alignment, a tide) carries σ × the named body's rate ratio and
+  appears from 1 s; a body's shown position carries its angular rate × σ in arcminutes at
+  far dates when over 0.1′. Views never compute a chip of their own.
 - **Tiers:** `tierAt` is the one source of a date's tier in the interface (the engine's own
   `tierAt`, else `explorer_coverage()`'s `validated_*` fields, else `time_info.tier`).
   Sights, predicted readings and the planner are offered only in the validated tier, and say

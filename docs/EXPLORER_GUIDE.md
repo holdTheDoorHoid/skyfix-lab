@@ -203,9 +203,11 @@ station within 50 nautical miles, with **Tides chart**, which opens the Tides ta
 Charts. They are predictions, not observations: wind, storm surge and river flow are not in
 them.
 
-Far from today, where the Earth's rotation is known only roughly, every time on the card
-carries its uncertainty ("20:15 ±12 min"), and the tools show the ± chip with its
-explanation beside their headings (see [Moving through time](#moving-through-time)).
+Far from today, where the Earth's rotation is known only roughly, a time on the card
+carries a ± chip only when that uncertainty actually moves it: the Sun's rising, setting
+and golden hours barely move (the chip appears once the shift reaches a second), while the
+Moon's times and the moment of an alignment carry theirs, and the Moon's own place carries
+a ± in arcminutes (see [Moving through time](#moving-through-time)).
 
 ### Worked example: Manhattanhenge
 
@@ -550,8 +552,10 @@ way the book lays it out. Five tabs:
   any year: type `1066`, or `585` with **BC** chosen (or `585 BC`, `−584`); dates before
   15 October 1582 are in the Julian calendar, as in the time bar, and the calendar box
   can force either calendar. Before 1767, the year of the first Nautical Almanac, the page
-  says it shows what the book *would* have printed. On estimated years the ± chip beside
-  the heading gives the uncertainty of every clock time on the page.
+  says it shows what the book *would* have printed. On estimated years a ± chip sits on
+  each column head that the Earth's rotation actually moves: the Moon's hourly places in
+  arcminutes, its rising, setting and meridian passage in seconds or minutes; the Sun's
+  columns carry none until the shift reaches a second.
 - **Increments.** Increments and Corrections, two minutes to a page as printed: what to
   add to the hour's GHA for the minutes and seconds after it (Sun and planets, Aries, the
   Moon), and the v and d corrections. **Look up** takes a time such as `58:27` and a v or
@@ -672,8 +676,10 @@ between 2650 and AD 3000, positions are shown — labelled as historical or far-
 estimates — but a sight cannot be worked from them. Type a sight's date in the calendar
 the page shows: before 15 October 1582 that is the
 Julian calendar (unless Settings → Calendar says ISO). Times read **UTC** from 1972 to 2035
-and **UT** outside, and a **± chip** beside a sight's time means the Earth's rotation then is
-known only that well: every fix's longitude moves with it, 15″ for each second.
+and **UT** outside, and a **± chip** beside a sight's time shows how well the Earth's
+rotation is known at that date. It does not move the fix (a sight's UT is what the clock
+read), but the Moon's and the planets' places do move with it, so at far dates the card
+shows their ± in arcminutes; sights are only offered in the validated years anyway.
 
 The fix (and the circles of position behind it) draws directly on the Map view, and so does
 a passage. Sessions save automatically **in this browser only** — nothing is kept until you
