@@ -654,6 +654,24 @@ describe('search helpers (find.ts)', () => {
     expect(runSkySearch(engine, '  ', PHILLY, T0).hits).toEqual([]);
     const plain = { ...new MockEngine({ syntheticStars: 10 }) } as unknown as ExplorerEngine;
     expect(runSkySearch(plain, 'vega', null, null).unavailable).toBe(true);
+    // A date the star field does not cover: a plain sentence with the years, never the raw
+    // `sky_search: jd_utc … is outside …` message (chip2's finding).
+    const refusing = Object.assign(Object.create(engine) as typeof engine, {
+      skySearch: () => {
+        throw new Error("sky_search: jd_utc 1507906.1666666665 is outside the star field's range 1550-01-01T00:00:00Z .. 2650-01-22T00:00:00Z");
+      },
+    });
+    const far = runSkySearch(refusing, 'vega', PHILLY, 1507906.17);
+    expect(far.hits).toEqual([]);
+    expect(far.error).toContain('1550 to 2650');
+    expect(far.error).not.toContain('jd_utc');
+    // Any other failure keeps its message, since it is a bug worth seeing.
+    const broken = Object.assign(Object.create(engine) as typeof engine, {
+      skySearch: () => {
+        throw new Error('sky_search: boom');
+      },
+    });
+    expect(runSkySearch(broken, 'vega', PHILLY, T0).error).toBe('sky_search: boom');
     expect(panelSkyOptions(engine, 'a', PHILLY, T0)).toEqual([]);
     const opts = panelSkyOptions(engine, 'andromeda', PHILLY, T0);
     for (const o of opts) expect(o.hit.score).toBeGreaterThanOrEqual(60);

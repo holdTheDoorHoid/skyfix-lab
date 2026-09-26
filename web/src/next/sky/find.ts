@@ -10,6 +10,7 @@
  */
 
 import { isDeepSkyEngine, type ExplorerEngine, type Observer, type SearchHit, type SearchHitKind } from '../engine/types.js';
+import { rangeWords } from '../time/tier.js';
 import { compassPoint } from './format.js';
 import type { SkyTarget } from './requests.js';
 
@@ -29,7 +30,16 @@ export function runSkySearch(engine: ExplorerEngine, query: string, observer: Ob
   try {
     return { hits: engine.skySearch(q, observer, observer ? jd : null, limit).hits, error: null, unavailable: false };
   } catch (error) {
-    return { hits: [], error: error instanceof Error ? error.message : String(error), unavailable: false };
+    const raw = error instanceof Error ? error.message : String(error);
+    // The one expected refusal, a date the star field does not cover, becomes a plain
+    // sentence (chip2's finding: the raw `sky_search: jd_utc … is outside …` was shown).
+    // Any other failure keeps its message, since it is a bug worth seeing.
+    const years = rangeWords(raw);
+    return {
+      hits: [],
+      error: years ? `Search covers ${years}: the star field is not computed for this date.` : raw,
+      unavailable: false,
+    };
   }
 }
 
