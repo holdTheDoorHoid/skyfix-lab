@@ -10,7 +10,7 @@ import { h } from '../../../dom.js';
 import { disposer, type Mounted } from '../../component.js';
 import type { ExplorerState } from '../../state.js';
 import { jdFromIso } from '../../time.js';
-import { setUncertaintyChip, timeInfoAt, uncertaintyChip } from '../../time/chip.js';
+import { CLOCK, dtChip, setUncertaintyChip, uncertaintyChip } from '../../time/chip.js';
 import { scaleLabel } from '../../time/scale.js';
 import { angleFormat, zone, type NavCtx } from '../context.js';
 import { chartPanel, type ChartPanel } from '../chart-panel.js';
@@ -238,7 +238,7 @@ export function optionalUtcField(
       f.parts.setLabel(text);
     }
     f.parts.setHelp(typed !== null ? `= ${fmtInstant(typed, zone(nc, typed))}` : `${word}. Empty: ${emptyMeans}.`);
-    setUncertaintyChip(chip, timeInfoAt(nc.ctx, jd));
+    setUncertaintyChip(chip, dtChip(nc.ctx, jd, CLOCK));
   };
   f.input.addEventListener('change', update);
   // While the field is empty it means the time bar's time: follow that instant's scale and

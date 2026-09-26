@@ -351,13 +351,13 @@ export function compassMethod(host: HTMLElement, nc: NavCtx): Mounted {
         const jd = jdFromIso(when.utc) ?? explorer.time.jd_utc;
         const format = angleFormat(nc);
         const z = zone(nc, jd);
-        // The ±ΔT chip beside the time (time-ui): shown when the Earth's rotation then is uncertain
-        // by more than 30 s, and always outside the validated tier.
+        // The clock's ± chip beside the time (time-ui; chip2 `CLOCK`): shown when the Earth's
+        // rotation then is uncertain by more than 30 s, and always outside the validated tier.
         const tier = sightTierAt(nc.ctx, jd);
         whereLine.replaceChildren(
           `At ${fmtPosition(place, format)} (${place.label}), ${when.fromForm ? 'at the time you gave' : 'at the time on the time bar'}: ${fmtInstant(jd, z)}.`,
           ' ',
-          uncertaintyChip(tier.info),
+          uncertaintyChip(tier.clock),
         );
 
         // Variation at the place and date.

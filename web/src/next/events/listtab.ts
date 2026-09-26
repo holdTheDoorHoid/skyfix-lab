@@ -17,7 +17,7 @@ import { engineObserver, displayZone, type ExplorerState } from '../state.js';
 import { segmented } from '../theme/primitives.js';
 import { coverageBounds } from '../time/index.js';
 import { rangeWords } from '../time/tier.js';
-import { calendarNote, chipsIn, listUncertaintySentence, ownSpanJd, rowTimeInfo, truncatedNote, wireYear, yearText, type OwnSpan } from './deeptime.js';
+import { calendarNote, chipsIn, listUncertaintySentence, ownSpanJd, rowChip, truncatedNote, wireYear, yearText, type OwnSpan } from './deeptime.js';
 import { errorText, type EventsUi, type TabEnv } from './env.js';
 import { addToCalendarButton, exportMenu, type ExportMenu } from './export-ui.js';
 import { fileWords, screenWords, utcDate, type EventItem, type Words } from './items.js';
@@ -293,7 +293,7 @@ export function listTab<T>(host: HTMLElement, env: TabEnv, cfg: ListTabConfig<T>
         const row = eventRow({
           item,
           zone,
-          timeInfo: rowTimeInfo(ctx.engine, item.start, chips),
+          chip: rowChip(ctx.engine, item.start, chips),
           onJump: () => env.jump(item.jump, item.body ? { body: item.body } : {}),
           add: addToCalendarButton(ctx, ui, () => fileItem(item.id) ?? item, `${item.title}, ${w.dateYear(item.start)}`),
           onSelect: cfg.card ? () => cfg.card!.select(ui, selected === item.id ? null : item.id) : null,

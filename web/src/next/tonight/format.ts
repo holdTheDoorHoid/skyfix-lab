@@ -7,7 +7,7 @@
 import type { CompassPoint, DsoInstrument, DsoType, PhaseEvent } from '../engine/types.js';
 import { compassWords, eventTime, formatDistance, formatMagnitude, MINUS, otherDay } from '../shell/format.js';
 import type { AngleFormat, Units } from '../state.js';
-import { withUncertainty, type ChipInfo } from '../time/chip.js';
+import { turning, withUncertainty, type ChipSubject, type DtChip } from '../time/chip.js';
 import { MONTHS_LONG, WEEKDAYS_LONG } from '../time/format.js';
 import { wallClock, type Zone } from '../time.js';
 
@@ -18,11 +18,25 @@ export interface Fmt {
   angle: AngleFormat;
   units: Units;
   /**
-   * The night's `time_info` (time-ui's chip rule): when the Earth's rotation at that date is
-   * uncertain by more than 30 s, or the night is in the labelled tier, every time written
-   * carries the uncertainty (`±12 min`). Null or absent: nothing is added.
+   * The ± chip of a time on this night (chip2, CONVENTIONS 15.2): the view passes
+   * `(subject, jd) => dtChip(ctx, jd, subject, nightInfo)` (time/chip.ts). What a time carries
+   * depends on what sets it (`subject`): the whole σ(ΔT) for an instant of the bodies' own
+   * motion (`INSTANT`), the body's share of it for a time set by the Earth's turning
+   * (`turning(body)`). Null or absent: nothing is added.
    */
-  dt?: ChipInfo | null;
+  dt?: ((subject: ChipSubject, jd: number) => DtChip | null) | null;
+}
+
+/** Twilight, darkness, golden hour, a fixed object's best time: the Sun's turning. */
+export const SUN_TURNING = turning('Sun');
+/** Moonrise, moonset, the Moon up: the Moon's turning. */
+export const MOON_TURNING = turning('Moon');
+/** A span bounded by darkness or by the Moon's rising or setting (moonless darkness). */
+export const MOON_SUN_TURNING = turning('Moon', 'Sun');
+
+/** The ± chip of a time on this night, or null (no `dt`, or nothing to show). */
+export function chipAt(jd: number, f: Pick<Fmt, 'dt'>, subject: ChipSubject): DtChip | null {
+  return f.dt ? f.dt(subject, jd) : null;
 }
 
 /** `18:40` (or `6:40 PM`) on the display clock, rounded to the minute: no uncertainty (a button carries the chip beside it). */
@@ -30,9 +44,9 @@ export function clockPlain(jd: number, f: Pick<Fmt, 'zone'>): string {
   return eventTime(jd, f.zone);
 }
 
-/** `18:40`, and `18:40 ±12 min` when the night's times are that uncertain (time-ui's rule). */
-export function clock(jd: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
-  return withUncertainty(eventTime(jd, f.zone), f.dt);
+/** `18:40`, and `18:40 ±6 s` when what sets it carries that much of σ(ΔT) (chip2). */
+export function clock(jd: number, f: Pick<Fmt, 'zone' | 'dt'>, subject: ChipSubject): string {
+  return withUncertainty(eventTime(jd, f.zone), chipAt(jd, f, subject));
 }
 
 /** `18:40`, with the weekday when it falls on another local date than `ref`: `01:10 Fri`. No uncertainty. */
@@ -41,14 +55,14 @@ export function clockOnPlain(jd: number, ref: number, f: Pick<Fmt, 'zone'>): str
   return day ? `${clockPlain(jd, f)} ${day}` : clockPlain(jd, f);
 }
 
-/** `clockOnPlain` with the night's uncertainty when it has one: for sentences. */
-export function clockOn(jd: number, ref: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
-  return withUncertainty(clockOnPlain(jd, ref, f), f.dt);
+/** `clockOnPlain` with its uncertainty when it has one: for sentences. */
+export function clockOn(jd: number, ref: number, f: Pick<Fmt, 'zone' | 'dt'>, subject: ChipSubject): string {
+  return withUncertainty(clockOnPlain(jd, ref, f), chipAt(jd, f, subject));
 }
 
-/** `20:12–05:02` (one uncertainty for the pair). */
-export function clockRange(a: number, b: number, f: Pick<Fmt, 'zone' | 'dt'>): string {
-  return withUncertainty(`${clockPlain(a, f)}–${clockPlain(b, f)}`, f.dt);
+/** `20:12–05:02` (one uncertainty for the pair, at its middle). */
+export function clockRange(a: number, b: number, f: Pick<Fmt, 'zone' | 'dt'>, subject: ChipSubject): string {
+  return withUncertainty(`${clockPlain(a, f)}–${clockPlain(b, f)}`, chipAt((a + b) / 2, f, subject));
 }
 
 /** `Thursday 24 September`: the local date in the display calendar, without the year. */

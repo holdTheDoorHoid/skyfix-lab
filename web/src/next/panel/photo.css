@@ -82,6 +82,11 @@
   white-space: nowrap;
 }
 
+/* chip2: at a far date the head's ± chip goes under its words, not past the evening column. */
+.sf-photo-light .sf-table thead th:first-child {
+  white-space: normal;
+}
+
 .sf-photo__time {
   padding: 0;
   color: inherit;
@@ -233,6 +238,17 @@
   color: var(--chrome-ink-3);
   font-family: var(--font-ui);
   font-size: var(--text-xs);
+}
+
+/* chip2: the place's ± chip under the right ascension and declination, at far dates. */
+.sf-photo-coord__dt {
+  margin: -4px 0 6px;
+  text-align: right;
+  line-height: 17px;
+}
+
+.sf-photo-coord__dt[hidden] {
+  display: none;
 }
 
 .sf-photo-coord__term {

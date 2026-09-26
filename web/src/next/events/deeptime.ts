@@ -11,9 +11,9 @@
 
 import { h } from '../../dom.js';
 import type { Ctx } from '../component.js';
-import type { ExplorerEngine, TimeInfo } from '../engine/types.js';
+import type { ExplorerEngine } from '../engine/types.js';
 import { jdFromIso, msFromJd, wallClock, type Zone } from '../time.js';
-import { calendarTag, calendarTip, chipNeeded, coverageBounds, formatYear, gregorianDateOfMs, packForDate, sigmaText, timeInfoAt } from '../time/index.js';
+import { calendarTag, calendarTip, coverageBounds, dtChip, farDate, formatYear, gregorianDateOfMs, INSTANT, packForDate, sigmaText, timeInfoAt, type DtChip } from '../time/index.js';
 
 /** The Gregorian (wire) year of a UTC Julian date, astronomical numbering (the engine's years). */
 export function wireYear(jd: number): number {
@@ -89,33 +89,35 @@ export function coveredSentence(engine: ExplorerEngine, what: string, own?: OwnS
 }
 
 /**
- * True when some time in a list between `start` and `end` needs its ±ΔT chip. The
- * uncertainty grows steadily away from the present on either side (CONVENTIONS 15.2), so
- * within a list's months or years the two ends speak for the rest: a list inside the
+ * True when some time in a list between `start` and `end` needs its ± chip. Every Events list
+ * is of instants set by the bodies' own motion (phases, seasons, eclipses, conjunctions,
+ * occultations, stations, shower peaks), which carry the whole σ(ΔT) at a far date (chip2:
+ * `INSTANT`, CONVENTIONS 15.2). The uncertainty grows steadily away from the present on either
+ * side, so within a list's months or years the two ends speak for the rest: a list inside the
  * observed years asks `time_info` twice instead of once a row.
  */
 export function chipsIn(engine: ExplorerEngine, start: number, end: number): boolean {
   if (!Number.isFinite(start) || !Number.isFinite(end)) return false;
-  return chipNeeded(timeInfoAt(engine, start)) || chipNeeded(timeInfoAt(engine, end)) || chipNeeded(timeInfoAt(engine, (start + end) / 2));
+  return farDate(timeInfoAt(engine, start)) || farDate(timeInfoAt(engine, end)) || farDate(timeInfoAt(engine, (start + end) / 2));
 }
 
-/** `time_info` for a row, only when the list needs chips at all (see `chipsIn`). */
-export function rowTimeInfo(engine: ExplorerEngine, jd: number, listNeedsChips: boolean): TimeInfo | null {
-  return listNeedsChips ? timeInfoAt(engine, jd) : null;
+/** A row's ± chip (its instant: `INSTANT`), only when the list needs chips at all (see `chipsIn`). */
+export function rowChip(engine: ExplorerEngine, jd: number, listNeedsChips: boolean): DtChip | null {
+  return listNeedsChips ? dtChip(engine, jd, INSTANT) : null;
 }
 
 /** One sentence for a list whose times carry an uncertainty; '' when none does. */
 export function listUncertaintySentence(engine: ExplorerEngine, jds: readonly number[]): string {
-  let worst: TimeInfo | null = null;
+  let worst: DtChip | null = null;
   let labelled = false;
   for (const jd of jds) {
-    const info = timeInfoAt(engine, jd);
-    if (!info || !chipNeeded(info)) continue;
-    if (info.tier === 'labelled') labelled = true;
-    if (!worst || info.delta_t_sigma_s > worst.delta_t_sigma_s) worst = info;
+    const chip = dtChip(engine, jd, INSTANT);
+    if (!chip?.shown) continue;
+    if (chip.tier === 'labelled') labelled = true;
+    if (!worst || (chip.value ?? 0) > (worst.value ?? 0)) worst = chip;
   }
   if (!worst) return '';
-  return `${labelled ? 'Estimates outside the validated years: ' : ''}the Earth’s rotation at these dates is known only roughly, so each clock time carries the uncertainty shown beside it (up to ${sigmaText(worst.delta_t_sigma_s)}).`;
+  return `${labelled ? 'Estimates outside the validated years: ' : ''}the Earth’s rotation at these dates is known only roughly, so each clock time carries the uncertainty shown beside it (up to ${sigmaText(worst.value ?? worst.sigmaS)}).`;
 }
 
 /**

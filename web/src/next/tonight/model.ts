@@ -25,12 +25,14 @@ import type {
 import { formatMagnitude } from '../shell/format.js';
 import { moonPhaseName } from '../theme/glyphs.js';
 import { formatCivilDate } from '../time/format.js';
+import { INSTANT, turning, type ChipSubject } from '../time/chip.js';
 import { wallClock } from '../time.js';
 import { darknessOf, nightMiddle, type NightCore, type NightDetail } from './data.js';
 import {
   cap,
   clock,
   clockOnPlain,
+  clockPlain,
   clockRange,
   dayTitle,
   degrees,
@@ -42,8 +44,11 @@ import {
   instrumentWords,
   listWords,
   magnitudeText,
+  MOON_SUN_TURNING,
+  MOON_TURNING,
   percentLit,
   phaseEventWords,
+  SUN_TURNING,
   type Fmt,
 } from './format.js';
 import { firstEvent, intersect, subtract, spanDays, upSpans, type Span } from './night.js';
@@ -132,7 +137,7 @@ export function relativeNight(n: number, realNight: number | null): string {
 export function darknessSentence(core: NightCore, f: Fmt): string {
   const d = darknessOf(core);
   if (d) {
-    const span = `${clockRange(d.start, d.end, f)} (${duration(d.end - d.start)})`;
+    const span = `${clockRange(d.start, d.end, f, SUN_TURNING)} (${duration(d.end - d.start)})`;
     if (d.kind === 'night') return `Clear-sky darkness ${span}.`;
     if (d.kind === 'astronomical_twilight') return `The sky never gets fully dark: darkest ${span}, in astronomical twilight.`;
     return `Only twilight tonight: darkest ${span}, the Sun 6° to 12° down.`;
@@ -176,7 +181,7 @@ export function moonSentence(core: NightCore, detail: NightDetail | null, f: Fmt
   const up = d ? spanDays(moonUp(core).map((s) => intersect(s, [d.start, d.end])).filter((s): s is Span => s !== null)) : 0;
   let what: string;
   if (events.length) {
-    what = events.map((e) => `${e.kind === 'rise' ? 'rises' : 'sets'} at ${clock(e.jd, f)}`).join(' and ');
+    what = events.map((e) => `${e.kind === 'rise' ? 'rises' : 'sets'} at ${clock(e.jd, f, MOON_TURNING)}`).join(' and ');
   } else if (d && up >= d.end - d.start - 1 / 1440) {
     what = 'is up all through the dark hours';
   } else if (d && up <= 0) {
@@ -196,10 +201,12 @@ export function planetWhen(p: PlanetTonight, window: Span | null, f: Fmt): strin
   const mid = (window[0] + window[1]) / 2;
   const fromStart = a - window[0] <= slack;
   const toEnd = window[1] - b <= slack;
+  // chip2: the planet's 10° line or darkness bounds it: the faster turning of the two.
+  const sub = turning(p.body, 'Sun');
   if (fromStart && toEnd) return 'all night';
-  if (fromStart) return b < mid ? 'in the evening' : `until ${clock(b, f)}`;
-  if (toEnd) return a > mid ? 'in the morning' : `from ${clock(a, f)}`;
-  return `${clock(a, f)}–${clock(b, f)}`;
+  if (fromStart) return b < mid ? 'in the evening' : `until ${clock(b, f, sub)}`;
+  if (toEnd) return a > mid ? 'in the morning' : `from ${clock(a, f, sub)}`;
+  return `${clock(a, f, sub)}–${clock(b, f, sub)}`;
 }
 
 /** Planets up in the dark (10° or more at some time while the Sun is 6° down). */
@@ -251,13 +258,13 @@ export function eclipseSentence(detail: NightDetail | null, f: Fmt): string | nu
       const covered = percentLit(vm.obscuration ?? local.obscuration);
       const elsewhere = here === 'partial' && e.type !== 'partial' ? ` (${e.type} elsewhere)` : '';
       const part = local.visibility === 'partly_below_horizon' ? ', the Sun rising or setting during it' : '';
-      return `A ${here} eclipse of the Sun, at its most at ${clock(vm.jd_utc, f)}: ${covered} of the Sun covered here${elsewhere}${part}. Never look at the Sun without proper eye protection.`;
+      return `A ${here} eclipse of the Sun, at its most at ${clock(vm.jd_utc, f, INSTANT)}: ${covered} of the Sun covered here${elsewhere}${part}. Never look at the Sun without proper eye protection.`;
     }
     if (local.kind === 'lunar' && e.kind === 'lunar') {
       const max = local.events.find((x) => x.kind === 'max');
       const type = e.type === 'penumbral' ? 'penumbral eclipse of the Moon (a faint shading)' : `${e.type} eclipse of the Moon`;
       const seen = local.visibility === 'visible' ? 'seen from here from start to end' : 'partly seen from here';
-      return `A ${type} tonight${max ? `, greatest at ${clock(max.jd_utc, f)}` : ''}, ${seen}.`;
+      return `A ${type} tonight${max ? `, greatest at ${clock(max.jd_utc, f, INSTANT)}` : ''}, ${seen}.`;
     }
   }
   return null;
@@ -313,7 +320,7 @@ export function moonModel(core: NightCore, detail: NightDetail | null, f: Fmt): 
     rows.push({
       key: 'Distance',
       value: distanceText(o.distance_km, f.units),
-      tip: `From here, at ${clock(o.jd_utc, f)}. It looks ${Math.abs(pct).toFixed(0)}% ${pct >= 0 ? 'larger' : 'smaller'} than at its mean distance of 384 400 km.`,
+      tip: `From here, at ${clockPlain(o.jd_utc, f)}. It looks ${Math.abs(pct).toFixed(0)}% ${pct >= 0 ? 'larger' : 'smaller'} than at its mean distance of 384 400 km.`,
     });
   } else if (detail?.moon?.distance_km) {
     rows.push({ key: 'Distance', value: distanceText(detail.moon.distance_km, f.units), tip: 'From the Earth’s centre.' });
@@ -325,14 +332,14 @@ export function moonModel(core: NightCore, detail: NightDetail | null, f: Fmt): 
   else if (k < 0.03) moonless = `The Moon is new: all ${duration(dark.end - dark.start)} of darkness are moonless.`;
   else if (!free.length) moonless = 'No moonless darkness: the Moon is up through all the dark hours.';
   else if (spanDays(free) >= dark.end - dark.start - 1 / 1440) moonless = `The Moon is down through all the dark hours (${duration(dark.end - dark.start)}).`;
-  else moonless = `Moonless darkness ${free.map((s) => clockRange(s[0], s[1], f)).join(' and ')} (${duration(spanDays(free))}).`;
+  else moonless = `Moonless darkness ${free.map((s) => clockRange(s[0], s[1], f, MOON_SUN_TURNING)).join(' and ')} (${duration(spanDays(free))}).`;
   let note: string | null = null;
   const z = detail?.syzygy;
   if (z && (z.supermoon || z.micromoon)) {
     const what = z.kind === 'full_moon' ? 'full Moon' : 'new Moon';
     const size = `${Math.abs(z.diameter_vs_mean_percent).toFixed(0)}% ${z.diameter_vs_mean_percent >= 0 ? 'larger' : 'smaller'} than average`;
     const extra = z.largest_of_year ? ', the largest full Moon of the year' : z.smallest_of_year ? ', the smallest full Moon of the year' : '';
-    note = `${weekdayOf(z.jd_utc, f)}’s ${what} (${clock(z.jd_utc, f)}) is a ${z.supermoon ? 'supermoon' : 'micromoon'}${extra}: ${distanceText(z.distance_km, f.units)} away, ${size}.`;
+    note = `${weekdayOf(z.jd_utc, f)}’s ${what} (${clock(z.jd_utc, f, INSTANT)}) is a ${z.supermoon ? 'supermoon' : 'micromoon'}${extra}: ${distanceText(z.distance_km, f.units)} away, ${size}.`;
   }
   const t = featuresMoment(core) !== null ? (detail?.features?.tonight.slice(0, 4) ?? []) : [];
   const terminator = t.length ? `Good relief along the terminator, the line between day and night on the Moon: ${listWords(t)}.` : null;
@@ -406,19 +413,22 @@ export function planetLine(core: NightCore, p: PlanetTonight, f: Fmt): string {
   const ev = planetEvents(core, p.body);
   const parts = [p.body, directionWords(best.direction, best.az_deg)];
   const times: { jd: number; text: string }[] = [];
-  if (ev.rise !== null) times.push({ jd: ev.rise, text: `rises ${clock(ev.rise, f)}` });
+  // chip2: rising and setting are the planet's turning; its best moment may sit on darkness.
+  const own = turning(p.body);
+  const best2 = turning(p.body, 'Sun');
+  if (ev.rise !== null) times.push({ jd: ev.rise, text: `rises ${clock(ev.rise, f, own)}` });
   // The engine's best is the highest point while the Sun is 6° down: at an edge of that
   // stretch the planet is still climbing (or already sinking) as the sky brightens.
   const w = planetWindow(core);
   const edge = 12 / 1440;
   const high =
     w && best.jd_utc - w[0] <= edge
-      ? `${degrees(best.alt_deg)} up at dusk (${clock(best.jd_utc, f)}), then lower`
+      ? `${degrees(best.alt_deg)} up at dusk (${clock(best.jd_utc, f, best2)}), then lower`
       : w && w[1] - best.jd_utc <= edge
-        ? `${degrees(best.alt_deg)} up by ${clock(best.jd_utc, f)}, as dawn comes`
-        : `highest ${clock(best.jd_utc, f)} at ${degrees(best.alt_deg)}`;
+        ? `${degrees(best.alt_deg)} up by ${clock(best.jd_utc, f, best2)}, as dawn comes`
+        : `highest ${clock(best.jd_utc, f, best2)} at ${degrees(best.alt_deg)}`;
   times.push({ jd: best.jd_utc, text: high });
-  if (ev.set !== null) times.push({ jd: ev.set, text: `sets ${clock(ev.set, f)}` });
+  if (ev.set !== null) times.push({ jd: ev.set, text: `sets ${clock(ev.set, f, own)}` });
   times.sort((a, b) => a.jd - b.jd);
   parts.push(...times.map((t) => t.text));
   if (p.magnitude !== null) parts.push(magnitudeText(p.magnitude));
@@ -455,7 +465,8 @@ export function galileanMoments(core: NightCore, detail: NightDetail | null): { 
 
 /** `Jupiter's moons: 21:14 Io reappears from Jupiter's shadow; …` */
 export function galileanLines(core: NightCore, detail: NightDetail | null, f: Fmt): string[] {
-  return galileanMoments(core, detail).map((m) => `${clock(m.jd, f)} ${m.text}`);
+  // Jupiter's moons' moments are instants of their own motion: the whole σ(ΔT) (chip2).
+  return galileanMoments(core, detail).map((m) => `${clock(m.jd, f, INSTANT)} ${m.text}`);
 }
 
 export function ringsLine(rings: SaturnRings | null): string | null {
@@ -518,7 +529,7 @@ export function dsoRows(core: NightCore, catalog: readonly Dso[] | null, constel
       id: d.id,
       title: d.name ? `${d.label} · ${d.name}` : d.label,
       what: `${cap(dsoTypeWords(d.type))} in ${place}${mag}`,
-      when: `Best ${clock(d.best.jd_utc, f)}, ${degrees(d.best.alt_deg)} up in the ${directionWords(d.best.direction, d.best.az_deg)} · ${hoursText(d.hours_above_20)} above 20° in darkness · ${instrumentWords(d.instrument)}`,
+      when: `Best ${clock(d.best.jd_utc, f, SUN_TURNING)}, ${degrees(d.best.alt_deg)} up in the ${directionWords(d.best.direction, d.best.az_deg)} · ${hoursText(d.hours_above_20)} above 20° in darkness · ${instrumentWords(d.instrument)}`,
       description: c?.description ?? null,
       moon,
       best: d.best,
@@ -552,7 +563,7 @@ export function showerRows(core: NightCore, f: Fmt): ShowerRow[] {
     const rateText = `${rate < 1 ? 'Under one' : `About ${Math.round(rate)}`} an hour under this sky (ZHR ${Math.round(s.zhr)}${s.variable ? ', variable' : ''})`;
     const peak = atPeak(s) ? 'at the peak' : `${Math.abs(Math.round(s.days_from_peak)) || 1} ${Math.abs(Math.round(s.days_from_peak)) === 1 ? 'day' : 'days'} ${s.days_from_peak < 0 ? 'before' : 'after'} the peak`;
     const when = s.best
-      ? `Best ${clock(s.best.jd_utc, f)}, the radiant ${degrees(s.best.alt_deg)} up in the ${directionWords(s.best.direction, s.best.az_deg)} · ${peak}`
+      ? `Best ${clock(s.best.jd_utc, f, SUN_TURNING)}, the radiant ${degrees(s.best.alt_deg)} up in the ${directionWords(s.best.direction, s.best.az_deg)} · ${peak}`
       : `The radiant stays low tonight · ${peak}`;
     let moon: string;
     if (k < 0.03) moon = 'No Moon to spoil it.';
@@ -597,7 +608,8 @@ export function milkyWayModel(core: NightCore, f: Fmt): MilkyWayModel | null {
     }
     const total = ws.reduce((sum, w) => sum + (w.jd_end - w.jd_start), 0);
     const best = ws.reduce((a, w) => (w.best.alt_deg > a.best.alt_deg ? w : a), ws[0]!);
-    const spans = ws.map((w: GalacticWindow) => `${clockRange(w.jd_start, w.jd_end, f)} ${w.moon_up ? `with the Moon up (${percentLit(w.moon_illuminated_fraction)} lit)` : 'with the Moon down'}`);
+    const sub = galacticTurning(ws);
+    const spans = ws.map((w: GalacticWindow) => `${clockRange(w.jd_start, w.jd_end, f, sub)} ${w.moon_up ? `with the Moon up (${percentLit(w.moon_illuminated_fraction)} lit)` : 'with the Moon down'}`);
     const [e1, e2] = best.best.arch_ends_az_deg;
     const all = ws.length > 1 ? `: ${duration(total)} in all` : '';
     return {
@@ -620,6 +632,14 @@ export function milkyWayModel(core: NightCore, f: Fmt): MilkyWayModel | null {
     lines: [],
     best: c.best ? { jd: c.best.jd_utc, alt: c.best.alt_deg, az: c.best.az_deg, text: `the core ${degrees(c.best.alt_deg)} up in the ${directionWords(c.best.direction, c.best.az_deg)}` } : null,
   };
+}
+
+/**
+ * What sets the Milky Way core's dark windows (chip2): darkness, the Sun's turning, and the
+ * core's height, fixed on the sky; and the Moon's rising or setting where they split at it.
+ */
+export function galacticTurning(windows: readonly Pick<GalacticWindow, 'moon_up'>[]): ChipSubject {
+  return windows.some((w) => w.moon_up) && windows.some((w) => !w.moon_up) ? MOON_SUN_TURNING : SUN_TURNING;
 }
 
 const POINTS = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
@@ -650,7 +670,8 @@ export function lightRows(core: NightCore, f: Fmt): LightRow[] | null {
     kind: w.kind,
     period: w.period === 'evening' ? 'evening' : w.period === 'morning' ? 'morning' : 'other',
     label: w.kind === 'golden' ? 'Golden hour' : 'Blue hour',
-    range: `${w.open_start ? '…' : ''}${clock(w.jd_start, f)}–${clock(w.jd_end, f)}${w.open_end ? '…' : ''}`,
+    // Plain: the view puts the Sun's turning chip beside the time button (chip2).
+    range: `${w.open_start ? '…' : ''}${clockPlain(w.jd_start, f)}–${clockPlain(w.jd_end, f)}${w.open_end ? '…' : ''}`,
     jd: w.jd_start,
     minutes: w.duration_min,
   }));

@@ -44,10 +44,11 @@ import {
   type NightQuery,
 } from './data.js';
 import { COMING_SOURCES, groupByDay, mergeComing, type ComingItem, type ComingResult } from './coming.js';
-import { clock, clockPlain, dayTitle, type Fmt } from './format.js';
+import { chipAt, clock, clockPlain, dayTitle, MOON_TURNING, SUN_TURNING, type Fmt } from './format.js';
 import {
   dsoRows,
   featuresMoment,
+  galacticTurning,
   headerModel,
   relativeNight,
   lightRows,
@@ -62,8 +63,8 @@ import { showInSky } from '../sky/sky-link.js';
 import { datumWords, markDeclined, stationWhere, tideCard, tideHeight, tidesLoaded, TIDES_PACK, TIDES_REASON, type TideCard } from './tides.js';
 import { mayHaveTideStation } from './tide-cells.js';
 import { formatBytes } from '../packs/manifest.js';
-import { timelineModel, timelineView, type TimelineModel } from './timeline.js';
-import { chipNeeded, timeInfoForSpan, uncertaintyChip, type ChipInfo } from '../time/chip.js';
+import { momentSubject, timelineModel, timelineView, type TimelineModel } from './timeline.js';
+import { CLOCK, dtChip, INSTANT, timeInfoForSpan, turning, uncertaintyChip, type ChipSubject, type DtChip } from '../time/chip.js';
 import { formatCivilDate } from '../time/format.js';
 import { scaleLabel } from '../time/scale.js';
 import { UTC_ZONE, zoneShortName } from '../time.js';
@@ -110,7 +111,7 @@ export const SETTLE_MS = 200;
 /** While the time keeps moving (the time bar dragged, playback), a new night at least this often, ms. */
 export const MAX_WAIT_MS = 4000;
 
-function fmtWith(s: ExplorerState, dt: ChipInfo | null): Fmt {
+function fmtWith(s: ExplorerState, dt: Fmt['dt']): Fmt {
   return { zone: displayZone(s), angle: s.settings.angleFormat, units: s.settings.units, dt };
 }
 
@@ -131,13 +132,15 @@ function card(id: string, title: string, iconName: Parameters<typeof icon>[0]): 
 
 /**
  * A time that sets the explorer's time: the local clock, UTC (or UT outside 1972-2035) in its
- * name and tooltip, and time-ui's ±ΔT chip beside it when the night's times are uncertain.
+ * name and tooltip, and its ± chip beside it when what sets it (`subject`) carries enough of
+ * the Earth's rotation's uncertainty to show (chip2, time/chip.ts `dtChip`).
  */
-function timeButton(jd: number, f: Fmt, text?: string): HTMLElement {
+function timeButton(jd: number, f: Fmt, subject: ChipSubject, text?: string): HTMLElement {
   const local = text ?? clockPlain(jd, f);
   const utc = `${clockPlain(jd, { zone: UTC_ZONE })} ${scaleLabel(jd)}`;
   const b = h('button', { type: 'button', class: 'sft-time', 'data-jd': String(jd), title: `${local} · ${utc}: show this moment`, 'aria-label': `${local}, ${utc}. Show this moment.` }, local);
-  return chipNeeded(f.dt) ? h('span', { class: 'sft-timewrap' }, b, uncertaintyChip(f.dt)) : b;
+  const chip: DtChip | null = chipAt(jd, f, subject);
+  return chip?.shown ? h('span', { class: 'sft-timewrap' }, b, uncertaintyChip(chip)) : b;
 }
 
 /** `replaceChildren` that skips the parts a card leaves out. */
@@ -279,8 +282,15 @@ const view: Component = (host, ctx) => {
   let realNight: number | null = null;
   let catalog: readonly Dso[] | null = null;
   let constellations: Map<string, string> | null = null;
-  /** How to write things now: the settings, and the shown night's Earth-rotation uncertainty (time-ui's chip rule). */
-  const fmtOf = (s: ExplorerState): Fmt => fmtWith(s, core?.covered ? timeInfoForSpan(ctx, core.q.n, core.q.n + 1) : null);
+  /**
+   * How to write things now: the settings, and the shown night's ± chips (chip2): σ(ΔT) for
+   * the night, and what each time carries of it by what sets it (time/chip.ts `dtChip`).
+   */
+  const fmtOf = (s: ExplorerState): Fmt => {
+    if (!core?.covered) return fmtWith(s, null);
+    const info = timeInfoForSpan(ctx, core.q.n, core.q.n + 1);
+    return fmtWith(s, info ? (subject, jd) => dtChip(ctx, jd, subject, info) : null);
+  };
 
   const timers = new Set<ReturnType<typeof setTimeout>>();
   const later = (fn: () => void, ms = 0): void => {
@@ -311,8 +321,10 @@ const view: Component = (host, ctx) => {
     }
     const m = headerModel(core, detail, f, Date.now() / 86_400_000 + 2_440_587.5, realNight);
     kicker.textContent = m.kicker;
-    // The night's Earth-rotation uncertainty beside its date (time-ui's chip: shown only when it matters).
-    dateEl.replaceChildren(m.date, chipNeeded(f.dt) ? uncertaintyChip(f.dt) : '');
+    // The night's Earth-rotation uncertainty beside its date: the clock's own chip (chip2
+    // `CLOCK`, shown only at a far date); each time below carries what moves it.
+    const dateChip = chipAt(core.q.n + 0.5, f, CLOCK);
+    dateEl.replaceChildren(m.date, dateChip?.shown ? uncertaintyChip(dateChip) : '');
     tonightBtn.hidden = m.kicker === 'Tonight';
     summaryEl.replaceChildren(...m.sentences.map((t) => para(t, 'sft-lead')));
   };
@@ -333,7 +345,7 @@ const view: Component = (host, ctx) => {
     const terms = store.get().settings.navigatorTerms;
     tlMoments.replaceChildren(
       ...tlModel.moments.map((m) =>
-        h('li', { class: 'sft-moment', 'data-lane': m.lane }, timeButton(m.jd, f), h('span', {}, m.label, m.term && terms ? h('span', { class: 'sft-term' }, ` · ${m.term}`) : null)),
+        h('li', { class: 'sft-moment', 'data-lane': m.lane }, timeButton(m.jd, f, momentSubject(m)), h('span', {}, m.label, m.term && terms ? h('span', { class: 'sft-term' }, ` · ${m.term}`) : null)),
       ),
     );
   };
@@ -350,7 +362,7 @@ const view: Component = (host, ctx) => {
     const rows = h(
       'dl',
       { class: 'sft-rows' },
-      ...m.rows.flatMap((r) => [h('dt', {}, r.key), h('dd', { title: r.tip ?? '' }, r.jd !== undefined ? timeButton(r.jd, f, r.value) : r.value)]),
+      ...m.rows.flatMap((r) => [h('dt', {}, r.key), h('dd', { title: r.tip ?? '' }, r.jd !== undefined ? timeButton(r.jd, f, MOON_TURNING, r.value) : r.value)]),
     );
     const upClose = button({
       label: 'See it up close',
@@ -390,7 +402,7 @@ const view: Component = (host, ctx) => {
       ...m.rows.map((r) => {
         const open = h(
           'button',
-          { type: 'button', class: 'sft-row sft-row--button', 'data-body': r.body, title: `Show ${r.body} in the Sky view at ${clock(r.best.jd_utc, f)}` },
+          { type: 'button', class: 'sft-row sft-row--button', 'data-body': r.body, title: `Show ${r.body} in the Sky view at ${clock(r.best.jd_utc, f, turning(r.body, 'Sun'))}` },
           bodyGlyph(r.body, { kind: 'planet', size: 20 }),
           h('span', { class: 'sft-row__text' }, r.line),
           icon('chevron-right', { class: 'sft-row__go' }),
@@ -475,7 +487,7 @@ const view: Component = (host, ctx) => {
       icon: 'sky',
       size: 'sm',
       variant: 'secondary',
-      tip: `Open the Sky view at ${clock(r.best.jd_utc, f)}, when ${r.title.split(' · ')[0]} is best placed`,
+      tip: `Open the Sky view at ${clock(r.best.jd_utc, f, SUN_TURNING)}, when ${r.title.split(' · ')[0]} is best placed`,
       onClick: () => {
         pinAt(r.best.jd_utc);
         showInSky(ctx, { kind: 'deep_sky', id: r.id, label: r.title, ra_j2000_deg: r.ra_j2000_deg, dec_j2000_deg: r.dec_j2000_deg }, r.best.jd_utc);
@@ -520,7 +532,7 @@ const view: Component = (host, ctx) => {
                 icon: 'sky',
                 size: 'sm',
                 variant: 'secondary',
-                tip: `Open the Sky view at ${clock(r.best.jd_utc, f)} on the ${r.name}’ radiant`,
+                tip: `Open the Sky view at ${clock(r.best.jd_utc, f, SUN_TURNING)} on the ${r.name}’ radiant`,
                 onClick: () => {
                   const s = core?.tonight?.showers.find((x) => x.code === r.code);
                   if (!s) return;
@@ -550,6 +562,9 @@ const view: Component = (host, ctx) => {
     const m = milkyWayModel(core, f);
     if (!m) return void fill(body, isDeepSkyEngine(engine) ? para(core.errors[0] ?? 'Working out the Milky Way…', 'sft-p sft-muted') : missingText('sun tools and deep sky'));
     const best = m.best;
+    // chip2: the core's best moment lies inside darkness and, where the windows split at the
+    // Moon, its rising or setting.
+    const bestBy = galacticTurning(core.galactic?.windows ?? []);
     const plan = best
       ? button({
           label: 'Plan a photo',
@@ -566,7 +581,7 @@ const view: Component = (host, ctx) => {
           icon: 'sky',
           size: 'sm',
           variant: 'ghost',
-          tip: `Open the Sky view at ${clock(best.jd, f)}, looking ${compassPoint(best.az)}`,
+          tip: `Open the Sky view at ${clock(best.jd, f, bestBy)}, looking ${compassPoint(best.az)}`,
           onClick: () => {
             pinAt(best.jd);
             showInSky(ctx, { kind: 'direction', label: 'The Milky Way’s core', alt_deg: best.alt, az_deg: best.az }, best.jd);
@@ -576,7 +591,7 @@ const view: Component = (host, ctx) => {
     fill(
       body,
       para(m.headline, 'sft-p sft-lead2'),
-      best ? h('p', { class: 'sft-p' }, 'Best at ', timeButton(best.jd, f), `: ${best.text} (bearing ${bearing3(best.az)}).`) : null,
+      best ? h('p', { class: 'sft-p' }, 'Best at ', timeButton(best.jd, f, bestBy), `: ${best.text} (bearing ${bearing3(best.az)}).`) : null,
       ...m.lines.map((x) => para(x)),
       h('div', { class: 'sft-actions' }, plan, look),
     );
@@ -608,14 +623,17 @@ const view: Component = (host, ctx) => {
   };
 
   const comingItem = (i: ComingItem, f: Fmt): HTMLElement => {
+    // chip2: an item's time is an instant of the bodies' own motion unless its source says
+    // otherwise (a conjunction's best-seen moment).
+    const by = i.chip ?? INSTANT;
     const open = h(
       'button',
-      { type: 'button', class: 'sft-row sft-row--button', 'data-kind': i.kind, title: `Open Events at ${clock(i.jd, f)}` },
-      h('span', { class: 'sft-row__time' }, clock(i.jd, f)),
+      { type: 'button', class: 'sft-row sft-row--button', 'data-kind': i.kind, title: `Open Events at ${clock(i.jd, f, by)}` },
+      h('span', { class: 'sft-row__time' }, clock(i.jd, f, by)),
       h('span', { class: 'sft-row__text' }, h('strong', {}, i.title), i.detail ? h('span', { class: 'sft-muted' }, ` ${i.detail}`) : null),
       icon('chevron-right', { class: 'sft-row__go' }),
     );
-    // The time carries the night's ± uncertainty in its text when time-ui's rule asks for it (`clock`).
+    // The time carries its ± uncertainty in its text when it shows (`clock`, chip2).
     // Events opens on the list of the item's kind at its moment, with its card when it has
     // one (events/link.ts `showEvents`; polish2, list item 41: it opened whatever tab Events
     // remembered).
@@ -672,7 +690,8 @@ const view: Component = (host, ctx) => {
     const units = s.settings.units;
     const zone = f;
     const rows = t.extremes.map((e) =>
-      h('li', { class: 'sft-tide' }, timeButton(e.jd_utc, zone), h('span', {}, e.kind === 'high' ? 'High water' : 'Low water'), h('span', { class: 'sft-num' }, tideHeight(e.height_m, units))),
+      // High and low water follow the Moon's turning (chip2).
+      h('li', { class: 'sft-tide' }, timeButton(e.jd_utc, zone, MOON_TURNING), h('span', {}, e.kind === 'high' ? 'High water' : 'Low water'), h('span', { class: 'sft-num' }, tideHeight(e.height_m, units))),
     );
     fill(
       body,
@@ -716,7 +735,7 @@ const view: Component = (host, ctx) => {
             h(
               'ul',
               { class: 'sft-list' },
-              ...list.map((r) => h('li', { class: `sft-lightrow sft-lightrow--${r.kind}` }, h('span', { class: 'sft-swatch', 'data-kind': r.kind, 'aria-hidden': 'true' }), h('span', {}, r.label), timeButton(r.jd, f, r.range))),
+              ...list.map((r) => h('li', { class: `sft-lightrow sft-lightrow--${r.kind}` }, h('span', { class: 'sft-swatch', 'data-kind': r.kind, 'aria-hidden': 'true' }), h('span', {}, r.label), timeButton(r.jd, f, SUN_TURNING, r.range))),
             ),
           )
         : null;

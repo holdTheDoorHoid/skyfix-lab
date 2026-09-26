@@ -26,7 +26,7 @@ import {
 import { cellText, rowsToCsv, type CsvCell } from '../export/csv.js';
 import { displayZone, type ExplorerState } from '../state.js';
 import { isoUtc, roundToMinute, UTC_ZONE, zoneShortName, type Zone } from '../time.js';
-import { chipNeeded, scaleLabel, scaleReason, timeInfoAt, uncertaintyText, uncertaintyTip } from '../time/index.js';
+import { dtChip, INSTANT, scaleLabel, scaleReason, uncertaintyText, uncertaintyTip } from '../time/index.js';
 
 /** An event as every list, calendar file and table sees it. */
 export interface EventItem {
@@ -142,14 +142,15 @@ export function placeText(place: FilePlace, format: FileContext['format']): stri
 
 /**
  * What a calendar file says about an event's clock: UT outside 1972-2035 (a calendar reads
- * the file's times as UTC), and the uncertainty of the Earth's rotation when it counts.
+ * the file's times as UTC), and the uncertainty of the Earth's rotation when it counts. Every
+ * event here is an instant set by the bodies' own motion: the whole σ(ΔT) (chip2 `INSTANT`).
  */
 export function clockNote(engine: ExplorerEngine, jd: number): string {
   const parts: string[] = [];
   const reason = scaleReason(jd);
   if (reason) parts.push(`The time is Universal Time (UT), written as UTC in this file. ${reason}`);
-  const info = timeInfoAt(engine, jd);
-  if (chipNeeded(info)) parts.push(`Uncertain by ${uncertaintyText(info).slice(1)}: ${uncertaintyTip(info)}`);
+  const chip = dtChip(engine, jd, INSTANT);
+  if (chip?.shown) parts.push(`Uncertain by ${uncertaintyText(chip).slice(1)}: ${uncertaintyTip(chip)}`);
   return parts.join(' ');
 }
 
@@ -210,7 +211,7 @@ export function csvOfItems(
         item.kind,
         item.term ? `${item.title} (${item.term})` : item.title,
         item.end === null ? '' : second(item.end),
-        uncertaintyText(timeInfoAt(engine, item.start)),
+        uncertaintyText(dtChip(engine, item.start, INSTANT)),
         item.body ?? '',
         item.sentence,
         ...extra.map((name) => own.get(name) ?? ''),

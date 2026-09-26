@@ -21,7 +21,7 @@ import { h } from '../../../dom.js';
 import type { CorrectionKind, Observation, ReducedSight, Session } from '../../../types.js';
 import type { AngleFormat } from '../../state.js';
 import { isoUtc, jdFromIso } from '../../time.js';
-import { uncertaintyText, type ChipInfo } from '../../time/chip.js';
+import { uncertaintyText, type DtChip } from '../../time/chip.js';
 import { scaleLabel } from '../../time/scale.js';
 import { fmtAngle, fmtArcmin, fmtLatitude, fmtLongitude, fmtNm, utcInputText } from '../format.js';
 import { horizonSummary, KIND_TEXT, LIMB_TEXT, STEP_TEXT } from '../text.js';
@@ -35,10 +35,12 @@ export interface WorksheetInput {
   ghaAriesDeg: number | null;
   format?: AngleFormat;
   /**
-   * The engine's time information at the sight (time-ui `timeInfoAt`), for the ±ΔT the time
-   * carries when the Earth's rotation then is uncertain by more than 30 s; null or absent: none.
+   * The clock's ± chip at the sight (chip2 `CLOCK`: σ(ΔT) when over 30 s) and how far the
+   * body's place moves with it (`position(body)`), from time/chip.ts `dtChip`; null or
+   * absent: none.
    */
-  timeInfo?: ChipInfo | null;
+  clock?: DtChip | null;
+  place?: DtChip | null;
 }
 
 export interface WorksheetRow {
@@ -84,8 +86,13 @@ export function worksheetRows(input: WorksheetInput): WorksheetRow[] {
   const clockLog = sight.clock_correction_from_log;
   const watchAdded = clockLog ? clockLog.value : session.clock.correction_s;
   push(1, 'Watch correction, added', 'WE', `${watchAdded >= 0 ? '+' : '−'}${Math.abs(watchAdded).toFixed(1)} s`, clockLog ? 'from the watch log' : 'the known correction');
-  const u = uncertaintyText(input.timeInfo);
-  push(1, 'Time of the sight', scale, u ? `${corrected} ${scale} ${u}` : `${corrected} ${scale}`, u ? `the Earth’s rotation then is known only to ${u} (ΔT)` : undefined);
+  // chip2: the time is UT, the Earth's own clock: the uncertain rotation moves the body's place
+  // at that time (and so the line of position), not the time.
+  const u = uncertaintyText(input.clock);
+  const whose = sight.body === 'Sun' || sight.body === 'Moon' ? `the ${sight.body}’s` : `${sight.body}’s`;
+  const place = input.place;
+  const moved = place?.shown ? `, which moves ${whose} place by ${place.text}` : place?.rate === 0 ? ', which does not move a star’s place' : ', which moves this body’s place by under 0.1′';
+  push(1, 'Time of the sight', scale, u ? `${corrected} ${scale} ${u}` : `${corrected} ${scale}`, u ? `the Earth’s rotation then is known only to ${u} (ΔT)${moved}` : undefined);
 
   // 2. Altitude.
   const kind = KIND_TEXT[obs.altitude_kind];

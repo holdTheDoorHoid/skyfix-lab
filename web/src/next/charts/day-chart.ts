@@ -68,6 +68,7 @@ import { attachExport } from './export-menu.js';
 import { clamp, linearScale, pickStep, type LinearScale } from './scale.js';
 import { clockChangeIn, localDayAt, wallHours, zoneKey, type LocalDay } from './windows.js';
 import { scaleLabel } from '../time/scale.js';
+import { dtChip, position, timeInfoAt, uncertaintyChip } from '../time/chip.js';
 
 /** The altitude axis: fixed, so stepping through days never rescales it. */
 export const ALT_MIN = -30;
@@ -586,10 +587,15 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
     const bodies = visibleSeries().map((x) => x.body);
     const states = bodyStates(jd, bodies);
     const items: Node[] = [h('span', { class: 'sfc-readout-time' }, clockWithUtc(jd, zone))];
+    // chip2: at a far date a Sun's, Moon's or planet's place at the time shown carries how far the
+    // Earth's uncertain rotation moves it (time/chip.ts `position`: the Moon 1.5′ at 585 BC).
+    // Not while time runs faster than eight days a second: the numbers are a blur then.
+    const dayInfo = fastPlayback(s) ? null : timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5);
     for (const name of bodies) {
       const st = states.find((b) => b.body === name);
       if (!st) continue;
       const up = st.alt_apparent_deg > 0;
+      const place = dayInfo ? dtChip(ctx, jd, position(name), dayInfo) : null;
       items.push(
         h(
           'span',
@@ -598,6 +604,7 @@ export const dayChart: ChartComponent = (host, ctx, ui) => {
           name,
           h('strong', {}, altitude(st.alt_apparent_deg, s.settings.angleFormat)),
           h('span', { class: 'sfc-muted' }, bearing(st.az_deg)),
+          place?.shown ? uncertaintyChip(place) : null,
         ),
       );
     }

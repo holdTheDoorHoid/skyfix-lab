@@ -23,7 +23,7 @@ import {
   zoneShortName,
   type ZoneChoice,
 } from '../../src/next/time.js';
-import { chipNeeded, sigmaText, timeInfoAt, uncertaintyText, uncertaintyTip, withUncertainty } from '../../src/next/time/chip.js';
+import { chipOf, CLOCK, farDate, INSTANT, sigmaText, timeInfoAt, uncertaintyText, uncertaintyTip, withUncertainty } from '../../src/next/time/chip.js';
 import { LMT_BEFORE_JD, lmtOffsetMs, scaleAt, scaleLabel, UTC_SCALE_END_JD, UTC_SCALE_START_JD } from '../../src/next/time/scale.js';
 import {
   coverageBounds,
@@ -310,21 +310,21 @@ describe('the ±ΔT chip', () => {
     expect(sigmaText(40_000)).toBe('±11 h');
   });
 
-  it('shows above 30 s, and always in the labelled tier', () => {
-    expect(chipNeeded({ delta_t_sigma_s: 0.001, tier: 'validated' })).toBe(false);
-    expect(chipNeeded({ delta_t_sigma_s: 30, tier: 'validated' })).toBe(false);
-    expect(chipNeeded({ delta_t_sigma_s: 31, tier: 'validated' })).toBe(true);
-    expect(chipNeeded({ delta_t_sigma_s: 15, tier: 'labelled' })).toBe(true);
-    expect(chipNeeded(null)).toBe(false);
-    expect(uncertaintyText({ delta_t_sigma_s: 158.36, tier: 'outside' })).toBe('±3 min');
-    expect(withUncertainty('06:12', { delta_t_sigma_s: 158.36, tier: 'labelled' })).toBe('06:12 ±3 min');
-    expect(withUncertainty('06:12', { delta_t_sigma_s: 0.1, tier: 'validated' })).toBe('06:12');
-    expect(uncertaintyTip({ delta_t_sigma_s: 720, tier: 'labelled' })).toMatch(/^The Earth’s rotation at this date is known only to ±12 min/);
+  it('the clock’s chip shows above 30 s, and always in the labelled tier (chip2: CLOCK and INSTANT)', () => {
+    expect(farDate({ delta_t_sigma_s: 0.001, tier: 'validated' })).toBe(false);
+    expect(farDate({ delta_t_sigma_s: 30, tier: 'validated' })).toBe(false);
+    expect(farDate({ delta_t_sigma_s: 31, tier: 'validated' })).toBe(true);
+    expect(farDate({ delta_t_sigma_s: 15, tier: 'labelled' })).toBe(true);
+    expect(farDate(null)).toBe(false);
+    expect(uncertaintyText(chipOf({ delta_t_sigma_s: 158.36, tier: 'outside' }, INSTANT))).toBe('±3 min');
+    expect(withUncertainty('06:12', chipOf({ delta_t_sigma_s: 158.36, tier: 'labelled' }, INSTANT))).toBe('06:12 ±3 min');
+    expect(withUncertainty('06:12', chipOf({ delta_t_sigma_s: 0.1, tier: 'validated' }, INSTANT))).toBe('06:12');
+    expect(uncertaintyTip(chipOf({ delta_t_sigma_s: 720, tier: 'labelled' }, CLOCK))).toMatch(/^The Earth’s rotation at this date is known only to ±12 min/);
   });
 
   it('follows the engine’s ΔT: shown before about AD 700 and after about 2100', () => {
     const m = new MockEngine({ syntheticStars: 0 });
-    const shown = (iso: string): boolean => chipNeeded(timeInfoAt(m, jd(iso)));
+    const shown = (iso: string): boolean => farDate(timeInfoAt(m, jd(iso)));
     expect(shown('-0584-05-22T12:00:00Z')).toBe(true);
     expect(shown('1066-10-20T12:00:00Z')).toBe(false);
     expect(shown('2026-09-24T12:00:00Z')).toBe(false);

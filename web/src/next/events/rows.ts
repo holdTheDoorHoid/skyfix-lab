@@ -7,10 +7,9 @@
  */
 
 import { h } from '../../dom.js';
-import type { TimeInfo } from '../engine/types.js';
 import { dateMedium, dateShort, eventTime } from '../shell/format.js';
 import { roundToMinute, UTC_ZONE, type Zone } from '../time.js';
-import { scaleLabel, uncertaintyChip } from '../time/index.js';
+import { scaleLabel, uncertaintyChip, type DtChip } from '../time/index.js';
 import type { EventItem } from './items.js';
 import { progressText, type SearchState } from './search.js';
 
@@ -59,8 +58,8 @@ export interface RowOptions {
   /** Show the end time beside the start (an occultation, a transit). */
   showEnd?: boolean;
   onJump(): void;
-  /** The ±ΔT chip's information for the event's time (null: no chip). */
-  timeInfo?: TimeInfo | null;
+  /** The ± chip for the event's time (deeptime.ts `rowChip`; null: no chip). */
+  chip?: DtChip | null;
   /** The calendar button (addToCalendarButton). */
   add?: HTMLButtonElement | null;
   /** A second line of quiet detail under the sentence. */
@@ -99,7 +98,7 @@ export function eventRow(o: RowOptions): Row {
     : h('div', { class: 'sfe-ev2__main' }, title, words, detail);
   if (o.onSelect) main.addEventListener('click', o.onSelect);
   const when = timeButton(item.start, o.zone, item.title, o.onJump, { end: o.showEnd ? item.end : null });
-  const chip = uncertaintyChip(o.timeInfo ?? null);
+  const chip = uncertaintyChip(o.chip ?? null);
   const el = h(
     'li',
     {

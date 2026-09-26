@@ -37,7 +37,7 @@ import { bodyGlyph, moonPhaseName, phaseDisc } from '../theme/glyphs.js';
 import { icon } from '../theme/icons.js';
 import { kv, popover, section, swatch } from '../theme/primitives.js';
 import { UTC_ZONE, formatHours, wallClock, zoneShortName, type Zone } from '../time.js';
-import { rangeWords, scaleLabel, setUncertaintyChip, sightsOffered, sightsOnlyText, timeInfoAt, uncertaintyChip, validatedYears, type ChipInfo } from '../time/index.js';
+import { dtChip, INSTANT, placeLine, position, rangeWords, scaleLabel, setUncertaintyChip, sightsOffered, sightsOnlyText, timeInfoAt, timeInfoForSpan, turning, uncertaintyChip, validatedYears, type DtChip } from '../time/index.js';
 import { alignmentTool } from './alignment.js';
 import { distanceWords, moonTools } from './moon-tools.js';
 import { coordRow, lightTableView, magneticLine, milkyWayTool, Motion, outsideWords, Settler } from './photo.js';
@@ -65,7 +65,11 @@ interface Card {
   day: HTMLElement;
   utc: HTMLElement;
   where: HTMLElement;
-  /** The ±ΔT chip under the time, hidden unless the time carries an uncertainty (polish2). */
+  /**
+   * The ± chip under the time, hidden unless the time carries an uncertainty (polish2): a
+   * rising, highest point or setting is set by the Earth's turning, so it carries only the
+   * body's own share of σ(ΔT) (chip2: `turning`).
+   */
   dt: HTMLElement;
 }
 
@@ -88,7 +92,7 @@ function card(kind: 'rise' | 'transit' | 'set'): Card {
   return { el, title, time, day, utc, where, dt };
 }
 
-function fillCard(c: Card, title: string, e: SkyEvent | null, jd: number, zone: Zone, place: Zone, where: string, tip: string, none: string, dt: ChipInfo | null = null): void {
+function fillCard(c: Card, title: string, e: SkyEvent | null, jd: number, zone: Zone, place: Zone, where: string, tip: string, none: string, dt: DtChip | null = null): void {
   setText(c.title, title);
   setText(c.time, e ? eventTime(e.jd_utc, zone) : '—');
   setUncertaintyChip(c.dt, e ? dt : null);
@@ -183,6 +187,11 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       mag.el,
     ),
   );
+  // chip2: the body's place at the time shown moves with the Earth's uncertain rotation (the
+  // Moon's 1.5′ at 585 BC, 34′ at 2000 BC): one line under the readouts, and one under the
+  // navigator's figures, at far dates (time/chip.ts `position`).
+  const place = placeLine();
+  const detailsPlace = placeLine();
   const cards = { rise: card('rise'), transit: card('transit'), set: card('set') };
   const cardRow = h('div', { class: 'sf-evcards' }, cards.rise.el, cards.transit.el, cards.set.el);
   const extras = h('div', { class: 'sf-selected__extras' });
@@ -214,6 +223,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     { class: 'sf-details', 'data-term': '' },
     h('summary', {}, 'Navigator’s details', icon('chevron-down')),
     detailsGrid,
+    detailsPlace.el,
     predictBox,
     detailsNote,
   ) as HTMLDetailsElement;
@@ -230,7 +240,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
   /** Whether the last render was during fast playback (verify2). */
   let wasFast = false;
   for (const tool of [when, align, milky, light, moon]) d.add(() => tool.destroy());
-  sec.body.append(status, readouts, cardRow, extras, magRow, coords.el, sights, when.el, align.el, milky.el, details);
+  sec.body.append(status, readouts, place.el, cardRow, extras, magRow, coords.el, sights, when.el, align.el, milky.el, details);
 
   // --- extras per kind, rebuilt when the body or the day changes ----------------------
   let extrasKey = '';
@@ -242,6 +252,9 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     const zone = displayZone(s);
     const today = sunToday(ctx, s);
     const day = today ? sunDay(today.sun?.events ?? [], today.window[0], today.window[1]) : null;
+    // chip2: twilight is set by the Earth's turning: the Sun's share of σ(ΔT), under a second
+    // except before about 850 BC and after about AD 2400 (time/chip.ts `turning`).
+    const twilightChip = uncertaintyChip(today ? dtChip(ctx, (today.window[0] + today.window[1]) / 2, turning('Sun'), timeInfoForSpan(ctx, today.window[0], today.window[1])) : null);
     const row = (name: string, phase: 'civil' | 'nautical' | 'astronomical', pair: [SkyEvent | null, SkyEvent | null] | undefined, highlight: boolean): HTMLElement =>
       h(
         'tr',
@@ -285,7 +298,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
         h(
           'table',
           { class: 'sf-table' },
-          h('thead', {}, h('tr', {}, h('th', {}, 'Twilight'), h('th', { class: 'sf-num-r' }, 'Dawn'), h('th', { class: 'sf-num-r' }, 'Dusk'))),
+          h('thead', {}, h('tr', {}, h('th', {}, 'Twilight ', twilightChip), h('th', { class: 'sf-num-r' }, 'Dawn'), h('th', { class: 'sf-num-r' }, 'Dusk'))),
           h('tbody', {}, row('Civil', 'civil', day?.civil, false), row('Nautical', 'nautical', day?.nautical, true), row('Astronomical', 'astronomical', day?.astronomical, false)),
         ),
       ),
@@ -324,6 +337,8 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     const name = h('p', { class: 'sf-moon__name' });
     const lit = h('p', { class: 'sf-moon__lit' });
     const next = h('p', { class: 'sf-moon__next' });
+    // chip2: a phase is an instant of the Moon's own motion: the whole σ(ΔT) (`INSTANT`).
+    const nextChip = uncertaintyChip(null);
     const distValue = h('span', {});
     const distWords = h('p', { class: 'sf-photo__sub' });
     extras.replaceChildren(
@@ -347,8 +362,9 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
         ...(story.age !== null ? [' · ', h('span', { class: 'sf-num' }, story.age.toFixed(1)), ' days old'] : []),
       );
       next.replaceChildren(
-        ...(story.next ? [`${PHASE_WORDS[story.next.kind]} `, h('span', { class: 'sf-num' }, `${dateShort(story.next.jd_utc, zone)}, ${eventTime(story.next.jd_utc, zone)}`)] : []),
+        ...(story.next ? [`${PHASE_WORDS[story.next.kind]} `, h('span', { class: 'sf-num' }, `${dateShort(story.next.jd_utc, zone)}, ${eventTime(story.next.jd_utc, zone)}`), ' ', nextChip] : []),
       );
+      setUncertaintyChip(nextChip, story.next ? dtChip(ctx, story.next.jd_utc, INSTANT) : null);
       setText(distValue, formatDistance(b.distance_km, st.settings.units));
       setText(distWords, b.distance_km === null ? '' : `${distanceWords(b.distance_km).replace(/^./, (c) => c.toUpperCase())}.`);
     };
@@ -514,6 +530,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
         !covered(ctx, jd) ? `Not computed: ${outsideWords(ctx, 'this moment')}` : missing ? `Not computed: ${missing}.` : 'Not computed at this time.',
       );
       readouts.hidden = true;
+      place.set(null);
       cardRow.hidden = true;
       extras.hidden = true;
       magRow.hidden = true;
@@ -540,6 +557,11 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     status.hidden = up;
     if (!up) setText(status, 'Below the horizon now.');
 
+    // Not while time runs faster than eight days a second: the numbers are a blur then, and a
+    // view asks the engine only for what it draws (verify2); the chip returns as time slows.
+    const placeChip = fast ? null : dtChip(ctx, jd, position(name), timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5));
+    place.set(placeChip);
+    detailsPlace.set(placeChip);
     setText(altValue, formatAngle(b.alt_apparent_deg, f, 'coarse'));
     setText(azValue, formatAzimuth(b.az_deg, f, 'coarse'));
     // With seconds the readouts step down a size (components.css) instead of wrapping.
@@ -561,7 +583,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       passage.rise ? `${bearing3(passage.rise.az_deg)} ${compassPoint(passage.rise.az_deg)}` : '',
       `Where the ${name} rises: its direction along the horizon`,
       alwaysUp ? 'Stays up' : alwaysDown ? 'Does not rise' : '—',
-      passage.rise ? timeInfoAt(ctx, passage.rise.jd_utc) : null,
+      passage.rise ? dtChip(ctx, passage.rise.jd_utc, turning(name)) : null,
     );
     fillCard(
       cards.transit,
@@ -573,7 +595,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       passage.transit ? `${formatAngle(transitHeight(passage.transit), f, 'coarse')} ${compassPoint(passage.transit.az_deg)}` : '',
       name === 'Sun' ? 'Highest in the sky, on the meridian: local noon, the moment for a noon sight' : `Highest in the sky, on the meridian (the ${name}’s transit)`,
       '—',
-      passage.transit ? timeInfoAt(ctx, passage.transit.jd_utc) : null,
+      passage.transit ? dtChip(ctx, passage.transit.jd_utc, turning(name)) : null,
     );
     fillCard(
       cards.set,
@@ -585,7 +607,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
       passage.set ? `${bearing3(passage.set.az_deg)} ${compassPoint(passage.set.az_deg)}` : '',
       `Where the ${name} sets: its direction along the horizon`,
       alwaysUp ? 'Stays up' : alwaysDown ? 'Does not rise' : '—',
-      passage.set ? timeInfoAt(ctx, passage.set.jd_utc) : null,
+      passage.set ? dtChip(ctx, passage.set.jd_utc, turning(name)) : null,
     );
 
     // Extras
@@ -612,7 +634,7 @@ export function selectedSection(ctx: Ctx): { el: HTMLElement; destroy(): void } 
     align.el.hidden = b.kind !== 'sun' && b.kind !== 'moon';
     if (!align.el.hidden) align.update(s, name);
     if (!fast) milky.update(s, moving);
-    coords.update(b, s);
+    coords.update(b, s, placeChip);
     if (!fast) mag.update(b, s, a);
 
     setText(magValue, formatMagnitude(b.magnitude));

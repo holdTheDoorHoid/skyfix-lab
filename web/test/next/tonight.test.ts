@@ -18,7 +18,8 @@ import { jdFromIso, UTC_ZONE, type Zone } from '../../src/next/time.js';
 import { COMING_SOURCES, conjunctionTitle, mergeComing, occultationItem, yearsOf, type ComingItem, type ComingResult } from '../../src/next/tonight/coming.js';
 import { eventIds, eventsRequests, eventsTargetFor, showEvents } from '../../src/next/events/link.js';
 import { chooseNight, darknessOf, loadCore, loadDetail, nightQuery, queryKey, stepNightTime, sunWindow, type NightCore } from '../../src/next/tonight/data.js';
-import { clock, clockRange, degrees, duration, percentLit, type Fmt } from '../../src/next/tonight/format.js';
+import { clock, clockPlain, clockRange, degrees, duration, MOON_SUN_TURNING, percentLit, SUN_TURNING, type Fmt } from '../../src/next/tonight/format.js';
+import { INSTANT, turning } from '../../src/next/time/chip.js';
 import {
   darknessSentence,
   dsoRows,
@@ -221,7 +222,7 @@ describe('the night’s numbers are the engine’s', () => {
   it('says when it is dark, to the minute of the engine’s darkness', () => {
     const d = t.night.darkness!;
     expect(darknessOf(core)).toEqual({ kind: d.kind, start: d.start.jd_utc, end: d.end.jd_utc, hours: d.hours });
-    expect(darknessSentence(core, F)).toBe(`Clear-sky darkness ${clockRange(d.start.jd_utc, d.end.jd_utc, F)} (${duration(d.end.jd_utc - d.start.jd_utc)}).`);
+    expect(darknessSentence(core, F)).toBe(`Clear-sky darkness ${clockRange(d.start.jd_utc, d.end.jd_utc, F, SUN_TURNING)} (${duration(d.end.jd_utc - d.start.jd_utc)}).`);
   });
 
   it('gives the Moon’s light and its rises and sets from the engines', () => {
@@ -268,7 +269,7 @@ describe('the night’s numbers are the engine’s', () => {
     const golden = core.sunHours!.windows.filter((w) => w.kind === 'golden');
     expect(tl.light.filter((l) => l.kind === 'golden').length).toBe(golden.filter((w) => w.jd_end > a && w.jd_start < b).length);
     expect(tl.ticks.every((k) => k.jd >= a && k.jd < b)).toBe(true);
-    expect(tl.summary).toContain(`Sunset ${clock(set.jd_utc, F)}`);
+    expect(tl.summary).toContain(`Sunset ${clock(set.jd_utc, F, SUN_TURNING)}`);
   });
 
   it('lists golden and blue hours as the sun tools gave them', () => {
@@ -277,7 +278,7 @@ describe('the night’s numbers are the engine’s', () => {
     rows.forEach((r, i) => {
       const w = core.sunHours!.windows[i]!;
       expect(r.jd).toBe(w.jd_start);
-      expect(r.range).toContain(clock(w.jd_start, F));
+      expect(r.range).toContain(clockPlain(w.jd_start, F));
       expect(r.label).toBe(w.kind === 'golden' ? 'Golden hour' : 'Blue hour');
     });
   });
@@ -286,7 +287,7 @@ describe('the night’s numbers are the engine’s', () => {
     const m = milkyWayModel(core, F)!;
     const ws = core.galactic!.windows;
     if (ws.length) {
-      for (const w of ws) expect(m.headline).toContain(clockRange(w.jd_start, w.jd_end, F));
+      for (const w of ws) expect(m.headline).toContain(clockRange(w.jd_start, w.jd_end, F, MOON_SUN_TURNING));
       const best = ws.reduce((x, w) => (w.best.alt_deg > x.best.alt_deg ? w : x), ws[0]!);
       expect(m.best!.jd).toBe(best.best.jd_utc);
       expect(m.best!.text).toContain(degrees(best.best.alt_apparent_deg));
@@ -302,7 +303,7 @@ describe('the night’s numbers are the engine’s', () => {
     expect(rows.map((r) => r.id)).toEqual(t.deep_sky.map((d) => d.id));
     rows.forEach((r, i) => {
       const d = t.deep_sky[i]!;
-      expect(r.when).toContain(clock(d.best.jd_utc, F));
+      expect(r.when).toContain(clock(d.best.jd_utc, F, SUN_TURNING));
       expect(r.when).toContain(degrees(d.best.alt_deg));
       expect(r.when).toContain(`${d.hours_above_20.toFixed(1)} h above 20°`);
       expect(r.description).toBe(catalog.find((c) => c.id === d.id)?.description ?? null);
@@ -315,7 +316,7 @@ describe('the night’s numbers are the engine’s', () => {
     rows.forEach((r, i) => {
       const s = t.showers[i]!;
       expect(r.rate).toContain(`ZHR ${Math.round(s.zhr)}`);
-      if (s.best) expect(r.when).toContain(clock(s.best.jd_utc, F));
+      if (s.best) expect(r.when).toContain(clock(s.best.jd_utc, F, SUN_TURNING));
       expect(r.reason).toBe(s.reason);
     });
   });
@@ -356,17 +357,17 @@ describe('planets: when and where, from the engine’s ranking', () => {
     expect(planetWhen(planets[0]!, w, F)).toBe('all night');
     expect(planetWhen(planets[2]!, w, F)).toBe('in the evening');
     expect(planetWhen(planets[3]!, w, F)).toBe('in the morning');
-    expect(planetWhen(planets[4]!, w, F)).toBe(`from ${clock(mid - 0.1, F)}`);
+    expect(planetWhen(planets[4]!, w, F)).toBe(`from ${clock(mid - 0.1, F, turning(planets[4]!.body, 'Sun'))}`);
     expect(planetsSentence(core, F)).toBe('Planets: Jupiter and Saturn all night; Venus in the evening; Mars in the morning.');
   });
 
   it('writes each planet’s line from its best moment and magnitude', () => {
     const line = planetLine(core, planets[0]!, F);
     expect(line).toMatch(/^Jupiter, east, /);
-    expect(line).toContain(`highest ${clock(mid, F)} at 61°`);
+    expect(line).toContain(`highest ${clock(mid, F, turning('Jupiter', 'Sun'))} at 61°`);
     expect(line).toContain('magnitude −2.7');
     // At the window's end the planet is still climbing: the line says so.
-    expect(planetLine(core, planets[3]!, F)).toContain(`61° up by ${clock(w[1], F)}, as dawn comes`);
+    expect(planetLine(core, planets[3]!, F)).toContain(`61° up by ${clock(w[1], F, turning(planets[3]!.body, 'Sun'))}, as dawn comes`);
     const m = planetsModel(core, null, F)!;
     expect(m.rows.map((r) => r.body)).toEqual(['Jupiter', 'Saturn', 'Venus', 'Mars', 'Uranus']);
     expect(m.others).toBe('Not up in the dark tonight: Mercury.');
@@ -433,14 +434,14 @@ describe('the events of a night, in words for this place', () => {
       events: [],
     } as unknown as NonNullable<typeof detail>['eclipses'][number]['local'];
     const text = eclipseSentence({ ...detail, eclipses: [{ eclipse: solar, local }] }, F)!;
-    expect(text).toBe(`A partial eclipse of the Sun, at its most at ${clock(2461265.2457883, F)}: 7% of the Sun covered here (total elsewhere). Never look at the Sun without proper eye protection.`);
+    expect(text).toBe(`A partial eclipse of the Sun, at its most at ${clock(2461265.2457883, F, INSTANT)}: 7% of the Sun covered here (total elsewhere). Never look at the Sun without proper eye protection.`);
     // Not seen from here: not in the night's words.
     const away = { ...local!, visibility: 'none' } as typeof local;
     expect(eclipseSentence({ ...detail, eclipses: [{ eclipse: solar, local: away }] }, F)).toBeNull();
     const lunar = { kind: 'lunar', id: '2026-08-28-lunar', type: 'partial' } as unknown as typeof solar;
     const seen = { kind: 'lunar', visibility: 'visible', events: [{ kind: 'max', jd_utc: 2461280.6756 }] } as unknown as typeof local;
     expect(eclipseSentence({ ...detail, eclipses: [{ eclipse: lunar, local: seen }] }, F)).toBe(
-      `A partial eclipse of the Moon tonight, greatest at ${clock(2461280.6756, F)}, seen from here from start to end.`,
+      `A partial eclipse of the Moon tonight, greatest at ${clock(2461280.6756, F, INSTANT)}, seen from here from start to end.`,
     );
   });
 
@@ -608,7 +609,7 @@ describe('show in Sky', () => {
 describe('the explorer’s UTC zone', () => {
   it('writes times in the display zone', () => {
     const t = jd('2026-09-25T02:30:00Z');
-    expect(clock(t, F)).toBe('22:30');
-    expect(clock(t, { ...F, zone: UTC_ZONE })).toBe('02:30');
+    expect(clock(t, F, INSTANT)).toBe('22:30');
+    expect(clock(t, { ...F, zone: UTC_ZONE }, INSTANT)).toBe('02:30');
   });
 });

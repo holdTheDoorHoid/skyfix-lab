@@ -9,7 +9,7 @@ import { disposer, watch, type Ctx } from '../component.js';
 import type { PhaseSegment, SkyPhase } from '../engine/types.js';
 import { aroundToday, dayOf, setAttr, setText, skySelected } from '../shell/derived.js';
 import { dateShort, eventTime as clockTime, otherDay, relative } from '../shell/format.js';
-import { timeInfoAt, uncertaintyText } from '../time/chip.js';
+import { dtChip, timeInfoAt, turning, uncertaintyText } from '../time/chip.js';
 import { sightsOffered, sightsOnlyText } from '../time/tier.js';
 import { PHASE_LABEL, PHASE_MEANING, skyFacts, type SkyFacts } from '../shell/sky.js';
 import { displayZone, eventOptions, shallowEqual } from '../state.js';
@@ -33,7 +33,8 @@ function span(seg: PhaseSegment, ref: number, zone: Zone, dt = ''): string {
 
 /**
  * The sentence under the phase: what it means, and when star sights come. `dt` is the
- * uncertainty written after every time (" ±3 min", time-ui's rule; '' when none is needed).
+ * uncertainty written after every time (" ±11 s"; '' when none is needed): twilight and
+ * sunrise are set by the Earth's turning, so they carry the Sun's share of σ(ΔT) (chip2).
  */
 export function meaning(f: SkyFacts, jd: number, zone: Zone, dt = ''): (string | Node)[] {
   const strong = (text: string): Node => h('strong', {}, text);
@@ -103,8 +104,11 @@ export function nowSection(ctx: Ctx): { el: HTMLElement; destroy(): void } {
       chipIcon.replaceChildren(icon(PHASE_ICON[facts.phase]));
       lastIcon = facts.phase;
     }
-    // Far from today every clock time carries the Earth's rotation's uncertainty (polish2).
-    const parts = meaning(facts, jd, zone, uncertaintyText(timeInfoAt(ctx, jd)) ? ` ${uncertaintyText(timeInfoAt(ctx, jd))}` : '');
+    // Far from today a time carries the part of the Earth's rotation's uncertainty that moves
+    // it (polish2; chip2: twilight and sunrise are the Sun's turning, σ for the day).
+    // No times are written while time runs faster than eight days a second (no phases then).
+    const dt = around ? uncertaintyText(dtChip(ctx, jd, turning('Sun'), timeInfoAt(ctx, Math.floor(jd - 0.5) + 0.5))) : '';
+    const parts = meaning(facts, jd, zone, dt ? ` ${dt}` : '');
     // "Sun sights are possible now" is the sky's word; outside the validated years the
     // explorer offers none, and says so here too (verify2).
     if (!sightsOffered(ctx, jd)) parts.push(` ${sightsOnlyText(ctx)}`);

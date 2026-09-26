@@ -10,13 +10,16 @@
  *                mean time.
  * - `tier.ts`    `tierAt` (validated / labelled / outside), the coverage bounds, the
  *                notices' sentences, the pack a date needs (none ships today).
- * - `chip.ts`    the ±ΔT chip (`uncertaintyChip`, `setUncertaintyChip`,
- *                `uncertaintyText`) and a cheap `timeInfoAt`.
+ * - `chip.ts`    the ± chip: `dtChip` works out how much the uncertain Earth rotation
+ *                moves a quantity (the clock, an instant, a turning time, a place: chip2,
+ *                CONVENTIONS 15.2); `uncertaintyChip`, `setUncertaintyChip`,
+ *                `uncertaintyText` draw it; a cheap `timeInfoAt`.
  * - `zones.ts`   words about a zone: `lmtReason` (local mean time before 1850) and
  *                `zoneTooltip` (with the tz database's caution before 1970).
  *
  * Rules for views (brief2-wave2-common): show every time through the display calendar
- * (`wallClock`, `formatCivilDate`); put the chip beside any time shown; never offer sights
+ * (`wallClock`, `formatCivilDate`); put the chip `dtChip` gives beside a time or a place
+ * shown (the clock, an instant, a turning time or a place: never σ by hand); never offer sights
  * outside the validated tier (`sightsOffered`, `sightsOnlyText`); call
  * `ctx.packs.ensure(pack.name, packReason(jd, ctx, pack))` before asking the engine for a
  * date only a pack covers (`packForDate`; since the deeptime merge no pack does).

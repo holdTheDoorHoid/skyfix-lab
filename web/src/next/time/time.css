@@ -27,6 +27,18 @@
   display: none;
 }
 
+/* "At this date its place is known to ±1.5′": a place's chip on its own line (chip2). */
+.sf-dt-place {
+  margin: 0 0 8px;
+  color: var(--ui-ink-2);
+  font-size: var(--text-xs);
+  line-height: 17px;
+}
+
+.sf-dt-place[hidden] {
+  display: none;
+}
+
 /* In the labelled tier the chip's edge takes the caution colour: an estimate. */
 .sf-dt-chip[data-tier='labelled'] {
   border-color: var(--caution);
